@@ -1,43 +1,20 @@
-# ---- Python ----
+# Python
 __pycache__/
 *.py[cod]
-*.pyd
 *.so
-*.egg-info/
-.eggs/
-build/
-dist/
-
-# ---- Virtual env (uv) ----
-.venv/
-venv/
-ENV/
-.env
-.env.*
-
-# ---- Tools ----
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-.coverage
-htmlcov/
-.cache/
-.ipynb_checkpoints/
 
-# ---- OS / Editor ----
+# venv
+.venv/
+
+# OS / editor
 .DS_Store
-Thumbs.db
 .vscode/
 .idea/
 
-# ---- Project artifacts ----
-data/
+# Project artifacts
 outputs/
 logs/
-tmp/
-
-# ---- Data (default ignore) ----
 data/
-# 例外で追跡したい場合:
-# !data/sample/
-# !data/sample/**
