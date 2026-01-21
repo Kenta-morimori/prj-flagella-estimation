@@ -1,2 +1,22 @@
 data:
   data_dir: "data/sample1.mp4"
+
+tracking_butt:
+  # Phase1: butt estimation
+  butt_estimation:
+    method: "velocity_alignment"  # 固定でOK（Phase1）
+    smooth_window: 5              # 反転チラつき抑制
+    freeze_speed_thresh: 0.5      # px/frame
+
+    # 尻推定に使用/ログ出力する特徴量（列挙）
+    features:
+      - speed
+      - vel_axis_dot
+      - heading_change
+
+  # 保存系
+  save:
+    contour: false   # デフォルトfalse
+
+# NOTE: Phase2/3 (flagella inference) will likely reuse some of the same features.
+#       Keep feature names consistent across tasks.
