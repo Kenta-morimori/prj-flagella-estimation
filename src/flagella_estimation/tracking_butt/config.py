@@ -79,11 +79,13 @@ class Config:
 
 
 def _get(dict_obj: dict[str, Any], key: str, default: Any) -> Any:
+    """Return dict value with fallback, treating None as missing."""
     value = dict_obj.get(key, default)
     return value if value is not None else default
 
 
 def load_config(path: Path) -> Config:
+    """Load YAML config and build strongly-typed config dataclasses."""
     raw: dict[str, Any] = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
 
     data_raw = raw.get("data", {}) or {}
@@ -149,6 +151,22 @@ def load_config(path: Path) -> Config:
 
 
 def with_save_contour(config: Config, enabled: bool) -> Config:
+    """Return a copy of config with save.contour toggled."""
     updated_save = replace(config.tracking_butt.save, contour=enabled)
     updated_tb = replace(config.tracking_butt, save=updated_save)
     return replace(config, tracking_butt=updated_tb)
+
+
+def apply_overrides(config: Config, overrides: dict[str, Any]) -> Config:
+    """Apply shallow overrides (e.g., data.video_path) to a Config."""
+    cfg = config
+    data_over = overrides.get("data", {})
+    if data_over:
+        kwargs: dict[str, Any] = {}
+        if "video_path" in data_over:
+            kwargs["video_path"] = Path(data_over["video_path"])
+        if "fps" in data_over:
+            kwargs["fps"] = float(data_over["fps"])
+        if kwargs:
+            cfg = replace(cfg, data=replace(cfg.data, **kwargs))
+    return cfg

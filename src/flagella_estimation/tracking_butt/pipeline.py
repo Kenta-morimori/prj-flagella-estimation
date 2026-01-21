@@ -10,7 +10,12 @@ import pandas as pd
 
 from flagella_estimation.core.run_context import init_run
 from flagella_estimation.tracking_butt.butt_estimator import ButtEstimator
-from flagella_estimation.tracking_butt.config import DetectionConfig, load_config, with_save_contour
+from flagella_estimation.tracking_butt.config import (
+    DetectionConfig,
+    apply_overrides,
+    load_config,
+    with_save_contour,
+)
 from flagella_estimation.tracking_butt.detector import detect_frame
 from flagella_estimation.tracking_butt.features import FeatureComputer
 from flagella_estimation.tracking_butt.overlay import OverlayRenderer
@@ -19,15 +24,18 @@ from flagella_estimation.tracking_butt.types import ButtEstimate, TrackUpdate
 
 
 def _write_json(path: Path, data: Dict[str, Any]) -> None:
+    """Write JSON with UTF-8 and pretty indent."""
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def _init_video_writer(path: Path, width: int, height: int, fps: float) -> cv2.VideoWriter:
+    """Create an mp4 writer for overlay output."""
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     return cv2.VideoWriter(str(path), fourcc, fps, (width, height))
 
 
 def _butt_record(butt: ButtEstimate) -> Dict[str, float | bool]:
+    """Convert butt estimate to JSON-serializable dict."""
     return {
         "x": float(butt.point[0]),
         "y": float(butt.point[1]),
@@ -39,12 +47,14 @@ def _butt_record(butt: ButtEstimate) -> Dict[str, float | bool]:
 
 
 def _save_contour(contour_dir: Path, frame_idx: int, track_id: int, contour: np.ndarray) -> None:
+    """Save contour to npy in configured directory."""
     contour_dir.mkdir(parents=True, exist_ok=True)
     fname = contour_dir / f"frame_{frame_idx:06d}_track_{track_id:04d}.npy"
     np.save(fname, contour[:, 0, :])
 
 
 def _prepare_track_row(update: TrackUpdate, features: Dict[str, float]) -> Dict[str, Any]:
+    """Build one row of track.csv."""
     row = {
         "frame": update.frame_idx,
         "track_id": update.track_id,
@@ -72,6 +82,7 @@ def _process_frames(
     contour_dir: Path | None,
     logger,
 ) -> tuple[List[Dict[str, Any]], Dict[int, Dict[int, Dict[str, float | bool]]]]:
+    """Process all frames: detection, tracking, butt estimation, overlay."""
     track_rows: List[Dict[str, Any]] = []
     butt_store: Dict[int, Dict[int, Dict[str, float | bool]]] = {}
 
@@ -106,8 +117,15 @@ def _process_frames(
     return track_rows, butt_store
 
 
-def run_tracking_butt(config_path: Path, save_contour_flag: bool = False) -> None:
+def run_tracking_butt(
+    config_path: Path,
+    save_contour_flag: bool = False,
+    overrides: Dict[str, Any] | None = None,
+) -> None:
+    """Main entrypoint for tracking + butt estimation."""
     cfg = load_config(config_path)
+    if overrides:
+        cfg = apply_overrides(cfg, overrides)
     if save_contour_flag:
         cfg = with_save_contour(cfg, True)
 

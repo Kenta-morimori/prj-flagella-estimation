@@ -36,6 +36,7 @@ class Tracker:
         self._next_id = 0
 
     def _active_tracks(self, frame_idx: int) -> Dict[int, TrackState]:
+        """Return tracks that are still considered active (not expired)."""
         return {
             tid: st
             for tid, st in self.tracks.items()
@@ -43,6 +44,7 @@ class Tracker:
         }
 
     def step(self, frame_idx: int, detections: List[Detection]) -> List[TrackUpdate]:
+        """Assign detections to tracks and produce per-frame updates."""
         active_tracks = self._active_tracks(frame_idx)
 
         pairs: list[tuple[float, int, int]] = []
@@ -124,6 +126,7 @@ class Tracker:
         return updates
 
     def qc_summary(self) -> Dict[int, Dict[str, float]]:
+        """Summarize QC stats for each track."""
         summary: Dict[int, Dict[str, float]] = {}
         for t_id, state in self.tracks.items():
             summary[t_id] = {

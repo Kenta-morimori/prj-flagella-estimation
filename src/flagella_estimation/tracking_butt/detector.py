@@ -12,6 +12,7 @@ from flagella_estimation.tracking_butt.types import Detection
 def _fit_ellipse(
     contour: np.ndarray,
 ) -> tuple[float, float, float, float, float] | None:
+    """Fit an ellipse to a contour, returning center, axes, angle or None."""
     if len(contour) < 5:
         return None
     ellipse = cv2.fitEllipse(contour)
@@ -24,6 +25,7 @@ def _fit_ellipse(
 
 
 def _apply_preprocess(gray: np.ndarray, cfg: DetectionConfig) -> np.ndarray:
+    """Apply background correction according to config."""
     if cfg.preprocess.method == "tophat":
         k = max(3, cfg.preprocess.kernel_size | 1)
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
@@ -36,6 +38,7 @@ def _apply_preprocess(gray: np.ndarray, cfg: DetectionConfig) -> np.ndarray:
 
 
 def _threshold_image(processed: np.ndarray, cfg: DetectionConfig, invert: bool) -> np.ndarray:
+    """Threshold preprocessed image using Otsu or adaptive; allows inversion."""
     if cfg.threshold.method == "adaptive":
         block_size = max(3, cfg.threshold.block_size | 1)
         return cv2.adaptiveThreshold(
@@ -53,6 +56,7 @@ def _threshold_image(processed: np.ndarray, cfg: DetectionConfig, invert: bool) 
 
 
 def _touches_border(bbox: tuple[int, int, int, int], width: int, height: int) -> bool:
+    """Return True if bbox touches two or more image borders."""
     x, y, w, h = bbox
     margin = 1
     touch_left = x <= margin
@@ -64,6 +68,7 @@ def _touches_border(bbox: tuple[int, int, int, int], width: int, height: int) ->
 
 
 def _max_area_limit(cfg: DetectionConfig, image_area: float) -> float | None:
+    """Compute maximum allowed area from px and frac limits."""
     candidates = []
     if cfg.filter.max_area_px:
         candidates.append(cfg.filter.max_area_px)
@@ -82,6 +87,7 @@ def _filter_and_build(
     width: int,
     height: int,
 ) -> tuple[List[Detection], Dict[str, int]]:
+    """Filter contours by size/border and build Detection objects."""
     stats: Dict[str, int] = {"total": len(contours), "kept": 0}
     max_area = _max_area_limit(cfg, image_area=float(width * height))
     detections: List[Detection] = []
@@ -162,6 +168,7 @@ def _detect_once(
     invert: bool,
     logger,
 ) -> tuple[List[Detection], Dict[str, int]]:
+    """Run preprocessing, thresholding, contour extraction once."""
     processed = _apply_preprocess(gray, cfg)
     thr = _threshold_image(processed, cfg, invert=invert)
     contours, _ = cv2.findContours(thr, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -182,6 +189,7 @@ def detect_frame(
     cfg: DetectionConfig,
     logger,
 ) -> List[Detection]:
+    """Detect multiple cells in a frame with optional invert fallback."""
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
     invert_flag = bool(cfg.threshold.invert)
 

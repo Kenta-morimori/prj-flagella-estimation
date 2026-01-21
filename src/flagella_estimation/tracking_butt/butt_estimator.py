@@ -29,6 +29,7 @@ class ButtEstimator:
         self.states: Dict[int, ButtState] = {}
 
     def estimate(self, update: TrackUpdate) -> ButtEstimate:
+        """Estimate butt point and flagella direction for a track update."""
         state = self.states.setdefault(
             update.track_id,
             ButtState(sign_history=deque(maxlen=self.smooth_window)),
