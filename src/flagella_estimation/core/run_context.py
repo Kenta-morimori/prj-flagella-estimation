@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import logging
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +17,7 @@ class RunContext:
     git: GitInfo
     run_time: RunTime
     out: OutputPaths
-    logger_name: str = "flagella"
+    logger: logging.Logger = field(repr=False)
 
 
 def init_run(base_dir: str | Path, input_info: dict[str, Any]) -> RunContext:
@@ -30,7 +31,7 @@ def init_run(base_dir: str | Path, input_info: dict[str, Any]) -> RunContext:
     logger.info("Run start")
     logger.info("git.commit=%s", git.commit)
     logger.info("git.branch=%s", git.branch)
-    logger.info("output_dir=%s", str(out.root))
+    logger.info("output_dir=%s", out.root)
 
     write_manifest(
         path=out.root / "manifest.json",
@@ -40,7 +41,8 @@ def init_run(base_dir: str | Path, input_info: dict[str, Any]) -> RunContext:
         outputs={
             "root": str(out.root),
             "tracking_dir": str(out.tracking_dir),
+            "log": str(log_path),
         },
     )
 
-    return RunContext(git=git, run_time=rt, out=out)
+    return RunContext(git=git, run_time=rt, out=out, logger=logger)

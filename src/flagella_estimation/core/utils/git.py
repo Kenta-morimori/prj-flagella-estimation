@@ -6,13 +6,13 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class GitInfo:
-    commit: str          # full sha
-    commit_short: str    # short sha
+    commit: str  # full sha
+    commit_short: str  # short sha
     branch: str
 
 
 class GitNotReadyError(RuntimeError):
-    pass
+    """Raised when repository state is not suitable for a reproducible run."""
 
 
 def _run(cmd: list[str]) -> str:
@@ -28,12 +28,6 @@ def require_committed_state() -> GitInfo:
     if inside != "true":
         raise GitNotReadyError("Git管理下ではない。git init してコミットせよ。")
 
-    # HEADがあるか（初回コミット前だと失敗）
-    try:
-        commit = _run(["git", "rev-parse", "HEAD"])
-    except Exception as e:
-        raise GitNotReadyError("まだコミットが存在しない。最初のコミットを作成せよ。") from e
-
     # 未コミット変更がないか
     status = _run(["git", "status", "--porcelain"])
     if status:
@@ -41,6 +35,7 @@ def require_committed_state() -> GitInfo:
             "未コミットの変更があるため実行不可である。commit（またはstash）してから実行せよ。"
         )
 
+    commit = _run(["git", "rev-parse", "HEAD"])
     branch = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"])
     commit_short = _run(["git", "rev-parse", "--short", "HEAD"])
     return GitInfo(commit=commit, commit_short=commit_short, branch=branch)
