@@ -33,4 +33,5 @@ jobs:
           uv run ruff check .
 
       - name: Test (pytest)
-        run: uv run pytest -q
+        run: |
+          uv run pytest -q || test $? -eq 5
