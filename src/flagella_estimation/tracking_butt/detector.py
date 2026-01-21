@@ -83,7 +83,6 @@ def _filter_and_build(
     contours: list[np.ndarray],
     frame_idx: int,
     cfg: DetectionConfig,
-    logger,
     width: int,
     height: int,
 ) -> tuple[List[Detection], Dict[str, int]]:
@@ -105,16 +104,6 @@ def _filter_and_build(
 
         if reason:
             stats[reason] = stats.get(reason, 0) + 1
-            logger.info(
-                "frame %d contour skipped (%s): area=%.1f bbox=(%d,%d,%d,%d)",
-                frame_idx,
-                reason,
-                area,
-                x,
-                y,
-                w,
-                h,
-            )
             continue
 
         ellipse = _fit_ellipse(cnt)
@@ -158,6 +147,9 @@ def _filter_and_build(
             )
         )
     stats["kept"] = len(detections)
+    stats["mean_area"] = (
+        float(np.mean([d.area for d in detections])) if detections else 0.0
+    )
     return detections, stats
 
 
@@ -166,7 +158,6 @@ def _detect_once(
     frame_idx: int,
     cfg: DetectionConfig,
     invert: bool,
-    logger,
 ) -> tuple[List[Detection], Dict[str, int]]:
     """Run preprocessing, thresholding, contour extraction once."""
     processed = _apply_preprocess(gray, cfg)
@@ -176,7 +167,6 @@ def _detect_once(
         contours=contours,
         frame_idx=frame_idx,
         cfg=cfg,
-        logger=logger,
         width=gray.shape[1],
         height=gray.shape[0],
     )
@@ -193,20 +183,27 @@ def detect_frame(
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
     invert_flag = bool(cfg.threshold.invert)
 
-    detections, stats = _detect_once(gray, frame_idx, cfg, invert=invert_flag, logger=logger)
-    fallback_used = False
-    if not detections:
-        fallback_used = True
-        detections, stats = _detect_once(
-            gray, frame_idx, cfg, invert=not invert_flag, logger=logger
-        )
-        logger.info("frame %d invert retry executed (kept=%d)", frame_idx, len(detections))
+    results = []
+    dets_main, stats_main = _detect_once(gray, frame_idx, cfg, invert=invert_flag)
+    results.append((dets_main, stats_main, invert_flag, False))
+    dets_alt, stats_alt = _detect_once(gray, frame_idx, cfg, invert=not invert_flag)
+    results.append((dets_alt, stats_alt, not invert_flag, True))
 
-    logger.info(
-        "frame %d detections kept=%d/%d%s",
-        frame_idx,
-        len(detections),
-        stats.get("total", 0),
-        " (fallback invert)" if fallback_used else "",
-    )
+    def _score(res: tuple[List[Detection], Dict[str, int], bool, bool]) -> tuple[float, float]:
+        detections, stats, _, _ = res
+        mean_area = stats.get("mean_area", 0.0)
+        return (mean_area if detections else float("inf"), -len(detections))
+
+    results.sort(key=_score)
+    detections, stats, used_invert, was_fallback = results[0]
+
+    if frame_idx % 10 == 0:
+        logger.info(
+            "frame %d detections kept=%d/%d invert=%s%s",
+            frame_idx,
+            len(detections),
+            stats.get("total", 0),
+            used_invert,
+            " (fallback chosen)" if was_fallback else "",
+        )
     return detections

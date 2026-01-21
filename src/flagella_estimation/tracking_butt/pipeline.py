@@ -110,7 +110,7 @@ def _process_frames(
         writer.write(frame)
         frame_idx += 1
 
-        if frame_idx % 50 == 0:
+        if frame_idx % 10 == 0:
             logger.info("Processed %d frames", frame_idx)
 
     logger.info("Total processed frames: %d", frame_idx)
