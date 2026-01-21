@@ -90,7 +90,7 @@ def _filter_and_build(
         area = float(cv2.contourArea(cnt))
         x, y, w, h = cv2.boundingRect(cnt)
         reason = None
-        if area < cfg.filter.min_area_px:
+        if area <= 0 or area < cfg.filter.min_area_px:
             reason = "too_small"
         elif max_area is not None and area > max_area:
             reason = "too_large"
@@ -114,9 +114,17 @@ def _filter_and_build(
         ellipse = _fit_ellipse(cnt)
         if ellipse is not None:
             cx, cy, major, minor, angle_deg = ellipse
-            theta = np.deg2rad(angle_deg)
-            is_valid = True
-        else:
+            if not (
+                np.isfinite(cx)
+                and np.isfinite(cy)
+                and np.isfinite(major)
+                and np.isfinite(minor)
+                and major > 0
+                and minor > 0
+            ):
+                ellipse = None
+
+        if ellipse is None:
             cx = x + w / 2.0
             cy = y + h / 2.0
             major = float(max(w, h))
@@ -124,6 +132,9 @@ def _filter_and_build(
             theta = None
             angle_deg = None
             is_valid = False
+        else:
+            theta = np.deg2rad(angle_deg)
+            is_valid = True
 
         detections.append(
             Detection(

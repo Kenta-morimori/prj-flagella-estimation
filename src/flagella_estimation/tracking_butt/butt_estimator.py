@@ -36,7 +36,15 @@ class ButtEstimator:
         det = update.detection
         cx, cy = det.cx, det.cy
 
-        if det.theta is None or det.major is None or det.major <= 0:
+        if (
+            det.theta is None
+            or det.major is None
+            or det.minor is None
+            or det.major <= 0
+            or det.minor <= 0
+            or not math.isfinite(det.major)
+            or not math.isfinite(det.minor)
+        ):
             point = state.point or (cx, cy)
             flagella_dir = _unit((point[0] - cx, point[1] - cy))
             state.point = point
