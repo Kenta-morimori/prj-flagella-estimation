@@ -10,7 +10,7 @@ import pandas as pd
 
 from flagella_estimation.core.run_context import init_run
 from flagella_estimation.tracking_butt.butt_estimator import ButtEstimator
-from flagella_estimation.tracking_butt.config import load_config, with_save_contour
+from flagella_estimation.tracking_butt.config import DetectionConfig, load_config, with_save_contour
 from flagella_estimation.tracking_butt.detector import detect_frame
 from flagella_estimation.tracking_butt.features import FeatureComputer
 from flagella_estimation.tracking_butt.overlay import OverlayRenderer
@@ -63,6 +63,7 @@ def _prepare_track_row(update: TrackUpdate, features: Dict[str, float]) -> Dict[
 
 def _process_frames(
     cap: cv2.VideoCapture,
+    detection_cfg: DetectionConfig,
     tracker: Tracker,
     butt_estimator: ButtEstimator,
     feature_comp: FeatureComputer,
@@ -80,7 +81,7 @@ def _process_frames(
         if not ret:
             break
 
-        detections = detect_frame(frame, frame_idx)
+        detections = detect_frame(frame, frame_idx, detection_cfg, logger=logger)
         updates = tracker.step(frame_idx, detections)
 
         for upd in updates:
@@ -154,6 +155,7 @@ def run_tracking_butt(config_path: Path, save_contour_flag: bool = False) -> Non
     try:
         track_rows, butt_store = _process_frames(
             cap=cap,
+            detection_cfg=cfg.tracking_butt.detection,
             tracker=tracker,
             butt_estimator=butt_estimator,
             feature_comp=feature_comp,

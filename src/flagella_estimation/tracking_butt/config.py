@@ -24,6 +24,34 @@ class TrackingConfig:
 
 
 @dataclass(frozen=True)
+class PreprocessConfig:
+    method: str  # "tophat" | "bg_subtract" | "none"
+    kernel_size: int
+
+
+@dataclass(frozen=True)
+class ThresholdConfig:
+    method: str  # "otsu" | "adaptive"
+    invert: bool
+    block_size: int
+
+
+@dataclass(frozen=True)
+class FilterConfig:
+    min_area_px: float
+    max_area_px: float | None
+    max_area_frac: float | None
+    reject_border_touch: bool
+
+
+@dataclass(frozen=True)
+class DetectionConfig:
+    preprocess: PreprocessConfig
+    threshold: ThresholdConfig
+    filter: FilterConfig
+
+
+@dataclass(frozen=True)
 class ButtEstimationConfig:
     smooth_window: int
     freeze_speed_thresh: float
@@ -37,6 +65,7 @@ class SaveConfig:
 
 @dataclass(frozen=True)
 class TrackingButtConfig:
+    detection: DetectionConfig
     tracking: TrackingConfig
     butt_estimation: ButtEstimationConfig
     save: SaveConfig
@@ -68,6 +97,31 @@ def load_config(path: Path) -> Config:
     output_cfg = OutputConfig(base_dir=Path(_get(output_raw, "base_dir", "outputs")))
 
     tracking_raw = raw.get("tracking_butt", {}) or {}
+
+    detection_raw = tracking_raw.get("detection", {}) or {}
+    preprocess_raw = detection_raw.get("preprocess", {}) or {}
+    preprocess_cfg = PreprocessConfig(
+        method=str(_get(preprocess_raw, "method", "tophat")),
+        kernel_size=int(_get(preprocess_raw, "kernel_size", 31)),
+    )
+    threshold_raw = detection_raw.get("threshold", {}) or {}
+    threshold_cfg = ThresholdConfig(
+        method=str(_get(threshold_raw, "method", "otsu")),
+        invert=bool(_get(threshold_raw, "invert", False)),
+        block_size=int(_get(threshold_raw, "block_size", 35)),
+    )
+    filter_raw = detection_raw.get("filter", {}) or {}
+    max_area_px = _get(filter_raw, "max_area_px", None)
+    filter_cfg = FilterConfig(
+        min_area_px=float(_get(filter_raw, "min_area_px", 0.0)),
+        max_area_px=float(max_area_px) if max_area_px not in (None, "") else None,
+        max_area_frac=float(_get(filter_raw, "max_area_frac", 0.02)),
+        reject_border_touch=bool(_get(filter_raw, "reject_border_touch", True)),
+    )
+    detection_cfg = DetectionConfig(
+        preprocess=preprocess_cfg, threshold=threshold_cfg, filter=filter_cfg
+    )
+
     tracking_cfg = TrackingConfig(
         max_link_distance=float(
             _get(tracking_raw.get("tracking", {}) or {}, "max_link_distance", 30.0)
@@ -85,7 +139,10 @@ def load_config(path: Path) -> Config:
     save_cfg = SaveConfig(contour=bool(_get(save_raw, "contour", False)))
 
     tracking_butt_cfg = TrackingButtConfig(
-        tracking=tracking_cfg, butt_estimation=butt_cfg, save=save_cfg
+        detection=detection_cfg,
+        tracking=tracking_cfg,
+        butt_estimation=butt_cfg,
+        save=save_cfg,
     )
 
     return Config(data=data_cfg, output=output_cfg, tracking_butt=tracking_butt_cfg)

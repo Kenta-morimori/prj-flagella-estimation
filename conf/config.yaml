@@ -6,6 +6,19 @@ output:
   base_dir: "outputs"
 
 tracking_butt:
+  detection:
+    preprocess:
+      method: "tophat"         # "tophat" or "bg_subtract" or "none"
+      kernel_size: 31
+    threshold:
+      method: "otsu"           # "otsu" or "adaptive"
+      invert: false
+      block_size: 35
+    filter:
+      min_area_px: 0
+      max_area_frac: 0.02      # 画像面積比で巨大成分を弾く
+      reject_border_touch: true
+
   tracking:
     max_link_distance: 30.0
 
