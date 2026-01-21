@@ -47,6 +47,7 @@ SUPPORTED_FEATURES: Dict[str, Callable[[TrackUpdate], float]] = {
 
 class FeatureComputer:
     def __init__(self, requested: List[str], logger: logging.Logger) -> None:
+        """Prepare feature computer with requested feature names."""
         self.requested = requested
         self.logger = logger
         self._warned: set[str] = set()

@@ -30,6 +30,7 @@ class TrackState:
 
 class Tracker:
     def __init__(self, max_link_distance: float, max_inactive: int = 10) -> None:
+        """Simple nearest-neighbor tracker with distance gating."""
         self.max_link_distance = max_link_distance
         self.max_inactive = max_inactive
         self.tracks: Dict[int, TrackState] = {}

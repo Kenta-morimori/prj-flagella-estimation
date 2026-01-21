@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 import typer
 
@@ -14,7 +15,7 @@ def main(
         "-c",
         help="Path to config yaml",
     ),
-    video_path: Path | None = typer.Option(
+    video_path: Optional[Path] = typer.Option(
         None,
         "--video-path",
         help="Override data.video_path in config (supports mp4/avi etc.)",
@@ -25,6 +26,7 @@ def main(
         help="Enable contour saving (tracking_butt.save.contour=true)",
     ),
 ) -> None:
+    """CLI entrypoint for tracking + butt estimation with optional overrides."""
     overrides = {}
     if video_path is not None:
         overrides["data"] = {"video_path": str(video_path)}

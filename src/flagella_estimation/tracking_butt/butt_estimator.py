@@ -16,6 +16,7 @@ class ButtState:
 
 
 def _unit(vec: tuple[float, float]) -> tuple[float, float]:
+    """Return unit vector; fallback to upward direction when norm is tiny."""
     norm = math.hypot(vec[0], vec[1])
     if norm < 1e-8:
         return (0.0, -1.0)
@@ -24,6 +25,7 @@ def _unit(vec: tuple[float, float]) -> tuple[float, float]:
 
 class ButtEstimator:
     def __init__(self, smooth_window: int, freeze_speed_thresh: float) -> None:
+        """Initialize butt estimator with smoothing window and freeze threshold."""
         self.smooth_window = max(1, smooth_window)
         self.freeze_speed_thresh = freeze_speed_thresh
         self.states: Dict[int, ButtState] = {}

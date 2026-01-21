@@ -7,6 +7,7 @@ from flagella_estimation.tracking_butt.types import ButtEstimate, Detection
 
 class OverlayRenderer:
     def __init__(self, flagella_length: int = 30) -> None:
+        """Initialize renderer with pseudo-flagella length."""
         self.flagella_length = flagella_length
 
     def draw(self, frame, detection: Detection, track_id: int, butt: ButtEstimate) -> None:
