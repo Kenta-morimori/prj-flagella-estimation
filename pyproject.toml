@@ -1,0 +1,36 @@
+[project]
+name = "flagella-estimation"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Kenta-morimori", email = "takemori.kenta.official@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.1",
+    "opencv-python>=4.13.0.90",
+    "pandas>=2.3.3",
+    "pydantic>=2.12.5",
+    "rich>=14.2.0",
+    "scikit-image>=0.26.0",
+    "scipy>=1.17.0",
+    "tqdm>=4.67.1",
+    "typer>=0.21.1",
+]
+
+[project.scripts]
+flagella-estimation = "flagella_estimation:main"
+
+[build-system]
+requires = ["uv_build>=0.8.15,<0.9.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.14.13",
+]
