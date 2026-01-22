@@ -279,17 +279,16 @@ def run_tracking_butt(
     initial_overlay_path = ctx.out.tracking_dir / "initial_detection.png"
     initial_frame = first_frame.copy()
     init_detections = detect_frame(
-        first_frame, 0, detection_cfg, expected_minor_px=expected_minor_px, logger=logger
+        first_frame,
+        0,
+        detection_cfg,
+        expected_minor_px=expected_minor_px,
+        logger=logger,
     )
     overlay.draw_scale_bar(initial_frame)
     for idx, det in enumerate(init_detections):
         center_pt = (int(round(det.cx)), int(round(det.cy)))
-        if (
-            det.is_valid
-            and det.angle_deg is not None
-            and det.major
-            and det.minor
-        ):
+        if det.is_valid and det.angle_deg is not None and det.major and det.minor:
             ellipse = (
                 (float(det.cx), float(det.cy)),
                 (float(det.major), float(det.minor)),

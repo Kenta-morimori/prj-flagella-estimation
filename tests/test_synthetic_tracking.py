@@ -55,10 +55,7 @@ def _generate_synthetic_frames(
     """
     num_objects = len(speeds)
     positions = np.array(
-        [
-            [bounds[i][0][0] + 20.0, bounds[i][1][0] + 20.0]
-            for i in range(num_objects)
-        ],
+        [[bounds[i][0][0] + 20.0, bounds[i][1][0] + 20.0] for i in range(num_objects)],
         dtype=float,
     )
     velocities = np.array(speeds, dtype=float)
@@ -94,26 +91,18 @@ def _generate_synthetic_frames(
             positions[i] += velocities[i]
             # x方向の壁反射
             if positions[i, 0] < bounds[i][0][0]:
-                positions[i, 0] = bounds[i][0][0] + (
-                    bounds[i][0][0] - positions[i, 0]
-                )
+                positions[i, 0] = bounds[i][0][0] + (bounds[i][0][0] - positions[i, 0])
                 velocities[i, 0] *= -1
             elif positions[i, 0] > bounds[i][0][1]:
-                positions[i, 0] = bounds[i][0][1] - (
-                    positions[i, 0] - bounds[i][0][1]
-                )
+                positions[i, 0] = bounds[i][0][1] - (positions[i, 0] - bounds[i][0][1])
                 velocities[i, 0] *= -1
 
             # y方向の壁反射
             if positions[i, 1] < bounds[i][1][0]:
-                positions[i, 1] = bounds[i][1][0] + (
-                    bounds[i][1][0] - positions[i, 1]
-                )
+                positions[i, 1] = bounds[i][1][0] + (bounds[i][1][0] - positions[i, 1])
                 velocities[i, 1] *= -1
             elif positions[i, 1] > bounds[i][1][1]:
-                positions[i, 1] = bounds[i][1][1] - (
-                    positions[i, 1] - bounds[i][1][1]
-                )
+                positions[i, 1] = bounds[i][1][1] - (positions[i, 1] - bounds[i][1][1])
                 velocities[i, 1] *= -1
 
     return frames, gt_positions
@@ -262,7 +251,16 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
     with csv_path.open("w", newline="") as f:
         writer_csv = csv.writer(f)
         writer_csv.writerow(
-            ["frame", "track_id", "gt_id", "pred_cx", "pred_cy", "gt_cx", "gt_cy", "error"]
+            [
+                "frame",
+                "track_id",
+                "gt_id",
+                "pred_cx",
+                "pred_cy",
+                "gt_cx",
+                "gt_cy",
+                "error",
+            ]
         )
         for tid in track_ids:
             gt_idx = track_to_gt[tid]
