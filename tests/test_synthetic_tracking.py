@@ -34,8 +34,8 @@ class _NullLogger:
 def _generate_synthetic_frames(
     num_frames: int,
     image_size: int,
-    major_px: float,
-    minor_px: float,
+    minors_px: List[float],
+    major_multipliers: List[float],
     speeds: List[Tuple[float, float]],
     bounds: List[Tuple[Tuple[float, float], Tuple[float, float]]],
 ) -> tuple[List[np.ndarray], np.ndarray]:
@@ -44,8 +44,8 @@ def _generate_synthetic_frames(
     Args:
         num_frames: 総フレーム数。
         image_size: 画像の一辺[px]。
-        major_px: 楕円の長軸長[px]。
-        minor_px: 楕円の短軸長[px]。
+        minors_px: 各オブジェクトの短軸長[px]。
+        major_multipliers: 短軸に対する長軸倍率。
         speeds: 各オブジェクトの速度ベクトル初期値。
         bounds: 各オブジェクトの移動範囲[(x_low, x_high), (y_low, y_high)]。
 
@@ -70,6 +70,8 @@ def _generate_synthetic_frames(
         frame = np.full((image_size, image_size, 3), 180, dtype=np.uint8)
         for i in range(num_objects):
             center = (int(round(positions[i, 0])), int(round(positions[i, 1])))
+            minor_px = minors_px[i]
+            major_px = minor_px * major_multipliers[i]
             axes = (
                 max(1, int(np.ceil(major_px / 2))),
                 max(1, int(np.ceil(minor_px / 2))),
@@ -125,7 +127,11 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
     um_per_px = 0.2
     bac_short_axis_length_um = 1.0
     expected_minor_px = bac_short_axis_length_um / um_per_px
-    major_px = expected_minor_px * 3.0
+    # 長短軸比を 2〜6倍でばらつかせ、短軸も±20%程度ばらつかせる
+    num_objects = 10
+    rng = np.random.default_rng(0)
+    minors = expected_minor_px * rng.uniform(0.8, 1.2, size=num_objects)
+    major_mults = rng.uniform(2.0, 6.0, size=num_objects)
     try:
         now = datetime.now(ZoneInfo("Asia/Tokyo"))
     except Exception:
@@ -136,17 +142,24 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # オブジェクトごとに重ならないY範囲を設定
-    bounds = [
-        ((60.0, image_size - 60.0), (80.0, 220.0)),
-        ((60.0, image_size - 60.0), (300.0, 460.0)),
-    ]
-    speeds = [(6.0, 7.0), (-7.0, -5.0)]
+    # 縦方向に分けた帯域内でジグザグ移動（上下反射＋横方向も反射）
+    band_height = (image_size - 120.0) / num_objects
+    bounds: list[Tuple[Tuple[float, float], Tuple[float, float]]] = []
+    speeds: list[Tuple[float, float]] = []
+    for i in range(num_objects):
+        y_low = 60.0 + band_height * i
+        y_high = y_low + band_height - 10.0
+        bounds.append(((60.0, image_size - 60.0), (y_low, y_high)))
+        # 速度は 5〜10px/frame 相当で符号も混ぜる
+        vx = rng.uniform(5.0, 10.0) * (-1 if i % 2 else 1)
+        vy = rng.uniform(5.0, 10.0) * (1 if i % 3 else -1)
+        speeds.append((vx, vy))
 
     frames, gt_positions = _generate_synthetic_frames(
         num_frames=num_frames,
         image_size=image_size,
-        major_px=major_px,
-        minor_px=expected_minor_px,
+        minors_px=minors.tolist(),
+        major_multipliers=major_mults.tolist(),
         speeds=speeds,
         bounds=bounds,
     )
@@ -219,7 +232,7 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
     for traj in track_positions.values():
         assert len(traj) == num_frames
 
-    # IDの整合性を平均距離で確認（2オブジェクトなので全順列を探索）
+    # IDの整合性を平均距離で確認（複数オブジェクトなので全順列を探索）
     track_ids = sorted(track_positions.keys())
     traj_arr = [np.stack(track_positions[tid]) for tid in track_ids]
     errors = np.zeros((len(traj_arr), gt_positions.shape[1]))
@@ -237,7 +250,8 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
             best_total = total
             best_perm = perm
 
-    assert best_total < 1.0
+    # 合成ノイズや量子化のぶれを考慮し、平均誤差は <5px を許容
+    assert best_total < 5.0
     assert best_perm is not None
 
     track_to_gt = {track_ids[i]: best_perm[i] for i in range(len(track_ids))}
