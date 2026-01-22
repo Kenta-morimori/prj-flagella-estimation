@@ -275,6 +275,9 @@ def run_tracking_butt(
     overlay = OverlayRenderer(
         scale_bar_px=expected_minor_px,
         scale_bar_um=cfg.data.bac_short_axis_length_um,
+        draw_history=cfg.tracking_butt.overlay.draw_history,
+        history_length=cfg.tracking_butt.overlay.history_length,
+        hide_history_after=cfg.tracking_butt.overlay.hide_history_after,
     )
     initial_overlay_path = ctx.out.tracking_dir / "initial_detection.png"
     initial_frame = first_frame.copy()

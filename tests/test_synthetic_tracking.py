@@ -15,8 +15,9 @@ from flagella_estimation.tracking_butt.config import (
     FilterConfig,
     PreprocessConfig,
     ThresholdConfig,
-    )
+)
 from flagella_estimation.tracking_butt.detector import choose_invert_flag, detect_frame
+from flagella_estimation.tracking_butt.overlay import OverlayRenderer
 from flagella_estimation.tracking_butt.tracker import Tracker
 
 
@@ -332,6 +333,14 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
         30.0,
         (image_size, image_size),
     )
+    overlay_renderer = OverlayRenderer(
+        scale_bar_px=expected_minor_px,
+        scale_bar_um=bac_short_axis_length_um,
+        draw_history=True,
+        history_length=num_frames,
+        hide_history_after=num_frames,
+    )
+    history_points: dict[int, list[tuple[int, float, float]]] = {}
     for idx in range(num_frames):
         frame = frames[idx].copy()
         # GTを青
@@ -360,6 +369,20 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
             pred_pt = track_positions[tid][idx]
             if np.isnan(pred_pt[0]):
                 continue
+            history = history_points.setdefault(tid, [])
+            history.append((idx, float(pred_pt[0]), float(pred_pt[1])))
+            if len(history) > num_frames:
+                history = history[-num_frames:]
+                history_points[tid] = history
+            # 軌跡を描画
+            if len(history) >= 2:
+                pts = [
+                    (int(round(x)), int(round(y)))
+                    for _, x, y in sorted(history, key=lambda t: t[0])
+                    if _ <= idx
+                ]
+                for i in range(1, len(pts)):
+                    cv2.line(frame, pts[i - 1], pts[i], (0, 200, 200), 1)
             cv2.circle(
                 frame,
                 (int(round(pred_pt[0])), int(round(pred_pt[1]))),
@@ -377,6 +400,8 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
                 1,
                 cv2.LINE_AA,
             )
+
+        overlay_renderer.draw_scale_bar(frame)
 
         overlay_writer.write(frame)
 
