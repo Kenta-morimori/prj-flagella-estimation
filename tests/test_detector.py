@@ -27,6 +27,7 @@ def _make_cfg(
             min_area_px=min_area,
             max_area_px=None,
             max_area_frac=max_area_frac,
+            max_minor_factor=3.0,
             reject_border_touch=reject_border,
         ),
     )

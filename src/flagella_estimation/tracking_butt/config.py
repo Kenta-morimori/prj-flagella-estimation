@@ -43,6 +43,7 @@ class FilterConfig:
     min_area_px: float
     max_area_px: float | None
     max_area_frac: float | None
+    max_minor_factor: float | None
     reject_border_touch: bool
 
 
@@ -148,10 +149,14 @@ def load_config(path: Path) -> Config:
     )
     filter_raw = detection_raw.get("filter", {}) or {}
     max_area_px = _get(filter_raw, "max_area_px", None)
+    max_minor_factor = _get(filter_raw, "max_minor_factor", 3.0)
     filter_cfg = FilterConfig(
-        min_area_px=float(_get(filter_raw, "min_area_px", 0.0)),
+        min_area_px=float(_get(filter_raw, "min_area_px", 5.0)),
         max_area_px=float(max_area_px) if max_area_px not in (None, "") else None,
-        max_area_frac=float(_get(filter_raw, "max_area_frac", 0.02)),
+        max_area_frac=float(_get(filter_raw, "max_area_frac", 0.05)),
+        max_minor_factor=float(max_minor_factor)
+        if max_minor_factor not in (None, "")
+        else None,
         reject_border_touch=bool(_get(filter_raw, "reject_border_touch", True)),
     )
     detection_cfg = DetectionConfig(

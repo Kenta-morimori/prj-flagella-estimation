@@ -147,6 +147,12 @@ def _filter_and_build(
     max_area = _max_area_limit(cfg, image_area=float(width * height))
     detections: List[Detection] = []
 
+    minor_limit = (
+        expected_minor_px * cfg.filter.max_minor_factor
+        if expected_minor_px > 0 and cfg.filter.max_minor_factor
+        else None
+    )
+
     for cnt in contours:
         area = float(cv2.contourArea(cnt))
         x, y, w, h = cv2.boundingRect(cnt)
@@ -177,8 +183,6 @@ def _filter_and_build(
             ):
                 ellipse = None
 
-        size_limit = expected_minor_px * 3 if expected_minor_px > 0 else None
-
         if ellipse is None:
             cx = x + w / 2.0
             cy = y + h / 2.0
@@ -187,13 +191,13 @@ def _filter_and_build(
             theta = None
             angle_deg = None
             is_valid = False
-            if size_limit is not None and minor > size_limit:
+            if minor_limit is not None and minor > minor_limit:
                 stats["too_thick"] = stats.get("too_thick", 0) + 1
                 continue
         else:
             theta = np.deg2rad(angle_deg)
             is_valid = True
-            if size_limit is not None and minor > size_limit:
+            if minor_limit is not None and minor > minor_limit:
                 stats["too_thick"] = stats.get("too_thick", 0) + 1
                 continue
 

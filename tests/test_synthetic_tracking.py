@@ -183,6 +183,7 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
             min_area_px=20.0,
             max_area_px=None,
             max_area_frac=0.05,
+            max_minor_factor=3.0,
             reject_border_touch=True,
         ),
     )
