@@ -61,9 +61,9 @@ class OverlayRenderer:
             history.append((frame_idx, detection.cx, detection.cy))
             # 古い履歴を削除
             cutoff = frame_idx - self.hide_history_after
-            self._history[track_id] = [
-                h for h in history if h[0] >= cutoff
-            ][-self.history_length :]
+            self._history[track_id] = [h for h in history if h[0] >= cutoff][
+                -self.history_length :
+            ]
             self._draw_history(frame, self._history[track_id])
 
         if (
@@ -140,9 +140,7 @@ class OverlayRenderer:
             cv2.LINE_AA,
         )
 
-    def _draw_history(
-        self, frame, history: list[tuple[int, float, float]]
-    ) -> None:
+    def _draw_history(self, frame, history: list[tuple[int, float, float]]) -> None:
         """トラックの重心履歴を線で描画する。
 
         Args:
