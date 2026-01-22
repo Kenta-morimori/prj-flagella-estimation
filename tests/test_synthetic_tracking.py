@@ -3,8 +3,10 @@ from __future__ import annotations
 import itertools
 import csv
 from dataclasses import replace
+from datetime import datetime
 from pathlib import Path
 from typing import List, Tuple
+from zoneinfo import ZoneInfo
 
 import cv2
 import numpy as np
@@ -117,13 +119,20 @@ def _generate_synthetic_frames(
 
 def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
     """合成映像で重心トラッキングが安定することを確認し、成果物も保存する。"""
+    _ = tmp_path  # fixture 使用を明示（出力は outputs/ に保存する）
     num_frames = 200
     image_size = 512
     um_per_px = 0.2
     bac_short_axis_length_um = 1.0
     expected_minor_px = bac_short_axis_length_um / um_per_px
     major_px = expected_minor_px * 3.0
-    out_dir = tmp_path / "synthetic_outputs"
+    try:
+        now = datetime.now(ZoneInfo("Asia/Tokyo"))
+    except Exception:
+        now = datetime.now()
+    date_dir = now.strftime("%Y-%m-%d")
+    time_dir = now.strftime("%H%M%S") + "_test"
+    out_dir = Path("outputs") / date_dir / time_dir
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # オブジェクトごとに重ならないY範囲を設定
