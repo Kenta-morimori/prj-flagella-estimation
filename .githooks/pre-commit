@@ -1,0 +1,19 @@
+#!/bin/sh
+# Run lint and tests before commit to mirror CI.
+
+set -e
+
+run_cmd() {
+  echo "==> $*"
+  "$@"
+}
+
+if command -v uv >/dev/null 2>&1; then
+  run_cmd uv run ruff format --check .
+  run_cmd uv run ruff check .
+  run_cmd uv run pytest
+else
+  run_cmd ruff format --check .
+  run_cmd ruff check .
+  PYTHONPATH=src run_cmd pytest
+fi
