@@ -27,7 +27,7 @@ def _fit_ellipse(
     # Ensure major >= minor for consistency
     if major < minor:
         major, minor = minor, major
-        angle_deg = angle_deg + 90.0
+        angle_deg = (angle_deg + 90.0) % 180.0
     return float(cx), float(cy), float(major), float(minor), float(angle_deg)
 
 
