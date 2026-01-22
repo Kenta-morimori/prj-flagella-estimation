@@ -1,8 +1,9 @@
 data:
-  video_path: "data/sample1.mp4"
+  video_path: "data/20250716data1.avi"
+  # video_path: "data/sample1.mp4"
   fps: 0  # 0なら動画のメタデータを使用
   bac_short_axis_length_um: 1.0  # バクテリア短径[μm]
-  um_per_px: 0.2  # 1ピクセルあたりの長さ[μm]
+  um_per_px: 0.203  # 1ピクセルあたりの長さ[μm]
 
 output:
   base_dir: "outputs"

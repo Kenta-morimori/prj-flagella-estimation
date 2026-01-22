@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 import json
 from pathlib import Path
 from typing import Any, Dict, List
@@ -16,7 +17,6 @@ from flagella_estimation.tracking_butt.config import (
     load_config,
     with_save_contour,
 )
-from dataclasses import replace
 
 from flagella_estimation.tracking_butt.detector import choose_invert_flag, detect_frame
 from flagella_estimation.tracking_butt.features import FeatureComputer
@@ -26,20 +26,45 @@ from flagella_estimation.tracking_butt.types import ButtEstimate, TrackUpdate
 
 
 def _write_json(path: Path, data: Dict[str, Any]) -> None:
-    """Write JSON with UTF-8 and pretty indent."""
+    """JSONをUTF-8・インデント付きで保存する。
+
+    Args:
+        path: 保存先パス。
+        data: JSONシリアライズ対象。
+
+    Returns:
+        None
+    """
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def _init_video_writer(
     path: Path, width: int, height: int, fps: float
 ) -> cv2.VideoWriter:
-    """Create an mp4 writer for overlay output."""
+    """mp4出力用のVideoWriterを初期化する。
+
+    Args:
+        path: 出力ファイルパス。
+        width: フレーム幅[px]。
+        height: フレーム高さ[px]。
+        fps: フレームレート。
+
+    Returns:
+        cv2.VideoWriter: mp4を書き出すライター。
+    """
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     return cv2.VideoWriter(str(path), fourcc, fps, (width, height))
 
 
 def _butt_record(butt: ButtEstimate) -> Dict[str, float | bool]:
-    """Convert butt estimate to JSON-serializable dict."""
+    """ButtEstimate を JSON に保存しやすい辞書へ変換する。
+
+    Args:
+        butt: お尻推定結果。
+
+    Returns:
+        dict: butt.json 用の辞書。
+    """
     return {
         "x": float(butt.point[0]),
         "y": float(butt.point[1]),
@@ -53,7 +78,17 @@ def _butt_record(butt: ButtEstimate) -> Dict[str, float | bool]:
 def _save_contour(
     contour_dir: Path, frame_idx: int, track_id: int, contour: np.ndarray
 ) -> None:
-    """Save contour to npy in configured directory."""
+    """輪郭を指定ディレクトリに npy 形式で保存する。
+
+    Args:
+        contour_dir: 保存先ディレクトリ。
+        frame_idx: フレーム番号。
+        track_id: トラックID。
+        contour: OpenCVの輪郭配列。
+
+    Returns:
+        None
+    """
     contour_dir.mkdir(parents=True, exist_ok=True)
     fname = contour_dir / f"frame_{frame_idx:06d}_track_{track_id:04d}.npy"
     np.save(fname, contour[:, 0, :])
@@ -62,7 +97,15 @@ def _save_contour(
 def _prepare_track_row(
     update: TrackUpdate, features: Dict[str, float]
 ) -> Dict[str, Any]:
-    """Build one row of track.csv."""
+    """track.csv の1行分の辞書を生成する。
+
+    Args:
+        update: トラッキング更新情報。
+        features: 追加特徴量の辞書。
+
+    Returns:
+        dict: track.csv 用の1行データ。
+    """
     row = {
         "frame": update.frame_idx,
         "track_id": update.track_id,
@@ -91,7 +134,24 @@ def _process_frames(
     contour_dir: Path | None,
     logger,
 ) -> tuple[List[Dict[str, Any]], Dict[int, Dict[int, Dict[str, float | bool]]]]:
-    """Process all frames: detection, tracking, butt estimation, overlay."""
+    """全フレームを処理して検知・トラッキング・お尻推定・描画を行う。
+
+    Args:
+        cap: 入力動画キャプチャ。
+        detection_cfg: 検知設定。
+        expected_minor_px: 期待する短径[px]。
+        tracker: トラッカー。
+        butt_estimator: お尻推定器。
+        feature_comp: 特徴量計算器。
+        overlay: オーバーレイ描画器。
+        writer: 出力動画ライター。
+        contour_dir: 輪郭保存ディレクトリ（無効ならNone）。
+        logger: ロガー。
+
+    Returns:
+        tuple: (track_rows, butt_store) track_rowsはtrack.csv用の辞書リスト、
+            butt_storeは butt.json 用のネスト辞書。
+    """
     track_rows: List[Dict[str, Any]] = []
     butt_store: Dict[int, Dict[int, Dict[str, float | bool]]] = {}
 
@@ -139,7 +199,16 @@ def run_tracking_butt(
     save_contour_flag: bool = False,
     overrides: Dict[str, Any] | None = None,
 ) -> None:
-    """Main entrypoint for tracking + butt estimation."""
+    """トラッキング＋お尻推定のエントリーポイント。
+
+    Args:
+        config_path: 設定ファイルパス。
+        save_contour_flag: 輪郭保存を上書きするかどうか。
+        overrides: key=value 形式の設定上書き辞書。
+
+    Returns:
+        None
+    """
     cfg = load_config(config_path)
     if overrides:
         cfg = apply_overrides(cfg, overrides)
@@ -202,7 +271,10 @@ def run_tracking_butt(
     feature_comp = FeatureComputer(
         cfg.tracking_butt.butt_estimation.features, logger=logger
     )
-    overlay = OverlayRenderer()
+    overlay = OverlayRenderer(
+        scale_bar_px=expected_minor_px,
+        scale_bar_um=cfg.data.bac_short_axis_length_um,
+    )
 
     contour_dir = (
         ctx.out.tracking_dir / "contours" if cfg.tracking_butt.save.contour else None

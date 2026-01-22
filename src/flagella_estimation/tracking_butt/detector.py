@@ -12,7 +12,14 @@ from flagella_estimation.tracking_butt.types import Detection
 def _fit_ellipse(
     contour: np.ndarray,
 ) -> tuple[float, float, float, float, float] | None:
-    """Fit an ellipse to a contour, returning center, axes, angle or None."""
+    """輪郭に楕円をフィットし、中心・軸長・角度を返す。
+
+    Args:
+        contour: OpenCV輪郭配列。
+
+    Returns:
+        tuple | None: (cx, cy, major, minor, angle_deg)。フィットできない場合はNone。
+    """
     if len(contour) < 5:
         return None
     ellipse = cv2.fitEllipse(contour)
@@ -25,7 +32,15 @@ def _fit_ellipse(
 
 
 def _apply_preprocess(gray: np.ndarray, cfg: DetectionConfig) -> np.ndarray:
-    """Apply background correction according to config."""
+    """前処理を設定に従って適用する。
+
+    Args:
+        gray: 入力グレースケール画像。
+        cfg: 検知設定。
+
+    Returns:
+        np.ndarray: 前処理後の画像。
+    """
     if cfg.preprocess.method == "tophat":
         k = max(3, cfg.preprocess.kernel_size | 1)
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
@@ -40,7 +55,16 @@ def _apply_preprocess(gray: np.ndarray, cfg: DetectionConfig) -> np.ndarray:
 def _threshold_image(
     processed: np.ndarray, cfg: DetectionConfig, invert: bool
 ) -> np.ndarray:
-    """Threshold preprocessed image using Otsu or adaptive; allows inversion."""
+    """前処理済み画像をOtsuまたは適応的閾値で二値化する。
+
+    Args:
+        processed: 前処理済み画像。
+        cfg: 検知設定。
+        invert: 反転するかどうか。
+
+    Returns:
+        np.ndarray: 二値化画像。
+    """
     if cfg.threshold.method == "adaptive":
         block_size = max(3, cfg.threshold.block_size | 1)
         return cv2.adaptiveThreshold(
@@ -58,7 +82,16 @@ def _threshold_image(
 
 
 def _touches_border(bbox: tuple[int, int, int, int], width: int, height: int) -> bool:
-    """Return True if bbox touches two or more image borders."""
+    """バウンディングボックスが2辺以上の枠に接しているか判定する。
+
+    Args:
+        bbox: (x, y, w, h) 形式のバウンディングボックス。
+        width: 画像幅。
+        height: 画像高さ。
+
+    Returns:
+        bool: 2辺以上に接していればTrue。
+    """
     x, y, w, h = bbox
     margin = 1
     touch_left = x <= margin
@@ -70,7 +103,15 @@ def _touches_border(bbox: tuple[int, int, int, int], width: int, height: int) ->
 
 
 def _max_area_limit(cfg: DetectionConfig, image_area: float) -> float | None:
-    """Compute maximum allowed area from px and frac limits."""
+    """面積上限をpx指定と面積比指定から計算する。
+
+    Args:
+        cfg: 検知設定。
+        image_area: 画像全体の面積。
+
+    Returns:
+        float | None: 上限面積。指定が無ければNone。
+    """
     candidates = []
     if cfg.filter.max_area_px:
         candidates.append(cfg.filter.max_area_px)
@@ -89,7 +130,19 @@ def _filter_and_build(
     width: int,
     height: int,
 ) -> tuple[List[Detection], Dict[str, int]]:
-    """Filter contours by size/border and build Detection objects."""
+    """輪郭をフィルタし Detection オブジェクトへ変換する。
+
+    Args:
+        contours: 抽出した輪郭リスト。
+        frame_idx: フレーム番号。
+        cfg: 検知設定。
+        expected_minor_px: 期待する短径[px]。
+        width: 画像幅。
+        height: 画像高さ。
+
+    Returns:
+        tuple: (detections, stats)。stats はフィルタ理由などの統計。
+    """
     stats: Dict[str, int] = {"total": len(contours), "kept": 0}
     max_area = _max_area_limit(cfg, image_area=float(width * height))
     detections: List[Detection] = []
@@ -173,7 +226,18 @@ def _detect_once(
     invert: bool,
     expected_minor_px: float,
 ) -> tuple[List[Detection], Dict[str, int]]:
-    """Run preprocessing, thresholding, contour extraction once."""
+    """1回分の前処理・二値化・輪郭抽出を行う。
+
+    Args:
+        gray: 入力グレースケール画像。
+        frame_idx: フレーム番号。
+        cfg: 検知設定。
+        invert: 反転するかどうか。
+        expected_minor_px: 期待する短径[px]。
+
+    Returns:
+        tuple: (detections, stats) 抽出結果と統計。
+    """
     processed = _apply_preprocess(gray, cfg)
     thr = _threshold_image(processed, cfg, invert=invert)
     contours, _ = cv2.findContours(thr, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -195,7 +259,18 @@ def detect_frame(
     expected_minor_px: float,
     logger,
 ) -> List[Detection]:
-    """Detect multiple cells in a frame using configured invert setting."""
+    """設定された反転有無で1フレームの菌体検知を行う。
+
+    Args:
+        frame: 入力フレーム（BGR またはグレースケール）。
+        frame_idx: フレーム番号。
+        cfg: 検知設定。
+        expected_minor_px: 期待する短径[px]。
+        logger: ロガー。
+
+    Returns:
+        list[Detection]: 検知結果リスト。
+    """
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
     invert_flag = bool(cfg.threshold.invert)
 
@@ -217,7 +292,18 @@ def detect_frame(
 def choose_invert_flag(
     gray: np.ndarray, cfg: DetectionConfig, expected_minor_px: float
 ) -> bool:
-    """Select a global invert flag by preferring detections with smaller mean area."""
+    """初期フレームから極性（反転有無）を1回だけ選択する。
+
+    極性反転しない前提のため、ここで決めた極性を全フレームに固定する。
+
+    Args:
+        gray: 初期フレームのグレースケール画像。
+        cfg: 検知設定。
+        expected_minor_px: 期待する短径[px]。
+
+    Returns:
+        bool: 反転する場合はTrue。
+    """
     options = {bool(cfg.threshold.invert), not bool(cfg.threshold.invert)}
     scored: list[tuple[float, float, bool]] = []
     for inv in options:

@@ -21,23 +21,37 @@ class TrackState:
 
     @property
     def span_frames(self) -> int:
+        """観測＋欠損フレーム数の合計を返す。"""
         return self.observed_frames + self.missing_frames
 
     def missing_rate(self) -> float:
+        """欠損率を計算する。"""
         denom = self.span_frames
         return self.missing_frames / denom if denom > 0 else 0.0
 
 
 class Tracker:
     def __init__(self, max_link_distance: float, max_inactive: int = 10) -> None:
-        """Simple nearest-neighbor tracker with distance gating."""
+        """距離ゲート付きの最近傍トラッカー。
+
+        Args:
+            max_link_distance: リンク許容距離[px]。
+            max_inactive: 何フレーム未更新で失活とみなすか。
+        """
         self.max_link_distance = max_link_distance
         self.max_inactive = max_inactive
         self.tracks: Dict[int, TrackState] = {}
         self._next_id = 0
 
     def _active_tracks(self, frame_idx: int) -> Dict[int, TrackState]:
-        """Return tracks that are still considered active (not expired)."""
+        """まだ有効とみなすトラックを返す。
+
+        Args:
+            frame_idx: 現在のフレーム番号。
+
+        Returns:
+            dict: 有効トラックの辞書。
+        """
         return {
             tid: st
             for tid, st in self.tracks.items()
@@ -45,7 +59,15 @@ class Tracker:
         }
 
     def step(self, frame_idx: int, detections: List[Detection]) -> List[TrackUpdate]:
-        """Assign detections to tracks and produce per-frame updates."""
+        """検知結果を既存トラックに割り当て、更新を返す。
+
+        Args:
+            frame_idx: フレーム番号。
+            detections: 検知結果リスト。
+
+        Returns:
+            list[TrackUpdate]: 更新情報のリスト。
+        """
         active_tracks = self._active_tracks(frame_idx)
 
         pairs: list[tuple[float, int, int]] = []
@@ -129,7 +151,11 @@ class Tracker:
         return updates
 
     def qc_summary(self) -> Dict[int, Dict[str, float]]:
-        """Summarize QC stats for each track."""
+        """各トラックのQC指標を要約する。
+
+        Returns:
+            dict: track_id をキーに frames と missing_rate を持つ辞書。
+        """
         summary: Dict[int, Dict[str, float]] = {}
         for t_id, state in self.tracks.items():
             summary[t_id] = {

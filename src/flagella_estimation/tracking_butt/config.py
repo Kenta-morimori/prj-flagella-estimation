@@ -81,13 +81,29 @@ class Config:
 
 
 def _get(dict_obj: dict[str, Any], key: str, default: Any) -> Any:
-    """Return dict value with fallback, treating None as missing."""
+    """辞書から値を取得し、None の場合はデフォルトを返す。
+
+    Args:
+        dict_obj: 参照する辞書。
+        key: 取得するキー。
+        default: デフォルト値。
+
+    Returns:
+        Any: 取得した値またはデフォルト。
+    """
     value = dict_obj.get(key, default)
     return value if value is not None else default
 
 
 def load_config(path: Path) -> Config:
-    """Load YAML config and build strongly-typed config dataclasses."""
+    """YAML設定を読み込み、型付きConfigを構築する。
+
+    Args:
+        path: 設定ファイルパス。
+
+    Returns:
+        Config: 型付き設定オブジェクト。
+    """
     raw: dict[str, Any] = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
 
     data_raw = raw.get("data", {}) or {}
@@ -169,14 +185,30 @@ def load_config(path: Path) -> Config:
 
 
 def with_save_contour(config: Config, enabled: bool) -> Config:
-    """Return a copy of config with save.contour toggled."""
+    """save.contour を上書きした新しい Config を返す。
+
+    Args:
+        config: 元の設定。
+        enabled: 輪郭保存を有効にするか。
+
+    Returns:
+        Config: 保存設定を変更したコピー。
+    """
     updated_save = replace(config.tracking_butt.save, contour=enabled)
     updated_tb = replace(config.tracking_butt, save=updated_save)
     return replace(config, tracking_butt=updated_tb)
 
 
 def apply_overrides(config: Config, overrides: dict[str, Any]) -> Config:
-    """Apply shallow overrides (e.g., data.video_path) to a Config."""
+    """key=value の上書きを Config に適用する。
+
+    Args:
+        config: 元の設定。
+        overrides: 上書き辞書（例: {"data": {"video_path": ...}}）。
+
+    Returns:
+        Config: 上書き適用後の設定。
+    """
     cfg = config
     data_over = overrides.get("data", {})
     if data_over:

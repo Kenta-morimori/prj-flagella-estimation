@@ -16,7 +16,14 @@ class ButtState:
 
 
 def _unit(vec: tuple[float, float]) -> tuple[float, float]:
-    """Return unit vector; fallback to upward direction when norm is tiny."""
+    """単位ベクトルを返す。ノルムが極小なら上方向を返す。
+
+    Args:
+        vec: ベクトル (x, y)。
+
+    Returns:
+        tuple[float, float]: 正規化したベクトル。
+    """
     norm = math.hypot(vec[0], vec[1])
     if norm < 1e-8:
         return (0.0, -1.0)
@@ -25,13 +32,25 @@ def _unit(vec: tuple[float, float]) -> tuple[float, float]:
 
 class ButtEstimator:
     def __init__(self, smooth_window: int, freeze_speed_thresh: float) -> None:
-        """Initialize butt estimator with smoothing window and freeze threshold."""
+        """お尻推定器を初期化する。
+
+        Args:
+            smooth_window: お尻符号の平滑化窓幅。
+            freeze_speed_thresh: 凍結とみなす速度閾値。
+        """
         self.smooth_window = max(1, smooth_window)
         self.freeze_speed_thresh = freeze_speed_thresh
         self.states: Dict[int, ButtState] = {}
 
     def estimate(self, update: TrackUpdate) -> ButtEstimate:
-        """Estimate butt point and flagella direction for a track update."""
+        """トラック更新からお尻位置とべん毛方向を推定する。
+
+        Args:
+            update: トラック更新情報。
+
+        Returns:
+            ButtEstimate: お尻推定結果。
+        """
         state = self.states.setdefault(
             update.track_id,
             ButtState(sign_history=deque(maxlen=self.smooth_window)),
