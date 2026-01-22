@@ -12,13 +12,13 @@ tracking_butt:
   detection:
     preprocess:
       method: "bg_subtract"    # "tophat" or "bg_subtract" or "none"
-      kernel_size: 15
+      kernel_size: 13
     threshold:
       method: "otsu"           # "otsu" or "adaptive"
       invert: false
       block_size: 35
     filter:
-      min_area_px: 5
+      min_area_px: 8
       max_area_frac: 0.05      # 画像面積比で巨大成分を弾く
       max_minor_factor: 3.0    # 短軸期待値に掛ける上限係数
       reject_border_touch: true
