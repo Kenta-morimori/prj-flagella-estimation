@@ -18,3 +18,5 @@ __pycache__/
 outputs/
 logs/
 data/
+
+docs/codex_prompt.md

@@ -12,6 +12,7 @@ dependencies = [
     "numpy>=2.4.1",
     "opencv-python>=4.13.0.90",
     "pandas>=2.3.3",
+    "pyyaml>=6.0.2",
     "pydantic>=2.12.5",
     "rich>=14.2.0",
     "scikit-image>=0.26.0",
