@@ -280,11 +280,10 @@ def detect_frame(
 
     if frame_idx % 10 == 0:
         logger.info(
-            "frame %d detections kept=%d/%d invert=%s",
-            frame_idx,
+            "Processed %d frames. kept=%d/%d",
+            frame_idx + 1,
             len(detections),
             stats.get("total", 0),
-            invert_flag,
         )
     return detections
 

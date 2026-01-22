@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+import csv
 from dataclasses import replace
 from pathlib import Path
 from typing import List, Tuple
@@ -115,13 +116,15 @@ def _generate_synthetic_frames(
 
 
 def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
-    """合成映像で重心トラッキングが安定することを確認する。"""
+    """合成映像で重心トラッキングが安定することを確認し、成果物も保存する。"""
     num_frames = 200
     image_size = 512
     um_per_px = 0.2
     bac_short_axis_length_um = 1.0
     expected_minor_px = bac_short_axis_length_um / um_per_px
     major_px = expected_minor_px * 3.0
+    out_dir = tmp_path / "synthetic_outputs"
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     # オブジェクトごとに重ならないY範囲を設定
     bounds = [
@@ -140,7 +143,7 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
     )
 
     # AVI を生成して VideoCapture 経由でも読めることを確認
-    video_path = tmp_path / "synthetic.avi"
+    video_path = out_dir / "synthetic_input.avi"
     writer = cv2.VideoWriter(
         str(video_path),
         cv2.VideoWriter_fourcc(*"MJPG"),
@@ -218,8 +221,97 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
             )
 
     best_total = float("inf")
+    best_perm: tuple[int, ...] | None = None
     for perm in itertools.permutations(range(gt_positions.shape[1])):
         total = sum(errors[i, perm[i]] for i in range(len(traj_arr)))
-        best_total = min(best_total, total)
+        if total < best_total:
+            best_total = total
+            best_perm = perm
 
     assert best_total < 1.0
+    assert best_perm is not None
+
+    track_to_gt = {track_ids[i]: best_perm[i] for i in range(len(track_ids))}
+
+    # 重心CSVを保存
+    csv_path = out_dir / "synthetic_centroids.csv"
+    with csv_path.open("w", newline="") as f:
+        writer_csv = csv.writer(f)
+        writer_csv.writerow(
+            ["frame", "track_id", "gt_id", "pred_cx", "pred_cy", "gt_cx", "gt_cy", "error"]
+        )
+        for tid in track_ids:
+            gt_idx = track_to_gt[tid]
+            pred_traj = np.stack(track_positions[tid])
+            gt_traj = gt_positions[:, gt_idx, :]
+            for frame_idx, (pred_pt, gt_pt) in enumerate(zip(pred_traj, gt_traj)):
+                err = float(np.linalg.norm(pred_pt - gt_pt))
+                writer_csv.writerow(
+                    [
+                        frame_idx,
+                        tid,
+                        gt_idx,
+                        float(pred_pt[0]),
+                        float(pred_pt[1]),
+                        float(gt_pt[0]),
+                        float(gt_pt[1]),
+                        err,
+                    ]
+                )
+
+    # 予測とGT重心の重ね合わせ映像を保存
+    overlay_path = out_dir / "synthetic_overlay.avi"
+    overlay_writer = cv2.VideoWriter(
+        str(overlay_path),
+        cv2.VideoWriter_fourcc(*"MJPG"),
+        30.0,
+        (image_size, image_size),
+    )
+    for idx in range(num_frames):
+        frame = frames[idx].copy()
+        # GTを青
+        for gt_idx in range(gt_positions.shape[1]):
+            gt_pt = gt_positions[idx, gt_idx]
+            cv2.circle(
+                frame,
+                (int(round(gt_pt[0])), int(round(gt_pt[1]))),
+                4,
+                (255, 0, 0),
+                -1,
+            )
+            cv2.putText(
+                frame,
+                f"G{gt_idx}",
+                (int(round(gt_pt[0])) + 4, int(round(gt_pt[1])) - 4),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.45,
+                (255, 0, 0),
+                1,
+                cv2.LINE_AA,
+            )
+
+        # 予測を緑
+        for tid in track_ids:
+            pred_pt = track_positions[tid][idx]
+            gt_idx = track_to_gt[tid]
+            cv2.circle(
+                frame,
+                (int(round(pred_pt[0])), int(round(pred_pt[1]))),
+                4,
+                (0, 255, 0),
+                -1,
+            )
+            cv2.putText(
+                frame,
+                f"T{tid}->G{gt_idx}",
+                (int(round(pred_pt[0])) + 4, int(round(pred_pt[1])) + 12),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.45,
+                (0, 200, 0),
+                1,
+                cv2.LINE_AA,
+            )
+
+        overlay_writer.write(frame)
+
+    overlay_writer.release()
