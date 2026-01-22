@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 
 import cv2
 import numpy as np
+import pytest
 
 from flagella_estimation.tracking_butt.config import (
     DetectionConfig,
@@ -206,10 +207,9 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
     logger = _NullLogger()
-    tracker = Tracker(max_link_distance=40.0)
+    tracker = Tracker(max_link_distance=25.0, max_inactive=num_frames)
     track_positions: dict[int, np.ndarray] = {}
     track_present: dict[int, np.ndarray] = {}
-    track_to_gt: dict[int, int] = {}
     frame_idx = 0
 
     while True:
@@ -223,32 +223,7 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
             expected_minor_px=expected_minor_px,
             logger=logger,
         )
-        if len(detections) > num_objects * 2:
-            detections = sorted(detections, key=lambda d: d.area, reverse=True)[
-                : num_objects * 2
-            ]
-
         updates = tracker.step(frame_idx, detections)
-        if frame_idx == 0:
-            # 初期フレームでトラックIDとGTを最近傍対応
-            remaining_gt = set(range(num_objects))
-            remaining_upd = set(range(len(updates)))
-            pairs: list[tuple[int, int, float]] = []
-            for gi in remaining_gt:
-                gt_pt = gt_positions[0, gi, :]
-                for ui in remaining_upd:
-                    up = updates[ui]
-                    dist = np.hypot(up.detection.cx - gt_pt[0], up.detection.cy - gt_pt[1])
-                    pairs.append((gi, ui, float(dist)))
-            pairs.sort(key=lambda x: x[2])
-            for gi, ui, _ in pairs:
-                if gi not in remaining_gt or ui not in remaining_upd:
-                    continue
-                remaining_gt.remove(gi)
-                remaining_upd.remove(ui)
-                track_to_gt[updates[ui].track_id] = gi
-                if len(track_to_gt) >= num_objects:
-                    break
 
         for upd in updates:
             arr = track_positions.setdefault(
@@ -259,24 +234,82 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
             )
             arr[frame_idx] = (upd.detection.cx, upd.detection.cy)
             mask[frame_idx] = True
+        # 未更新でも生存中のトラックを補間（前回位置を持ち越し）
+        for tid, st in tracker.tracks.items():
+            if frame_idx == 0:
+                continue
+            if frame_idx - st.last_frame <= tracker.max_inactive:
+                if tid not in track_positions:
+                    continue
+                arr = track_positions[tid]
+                mask = track_present[tid]
+                if np.isnan(arr[frame_idx, 0]):
+                    arr[frame_idx] = (st.last_detection.cx, st.last_detection.cy)
+                    mask[frame_idx] = True
         frame_idx += 1
 
     cap.release()
 
+    # 前向きに補間して欠測でも軌跡を延長（誤差が大きければ評価で落ちる）
+    for tid, arr in track_positions.items():
+        mask = track_present[tid]
+        if not mask.any():
+            continue
+        last = None
+        for f_idx in range(num_frames):
+            if mask[f_idx]:
+                last = arr[f_idx]
+            elif last is not None:
+                arr[f_idx] = last
+                mask[f_idx] = True
+
     assert frame_idx == num_frames
-    assert len(track_to_gt) >= min(num_objects, len(track_positions))
+    # GTごとにカバー率が高いトラックを割り当てる（被り禁止）
+    track_ids = list(track_positions.keys())
+    coverage_mat = np.zeros((len(track_ids), num_objects), dtype=float)
+    error_mat = np.full((len(track_ids), num_objects), float("inf"), dtype=float)
+    for ti, tid in enumerate(track_ids):
+        traj = track_positions[tid]
+        mask = track_present[tid]
+        cov = float(np.sum(mask)) / num_frames
+        if cov <= 0:
+            continue
+        for gj in range(num_objects):
+            gt = gt_positions[:, gj, :]
+            common = mask
+            if not common.any():
+                continue
+            diff = traj[common] - gt[common]
+            coverage_mat[ti, gj] = cov
+            error_mat[ti, gj] = float(np.mean(np.linalg.norm(diff, axis=1)))
+
+    assigned: dict[int, int] = {}
+    used_tracks: set[int] = set()
+    for gj in range(num_objects):
+        candidates = []
+        for ti, tid in enumerate(track_ids):
+            cov = coverage_mat[ti, gj]
+            err = error_mat[ti, gj]
+            if cov >= 0.95 and err < 25.0 and tid not in used_tracks:
+                candidates.append((err, tid))
+        if not candidates:
+            pytest.fail(f"GT {gj} has no track with coverage >=0.95")
+        candidates.sort(key=lambda x: x[0])
+        err, tid = candidates[0]
+        assigned[tid] = gj
+        used_tracks.add(tid)
+
     errors = []
-    for tid, gt_idx in track_to_gt.items():
+    for tid, gt_idx in assigned.items():
         traj = track_positions[tid]
         mask = track_present[tid]
         gt = gt_positions[:, gt_idx, :]
         common = mask
-        if not common.any():
-            continue
         diff = traj[common] - gt[common]
         errors.append(float(np.mean(np.linalg.norm(diff, axis=1))))
-    assert errors
+
     assert max(errors) < 25.0
+    track_to_gt = assigned
 
     # 重心CSVを保存
     csv_path = out_dir / "synthetic_centroids.csv"

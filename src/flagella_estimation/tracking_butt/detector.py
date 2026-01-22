@@ -244,6 +244,10 @@ def _detect_once(
     """
     processed = _apply_preprocess(gray, cfg)
     thr = _threshold_image(processed, cfg, invert=invert)
+    # 小さな切れ目を繋ぐため軽いクロージング＋膨張を適用
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    thr = cv2.morphologyEx(thr, cv2.MORPH_CLOSE, kernel)
+    thr = cv2.dilate(thr, kernel, iterations=1)
     contours, _ = cv2.findContours(thr, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     detections, stats = _filter_and_build(
         contours=contours,
