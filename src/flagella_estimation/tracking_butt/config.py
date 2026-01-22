@@ -96,11 +96,14 @@ def load_config(path: Path) -> Config:
     )
     px_per_um_raw = _get(data_raw, "px_per_um", None)
     px2um_raw = _get(data_raw, "px2um", None)
+    um_per_px_raw = _get(data_raw, "um_per_px", None)
     px_per_um: float
     if px_per_um_raw not in (None, ""):
         px_per_um = float(px_per_um_raw)
     elif px2um_raw not in (None, ""):
         px_per_um = 1.0 / float(px2um_raw)
+    elif um_per_px_raw not in (None, ""):
+        px_per_um = 1.0 / float(um_per_px_raw)
     else:
         px_per_um = 1.0
     data_cfg = DataConfig(
@@ -186,10 +189,15 @@ def apply_overrides(config: Config, overrides: dict[str, Any]) -> Config:
             kwargs["bac_short_axis_length_um"] = float(
                 data_over["bac_short_axis_length_um"]
             )
-        if "px_per_um" in data_over:
-            kwargs["px_per_um"] = float(data_over["px_per_um"])
-        if "px2um" in data_over:
-            kwargs["px_per_um"] = 1.0 / float(data_over["px2um"])
+        px_per_um_override: float | None = None
+        if "px_per_um" in data_over and data_over["px_per_um"] not in (None, ""):
+            px_per_um_override = float(data_over["px_per_um"])
+        elif "px2um" in data_over and data_over["px2um"] not in (None, ""):
+            px_per_um_override = 1.0 / float(data_over["px2um"])
+        elif "um_per_px" in data_over and data_over["um_per_px"] not in (None, ""):
+            px_per_um_override = 1.0 / float(data_over["um_per_px"])
+        if px_per_um_override is not None:
+            kwargs["px_per_um"] = px_per_um_override
         if kwargs:
             cfg = replace(cfg, data=replace(cfg.data, **kwargs))
     return cfg
