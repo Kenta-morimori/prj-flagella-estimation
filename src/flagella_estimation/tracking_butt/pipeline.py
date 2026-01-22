@@ -182,7 +182,7 @@ def _process_frames(
                     contour_dir, upd.frame_idx, upd.track_id, upd.detection.contour
                 )
 
-            overlay.draw(frame, upd.detection, upd.track_id, butt)
+            overlay.draw(frame, upd.detection, upd.track_id, butt, frame_idx=frame_idx)
 
         overlay.draw_scale_bar(frame)
         writer.write(frame)

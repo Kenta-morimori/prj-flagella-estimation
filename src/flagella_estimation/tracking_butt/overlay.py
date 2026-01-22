@@ -11,6 +11,9 @@ class OverlayRenderer:
         flagella_length: int = 30,
         scale_bar_px: float | None = None,
         scale_bar_um: float | None = None,
+        draw_history: bool = True,
+        history_length: int = 30,
+        hide_history_after: int = 60,
     ) -> None:
         """擬似べん毛の長さとスケールバー設定を初期化する。
 
@@ -18,13 +21,25 @@ class OverlayRenderer:
             flagella_length: 擬似べん毛を描画する長さ[px]。
             scale_bar_px: スケールバーの長さ[px]。None または 0 以下なら描画しない。
             scale_bar_um: スケールバーに表示する長さ[μm]。None なら px 表記のみ。
+            draw_history: トラックの軌跡を描画するか。
+            history_length: 軌跡として保持する最大フレーム長。
+            hide_history_after: このフレーム数より古い履歴は描かない。
         """
         self.flagella_length = flagella_length
         self.scale_bar_px = scale_bar_px if scale_bar_px and scale_bar_px > 0 else None
         self.scale_bar_um = scale_bar_um
+        self.draw_history = draw_history
+        self.history_length = max(1, history_length)
+        self.hide_history_after = max(1, hide_history_after)
+        self._history: dict[int, list[tuple[int, float, float]]] = {}
 
     def draw(
-        self, frame, detection: Detection, track_id: int, butt: ButtEstimate
+        self,
+        frame,
+        detection: Detection,
+        track_id: int,
+        butt: ButtEstimate,
+        frame_idx: int | None = None,
     ) -> None:
         """楕円/バウンディングボックス、ID、お尻点、擬似べん毛、スケールバーを描画する。
 
@@ -33,12 +48,23 @@ class OverlayRenderer:
             detection: 検知結果。
             track_id: トラックID。
             butt: お尻推定結果。
+            frame_idx: 現在のフレーム番号（軌跡描画に使用）。
 
         Returns:
             None
         """
         center_pt = (int(round(detection.cx)), int(round(detection.cy)))
         butt_pt = (int(round(butt.point[0])), int(round(butt.point[1])))
+
+        if self.draw_history and frame_idx is not None:
+            history = self._history.setdefault(track_id, [])
+            history.append((frame_idx, detection.cx, detection.cy))
+            # 古い履歴を削除
+            cutoff = frame_idx - self.hide_history_after
+            self._history[track_id] = [
+                h for h in history if h[0] >= cutoff
+            ][-self.history_length :]
+            self._draw_history(frame, self._history[track_id])
 
         if (
             detection.is_valid
@@ -113,3 +139,21 @@ class OverlayRenderer:
             1,
             cv2.LINE_AA,
         )
+
+    def _draw_history(
+        self, frame, history: list[tuple[int, float, float]]
+    ) -> None:
+        """トラックの重心履歴を線で描画する。
+
+        Args:
+            frame: 描画対象の画像。
+            history: (frame_idx, x, y) の履歴リスト（古い順）。
+        """
+        if len(history) < 2:
+            return
+        pts = [
+            (int(round(x)), int(round(y)))
+            for _, x, y in sorted(history, key=lambda t: t[0])
+        ]
+        for i in range(1, len(pts)):
+            cv2.line(frame, pts[i - 1], pts[i], (0, 200, 200), 1)

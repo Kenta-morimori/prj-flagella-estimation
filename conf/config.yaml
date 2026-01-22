@@ -37,6 +37,10 @@ tracking_butt:
 
   save:
     contour: false   # デフォルトfalse
+  overlay:
+    draw_history: true
+    history_length: 30
+    hide_history_after: 60
 
 # NOTE: Phase2/3 (flagella inference) will likely reuse some of the same features.
 #       Keep feature names consistent across tasks.

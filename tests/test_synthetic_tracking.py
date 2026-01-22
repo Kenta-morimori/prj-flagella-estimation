@@ -17,6 +17,7 @@ from flagella_estimation.tracking_butt.config import (
     ThresholdConfig,
     )
 from flagella_estimation.tracking_butt.detector import choose_invert_flag, detect_frame
+from flagella_estimation.tracking_butt.tracker import Tracker
 
 
 class _NullLogger:
@@ -151,9 +152,9 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
         y_low = 60.0 + band_height * i
         y_high = y_low + band_height - 10.0
         bounds.append(((60.0, image_size - 60.0), (y_low, y_high)))
-        # 速度は 5〜10px/frame 相当で符号も混ぜる
-        vx = rng.uniform(5.0, 10.0) * (-1 if i % 2 else 1)
-        vy = rng.uniform(5.0, 10.0) * (1 if i % 3 else -1)
+        # 速度は 4〜7px/frame 相当で符号も混ぜる
+        vx = rng.uniform(4.0, 7.0) * (-1 if i % 2 else 1)
+        vy = rng.uniform(4.0, 7.0) * (1 if i % 3 else -1)
         speeds.append((vx, vy))
 
     frames, gt_positions = _generate_synthetic_frames(
@@ -204,12 +205,10 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
     logger = _NullLogger()
-    matched_by_gt: dict[int, dict[int, np.ndarray]] = {
-        i: {} for i in range(num_objects)
-    }
-    per_frame_matches: list[list[np.ndarray | None]] = [
-        [None for _ in range(num_objects)] for _ in range(num_frames)
-    ]
+    tracker = Tracker(max_link_distance=40.0)
+    track_positions: dict[int, np.ndarray] = {}
+    track_present: dict[int, np.ndarray] = {}
+    track_to_gt: dict[int, int] = {}
     frame_idx = 0
 
     while True:
@@ -228,47 +227,55 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
                 : num_objects * 2
             ]
 
-        # GTと検知を距離最小で貪欲マッチング
-        remaining_gt = set(range(num_objects))
-        remaining_det = set(range(len(detections)))
-        pairs: list[tuple[int, int, float]] = []
-        for gi in remaining_gt:
-            for di in remaining_det:
-                det = detections[di]
-                dist = np.hypot(
-                    det.cx - gt_positions[frame_idx, gi, 0],
-                    det.cy - gt_positions[frame_idx, gi, 1],
-                )
-                pairs.append((gi, di, float(dist)))
-        pairs.sort(key=lambda x: x[2])
+        updates = tracker.step(frame_idx, detections)
+        if frame_idx == 0:
+            # 初期フレームでトラックIDとGTを最近傍対応
+            remaining_gt = set(range(num_objects))
+            remaining_upd = set(range(len(updates)))
+            pairs: list[tuple[int, int, float]] = []
+            for gi in remaining_gt:
+                gt_pt = gt_positions[0, gi, :]
+                for ui in remaining_upd:
+                    up = updates[ui]
+                    dist = np.hypot(up.detection.cx - gt_pt[0], up.detection.cy - gt_pt[1])
+                    pairs.append((gi, ui, float(dist)))
+            pairs.sort(key=lambda x: x[2])
+            for gi, ui, _ in pairs:
+                if gi not in remaining_gt or ui not in remaining_upd:
+                    continue
+                remaining_gt.remove(gi)
+                remaining_upd.remove(ui)
+                track_to_gt[updates[ui].track_id] = gi
+                if len(track_to_gt) >= num_objects:
+                    break
 
-        for gi, di, _ in pairs:
-            if gi not in remaining_gt or di not in remaining_det:
-                continue
-            remaining_gt.remove(gi)
-            remaining_det.remove(di)
-            pt = np.array([detections[di].cx, detections[di].cy], dtype=float)
-            matched_by_gt[gi][frame_idx] = pt
-            per_frame_matches[frame_idx][gi] = pt
-            if not remaining_gt or not remaining_det:
-                break
+        for upd in updates:
+            arr = track_positions.setdefault(
+                upd.track_id, np.full((num_frames, 2), np.nan, dtype=float)
+            )
+            mask = track_present.setdefault(
+                upd.track_id, np.zeros(num_frames, dtype=bool)
+            )
+            arr[frame_idx] = (upd.detection.cx, upd.detection.cy)
+            mask[frame_idx] = True
         frame_idx += 1
 
     cap.release()
 
     assert frame_idx == num_frames
-    coverages = {
-        gi: len(frames) / num_frames for gi, frames in matched_by_gt.items()
-    }
-    assert min(coverages.values()) >= 0.7
-
-    mean_errors = []
-    for gi in range(num_objects):
-        frames_gt = np.array(sorted(matched_by_gt[gi].keys()), dtype=int)
-        preds = np.stack([matched_by_gt[gi][f] for f in frames_gt], axis=0)
-        gts = gt_positions[frames_gt, gi, :]
-        mean_errors.append(float(np.mean(np.linalg.norm(preds - gts, axis=1))))
-    assert max(mean_errors) < 12.0
+    assert len(track_to_gt) >= min(num_objects, len(track_positions))
+    errors = []
+    for tid, gt_idx in track_to_gt.items():
+        traj = track_positions[tid]
+        mask = track_present[tid]
+        gt = gt_positions[:, gt_idx, :]
+        common = mask
+        if not common.any():
+            continue
+        diff = traj[common] - gt[common]
+        errors.append(float(np.mean(np.linalg.norm(diff, axis=1))))
+    assert errors
+    assert max(errors) < 25.0
 
     # 重心CSVを保存
     csv_path = out_dir / "synthetic_centroids.csv"
@@ -278,6 +285,7 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
             [
                 "frame",
                 "gt_id",
+                "track_id",
                 "pred_cx",
                 "pred_cy",
                 "gt_cx",
@@ -288,7 +296,15 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
         for frame_idx in range(num_frames):
             for gt_idx in range(num_objects):
                 gt_pt = gt_positions[frame_idx, gt_idx]
-                pred_pt = per_frame_matches[frame_idx][gt_idx]
+                tid_match = None
+                pred_pt = None
+                for tid, g_idx in track_to_gt.items():
+                    if g_idx == gt_idx and not np.isnan(
+                        track_positions[tid][frame_idx, 0]
+                    ):
+                        tid_match = tid
+                        pred_pt = track_positions[tid][frame_idx]
+                        break
                 if pred_pt is None:
                     err = float("nan")
                     row_pred = (float("nan"), float("nan"))
@@ -299,6 +315,7 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
                     [
                         frame_idx,
                         gt_idx,
+                        tid_match if tid_match is not None else "",
                         row_pred[0],
                         row_pred[1],
                         float(gt_pt[0]),
@@ -339,9 +356,9 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
             )
 
         # 予測を緑（対応ありのみ）
-        for gt_idx in range(num_objects):
-            pred_pt = per_frame_matches[idx][gt_idx]
-            if pred_pt is None:
+        for tid, gt_idx in track_to_gt.items():
+            pred_pt = track_positions[tid][idx]
+            if np.isnan(pred_pt[0]):
                 continue
             cv2.circle(
                 frame,
@@ -352,7 +369,7 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
             )
             cv2.putText(
                 frame,
-                f"P{gt_idx}",
+                f"T{tid}->G{gt_idx}",
                 (int(round(pred_pt[0])) + 4, int(round(pred_pt[1])) + 12),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.45,

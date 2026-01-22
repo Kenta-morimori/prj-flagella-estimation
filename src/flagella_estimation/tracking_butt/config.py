@@ -67,11 +67,19 @@ class SaveConfig:
 
 
 @dataclass(frozen=True)
+class OverlayConfig:
+    draw_history: bool
+    history_length: int
+    hide_history_after: int
+
+
+@dataclass(frozen=True)
 class TrackingButtConfig:
     detection: DetectionConfig
     tracking: TrackingConfig
     butt_estimation: ButtEstimationConfig
     save: SaveConfig
+    overlay: OverlayConfig
 
 
 @dataclass(frozen=True)
@@ -178,12 +186,19 @@ def load_config(path: Path) -> Config:
 
     save_raw = tracking_raw.get("save", {}) or {}
     save_cfg = SaveConfig(contour=bool(_get(save_raw, "contour", False)))
+    overlay_raw = tracking_raw.get("overlay", {}) or {}
+    overlay_cfg = OverlayConfig(
+        draw_history=bool(_get(overlay_raw, "draw_history", True)),
+        history_length=int(_get(overlay_raw, "history_length", 30)),
+        hide_history_after=int(_get(overlay_raw, "hide_history_after", 60)),
+    )
 
     tracking_butt_cfg = TrackingButtConfig(
         detection=detection_cfg,
         tracking=tracking_cfg,
         butt_estimation=butt_cfg,
         save=save_cfg,
+        overlay=overlay_cfg,
     )
 
     return Config(data=data_cfg, output=output_cfg, tracking_butt=tracking_butt_cfg)
