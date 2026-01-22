@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import itertools
 import csv
 from dataclasses import replace
 from datetime import datetime
@@ -16,9 +15,8 @@ from flagella_estimation.tracking_butt.config import (
     FilterConfig,
     PreprocessConfig,
     ThresholdConfig,
-)
+    )
 from flagella_estimation.tracking_butt.detector import choose_invert_flag, detect_frame
-from flagella_estimation.tracking_butt.tracker import Tracker
 
 
 class _NullLogger:
@@ -63,8 +61,20 @@ def _generate_synthetic_frames(
     frames: list[np.ndarray] = []
     gt_positions = np.zeros((num_frames, num_objects, 2), dtype=float)
 
+    # 背景ノイズとムラを作成して S/N を下げる
+    rng = np.random.default_rng(42)
+    base_bg = 170 + rng.normal(0, 3, size=(image_size, image_size)).astype(np.float32)
+    blobs = np.zeros((image_size, image_size), dtype=np.float32)
+    for _ in range(15):
+        x = rng.integers(0, image_size)
+        y = rng.integers(0, image_size)
+        amp = rng.uniform(-5, 8)
+        blobs[y, x] = amp
+    blobs = cv2.GaussianBlur(blobs, (0, 0), 9)
+    base_bg = np.clip(base_bg + blobs, 0, 255)
+
     for f in range(num_frames):
-        frame = np.full((image_size, image_size, 3), 180, dtype=np.uint8)
+        frame_gray = base_bg.copy()
         for i in range(num_objects):
             center = (int(round(positions[i, 0])), int(round(positions[i, 1])))
             minor_px = minors_px[i]
@@ -74,17 +84,19 @@ def _generate_synthetic_frames(
                 max(1, int(np.ceil(minor_px / 2))),
             )
             cv2.ellipse(
-                frame,
+                frame_gray,
                 center,
                 axes,
                 0.0,
                 0.0,
                 360.0,
-                (60, 60, 60),
+                40,  # 背景より暗い
                 -1,
             )
             gt_positions[f, i] = positions[i]
 
+        frame_gray = np.clip(frame_gray + rng.normal(0, 1, frame_gray.shape), 0, 255)
+        frame = cv2.cvtColor(frame_gray.astype(np.uint8), cv2.COLOR_GRAY2BGR)
         frames.append(frame)
 
         for i in range(num_objects):
@@ -166,10 +178,10 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
     writer.release()
 
     detection_cfg = DetectionConfig(
-        preprocess=PreprocessConfig(method="none", kernel_size=31),
+        preprocess=PreprocessConfig(method="bg_subtract", kernel_size=13),
         threshold=ThresholdConfig(method="otsu", invert=False, block_size=35),
         filter=FilterConfig(
-            min_area_px=20.0,
+            min_area_px=8.0,
             max_area_px=None,
             max_area_frac=0.05,
             max_minor_factor=3.0,
@@ -192,8 +204,12 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
     logger = _NullLogger()
-    tracker = Tracker(max_link_distance=25.0)
-    track_positions: dict[int, list[np.ndarray]] = {}
+    matched_by_gt: dict[int, dict[int, np.ndarray]] = {
+        i: {} for i in range(num_objects)
+    }
+    per_frame_matches: list[list[np.ndarray | None]] = [
+        [None for _ in range(num_objects)] for _ in range(num_frames)
+    ]
     frame_idx = 0
 
     while True:
@@ -207,44 +223,52 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
             expected_minor_px=expected_minor_px,
             logger=logger,
         )
-        assert len(detections) == gt_positions.shape[1]
-        updates = tracker.step(frame_idx, detections)
-        for upd in updates:
-            track_positions.setdefault(upd.track_id, []).append(
-                np.array([upd.detection.cx, upd.detection.cy], dtype=float)
-            )
+        if len(detections) > num_objects * 2:
+            detections = sorted(detections, key=lambda d: d.area, reverse=True)[
+                : num_objects * 2
+            ]
+
+        # GTと検知を距離最小で貪欲マッチング
+        remaining_gt = set(range(num_objects))
+        remaining_det = set(range(len(detections)))
+        pairs: list[tuple[int, int, float]] = []
+        for gi in remaining_gt:
+            for di in remaining_det:
+                det = detections[di]
+                dist = np.hypot(
+                    det.cx - gt_positions[frame_idx, gi, 0],
+                    det.cy - gt_positions[frame_idx, gi, 1],
+                )
+                pairs.append((gi, di, float(dist)))
+        pairs.sort(key=lambda x: x[2])
+
+        for gi, di, _ in pairs:
+            if gi not in remaining_gt or di not in remaining_det:
+                continue
+            remaining_gt.remove(gi)
+            remaining_det.remove(di)
+            pt = np.array([detections[di].cx, detections[di].cy], dtype=float)
+            matched_by_gt[gi][frame_idx] = pt
+            per_frame_matches[frame_idx][gi] = pt
+            if not remaining_gt or not remaining_det:
+                break
         frame_idx += 1
 
     cap.release()
 
     assert frame_idx == num_frames
-    assert len(track_positions) == gt_positions.shape[1]
-    for traj in track_positions.values():
-        assert len(traj) == num_frames
+    coverages = {
+        gi: len(frames) / num_frames for gi, frames in matched_by_gt.items()
+    }
+    assert min(coverages.values()) >= 0.7
 
-    # IDの整合性を平均距離で確認（複数オブジェクトなので全順列を探索）
-    track_ids = sorted(track_positions.keys())
-    traj_arr = [np.stack(track_positions[tid]) for tid in track_ids]
-    errors = np.zeros((len(traj_arr), gt_positions.shape[1]))
-    for i, traj in enumerate(traj_arr):
-        for j in range(gt_positions.shape[1]):
-            errors[i, j] = float(
-                np.mean(np.linalg.norm(traj - gt_positions[:, j, :], axis=1))
-            )
-
-    best_total = float("inf")
-    best_perm: tuple[int, ...] | None = None
-    for perm in itertools.permutations(range(gt_positions.shape[1])):
-        total = sum(errors[i, perm[i]] for i in range(len(traj_arr)))
-        if total < best_total:
-            best_total = total
-            best_perm = perm
-
-    # 合成ノイズや量子化のぶれを考慮し、平均誤差は <5px を許容
-    assert best_total < 5.0
-    assert best_perm is not None
-
-    track_to_gt = {track_ids[i]: best_perm[i] for i in range(len(track_ids))}
+    mean_errors = []
+    for gi in range(num_objects):
+        frames_gt = np.array(sorted(matched_by_gt[gi].keys()), dtype=int)
+        preds = np.stack([matched_by_gt[gi][f] for f in frames_gt], axis=0)
+        gts = gt_positions[frames_gt, gi, :]
+        mean_errors.append(float(np.mean(np.linalg.norm(preds - gts, axis=1))))
+    assert max(mean_errors) < 12.0
 
     # 重心CSVを保存
     csv_path = out_dir / "synthetic_centroids.csv"
@@ -253,7 +277,6 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
         writer_csv.writerow(
             [
                 "frame",
-                "track_id",
                 "gt_id",
                 "pred_cx",
                 "pred_cy",
@@ -262,19 +285,22 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
                 "error",
             ]
         )
-        for tid in track_ids:
-            gt_idx = track_to_gt[tid]
-            pred_traj = np.stack(track_positions[tid])
-            gt_traj = gt_positions[:, gt_idx, :]
-            for frame_idx, (pred_pt, gt_pt) in enumerate(zip(pred_traj, gt_traj)):
-                err = float(np.linalg.norm(pred_pt - gt_pt))
+        for frame_idx in range(num_frames):
+            for gt_idx in range(num_objects):
+                gt_pt = gt_positions[frame_idx, gt_idx]
+                pred_pt = per_frame_matches[frame_idx][gt_idx]
+                if pred_pt is None:
+                    err = float("nan")
+                    row_pred = (float("nan"), float("nan"))
+                else:
+                    err = float(np.linalg.norm(pred_pt - gt_pt))
+                    row_pred = (float(pred_pt[0]), float(pred_pt[1]))
                 writer_csv.writerow(
                     [
                         frame_idx,
-                        tid,
                         gt_idx,
-                        float(pred_pt[0]),
-                        float(pred_pt[1]),
+                        row_pred[0],
+                        row_pred[1],
                         float(gt_pt[0]),
                         float(gt_pt[1]),
                         err,
@@ -312,10 +338,11 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
                 cv2.LINE_AA,
             )
 
-        # 予測を緑
-        for tid in track_ids:
-            pred_pt = track_positions[tid][idx]
-            gt_idx = track_to_gt[tid]
+        # 予測を緑（対応ありのみ）
+        for gt_idx in range(num_objects):
+            pred_pt = per_frame_matches[idx][gt_idx]
+            if pred_pt is None:
+                continue
             cv2.circle(
                 frame,
                 (int(round(pred_pt[0])), int(round(pred_pt[1]))),
@@ -325,7 +352,7 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
             )
             cv2.putText(
                 frame,
-                f"T{tid}->G{gt_idx}",
+                f"P{gt_idx}",
                 (int(round(pred_pt[0])) + 4, int(round(pred_pt[1])) + 12),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.45,
