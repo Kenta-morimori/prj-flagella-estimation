@@ -247,22 +247,29 @@ def run_tracking_butt(
     )
 
     detection_cfg = cfg.tracking_butt.detection
-    chosen_invert = choose_invert_flag(
-        first_frame
-        if first_frame.ndim == 2
-        else cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY),
-        detection_cfg,
-        expected_minor_px=expected_minor_px,
-    )
-    detection_cfg = replace(
-        detection_cfg, threshold=replace(detection_cfg.threshold, invert=chosen_invert)
-    )
-    logger.info("Invert selected globally: %s", chosen_invert)
+    try:
+        chosen_invert = choose_invert_flag(
+            first_frame
+            if first_frame.ndim == 2
+            else cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY),
+            detection_cfg,
+            expected_minor_px=expected_minor_px,
+        )
+        detection_cfg = replace(
+            detection_cfg,
+            threshold=replace(detection_cfg.threshold, invert=chosen_invert),
+        )
+        logger.info("Invert selected globally: %s", chosen_invert)
 
-    writer = _init_video_writer(
-        ctx.out.tracking_dir / "overlay.mp4", width, height, fps
-    )
-    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        writer = _init_video_writer(
+            ctx.out.tracking_dir / "overlay.mp4", width, height, fps
+        )
+        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+    except Exception:
+        # Ensure the video capture is released if an error occurs before
+        # the later cleanup logic is reached.
+        cap.release()
+        raise
 
     tracker = Tracker(max_link_distance=cfg.tracking_butt.tracking.max_link_distance)
     butt_estimator = ButtEstimator(
