@@ -116,9 +116,7 @@ def load_config(path: Path) -> Config:
     raw: dict[str, Any] = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
 
     data_raw = raw.get("data", {}) or {}
-    video_path = (
-        data_raw.get("video_path") or data_raw.get("data_dir") or "data/sample1.mp4"
-    )
+    video_path = data_raw.get("video_path") or "data/sample1.mp4"
     px_per_um_raw = _get(data_raw, "px_per_um", None)
     px2um_raw = _get(data_raw, "px2um", None)
     um_per_px_raw = _get(data_raw, "um_per_px", None)
