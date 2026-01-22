@@ -127,11 +127,11 @@ def test_synthetic_tracking_stable_ids(tmp_path: Path) -> None:
     um_per_px = 0.2
     bac_short_axis_length_um = 1.0
     expected_minor_px = bac_short_axis_length_um / um_per_px
-    # 長短軸比を 2〜6倍でばらつかせ、短軸も±20%程度ばらつかせる
+    # 長短軸比を 2〜10倍でばらつかせ、短軸も±20%程度ばらつかせる
     num_objects = 10
     rng = np.random.default_rng(0)
     minors = expected_minor_px * rng.uniform(0.8, 1.2, size=num_objects)
-    major_mults = rng.uniform(2.0, 6.0, size=num_objects)
+    major_mults = rng.uniform(2.0, 10.0, size=num_objects)
     try:
         now = datetime.now(ZoneInfo("Asia/Tokyo"))
     except Exception:
