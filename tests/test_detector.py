@@ -38,16 +38,18 @@ def test_detect_frame_filters_large_and_border_touch() -> None:
     cfg = _make_cfg(max_area_frac=0.2)
     frame = np.zeros((100, 100), dtype=np.uint8)
     cv2.rectangle(frame, (30, 30), (70, 70), 255, -1)
-    detections = detect_frame(frame, 0, cfg, logger=logger)
+    detections = detect_frame(frame, 0, cfg, expected_minor_px=20.0, logger=logger)
     assert len(detections) == 1
 
     cfg_large = _make_cfg(max_area_frac=0.05)
     full = np.full((100, 100), 255, dtype=np.uint8)
-    large_dets = detect_frame(full, 1, cfg_large, logger=logger)
+    large_dets = detect_frame(full, 1, cfg_large, expected_minor_px=20.0, logger=logger)
     assert len(large_dets) == 0
 
     cfg_border = _make_cfg(max_area_frac=0.2, reject_border=True)
     border_frame = np.zeros((100, 100), dtype=np.uint8)
     cv2.rectangle(border_frame, (0, 0), (90, 10), 255, -1)  # touches top/left
-    border_dets = detect_frame(border_frame, 2, cfg_border, logger=logger)
+    border_dets = detect_frame(
+        border_frame, 2, cfg_border, expected_minor_px=20.0, logger=logger
+    )
     assert len(border_dets) == 0

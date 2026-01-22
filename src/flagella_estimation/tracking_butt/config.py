@@ -11,6 +11,8 @@ import yaml
 class DataConfig:
     video_path: Path
     fps: float
+    bac_short_axis_length_um: float
+    px_per_um: float
 
 
 @dataclass(frozen=True)
@@ -90,9 +92,20 @@ def load_config(path: Path) -> Config:
 
     data_raw = raw.get("data", {}) or {}
     video_path = data_raw.get("video_path") or data_raw.get("data_dir") or "data/sample1.mp4"
+    px_per_um_raw = _get(data_raw, "px_per_um", None)
+    px2um_raw = _get(data_raw, "px2um", None)
+    px_per_um: float
+    if px_per_um_raw not in (None, ""):
+        px_per_um = float(px_per_um_raw)
+    elif px2um_raw not in (None, ""):
+        px_per_um = 1.0 / float(px2um_raw)
+    else:
+        px_per_um = 1.0
     data_cfg = DataConfig(
         video_path=Path(video_path),
         fps=float(_get(data_raw, "fps", 0.0)),
+        bac_short_axis_length_um=float(_get(data_raw, "bac_short_axis_length_um", 1.0)),
+        px_per_um=px_per_um,
     )
 
     output_raw = raw.get("output", {}) or {}
@@ -167,6 +180,12 @@ def apply_overrides(config: Config, overrides: dict[str, Any]) -> Config:
             kwargs["video_path"] = Path(data_over["video_path"])
         if "fps" in data_over:
             kwargs["fps"] = float(data_over["fps"])
+        if "bac_short_axis_length_um" in data_over:
+            kwargs["bac_short_axis_length_um"] = float(data_over["bac_short_axis_length_um"])
+        if "px_per_um" in data_over:
+            kwargs["px_per_um"] = float(data_over["px_per_um"])
+        if "px2um" in data_over:
+            kwargs["px_per_um"] = 1.0 / float(data_over["px2um"])
         if kwargs:
             cfg = replace(cfg, data=replace(cfg.data, **kwargs))
     return cfg

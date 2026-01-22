@@ -83,6 +83,7 @@ def _filter_and_build(
     contours: list[np.ndarray],
     frame_idx: int,
     cfg: DetectionConfig,
+    expected_minor_px: float,
     width: int,
     height: int,
 ) -> tuple[List[Detection], Dict[str, int]]:
@@ -119,6 +120,8 @@ def _filter_and_build(
             ):
                 ellipse = None
 
+        size_limit = expected_minor_px * 3 if expected_minor_px > 0 else None
+
         if ellipse is None:
             cx = x + w / 2.0
             cy = y + h / 2.0
@@ -127,9 +130,15 @@ def _filter_and_build(
             theta = None
             angle_deg = None
             is_valid = False
+            if size_limit is not None and minor > size_limit:
+                stats["too_thick"] = stats.get("too_thick", 0) + 1
+                continue
         else:
             theta = np.deg2rad(angle_deg)
             is_valid = True
+            if size_limit is not None and minor > size_limit:
+                stats["too_thick"] = stats.get("too_thick", 0) + 1
+                continue
 
         detections.append(
             Detection(
@@ -158,6 +167,7 @@ def _detect_once(
     frame_idx: int,
     cfg: DetectionConfig,
     invert: bool,
+    expected_minor_px: float,
 ) -> tuple[List[Detection], Dict[str, int]]:
     """Run preprocessing, thresholding, contour extraction once."""
     processed = _apply_preprocess(gray, cfg)
@@ -167,6 +177,7 @@ def _detect_once(
         contours=contours,
         frame_idx=frame_idx,
         cfg=cfg,
+        expected_minor_px=expected_minor_px,
         width=gray.shape[1],
         height=gray.shape[0],
     )
@@ -177,33 +188,40 @@ def detect_frame(
     frame: np.ndarray,
     frame_idx: int,
     cfg: DetectionConfig,
+    expected_minor_px: float,
     logger,
 ) -> List[Detection]:
-    """Detect multiple cells in a frame with optional invert fallback."""
+    """Detect multiple cells in a frame using configured invert setting."""
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
     invert_flag = bool(cfg.threshold.invert)
 
-    results = []
-    dets_main, stats_main = _detect_once(gray, frame_idx, cfg, invert=invert_flag)
-    results.append((dets_main, stats_main, invert_flag, False))
-    dets_alt, stats_alt = _detect_once(gray, frame_idx, cfg, invert=not invert_flag)
-    results.append((dets_alt, stats_alt, not invert_flag, True))
-
-    def _score(res: tuple[List[Detection], Dict[str, int], bool, bool]) -> tuple[float, float]:
-        detections, stats, _, _ = res
-        mean_area = stats.get("mean_area", 0.0)
-        return (mean_area if detections else float("inf"), -len(detections))
-
-    results.sort(key=_score)
-    detections, stats, used_invert, was_fallback = results[0]
+    detections, stats = _detect_once(
+        gray, frame_idx, cfg, invert=invert_flag, expected_minor_px=expected_minor_px
+    )
 
     if frame_idx % 10 == 0:
         logger.info(
-            "frame %d detections kept=%d/%d invert=%s%s",
+            "frame %d detections kept=%d/%d invert=%s",
             frame_idx,
             len(detections),
             stats.get("total", 0),
-            used_invert,
-            " (fallback chosen)" if was_fallback else "",
+            invert_flag,
         )
     return detections
+
+
+def choose_invert_flag(
+    gray: np.ndarray, cfg: DetectionConfig, expected_minor_px: float
+) -> bool:
+    """Select a global invert flag by preferring detections with smaller mean area."""
+    options = {bool(cfg.threshold.invert), not bool(cfg.threshold.invert)}
+    scored: list[tuple[float, float, bool]] = []
+    for inv in options:
+        dets, stats = _detect_once(
+            gray, frame_idx=0, cfg=cfg, invert=inv, expected_minor_px=expected_minor_px
+        )
+        mean_area = stats.get("mean_area", float("inf"))
+        score = (mean_area if dets else float("inf"), -len(dets))
+        scored.append((score[0], score[1], inv))
+    scored.sort(key=lambda x: (x[0], x[1]))
+    return scored[0][2]

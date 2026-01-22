@@ -16,7 +16,9 @@ from flagella_estimation.tracking_butt.config import (
     load_config,
     with_save_contour,
 )
-from flagella_estimation.tracking_butt.detector import detect_frame
+from dataclasses import replace
+
+from flagella_estimation.tracking_butt.detector import choose_invert_flag, detect_frame
 from flagella_estimation.tracking_butt.features import FeatureComputer
 from flagella_estimation.tracking_butt.overlay import OverlayRenderer
 from flagella_estimation.tracking_butt.tracker import Tracker
@@ -74,6 +76,7 @@ def _prepare_track_row(update: TrackUpdate, features: Dict[str, float]) -> Dict[
 def _process_frames(
     cap: cv2.VideoCapture,
     detection_cfg: DetectionConfig,
+    expected_minor_px: float,
     tracker: Tracker,
     butt_estimator: ButtEstimator,
     feature_comp: FeatureComputer,
@@ -92,7 +95,9 @@ def _process_frames(
         if not ret:
             break
 
-        detections = detect_frame(frame, frame_idx, detection_cfg, logger=logger)
+        detections = detect_frame(
+            frame, frame_idx, detection_cfg, expected_minor_px=expected_minor_px, logger=logger
+        )
         updates = tracker.step(frame_idx, detections)
 
         for upd in updates:
@@ -153,6 +158,23 @@ def run_tracking_butt(
         raise RuntimeError("Video contains no frames.")
     height, width = first_frame.shape[:2]
 
+    expected_minor_px = (
+        cfg.data.bac_short_axis_length_um * cfg.data.px_per_um
+        if cfg.data.bac_short_axis_length_um > 0 and cfg.data.px_per_um > 0
+        else 0.0
+    )
+
+    detection_cfg = cfg.tracking_butt.detection
+    chosen_invert = choose_invert_flag(
+        first_frame if first_frame.ndim == 2 else cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY),
+        detection_cfg,
+        expected_minor_px=expected_minor_px,
+    )
+    detection_cfg = replace(
+        detection_cfg, threshold=replace(detection_cfg.threshold, invert=chosen_invert)
+    )
+    logger.info("Invert selected globally: %s", chosen_invert)
+
     writer = _init_video_writer(ctx.out.tracking_dir / "overlay.mp4", width, height, fps)
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
@@ -173,7 +195,8 @@ def run_tracking_butt(
     try:
         track_rows, butt_store = _process_frames(
             cap=cap,
-            detection_cfg=cfg.tracking_butt.detection,
+            detection_cfg=detection_cfg,
+            expected_minor_px=expected_minor_px,
             tracker=tracker,
             butt_estimator=butt_estimator,
             feature_comp=feature_comp,
