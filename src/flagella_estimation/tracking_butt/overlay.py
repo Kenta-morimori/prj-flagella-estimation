@@ -10,20 +10,25 @@ class OverlayRenderer:
         """Initialize renderer with pseudo-flagella length."""
         self.flagella_length = flagella_length
 
-    def draw(self, frame, detection: Detection, track_id: int, butt: ButtEstimate) -> None:
+    def draw(
+        self, frame, detection: Detection, track_id: int, butt: ButtEstimate
+    ) -> None:
         """Draw tracking overlays (ellipse/bbox, ids, butt, pseudo flagella)."""
         center_pt = (int(round(detection.cx)), int(round(detection.cy)))
         butt_pt = (int(round(butt.point[0])), int(round(butt.point[1])))
 
-        if detection.is_valid and detection.angle_deg is not None and detection.major and detection.minor:
+        if (
+            detection.is_valid
+            and detection.angle_deg is not None
+            and detection.major
+            and detection.minor
+        ):
             ellipse = (
                 (float(detection.cx), float(detection.cy)),
                 (float(detection.major), float(detection.minor)),
                 float(detection.angle_deg),
             )
-            cv2.ellipse(
-                frame, ellipse, (0, 200, 0), 2
-            )
+            cv2.ellipse(frame, ellipse, (0, 200, 0), 2)
         else:
             x, y, w, h = detection.bbox
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 150, 0), 1)

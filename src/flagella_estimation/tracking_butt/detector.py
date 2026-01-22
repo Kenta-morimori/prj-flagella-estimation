@@ -37,7 +37,9 @@ def _apply_preprocess(gray: np.ndarray, cfg: DetectionConfig) -> np.ndarray:
     return gray
 
 
-def _threshold_image(processed: np.ndarray, cfg: DetectionConfig, invert: bool) -> np.ndarray:
+def _threshold_image(
+    processed: np.ndarray, cfg: DetectionConfig, invert: bool
+) -> np.ndarray:
     """Threshold preprocessed image using Otsu or adaptive; allows inversion."""
     if cfg.threshold.method == "adaptive":
         block_size = max(3, cfg.threshold.block_size | 1)
@@ -100,7 +102,9 @@ def _filter_and_build(
             reason = "too_small"
         elif max_area is not None and area > max_area:
             reason = "too_large"
-        elif cfg.filter.reject_border_touch and _touches_border((x, y, w, h), width, height):
+        elif cfg.filter.reject_border_touch and _touches_border(
+            (x, y, w, h), width, height
+        ):
             reason = "border_touch"
 
         if reason:

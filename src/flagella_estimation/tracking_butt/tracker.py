@@ -51,7 +51,9 @@ class Tracker:
         pairs: list[tuple[float, int, int]] = []
         for d_idx, det in enumerate(detections):
             for t_id, state in active_tracks.items():
-                dist = np.hypot(det.cx - state.last_detection.cx, det.cy - state.last_detection.cy)
+                dist = np.hypot(
+                    det.cx - state.last_detection.cx, det.cy - state.last_detection.cy
+                )
                 if dist <= self.max_link_distance:
                     pairs.append((float(dist), t_id, d_idx))
 

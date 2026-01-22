@@ -8,7 +8,9 @@ from flagella_estimation.tracking_butt.types import Detection, TrackUpdate
 
 
 def _make_detection() -> Detection:
-    contour = np.array([[[0, 0]], [[1, 0]], [[1, 1]], [[0, 1]], [[0, 0]]], dtype=np.int32)
+    contour = np.array(
+        [[[0, 0]], [[1, 0]], [[1, 1]], [[0, 1]], [[0, 0]]], dtype=np.int32
+    )
     return Detection(
         frame_idx=0,
         contour=contour,

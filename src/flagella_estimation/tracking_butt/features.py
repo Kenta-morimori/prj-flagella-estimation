@@ -59,7 +59,9 @@ class FeatureComputer:
             func = SUPPORTED_FEATURES.get(name)
             if func is None:
                 if name not in self._warned:
-                    self.logger.warning("Feature '%s' not implemented; filling with NaN.", name)
+                    self.logger.warning(
+                        "Feature '%s' not implemented; filling with NaN.", name
+                    )
                     self._warned.add(name)
                 values[name] = math.nan
             else:

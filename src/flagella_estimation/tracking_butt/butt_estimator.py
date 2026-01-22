@@ -51,7 +51,9 @@ class ButtEstimator:
             point = state.point or (cx, cy)
             flagella_dir = _unit((point[0] - cx, point[1] - cy))
             state.point = point
-            return ButtEstimate(point=point, flagella_dir=flagella_dir, conf=0.0, frozen=True)
+            return ButtEstimate(
+                point=point, flagella_dir=flagella_dir, conf=0.0, frozen=True
+            )
 
         u = (math.cos(det.theta), math.sin(det.theta))
         half_major = det.major / 2.0

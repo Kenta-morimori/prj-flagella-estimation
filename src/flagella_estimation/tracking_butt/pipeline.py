@@ -30,7 +30,9 @@ def _write_json(path: Path, data: Dict[str, Any]) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _init_video_writer(path: Path, width: int, height: int, fps: float) -> cv2.VideoWriter:
+def _init_video_writer(
+    path: Path, width: int, height: int, fps: float
+) -> cv2.VideoWriter:
     """Create an mp4 writer for overlay output."""
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     return cv2.VideoWriter(str(path), fourcc, fps, (width, height))
@@ -48,14 +50,18 @@ def _butt_record(butt: ButtEstimate) -> Dict[str, float | bool]:
     }
 
 
-def _save_contour(contour_dir: Path, frame_idx: int, track_id: int, contour: np.ndarray) -> None:
+def _save_contour(
+    contour_dir: Path, frame_idx: int, track_id: int, contour: np.ndarray
+) -> None:
     """Save contour to npy in configured directory."""
     contour_dir.mkdir(parents=True, exist_ok=True)
     fname = contour_dir / f"frame_{frame_idx:06d}_track_{track_id:04d}.npy"
     np.save(fname, contour[:, 0, :])
 
 
-def _prepare_track_row(update: TrackUpdate, features: Dict[str, float]) -> Dict[str, Any]:
+def _prepare_track_row(
+    update: TrackUpdate, features: Dict[str, float]
+) -> Dict[str, Any]:
     """Build one row of track.csv."""
     row = {
         "frame": update.frame_idx,
@@ -96,7 +102,11 @@ def _process_frames(
             break
 
         detections = detect_frame(
-            frame, frame_idx, detection_cfg, expected_minor_px=expected_minor_px, logger=logger
+            frame,
+            frame_idx,
+            detection_cfg,
+            expected_minor_px=expected_minor_px,
+            logger=logger,
         )
         updates = tracker.step(frame_idx, detections)
 
@@ -108,7 +118,9 @@ def _process_frames(
             butt_store.setdefault(upd.track_id, {})[upd.frame_idx] = _butt_record(butt)
 
             if contour_dir is not None:
-                _save_contour(contour_dir, upd.frame_idx, upd.track_id, upd.detection.contour)
+                _save_contour(
+                    contour_dir, upd.frame_idx, upd.track_id, upd.detection.contour
+                )
 
             overlay.draw(frame, upd.detection, upd.track_id, butt)
 
@@ -166,7 +178,9 @@ def run_tracking_butt(
 
     detection_cfg = cfg.tracking_butt.detection
     chosen_invert = choose_invert_flag(
-        first_frame if first_frame.ndim == 2 else cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY),
+        first_frame
+        if first_frame.ndim == 2
+        else cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY),
         detection_cfg,
         expected_minor_px=expected_minor_px,
     )
@@ -175,7 +189,9 @@ def run_tracking_butt(
     )
     logger.info("Invert selected globally: %s", chosen_invert)
 
-    writer = _init_video_writer(ctx.out.tracking_dir / "overlay.mp4", width, height, fps)
+    writer = _init_video_writer(
+        ctx.out.tracking_dir / "overlay.mp4", width, height, fps
+    )
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
     tracker = Tracker(max_link_distance=cfg.tracking_butt.tracking.max_link_distance)
@@ -226,7 +242,10 @@ def run_tracking_butt(
     track_path = ctx.out.tracking_dir / "track.csv"
     track_df.to_csv(track_path, index=False)
 
-    butt_json = {str(k): {str(f): v for f, v in frames.items()} for k, frames in butt_store.items()}
+    butt_json = {
+        str(k): {str(f): v for f, v in frames.items()}
+        for k, frames in butt_store.items()
+    }
     _write_json(ctx.out.tracking_dir / "butt.json", butt_json)
 
     qc_summary = {str(k): v for k, v in tracker.qc_summary().items()}

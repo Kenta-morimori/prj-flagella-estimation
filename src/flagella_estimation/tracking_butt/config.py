@@ -91,7 +91,9 @@ def load_config(path: Path) -> Config:
     raw: dict[str, Any] = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
 
     data_raw = raw.get("data", {}) or {}
-    video_path = data_raw.get("video_path") or data_raw.get("data_dir") or "data/sample1.mp4"
+    video_path = (
+        data_raw.get("video_path") or data_raw.get("data_dir") or "data/sample1.mp4"
+    )
     px_per_um_raw = _get(data_raw, "px_per_um", None)
     px2um_raw = _get(data_raw, "px2um", None)
     px_per_um: float
@@ -181,7 +183,9 @@ def apply_overrides(config: Config, overrides: dict[str, Any]) -> Config:
         if "fps" in data_over:
             kwargs["fps"] = float(data_over["fps"])
         if "bac_short_axis_length_um" in data_over:
-            kwargs["bac_short_axis_length_um"] = float(data_over["bac_short_axis_length_um"])
+            kwargs["bac_short_axis_length_um"] = float(
+                data_over["bac_short_axis_length_um"]
+            )
         if "px_per_um" in data_over:
             kwargs["px_per_um"] = float(data_over["px_per_um"])
         if "px2um" in data_over:

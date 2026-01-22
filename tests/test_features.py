@@ -11,7 +11,9 @@ from flagella_estimation.tracking_butt.types import Detection, TrackUpdate
 
 
 def _make_detection(theta: float = 0.0) -> Detection:
-    contour = np.array([[[0, 0]], [[1, 0]], [[1, 1]], [[0, 1]], [[0, 0]]], dtype=np.int32)
+    contour = np.array(
+        [[[0, 0]], [[1, 0]], [[1, 1]], [[0, 1]], [[0, 0]]], dtype=np.int32
+    )
     return Detection(
         frame_idx=0,
         contour=contour,
@@ -29,7 +31,9 @@ def _make_detection(theta: float = 0.0) -> Detection:
 
 def test_feature_computation_handles_supported_and_heading_change() -> None:
     logger = logging.getLogger("feature-test")
-    computer = FeatureComputer(["speed", "vel_axis_dot", "heading_change"], logger=logger)
+    computer = FeatureComputer(
+        ["speed", "vel_axis_dot", "heading_change"], logger=logger
+    )
 
     det = _make_detection(theta=0.0)
     update = TrackUpdate(
