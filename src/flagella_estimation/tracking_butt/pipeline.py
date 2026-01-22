@@ -184,6 +184,7 @@ def _process_frames(
 
             overlay.draw(frame, upd.detection, upd.track_id, butt)
 
+        overlay.draw_scale_bar(frame)
         writer.write(frame)
         frame_idx += 1
 
@@ -275,6 +276,41 @@ def run_tracking_butt(
         scale_bar_px=expected_minor_px,
         scale_bar_um=cfg.data.bac_short_axis_length_um,
     )
+    initial_overlay_path = ctx.out.tracking_dir / "initial_detection.png"
+    initial_frame = first_frame.copy()
+    init_detections = detect_frame(
+        first_frame, 0, detection_cfg, expected_minor_px=expected_minor_px, logger=logger
+    )
+    overlay.draw_scale_bar(initial_frame)
+    for idx, det in enumerate(init_detections):
+        center_pt = (int(round(det.cx)), int(round(det.cy)))
+        if (
+            det.is_valid
+            and det.angle_deg is not None
+            and det.major
+            and det.minor
+        ):
+            ellipse = (
+                (float(det.cx), float(det.cy)),
+                (float(det.major), float(det.minor)),
+                float(det.angle_deg),
+            )
+            cv2.ellipse(initial_frame, ellipse, (0, 200, 0), 2)
+        else:
+            x, y, w, h = det.bbox
+            cv2.rectangle(initial_frame, (x, y), (x + w, y + h), (0, 150, 0), 1)
+        cv2.circle(initial_frame, center_pt, 3, (0, 255, 255), -1)
+        cv2.putText(
+            initial_frame,
+            f"det{idx}",
+            (center_pt[0] + 5, center_pt[1] - 5),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+    cv2.imwrite(str(initial_overlay_path), initial_frame)
 
     contour_dir = (
         ctx.out.tracking_dir / "contours" if cfg.tracking_butt.save.contour else None

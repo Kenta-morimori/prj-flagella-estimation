@@ -76,9 +76,7 @@ class OverlayRenderer:
             cv2.LINE_AA,
         )
 
-        self._draw_scale_bar(frame)
-
-    def _draw_scale_bar(self, frame) -> None:
+    def draw_scale_bar(self, frame) -> None:
         """スケールバーを右下に描画する。
 
         Args:
