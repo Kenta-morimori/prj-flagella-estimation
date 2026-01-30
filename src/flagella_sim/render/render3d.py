@@ -52,6 +52,19 @@ def save_swim_movie(
     frames: List[np.ndarray] = []
     for i, st in enumerate(states_list):
         img = np.full((img_size, img_size, 3), 255, dtype=np.uint8)
+
+        # グリッド（XY平面、5 µm間隔）
+        grid_step_px = int(round(5.0 * px_per_um))
+        if grid_step_px > 0:
+            for x in range(0, img_size, grid_step_px):
+                cv2.line(
+                    img, (x, 0), (x, img_size - 1), (230, 230, 230), 1, cv2.LINE_AA
+                )
+            for y in range(0, img_size, grid_step_px):
+                cv2.line(
+                    img, (0, y), (img_size - 1, y), (230, 230, 230), 1, cv2.LINE_AA
+                )
+
         # 軌跡
         pts = xy[: i + 1]
         for j in range(1, pts.shape[0]):
@@ -121,6 +134,26 @@ def save_swim_movie(
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
             (0, 150, 0),
+            1,
+            cv2.LINE_AA,
+        )
+        # z軸（高さ 5 µm）
+        z_len_px = int(round(5.0 * px_per_um))
+        cv2.arrowedLine(
+            img,
+            center,
+            (center[0] - z_len_px, center[1] - z_len_px),
+            (200, 0, 200),
+            2,
+            tipLength=0.1,
+        )
+        cv2.putText(
+            img,
+            "z",
+            (center[0] - z_len_px - 10, center[1] - z_len_px - 5),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (200, 0, 200),
             1,
             cv2.LINE_AA,
         )
