@@ -50,6 +50,7 @@ def main(
     )
     logger = ctx.logger
     logger.info("Loaded simulation config: %s", cfg)
+    logger.info("Overrides: %s", overrides)
 
     duration_s = float(raw_cfg.get("time", {}).get("duration_s", 0.1))
     simulator = Simulator(cfg)
@@ -83,8 +84,8 @@ def main(
     logger.info("Saved trajectory to %s", traj_path)
 
     # レンダリング
-    save_swim_movie(states, cfg, ctx.out.render_dir)
-    project_states(states, cfg, ctx.out.render2d_dir)
+    save_swim_movie(states, cfg, simulator.rig, ctx.out.render_dir)
+    project_states(states, cfg, simulator.rig, ctx.out.render2d_dir)
 
     # tracking出力（投影座標）
     track_rows = []

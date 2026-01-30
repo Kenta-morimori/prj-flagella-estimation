@@ -277,6 +277,7 @@ tracking_butt:
 - 256×256 px, 0.203 µm/px, z 軸からの orthographic 固定。
 - 背景は **白**。菌体はグレー系、べん毛は色分け・太線でデバッグ描画可能。
 - 本番: 菌体のみ描画。デバッグ: `render_flagella=True` で太線・固定色のべん毛を重ね描画、線幅は `flagella_linewidth_px`。
+- 画角は `image_size_px` と `pixel_size_um` で決まる固定FOV（約52 µm四方）。シミュレーション座標をpx換算してそのまま配置し、正規化は行わない。
 
 ## 実装ポリシー
 - 乱数 seed はべん毛配置・初期姿勢・Brownian にのみ使用し、manifest に保存。再現性: 同 seed + commit + config で同じ軌跡。

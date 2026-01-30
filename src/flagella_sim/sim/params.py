@@ -36,6 +36,7 @@ class FlagellumParams:
     filament_diameter_um: float = 0.02
     placement_mode: str = "uniform"  # uniform / biased など
     motor_freq_hz: float = 100.0
+    helix_step_um: float = 0.2  # 描画用の離散間隔
 
 
 @dataclass(frozen=True)

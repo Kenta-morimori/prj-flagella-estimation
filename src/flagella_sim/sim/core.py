@@ -9,6 +9,11 @@ from typing import List, Tuple
 import numpy as np
 
 from flagella_sim.sim.params import SimulationConfig
+from flagella_sim.sim.flagella_geometry import (
+    FlagellaRig,
+    generate_helix_points,
+    sample_base_directions,
+)
 
 
 def _quat_normalize(q: np.ndarray) -> np.ndarray:
@@ -51,6 +56,19 @@ def _rotate_vec(q: np.ndarray, v: np.ndarray) -> np.ndarray:
     return _quat_multiply(_quat_multiply(q, v_q), q_conj)[:3]
 
 
+def _quat_to_rotmat(q: np.ndarray) -> np.ndarray:
+    """クォータニオンから回転行列を得る。"""
+    x, y, z, w = q
+    return np.array(
+        [
+            [1 - 2 * (y**2 + z**2), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+            [2 * (x * y + z * w), 1 - 2 * (x**2 + z**2), 2 * (y * z - x * w)],
+            [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x**2 + y**2)],
+        ],
+        dtype=float,
+    )
+
+
 def _brownian_sigma_um2_per_s(mu_mpas: float, temp_k: float) -> float:
     """簡易な拡散係数モデル（近似）。"""
     # 目安：水中で 0.3 um^2/s 程度を基準に、粘度に反比例させる。
@@ -75,12 +93,29 @@ class Simulator:
     def __init__(self, config: SimulationConfig):
         self.config = config
         self.rng = np.random.default_rng(config.seed.global_seed)
+        # べん毛基部（菌体座標系）の方向ベクトル
+        self.base_dirs_body = list(
+            sample_base_directions(config.flagella.n_flagella, self.rng)
+        )
+        radius = config.body.diameter_um / 2.0
+        self.base_offsets_body = (
+            np.stack([d * radius for d in self.base_dirs_body], axis=0)
+            if self.base_dirs_body
+            else np.zeros((0, 3))
+        )
+        # ローカルヘリックスポイント
+        self.helix_local = generate_helix_points(config.flagella)
+        self.rig = FlagellaRig(
+            base_offsets_body=self.base_offsets_body,
+            helix_local=self.helix_local,
+        )
 
     def run(self, duration_s: float) -> List[SimulationState]:
         """与えられた時間だけ遊泳させ、状態リストを返す。"""
 
         cfg = self.config
         dt_sim = float(cfg.time.dt_sim)
+        dt_out = float(cfg.time.dt_out)
         t = 0.0
 
         # 初期姿勢を一様乱数で設定
@@ -103,6 +138,7 @@ class Simulator:
 
         states: List[SimulationState] = []
         total_steps = max(1, int(math.ceil(duration_s / dt_sim)))
+        next_sample = 0.0
 
         for _ in range(total_steps + 1):
             # 現在の軸（菌体 x 軸）方向
@@ -140,16 +176,17 @@ class Simulator:
             )
             q = _quat_normalize(_quat_multiply(dq, q))
 
-            # 全ステップ記録
-            states.append(
-                SimulationState(
-                    t=round(t, 9),
-                    position_um=tuple(pos.tolist()),
-                    quaternion=tuple(q.tolist()),
-                    velocity_um_s=tuple(v_prop.tolist()),
-                    omega_rad_s=tuple(omega.tolist()),
+            if t + 1e-12 >= next_sample or _ == total_steps:
+                states.append(
+                    SimulationState(
+                        t=round(t, 9),
+                        position_um=tuple(pos.tolist()),
+                        quaternion=tuple(q.tolist()),
+                        velocity_um_s=tuple(v_prop.tolist()),
+                        omega_rad_s=tuple(omega.tolist()),
+                    )
                 )
-            )
+                next_sample += dt_out
 
             t += dt_sim
 

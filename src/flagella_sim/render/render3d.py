@@ -8,7 +8,8 @@ from typing import Iterable, List
 import cv2
 import numpy as np
 
-from flagella_sim.sim.core import SimulationState, _rotate_vec
+from flagella_sim.sim.core import SimulationState, _quat_to_rotmat
+from flagella_sim.sim.flagella_geometry import FlagellaRig
 from flagella_sim.sim.params import SimulationConfig
 
 
@@ -34,7 +35,10 @@ def _flagella_colors(n: int) -> list[tuple[int, int, int]]:
 
 
 def save_swim_movie(
-    states: Iterable[SimulationState], cfg: SimulationConfig, out_dir: Path
+    states: Iterable[SimulationState],
+    cfg: SimulationConfig,
+    rig: FlagellaRig,
+    out_dir: Path,
 ) -> None:
     """3D軌跡の可視化動画/最終フレームを保存する（白背景＋色分けべん毛）。"""
 
@@ -63,45 +67,20 @@ def save_swim_movie(
             p_last = tuple(np.round(pts[-1]).astype(int))
             cv2.circle(img, p_last, 6, (0, 0, 0), -1, cv2.LINE_AA)
 
-        # べん毛基部方向（投影）
-        heading = np.array([1.0, 0.0, 0.0])
-        body_axis = _rotate_vec(np.array(st.quaternion, dtype=float), heading)
-        # 基部を等角度配置
-        base_angles = np.linspace(
-            0, 2 * np.pi, max(1, cfg.flagella.n_flagella), endpoint=False
-        )
-        base_angles += np.pi / 6
-        base_point = np.array([0.0, 0.0, 0.0])
-        base_px = np.array([img_size / 2, img_size / 2])
-        length_px = img_size * 0.15
-        for idx_f, ang in enumerate(base_angles):
-            dir_world = (
-                np.array(
-                    [
-                        np.cos(ang),
-                        np.sin(ang),
-                        0.1,
-                    ]
-                )
-                + body_axis * 0.2
-            )
-            dir_world = dir_world / (np.linalg.norm(dir_world) + 1e-9)
-            tip = base_point + dir_world * length_px / 100.0
-            tip_xy = tip[:2]
-            tip_px = base_px + tip_xy * (img_size * 0.4)
+        # べん毛ヘリックスをXYに投影
+        rot = _quat_to_rotmat(np.array(st.quaternion, dtype=float))
+        for idx_f, base_off in enumerate(rig.base_offsets_body):
             color = colors[idx_f % len(colors)]
-            cv2.line(
-                img,
-                tuple(base_px.astype(int)),
-                tuple(tip_px.astype(int)),
-                color,
-                2,
-                cv2.LINE_AA,
-            )
+            base_world = rot @ base_off + np.array(st.position_um)
+            helix_world = rig.helix_local @ rot.T + base_world
+            pts = helix_world[:, :2]
+            pts = _normalize_coords(pts, img_size=img_size)
+            pts_int = np.round(pts).astype(int)
+            cv2.polylines(img, [pts_int], False, color, 2, cv2.LINE_AA)
             cv2.putText(
                 img,
                 f"F{idx_f}",
-                tuple(tip_px.astype(int)),
+                tuple(pts_int[-1]),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.4,
                 color,
