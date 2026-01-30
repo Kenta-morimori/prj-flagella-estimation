@@ -37,7 +37,7 @@ def main(
         help="Optional overrides as key=value (e.g., flagella.n_flagella=6)",
     ),
 ) -> None:
-    """Phase2 用のシミュレーション＆投影エントリ（現状はスタブ）。"""
+    """Phase2 用のシミュレーション＆投影エントリ。"""
 
     raw_cfg = _load_config(config)
     override_dict = _to_nested_overrides(overrides)
@@ -55,7 +55,7 @@ def main(
     simulator = Simulator(cfg)
     states = simulator.run(duration_s)
 
-    # 保存: 3D軌跡（暫定で1ステップのみ）
+    # 保存: 3D軌跡
     traj_path = ctx.out.sim_dir / "trajectory.csv"
     traj_path.parent.mkdir(parents=True, exist_ok=True)
     df = pd.DataFrame(
@@ -80,11 +80,11 @@ def main(
         ]
     )
     df.to_csv(traj_path, index=False)
-    logger.info("Saved placeholder trajectory to %s", traj_path)
+    logger.info("Saved trajectory to %s", traj_path)
 
-    # レンダリング（現状はディレクトリ＋メモ作成のみ）
+    # レンダリング
     save_swim_movie(states, ctx.out.render_dir)
-    project_states(states, cfg.render, ctx.out.render2d_dir)
+    project_states(states, cfg, ctx.out.render2d_dir)
 
     # manifest に出力一覧を追記
     manifest_path = ctx.out.root / "manifest.json"
