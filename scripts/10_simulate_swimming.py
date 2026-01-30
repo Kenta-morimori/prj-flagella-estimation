@@ -103,6 +103,9 @@ def main(
     manifest["outputs"] = outputs
     manifest["files"] = [
         str(traj_path.relative_to(ctx.out.root)),
+        "render/swim3d.mp4",
+        "render/swim3d_final.png",
+        "render2d/projection.mp4",
     ]
     manifest_path.write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
