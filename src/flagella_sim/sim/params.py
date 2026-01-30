@@ -54,13 +54,12 @@ class TimeParams:
     """時間刻みと出力レート設定。"""
 
     fps_out: float = 50.0
-    dt_out: float = 0.02
     dt_sim: float = 0.0005
+    duration_s: float = 5.0
 
     @property
-    def recommended_dt_sim(self) -> float:
-        """f_motor=100Hz を前提にした推奨 dt。"""
-        return min(self.dt_sim, 1.0 / (20.0 * 100.0))
+    def dt_out(self) -> float:
+        return 1.0 / self.fps_out if self.fps_out > 0 else 0.02
 
 
 @dataclass(frozen=True)
@@ -122,11 +121,10 @@ class SimulationConfig:
 
         time_raw = raw.get("time", {}) or {}
         fps_out = float(_get(time_raw, "fps_out", 50.0))
-        dt_out_default = 1.0 / fps_out if fps_out > 0 else 0.02
         time_params = TimeParams(
             fps_out=fps_out,
-            dt_out=float(_get(time_raw, "dt_out", dt_out_default)),
             dt_sim=float(_get(time_raw, "dt_sim", 0.0005)),
+            duration_s=float(_get(time_raw, "duration_s", 5.0)),
         )
 
         render_raw = raw.get("render", {}) or {}

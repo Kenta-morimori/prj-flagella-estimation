@@ -17,9 +17,8 @@ environment:
   include_gravity: false
 time:
   fps_out: 50
-  dt_out: 0.02
   dt_sim: 0.0005
-  duration_s: 0.1
+  duration_s: 5.0
 render:
   image_size_px: 256
   pixel_size_um: 0.203

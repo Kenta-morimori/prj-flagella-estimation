@@ -54,8 +54,8 @@ def project_states(
 
     img_size = cfg.render.image_size_px
     px_per_um = 1.0 / cfg.render.pixel_size_um
-    body_major_px = int(cfg.body.length_total_um * px_per_um)
-    body_minor_px = int(cfg.body.diameter_um * px_per_um)
+    body_major_px = cfg.body.length_total_um * px_per_um
+    body_minor_px = cfg.body.diameter_um * px_per_um
     thickness = max(1, int(round(body_minor_px / 6)))
 
     colors = [
@@ -72,8 +72,10 @@ def project_states(
     for idx, st in enumerate(states_list):
         img = np.full((img_size, img_size, 3), 255, dtype=np.uint8)  # 白背景
 
-        cx = int(img_size // 2 + st.position_um[0] * px_per_um)
-        cy = int(img_size // 2 + st.position_um[1] * px_per_um)
+        cx_f = img_size / 2 + st.position_um[0] * px_per_um
+        cy_f = img_size / 2 + st.position_um[1] * px_per_um
+        cx = int(round(cx_f))
+        cy = int(round(cy_f))
         heading = heading_from_quat(st.quaternion)
         rot = _quat_to_rotmat(np.array(st.quaternion, dtype=float))
 
@@ -99,7 +101,10 @@ def project_states(
                     cv2.LINE_AA,
                 )
 
-        axes = (max(1, body_major_px // 2), max(1, body_minor_px // 2))
+        axes = (
+            max(1, int(round(body_major_px / 2))),
+            max(1, int(round(body_minor_px / 2))),
+        )
         cv2.ellipse(
             img,
             (cx, cy),

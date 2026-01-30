@@ -115,7 +115,7 @@ class Simulator:
 
         cfg = self.config
         dt_sim = float(cfg.time.dt_sim)
-        dt_out = float(cfg.time.dt_out)
+        dt_out = cfg.time.dt_out
         t = 0.0
 
         # 初期姿勢を一様乱数で設定

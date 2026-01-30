@@ -26,8 +26,8 @@ def _make_cfg(**overrides):
         },
         "time": {
             "fps_out": 50,
-            "dt_out": 0.02,
             "dt_sim": 0.0005,
+            "duration_s": 0.05,
         },
         "render": {
             "image_size_px": 256,

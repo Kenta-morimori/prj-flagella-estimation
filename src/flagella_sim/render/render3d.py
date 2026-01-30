@@ -14,15 +14,8 @@ from flagella_sim.sim.params import SimulationConfig
 
 
 def _normalize_coords(points: np.ndarray, img_size: int) -> np.ndarray:
-    """XY平面を画像座標へスケーリングして中央に配置する。"""
-    if points.size == 0:
-        return points
-    max_span = max(np.ptp(points[:, 0]), np.ptp(points[:, 1]), 1e-6)
-    scale = (img_size * 0.4) / max_span
-    pts = points[:, :2] * scale
-    pts[:, 0] += img_size / 2
-    pts[:, 1] += img_size / 2
-    return pts
+    """XY平面をそのまま px へ変換（座標はすでに px 前提）。"""
+    return points
 
 
 def _flagella_colors(n: int) -> list[tuple[int, int, int]]:
@@ -48,9 +41,10 @@ def save_swim_movie(
         (out_dir / "swim3d_final.png").write_text("no states", encoding="utf-8")
         return
 
-    img_size = 720
+    img_size = cfg.render.image_size_px
+    px_per_um = 1.0 / cfg.render.pixel_size_um
     coords = np.array([st.position_um for st in states_list], dtype=float)
-    xy = _normalize_coords(coords.copy(), img_size=img_size)
+    xy = coords[:, :2] * px_per_um + np.array([img_size / 2, img_size / 2])
     colors = _flagella_colors(cfg.flagella.n_flagella)
 
     frames: List[np.ndarray] = []
@@ -73,9 +67,10 @@ def save_swim_movie(
             color = colors[idx_f % len(colors)]
             base_world = rot @ base_off + np.array(st.position_um)
             helix_world = rig.helix_local @ rot.T + base_world
-            pts = helix_world[:, :2]
-            pts = _normalize_coords(pts, img_size=img_size)
-            pts_int = np.round(pts).astype(int)
+            pts_px = helix_world[:, :2] * px_per_um + np.array(
+                [img_size / 2, img_size / 2]
+            )
+            pts_int = np.round(pts_px).astype(int)
             cv2.polylines(img, [pts_int], False, color, 2, cv2.LINE_AA)
             cv2.putText(
                 img,
@@ -87,6 +82,46 @@ def save_swim_movie(
                 1,
                 cv2.LINE_AA,
             )
+
+        # 軸表示
+        center = (int(img_size / 2), int(img_size / 2))
+        axis_len = int(img_size * 0.2)
+        cv2.arrowedLine(
+            img,
+            center,
+            (center[0] + axis_len, center[1]),
+            (0, 0, 255),
+            2,
+            tipLength=0.1,
+        )
+        cv2.arrowedLine(
+            img,
+            center,
+            (center[0], center[1] - axis_len),
+            (0, 150, 0),
+            2,
+            tipLength=0.1,
+        )
+        cv2.putText(
+            img,
+            "x",
+            (center[0] + axis_len + 5, center[1] + 5),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 0, 255),
+            1,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            img,
+            "y",
+            (center[0] + 5, center[1] - axis_len - 5),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 150, 0),
+            1,
+            cv2.LINE_AA,
+        )
 
         frames.append(img)
 
