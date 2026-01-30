@@ -103,9 +103,9 @@ def save_swim_movie(
 
         fig.tight_layout()
         fig.canvas.draw()
-        img = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-        img = img.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-        frames.append(cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+        buf = np.asarray(fig.canvas.buffer_rgba())
+        img_bgr = cv2.cvtColor(buf, cv2.COLOR_RGBA2BGR)
+        frames.append(img_bgr)
         plt.close(fig)
 
     final_path = out_dir / "swim3d_final.png"
