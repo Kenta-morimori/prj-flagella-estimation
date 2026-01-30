@@ -13,8 +13,8 @@ from flagella_sim.sim.core import SimulationState, _rotate_vec
 from flagella_sim.sim.params import SimulationConfig
 
 
-def _heading_from_quat(q: tuple[float, float, float, float]) -> float:
-    """クォータニオンからXY平面上の見かけのヘディング角度[rad]を得る。"""
+def heading_from_quat(q: tuple[float, float, float, float]) -> float:
+    """クォータニオンからXY平面上のヘディング角度[rad]を得る。"""
     v = _rotate_vec(np.array(q, dtype=float), np.array([1.0, 0.0, 0.0]))
     return math.atan2(v[1], v[0])
 
@@ -26,7 +26,7 @@ def _draw_flagella(
     cfg: SimulationConfig,
     rng: np.random.Generator,
 ) -> None:
-    """デバッグ用に太線のべん毛を描画する。"""
+    """デバッグ用に太線のべん毛を描画する（白背景向け配色）。"""
     n = max(0, cfg.flagella.n_flagella)
     if n == 0:
         return
@@ -34,17 +34,27 @@ def _draw_flagella(
         int(cfg.flagella.length_um / cfg.render.pixel_size_um),
         img.shape[0],
     )
-    # 基部を等角度＋乱数微 perturb で配置
     base_angles = np.linspace(0, 2 * math.pi, n, endpoint=False)
-    base_angles += rng.normal(0.0, 0.15, size=n)
+    base_angles += rng.normal(0.0, 0.1, size=n)
     base_angles += heading
-    color = (255, 200, 80)
     thickness = int(max(1, round(cfg.render.flagella_linewidth_px)))
     cx, cy = center_px
-    for ang in base_angles:
+    for i, ang in enumerate(base_angles):
         dx = int(math.cos(ang) * length_px * 0.6)
         dy = int(math.sin(ang) * length_px * 0.6)
+        hsv = np.uint8([[[int((i * 40) % 180), 200, 230]]])
+        color = tuple(int(c) for c in cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)[0, 0])
         cv2.line(img, (cx, cy), (cx + dx, cy + dy), color, thickness, cv2.LINE_AA)
+        cv2.putText(
+            img,
+            f"F{i}",
+            (cx + dx, cy + dy),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.4,
+            color,
+            1,
+            cv2.LINE_AA,
+        )
 
 
 def project_states(
@@ -70,13 +80,12 @@ def project_states(
     frames: List[np.ndarray] = []
 
     for idx, st in enumerate(states_list):
-        img = np.zeros((img_size, img_size, 3), dtype=np.uint8)
+        img = np.full((img_size, img_size, 3), 255, dtype=np.uint8)  # 白背景
 
         cx = int(img_size // 2 + st.position_um[0] * px_per_um)
         cy = int(img_size // 2 + st.position_um[1] * px_per_um)
-        heading = _heading_from_quat(st.quaternion)
+        heading = heading_from_quat(st.quaternion)
 
-        # 本番は菌体のみ描画（デフォルト）。render_flagella=True で線を足す。
         axes = (max(1, body_major_px // 2), max(1, body_minor_px // 2))
         cv2.ellipse(
             img,
@@ -85,7 +94,7 @@ def project_states(
             math.degrees(heading),
             0,
             360,
-            (180, 255, 255),
+            (80, 80, 80),
             thickness,
             cv2.LINE_AA,
         )
@@ -93,7 +102,7 @@ def project_states(
         if cfg.render.render_flagella:
             _draw_flagella(img, (cx, cy), heading, cfg, rng)
 
-        cv2.circle(img, (cx, cy), max(1, thickness), (255, 255, 255), -1, cv2.LINE_AA)
+        cv2.circle(img, (cx, cy), max(1, thickness), (0, 0, 0), -1, cv2.LINE_AA)
 
         frame_path = frames_dir / f"frame_{idx:06d}.png"
         cv2.imwrite(str(frame_path), img)

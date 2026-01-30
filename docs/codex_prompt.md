@@ -259,7 +259,7 @@ tracking_butt:
 
 ## スコープ（やること）
 - 菌体: spherocylinder（全長 3.0 µm, 直径 0.8 µm デフォルト）。
-- べん毛: 剛体らせん中心線、長さ 12 µm、ピッチ 2.3 µm、半径 0.2 µm、径 0.02 µm。本数 `n_flagella` は 0〜任意、配置は菌体表面へほぼ一様サンプリング（デフォルト）。
+- べん毛: 剛体らせん中心線、長さ 12 µm、ピッチ 2.3 µm、半径 0.2 µm、径 0.02 µm。本数 `n_flagella` は 0〜任意、デフォルト **5 本**。配置は菌体表面へほぼ一様サンプリング（デフォルト）。
 - モータ入力: 回転数 `f_motor`（Hz または rad/s）。全べん毛共通でも個別指定可能な設計。
 - 環境: 粘度 1.0 mPa·s、温度 298 K、Brownian オン/オフ、重力オフ（スイッチは残す）。
 - 時間刻み: 出力 fps=50（dt_out=0.02s）。内部積分ステップ `dt_sim <= 1/(20*f_motor)` 推奨。内部計算→出力で間引く。
@@ -271,9 +271,11 @@ tracking_butt:
 - `sim/trajectory.csv`（または parquet）: t, r(x,y,z), q, v, w 必須。可能なら各べん毛基部・回転数なども保存。
 - `render/swim3d.mp4`, `render/swim3d_final.png`
 - `render2d/frames/frame_000000.png` …, `render2d/projection.mp4`
+- `tracking/track.csv`, `tracking/butt.json`, `tracking/overlay.mp4`（2D投影に基づく簡易トラッキング出力。sim結果をそのまま投影して書く）
 
 ## 2D 投影仕様
 - 256×256 px, 0.203 µm/px, z 軸からの orthographic 固定。
+- 背景は **白**。菌体はグレー系、べん毛は色分け・太線でデバッグ描画可能。
 - 本番: 菌体のみ描画。デバッグ: `render_flagella=True` で太線・固定色のべん毛を重ね描画、線幅は `flagella_linewidth_px`。
 
 ## 実装ポリシー

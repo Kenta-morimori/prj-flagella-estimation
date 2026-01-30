@@ -10,7 +10,7 @@ def _make_cfg(**overrides):
     base = {
         "body": {"length_total_um": 3.0, "diameter_um": 0.8},
         "flagella": {
-            "n_flagella": 6,
+            "n_flagella": 5,
             "length_um": 12.0,
             "pitch_um": 2.3,
             "radius_um": 0.2,
@@ -37,7 +37,6 @@ def _make_cfg(**overrides):
         },
         "seed": {"global_seed": 0},
     }
-    # シャロー更新
     for k, v in overrides.items():
         base[k] = {**base.get(k, {}), **v} if isinstance(v, dict) else v
     return SimulationConfig.from_dict(base)

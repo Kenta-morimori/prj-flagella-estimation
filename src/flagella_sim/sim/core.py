@@ -81,7 +81,6 @@ class Simulator:
 
         cfg = self.config
         dt_sim = float(cfg.time.dt_sim)
-        dt_out = float(cfg.time.dt_out)
         t = 0.0
 
         # 初期姿勢を一様乱数で設定
@@ -103,7 +102,6 @@ class Simulator:
         rot_diff = 0.05 * (1.0 if cfg.flagella.n_flagella == 0 else 0.2)  # [rad^2/s]
 
         states: List[SimulationState] = []
-        next_sample = 0.0
         total_steps = max(1, int(math.ceil(duration_s / dt_sim)))
 
         for _ in range(total_steps + 1):
@@ -142,18 +140,16 @@ class Simulator:
             )
             q = _quat_normalize(_quat_multiply(dq, q))
 
-            # サンプリング
-            if t + 1e-12 >= next_sample:
-                states.append(
-                    SimulationState(
-                        t=round(next_sample, 9),
-                        position_um=tuple(pos.tolist()),
-                        quaternion=tuple(q.tolist()),
-                        velocity_um_s=tuple(v_prop.tolist()),
-                        omega_rad_s=tuple(omega.tolist()),
-                    )
+            # 全ステップ記録
+            states.append(
+                SimulationState(
+                    t=round(t, 9),
+                    position_um=tuple(pos.tolist()),
+                    quaternion=tuple(q.tolist()),
+                    velocity_um_s=tuple(v_prop.tolist()),
+                    omega_rad_s=tuple(omega.tolist()),
                 )
-                next_sample += dt_out
+            )
 
             t += dt_sim
 

@@ -3,7 +3,7 @@ body:
   length_total_um: 3.0
   diameter_um: 0.8
 flagella:
-  n_flagella: 8
+  n_flagella: 5
   length_um: 12.0
   pitch_um: 2.3
   radius_um: 0.2

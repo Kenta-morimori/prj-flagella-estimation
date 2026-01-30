@@ -29,7 +29,7 @@ class BodyParams:
 class FlagellumParams:
     """べん毛の幾何・駆動パラメータ。"""
 
-    n_flagella: int = 8  # デフォルト本数（暫定）
+    n_flagella: int = 5  # デフォルト本数
     length_um: float = 12.0
     pitch_um: float = 2.3
     radius_um: float = 0.2
