@@ -44,7 +44,9 @@ def save_swim_movie(
     img_size = cfg.render.image_size_px
     px_per_um = 1.0 / cfg.render.pixel_size_um
     coords = np.array([st.position_um for st in states_list], dtype=float)
-    xy = coords[:, :2] * px_per_um + np.array([img_size / 2, img_size / 2])
+    render_offset = -coords[0]
+    coords_shift = coords + render_offset
+    xy = coords_shift[:, :2] * px_per_um + np.array([img_size / 2, img_size / 2])
     colors = _flagella_colors(cfg.flagella.n_flagella)
 
     frames: List[np.ndarray] = []
@@ -65,7 +67,7 @@ def save_swim_movie(
         rot = _quat_to_rotmat(np.array(st.quaternion, dtype=float))
         for idx_f, base_off in enumerate(rig.base_offsets_body):
             color = colors[idx_f % len(colors)]
-            base_world = rot @ base_off + np.array(st.position_um)
+            base_world = rot @ base_off + np.array(st.position_um) + render_offset
             helix_world = rig.helix_local @ rot.T + base_world
             pts_px = helix_world[:, :2] * px_per_um + np.array(
                 [img_size / 2, img_size / 2]
