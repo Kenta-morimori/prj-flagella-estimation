@@ -71,8 +71,29 @@ def save_swim_movie(
             path[-1, 0], path[-1, 1], path[-1, 2], color="k", s=20, depthshade=False
         )
 
-        # べん毛
+        # 菌体（中心軸のみ簡易描画）
         rot = _quat_to_rotmat(np.array(st.quaternion, dtype=float))
+        half_len = cfg.body.length_total_um / 2.0
+        body_axis = np.array([half_len, 0.0, 0.0])
+        p1 = (rot @ body_axis) + np.array(st.position_um) + render_offset
+        p2 = (rot @ (-body_axis)) + np.array(st.position_um) + render_offset
+        ax.plot(
+            [p1[0], p2[0]],
+            [p1[1], p2[1]],
+            [p1[2], p2[2]],
+            color=(0.4, 0.4, 0.4),
+            linewidth=4,
+        )
+        ax.scatter(
+            [p1[0], p2[0]],
+            [p1[1], p2[1]],
+            [p1[2], p2[2]],
+            color=(0.2, 0.2, 0.2),
+            s=40,
+            depthshade=False,
+        )
+
+        # べん毛
         for idx_f, base_off in enumerate(rig.base_offsets_body):
             color = np.array(colors[idx_f % len(colors)]) / 255.0
             base_world = rot @ base_off + np.array(st.position_um) + render_offset
