@@ -39,7 +39,9 @@ def generate_helix_points(
     return np.stack([x, y, z], axis=1)
 
 
-def rotate_and_translate(points: np.ndarray, rot_mat: np.ndarray, origin: np.ndarray) -> np.ndarray:
+def rotate_and_translate(
+    points: np.ndarray, rot_mat: np.ndarray, origin: np.ndarray
+) -> np.ndarray:
     """点列に回転・並進を適用する。"""
     return (points @ rot_mat.T) + origin
 

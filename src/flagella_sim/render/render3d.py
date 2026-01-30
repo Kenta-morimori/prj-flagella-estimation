@@ -1,4 +1,4 @@
-"""3D軌跡の簡易可視化を行う。"""
+"""3D軌跡をMatplotlibの3Dグリッドで可視化する。"""
 
 from __future__ import annotations
 
@@ -6,16 +6,15 @@ from pathlib import Path
 from typing import Iterable, List
 
 import cv2
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import numpy as np
 
 from flagella_sim.sim.core import SimulationState, _quat_to_rotmat
 from flagella_sim.sim.flagella_geometry import FlagellaRig
 from flagella_sim.sim.params import SimulationConfig
-
-
-def _normalize_coords(points: np.ndarray, img_size: int) -> np.ndarray:
-    """XY平面をそのまま px へ変換（座標はすでに px 前提）。"""
-    return points
 
 
 def _flagella_colors(n: int) -> list[tuple[int, int, int]]:
@@ -33,7 +32,7 @@ def save_swim_movie(
     rig: FlagellaRig,
     out_dir: Path,
 ) -> None:
-    """3D軌跡の可視化動画/最終フレームを保存する（白背景＋色分けべん毛）。"""
+    """Matplotlibで3Dグリッド付きの可視化を生成する。"""
 
     states_list: List[SimulationState] = list(states)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -41,131 +40,85 @@ def save_swim_movie(
         (out_dir / "swim3d_final.png").write_text("no states", encoding="utf-8")
         return
 
-    img_size = cfg.render.image_size_px
-    px_per_um = 1.0 / cfg.render.pixel_size_um
     coords = np.array([st.position_um for st in states_list], dtype=float)
-    render_offset = -coords[0]
-    coords_shift = coords + render_offset
-    xy = coords_shift[:, :2] * px_per_um + np.array([img_size / 2, img_size / 2])
     colors = _flagella_colors(cfg.flagella.n_flagella)
+
+    # 初期位置を原点に寄せ、FOVは image_size_px * pixel_size_um の立方体
+    render_offset = -coords[0]
+    fov_um = cfg.render.image_size_px * cfg.render.pixel_size_um
+    half = fov_um / 2.0
 
     frames: List[np.ndarray] = []
     for i, st in enumerate(states_list):
-        img = np.full((img_size, img_size, 3), 255, dtype=np.uint8)
+        fig = plt.figure(figsize=(5, 5))
+        ax = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor("white")
 
-        # グリッド（XY平面、5 µm間隔）
-        grid_step_px = int(round(5.0 * px_per_um))
-        if grid_step_px > 0:
-            for x in range(0, img_size, grid_step_px):
-                cv2.line(
-                    img, (x, 0), (x, img_size - 1), (230, 230, 230), 1, cv2.LINE_AA
-                )
-            for y in range(0, img_size, grid_step_px):
-                cv2.line(
-                    img, (0, y), (img_size - 1, y), (230, 230, 230), 1, cv2.LINE_AA
-                )
+        # グリッドと立方体範囲
+        ax.set_xlim(-half, half)
+        ax.set_ylim(-half, half)
+        ax.set_zlim(-half, half)
+        ax.set_box_aspect((1, 1, 1))
+        ax.set_xlabel("x [µm]")
+        ax.set_ylabel("y [µm]")
+        ax.set_zlabel("z [µm]")
+        ax.grid(True, which="both")
 
         # 軌跡
-        pts = xy[: i + 1]
-        for j in range(1, pts.shape[0]):
-            p0 = tuple(np.round(pts[j - 1]).astype(int))
-            p1 = tuple(np.round(pts[j]).astype(int))
-            cv2.line(img, p0, p1, (100, 180, 180), 2, cv2.LINE_AA)
+        path = coords[: i + 1] + render_offset
+        ax.plot(path[:, 0], path[:, 1], path[:, 2], color="#64b6b6", linewidth=2)
+        ax.scatter(
+            path[-1, 0], path[-1, 1], path[-1, 2], color="k", s=20, depthshade=False
+        )
 
-        if pts.shape[0] > 0:
-            p_last = tuple(np.round(pts[-1]).astype(int))
-            cv2.circle(img, p_last, 6, (0, 0, 0), -1, cv2.LINE_AA)
-
-        # べん毛ヘリックスをXYに投影
+        # べん毛
         rot = _quat_to_rotmat(np.array(st.quaternion, dtype=float))
         for idx_f, base_off in enumerate(rig.base_offsets_body):
-            color = colors[idx_f % len(colors)]
+            color = np.array(colors[idx_f % len(colors)]) / 255.0
             base_world = rot @ base_off + np.array(st.position_um) + render_offset
             helix_world = rig.helix_local @ rot.T + base_world
-            pts_px = helix_world[:, :2] * px_per_um + np.array(
-                [img_size / 2, img_size / 2]
+            ax.plot(
+                helix_world[:, 0],
+                helix_world[:, 1],
+                helix_world[:, 2],
+                color=color,
+                linewidth=2,
             )
-            pts_int = np.round(pts_px).astype(int)
-            cv2.polylines(img, [pts_int], False, color, 2, cv2.LINE_AA)
-            cv2.putText(
-                img,
+            ax.text(
+                helix_world[-1, 0],
+                helix_world[-1, 1],
+                helix_world[-1, 2],
                 f"F{idx_f}",
-                tuple(pts_int[-1]),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.4,
-                color,
-                1,
-                cv2.LINE_AA,
+                color=color,
+                fontsize=8,
             )
 
-        # 軸表示
-        center = (int(img_size / 2), int(img_size / 2))
-        axis_len = int(img_size * 0.2)
-        cv2.arrowedLine(
-            img,
-            center,
-            (center[0] + axis_len, center[1]),
-            (0, 0, 255),
-            2,
-            tipLength=0.1,
-        )
-        cv2.arrowedLine(
-            img,
-            center,
-            (center[0], center[1] - axis_len),
-            (0, 150, 0),
-            2,
-            tipLength=0.1,
-        )
-        cv2.putText(
-            img,
-            "x",
-            (center[0] + axis_len + 5, center[1] + 5),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (0, 0, 255),
-            1,
-            cv2.LINE_AA,
-        )
-        cv2.putText(
-            img,
-            "y",
-            (center[0] + 5, center[1] - axis_len - 5),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (0, 150, 0),
-            1,
-            cv2.LINE_AA,
-        )
-        # z軸（高さ 5 µm）
-        z_len_px = int(round(5.0 * px_per_um))
-        cv2.arrowedLine(
-            img,
-            center,
-            (center[0] - z_len_px, center[1] - z_len_px),
-            (200, 0, 200),
-            2,
-            tipLength=0.1,
-        )
-        cv2.putText(
-            img,
-            "z",
-            (center[0] - z_len_px - 10, center[1] - z_len_px - 5),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (200, 0, 200),
-            1,
-            cv2.LINE_AA,
-        )
+        # 凡例
+        handles = [
+            plt.Line2D([0], [0], color=np.array(c) / 255.0, lw=2, label=f"F{i}")
+            for i, c in enumerate(colors)
+        ]
+        if handles:
+            ax.legend(handles=handles, loc="upper right", fontsize=8)
 
-        frames.append(img)
+        fig.tight_layout()
+        fig.canvas.draw()
+        img = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+        img = img.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        frames.append(cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+        plt.close(fig)
 
     final_path = out_dir / "swim3d_final.png"
     cv2.imwrite(str(final_path), frames[-1])
 
     video_path = out_dir / "swim3d.mp4"
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    writer = cv2.VideoWriter(str(video_path), fourcc, 30.0, (img_size, img_size))
+    writer = cv2.VideoWriter(
+        str(video_path),
+        fourcc,
+        cfg.time.fps_out,
+        (frames[0].shape[1], frames[0].shape[0]),
+    )
     for frame in frames:
         writer.write(frame)
     writer.release()
