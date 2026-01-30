@@ -1,0 +1,31 @@
+# Phase2 simulation default config (placeholder)
+body:
+  length_total_um: 3.0
+  diameter_um: 0.8
+flagella:
+  n_flagella: 8
+  length_um: 12.0
+  pitch_um: 2.3
+  radius_um: 0.2
+  filament_diameter_um: 0.02
+  placement_mode: uniform
+  motor_freq_hz: 100
+environment:
+  viscosity_mpas: 1.0
+  temperature_k: 298
+  include_brownian: true
+  include_gravity: false
+time:
+  fps_out: 50
+  dt_out: 0.02
+  dt_sim: 0.0005
+  duration_s: 0.1
+render:
+  image_size_px: 256
+  pixel_size_um: 0.203
+  render_flagella: false
+  flagella_linewidth_px: 3.0
+seed:
+  global_seed: 0
+output:
+  base_dir: outputs
