@@ -241,3 +241,54 @@ tracking_butt:
 * 変更・追加したファイル一覧（パス）を先に列挙すること。
 * その後、変更した各ファイルの最終版全文を提示すること。
 * 既存ファイルの削除や大規模な構造変更は禁止（必要がある場合は理由と代替案を提示すること）。
+
+---
+
+# Phase2 Codex Prompt（simulation → projection）
+
+## 目的（MVP）
+剛体の菌体（spherocylinder）と N 本の剛体らせんべん毛を回転数入力で駆動し、低 Re 近似の最小モデルで 3D 遊泳軌跡を生成する。その 3D から 256×256 px、0.203 µm/px の 2D orthographic 投影画像連番・動画を出力し、seed・config・git commit と紐づく manifest/log を必ず残す。
+
+## パッケージとエントリ
+- 新規パッケージ: `src/flagella_sim/`（推定系と分離）
+  - `sim/`: 状態・パラメータ dataclass、時間発展コア、べん毛配置・Brownian など。
+  - `render/`: 3D 可視化、2D 投影生成（デバッグ描画トグル付き）。
+- 新規スクリプト: `scripts/10_simulate_swimming.py`
+  - 呼び出し例: `uv run python -m scripts.10_simulate_swimming --config conf/sim_swim.yaml key=value`
+  - 既存 Phase1（tracking）は `scripts/01_tracking_butt.py` のまま据え置き。番号体系は 10 番台で Phase2 を追加。
+
+## スコープ（やること）
+- 菌体: spherocylinder（全長 3.0 µm, 直径 0.8 µm デフォルト）。
+- べん毛: 剛体らせん中心線、長さ 12 µm、ピッチ 2.3 µm、半径 0.2 µm、径 0.02 µm。本数 `n_flagella` は 0〜任意、デフォルト **5 本**。配置は菌体表面へほぼ一様サンプリング（デフォルト）。
+- モータ入力: 回転数 `f_motor`（Hz または rad/s）。全べん毛共通でも個別指定可能な設計。
+- 環境: 粘度 1.0 mPa·s、温度 298 K、Brownian オン/オフ、重力オフ（スイッチは残す）。
+- 時間刻み: 出力 fps=50（dt_out=0.02s）。内部積分ステップ `dt_sim <= 1/(20*f_motor)` 推奨。内部計算→出力で間引く。
+- 力学: べん毛駆動による並進＋回転、counter-rotation が出ること。`n_flagella=0` では平均ドリフトなしでブラウン拡散。`f_motor` 増で速度が増える傾向。
+
+## 出力構成（必須）
+`outputs/YYYY-MM-DD/HHMMSS/` 配下に以下を生成する（Phase1 と同じ run_context を流用）。
+- `run.log`, `manifest.json`（config スナップショット、git commit, dirty フラグ, seed, 生成ファイル一覧）
+- `sim/trajectory.csv`（または parquet）: t, r(x,y,z), q, v, w 必須。可能なら各べん毛基部・回転数なども保存。
+- `render/swim3d.mp4`, `render/swim3d_final.png`
+- `render2d/frames/frame_000000.png` …, `render2d/projection.mp4`
+ - （Phase2 のデータ生成では `tracking/*` は出力しない）
+
+## 2D 投影仕様
+- 256×256 px, 0.203 µm/px, z 軸からの orthographic 固定。
+- 背景は **白**。菌体はグレー系、べん毛は色分け・太線でデバッグ描画可能。
+- 本番: 菌体のみ描画。デバッグ: `render_flagella=True` で太線・固定色のべん毛を重ね描画、線幅は `flagella_linewidth_px`。
+- 画角は `image_size_px` と `pixel_size_um` で決まる固定FOV（約52 µm四方）。シミュレーション座標をpx換算してそのまま配置し、正規化は行わない。
+
+## 実装ポリシー
+- 乱数 seed はべん毛配置・初期姿勢・Brownian にのみ使用し、manifest に保存。再現性: 同 seed + commit + config で同じ軌跡。
+- ログ・manifest は Phase1 と同形式を拡張し、出力先一覧を含める。
+- 物理モデルは差し替え可能な構造（`propulsion_model` 抽象）で実装し、RFT 係数等は暫定値でも切替可能に。
+
+## テスト（追加方針）
+- スモーク: 短時間（例 0.1s）で最後まで落ちない。
+- 再現性: 同 seed で trajectory 一致。
+- 感度: `f_motor` 増加で平均速度が増えることを定性的に確認。
+- `n_flagella=0` + Brownian on で MSD が 0 にならないこと。
+
+## 未確定のデフォルト
+- `n_flagella` のデフォルト本数は 5 本とし、実装は任意入力可能にする。

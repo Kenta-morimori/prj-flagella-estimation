@@ -41,6 +41,9 @@ def init_run(base_dir: str | Path, input_info: dict[str, Any]) -> RunContext:
         outputs={
             "root": str(out.root),
             "tracking_dir": str(out.tracking_dir),
+            "sim_dir": str(out.sim_dir),
+            "render_dir": str(out.render_dir),
+            "render2d_dir": str(out.render2d_dir),
             "log": str(log_path),
         },
     )
