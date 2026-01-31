@@ -9,7 +9,7 @@ import typer
 import yaml
 
 from flagella_estimation.core.run_context import init_run
-from flagella_sim.render.project2d import heading_from_quat, project_states
+from flagella_sim.render.project2d import project_states
 from flagella_sim.render.render3d import save_swim_movie
 from flagella_sim.sim.core import Simulator
 from flagella_sim.sim.params import SimulationConfig, merge_overrides
@@ -86,39 +86,6 @@ def main(
     # レンダリング
     save_swim_movie(states, cfg, simulator.rig, ctx.out.render_dir)
     project_states(states, cfg, simulator.rig, ctx.out.render2d_dir)
-
-    # tracking出力（投影座標）
-    track_rows = []
-    px_per_um = 1.0 / cfg.render.pixel_size_um
-    body_major_px = cfg.body.length_total_um * px_per_um
-    body_minor_px = cfg.body.diameter_um * px_per_um
-    for frame_idx, st in enumerate(states):
-        cx = cfg.render.image_size_px / 2 + st.position_um[0] * px_per_um
-        cy = cfg.render.image_size_px / 2 + st.position_um[1] * px_per_um
-        theta = heading_from_quat(st.quaternion)
-        track_rows.append(
-            {
-                "frame": frame_idx,
-                "track_id": 0,
-                "cx": cx,
-                "cy": cy,
-                "theta": theta,
-                "major": body_major_px,
-                "minor": body_minor_px,
-                "vx": st.velocity_um_s[0] * px_per_um,
-                "vy": st.velocity_um_s[1] * px_per_um,
-                "is_valid": True,
-            }
-        )
-    track_df = pd.DataFrame(track_rows)
-    track_path = ctx.out.tracking_dir / "track.csv"
-    track_df.to_csv(track_path, index=False)
-    butt_path = ctx.out.tracking_dir / "butt.json"
-    butt_path.write_text("{}", encoding="utf-8")
-    # overlay用 mp4（2D投影を流用）
-    overlay_src = ctx.out.render2d_dir / "projection.mp4"
-    overlay_dst = ctx.out.tracking_dir / "overlay.mp4"
-    overlay_dst.write_bytes(overlay_src.read_bytes())
 
     # manifest に出力一覧を追記
     manifest_path = ctx.out.root / "manifest.json"
