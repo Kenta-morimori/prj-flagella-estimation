@@ -291,4 +291,4 @@ tracking_butt:
 - `n_flagella=0` + Brownian on で MSD が 0 にならないこと。
 
 ## 未確定のデフォルト
-- `n_flagella` デフォルト本数は要最終決定（例: 8）。実装は任意入力可能にする。
+- `n_flagella` のデフォルト本数は 5 本とし、実装は任意入力可能にする。
