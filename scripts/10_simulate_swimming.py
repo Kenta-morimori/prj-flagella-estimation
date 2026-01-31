@@ -32,6 +32,16 @@ def _to_nested_overrides(items: Optional[List[str]]) -> Dict[str, Any]:
 @app.command()
 def main(
     config: Path = typer.Option(Path("conf/sim_swim.yaml"), "--config", "-c"),
+    duration_s: float = typer.Option(
+        None, help="Override time.duration_s (seconds)"
+    ),
+    fps_out: float = typer.Option(
+        None, help="Override time.fps_out (frames per second)"
+    ),
+    render_flagella: bool = typer.Option(
+        None,
+        help="Enable flagella rendering (overrides render.render_flagella)",
+    ),
     overrides: List[str] = typer.Argument(
         None,
         help="Optional overrides as key=value (e.g., flagella.n_flagella=6)",
@@ -41,6 +51,12 @@ def main(
 
     raw_cfg = _load_config(config)
     override_dict = _to_nested_overrides(overrides)
+    if duration_s is not None:
+        override_dict.setdefault("time", {})["duration_s"] = duration_s
+    if fps_out is not None:
+        override_dict.setdefault("time", {})["fps_out"] = fps_out
+    if render_flagella is not None:
+        override_dict.setdefault("render", {})["render_flagella"] = render_flagella
     cfg = SimulationConfig.from_dict(raw_cfg).with_overrides(override_dict)
 
     output_base = raw_cfg.get("output", {}).get("base_dir", "outputs")
@@ -49,8 +65,8 @@ def main(
         input_info={"config": str(config), "overrides": overrides or []},
     )
     logger = ctx.logger
-    logger.info("Loaded simulation config: %s", cfg)
-    logger.info("Overrides: %s", overrides)
+    logger.info("Loaded simulation config (effective): %s", cfg)
+    logger.info("Overrides: %s", override_dict if override_dict else "None")
 
     duration_s = float(raw_cfg.get("time", {}).get("duration_s", 0.1))
     simulator = Simulator(cfg)
