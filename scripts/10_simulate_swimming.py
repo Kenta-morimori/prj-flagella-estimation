@@ -68,9 +68,9 @@ def main(
     logger.info("Loaded simulation config (effective): %s", cfg)
     logger.info("Overrides: %s", override_dict if override_dict else "None")
 
-    duration_s = float(raw_cfg.get("time", {}).get("duration_s", 0.1))
+    sim_duration_s = float(getattr(cfg.time, "duration_s", 0.1))
     simulator = Simulator(cfg)
-    states = simulator.run(duration_s)
+    states = simulator.run(sim_duration_s)
 
     # 保存: 3D軌跡（全ステップ）
     traj_path = ctx.out.sim_dir / "trajectory.csv"
