@@ -18,8 +18,10 @@ from flagella_sim.sim.params import SimulationConfig
 
 
 def _flagella_colors(n: int) -> list[tuple[int, int, int]]:
+    if n <= 0:
+        return []
     colors = []
-    for i in range(max(1, n)):
+    for i in range(n):
         hsv = np.uint8([[[int((i * 40) % 180), 200, 230]]])
         bgr = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)[0, 0]
         colors.append(tuple(int(c) for c in bgr))
