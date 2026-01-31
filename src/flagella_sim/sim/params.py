@@ -102,7 +102,7 @@ class SimulationConfig:
 
         flag_raw = raw.get("flagella", {}) or {}
         flagella = FlagellumParams(
-            n_flagella=int(_get(flag_raw, "n_flagella", 8)),
+            n_flagella=int(_get(flag_raw, "n_flagella", FlagellumParams().n_flagella)),
             length_um=float(_get(flag_raw, "length_um", 12.0)),
             pitch_um=float(_get(flag_raw, "pitch_um", 2.3)),
             radius_um=float(_get(flag_raw, "radius_um", 0.2)),
