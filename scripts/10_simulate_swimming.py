@@ -38,7 +38,7 @@ def main(
     fps_out: Optional[float] = typer.Option(
         None, help="Override time.fps_out (frames per second)"
     ),
-    render_flagella: bool = typer.Option(
+    render_flagella: Optional[bool] = typer.Option(
         None,
         help="Enable flagella rendering (overrides render.render_flagella)",
     ),
