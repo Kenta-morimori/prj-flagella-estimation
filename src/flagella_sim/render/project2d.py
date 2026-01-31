@@ -70,7 +70,7 @@ def project_states(
                 np.uint8([[[int((i * 40) % 180), 200, 230]]]), cv2.COLOR_HSV2BGR
             )[0, 0]
         )
-        for i in range(max(1, cfg.flagella.n_flagella))
+        for i in range(cfg.flagella.n_flagella)
     ]
     frames: List[np.ndarray] = []
 
