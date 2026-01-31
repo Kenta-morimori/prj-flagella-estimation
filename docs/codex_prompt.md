@@ -271,7 +271,7 @@ tracking_butt:
 - `sim/trajectory.csv`（または parquet）: t, r(x,y,z), q, v, w 必須。可能なら各べん毛基部・回転数なども保存。
 - `render/swim3d.mp4`, `render/swim3d_final.png`
 - `render2d/frames/frame_000000.png` …, `render2d/projection.mp4`
-- `tracking/track.csv`, `tracking/butt.json`, `tracking/overlay.mp4`（2D投影に基づく簡易トラッキング出力。sim結果をそのまま投影して書く）
+ - （Phase2 のデータ生成では `tracking/*` は出力しない）
 
 ## 2D 投影仕様
 - 256×256 px, 0.203 µm/px, z 軸からの orthographic 固定。
