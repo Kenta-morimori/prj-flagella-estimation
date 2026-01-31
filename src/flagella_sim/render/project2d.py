@@ -56,7 +56,12 @@ def project_states(
     px_per_um = 1.0 / cfg.render.pixel_size_um
     body_major_px = cfg.body.length_total_um * px_per_um
     body_minor_px = cfg.body.diameter_um * px_per_um
-    thickness = max(1, int(round(body_minor_px / 6)))
+    body_thickness = max(1, int(round(body_minor_px / 6)))
+    flagella_thickness = max(1, int(round(cfg.render.flagella_linewidth_px)))
+    # Backward-compatibility alias: existing code using `thickness` should be
+    # migrated to use `body_thickness` (for body outline) or `flagella_thickness`
+    # (for flagella). This alias keeps current behavior until that refactor.
+    thickness = body_thickness
 
     colors = [
         tuple(
