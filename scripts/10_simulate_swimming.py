@@ -32,9 +32,7 @@ def _to_nested_overrides(items: Optional[List[str]]) -> Dict[str, Any]:
 @app.command()
 def main(
     config: Path = typer.Option(Path("conf/sim_swim.yaml"), "--config", "-c"),
-    duration_s: float = typer.Option(
-        None, help="Override time.duration_s (seconds)"
-    ),
+    duration_s: float = typer.Option(None, help="Override time.duration_s (seconds)"),
     fps_out: float = typer.Option(
         None, help="Override time.fps_out (frames per second)"
     ),
