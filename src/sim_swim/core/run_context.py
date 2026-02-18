@@ -46,6 +46,31 @@ def _run(cmd: list[str]) -> str:
     return subprocess.check_output(cmd, stderr=subprocess.STDOUT, text=True).strip()
 
 
+def _require_clean_git(max_preview_lines: int = 20) -> None:
+    """未コミット変更がある場合は実行を停止する。"""
+
+    try:
+        status = _run(["git", "status", "--porcelain"])
+    except Exception as exc:
+        raise RuntimeError(
+            "Git状態を確認できないため実行を中止。git管理下で実行してください。"
+        ) from exc
+
+    if status == "":
+        return
+
+    lines = status.splitlines()
+    preview = "\n".join(lines[:max_preview_lines])
+    omitted = max(0, len(lines) - max_preview_lines)
+    omitted_suffix = f"\n...（残り {omitted} 行は省略）" if omitted > 0 else ""
+    raise RuntimeError(
+        "未コミット変更があるため実行を中止。\n"
+        "以下は `git status --porcelain` の先頭20行:\n"
+        f"{preview}{omitted_suffix}\n"
+        "対処: commit/stash してから再実行してください。"
+    )
+
+
 def _git_info() -> GitInfo:
     """Git情報を取得する。Git管理外でも例外にせず unknown を返す。"""
 
@@ -109,6 +134,8 @@ def init_run(base_dir: str | Path, input_info: dict[str, Any]) -> RunContext:
     Returns:
         初期化済みの実行コンテキスト。
     """
+
+    _require_clean_git()
 
     date_str, time_str = _now_jst()
     root = Path(base_dir) / date_str / time_str
