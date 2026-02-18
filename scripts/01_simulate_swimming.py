@@ -8,11 +8,11 @@ import pandas as pd
 import typer
 import yaml
 
-from flagella_estimation.core.run_context import init_run
-from flagella_sim.render.project2d import project_states
-from flagella_sim.render.render3d import save_swim_movie
-from flagella_sim.sim.core import Simulator
-from flagella_sim.sim.params import SimulationConfig, merge_overrides
+from sim_swim.core.run_context import init_run
+from sim_swim.render.project2d import project_states
+from sim_swim.render.render3d import save_swim_movie
+from sim_swim.sim.core import Simulator
+from sim_swim.sim.params import SimulationConfig, merge_overrides
 
 app = typer.Typer(
     add_completion=False,

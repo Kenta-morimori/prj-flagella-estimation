@@ -12,9 +12,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from flagella_sim.sim.core import SimulationState, _quat_to_rotmat
-from flagella_sim.sim.flagella_geometry import FlagellaRig
-from flagella_sim.sim.params import SimulationConfig
+from sim_swim.sim.core import SimulationState, _quat_to_rotmat
+from sim_swim.sim.flagella_geometry import FlagellaRig
+from sim_swim.sim.params import SimulationConfig
 
 
 def _flagella_colors(n: int) -> list[tuple[int, int, int]]:
