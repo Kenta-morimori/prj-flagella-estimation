@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from flagella_sim.sim.core import Simulator
-from flagella_sim.sim.params import SimulationConfig
+from sim_swim.sim.core import Simulator
+from sim_swim.sim.params import SimulationConfig
 
 
 def _make_cfg(**overrides):

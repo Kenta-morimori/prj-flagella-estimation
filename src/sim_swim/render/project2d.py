@@ -9,9 +9,9 @@ from typing import Iterable, List
 import cv2
 import numpy as np
 
-from flagella_sim.sim.core import SimulationState, _rotate_vec, _quat_to_rotmat
-from flagella_sim.sim.flagella_geometry import FlagellaRig
-from flagella_sim.sim.params import SimulationConfig
+from sim_swim.sim.core import SimulationState, _rotate_vec, _quat_to_rotmat
+from sim_swim.sim.flagella_geometry import FlagellaRig
+from sim_swim.sim.params import SimulationConfig
 
 
 def heading_from_quat(q: tuple[float, float, float, float]) -> float:

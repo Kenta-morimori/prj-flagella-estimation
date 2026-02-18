@@ -8,8 +8,8 @@ from typing import List, Tuple
 
 import numpy as np
 
-from flagella_sim.sim.params import SimulationConfig
-from flagella_sim.sim.flagella_geometry import (
+from sim_swim.sim.params import SimulationConfig
+from sim_swim.sim.flagella_geometry import (
     FlagellaRig,
     generate_helix_points,
     sample_base_directions,

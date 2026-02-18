@@ -9,7 +9,7 @@ import numpy as np
 
 from dataclasses import dataclass
 
-from flagella_sim.sim.params import FlagellumParams
+from sim_swim.sim.params import FlagellumParams
 
 
 @dataclass(frozen=True)

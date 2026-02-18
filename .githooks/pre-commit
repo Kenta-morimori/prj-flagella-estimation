@@ -8,12 +8,24 @@ run_cmd() {
   "$@"
 }
 
+has_pytest_targets() {
+  find tests -type f -name 'test_*.py' -print -quit 2>/dev/null | grep -q .
+}
+
 if command -v uv >/dev/null 2>&1; then
   run_cmd uv run ruff format --check .
   run_cmd uv run ruff check .
-  run_cmd uv run pytest
+  if has_pytest_targets; then
+    run_cmd uv run pytest -q
+  else
+    echo "==> pytest skipped (no tests found)"
+  fi
 else
   run_cmd ruff format --check .
   run_cmd ruff check .
-  PYTHONPATH=src run_cmd pytest
+  if has_pytest_targets; then
+    PYTHONPATH=src run_cmd pytest -q
+  else
+    echo "==> pytest skipped (no tests found)"
+  fi
 fi
