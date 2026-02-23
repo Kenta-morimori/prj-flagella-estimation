@@ -23,7 +23,18 @@ def compute_spring_forces(
     s_limit_m: float,
     clamp_eps: float = 1e-6,
 ) -> np.ndarray:
-    """Fraenkel型spring力を計算する。"""
+    """Fraenkel型spring力を計算する（SI入力/出力）。
+
+    Args:
+        positions_m: 粒子座標 [m]
+        spring_pairs: ばね接続インデックス
+        spring_rest_lengths_m: 平衡長 [m]
+        h_const: ばね係数 H [N]
+        s_limit_m: 伸長制限 s [m]
+
+    Returns:
+        各粒子に働く力 [N]。shape=(N,3)
+    """
 
     forces = np.zeros_like(positions_m)
     if spring_pairs.size == 0:
@@ -80,7 +91,17 @@ def compute_bending_forces(
     theta0_rad: np.ndarray,
     kb: float,
 ) -> np.ndarray:
-    """bending（三つ組）力を計算する。"""
+    """bending（三つ組）力を計算する（SI入力/出力）。
+
+    Args:
+        positions_m: 粒子座標 [m]
+        triplets: 三つ組インデックス
+        theta0_rad: 平衡角 [rad]
+        kb: 曲げ剛性 [J]
+
+    Returns:
+        各粒子に働く力 [N]。shape=(N,3)
+    """
 
     forces = np.zeros_like(positions_m)
     for t_idx, (i, j, k) in enumerate(triplets):
@@ -126,7 +147,18 @@ def compute_torsion_forces(
     kt: float,
     fd_eps_m: float,
 ) -> np.ndarray:
-    """torsion（四つ組）力を有限差分で計算する。"""
+    """torsion（四つ組）力を有限差分で計算する（SI入力/出力）。
+
+    Args:
+        positions_m: 粒子座標 [m]
+        quads: 四つ組インデックス
+        phi0_rad: 平衡二面角 [rad]
+        kt: ねじり剛性 [J]
+        fd_eps_m: 有限差分幅 [m]
+
+    Returns:
+        各粒子に働く力 [N]。shape=(N,3)
+    """
 
     forces = np.zeros_like(positions_m)
     eps = max(fd_eps_m, 1e-12)
@@ -156,7 +188,7 @@ def compute_hook_forces(
     kb_hook: float,
     threshold_deg: float,
 ) -> np.ndarray:
-    """hook曲げ条件（閾値以下のみ有効）を計算する。"""
+    """hook曲げ条件（閾値以下のみ有効）を計算する（SI入力/出力）。"""
 
     forces = np.zeros_like(positions_m)
     threshold_rad = math.radians(threshold_deg)
@@ -224,7 +256,19 @@ def compute_segment_repulsion_forces(
     cutoff: float,
     a_length: float,
 ) -> np.ndarray:
-    """spring-spring 反発力を近似計算する。"""
+    """spring-spring 反発力を近似計算する（SI入力/出力）。
+
+    Args:
+        positions_m: 粒子座標 [m]
+        spring_pairs: ばね接続インデックス
+        segment_pair_indices: 判定対象セグメント対
+        a_ss: 反発エネルギー係数 [J]
+        cutoff: カットオフ距離 [m]
+        a_length: 減衰長 [m]
+
+    Returns:
+        各粒子に働く力 [N]。shape=(N,3)
+    """
 
     forces = np.zeros_like(positions_m)
     if segment_pair_indices.size == 0:
@@ -263,7 +307,16 @@ def compute_motor_forces(
     motor_triplets: np.ndarray,
     torque_per_flag: np.ndarray,
 ) -> np.ndarray:
-    """総力ゼロ・指定軸トルクとなる最小ノルム力を算出する。"""
+    """総力ゼロ・指定軸トルクとなる最小ノルム力を算出する（SI入力/出力）。
+
+    Args:
+        positions_m: 粒子座標 [m]
+        motor_triplets: hook周辺3点インデックス
+        torque_per_flag: べん毛ごとの目標トルク [N*m]
+
+    Returns:
+        各粒子に働く力 [N]。shape=(N,3)
+    """
 
     forces = np.zeros_like(positions_m)
     if motor_triplets.size == 0:
