@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 import math
+import time
 from typing import List, Tuple
 
 import numpy as np
@@ -157,13 +159,37 @@ class Simulator:
             bead_positions_um=self.model.positions_m.copy() * M_TO_UM,
         )
 
-    def run(self, duration_s: float) -> List[SimulationState]:
-        """与えた時間だけシミュレーションして状態列を返す。"""
+    def run(
+        self,
+        duration_s: float,
+        logger: logging.Logger | None = None,
+        progress_interval: int | None = None,
+    ) -> List[SimulationState]:
+        """与えた時間だけシミュレーションして状態列を返す。
+
+        Args:
+            duration_s: シミュレーション時間 [s]。
+            logger: 進捗を出力するロガー（任意）。
+            progress_interval: 進捗ログのステップ間隔。None なら自動設定。
+        """
 
         dt = max(self.config.dt_s, 1e-9)
         total_steps = max(1, int(math.ceil(duration_s / dt)))
 
         states: List[SimulationState] = []
+        wall_start = time.perf_counter()
+
+        if progress_interval is None:
+            progress_interval = 1000 if total_steps >= 10000 else 100
+        progress_interval = max(1, int(progress_interval))
+
+        if logger is not None:
+            logger.info(
+                "Simulation loop start: total_steps=%d, dt=%.6e s, progress_interval=%d",
+                total_steps,
+                dt,
+                progress_interval,
+            )
 
         for step in range(total_steps + 1):
             t_now = self.engine.t
@@ -172,5 +198,23 @@ class Simulator:
 
             if step < total_steps:
                 self.engine.step(dt)
+                completed = step + 1
+                if logger is not None and (
+                    completed % progress_interval == 0 or completed == total_steps
+                ):
+                    logger.info(
+                        "Simulation progress: step=%d/%d (%.1f%%), t=%.6f s",
+                        completed,
+                        total_steps,
+                        (completed / total_steps) * 100.0,
+                        self.engine.t,
+                    )
+
+        if logger is not None:
+            logger.info(
+                "Simulation loop end: total_steps=%d, elapsed=%.2f s",
+                total_steps,
+                time.perf_counter() - wall_start,
+            )
 
         return states

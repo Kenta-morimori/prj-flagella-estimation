@@ -70,7 +70,7 @@ def main(
 
     sim_duration_s = float(cfg.time.duration_s)
     simulator = Simulator(cfg)
-    states = simulator.run(sim_duration_s)
+    states = simulator.run(sim_duration_s, logger=logger)
 
     # 保存: 3D軌跡（全ステップ）
     traj_path = ctx.out.sim_dir / "trajectory.csv"
