@@ -64,7 +64,7 @@ run_tumble:
   curly1_tau: 400.0            # [tau] tumble 後半（curly1）
 
 time:
-  duration_s: 5.0              # [s] 物理時間
+  duration_s: 2.0              # [s] 物理時間
   dt_over_tau: 0.001           # [-] 時間刻み dt/tau（Table 1）
 
 output_sampling:
