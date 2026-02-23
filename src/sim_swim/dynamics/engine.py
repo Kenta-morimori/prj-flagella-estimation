@@ -177,7 +177,7 @@ class DynamicsEngine:
 
         if self.model.motor_triplets.shape[0] > 0:
             torque_per_flag = (
-                self.cfg.motor.torque_Nm
+                self.cfg.torque_Nm
                 * self.model.torque_signs[: self.model.motor_triplets.shape[0]]
             )
             forces += compute_motor_forces(

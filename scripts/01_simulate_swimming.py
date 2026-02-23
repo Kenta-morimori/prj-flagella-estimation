@@ -70,17 +70,30 @@ def main(
     cfg.validate_time_scaling()
 
     logger.info(
+        "[time-scale] input motor.torque_Nm=%.6e is ignored; using T=ηb^3",
+        cfg.input_torque_Nm,
+    )
+    logger.info(
         (
-            "Time scale: b_um=%.6f, viscosity_Pa_s=%.6e, torque_Nm=%.6e, "
-            "tau_s=%.12e, dt_s=%.12e, dt_star=%.12e, duration_s=%.6f, "
-            "duration_star=%.12e, total_steps=%d"
+            "[time-scale] b=%.6e um, b_m=%.6e m, η=%.6e Pa·s, "
+            "T=η b^3=%.6e N·m, τ=η b^3/T=%.6e s"
         ),
         cfg.scale.b_um,
-        cfg.fluid.viscosity_Pa_s,
-        cfg.motor.torque_Nm,
+        cfg.b_m,
+        cfg.viscosity_Pa_s,
+        cfg.torque_Nm,
         cfg.tau_s,
+    )
+    logger.info(
+        "[time-step ] Δt=dt_s=%.6e s, Δt*=dt_star=%.6e (=Δt/τ)",
         cfg.dt_s,
         cfg.dt_star,
+    )
+    logger.info(
+        (
+            "[duration  ] t_end=duration_s=%.6e s, "
+            "t_end*=duration_star=%.6e (=t_end/τ), steps=%d"
+        ),
         cfg.time.duration_s,
         cfg.duration_star,
         cfg.total_steps,

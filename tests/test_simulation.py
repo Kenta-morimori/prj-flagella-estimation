@@ -56,7 +56,7 @@ def _make_cfg() -> SimulationConfig:
                 "semicoiled_tau": 4.0,
                 "curly1_tau": 4.0,
             },
-            "time": {"duration_s": 5.0e-5, "dt_s": 2.5e-7},
+            "time": {"duration_s": 5.0e-5, "dt_s": 1.0e-3},
             "output_sampling": {"out_all_steps_3d": True, "fps_out_2d": 25.0},
             "brownian": {
                 "enabled": False,

@@ -27,7 +27,7 @@ fluid:
   viscosity_Pa_s: 0.001        # [Pa*s] 水相当
 
 motor:
-  torque_Nm: 4.0e-18           # [N*m] モータトルク（tau = eta*b^3/torque を規定）
+  torque_Nm: 4.0e-18           # [N*m] 互換入力（2-4で実計算は T=eta*b^3 に上書き）
   reverse_n_flagella: 1        # [-] tumble で反転するべん毛本数
 
 potentials:
@@ -64,7 +64,7 @@ run_tumble:
 
 time:
   duration_s: 0.1              # [s] 物理時間（デバッグ固定）
-  dt_s: 2.5e-7                 # [s] 時間刻み（dt/tau=1e-3 を満たす必要）
+  dt_s: 1.0e-3                 # [s] 時間刻み（2-4では tau=1 なので dt=1e-3）
 
 output_sampling:
   out_all_steps_3d: true       # true: 3D は dt ごと全step保存

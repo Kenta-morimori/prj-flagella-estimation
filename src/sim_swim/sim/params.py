@@ -180,7 +180,7 @@ class TimeParams:
     """時間設定。"""
 
     duration_s: float = 0.1
-    dt_s: float = 2.5e-7
+    dt_s: float = 1.0e-3
 
 
 @dataclass(frozen=True)
@@ -249,6 +249,19 @@ class SimulationConfig:
         return max(self.scale.b_um, 1e-9) * 1e-6
 
     @property
+    def viscosity_Pa_s(self) -> float:
+        return max(self.fluid.viscosity_Pa_s, 1e-12)
+
+    @property
+    def input_torque_Nm(self) -> float:
+        return float(self.motor.torque_Nm)
+
+    @property
+    def torque_Nm(self) -> float:
+        """時間スケール定義で使用する実効トルク。"""
+        return self.viscosity_Pa_s * (self.b_m**3)
+
+    @property
     def bead_radius_m(self) -> float:
         return self.scale.bead_radius_a_over_b * self.b_m
 
@@ -258,9 +271,7 @@ class SimulationConfig:
 
     @property
     def tau_s(self) -> float:
-        return (max(self.fluid.viscosity_Pa_s, 1e-12) * (self.b_m**3)) / max(
-            abs(self.motor.torque_Nm), 1e-30
-        )
+        return (self.viscosity_Pa_s * (self.b_m**3)) / max(abs(self.torque_Nm), 1e-30)
 
     @property
     def dt_s(self) -> float:
@@ -295,7 +306,8 @@ class SimulationConfig:
                 "time.dt_s が論文条件に一致しない。"
                 f" dt_s={self.dt_s:.12e}, tau_s={self.tau_s:.12e},"
                 f" dt_star={self.dt_star:.12e}, expected_dt_s={expected:.12e},"
-                f" target_dt_star={target_dt_star:.12e}"
+                f" target_dt_star={target_dt_star:.12e}; "
+                "dt_star(=Δt/τ) must be 1e-3"
             )
 
     def compute_body_n_layers(
@@ -576,7 +588,7 @@ class SimulationConfig:
         dt_s = time_raw.get("dt_s")
         if dt_s is None:
             raise ValueError(
-                "time.dt_s は必須です。dt_s = 1e-3 * tau_s を設定してください。"
+                "time.dt_s は必須です。dt_s = 1e-3 * tau_s（Δt/τ=1e-3）を設定してください。"
             )
 
         time = TimeParams(
