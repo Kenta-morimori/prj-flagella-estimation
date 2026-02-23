@@ -1,39 +1,44 @@
-"""3D軌跡の2D orthographic 投影を描画する。"""
+"""2D固定カメラ投影を描画する。"""
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable
 
 import cv2
 import numpy as np
 
-from sim_swim.sim.core import SimulationState, _rotate_vec, _quat_to_rotmat
+from sim_swim.sim.core import SimulationState
 from sim_swim.sim.flagella_geometry import FlagellaRig
 from sim_swim.sim.params import SimulationConfig
 
 
-def heading_from_quat(q: tuple[float, float, float, float]) -> float:
-    """クォータニオンからXY平面上のヘディング角度[rad]を得る。"""
-    v = _rotate_vec(np.array(q, dtype=float), np.array([1.0, 0.0, 0.0]))
-    return math.atan2(v[1], v[0])
+def _flagella_colors(n: int) -> list[tuple[int, int, int]]:
+    if n <= 0:
+        return []
+    colors = []
+    for i in range(n):
+        hsv = np.uint8([[[int((i * 40) % 180), 200, 230]]])
+        bgr = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)[0, 0]
+        colors.append(tuple(int(c) for c in bgr))
+    return colors
 
 
-def _legend(img: np.ndarray, colors: list[tuple[int, int, int]]) -> None:
-    x0, y0 = 10, 10
-    for i, c in enumerate(colors):
-        cv2.rectangle(img, (x0, y0 + i * 18), (x0 + 14, y0 + 14 + i * 18), c, -1)
-        cv2.putText(
-            img,
-            f"F{i}",
-            (x0 + 20, y0 + 12 + i * 18),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.45,
-            (0, 0, 0),
-            1,
-            cv2.LINE_AA,
-        )
+def _select_2d_frames(
+    states: list[SimulationState], fps: float
+) -> list[SimulationState]:
+    if not states:
+        return []
+    interval = 1.0 / max(fps, 1e-9)
+    selected: list[SimulationState] = []
+    next_t = states[0].t
+    for st in states:
+        if st.t + 1e-12 >= next_t:
+            selected.append(st)
+            next_t += interval
+    if selected[-1] is not states[-1]:
+        selected.append(states[-1])
+    return selected
 
 
 def project_states(
@@ -42,99 +47,79 @@ def project_states(
     rig: FlagellaRig,
     out_dir: Path,
 ) -> None:
-    """軌跡を2Dへ投影しPNG連番とmp4を出力する。"""
+    """固定カメラ2D投影を25Hzで出力する。"""
 
-    states_list: List[SimulationState] = list(states)
+    states_list = list(states)
     if not states_list:
         return
 
     out_dir.mkdir(parents=True, exist_ok=True)
     frames_dir = out_dir / "frames"
-    frames_dir.mkdir(parents=True, exist_ok=True)
+    if cfg.render.save_frames_2d:
+        frames_dir.mkdir(parents=True, exist_ok=True)
+
+    fps_2d = cfg.output_sampling.fps_out_2d
+    sampled = _select_2d_frames(states_list, fps_2d)
 
     img_size = cfg.render.image_size_px
-    px_per_um = 1.0 / cfg.render.pixel_size_um
-    body_major_px = cfg.body.length_total_um * px_per_um
-    body_minor_px = cfg.body.diameter_um * px_per_um
-    body_thickness = max(1, int(round(body_minor_px / 6)))
-    # Backward-compatibility alias: existing code using `thickness` should be
-    # migrated to use `body_thickness` (for body outline) or `flagella_thickness`
-    # (for flagella). This alias keeps current behavior until that refactor.
-    thickness = body_thickness
+    px_per_um = 1.0 / max(cfg.render.pixel_size_um, 1e-9)
+    line_w = max(1, int(round(cfg.render.flagella_linewidth_px)))
 
-    colors = [
-        tuple(
-            int(c)
-            for c in cv2.cvtColor(
-                np.uint8([[[int((i * 40) % 180), 200, 230]]]), cv2.COLOR_HSV2BGR
-            )[0, 0]
-        )
-        for i in range(cfg.flagella.n_flagella)
-    ]
-    frames: List[np.ndarray] = []
+    body_color = (90, 90, 90)
+    colors = _flagella_colors(len(rig.flagella_indices))
 
-    for idx, st in enumerate(states_list):
-        img = np.full((img_size, img_size, 3), 255, dtype=np.uint8)  # 白背景
-
-        cx_f = img_size / 2 + st.position_um[0] * px_per_um
-        cy_f = img_size / 2 + st.position_um[1] * px_per_um
-        cx = int(round(cx_f))
-        cy = int(round(cy_f))
-        heading = heading_from_quat(st.quaternion)
-        rot = _quat_to_rotmat(np.array(st.quaternion, dtype=float))
-
-        # べん毛ヘリックス
-        if cfg.render.render_flagella and rig.base_offsets_body.size > 0:
-            for idx_f, base_off in enumerate(rig.base_offsets_body):
-                color = colors[idx_f % len(colors)]
-                base_world = rot @ base_off + np.array(st.position_um)
-                helix_world = rig.helix_local @ rot.T + base_world
-                pts = helix_world[:, :2] * px_per_um + np.array(
-                    [img_size / 2, img_size / 2]
-                )
-                pts_int = np.round(pts).astype(int)
-                cv2.polylines(img, [pts_int], False, color, thickness, cv2.LINE_AA)
-                cv2.putText(
-                    img,
-                    f"F{idx_f}",
-                    tuple(pts_int[-1]),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.4,
-                    color,
-                    1,
-                    cv2.LINE_AA,
-                )
-
-        axes = (
-            max(1, int(round(body_major_px / 2))),
-            max(1, int(round(body_minor_px / 2))),
-        )
-        cv2.ellipse(
-            img,
-            (cx, cy),
-            axes,
-            math.degrees(heading),
-            0,
-            360,
-            (80, 80, 80),
-            thickness,
-            cv2.LINE_AA,
-        )
-
-        cv2.circle(img, (cx, cy), max(1, thickness), (0, 0, 0), -1, cv2.LINE_AA)
-        if cfg.render.render_flagella:
-            _legend(img, colors)
-
-        frame_path = frames_dir / f"frame_{idx:06d}.png"
-        cv2.imwrite(str(frame_path), img)
-        frames.append(img)
-
-    # mp4書き出し
     video_path = out_dir / "projection.mp4"
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     writer = cv2.VideoWriter(
-        str(video_path), fourcc, cfg.time.fps_out, (img_size, img_size)
+        str(video_path),
+        cv2.VideoWriter_fourcc(*"mp4v"),
+        fps_2d,
+        (img_size, img_size),
     )
-    for frame in frames:
-        writer.write(frame)
+
+    for idx, st in enumerate(sampled):
+        img = np.full((img_size, img_size, 3), 255, dtype=np.uint8)
+        beads = st.bead_positions_um
+
+        if cfg.render.follow_camera_2d:
+            cam_center = np.array(st.position_um[:2], dtype=float)
+        else:
+            cam_center = np.zeros(2, dtype=float)
+
+        def to_px(p: np.ndarray) -> tuple[int, int]:
+            x = int(round((p[0] - cam_center[0]) * px_per_um + img_size / 2.0))
+            y = int(round((p[1] - cam_center[1]) * px_per_um + img_size / 2.0))
+            return x, y
+
+        for i, j in rig.body_ring_edges:
+            p = to_px(beads[int(i)])
+            q = to_px(beads[int(j)])
+            cv2.line(img, p, q, body_color, line_w, cv2.LINE_AA)
+
+        for i, j in rig.body_vertical_edges:
+            p = to_px(beads[int(i)])
+            q = to_px(beads[int(j)])
+            cv2.line(img, p, q, body_color, line_w, cv2.LINE_AA)
+
+        if cfg.render.render_flagella:
+            for f_id, idxs in enumerate(rig.flagella_indices):
+                color = colors[f_id % len(colors)] if colors else (30, 120, 220)
+                pts = [to_px(beads[int(i)]) for i in idxs]
+                for p, q in zip(pts[:-1], pts[1:]):
+                    cv2.line(img, p, q, color, line_w, cv2.LINE_AA)
+                if cfg.render.label_flagella and pts:
+                    cv2.putText(
+                        img,
+                        f"F{f_id}",
+                        pts[-1],
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.4,
+                        color,
+                        1,
+                        cv2.LINE_AA,
+                    )
+
+        if cfg.render.save_frames_2d:
+            cv2.imwrite(str(frames_dir / f"frame_{idx:06d}.png"), img)
+        writer.write(img)
+
     writer.release()

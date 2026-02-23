@@ -106,6 +106,7 @@ class SimulationState:
     quaternion: Tuple[float, float, float, float]
     velocity_um_s: Tuple[float, float, float]
     omega_rad_s: Tuple[float, float, float]
+    bead_positions_um: np.ndarray
 
 
 class Simulator:
@@ -116,14 +117,23 @@ class Simulator:
         self.model = ModelBuilder(config).build()
         self.engine = DynamicsEngine(self.model, config)
         self.rig = FlagellaRig(
-            base_offsets_body=self.model.base_offsets_body_um,
-            helix_local=self.model.helix_local_um,
+            body_layer_indices=[arr.copy() for arr in self.model.body_layer_indices],
+            body_ring_edges=self.model.body_ring_edges.copy(),
+            body_vertical_edges=self.model.body_vertical_edges.copy(),
+            flagella_indices=[arr.copy() for arr in self.model.flagella_indices],
         )
 
     def _observe(self, t: float, prev: SimulationState | None) -> SimulationState:
         body_pts = self.model.positions_m[self.model.body_indices]
         center_m = body_pts.mean(axis=0)
-        axis = body_pts[-1] - body_pts[0]
+
+        first_layer = self.model.positions_m[self.model.body_layer_indices[0]].mean(
+            axis=0
+        )
+        last_layer = self.model.positions_m[self.model.body_layer_indices[-1]].mean(
+            axis=0
+        )
+        axis = last_layer - first_layer
         if np.linalg.norm(axis) < 1e-15:
             axis = np.array([1.0, 0.0, 0.0], dtype=float)
         q = _quat_from_two_vectors(np.array([1.0, 0.0, 0.0], dtype=float), axis)
@@ -144,25 +154,21 @@ class Simulator:
             quaternion=tuple(q.tolist()),
             velocity_um_s=tuple(vel_um_s.tolist()),
             omega_rad_s=tuple(omega.tolist()),
+            bead_positions_um=self.model.positions_m.copy() * M_TO_UM,
         )
 
     def run(self, duration_s: float) -> List[SimulationState]:
         """与えた時間だけシミュレーションして状態列を返す。"""
 
-        dt = max(self.config.time.dt, 1e-9)
-        dt_out = max(self.config.time.dt_out, dt)
+        dt = max(self.config.dt_s, 1e-9)
         total_steps = max(1, int(math.ceil(duration_s / dt)))
 
         states: List[SimulationState] = []
-        next_sample = 0.0
 
         for step in range(total_steps + 1):
             t_now = self.engine.t
-            if t_now + 1e-12 >= next_sample or step == total_steps:
-                prev = states[-1] if states else None
-                obs = self._observe(t_now, prev)
-                states.append(obs)
-                next_sample += dt_out
+            prev = states[-1] if states else None
+            states.append(self._observe(t_now, prev))
 
             if step < total_steps:
                 self.engine.step(dt)

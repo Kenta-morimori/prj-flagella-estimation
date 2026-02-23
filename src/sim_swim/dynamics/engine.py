@@ -29,16 +29,31 @@ class DynamicsEngine:
         self.t = 0.0
         self.rng = np.random.default_rng(cfg.seed.global_seed)
 
+        thermal = cfg.thermal_energy_J
+        b_m = cfg.b_m
+        self.spring_h = (
+            cfg.potentials.spring.H_over_T_over_b * thermal / max(b_m, 1e-30)
+        )
+        self.spring_s_m = cfg.potentials.spring.s * b_m
+        self.k_bend = cfg.potentials.bend.kb_over_T * thermal
+        self.k_torsion = cfg.potentials.torsion.kt_over_T * thermal
+        self.k_hook = cfg.hook.kb_over_T * thermal
+        self.repulsion_A = cfg.potentials.spring_spring_repulsion.A_ss_over_T * thermal
+        self.repulsion_a_m = cfg.potentials.spring_spring_repulsion.a_ss_over_b * b_m
+        self.repulsion_cutoff_m = (
+            cfg.potentials.spring_spring_repulsion.cutoff_over_b * b_m
+        )
+
     def _state_angles_rad(self) -> tuple[np.ndarray, np.ndarray]:
         bend_map = self.cfg.potentials.bend.theta0_deg or {
-            "normal": 25.0,
-            "semicoiled": 55.0,
-            "curly1": 75.0,
+            "normal": 142.0,
+            "semicoiled": 90.0,
+            "curly1": 105.0,
         }
         torsion_map = self.cfg.potentials.torsion.phi0_deg or {
-            "normal": 15.0,
-            "semicoiled": 95.0,
-            "curly1": 145.0,
+            "normal": -60.0,
+            "semicoiled": 65.0,
+            "curly1": 120.0,
         }
 
         theta0 = np.zeros((self.model.bending_triplets.shape[0],), dtype=float)
@@ -76,36 +91,36 @@ class DynamicsEngine:
 
     def _update_run_tumble_state(self) -> None:
         rt = self.cfg.run_tumble
+        tau = self.cfg.tau_s
+
+        run_s = max(rt.run_tau * tau, 0.0)
+        tumble_s = max(rt.tumble_tau * tau, 0.0)
+        semicoiled_s = max(rt.semicoiled_tau * tau, 0.0)
+        curly1_s = max(rt.curly1_tau * tau, 0.0)
+
         self.model.flag_states[:] = int(PolymorphState.NORMAL)
         self.model.torque_signs[:] = 1.0
 
         if self.model.flag_states.size == 0:
             return
 
-        cycle = max(rt.run_tau + rt.tumble_tau, 1e-9)
+        cycle = max(run_s + tumble_s, 1e-12)
         phase = self.t % cycle
-        if phase < rt.run_tau:
+        if phase < run_s:
             return
 
-        tumble_phase = phase - rt.run_tau
+        tumble_phase = phase - run_s
         reversed_flags = self.model.reverse_flagella
         if reversed_flags.size == 0:
             return
 
         self.model.torque_signs[reversed_flags] = -1.0
-        if tumble_phase < rt.semicoiled_tau:
+        if tumble_phase < semicoiled_s:
             self.model.flag_states[reversed_flags] = int(PolymorphState.SEMICOILED)
-        elif tumble_phase < (rt.semicoiled_tau + rt.curly1_tau):
+        elif tumble_phase < (semicoiled_s + curly1_s):
             self.model.flag_states[reversed_flags] = int(PolymorphState.CURLY1)
         else:
             self.model.flag_states[reversed_flags] = int(PolymorphState.NORMAL)
-
-    def _spring_rest_lengths(self) -> np.ndarray:
-        return np.where(
-            self.model.spring_kinds == 0,
-            self.model.body_bond_L_m,
-            self.model.flag_bond_L_m,
-        ).astype(float)
 
     def step(self, dt: float) -> None:
         """1ステップ更新する。
@@ -117,7 +132,6 @@ class DynamicsEngine:
         dt_eff = max(float(dt), 0.0)
         self._update_run_tumble_state()
 
-        spring_rest = self._spring_rest_lengths()
         theta0, phi0 = self._state_angles_rad()
 
         pos = self.model.positions_m
@@ -126,29 +140,29 @@ class DynamicsEngine:
         forces += compute_spring_forces(
             positions_m=pos,
             spring_pairs=self.model.spring_pairs,
-            spring_rest_lengths_m=spring_rest,
-            h_const=self.cfg.potentials.spring.H,
-            s_limit_m=self.cfg.potentials.spring.s_um * 1e-6,
+            spring_rest_lengths_m=self.model.spring_rest_lengths_m,
+            h_const=self.spring_h,
+            s_limit_m=self.spring_s_m,
         )
         forces += compute_bending_forces(
             positions_m=pos,
             triplets=self.model.bending_triplets,
             theta0_rad=theta0,
-            kb=self.cfg.potentials.bend.kb,
+            kb=self.k_bend,
         )
         forces += compute_torsion_forces(
             positions_m=pos,
             quads=self.model.torsion_quads,
             phi0_rad=phi0,
-            kt=self.cfg.potentials.torsion.kt,
-            fd_eps_m=max(self.model.ds_m * 1e-3, 1e-12),
+            kt=self.k_torsion,
+            fd_eps_m=max(self.model.b_m * 1e-4, 1e-12),
         )
 
         if self.cfg.hook.enabled:
             forces += compute_hook_forces(
                 positions_m=pos,
                 hook_triplets=self.model.hook_triplets,
-                kb_hook=self.cfg.hook.kb,
+                kb_hook=self.k_hook,
                 threshold_deg=self.cfg.hook.threshold_deg,
             )
 
@@ -156,9 +170,9 @@ class DynamicsEngine:
             positions_m=pos,
             spring_pairs=self.model.spring_pairs,
             segment_pair_indices=self.model.segment_pair_indices,
-            a_ss=self.cfg.potentials.spring_spring_repulsion.A_ss,
-            cutoff=self.cfg.potentials.spring_spring_repulsion.cutoff_um * 1e-6,
-            a_length=self.cfg.potentials.spring_spring_repulsion.a_ss_um * 1e-6,
+            a_ss=self.repulsion_A,
+            cutoff=self.repulsion_cutoff_m,
+            a_length=self.repulsion_a_m,
         )
 
         if self.model.motor_triplets.shape[0] > 0:

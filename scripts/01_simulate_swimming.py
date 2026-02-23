@@ -36,7 +36,7 @@ def main(
         None, help="Override time.duration_s (seconds)"
     ),
     fps_out: Optional[float] = typer.Option(
-        None, help="Override time.fps_out (frames per second)"
+        None, help="Override output_sampling.fps_out_2d (frames per second)"
     ),
     render_flagella: Optional[bool] = typer.Option(
         None,
@@ -54,12 +54,12 @@ def main(
     if duration_s is not None:
         override_dict.setdefault("time", {})["duration_s"] = duration_s
     if fps_out is not None:
-        override_dict.setdefault("time", {})["fps_out"] = fps_out
+        override_dict.setdefault("output_sampling", {})["fps_out_2d"] = fps_out
     if render_flagella is not None:
         override_dict.setdefault("render", {})["render_flagella"] = render_flagella
     cfg = SimulationConfig.from_dict(raw_cfg).with_overrides(override_dict)
 
-    output_base = raw_cfg.get("output", {}).get("base_dir", "outputs")
+    output_base = cfg.output.base_dir
     ctx = init_run(
         base_dir=output_base,
         input_info={"config": str(config), "overrides": overrides or []},
@@ -68,7 +68,7 @@ def main(
     logger.info("Loaded simulation config (effective): %s", cfg)
     logger.info("Overrides: %s", override_dict if override_dict else "None")
 
-    sim_duration_s = float(getattr(cfg.time, "duration_s", 0.1))
+    sim_duration_s = float(cfg.time.duration_s)
     simulator = Simulator(cfg)
     states = simulator.run(sim_duration_s)
 
@@ -120,6 +120,7 @@ def main(
     manifest["outputs"] = outputs
     manifest["files"] = [
         str(traj_path.relative_to(ctx.out.root)),
+        "render/movie_3d.mp4",
         "render/swim3d.mp4",
         "render/swim3d_final.png",
         "render2d/projection.mp4",

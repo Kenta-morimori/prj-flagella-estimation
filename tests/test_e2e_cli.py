@@ -21,56 +21,71 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
     spec.loader.exec_module(mod)
 
     cfg = {
-        "discretization": {"ds_um": 0.8},
-        "body": {"length_total_um": 3.0, "diameter_um": 0.8, "bond_L_um": None},
-        "flagella": {
-            "n_flagella": 2,
-            "length_um": 4.0,
-            "bond_L_um": None,
-            "pitch_um": 2.3,
-            "radius_um": 0.2,
-            "filament_diameter_um": 0.02,
-            "placement_mode": "uniform",
-            "helix_step_um": 0.2,
+        "scale": {"b_um": 1.0, "bead_radius_a_over_b": 0.1},
+        "body": {
+            "prism": {
+                "n_prism": 3,
+                "n_layers": 5,
+                "dz_over_b": 0.5,
+                "radius_over_b": 0.5,
+                "axis": "x",
+            },
+            "length_total_um": 2.0,
         },
-        "scale": {"bead_radius_a_um": 0.15},
+        "flagella": {
+            "n_flagella": 3,
+            "placement_mode": "uniform",
+            "discretization": {"ds_over_b": 0.58},
+            "bond_L_over_b": 0.58,
+            "length_over_b": 2.32,
+            "helix_init": {"radius_over_b": 0.2, "pitch_over_b": 1.0},
+        },
         "fluid": {"viscosity_Pa_s": 0.001},
         "motor": {"torque_Nm": 4.0e-18, "reverse_n_flagella": 1},
         "potentials": {
-            "spring": {"H": 1.0e-4, "s_um": 0.15},
+            "spring": {"H_over_T_over_b": 10.0, "s": 0.1},
             "bend": {
-                "kb": 2.0e-19,
-                "theta0_deg": {"normal": 25.0, "semicoiled": 55.0, "curly1": 75.0},
+                "kb_over_T": 20.0,
+                "theta0_deg": {"normal": 142.0, "semicoiled": 90.0, "curly1": 105.0},
             },
             "torsion": {
-                "kt": 2.0e-19,
-                "phi0_deg": {"normal": 15.0, "semicoiled": 95.0, "curly1": 145.0},
+                "kt_over_T": 10.0,
+                "phi0_deg": {"normal": -60.0, "semicoiled": 65.0, "curly1": 120.0},
             },
             "spring_spring_repulsion": {
-                "A_ss": 2.0e-19,
-                "a_ss_um": 0.1,
-                "cutoff_um": 0.6,
+                "A_ss_over_T": 1.0,
+                "a_ss_over_b": 0.2,
+                "cutoff_over_b": 0.2,
             },
         },
-        "hook": {"enabled": True, "kb": 8.0e-20, "threshold_deg": 90.0},
+        "hook": {"enabled": True, "threshold_deg": 90.0, "kb_over_T": 20.0},
         "run_tumble": {
-            "run_tau": 0.2,
-            "tumble_tau": 0.08,
-            "semicoiled_tau": 0.03,
-            "curly1_tau": 0.03,
+            "run_tau": 20.0,
+            "tumble_tau": 8.0,
+            "semicoiled_tau": 4.0,
+            "curly1_tau": 4.0,
         },
+        "time": {"duration_s": 5.0e-5, "dt_over_tau": 0.1},
+        "output_sampling": {"out_all_steps_3d": True, "fps_out_2d": 25.0},
         "brownian": {
             "enabled": False,
             "temperature_K": 298.0,
             "method": "cholesky",
             "jitter": 1.0e-20,
         },
-        "time": {"dt": 0.002, "fps_out": 10.0, "duration_s": 0.02},
         "render": {
             "image_size_px": 96,
             "pixel_size_um": 0.203,
-            "render_flagella": False,
             "flagella_linewidth_px": 2.0,
+            "render_flagella": True,
+            "save_frames_3d": True,
+            "follow_camera_3d": True,
+            "view_range_um": 8.0,
+            "timestamp_3d": True,
+            "timestamp_fmt": "t = {t:.3f} s",
+            "label_flagella": True,
+            "follow_camera_2d": False,
+            "save_frames_2d": True,
         },
         "seed": {"global_seed": 0},
         "output": {"base_dir": str(tmp_path / "outputs")},
@@ -81,9 +96,9 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
 
     mod.main(
         config=cfg_path,
-        duration_s=0.02,
-        fps_out=10.0,
-        render_flagella=False,
+        duration_s=5.0e-5,
+        fps_out=25.0,
+        render_flagella=True,
         overrides=[],
     )
 
@@ -91,3 +106,11 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
     manifests = list((tmp_path / "outputs").rglob("manifest.json"))
     assert run_logs
     assert manifests
+
+    latest = sorted((tmp_path / "outputs").rglob("manifest.json"))[-1].parent
+    assert (latest / "render" / "movie_3d.mp4").is_file()
+    assert (latest / "render" / "swim3d.mp4").is_file()
+    assert (latest / "render" / "swim3d_final.png").is_file()
+    assert any((latest / "render" / "frames_3d").glob("frame_*.png"))
+    assert (latest / "render2d" / "projection.mp4").is_file()
+    assert any((latest / "render2d" / "frames").glob("frame_*.png"))

@@ -12,22 +12,6 @@ from sim_swim.sim.params import SimulationConfig
 UM_TO_M = 1e-6
 
 
-def _build_helix_points_um(
-    length_um: float,
-    n_points: int,
-    pitch_um: float,
-    radius_um: float,
-    phase: float,
-) -> np.ndarray:
-    s = np.linspace(0.0, max(length_um, 0.0), n_points)
-    theta = 2.0 * math.pi * s / max(pitch_um, 1e-6) + phase
-    y = radius_um * np.cos(theta)
-    z = radius_um * np.sin(theta)
-    y -= y[0]
-    z -= z[0]
-    return np.stack([s, y, z], axis=1)
-
-
 def _segment_pairs_without_neighbors(spring_pairs: np.ndarray) -> np.ndarray:
     pairs: list[tuple[int, int]] = []
     m = spring_pairs.shape[0]
@@ -43,6 +27,24 @@ def _segment_pairs_without_neighbors(spring_pairs: np.ndarray) -> np.ndarray:
     return np.asarray(pairs, dtype=int)
 
 
+def _ensure_arr2(values: list[tuple[int, int]]) -> np.ndarray:
+    if not values:
+        return np.zeros((0, 2), dtype=int)
+    return np.asarray(values, dtype=int)
+
+
+def _ensure_arr3(values: list[tuple[int, int, int]]) -> np.ndarray:
+    if not values:
+        return np.zeros((0, 3), dtype=int)
+    return np.asarray(values, dtype=int)
+
+
+def _ensure_arr4(values: list[tuple[int, int, int, int]]) -> np.ndarray:
+    if not values:
+        return np.zeros((0, 4), dtype=int)
+    return np.asarray(values, dtype=int)
+
+
 class ModelBuilder:
     """設定から bead-spring モデルを構築する。"""
 
@@ -50,86 +52,153 @@ class ModelBuilder:
         self.cfg = cfg
         self.rng = np.random.default_rng(cfg.seed.global_seed)
 
+    def _body_prism_um(
+        self,
+    ) -> tuple[np.ndarray, list[np.ndarray], np.ndarray, np.ndarray]:
+        cfg = self.cfg
+        prism = cfg.body.prism
+
+        n_prism = max(3, prism.n_prism)
+        n_layers = max(2, prism.n_layers)
+        dz_um = prism.dz_over_b * cfg.scale.b_um
+        radius_um = prism.radius_over_b * cfg.scale.b_um
+
+        x0 = -0.5 * (n_layers - 1) * dz_um
+
+        body_points: list[np.ndarray] = []
+        layer_indices: list[np.ndarray] = []
+        ring_edges: list[tuple[int, int]] = []
+        vertical_edges: list[tuple[int, int]] = []
+
+        for layer_idx in range(n_layers):
+            layer_start = len(body_points)
+            if prism.axis != "x":
+                raise ValueError(
+                    f"Unsupported body.prism.axis='{prism.axis}'. v1は'x'のみ対応。"
+                )
+
+            x = x0 + layer_idx * dz_um
+            for k in range(n_prism):
+                angle = 2.0 * math.pi * k / n_prism
+                y = radius_um * math.cos(angle)
+                z = radius_um * math.sin(angle)
+                body_points.append(np.array([x, y, z], dtype=float))
+
+            idx = np.arange(layer_start, layer_start + n_prism, dtype=int)
+            layer_indices.append(idx)
+
+            for k in range(n_prism):
+                i = int(idx[k])
+                j = int(idx[(k + 1) % n_prism])
+                ring_edges.append((i, j))
+
+            if layer_idx > 0:
+                prev = layer_indices[layer_idx - 1]
+                for k in range(n_prism):
+                    vertical_edges.append((int(prev[k]), int(idx[k])))
+
+        return (
+            np.asarray(body_points, dtype=float),
+            layer_indices,
+            _ensure_arr2(ring_edges),
+            _ensure_arr2(vertical_edges),
+        )
+
+    def _flag_attach_indices(
+        self, terminal_layer: np.ndarray, n_flagella: int
+    ) -> np.ndarray:
+        n_terminal = terminal_layer.shape[0]
+        if n_flagella <= 0:
+            return np.zeros((0,), dtype=int)
+        slots = np.linspace(0.0, float(n_terminal), num=n_flagella, endpoint=False)
+        picks = np.floor(slots).astype(int) % max(n_terminal, 1)
+        return terminal_layer[picks]
+
     def build(self) -> SimModel:
         """シミュレーションモデルを構築して返す。"""
 
         cfg = self.cfg
-        ds_um = max(cfg.discretization.ds_um, 1e-3)
-        ds_m = ds_um * UM_TO_M
+        b_um = cfg.scale.b_um
 
-        n_body = max(2, int(math.floor(cfg.body.length_total_um / ds_um)) + 1)
-        n_flag = max(2, int(math.floor(cfg.flagella.length_um / ds_um)) + 1)
+        body_um, body_layers, ring_edges, vertical_edges = self._body_prism_um()
+        n_body = body_um.shape[0]
 
-        body_x_um = np.linspace(
-            -cfg.body.length_total_um / 2.0,
-            cfg.body.length_total_um / 2.0,
-            n_body,
-        )
-        body_um = np.stack(
-            [body_x_um, np.zeros_like(body_x_um), np.zeros_like(body_x_um)],
-            axis=1,
-        )
+        n_flagella = max(0, cfg.flagella.n_flagella)
+        ds_flag_um = cfg.flagella.discretization.ds_over_b * b_um
+        ds_flag_um = max(ds_flag_um, 1e-6)
+        L_flag_um = cfg.flagella.length_over_b * b_um
+        n_flag = max(2, int(math.floor(L_flag_um / ds_flag_um)) + 1)
 
-        body_attach_idx = n_body - 1
-        body_radius_um = cfg.body.diameter_um / 2.0
+        bond_L_flag_um = max(cfg.flagella.bond_L_over_b * b_um, 1e-6)
 
-        flagella_um: list[np.ndarray] = []
-        base_offsets_um: list[np.ndarray] = []
+        attach_ids = self._flag_attach_indices(body_layers[-1], n_flagella)
+
+        points_all = [body_um]
         flagella_indices: list[np.ndarray] = []
-
-        for i in range(cfg.flagella.n_flagella):
-            if cfg.flagella.n_flagella <= 1:
-                angle = 0.0
-            else:
-                angle = 2.0 * math.pi * i / cfg.flagella.n_flagella
-            if cfg.flagella.placement_mode == "random":
-                angle = float(self.rng.uniform(0.0, 2.0 * math.pi))
-
-            radial = np.array([0.0, math.cos(angle), math.sin(angle)], dtype=float)
-            attach_um = body_um[body_attach_idx] + radial * body_radius_um
-
-            helix_local_um = _build_helix_points_um(
-                length_um=cfg.flagella.length_um,
-                n_points=n_flag,
-                pitch_um=cfg.flagella.pitch_um,
-                radius_um=cfg.flagella.radius_um,
-                phase=angle,
-            )
-            flag_points_um = helix_local_um + attach_um
-
-            start = n_body + sum(arr.shape[0] for arr in flagella_um)
-            idx = np.arange(start, start + n_flag, dtype=int)
-            flagella_indices.append(idx)
-            flagella_um.append(flag_points_um)
-            base_offsets_um.append(attach_um - body_um.mean(axis=0))
-
-        all_um = (
-            np.concatenate([body_um, *flagella_um], axis=0) if flagella_um else body_um
-        )
-        positions_m = all_um * UM_TO_M
-
         spring_pairs: list[tuple[int, int]] = []
-        spring_kinds: list[int] = []
+        spring_rest_lengths_m: list[float] = []
         bending_triplets: list[tuple[int, int, int]] = []
         bending_flag_ids: list[int] = []
         torsion_quads: list[tuple[int, int, int, int]] = []
         torsion_flag_ids: list[int] = []
         hook_triplets: list[tuple[int, int, int]] = []
 
-        for i in range(n_body - 1):
-            spring_pairs.append((i, i + 1))
-            spring_kinds.append(0)
-        for i in range(n_body - 2):
-            bending_triplets.append((i, i + 1, i + 2))
-            bending_flag_ids.append(-1)
-        for i in range(n_body - 3):
-            torsion_quads.append((i, i + 1, i + 2, i + 3))
-            torsion_flag_ids.append(-1)
+        # Body edges as springs (ring + vertical)
+        for i, j in ring_edges:
+            spring_pairs.append((int(i), int(j)))
+            dist_m = float(
+                np.linalg.norm((body_um[int(i)] - body_um[int(j)]) * UM_TO_M)
+            )
+            spring_rest_lengths_m.append(dist_m)
+        for i, j in vertical_edges:
+            spring_pairs.append((int(i), int(j)))
+            dist_m = float(
+                np.linalg.norm((body_um[int(i)] - body_um[int(j)]) * UM_TO_M)
+            )
+            spring_rest_lengths_m.append(dist_m)
 
-        for f_id, idx in enumerate(flagella_indices):
+        # Body bending/torsion along each vertical chain
+        n_prism = body_layers[0].shape[0]
+        n_layers = len(body_layers)
+        for k in range(n_prism):
+            chain = [int(body_layers[layer_idx][k]) for layer_idx in range(n_layers)]
+            for t in range(len(chain) - 2):
+                bending_triplets.append((chain[t], chain[t + 1], chain[t + 2]))
+                bending_flag_ids.append(-1)
+            for t in range(len(chain) - 3):
+                torsion_quads.append(
+                    (chain[t], chain[t + 1], chain[t + 2], chain[t + 3])
+                )
+                torsion_flag_ids.append(-1)
+
+        # Flagella
+        start_index = n_body
+        for f_id, attach_idx in enumerate(attach_ids):
+            phase = 2.0 * math.pi * (f_id / max(n_flagella, 1))
+            s = np.linspace(0.0, L_flag_um, n_flag)
+            theta = (
+                2.0
+                * math.pi
+                * s
+                / max(cfg.flagella.helix_init.pitch_over_b * b_um, 1e-6)
+                + phase
+            )
+            r_um = cfg.flagella.helix_init.radius_over_b * b_um
+
+            x = s
+            y = r_um * np.cos(theta) - r_um * math.cos(phase)
+            z = r_um * np.sin(theta) - r_um * math.sin(phase)
+            local = np.stack([x, y, z], axis=1)
+            flag_points = local + body_um[int(attach_idx)]
+
+            points_all.append(flag_points)
+            idx = np.arange(start_index, start_index + n_flag, dtype=int)
+            flagella_indices.append(idx)
+            start_index += n_flag
+
             for j in range(idx.shape[0] - 1):
                 spring_pairs.append((int(idx[j]), int(idx[j + 1])))
-                spring_kinds.append(1)
+                spring_rest_lengths_m.append(bond_L_flag_um * UM_TO_M)
             for j in range(idx.shape[0] - 2):
                 bending_triplets.append((int(idx[j]), int(idx[j + 1]), int(idx[j + 2])))
                 bending_flag_ids.append(f_id)
@@ -139,20 +208,21 @@ class ModelBuilder:
                 )
                 torsion_flag_ids.append(f_id)
 
-            if idx.shape[0] >= 2:
-                hook_triplets.append((body_attach_idx, int(idx[0]), int(idx[1])))
+            hook_triplets.append((int(attach_idx), int(idx[0]), int(idx[1])))
 
-        spring_pairs_arr = np.asarray(spring_pairs, dtype=int)
-        spring_kinds_arr = np.asarray(spring_kinds, dtype=int)
-        bending_triplets_arr = np.asarray(bending_triplets, dtype=int)
+        positions_um = np.concatenate(points_all, axis=0)
+        positions_m = positions_um * UM_TO_M
+
+        spring_pairs_arr = _ensure_arr2(spring_pairs)
+        spring_rest_arr = np.asarray(spring_rest_lengths_m, dtype=float)
+        bending_triplets_arr = _ensure_arr3(bending_triplets)
         bending_flag_ids_arr = np.asarray(bending_flag_ids, dtype=int)
-        torsion_quads_arr = np.asarray(torsion_quads, dtype=int)
+        torsion_quads_arr = _ensure_arr4(torsion_quads)
         torsion_flag_ids_arr = np.asarray(torsion_flag_ids, dtype=int)
-        hook_triplets_arr = np.asarray(hook_triplets, dtype=int)
+        hook_triplets_arr = _ensure_arr3(hook_triplets)
 
         segment_pair_indices = _segment_pairs_without_neighbors(spring_pairs_arr)
 
-        n_flagella = len(flagella_indices)
         reverse_n = int(np.clip(cfg.motor.reverse_n_flagella, 0, n_flagella))
         if reverse_n > 0:
             reverse_flagella = np.sort(
@@ -161,24 +231,15 @@ class ModelBuilder:
         else:
             reverse_flagella = np.zeros((0,), dtype=int)
 
-        helix_local_um = (
-            _build_helix_points_um(
-                length_um=cfg.flagella.length_um,
-                n_points=n_flag,
-                pitch_um=cfg.flagella.pitch_um,
-                radius_um=cfg.flagella.radius_um,
-                phase=0.0,
-            )
-            if n_flag > 0
-            else np.zeros((0, 3), dtype=float)
-        )
-
         return SimModel(
             positions_m=positions_m,
             body_indices=np.arange(n_body, dtype=int),
+            body_layer_indices=[arr.copy() for arr in body_layers],
+            body_ring_edges=ring_edges,
+            body_vertical_edges=vertical_edges,
             flagella_indices=flagella_indices,
             spring_pairs=spring_pairs_arr,
-            spring_kinds=spring_kinds_arr,
+            spring_rest_lengths_m=spring_rest_arr,
             bending_triplets=bending_triplets_arr,
             bending_flag_ids=bending_flag_ids_arr,
             torsion_quads=torsion_quads_arr,
@@ -186,15 +247,9 @@ class ModelBuilder:
             hook_triplets=hook_triplets_arr,
             motor_triplets=hook_triplets_arr.copy(),
             segment_pair_indices=segment_pair_indices,
-            body_bond_L_m=(cfg.body.bond_L_um or ds_um) * UM_TO_M,
-            flag_bond_L_m=(cfg.flagella.bond_L_um or ds_um) * UM_TO_M,
-            ds_m=ds_m,
-            bead_radius_m=cfg.scale.bead_radius_a_um * UM_TO_M,
+            bead_radius_m=cfg.bead_radius_m,
+            b_m=cfg.b_m,
             reverse_flagella=reverse_flagella,
             flag_states=np.full((n_flagella,), int(PolymorphState.NORMAL), dtype=int),
             torque_signs=np.ones((n_flagella,), dtype=float),
-            base_offsets_body_um=np.asarray(base_offsets_um, dtype=float)
-            if base_offsets_um
-            else np.zeros((0, 3), dtype=float),
-            helix_local_um=helix_local_um,
         )

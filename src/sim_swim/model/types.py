@@ -21,11 +21,16 @@ class SimModel:
     """シミュレーションに必要な幾何・トポロジを保持する。"""
 
     positions_m: np.ndarray
+
     body_indices: np.ndarray
+    body_layer_indices: list[np.ndarray]
+    body_ring_edges: np.ndarray
+    body_vertical_edges: np.ndarray
+
     flagella_indices: list[np.ndarray]
 
     spring_pairs: np.ndarray
-    spring_kinds: np.ndarray
+    spring_rest_lengths_m: np.ndarray
     bending_triplets: np.ndarray
     bending_flag_ids: np.ndarray
     torsion_quads: np.ndarray
@@ -35,14 +40,9 @@ class SimModel:
     motor_triplets: np.ndarray
     segment_pair_indices: np.ndarray
 
-    body_bond_L_m: float
-    flag_bond_L_m: float
-    ds_m: float
     bead_radius_m: float
+    b_m: float
 
     reverse_flagella: np.ndarray
     flag_states: np.ndarray
     torque_signs: np.ndarray
-
-    base_offsets_body_um: np.ndarray
-    helix_local_um: np.ndarray
