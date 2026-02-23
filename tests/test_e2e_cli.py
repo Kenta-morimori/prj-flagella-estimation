@@ -25,7 +25,6 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
         "body": {
             "prism": {
                 "n_prism": 3,
-                "n_layers": 5,
                 "dz_over_b": 0.5,
                 "radius_over_b": 0.5,
                 "axis": "x",
@@ -65,7 +64,7 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
             "semicoiled_tau": 4.0,
             "curly1_tau": 4.0,
         },
-        "time": {"duration_s": 5.0e-5, "dt_over_tau": 0.1},
+        "time": {"duration_s": 5.0e-5, "dt_s": 2.5e-7},
         "output_sampling": {"out_all_steps_3d": True, "fps_out_2d": 25.0},
         "brownian": {
             "enabled": False,

@@ -116,6 +116,7 @@ class Simulator:
 
     def __init__(self, config: SimulationConfig):
         self.config = config
+        self.config.validate_time_scaling()
         self.model = ModelBuilder(config).build()
         self.engine = DynamicsEngine(self.model, config)
         self.rig = FlagellaRig(
@@ -173,8 +174,10 @@ class Simulator:
             progress_interval: 進捗ログのステップ間隔。None なら自動設定。
         """
 
-        dt = max(self.config.dt_s, 1e-9)
-        total_steps = max(1, int(math.ceil(duration_s / dt)))
+        tau_s = self.config.tau_s
+        dt_star = max(self.config.dt_star, 1e-12)
+        duration_star = max(float(duration_s), 0.0) / max(tau_s, 1e-30)
+        total_steps = max(1, int(math.ceil(duration_star / dt_star)))
 
         states: List[SimulationState] = []
         wall_start = time.perf_counter()
@@ -185,29 +188,38 @@ class Simulator:
 
         if logger is not None:
             logger.info(
-                "Simulation loop start: total_steps=%d, dt=%.6e s, progress_interval=%d",
+                (
+                    "Simulation loop start: total_steps=%d, dt_star=%.6e, "
+                    "dt_s=%.6e s, duration_star=%.6e, progress_interval=%d"
+                ),
                 total_steps,
-                dt,
+                dt_star,
+                self.config.dt_s,
+                duration_star,
                 progress_interval,
             )
 
         for step in range(total_steps + 1):
-            t_now = self.engine.t
+            t_now = self.engine.t_star * tau_s
             prev = states[-1] if states else None
             states.append(self._observe(t_now, prev))
 
             if step < total_steps:
-                self.engine.step(dt)
+                self.engine.step(dt_star)
                 completed = step + 1
                 if logger is not None and (
                     completed % progress_interval == 0 or completed == total_steps
                 ):
                     logger.info(
-                        "Simulation progress: step=%d/%d (%.1f%%), t=%.6f s",
+                        (
+                            "Simulation progress: step=%d/%d (%.1f%%), "
+                            "t_star=%.6f, t_s=%.6f s"
+                        ),
                         completed,
                         total_steps,
                         (completed / total_steps) * 100.0,
-                        self.engine.t,
+                        self.engine.t_star,
+                        self.engine.t_star * tau_s,
                     )
 
         if logger is not None:

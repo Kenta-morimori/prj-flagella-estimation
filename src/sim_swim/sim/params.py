@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
+import math
 from typing import Any
 
 K_B = 1.380649e-23
+DT_STAR_TARGET = 1.0e-3
 
 
 def _get(raw: dict[str, Any], key: str, default: Any) -> Any:
@@ -25,6 +27,12 @@ def _state_angles(
     }
 
 
+def _isclose(
+    a: float, b: float, rel_tol: float = 1.0e-12, abs_tol: float = 1.0e-12
+) -> bool:
+    return math.isclose(float(a), float(b), rel_tol=rel_tol, abs_tol=abs_tol)
+
+
 @dataclass(frozen=True)
 class ScaleParams:
     """スケール設定。"""
@@ -38,7 +46,6 @@ class BodyPrismParams:
     """菌体のn角柱離散化設定。"""
 
     n_prism: int = 3
-    n_layers: int = 5
     dz_over_b: float = 0.5
     radius_over_b: float = 0.5
     axis: str = "x"
@@ -73,10 +80,12 @@ class FlagellumParams:
 
     n_flagella: int = 3
     placement_mode: str = "uniform"
-    discretization: FlagellaDiscretizationParams = FlagellaDiscretizationParams()
+    discretization: FlagellaDiscretizationParams = field(
+        default_factory=FlagellaDiscretizationParams
+    )
     bond_L_over_b: float = 0.58
     length_over_b: float = 5.8
-    helix_init: FlagellaHelixInitParams = FlagellaHelixInitParams()
+    helix_init: FlagellaHelixInitParams = field(default_factory=FlagellaHelixInitParams)
 
 
 @dataclass(frozen=True)
@@ -170,8 +179,8 @@ class BrownianParams:
 class TimeParams:
     """時間設定。"""
 
-    duration_s: float = 5.0
-    dt_over_tau: float = 0.001
+    duration_s: float = 0.1
+    dt_s: float = 2.5e-7
 
 
 @dataclass(frozen=True)
@@ -255,7 +264,111 @@ class SimulationConfig:
 
     @property
     def dt_s(self) -> float:
-        return max(self.time.dt_over_tau, 1e-9) * self.tau_s
+        return max(self.time.dt_s, 0.0)
+
+    @property
+    def dt_star(self) -> float:
+        return self.dt_s / max(self.tau_s, 1e-30)
+
+    @property
+    def duration_star(self) -> float:
+        return max(self.time.duration_s, 0.0) / max(self.tau_s, 1e-30)
+
+    @property
+    def total_steps(self) -> int:
+        return max(1, int(math.ceil(self.duration_star / max(self.dt_star, 1e-30))))
+
+    def expected_dt_s(self, target_dt_star: float = DT_STAR_TARGET) -> float:
+        return target_dt_star * self.tau_s
+
+    def validate_time_scaling(
+        self,
+        target_dt_star: float = DT_STAR_TARGET,
+        abs_tol_s: float = 1e-15,
+        rel_tol: float = 1e-12,
+    ) -> None:
+        """`dt_s/tau_s` が指定比率と一致するか検証する。"""
+
+        expected = self.expected_dt_s(target_dt_star=target_dt_star)
+        if not math.isclose(self.dt_s, expected, rel_tol=rel_tol, abs_tol=abs_tol_s):
+            raise ValueError(
+                "time.dt_s が論文条件に一致しない。"
+                f" dt_s={self.dt_s:.12e}, tau_s={self.tau_s:.12e},"
+                f" dt_star={self.dt_star:.12e}, expected_dt_s={expected:.12e},"
+                f" target_dt_star={target_dt_star:.12e}"
+            )
+
+    def compute_body_n_layers(
+        self,
+        rel_tol: float = 1e-12,
+        abs_tol: float = 1e-12,
+    ) -> int:
+        """`length_total_um` と `dz_over_b` から n_layers を算出する。"""
+
+        dz_over_b = float(self.body.prism.dz_over_b)
+        if dz_over_b <= 0.0:
+            raise ValueError("body.prism.dz_over_b は正である必要がある。")
+
+        l_over_b = float(self.body.length_total_um) / max(self.scale.b_um, 1e-12)
+        if l_over_b <= 0.0:
+            raise ValueError("body.length_total_um は正である必要がある。")
+
+        ratio = l_over_b / dz_over_b
+        n_intervals = int(round(ratio))
+        if n_intervals < 1 or not math.isclose(
+            ratio, float(n_intervals), rel_tol=rel_tol, abs_tol=abs_tol
+        ):
+            raise ValueError(
+                "body.length_total_um / scale.b_um は body.prism.dz_over_b の整数倍である必要がある。"
+                f" L_over_b={l_over_b:.12e}, dz_over_b={dz_over_b:.12e}, ratio={ratio:.12e}"
+            )
+
+        return n_intervals + 1
+
+    def paper_reference_checks(self) -> list[tuple[str, bool, str, str]]:
+        """論文条件との一致チェックを返す。"""
+
+        checks: list[tuple[str, bool, str, str]] = []
+
+        def add(name: str, actual: Any, expected: Any) -> None:
+            if isinstance(actual, (int, float)) and isinstance(expected, (int, float)):
+                ok = _isclose(float(actual), float(expected))
+            elif isinstance(actual, dict) and isinstance(expected, dict):
+                ok = set(actual.keys()) == set(expected.keys()) and all(
+                    _isclose(float(actual[k]), float(expected[k])) for k in expected
+                )
+            else:
+                ok = actual == expected
+            checks.append((name, ok, repr(actual), repr(expected)))
+
+        add("flagella.n_flagella", self.flagella.n_flagella, 3)
+        add("scale.bead_radius_a_over_b", self.scale.bead_radius_a_over_b, 0.1)
+        add(
+            "potentials.spring.H_over_T_over_b",
+            self.potentials.spring.H_over_T_over_b,
+            10.0,
+        )
+        add("potentials.spring.s", self.potentials.spring.s, 0.1)
+        add("potentials.bend.kb_over_T", self.potentials.bend.kb_over_T, 20.0)
+        add("potentials.torsion.kt_over_T", self.potentials.torsion.kt_over_T, 10.0)
+        add(
+            "potentials.bend.theta0_deg",
+            self.potentials.bend.theta0_deg
+            or {"normal": 142.0, "semicoiled": 90.0, "curly1": 105.0},
+            {"normal": 142.0, "semicoiled": 90.0, "curly1": 105.0},
+        )
+        add(
+            "potentials.torsion.phi0_deg",
+            self.potentials.torsion.phi0_deg
+            or {"normal": -60.0, "semicoiled": 65.0, "curly1": 120.0},
+            {"normal": -60.0, "semicoiled": 65.0, "curly1": 120.0},
+        )
+        add("run_tumble.run_tau", self.run_tumble.run_tau, 1200.0)
+        add("run_tumble.tumble_tau", self.run_tumble.tumble_tau, 800.0)
+        add("run_tumble.semicoiled_tau", self.run_tumble.semicoiled_tau, 400.0)
+        add("run_tumble.curly1_tau", self.run_tumble.curly1_tau, 400.0)
+
+        return checks
 
     @staticmethod
     def from_dict(raw: dict[str, Any]) -> "SimulationConfig":
@@ -292,15 +405,14 @@ class SimulationConfig:
 
         prism = BodyPrismParams(
             n_prism=int(_get(prism_raw, "n_prism", 3)),
-            n_layers=int(_get(prism_raw, "n_layers", 5)),
             dz_over_b=float(_get(prism_raw, "dz_over_b", 0.5)),
             radius_over_b=float(radius_over_b if radius_over_b is not None else 0.5),
             axis=str(_get(prism_raw, "axis", "x")),
         )
-        length_default = max(1, prism.n_layers - 1) * prism.dz_over_b * scale.b_um
+
         body = BodyParams(
             prism=prism,
-            length_total_um=float(_get(body_raw, "length_total_um", length_default)),
+            length_total_um=float(_get(body_raw, "length_total_um", 2.0 * scale.b_um)),
         )
 
         flag_raw = raw.get("flagella", {}) or {}
@@ -456,19 +568,20 @@ class SimulationConfig:
         )
 
         time_raw = raw.get("time", {}) or {}
-        dt_over_tau = time_raw.get("dt_over_tau")
-        if dt_over_tau is None:
-            old_dt = time_raw.get("dt") or time_raw.get("dt_sim")
-            if old_dt is not None:
-                tau_tmp = (max(fluid.viscosity_Pa_s, 1e-12) * (b_m**3)) / max(
-                    abs(motor.torque_Nm), 1e-30
-                )
-                dt_over_tau = float(old_dt) / max(tau_tmp, 1e-30)
-            else:
-                dt_over_tau = 0.001
+        if "dt_over_tau" in time_raw:
+            raise ValueError(
+                "time.dt_over_tau は入力キーとして廃止。time.dt_s を使用してください。"
+            )
+
+        dt_s = time_raw.get("dt_s")
+        if dt_s is None:
+            raise ValueError(
+                "time.dt_s は必須です。dt_s = 1e-3 * tau_s を設定してください。"
+            )
+
         time = TimeParams(
-            duration_s=float(_get(time_raw, "duration_s", 5.0)),
-            dt_over_tau=float(dt_over_tau),
+            duration_s=float(_get(time_raw, "duration_s", 0.1)),
+            dt_s=float(dt_s),
         )
 
         out_sample_raw = raw.get("output_sampling", {}) or {}

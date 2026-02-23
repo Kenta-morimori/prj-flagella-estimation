@@ -7,11 +7,10 @@ scale:
 body:
   prism:
     n_prism: 3                 # [-] 断面角数（Fig.1: 三角柱）
-    n_layers: 5                # [-] 軸方向層数（総 body beads = 3*5）
     dz_over_b: 0.5             # [-] 層間隔 dz/b（Fig.1）
     radius_over_b: 0.5         # [-] 断面半径（中心から断面ビーズ）
     axis: "x"                 # 軸方向
-  length_total_um: 2.0         # [um] 出力説明用（(n_layers-1)*dz*b = 2b）
+  length_total_um: 2.0         # [um] 菌体全長（L_over_b が dz_over_b の整数倍必須）
 
 flagella:
   n_flagella: 3                # [-] べん毛本数（論文条件）
@@ -64,8 +63,8 @@ run_tumble:
   curly1_tau: 400.0            # [tau] tumble 後半（curly1）
 
 time:
-  duration_s: 2.0              # [s] 物理時間
-  dt_over_tau: 0.001           # [-] 時間刻み dt/tau（Table 1）
+  duration_s: 0.1              # [s] 物理時間（デバッグ固定）
+  dt_s: 2.5e-7                 # [s] 時間刻み（dt/tau=1e-3 を満たす必要）
 
 output_sampling:
   out_all_steps_3d: true       # true: 3D は dt ごと全step保存

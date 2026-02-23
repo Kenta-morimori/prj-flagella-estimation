@@ -67,6 +67,48 @@ def main(
     logger = ctx.logger
     logger.info("Loaded simulation config (effective): %s", cfg)
     logger.info("Overrides: %s", override_dict if override_dict else "None")
+    cfg.validate_time_scaling()
+
+    logger.info(
+        (
+            "Time scale: b_um=%.6f, viscosity_Pa_s=%.6e, torque_Nm=%.6e, "
+            "tau_s=%.12e, dt_s=%.12e, dt_star=%.12e, duration_s=%.6f, "
+            "duration_star=%.12e, total_steps=%d"
+        ),
+        cfg.scale.b_um,
+        cfg.fluid.viscosity_Pa_s,
+        cfg.motor.torque_Nm,
+        cfg.tau_s,
+        cfg.dt_s,
+        cfg.dt_star,
+        cfg.time.duration_s,
+        cfg.duration_star,
+        cfg.total_steps,
+    )
+
+    n_layers = cfg.compute_body_n_layers()
+    l_over_b = cfg.body.length_total_um / max(cfg.scale.b_um, 1e-12)
+    logger.info(
+        "Body discretization: b_um=%.6f, L_um=%.6f, L_over_b=%.6f, dz_over_b=%.6f, n_layers=%d",
+        cfg.scale.b_um,
+        cfg.body.length_total_um,
+        l_over_b,
+        cfg.body.prism.dz_over_b,
+        n_layers,
+    )
+
+    for name, ok, actual, expected in cfg.paper_reference_checks():
+        if ok:
+            logger.info(
+                "Paper check OK: %s (actual=%s, expected=%s)", name, actual, expected
+            )
+        else:
+            logger.warning(
+                "Paper check mismatch: %s (actual=%s, expected=%s)",
+                name,
+                actual,
+                expected,
+            )
 
     sim_duration_s = float(cfg.time.duration_s)
     simulator = Simulator(cfg)

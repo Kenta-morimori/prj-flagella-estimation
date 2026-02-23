@@ -13,7 +13,6 @@ def test_body_prism_bead_count_and_layout() -> None:
             "body": {
                 "prism": {
                     "n_prism": 4,
-                    "n_layers": 6,
                     "dz_over_b": 0.5,
                     "radius_over_b": 0.4,
                     "axis": "x",
@@ -28,7 +27,7 @@ def test_body_prism_bead_count_and_layout() -> None:
                 "length_over_b": 2.0,
                 "helix_init": {"radius_over_b": 0.2, "pitch_over_b": 1.0},
             },
-            "time": {"duration_s": 0.02, "dt_over_tau": 0.005},
+            "time": {"duration_s": 0.02, "dt_s": 2.5e-7},
             "brownian": {"enabled": False},
         }
     )

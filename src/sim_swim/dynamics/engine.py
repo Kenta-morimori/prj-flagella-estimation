@@ -26,7 +26,7 @@ class DynamicsEngine:
     def __init__(self, model: SimModel, cfg: SimulationConfig):
         self.model = model
         self.cfg = cfg
-        self.t = 0.0
+        self.t_star = 0.0
         self.rng = np.random.default_rng(cfg.seed.global_seed)
 
         thermal = cfg.thermal_energy_J
@@ -91,12 +91,11 @@ class DynamicsEngine:
 
     def _update_run_tumble_state(self) -> None:
         rt = self.cfg.run_tumble
-        tau = self.cfg.tau_s
 
-        run_s = max(rt.run_tau * tau, 0.0)
-        tumble_s = max(rt.tumble_tau * tau, 0.0)
-        semicoiled_s = max(rt.semicoiled_tau * tau, 0.0)
-        curly1_s = max(rt.curly1_tau * tau, 0.0)
+        run_tau = max(rt.run_tau, 0.0)
+        tumble_tau = max(rt.tumble_tau, 0.0)
+        semicoiled_tau = max(rt.semicoiled_tau, 0.0)
+        curly1_tau = max(rt.curly1_tau, 0.0)
 
         self.model.flag_states[:] = int(PolymorphState.NORMAL)
         self.model.torque_signs[:] = 1.0
@@ -104,32 +103,33 @@ class DynamicsEngine:
         if self.model.flag_states.size == 0:
             return
 
-        cycle = max(run_s + tumble_s, 1e-12)
-        phase = self.t % cycle
-        if phase < run_s:
+        cycle = max(run_tau + tumble_tau, 1e-12)
+        phase_tau = self.t_star % cycle
+        if phase_tau < run_tau:
             return
 
-        tumble_phase = phase - run_s
+        tumble_phase_tau = phase_tau - run_tau
         reversed_flags = self.model.reverse_flagella
         if reversed_flags.size == 0:
             return
 
         self.model.torque_signs[reversed_flags] = -1.0
-        if tumble_phase < semicoiled_s:
+        if tumble_phase_tau < semicoiled_tau:
             self.model.flag_states[reversed_flags] = int(PolymorphState.SEMICOILED)
-        elif tumble_phase < (semicoiled_s + curly1_s):
+        elif tumble_phase_tau < (semicoiled_tau + curly1_tau):
             self.model.flag_states[reversed_flags] = int(PolymorphState.CURLY1)
         else:
             self.model.flag_states[reversed_flags] = int(PolymorphState.NORMAL)
 
-    def step(self, dt: float) -> None:
+    def step(self, dt_star: float) -> None:
         """1ステップ更新する。
 
         Args:
-            dt: 時間刻み [s]
+            dt_star: 無次元時間刻み（dt/tau）。
         """
 
-        dt_eff = max(float(dt), 0.0)
+        dt_star_eff = max(float(dt_star), 0.0)
+        dt_s = dt_star_eff * self.cfg.tau_s
         self._update_run_tumble_state()
 
         theta0, phi0 = self._state_angles_rad()
@@ -197,12 +197,12 @@ class DynamicsEngine:
         if self.cfg.brownian.enabled:
             xi = sample_brownian_displacement(
                 mobility=mobility,
-                dt=dt_eff,
+                dt=dt_s,
                 temperature_K=self.cfg.brownian.temperature_K,
                 rng=self.rng,
                 method=self.cfg.brownian.method,
                 jitter=self.cfg.brownian.jitter,
             )
 
-        self.model.positions_m = pos + (drift * dt_eff + xi).reshape((-1, 3))
-        self.t += dt_eff
+        self.model.positions_m = pos + (drift * dt_s + xi).reshape((-1, 3))
+        self.t_star += dt_star_eff

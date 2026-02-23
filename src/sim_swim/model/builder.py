@@ -59,7 +59,7 @@ class ModelBuilder:
         prism = cfg.body.prism
 
         n_prism = max(3, prism.n_prism)
-        n_layers = max(2, prism.n_layers)
+        n_layers = max(2, cfg.compute_body_n_layers())
         dz_um = prism.dz_over_b * cfg.scale.b_um
         radius_um = prism.radius_over_b * cfg.scale.b_um
 
