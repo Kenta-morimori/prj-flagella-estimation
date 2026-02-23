@@ -39,17 +39,14 @@ def test_validate_time_scaling_rejects_non_paper_dt_star() -> None:
         sim_cfg.validate_time_scaling()
 
 
-def test_tau_s_uses_motor_torque_scale() -> None:
+def test_tau_s_is_fixed_to_one_for_mvp() -> None:
     cfg = _base_cfg()
     cfg["fluid"]["viscosity_Pa_s"] = 2.0e-3
     cfg["motor"]["torque_Nm"] = 9.9e-18
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-7}
     sim_cfg = SimulationConfig.from_dict(cfg)
 
-    expected_tau = (
-        sim_cfg.fluid.viscosity_Pa_s * (sim_cfg.b_m**3) / sim_cfg.motor.torque_Nm
-    )
-    assert sim_cfg.tau_s == pytest.approx(expected_tau)
+    assert sim_cfg.tau_s == pytest.approx(1.0)
 
 
 def test_minimal_integrator_dt_star_is_converted_to_dt_s() -> None:
@@ -61,7 +58,7 @@ def test_minimal_integrator_dt_star_is_converted_to_dt_s() -> None:
     }
     sim_cfg = SimulationConfig.from_dict(cfg)
 
-    assert sim_cfg.dt_s == pytest.approx(2.5e-7)
+    assert sim_cfg.dt_s == pytest.approx(1.0e-3)
     assert sim_cfg.dt_star == pytest.approx(1.0e-3)
 
 

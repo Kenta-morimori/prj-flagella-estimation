@@ -51,7 +51,7 @@ _RUNTIME_DEFAULTS: Dict[str, Any] = {
         "semicoiled_tau": 400.0,
         "curly1_tau": 400.0,
     },
-    "time": {"duration_s": 0.1, "dt_s": 2.5e-7},
+    "time": {"duration_s": 0.1, "dt_s": 1.0e-3},
     "output_sampling": {"out_all_steps_3d": True, "fps_out_2d": 25.0},
     "render": {
         "image_size_px": 256,
@@ -139,10 +139,8 @@ def _expand_phase25_config(raw_cfg: Dict[str, Any]) -> Dict[str, Any]:
     integrator_raw = cfg.get("integrator", {}) or {}
     time_raw = cfg.setdefault("time", {})
     if "dt_s" not in time_raw and "dt_star" in integrator_raw:
-        b_m = float(scale_raw.get("b_m", float(scale_raw.get("b_um", 1.0)) * 1e-6))
-        eta = float((cfg.get("fluid", {}) or {}).get("viscosity_Pa_s", 1e-3))
-        torque = float((cfg.get("motor", {}) or {}).get("torque_Nm", 4e-18))
-        tau_s = eta * (b_m**3) / max(abs(torque), 1e-30)
+        # NOTE: MVPでは tau_s=1.0[s] を前提に dt_s=dt_star として扱う。
+        tau_s = 1.0
         time_raw["dt_s"] = float(integrator_raw["dt_star"]) * tau_s
 
     return cfg
@@ -190,6 +188,7 @@ def main(
     logger = ctx.logger
     logger.info("Loaded simulation config (effective): %s", cfg)
     logger.info("Overrides: %s", override_dict if override_dict else "None")
+    logger.info("NOTE: MVP assumption enabled, tau_s is fixed to 1.0 s")
 
     logger.info(
         (
