@@ -180,7 +180,7 @@ class TimeParams:
     """時間設定。"""
 
     duration_s: float = 0.1
-    dt_s: float = 1.0e-3
+    dt_s: float = 2.5e-7
 
 
 @dataclass(frozen=True)
@@ -262,8 +262,9 @@ class SimulationConfig:
 
     @property
     def tau_s(self) -> float:
-        # NOTE: MVPでは時間スケールを固定し、tau_s=1.0[s] とする。
-        return 1.0
+        return (self.viscosity_Pa_s * (self.b_m**3)) / max(
+            abs(self.motor.torque_Nm), 1e-30
+        )
 
     @property
     def dt_s(self) -> float:
@@ -611,8 +612,7 @@ class SimulationConfig:
             dt_star = integrator_raw.get("dt_star")
             if dt_star is None:
                 raise ValueError("time.dt_s または integrator.dt_star が必須です。")
-            # NOTE: MVPでは tau_s=1.0[s] 固定なので dt_s=dt_star。
-            tau_s = 1.0
+            tau_s = (max(fluid.viscosity_Pa_s, 1e-12) * (b_m**3)) / torque_scale
             dt_s = float(dt_star) * tau_s
 
         time = TimeParams(
