@@ -203,14 +203,63 @@ def _closest_points_on_segments(
     denom = a * c - b * b
 
     if denom <= 1e-20:
-        s = 0.0
-        t = np.clip(e / max(c, 1e-20), 0.0, 1.0)
+        # Segments are parallel or nearly parallel.
+        # Fall back to checking the minimal distance among endpoint-to-segment pairs.
+        #
+        # Candidate 1: p1 to segment [p2, q2]
+        c_len2 = max(c, 1e-20)
+        t1 = float(np.dot(p1 - p2, v) / c_len2)
+        t1 = float(np.clip(t1, 0.0, 1.0))
+        pa1 = p1
+        pb1 = p2 + t1 * v
+        d1 = float(np.dot(pa1 - pb1, pa1 - pb1))
+
+        # Candidate 2: q1 to segment [p2, q2]
+        t2 = float(np.dot(q1 - p2, v) / c_len2)
+        t2 = float(np.clip(t2, 0.0, 1.0))
+        pa2 = q1
+        pb2 = p2 + t2 * v
+        d2 = float(np.dot(pa2 - pb2, pa2 - pb2))
+
+        # Candidate 3: p2 to segment [p1, q1]
+        a_len2 = max(a, 1e-20)
+        s3 = float(np.dot(p2 - p1, u) / a_len2)
+        s3 = float(np.clip(s3, 0.0, 1.0))
+        pa3 = p1 + s3 * u
+        pb3 = p2
+        d3 = float(np.dot(pa3 - pb3, pa3 - pb3))
+
+        # Candidate 4: q2 to segment [p1, q1]
+        s4 = float(np.dot(q2 - p1, u) / a_len2)
+        s4 = float(np.clip(s4, 0.0, 1.0))
+        pa4 = p1 + s4 * u
+        pb4 = q2
+        d4 = float(np.dot(pa4 - pb4, pa4 - pb4))
+
+        # Select the best candidate
+        dists = [d1, d2, d3, d4]
+        idx_min = int(np.argmin(dists))
+        if idx_min == 0:
+            s = 0.0
+            t = t1
+            pa, pb = pa1, pb1
+        elif idx_min == 1:
+            s = 1.0
+            t = t2
+            pa, pb = pa2, pb2
+        elif idx_min == 2:
+            s = s3
+            t = 0.0
+            pa, pb = pa3, pb3
+        else:
+            s = s4
+            t = 1.0
+            pa, pb = pa4, pb4
     else:
         s = np.clip((b * e - c * d) / denom, 0.0, 1.0)
         t = np.clip((a * e - b * d) / denom, 0.0, 1.0)
-
-    pa = p1 + s * u
-    pb = p2 + t * v
+        pa = p1 + s * u
+        pb = p2 + t * v
     dvec = pa - pb
     dist = _safe_norm(dvec)
     return pa, pb, s, t, dist
