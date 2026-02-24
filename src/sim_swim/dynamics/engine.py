@@ -29,16 +29,14 @@ class DynamicsEngine:
         self.t_star = 0.0
         self.rng = np.random.default_rng(cfg.seed.global_seed)
 
-        thermal = cfg.thermal_energy_J
+        torque = abs(cfg.torque_Nm)
         b_m = cfg.b_m
-        self.spring_h = (
-            cfg.potentials.spring.H_over_T_over_b * thermal / max(b_m, 1e-30)
-        )
+        self.spring_h = cfg.potentials.spring.H_over_T_over_b * torque / max(b_m, 1e-30)
         self.spring_s_m = cfg.potentials.spring.s * b_m
-        self.k_bend = cfg.potentials.bend.kb_over_T * thermal
-        self.k_torsion = cfg.potentials.torsion.kt_over_T * thermal
-        self.k_hook = cfg.hook.kb_over_T * thermal
-        self.repulsion_A = cfg.potentials.spring_spring_repulsion.A_ss_over_T * thermal
+        self.k_bend = cfg.potentials.bend.kb_over_T * torque
+        self.k_torsion = cfg.potentials.torsion.kt_over_T * torque
+        self.k_hook = cfg.hook.kb_over_T * torque
+        self.repulsion_A = cfg.potentials.spring_spring_repulsion.A_ss_over_T * torque
         self.repulsion_a_m = cfg.potentials.spring_spring_repulsion.a_ss_over_b * b_m
         self.repulsion_cutoff_m = (
             cfg.potentials.spring_spring_repulsion.cutoff_over_b * b_m

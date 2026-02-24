@@ -272,10 +272,6 @@ class SimulationConfig:
         return self.scale.bead_radius_a_over_b * self.b_m
 
     @property
-    def thermal_energy_J(self) -> float:
-        return K_B * max(self.brownian.temperature_K, 1e-9)
-
-    @property
     def tau_s(self) -> float:
         return (self.viscosity_Pa_s * (self.b_m**3)) / max(abs(self.torque_Nm), 1e-30)
 
