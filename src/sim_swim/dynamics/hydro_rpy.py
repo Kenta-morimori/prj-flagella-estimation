@@ -16,11 +16,11 @@ def compute_rpy_mobility(
 
     Args:
         positions_m: ビーズ座標 [m]。shape=(N,3)
-        bead_radius_m: ビーズ半径 a [m]
+        bead_radius_m: ビーズ半径 [m]
         viscosity_Pa_s: 粘性係数 [Pa*s]
 
     Returns:
-        mobility行列 H。shape=(3N,3N), 単位は [m/(N*s)]。
+        mobility行列 H。shape=(3N,3N)
     """
 
     n = int(positions_m.shape[0])

@@ -180,7 +180,7 @@ class TimeParams:
     """時間設定。"""
 
     duration_s: float = 0.1
-    dt_s: float = 2.5e-7
+    dt_s: float = 1.0e-3
 
 
 @dataclass(frozen=True)
@@ -253,6 +253,15 @@ class SimulationConfig:
         return max(self.fluid.viscosity_Pa_s, 1e-12)
 
     @property
+    def input_torque_Nm(self) -> float:
+        return float(self.motor.torque_Nm)
+
+    @property
+    def torque_Nm(self) -> float:
+        """時間スケール定義で使用する実効トルク。"""
+        return self.viscosity_Pa_s * (self.b_m**3)
+
+    @property
     def bead_radius_m(self) -> float:
         return self.scale.bead_radius_a_over_b * self.b_m
 
@@ -262,9 +271,7 @@ class SimulationConfig:
 
     @property
     def tau_s(self) -> float:
-        return (self.viscosity_Pa_s * (self.b_m**3)) / max(
-            abs(self.motor.torque_Nm), 1e-30
-        )
+        return (self.viscosity_Pa_s * (self.b_m**3)) / max(abs(self.torque_Nm), 1e-30)
 
     @property
     def dt_s(self) -> float:
@@ -388,18 +395,14 @@ class SimulationConfig:
         )
 
         scale_raw = raw.get("scale", {}) or {}
-        b_m_raw = scale_raw.get("b_m")
-        if b_m_raw is not None:
-            b_um = float(b_m_raw) * 1e6
-        else:
-            b_um = float(_get(scale_raw, "b_um", 1.0))
+        b_um = float(_get(scale_raw, "b_um", 1.0))
         bead_radius_a_over_b = scale_raw.get("bead_radius_a_over_b")
         if bead_radius_a_over_b is None:
             bead_radius_um = scale_raw.get("bead_radius_a_um")
             if bead_radius_um is not None:
                 bead_radius_a_over_b = float(bead_radius_um) / max(b_um, 1e-12)
             else:
-                bead_radius_a_over_b = _get(raw.get("bead", {}) or {}, "a_star", 0.1)
+                bead_radius_a_over_b = 0.1
         scale = ScaleParams(
             b_um=b_um,
             bead_radius_a_over_b=float(bead_radius_a_over_b),
@@ -434,7 +437,7 @@ class SimulationConfig:
             if ds_um is not None:
                 ds_over_b = float(ds_um) / max(scale.b_um, 1e-12)
             else:
-                ds_over_b = float(_get(raw.get("spring", {}) or {}, "L_star", 0.58))
+                ds_over_b = 0.58
 
         bond_L_over_b = flag_raw.get("bond_L_over_b")
         if bond_L_over_b is None:
@@ -493,17 +496,13 @@ class SimulationConfig:
             reverse_n_flagella=int(_get(motor_raw, "reverse_n_flagella", 1)),
         )
 
-        torque_scale = max(abs(motor.torque_Nm), 1e-30)
+        thermal = K_B * max(brownian.temperature_K, 1e-9)
         b_m = max(scale.b_um, 1e-9) * 1e-6
 
-        spring_raw = (
-            (raw.get("potentials", {}) or {}).get("spring", {}) or raw.get("spring", {})
-        ) or {}
+        spring_raw = (raw.get("potentials", {}) or {}).get("spring", {}) or {}
         h_over = spring_raw.get("H_over_T_over_b")
-        if h_over is None:
-            h_over = spring_raw.get("H_star")
         if h_over is None and "H" in spring_raw:
-            h_over = float(spring_raw["H"]) * b_m / torque_scale
+            h_over = float(spring_raw["H"]) * b_m / max(thermal, 1e-30)
         s_val = spring_raw.get("s")
         if s_val is None and "s_um" in spring_raw:
             s_val = float(spring_raw["s_um"]) / max(scale.b_um, 1e-12)
@@ -512,13 +511,10 @@ class SimulationConfig:
             s=float(s_val if s_val is not None else 0.1),
         )
 
-        elastic_raw = raw.get("elastic", {}) or {}
         bend_raw = (raw.get("potentials", {}) or {}).get("bend", {}) or {}
         kb_over = bend_raw.get("kb_over_T")
-        if kb_over is None:
-            kb_over = elastic_raw.get("kb_star")
         if kb_over is None and "kb" in bend_raw:
-            kb_over = float(bend_raw["kb"]) / torque_scale
+            kb_over = float(bend_raw["kb"]) / max(thermal, 1e-30)
         bend = BendPotentialParams(
             kb_over_T=float(kb_over if kb_over is not None else 20.0),
             theta0_deg=_state_angles(
@@ -529,10 +525,8 @@ class SimulationConfig:
 
         torsion_raw = (raw.get("potentials", {}) or {}).get("torsion", {}) or {}
         kt_over = torsion_raw.get("kt_over_T")
-        if kt_over is None:
-            kt_over = elastic_raw.get("kt_star")
         if kt_over is None and "kt" in torsion_raw:
-            kt_over = float(torsion_raw["kt"]) / torque_scale
+            kt_over = float(torsion_raw["kt"]) / max(thermal, 1e-30)
         torsion = TorsionPotentialParams(
             kt_over_T=float(kt_over if kt_over is not None else 10.0),
             phi0_deg=_state_angles(
@@ -541,23 +535,16 @@ class SimulationConfig:
             ),
         )
 
-        rep_raw = (
-            (raw.get("potentials", {}) or {}).get("spring_spring_repulsion", {})
-            or raw.get("repulsion", {})
+        rep_raw = (raw.get("potentials", {}) or {}).get(
+            "spring_spring_repulsion", {}
         ) or {}
         a_over = rep_raw.get("A_ss_over_T")
-        if a_over is None:
-            a_over = rep_raw.get("A_ss_star")
         if a_over is None and "A_ss" in rep_raw:
-            a_over = float(rep_raw["A_ss"]) / torque_scale
+            a_over = float(rep_raw["A_ss"]) / max(thermal, 1e-30)
         a_len = rep_raw.get("a_ss_over_b")
-        if a_len is None:
-            a_len = rep_raw.get("a_ss_star")
         if a_len is None and "a_ss_um" in rep_raw:
             a_len = float(rep_raw["a_ss_um"]) / max(scale.b_um, 1e-12)
         cutoff = rep_raw.get("cutoff_over_b")
-        if cutoff is None:
-            cutoff = rep_raw.get("cutoff_star")
         if cutoff is None and "cutoff_um" in rep_raw:
             cutoff = float(rep_raw["cutoff_um"]) / max(scale.b_um, 1e-12)
 
@@ -576,19 +563,11 @@ class SimulationConfig:
 
         hook_raw = raw.get("hook", {}) or {}
         kb_hook_over = hook_raw.get("kb_over_T")
-        if kb_hook_over is None:
-            kb_hook_over = elastic_raw.get("kb_star")
         if kb_hook_over is None and "kb" in hook_raw:
-            kb_hook_over = float(hook_raw["kb"]) / torque_scale
+            kb_hook_over = float(hook_raw["kb"]) / max(thermal, 1e-30)
         hook = HookParams(
             enabled=bool(_get(hook_raw, "enabled", True)),
-            threshold_deg=float(
-                _get(
-                    hook_raw,
-                    "threshold_deg",
-                    _get(hook_raw, "theta_threshold_deg", 90.0),
-                )
-            ),
+            threshold_deg=float(_get(hook_raw, "threshold_deg", 90.0)),
             kb_over_T=float(kb_hook_over if kb_hook_over is not None else 20.0),
         )
 
@@ -608,12 +587,9 @@ class SimulationConfig:
 
         dt_s = time_raw.get("dt_s")
         if dt_s is None:
-            integrator_raw = raw.get("integrator", {}) or {}
-            dt_star = integrator_raw.get("dt_star")
-            if dt_star is None:
-                raise ValueError("time.dt_s または integrator.dt_star が必須です。")
-            tau_s = (max(fluid.viscosity_Pa_s, 1e-12) * (b_m**3)) / torque_scale
-            dt_s = float(dt_star) * tau_s
+            raise ValueError(
+                "time.dt_s は必須です。dt_s = 1e-3 * tau_s（Δt/τ=1e-3）を設定してください。"
+            )
 
         time = TimeParams(
             duration_s=float(_get(time_raw, "duration_s", 0.1)),

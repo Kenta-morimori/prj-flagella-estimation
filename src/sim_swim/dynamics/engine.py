@@ -6,6 +6,7 @@ import math
 
 import numpy as np
 
+from sim_swim.dynamics.brownian import sample_brownian_displacement
 from sim_swim.dynamics.forces import (
     compute_bending_forces,
     compute_hook_forces,
@@ -28,18 +29,16 @@ class DynamicsEngine:
         self.t_star = 0.0
         self.rng = np.random.default_rng(cfg.seed.global_seed)
 
-        torque_scale = max(abs(cfg.motor.torque_Nm), 1e-30)
+        thermal = cfg.thermal_energy_J
         b_m = cfg.b_m
-        self.spring_h = cfg.potentials.spring.H_over_T_over_b * (
-            torque_scale / max(b_m, 1e-30)
+        self.spring_h = (
+            cfg.potentials.spring.H_over_T_over_b * thermal / max(b_m, 1e-30)
         )
         self.spring_s_m = cfg.potentials.spring.s * b_m
-        self.k_bend = cfg.potentials.bend.kb_over_T * torque_scale
-        self.k_torsion = cfg.potentials.torsion.kt_over_T * torque_scale
-        self.k_hook = cfg.hook.kb_over_T * torque_scale
-        self.repulsion_A = (
-            cfg.potentials.spring_spring_repulsion.A_ss_over_T * torque_scale
-        )
+        self.k_bend = cfg.potentials.bend.kb_over_T * thermal
+        self.k_torsion = cfg.potentials.torsion.kt_over_T * thermal
+        self.k_hook = cfg.hook.kb_over_T * thermal
+        self.repulsion_A = cfg.potentials.spring_spring_repulsion.A_ss_over_T * thermal
         self.repulsion_a_m = cfg.potentials.spring_spring_repulsion.a_ss_over_b * b_m
         self.repulsion_cutoff_m = (
             cfg.potentials.spring_spring_repulsion.cutoff_over_b * b_m
@@ -178,7 +177,7 @@ class DynamicsEngine:
 
         if self.model.motor_triplets.shape[0] > 0:
             torque_per_flag = (
-                self.cfg.motor.torque_Nm
+                self.cfg.torque_Nm
                 * self.model.torque_signs[: self.model.motor_triplets.shape[0]]
             )
             forces += compute_motor_forces(
@@ -195,8 +194,15 @@ class DynamicsEngine:
 
         drift = mobility @ forces.reshape(-1)
         xi = np.zeros_like(drift)
-        # NOTE: Brownian項はMVPスコープ外のため、ここでは加算しない。
-        # 将来対応時は sample_brownian_displacement を使って xi を計算する。
+        if self.cfg.brownian.enabled:
+            xi = sample_brownian_displacement(
+                mobility=mobility,
+                dt=dt_s,
+                temperature_K=self.cfg.brownian.temperature_K,
+                rng=self.rng,
+                method=self.cfg.brownian.method,
+                jitter=self.cfg.brownian.jitter,
+            )
 
         self.model.positions_m = pos + (drift * dt_s + xi).reshape((-1, 3))
         self.t_star += dt_star_eff

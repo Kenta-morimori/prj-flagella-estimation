@@ -116,6 +116,7 @@ class Simulator:
 
     def __init__(self, config: SimulationConfig):
         self.config = config
+        self.config.validate_time_scaling()
         self.model = ModelBuilder(config).build()
         self.engine = DynamicsEngine(self.model, config)
         self.rig = FlagellaRig(
