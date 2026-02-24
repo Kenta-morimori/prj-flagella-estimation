@@ -36,7 +36,7 @@ def _select_2d_frames(
         if st.t + 1e-12 >= next_t:
             selected.append(st)
             next_t += interval
-    if selected[-1] is not states[-1]:
+    if selected and selected[-1] is not states[-1]:
         selected.append(states[-1])
     return selected
 
