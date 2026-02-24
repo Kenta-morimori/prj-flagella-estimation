@@ -1,19 +1,21 @@
-"""剛体菌体＋剛体べん毛による簡易遊泳シミュレーション（MVP版）。"""
+"""bead-spring + RPY のシミュレーションラッパ。"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 import math
+import time
 from typing import List, Tuple
 
 import numpy as np
 
+from sim_swim.dynamics.engine import DynamicsEngine
+from sim_swim.model.builder import ModelBuilder
+from sim_swim.sim.flagella_geometry import FlagellaRig
 from sim_swim.sim.params import SimulationConfig
-from sim_swim.sim.flagella_geometry import (
-    FlagellaRig,
-    generate_helix_points,
-    sample_base_directions,
-)
+
+M_TO_UM = 1e6
 
 
 def _quat_normalize(q: np.ndarray) -> np.ndarray:
@@ -38,26 +40,15 @@ def _quat_multiply(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
     )
 
 
-def _quat_from_axis_angle(axis: np.ndarray, angle: float) -> np.ndarray:
-    """軸と角度からクォータニオンを生成する（右手系）。"""
-    axis_norm = np.linalg.norm(axis)
-    if axis_norm == 0.0 or angle == 0.0:
-        return np.array([0.0, 0.0, 0.0, 1.0], dtype=float)
-    a = axis / axis_norm
-    s = math.sin(angle / 2.0)
-    c = math.cos(angle / 2.0)
-    return np.array([a[0] * s, a[1] * s, a[2] * s, c], dtype=float)
-
-
 def _rotate_vec(q: np.ndarray, v: np.ndarray) -> np.ndarray:
-    """クォータニオンでベクトル v を回転させる。"""
+    """クォータニオンでベクトルを回転する。"""
     v_q = np.array([v[0], v[1], v[2], 0.0], dtype=float)
     q_conj = np.array([-q[0], -q[1], -q[2], q[3]], dtype=float)
     return _quat_multiply(_quat_multiply(q, v_q), q_conj)[:3]
 
 
 def _quat_to_rotmat(q: np.ndarray) -> np.ndarray:
-    """クォータニオンから回転行列を得る。"""
+    """クォータニオンから回転行列を計算する。"""
     x, y, z, w = q
     return np.array(
         [
@@ -69,125 +60,173 @@ def _quat_to_rotmat(q: np.ndarray) -> np.ndarray:
     )
 
 
-def _brownian_sigma_um2_per_s(mu_mpas: float, temp_k: float) -> float:
-    """簡易な拡散係数モデル（近似）。"""
-    # 目安：水中で 0.3 um^2/s 程度を基準に、粘度に反比例させる。
-    _ = temp_k  # 現段階では温度は係数へ反映しない簡略モデル
-    return 0.3 / max(mu_mpas, 1e-6)
+def _quat_from_two_vectors(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    a_n = a / max(np.linalg.norm(a), 1e-12)
+    b_n = b / max(np.linalg.norm(b), 1e-12)
+    dot = float(np.clip(np.dot(a_n, b_n), -1.0, 1.0))
+
+    if dot < -0.999999:
+        axis = np.array([0.0, 1.0, 0.0], dtype=float)
+        if abs(a_n[1]) > 0.9:
+            axis = np.array([0.0, 0.0, 1.0], dtype=float)
+        axis = axis - np.dot(axis, a_n) * a_n
+        axis = axis / max(np.linalg.norm(axis), 1e-12)
+        return np.array([axis[0], axis[1], axis[2], 0.0], dtype=float)
+
+    cross = np.cross(a_n, b_n)
+    q = np.array([cross[0], cross[1], cross[2], 1.0 + dot], dtype=float)
+    return _quat_normalize(q)
+
+
+def _omega_from_quats(q_prev: np.ndarray, q_curr: np.ndarray, dt: float) -> np.ndarray:
+    if dt <= 0:
+        return np.zeros(3, dtype=float)
+    q_prev_conj = np.array([-q_prev[0], -q_prev[1], -q_prev[2], q_prev[3]], dtype=float)
+    dq = _quat_multiply(q_curr, q_prev_conj)
+    dq = _quat_normalize(dq)
+
+    if dq[3] < 0.0:
+        dq = -dq
+
+    v = dq[:3]
+    w = float(np.clip(dq[3], -1.0, 1.0))
+    nv = np.linalg.norm(v)
+    if nv < 1e-12:
+        return np.zeros(3, dtype=float)
+
+    axis = v / nv
+    angle = 2.0 * math.atan2(nv, w)
+    return axis * (angle / dt)
 
 
 @dataclass
 class SimulationState:
-    """1時刻分の状態を保持する簡易データ構造。"""
+    """1時刻分の観測互換データ。"""
 
     t: float
     position_um: Tuple[float, float, float]
     quaternion: Tuple[float, float, float, float]
     velocity_um_s: Tuple[float, float, float]
     omega_rad_s: Tuple[float, float, float]
+    bead_positions_um: np.ndarray
 
 
 class Simulator:
-    """べん毛駆動による簡易遊泳シミュレータ。"""
+    """時間ループと出力変換を担う薄いラッパ。"""
 
     def __init__(self, config: SimulationConfig):
         self.config = config
-        self.rng = np.random.default_rng(config.seed.global_seed)
-        # べん毛基部（菌体座標系）の方向ベクトル
-        self.base_dirs_body = list(
-            sample_base_directions(config.flagella.n_flagella, self.rng)
-        )
-        radius = config.body.diameter_um / 2.0
-        self.base_offsets_body = (
-            np.stack([d * radius for d in self.base_dirs_body], axis=0)
-            if self.base_dirs_body
-            else np.zeros((0, 3))
-        )
-        # ローカルヘリックスポイント
-        self.helix_local = generate_helix_points(config.flagella)
+        self.config.validate_time_scaling()
+        self.model = ModelBuilder(config).build()
+        self.engine = DynamicsEngine(self.model, config)
         self.rig = FlagellaRig(
-            base_offsets_body=self.base_offsets_body,
-            helix_local=self.helix_local,
+            body_layer_indices=[arr.copy() for arr in self.model.body_layer_indices],
+            body_ring_edges=self.model.body_ring_edges.copy(),
+            body_vertical_edges=self.model.body_vertical_edges.copy(),
+            flagella_indices=[arr.copy() for arr in self.model.flagella_indices],
         )
 
-    def run(self, duration_s: float) -> List[SimulationState]:
-        """与えられた時間だけ遊泳させ、状態リストを返す。"""
+    def _observe(self, t: float, prev: SimulationState | None) -> SimulationState:
+        body_pts = self.model.positions_m[self.model.body_indices]
+        center_m = body_pts.mean(axis=0)
 
-        cfg = self.config
-        dt_sim = float(cfg.time.dt_sim)
-        dt_out = cfg.time.dt_out
-        t = 0.0
-
-        # 初期姿勢を一様乱数で設定
-        q = _quat_normalize(
-            np.array(
-                self.rng.normal(0.0, 1.0, 4),
-                dtype=float,
-            )
+        first_layer = self.model.positions_m[self.model.body_layer_indices[0]].mean(
+            axis=0
         )
-        pos = np.zeros(3, dtype=float)
-
-        swim_coeff = 0.0025  # [um/s] per (flagella * Hz) の経験的スケール
-        spin_coeff = 0.05  # [rad/s] per Hz
-        base_diff = _brownian_sigma_um2_per_s(
-            cfg.env.viscosity_mpas, cfg.env.temperature_k
+        last_layer = self.model.positions_m[self.model.body_layer_indices[-1]].mean(
+            axis=0
         )
-        # 推進がある場合はブラウンを弱め、モータ依存性が見えやすいようにする
-        trans_diff = base_diff * (1.0 if cfg.flagella.n_flagella == 0 else 0.05)
-        rot_diff = 0.05 * (1.0 if cfg.flagella.n_flagella == 0 else 0.2)  # [rad^2/s]
+        axis = last_layer - first_layer
+        if np.linalg.norm(axis) < 1e-15:
+            axis = np.array([1.0, 0.0, 0.0], dtype=float)
+        q = _quat_from_two_vectors(np.array([1.0, 0.0, 0.0], dtype=float), axis)
+
+        if prev is None:
+            vel_um_s = np.zeros(3, dtype=float)
+            omega = np.zeros(3, dtype=float)
+        else:
+            dt = max(t - prev.t, 1e-12)
+            prev_center_m = np.array(prev.position_um, dtype=float) / M_TO_UM
+            vel_um_s = ((center_m - prev_center_m) / dt) * M_TO_UM
+            prev_q = np.array(prev.quaternion, dtype=float)
+            omega = _omega_from_quats(prev_q, q, dt)
+
+        return SimulationState(
+            t=round(t, 9),
+            position_um=tuple((center_m * M_TO_UM).tolist()),
+            quaternion=tuple(q.tolist()),
+            velocity_um_s=tuple(vel_um_s.tolist()),
+            omega_rad_s=tuple(omega.tolist()),
+            bead_positions_um=self.model.positions_m.copy() * M_TO_UM,
+        )
+
+    def run(
+        self,
+        duration_s: float,
+        logger: logging.Logger | None = None,
+        progress_interval: int | None = None,
+    ) -> List[SimulationState]:
+        """与えた時間だけシミュレーションして状態列を返す。
+
+        Args:
+            duration_s: シミュレーション時間 [s]。
+            logger: 進捗を出力するロガー（任意）。
+            progress_interval: 進捗ログのステップ間隔。None なら自動設定。
+        """
+
+        tau_s = self.config.tau_s
+        dt_star = max(self.config.dt_star, 1e-12)
+        duration_star = max(float(duration_s), 0.0) / max(tau_s, 1e-30)
+        total_steps = max(1, int(math.ceil(duration_star / dt_star)))
 
         states: List[SimulationState] = []
-        total_steps = max(1, int(math.ceil(duration_s / dt_sim)))
-        next_sample = 0.0
+        wall_start = time.perf_counter()
 
-        for _ in range(total_steps + 1):
-            # 現在の軸（菌体 x 軸）方向
-            body_axis = _rotate_vec(q, np.array([1.0, 0.0, 0.0]))
+        if progress_interval is None:
+            progress_interval = 1000 if total_steps >= 10000 else 100
+        progress_interval = max(1, int(progress_interval))
 
-            # 推進速度
-            v_prop_mag = (
-                swim_coeff * cfg.flagella.n_flagella * cfg.flagella.motor_freq_hz
+        if logger is not None:
+            logger.info(
+                (
+                    "Simulation loop start: total_steps=%d, dt_star=%.6e, "
+                    "dt_s=%.6e s, duration_star=%.6e, progress_interval=%d"
+                ),
+                total_steps,
+                dt_star,
+                self.config.dt_s,
+                duration_star,
+                progress_interval,
             )
-            v_prop = v_prop_mag * body_axis  # um/s
 
-            # 角速度（counter-rotation）
-            omega = -spin_coeff * cfg.flagella.motor_freq_hz * body_axis  # rad/s
+        for step in range(total_steps + 1):
+            t_now = self.engine.t_star * tau_s
+            prev = states[-1] if states else None
+            states.append(self._observe(t_now, prev))
 
-            # ブラウン運動
-            disp_brown = np.zeros(3, dtype=float)
-            omega_brown = np.zeros(3, dtype=float)
-            if cfg.env.include_brownian or cfg.flagella.n_flagella == 0:
-                sigma = math.sqrt(max(0.0, 2.0 * trans_diff * dt_sim))
-                disp_brown = self.rng.normal(0.0, sigma, 3)
-                rot_sigma = math.sqrt(max(0.0, 2.0 * rot_diff * dt_sim))
-                omega_brown = self.rng.normal(0.0, rot_sigma, 3)
-
-            # 並進更新
-            pos = pos + v_prop * dt_sim + disp_brown
-
-            # 回転更新
-            total_omega = omega + omega_brown
-            omega_norm = np.linalg.norm(total_omega)
-            dq = _quat_from_axis_angle(
-                total_omega
-                if omega_norm == 0
-                else total_omega / max(omega_norm, 1e-12),
-                omega_norm * dt_sim,
-            )
-            q = _quat_normalize(_quat_multiply(dq, q))
-
-            if t + 1e-12 >= next_sample or _ == total_steps:
-                states.append(
-                    SimulationState(
-                        t=round(t, 9),
-                        position_um=tuple(pos.tolist()),
-                        quaternion=tuple(q.tolist()),
-                        velocity_um_s=tuple(v_prop.tolist()),
-                        omega_rad_s=tuple(omega.tolist()),
+            if step < total_steps:
+                self.engine.step(dt_star)
+                completed = step + 1
+                if logger is not None and (
+                    completed % progress_interval == 0 or completed == total_steps
+                ):
+                    logger.info(
+                        (
+                            "Simulation progress: step=%d/%d (%.1f%%), "
+                            "t_star=%.6f, t_s=%.6f s"
+                        ),
+                        completed,
+                        total_steps,
+                        (completed / total_steps) * 100.0,
+                        self.engine.t_star,
+                        self.engine.t_star * tau_s,
                     )
-                )
-                next_sample += dt_out
 
-            t += dt_sim
+        if logger is not None:
+            logger.info(
+                "Simulation loop end: total_steps=%d, elapsed=%.2f s",
+                total_steps,
+                time.perf_counter() - wall_start,
+            )
 
         return states

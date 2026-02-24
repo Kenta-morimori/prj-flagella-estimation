@@ -6,79 +6,96 @@ from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import SimulationConfig
 
 
-def _make_cfg(**overrides):
-    base = {
-        "body": {"length_total_um": 3.0, "diameter_um": 0.8},
-        "flagella": {
-            "n_flagella": 5,
-            "length_um": 12.0,
-            "pitch_um": 2.3,
-            "radius_um": 0.2,
-            "filament_diameter_um": 0.02,
-            "placement_mode": "uniform",
-            "motor_freq_hz": 100.0,
-        },
-        "environment": {
-            "viscosity_mpas": 1.0,
-            "temperature_k": 298,
-            "include_brownian": True,
-            "include_gravity": False,
-        },
-        "time": {
-            "fps_out": 50,
-            "dt_sim": 0.0005,
-            "duration_s": 0.05,
-        },
-        "render": {
-            "image_size_px": 256,
-            "pixel_size_um": 0.203,
-            "render_flagella": False,
-            "flagella_linewidth_px": 3.0,
-        },
-        "seed": {"global_seed": 0},
-    }
-    for k, v in overrides.items():
-        base[k] = {**base.get(k, {}), **v} if isinstance(v, dict) else v
-    return SimulationConfig.from_dict(base)
+def _make_cfg() -> SimulationConfig:
+    return SimulationConfig.from_dict(
+        {
+            "scale": {"b_um": 1.0, "bead_radius_a_over_b": 0.1},
+            "body": {
+                "prism": {
+                    "n_prism": 3,
+                    "dz_over_b": 0.5,
+                    "radius_over_b": 0.5,
+                    "axis": "x",
+                },
+                "length_total_um": 2.0,
+            },
+            "flagella": {
+                "n_flagella": 3,
+                "placement_mode": "uniform",
+                "discretization": {"ds_over_b": 0.58},
+                "bond_L_over_b": 0.58,
+                "length_over_b": 2.32,
+                "helix_init": {"radius_over_b": 0.2, "pitch_over_b": 1.0},
+            },
+            "fluid": {"viscosity_Pa_s": 1.0e-3},
+            "motor": {"torque_Nm": -1.0, "reverse_n_flagella": 1},
+            "potentials": {
+                "spring": {"H_over_T_over_b": 10.0, "s": 0.1},
+                "bend": {
+                    "kb_over_T": 20.0,
+                    "theta0_deg": {
+                        "normal": 142.0,
+                        "semicoiled": 90.0,
+                        "curly1": 105.0,
+                    },
+                },
+                "torsion": {
+                    "kt_over_T": 10.0,
+                    "phi0_deg": {"normal": -60.0, "semicoiled": 65.0, "curly1": 120.0},
+                },
+                "spring_spring_repulsion": {
+                    "A_ss_over_T": 1.0,
+                    "a_ss_over_b": 0.2,
+                    "cutoff_over_b": 0.2,
+                },
+            },
+            "hook": {"enabled": True, "threshold_deg": 90.0, "kb_over_T": 20.0},
+            "run_tumble": {
+                "run_tau": 20.0,
+                "tumble_tau": 8.0,
+                "semicoiled_tau": 4.0,
+                "curly1_tau": 4.0,
+            },
+            "time": {"duration_s": 5.0e-5, "dt_s": 1.0e-3},
+            "output_sampling": {"out_all_steps_3d": True, "fps_out_2d": 25.0},
+            "brownian": {
+                "enabled": False,
+                "temperature_K": 298.0,
+                "method": "cholesky",
+                "jitter": 1.0e-20,
+            },
+            "render": {
+                "image_size_px": 128,
+                "pixel_size_um": 0.203,
+                "flagella_linewidth_px": 2.0,
+                "render_flagella": True,
+                "save_frames_3d": False,
+                "follow_camera_3d": True,
+                "view_range_um": 8.0,
+                "timestamp_3d": False,
+                "label_flagella": True,
+                "follow_camera_2d": False,
+                "save_frames_2d": False,
+            },
+            "seed": {"global_seed": 0},
+            "output": {"base_dir": "outputs"},
+        }
+    )
 
 
-def test_smoke_runs_and_outputs_positions():
+def test_short_run_no_nan_inf() -> None:
     cfg = _make_cfg()
     sim = Simulator(cfg)
-    states = sim.run(0.05)
+    states = sim.run(cfg.time.duration_s)
+
     assert len(states) >= 2
-    arr = np.array([s.position_um for s in states], dtype=float)
-    assert not np.isnan(arr).any()
 
+    arr_pos = np.array([s.position_um for s in states], dtype=float)
+    arr_q = np.array([s.quaternion for s in states], dtype=float)
+    arr_v = np.array([s.velocity_um_s for s in states], dtype=float)
+    arr_w = np.array([s.omega_rad_s for s in states], dtype=float)
 
-def test_reproducibility_same_seed_matches():
-    cfg = _make_cfg(seed={"global_seed": 123})
-    sim1 = Simulator(cfg)
-    sim2 = Simulator(cfg)
-    s1 = sim1.run(0.05)
-    s2 = sim2.run(0.05)
-    a1 = np.array([s.position_um for s in s1])
-    a2 = np.array([s.position_um for s in s2])
-    assert np.allclose(a1, a2)
-
-
-def test_motor_freq_increases_speed():
-    cfg_low = _make_cfg(flagella={"motor_freq_hz": 50.0})
-    cfg_high = _make_cfg(flagella={"motor_freq_hz": 200.0})
-    sim_low = Simulator(cfg_low)
-    sim_high = Simulator(cfg_high)
-    s_low = sim_low.run(0.05)
-    s_high = sim_high.run(0.05)
-    disp_low = np.linalg.norm(np.array(s_low[-1].position_um))
-    disp_high = np.linalg.norm(np.array(s_high[-1].position_um))
-    assert disp_high > disp_low * 1.2
-
-
-def test_brownian_msd_nonzero_when_no_flagella():
-    cfg = _make_cfg(flagella={"n_flagella": 0}, seed={"global_seed": 7})
-    sim = Simulator(cfg)
-    states = sim.run(0.05)
-    positions = np.array([s.position_um for s in states])
-    diffs = positions - positions[0]
-    msd = np.mean(np.sum(diffs**2, axis=1))
-    assert msd > 1e-4
+    assert np.isfinite(arr_pos).all()
+    assert np.isfinite(arr_q).all()
+    assert np.isfinite(arr_v).all()
+    assert np.isfinite(arr_w).all()

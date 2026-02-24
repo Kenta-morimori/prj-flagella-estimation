@@ -36,7 +36,7 @@ def main(
         None, help="Override time.duration_s (seconds)"
     ),
     fps_out: Optional[float] = typer.Option(
-        None, help="Override time.fps_out (frames per second)"
+        None, help="Override output_sampling.fps_out_2d (frames per second)"
     ),
     render_flagella: Optional[bool] = typer.Option(
         None,
@@ -54,12 +54,12 @@ def main(
     if duration_s is not None:
         override_dict.setdefault("time", {})["duration_s"] = duration_s
     if fps_out is not None:
-        override_dict.setdefault("time", {})["fps_out"] = fps_out
+        override_dict.setdefault("output_sampling", {})["fps_out_2d"] = fps_out
     if render_flagella is not None:
         override_dict.setdefault("render", {})["render_flagella"] = render_flagella
     cfg = SimulationConfig.from_dict(raw_cfg).with_overrides(override_dict)
 
-    output_base = raw_cfg.get("output", {}).get("base_dir", "outputs")
+    output_base = cfg.output.base_dir
     ctx = init_run(
         base_dir=output_base,
         input_info={"config": str(config), "overrides": overrides or []},
@@ -67,10 +67,81 @@ def main(
     logger = ctx.logger
     logger.info("Loaded simulation config (effective): %s", cfg)
     logger.info("Overrides: %s", override_dict if override_dict else "None")
+    cfg.validate_time_scaling()
 
-    sim_duration_s = float(getattr(cfg.time, "duration_s", 0.1))
+    if cfg.use_eta_b3_torque:
+        logger.info(
+            "[time-scale] input motor.torque_Nm=-1; using T=ηb^3 (τ=1 definition)"
+        )
+        logger.info(
+            (
+                "[time-scale] b=%.6e um, b_m=%.6e m, η=%.6e Pa·s, "
+                "T=η b^3=%.6e N·m, τ=η b^3/T=%.6e s"
+            ),
+            cfg.scale.b_um,
+            cfg.b_m,
+            cfg.viscosity_Pa_s,
+            cfg.torque_Nm,
+            cfg.tau_s,
+        )
+    else:
+        logger.info(
+            "[time-scale] using input motor.torque_Nm as T: %.6e N·m",
+            cfg.input_torque_Nm,
+        )
+        logger.info(
+            (
+                "[time-scale] b=%.6e um, b_m=%.6e m, η=%.6e Pa·s, "
+                "T=%.6e N·m, τ=η b^3/|T|=%.6e s"
+            ),
+            cfg.scale.b_um,
+            cfg.b_m,
+            cfg.viscosity_Pa_s,
+            cfg.torque_Nm,
+            cfg.tau_s,
+        )
+    logger.info(
+        "[time-step ] Δt=dt_s=%.6e s, Δt*=dt_star=%.6e (=Δt/τ)",
+        cfg.dt_s,
+        cfg.dt_star,
+    )
+    logger.info(
+        (
+            "[duration  ] t_end=duration_s=%.6e s, "
+            "t_end*=duration_star=%.6e (=t_end/τ), steps=%d"
+        ),
+        cfg.time.duration_s,
+        cfg.duration_star,
+        cfg.total_steps,
+    )
+
+    n_layers = cfg.compute_body_n_layers()
+    l_over_b = cfg.body.length_total_um / max(cfg.scale.b_um, 1e-12)
+    logger.info(
+        "Body discretization: b_um=%.6f, L_um=%.6f, L_over_b=%.6f, dz_over_b=%.6f, n_layers=%d",
+        cfg.scale.b_um,
+        cfg.body.length_total_um,
+        l_over_b,
+        cfg.body.prism.dz_over_b,
+        n_layers,
+    )
+
+    for name, ok, actual, expected in cfg.paper_reference_checks():
+        if ok:
+            logger.info(
+                "Paper check OK: %s (actual=%s, expected=%s)", name, actual, expected
+            )
+        else:
+            logger.warning(
+                "Paper check mismatch: %s (actual=%s, expected=%s)",
+                name,
+                actual,
+                expected,
+            )
+
+    sim_duration_s = float(cfg.time.duration_s)
     simulator = Simulator(cfg)
-    states = simulator.run(sim_duration_s)
+    states = simulator.run(sim_duration_s, logger=logger)
 
     # 保存: 3D軌跡（全ステップ）
     traj_path = ctx.out.sim_dir / "trajectory.csv"
@@ -120,6 +191,7 @@ def main(
     manifest["outputs"] = outputs
     manifest["files"] = [
         str(traj_path.relative_to(ctx.out.root)),
+        "render/movie_3d.mp4",
         "render/swim3d.mp4",
         "render/swim3d_final.png",
         "render2d/projection.mp4",
