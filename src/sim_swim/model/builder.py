@@ -131,7 +131,8 @@ class ModelBuilder:
 
         bond_L_flag_um = max(cfg.flagella.bond_L_over_b * b_um, 1e-6)
 
-        attach_ids = self._flag_attach_indices(body_layers[-1], n_flagella)
+        center_layer = body_layers[len(body_layers) // 2]
+        attach_ids = self._flag_attach_indices(center_layer, n_flagella)
 
         points_all = [body_um]
         flagella_indices: list[np.ndarray] = []

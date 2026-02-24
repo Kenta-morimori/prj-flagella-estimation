@@ -81,3 +81,47 @@ def test_body_flag_spring_connection_exists() -> None:
         if bool(model.bead_is_body[int(i)]) ^ bool(model.bead_is_body[int(j)]):
             body_flag_pairs += 1
     assert body_flag_pairs == cfg.flagella.n_flagella
+
+
+def test_flagella_attach_to_center_layer() -> None:
+    cfg = SimulationConfig.from_dict(
+        {
+            "scale": {"b_um": 1.0, "bead_radius_a_over_b": 0.1},
+            "body": {
+                "prism": {
+                    "n_prism": 3,
+                    "dz_over_b": 0.5,
+                    "radius_over_b": 0.5,
+                    "axis": "x",
+                },
+                "length_total_um": 2.0,
+            },
+            "flagella": {
+                "n_flagella": 3,
+                "placement_mode": "uniform",
+                "discretization": {"ds_over_b": 0.58},
+                "bond_L_over_b": 0.58,
+                "length_over_b": 2.32,
+                "helix_init": {"radius_over_b": 0.2, "pitch_over_b": 1.0},
+            },
+            "time": {"duration_s": 0.02, "dt_s": 1.0e-3},
+            "brownian": {"enabled": False},
+        }
+    )
+    model = ModelBuilder(cfg).build()
+
+    center_layer = set(
+        model.body_layer_indices[len(model.body_layer_indices) // 2].tolist()
+    )
+    last_layer = set(model.body_layer_indices[-1].tolist())
+
+    attached_body_indices: set[int] = set()
+    for i, j in model.spring_pairs:
+        if bool(model.bead_is_body[int(i)]) ^ bool(model.bead_is_body[int(j)]):
+            attached_body_indices.add(
+                int(i) if bool(model.bead_is_body[int(i)]) else int(j)
+            )
+
+    assert attached_body_indices
+    assert attached_body_indices.issubset(center_layer)
+    assert attached_body_indices.isdisjoint(last_layer)
