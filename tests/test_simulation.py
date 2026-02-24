@@ -2,13 +2,18 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
+
 import numpy as np
+import pytest
 
 from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import SimulationConfig
 
 
-def _make_cfg() -> SimulationConfig:
+def _make_cfg(
+    motor_torque_Nm: float = -1.0,
+    hook_enabled: bool = True,
+) -> SimulationConfig:
     return SimulationConfig.from_dict(
         {
             "scale": {"b_um": 1.0, "bead_radius_a_over_b": 0.1},
@@ -30,7 +35,7 @@ def _make_cfg() -> SimulationConfig:
                 "helix_init": {"radius_over_b": 0.2, "pitch_over_b": 1.0},
             },
             "fluid": {"viscosity_Pa_s": 1.0e-3},
-            "motor": {"torque_Nm": -1.0, "reverse_n_flagella": 1},
+            "motor": {"torque_Nm": motor_torque_Nm, "reverse_n_flagella": 1},
             "potentials": {
                 "spring": {"H_over_T_over_b": 10.0, "s": 0.1},
                 "bend": {
@@ -51,7 +56,7 @@ def _make_cfg() -> SimulationConfig:
                     "cutoff_over_b": 0.2,
                 },
             },
-            "hook": {"enabled": True, "threshold_deg": 90.0, "kb_over_T": 20.0},
+            "hook": {"enabled": hook_enabled, "threshold_deg": 90.0, "kb_over_T": 20.0},
             "run_tumble": {
                 "run_tau": 20.0,
                 "tumble_tau": 8.0,
@@ -128,3 +133,29 @@ def test_run_writes_step_summary_csv(tmp_path: Path) -> None:
     assert "F_motor_mean_flag" in first_full
     assert "F_repulsion_mean_body" in first_full
     assert "torque_for_forces_Nm" in first_full
+
+
+@pytest.mark.parametrize(
+    ("motor_torque", "hook_enabled"),
+    [
+        (0.0, False),
+        (0.0, True),
+        (-1.0, True),
+    ],
+)
+def test_body_flag_bond_metric_is_numeric_across_modes(
+    tmp_path: Path, motor_torque: float, hook_enabled: bool
+) -> None:
+    cfg = _make_cfg(motor_torque_Nm=motor_torque, hook_enabled=hook_enabled)
+    sim = Simulator(cfg)
+    sim.run(cfg.time.duration_s, sim_debug_dir=tmp_path / "sim_debug")
+
+    step_full_csv = tmp_path / "sim_debug" / "step_summary_full.csv"
+    with step_full_csv.open("r", encoding="utf-8", newline="") as f:
+        rows = list(csv.DictReader(f))
+    assert len(rows) >= 1
+
+    first = rows[0]
+    assert first["pos_all_finite"] in {"True", "true", "1"}
+    bond_len = float(first["bond_len_mean_body_flag_um"])
+    assert np.isfinite(bond_len)

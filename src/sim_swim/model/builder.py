@@ -196,6 +196,12 @@ class ModelBuilder:
             flagella_indices.append(idx)
             start_index += n_flag
 
+            spring_pairs.append((int(attach_idx), int(idx[0])))
+            dist_attach_m = float(
+                np.linalg.norm((body_um[int(attach_idx)] - flag_points[0]) * UM_TO_M)
+            )
+            spring_rest_lengths_m.append(dist_attach_m)
+
             for j in range(idx.shape[0] - 1):
                 spring_pairs.append((int(idx[j]), int(idx[j + 1])))
                 spring_rest_lengths_m.append(bond_L_flag_um * UM_TO_M)
