@@ -271,10 +271,17 @@ class SimulationConfig:
 
     @property
     def torque_scale_Nm(self) -> float:
-        """剛性・相互作用強度のスケーリングに使うトルク絶対値。"""
+        """τ計算に使うスケールトルク絶対値。"""
         if self.use_eta_b3_torque or self.is_motor_off_torque:
             return self.torque_eta_b3_Nm
         return abs(self.input_torque_Nm)
+
+    @property
+    def torque_for_forces_Nm(self) -> float:
+        """力学パラメータ（剛性/反発）のスケーリングに使うトルク絶対値。"""
+        if self.use_eta_b3_torque or self.is_motor_off_torque:
+            return self.torque_eta_b3_Nm
+        return abs(self.motor_torque_Nm)
 
     @property
     def motor_torque_Nm(self) -> float:

@@ -52,6 +52,9 @@ def test_torque_minus_one_uses_eta_b3_and_tau_is_one() -> None:
     assert sim_cfg.torque_scale_Nm == pytest.approx(
         sim_cfg.viscosity_Pa_s * (sim_cfg.b_m**3)
     )
+    assert sim_cfg.torque_for_forces_Nm == pytest.approx(
+        sim_cfg.viscosity_Pa_s * (sim_cfg.b_m**3)
+    )
     assert sim_cfg.motor_torque_Nm == pytest.approx(
         sim_cfg.viscosity_Pa_s * (sim_cfg.b_m**3)
     )
@@ -69,6 +72,7 @@ def test_torque_non_minus_one_uses_input_value() -> None:
     assert not sim_cfg.is_motor_off_torque
     assert sim_cfg.input_torque_Nm == pytest.approx(9.9e-18)
     assert sim_cfg.torque_scale_Nm == pytest.approx(abs(9.9e-18))
+    assert sim_cfg.torque_for_forces_Nm == pytest.approx(abs(9.9e-18))
     assert sim_cfg.motor_torque_Nm == pytest.approx(9.9e-18)
     assert sim_cfg.torque_Nm == pytest.approx(9.9e-18)
     expected_tau = (sim_cfg.viscosity_Pa_s * (sim_cfg.b_m**3)) / abs(9.9e-18)
@@ -85,6 +89,9 @@ def test_torque_zero_sets_motor_off_but_keeps_tau_unity_scale() -> None:
     assert sim_cfg.is_motor_off_torque
     assert sim_cfg.motor_torque_Nm == pytest.approx(0.0)
     assert sim_cfg.torque_scale_Nm == pytest.approx(
+        sim_cfg.viscosity_Pa_s * (sim_cfg.b_m**3)
+    )
+    assert sim_cfg.torque_for_forces_Nm == pytest.approx(
         sim_cfg.viscosity_Pa_s * (sim_cfg.b_m**3)
     )
     assert sim_cfg.tau_s == pytest.approx(1.0)

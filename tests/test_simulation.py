@@ -127,3 +127,4 @@ def test_run_writes_step_summary_csv(tmp_path: Path) -> None:
     first_full = rows_full[0]
     assert "F_motor_mean_flag" in first_full
     assert "F_repulsion_mean_body" in first_full
+    assert "torque_for_forces_Nm" in first_full

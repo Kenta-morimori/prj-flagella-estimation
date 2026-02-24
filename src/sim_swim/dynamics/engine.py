@@ -53,7 +53,7 @@ class DynamicsEngine:
         self.t_star = 0.0
         self.rng = np.random.default_rng(cfg.seed.global_seed)
 
-        torque = max(cfg.torque_scale_Nm, 1e-30)
+        torque = max(cfg.torque_for_forces_Nm, 1e-30)
         b_m = cfg.b_m
         self.spring_h = cfg.potentials.spring.H_over_T_over_b * torque / max(b_m, 1e-30)
         self.spring_s_m = cfg.potentials.spring.s * b_m
