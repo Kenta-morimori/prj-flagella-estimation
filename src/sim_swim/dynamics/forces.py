@@ -2,9 +2,19 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import math
 
 import numpy as np
+
+
+@dataclass(frozen=True)
+class MotorForceDiagnostics:
+    """モータ力分配の診断情報。"""
+
+    degenerate_axis_count: int = 0
+    split_rank_deficient_count: int = 0
+    bond_length_clipped_count: int = 0
 
 
 def _safe_norm(v: np.ndarray, eps: float = 1e-18) -> float:
@@ -311,51 +321,72 @@ def compute_motor_forces(
     positions_m: np.ndarray,
     motor_triplets: np.ndarray,
     torque_per_flag: np.ndarray,
-) -> np.ndarray:
-    """総力ゼロ・指定軸トルクとなる最小ノルム力を算出する。"""
+) -> tuple[np.ndarray, MotorForceDiagnostics]:
+    """Fig.2準拠でモータトルクを2本ボンドの力カップルへ分配する。"""
 
     forces = np.zeros_like(positions_m)
+    diag = MotorForceDiagnostics()
     if motor_triplets.size == 0:
-        return forces
+        return forces, diag
+
+    degenerate_axis_count = 0
+    split_rank_deficient_count = 0
+    bond_length_clipped_count = 0
+    r2_eps = 1e-30
 
     for idx, (ib, jf, kf) in enumerate(motor_triplets):
-        ids = [int(ib), int(jf), int(kf)]
-        pts = positions_m[ids]
+        i0, i1, i2 = int(ib), int(jf), int(kf)
+        x0 = positions_m[i0]
+        x1 = positions_m[i1]
+        x2 = positions_m[i2]
 
-        axis_vec = pts[2] - pts[1]
-        axis_norm = _safe_norm(axis_vec)
-        if axis_norm <= 1e-18:
-            continue
-        e = axis_vec / axis_norm
+        r_a = x1 - x0
+        r_b = x2 - x1
 
         tau = float(torque_per_flag[idx])
-        b = np.zeros(6, dtype=float)
-        b[3:] = tau * e
+        if abs(tau) <= 0.0:
+            continue
 
-        a = np.zeros((6, 9), dtype=float)
+        axis_norm = float(np.linalg.norm(r_b))
+        if axis_norm <= 1e-18:
+            degenerate_axis_count += 1
+            continue
+        t_hat = r_b / axis_norm
+        t_tot = tau * t_hat
+
+        # Step B: Ta + Tb = Ttot, Ta·ra = 0, Tb·rb = 0 を最小ノルムで解く。
+        a = np.zeros((5, 6), dtype=float)
+        b = np.zeros((5,), dtype=float)
         a[0:3, 0:3] = np.eye(3)
         a[0:3, 3:6] = np.eye(3)
-        a[0:3, 6:9] = np.eye(3)
+        b[0:3] = t_tot
+        a[3, 0:3] = r_a
+        a[4, 3:6] = r_b
 
-        for row, p in enumerate(pts):
-            cx = np.array(
-                [
-                    [0.0, -p[2], p[1]],
-                    [p[2], 0.0, -p[0]],
-                    [-p[1], p[0], 0.0],
-                ],
-                dtype=float,
-            )
-            col = 3 * row
-            a[3:6, col : col + 3] = cx
+        rank = int(np.linalg.matrix_rank(a))
+        if rank < 5:
+            split_rank_deficient_count += 1
+        split = np.linalg.pinv(a) @ b
+        t_a = split[0:3]
+        t_b = split[3:6]
 
-        ata = a @ a.T
-        try:
-            x = a.T @ np.linalg.solve(ata, b)
-        except np.linalg.LinAlgError:
-            x = a.T @ np.linalg.pinv(ata) @ b
+        # Step C: Tc = rc × Fc, Fc = (Tc × rc) / ||rc||^2
+        r_a2 = float(np.dot(r_a, r_a))
+        if r_a2 < r2_eps:
+            bond_length_clipped_count += 1
+        f_a = np.cross(t_a, r_a) / max(r_a2, r2_eps)
+        forces[i0] -= f_a
+        forces[i1] += f_a
 
-        for local, bead_idx in enumerate(ids):
-            forces[bead_idx] += x[3 * local : 3 * local + 3]
+        r_b2 = float(np.dot(r_b, r_b))
+        if r_b2 < r2_eps:
+            bond_length_clipped_count += 1
+        f_b = np.cross(t_b, r_b) / max(r_b2, r2_eps)
+        forces[i1] -= f_b
+        forces[i2] += f_b
 
-    return forces
+    return forces, MotorForceDiagnostics(
+        degenerate_axis_count=degenerate_axis_count,
+        split_rank_deficient_count=split_rank_deficient_count,
+        bond_length_clipped_count=bond_length_clipped_count,
+    )

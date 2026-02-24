@@ -71,33 +71,48 @@ def main(
 
     if cfg.use_eta_b3_torque:
         logger.info(
-            "[time-scale] input motor.torque_Nm=-1; using T=ηb^3 (τ=1 definition)"
+            "[time-scale] input motor.torque_Nm=-1; using internal mode (tau=1)"
         )
         logger.info(
             (
                 "[time-scale] b=%.6e um, b_m=%.6e m, η=%.6e Pa·s, "
-                "T=η b^3=%.6e N·m, τ=η b^3/T=%.6e s"
+                "T_scale=η b^3=%.6e N·m, T_motor=%.6e N·m, τ=%.6e s"
             ),
             cfg.scale.b_um,
             cfg.b_m,
             cfg.viscosity_Pa_s,
-            cfg.torque_Nm,
+            cfg.torque_scale_Nm,
+            cfg.motor_torque_Nm,
+            cfg.tau_s,
+        )
+    elif cfg.is_motor_off_torque:
+        logger.info("[time-scale] input motor.torque_Nm=0; motor OFF mode (tau=1)")
+        logger.info(
+            (
+                "[time-scale] b=%.6e um, b_m=%.6e m, η=%.6e Pa·s, "
+                "T_scale=η b^3=%.6e N·m, T_motor=0, τ=%.6e s"
+            ),
+            cfg.scale.b_um,
+            cfg.b_m,
+            cfg.viscosity_Pa_s,
+            cfg.torque_scale_Nm,
             cfg.tau_s,
         )
     else:
         logger.info(
-            "[time-scale] using input motor.torque_Nm as T: %.6e N·m",
+            "[time-scale] using physical motor.torque_Nm: %.6e N·m",
             cfg.input_torque_Nm,
         )
         logger.info(
             (
                 "[time-scale] b=%.6e um, b_m=%.6e m, η=%.6e Pa·s, "
-                "T=%.6e N·m, τ=η b^3/|T|=%.6e s"
+                "T_scale=|T_motor|=%.6e N·m, T_motor=%.6e N·m, τ=%.6e s"
             ),
             cfg.scale.b_um,
             cfg.b_m,
             cfg.viscosity_Pa_s,
-            cfg.torque_Nm,
+            cfg.torque_scale_Nm,
+            cfg.motor_torque_Nm,
             cfg.tau_s,
         )
     logger.info(

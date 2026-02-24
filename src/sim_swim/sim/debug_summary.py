@@ -59,6 +59,9 @@ STEP_SUMMARY_FULL_COLUMNS = [
     "F_repulsion_mean_flag",
     "F_hook_mean_body",
     "F_hook_mean_flag",
+    "motor_degenerate_axis_count",
+    "motor_split_rank_deficient_count",
+    "motor_bond_length_clipped_count",
     "brownian_enabled",
     "brownian_disp_mean_um",
 ]
@@ -169,6 +172,13 @@ class StepSummaryRecorder:
             "F_repulsion_mean_flag": _mean_norm(diag.repulsion_forces, self.flag_mask),
             "F_hook_mean_body": _mean_norm(diag.hook_forces, self.body_mask),
             "F_hook_mean_flag": _mean_norm(diag.hook_forces, self.flag_mask),
+            "motor_degenerate_axis_count": int(diag.motor_degenerate_axis_count),
+            "motor_split_rank_deficient_count": int(
+                diag.motor_split_rank_deficient_count
+            ),
+            "motor_bond_length_clipped_count": int(
+                diag.motor_bond_length_clipped_count
+            ),
             "brownian_enabled": bool(diag.brownian_enabled),
             "brownian_disp_mean_um": brownian_disp_mean_um,
         }

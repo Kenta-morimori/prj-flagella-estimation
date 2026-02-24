@@ -47,8 +47,15 @@ def test_torque_minus_one_uses_eta_b3_and_tau_is_one() -> None:
     sim_cfg = SimulationConfig.from_dict(cfg)
 
     assert sim_cfg.use_eta_b3_torque
+    assert not sim_cfg.is_motor_off_torque
     assert sim_cfg.input_torque_Nm == pytest.approx(-1.0)
-    assert sim_cfg.torque_Nm == pytest.approx(sim_cfg.viscosity_Pa_s * (sim_cfg.b_m**3))
+    assert sim_cfg.torque_scale_Nm == pytest.approx(
+        sim_cfg.viscosity_Pa_s * (sim_cfg.b_m**3)
+    )
+    assert sim_cfg.motor_torque_Nm == pytest.approx(
+        sim_cfg.viscosity_Pa_s * (sim_cfg.b_m**3)
+    )
+    assert sim_cfg.torque_Nm == pytest.approx(sim_cfg.motor_torque_Nm)
     assert sim_cfg.tau_s == pytest.approx(1.0)
 
 
@@ -59,10 +66,28 @@ def test_torque_non_minus_one_uses_input_value() -> None:
     sim_cfg = SimulationConfig.from_dict(cfg)
 
     assert not sim_cfg.use_eta_b3_torque
+    assert not sim_cfg.is_motor_off_torque
     assert sim_cfg.input_torque_Nm == pytest.approx(9.9e-18)
+    assert sim_cfg.torque_scale_Nm == pytest.approx(abs(9.9e-18))
+    assert sim_cfg.motor_torque_Nm == pytest.approx(9.9e-18)
     assert sim_cfg.torque_Nm == pytest.approx(9.9e-18)
     expected_tau = (sim_cfg.viscosity_Pa_s * (sim_cfg.b_m**3)) / abs(9.9e-18)
     assert sim_cfg.tau_s == pytest.approx(expected_tau)
+
+
+def test_torque_zero_sets_motor_off_but_keeps_tau_unity_scale() -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["torque_Nm"] = 0.0
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert not sim_cfg.use_eta_b3_torque
+    assert sim_cfg.is_motor_off_torque
+    assert sim_cfg.motor_torque_Nm == pytest.approx(0.0)
+    assert sim_cfg.torque_scale_Nm == pytest.approx(
+        sim_cfg.viscosity_Pa_s * (sim_cfg.b_m**3)
+    )
+    assert sim_cfg.tau_s == pytest.approx(1.0)
 
 
 def test_body_n_layers_is_derived_from_length_and_spacing() -> None:

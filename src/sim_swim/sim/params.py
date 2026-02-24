@@ -261,11 +261,33 @@ class SimulationConfig:
         return math.isclose(self.input_torque_Nm, -1.0, rel_tol=0.0, abs_tol=1e-12)
 
     @property
-    def torque_Nm(self) -> float:
-        """時間スケール定義で使用する実効トルク。"""
+    def is_motor_off_torque(self) -> bool:
+        return math.isclose(self.input_torque_Nm, 0.0, rel_tol=0.0, abs_tol=1e-30)
+
+    @property
+    def torque_eta_b3_Nm(self) -> float:
+        return self.viscosity_Pa_s * (self.b_m**3)
+
+    @property
+    def torque_scale_Nm(self) -> float:
+        """剛性・相互作用強度のスケーリングに使うトルク絶対値。"""
+        if self.use_eta_b3_torque or self.is_motor_off_torque:
+            return self.torque_eta_b3_Nm
+        return abs(self.input_torque_Nm)
+
+    @property
+    def motor_torque_Nm(self) -> float:
+        """モータ力計算で使う符号付きトルク。"""
         if self.use_eta_b3_torque:
-            return self.viscosity_Pa_s * (self.b_m**3)
+            return self.torque_eta_b3_Nm
+        if self.is_motor_off_torque:
+            return 0.0
         return self.input_torque_Nm
+
+    @property
+    def torque_Nm(self) -> float:
+        """後方互換: モータ力計算で使う符号付きトルク。"""
+        return self.motor_torque_Nm
 
     @property
     def bead_radius_m(self) -> float:
@@ -273,7 +295,7 @@ class SimulationConfig:
 
     @property
     def tau_s(self) -> float:
-        return (self.viscosity_Pa_s * (self.b_m**3)) / max(abs(self.torque_Nm), 1e-30)
+        return self.torque_eta_b3_Nm / max(self.torque_scale_Nm, 1e-30)
 
     @property
     def dt_s(self) -> float:

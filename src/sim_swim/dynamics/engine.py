@@ -9,6 +9,7 @@ import numpy as np
 
 from sim_swim.dynamics.brownian import sample_brownian_displacement
 from sim_swim.dynamics.forces import (
+    MotorForceDiagnostics,
     compute_bending_forces,
     compute_hook_forces,
     compute_motor_forces,
@@ -38,6 +39,9 @@ class StepDiagnostics:
     total_forces: np.ndarray
     brownian_enabled: bool
     brownian_disp_m: np.ndarray
+    motor_degenerate_axis_count: int
+    motor_split_rank_deficient_count: int
+    motor_bond_length_clipped_count: int
 
 
 class DynamicsEngine:
@@ -49,7 +53,7 @@ class DynamicsEngine:
         self.t_star = 0.0
         self.rng = np.random.default_rng(cfg.seed.global_seed)
 
-        torque = abs(cfg.torque_Nm)
+        torque = max(cfg.torque_scale_Nm, 1e-30)
         b_m = cfg.b_m
         self.spring_h = cfg.potentials.spring.H_over_T_over_b * torque / max(b_m, 1e-30)
         self.spring_s_m = cfg.potentials.spring.s * b_m
@@ -194,12 +198,13 @@ class DynamicsEngine:
         )
 
         motor_forces = np.zeros_like(pos)
+        motor_diag = MotorForceDiagnostics()
         if self.model.motor_triplets.shape[0] > 0:
             torque_per_flag = (
-                self.cfg.torque_Nm
+                self.cfg.motor_torque_Nm
                 * self.model.torque_signs[: self.model.motor_triplets.shape[0]]
             )
-            motor_forces = compute_motor_forces(
+            motor_forces, motor_diag = compute_motor_forces(
                 positions_m=pos,
                 motor_triplets=self.model.motor_triplets,
                 torque_per_flag=torque_per_flag,
@@ -250,4 +255,7 @@ class DynamicsEngine:
             total_forces=forces,
             brownian_enabled=bool(self.cfg.brownian.enabled),
             brownian_disp_m=brownian_disp,
+            motor_degenerate_axis_count=motor_diag.degenerate_axis_count,
+            motor_split_rank_deficient_count=motor_diag.split_rank_deficient_count,
+            motor_bond_length_clipped_count=motor_diag.bond_length_clipped_count,
         )
