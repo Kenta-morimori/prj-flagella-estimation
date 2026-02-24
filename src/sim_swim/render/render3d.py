@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-import shutil
 from typing import Iterable
 
 import cv2
@@ -78,7 +77,7 @@ def save_swim_movie(
     colors = _flagella_colors(len(rig.flagella_indices))
     view_range = max(cfg.render.view_range_um, 1e-6)
 
-    movie_path = out_dir / "movie_3d.mp4"
+    movie_path = out_dir / "swim3d.mp4"
     writer: cv2.VideoWriter | None = None
     last_frame: np.ndarray | None = None
 
@@ -190,9 +189,6 @@ def save_swim_movie(
 
     if writer is not None:
         writer.release()
-
-    if movie_path.is_file():
-        shutil.copyfile(movie_path, out_dir / "swim3d.mp4")
 
     if last_frame is not None:
         cv2.imwrite(str(out_dir / "swim3d_final.png"), last_frame)

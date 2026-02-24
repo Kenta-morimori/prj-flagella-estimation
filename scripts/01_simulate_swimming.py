@@ -211,7 +211,6 @@ def main(
         str(traj_path.relative_to(ctx.out.root)),
         "sim_debug/step_summary.csv",
         "sim_debug/step_summary_full.csv",
-        "render/movie_3d.mp4",
         "render/swim3d.mp4",
         "render/swim3d_final.png",
         "render2d/projection.mp4",
