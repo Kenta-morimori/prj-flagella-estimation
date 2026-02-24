@@ -40,7 +40,11 @@ def main(
     ),
     render_flagella: Optional[bool] = typer.Option(
         None,
-        help="Enable flagella rendering (overrides render.render_flagella)",
+        help="Enable flagella rendering in 3D (overrides render.render_flagella)",
+    ),
+    render_flagella_2d: Optional[bool] = typer.Option(
+        None,
+        help="Enable flagella rendering in 2D (overrides render.render_flagella_2d)",
     ),
     overrides: List[str] = typer.Argument(
         None,
@@ -57,6 +61,10 @@ def main(
         override_dict.setdefault("output_sampling", {})["fps_out_2d"] = fps_out
     if render_flagella is not None:
         override_dict.setdefault("render", {})["render_flagella"] = render_flagella
+    if render_flagella_2d is not None:
+        override_dict.setdefault("render", {})["render_flagella_2d"] = (
+            render_flagella_2d
+        )
     cfg = SimulationConfig.from_dict(raw_cfg).with_overrides(override_dict)
 
     output_base = cfg.output.base_dir

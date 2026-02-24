@@ -80,7 +80,8 @@ render:
   image_size_px: 256
   pixel_size_um: 0.203
   flagella_linewidth_px: 2.0
-  render_flagella: true
+  render_flagella: true         # 3D描画でべん毛を描画
+  render_flagella_2d: false     # 2D描画でべん毛を描画（デフォルトOFF）
 
   save_frames_3d: true
   follow_camera_3d: true       # true: 3D追従カメラ

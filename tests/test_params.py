@@ -98,6 +98,14 @@ def test_body_n_layers_is_derived_from_length_and_spacing() -> None:
     assert sim_cfg.compute_body_n_layers() == 6
 
 
+def test_render2d_flagella_default_is_off() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.render.render_flagella_2d is False
+
+
 def test_body_n_layers_requires_integer_multiple() -> None:
     cfg = _base_cfg()
     cfg["body"]["length_total_um"] = 2.3

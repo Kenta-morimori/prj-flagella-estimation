@@ -199,6 +199,7 @@ class RenderParams:
     pixel_size_um: float = 0.203
     flagella_linewidth_px: float = 2.0
     render_flagella: bool = True
+    render_flagella_2d: bool = False
 
     save_frames_3d: bool = True
     follow_camera_3d: bool = True
@@ -633,6 +634,7 @@ class SimulationConfig:
             pixel_size_um=float(_get(render_raw, "pixel_size_um", 0.203)),
             flagella_linewidth_px=float(_get(render_raw, "flagella_linewidth_px", 2.0)),
             render_flagella=bool(_get(render_raw, "render_flagella", True)),
+            render_flagella_2d=bool(_get(render_raw, "render_flagella_2d", False)),
             save_frames_3d=bool(_get(render_raw, "save_frames_3d", True)),
             follow_camera_3d=bool(_get(render_raw, "follow_camera_3d", True)),
             view_range_um=float(_get(render_raw, "view_range_um", 10.0)),
