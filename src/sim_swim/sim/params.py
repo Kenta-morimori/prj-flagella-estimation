@@ -257,9 +257,15 @@ class SimulationConfig:
         return float(self.motor.torque_Nm)
 
     @property
+    def use_eta_b3_torque(self) -> bool:
+        return math.isclose(self.input_torque_Nm, -1.0, rel_tol=0.0, abs_tol=1e-12)
+
+    @property
     def torque_Nm(self) -> float:
         """時間スケール定義で使用する実効トルク。"""
-        return self.viscosity_Pa_s * (self.b_m**3)
+        if self.use_eta_b3_torque:
+            return self.viscosity_Pa_s * (self.b_m**3)
+        return self.input_torque_Nm
 
     @property
     def bead_radius_m(self) -> float:

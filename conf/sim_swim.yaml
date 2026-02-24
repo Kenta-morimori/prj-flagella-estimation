@@ -27,7 +27,7 @@ fluid:
   viscosity_Pa_s: 0.001        # [Pa*s] 水相当
 
 motor:
-  torque_Nm: 4.0e-18           # [N*m] 互換入力（2-4で実計算は T=eta*b^3 に上書き）
+  torque_Nm: -1           # [N*m] モーターのトルク(T)．-1のときはτ=1になるよう「η * b^3」と定義する．
   reverse_n_flagella: 1        # [-] tumble で反転するべん毛本数
 
 potentials:

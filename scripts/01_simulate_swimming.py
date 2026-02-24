@@ -69,21 +69,37 @@ def main(
     logger.info("Overrides: %s", override_dict if override_dict else "None")
     cfg.validate_time_scaling()
 
-    logger.info(
-        "[time-scale] input motor.torque_Nm=%.6e is ignored; using T=ηb^3",
-        cfg.input_torque_Nm,
-    )
-    logger.info(
-        (
-            "[time-scale] b=%.6e um, b_m=%.6e m, η=%.6e Pa·s, "
-            "T=η b^3=%.6e N·m, τ=η b^3/T=%.6e s"
-        ),
-        cfg.scale.b_um,
-        cfg.b_m,
-        cfg.viscosity_Pa_s,
-        cfg.torque_Nm,
-        cfg.tau_s,
-    )
+    if cfg.use_eta_b3_torque:
+        logger.info(
+            "[time-scale] input motor.torque_Nm=-1; using T=ηb^3 (τ=1 definition)"
+        )
+        logger.info(
+            (
+                "[time-scale] b=%.6e um, b_m=%.6e m, η=%.6e Pa·s, "
+                "T=η b^3=%.6e N·m, τ=η b^3/T=%.6e s"
+            ),
+            cfg.scale.b_um,
+            cfg.b_m,
+            cfg.viscosity_Pa_s,
+            cfg.torque_Nm,
+            cfg.tau_s,
+        )
+    else:
+        logger.info(
+            "[time-scale] using input motor.torque_Nm as T: %.6e N·m",
+            cfg.input_torque_Nm,
+        )
+        logger.info(
+            (
+                "[time-scale] b=%.6e um, b_m=%.6e m, η=%.6e Pa·s, "
+                "T=%.6e N·m, τ=η b^3/|T|=%.6e s"
+            ),
+            cfg.scale.b_um,
+            cfg.b_m,
+            cfg.viscosity_Pa_s,
+            cfg.torque_Nm,
+            cfg.tau_s,
+        )
     logger.info(
         "[time-step ] Δt=dt_s=%.6e s, Δt*=dt_star=%.6e (=Δt/τ)",
         cfg.dt_s,

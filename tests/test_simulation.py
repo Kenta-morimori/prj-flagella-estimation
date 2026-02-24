@@ -28,7 +28,7 @@ def _make_cfg() -> SimulationConfig:
                 "helix_init": {"radius_over_b": 0.2, "pitch_over_b": 1.0},
             },
             "fluid": {"viscosity_Pa_s": 1.0e-3},
-            "motor": {"torque_Nm": 4.0e-18, "reverse_n_flagella": 1},
+            "motor": {"torque_Nm": -1.0, "reverse_n_flagella": 1},
             "potentials": {
                 "spring": {"H_over_T_over_b": 10.0, "s": 0.1},
                 "bend": {
