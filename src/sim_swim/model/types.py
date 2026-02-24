@@ -46,3 +46,5 @@ class SimModel:
     reverse_flagella: np.ndarray
     flag_states: np.ndarray
     torque_signs: np.ndarray
+    bead_is_body: np.ndarray
+    bead_flag_ids: np.ndarray

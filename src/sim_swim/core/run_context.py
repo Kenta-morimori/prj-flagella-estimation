@@ -29,6 +29,7 @@ class OutputPaths:
 
     root: Path
     sim_dir: Path
+    sim_debug_dir: Path
     render_dir: Path
     render2d_dir: Path
 
@@ -140,16 +141,19 @@ def init_run(base_dir: str | Path, input_info: dict[str, Any]) -> RunContext:
     date_str, time_str = _now_jst()
     root = Path(base_dir) / date_str / time_str
     sim_dir = root / "sim"
+    sim_debug_dir = root / "sim_debug"
     render_dir = root / "render"
     render2d_dir = root / "render2d"
 
     sim_dir.mkdir(parents=True, exist_ok=False)
+    sim_debug_dir.mkdir(parents=True, exist_ok=False)
     render_dir.mkdir(parents=True, exist_ok=False)
     render2d_dir.mkdir(parents=True, exist_ok=False)
 
     out = OutputPaths(
         root=root,
         sim_dir=sim_dir,
+        sim_debug_dir=sim_debug_dir,
         render_dir=render_dir,
         render2d_dir=render2d_dir,
     )
@@ -180,6 +184,7 @@ def init_run(base_dir: str | Path, input_info: dict[str, Any]) -> RunContext:
         "outputs": {
             "root": str(root),
             "sim_dir": str(sim_dir),
+            "sim_debug_dir": str(sim_debug_dir),
             "render_dir": str(render_dir),
             "render2d_dir": str(render2d_dir),
             "log": str(log_path),

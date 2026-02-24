@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import math
 
 import numpy as np
@@ -18,6 +19,25 @@ from sim_swim.dynamics.forces import (
 from sim_swim.dynamics.hydro_rpy import compute_rpy_mobility
 from sim_swim.model.types import PolymorphState, SimModel
 from sim_swim.sim.params import SimulationConfig
+
+
+@dataclass(frozen=True)
+class StepDiagnostics:
+    """1ステップ分の診断情報。"""
+
+    dt_star: float
+    dt_s: float
+    positions_before_m: np.ndarray
+    positions_after_m: np.ndarray
+    spring_forces: np.ndarray
+    bend_forces: np.ndarray
+    torsion_forces: np.ndarray
+    hook_forces: np.ndarray
+    repulsion_forces: np.ndarray
+    motor_forces: np.ndarray
+    total_forces: np.ndarray
+    brownian_enabled: bool
+    brownian_disp_m: np.ndarray
 
 
 class DynamicsEngine:
@@ -119,7 +139,7 @@ class DynamicsEngine:
         else:
             self.model.flag_states[reversed_flags] = int(PolymorphState.NORMAL)
 
-    def step(self, dt_star: float) -> None:
+    def step(self, dt_star: float) -> StepDiagnostics:
         """1ステップ更新する。
 
         Args:
@@ -132,23 +152,22 @@ class DynamicsEngine:
 
         theta0, phi0 = self._state_angles_rad()
 
-        pos = self.model.positions_m
-        forces = np.zeros_like(pos)
-
-        forces += compute_spring_forces(
+        pos_before = self.model.positions_m.copy()
+        pos = pos_before
+        spring_forces = compute_spring_forces(
             positions_m=pos,
             spring_pairs=self.model.spring_pairs,
             spring_rest_lengths_m=self.model.spring_rest_lengths_m,
             h_const=self.spring_h,
             s_limit_m=self.spring_s_m,
         )
-        forces += compute_bending_forces(
+        bend_forces = compute_bending_forces(
             positions_m=pos,
             triplets=self.model.bending_triplets,
             theta0_rad=theta0,
             kb=self.k_bend,
         )
-        forces += compute_torsion_forces(
+        torsion_forces = compute_torsion_forces(
             positions_m=pos,
             quads=self.model.torsion_quads,
             phi0_rad=phi0,
@@ -156,15 +175,16 @@ class DynamicsEngine:
             fd_eps_m=max(self.model.b_m * 1e-4, 1e-12),
         )
 
+        hook_forces = np.zeros_like(pos)
         if self.cfg.hook.enabled:
-            forces += compute_hook_forces(
+            hook_forces = compute_hook_forces(
                 positions_m=pos,
                 hook_triplets=self.model.hook_triplets,
                 kb_hook=self.k_hook,
                 threshold_deg=self.cfg.hook.threshold_deg,
             )
 
-        forces += compute_segment_repulsion_forces(
+        repulsion_forces = compute_segment_repulsion_forces(
             positions_m=pos,
             spring_pairs=self.model.spring_pairs,
             segment_pair_indices=self.model.segment_pair_indices,
@@ -173,19 +193,29 @@ class DynamicsEngine:
             a_length=self.repulsion_a_m,
         )
 
+        motor_forces = np.zeros_like(pos)
         if self.model.motor_triplets.shape[0] > 0:
             torque_per_flag = (
                 self.cfg.torque_Nm
                 * self.model.torque_signs[: self.model.motor_triplets.shape[0]]
             )
-            forces += compute_motor_forces(
+            motor_forces = compute_motor_forces(
                 positions_m=pos,
                 motor_triplets=self.model.motor_triplets,
                 torque_per_flag=torque_per_flag,
             )
 
+        forces = (
+            spring_forces
+            + bend_forces
+            + torsion_forces
+            + hook_forces
+            + repulsion_forces
+            + motor_forces
+        )
+
         mobility = compute_rpy_mobility(
-            positions_m=pos,
+            positions_m=pos_before,
             bead_radius_m=self.model.bead_radius_m,
             viscosity_Pa_s=self.cfg.fluid.viscosity_Pa_s,
         )
@@ -202,5 +232,22 @@ class DynamicsEngine:
                 jitter=self.cfg.brownian.jitter,
             )
 
-        self.model.positions_m = pos + (drift * dt_s + xi).reshape((-1, 3))
+        brownian_disp = xi.reshape((-1, 3))
+        pos_after = pos_before + (drift * dt_s + xi).reshape((-1, 3))
+        self.model.positions_m = pos_after
         self.t_star += dt_star_eff
+        return StepDiagnostics(
+            dt_star=dt_star_eff,
+            dt_s=dt_s,
+            positions_before_m=pos_before,
+            positions_after_m=pos_after,
+            spring_forces=spring_forces,
+            bend_forces=bend_forces,
+            torsion_forces=torsion_forces,
+            hook_forces=hook_forces,
+            repulsion_forces=repulsion_forces,
+            motor_forces=motor_forces,
+            total_forces=forces,
+            brownian_enabled=bool(self.cfg.brownian.enabled),
+            brownian_disp_m=brownian_disp,
+        )

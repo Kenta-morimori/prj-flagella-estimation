@@ -107,6 +107,8 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
     assert manifests
 
     latest = sorted((tmp_path / "outputs").rglob("manifest.json"))[-1].parent
+    assert (latest / "sim_debug" / "step_summary.csv").is_file()
+    assert (latest / "sim_debug" / "step_summary_full.csv").is_file()
     assert (latest / "render" / "movie_3d.mp4").is_file()
     assert (latest / "render" / "swim3d.mp4").is_file()
     assert (latest / "render" / "swim3d_final.png").is_file()

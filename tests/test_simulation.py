@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+from pathlib import Path
 import numpy as np
 
 from sim_swim.sim.core import Simulator
@@ -99,3 +101,29 @@ def test_short_run_no_nan_inf() -> None:
     assert np.isfinite(arr_q).all()
     assert np.isfinite(arr_v).all()
     assert np.isfinite(arr_w).all()
+
+
+def test_run_writes_step_summary_csv(tmp_path: Path) -> None:
+    cfg = _make_cfg()
+    sim = Simulator(cfg)
+    sim.run(cfg.time.duration_s, sim_debug_dir=tmp_path / "sim_debug")
+
+    step_csv = tmp_path / "sim_debug" / "step_summary.csv"
+    step_full_csv = tmp_path / "sim_debug" / "step_summary_full.csv"
+    assert step_csv.is_file()
+    assert step_full_csv.is_file()
+
+    with step_csv.open("r", encoding="utf-8", newline="") as f:
+        rows = list(csv.DictReader(f))
+    assert rows
+    first = rows[0]
+    assert "step" in first
+    assert "F_total_mean_all" in first
+    assert first["brownian_enabled"] in {"False", "false", "0"}
+
+    with step_full_csv.open("r", encoding="utf-8", newline="") as f:
+        rows_full = list(csv.DictReader(f))
+    assert rows_full
+    first_full = rows_full[0]
+    assert "F_motor_mean_flag" in first_full
+    assert "F_repulsion_mean_body" in first_full

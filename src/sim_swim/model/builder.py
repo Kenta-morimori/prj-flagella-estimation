@@ -231,6 +231,13 @@ class ModelBuilder:
         else:
             reverse_flagella = np.zeros((0,), dtype=int)
 
+        n_beads = positions_m.shape[0]
+        bead_is_body = np.zeros((n_beads,), dtype=bool)
+        bead_is_body[:n_body] = True
+        bead_flag_ids = np.full((n_beads,), -1, dtype=int)
+        for f_id, idxs in enumerate(flagella_indices):
+            bead_flag_ids[idxs] = int(f_id)
+
         return SimModel(
             positions_m=positions_m,
             body_indices=np.arange(n_body, dtype=int),
@@ -252,4 +259,6 @@ class ModelBuilder:
             reverse_flagella=reverse_flagella,
             flag_states=np.full((n_flagella,), int(PolymorphState.NORMAL), dtype=int),
             torque_signs=np.ones((n_flagella,), dtype=float),
+            bead_is_body=bead_is_body,
+            bead_flag_ids=bead_flag_ids,
         )

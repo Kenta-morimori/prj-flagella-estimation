@@ -141,7 +141,9 @@ def main(
 
     sim_duration_s = float(cfg.time.duration_s)
     simulator = Simulator(cfg)
-    states = simulator.run(sim_duration_s, logger=logger)
+    states = simulator.run(
+        sim_duration_s, logger=logger, sim_debug_dir=ctx.out.sim_debug_dir
+    )
 
     # 保存: 3D軌跡（全ステップ）
     traj_path = ctx.out.sim_dir / "trajectory.csv"
@@ -184,6 +186,7 @@ def main(
     outputs.update(
         {
             "trajectory_csv": str(traj_path),
+            "sim_debug": str(ctx.out.sim_debug_dir),
             "render3d": str(ctx.out.render_dir),
             "render2d": str(ctx.out.render2d_dir),
         }
@@ -191,6 +194,8 @@ def main(
     manifest["outputs"] = outputs
     manifest["files"] = [
         str(traj_path.relative_to(ctx.out.root)),
+        "sim_debug/step_summary.csv",
+        "sim_debug/step_summary_full.csv",
         "render/movie_3d.mp4",
         "render/swim3d.mp4",
         "render/swim3d_final.png",

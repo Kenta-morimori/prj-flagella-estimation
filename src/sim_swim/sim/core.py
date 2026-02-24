@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import logging
 import math
+from pathlib import Path
 import time
 from typing import List, Tuple
 
@@ -12,6 +13,7 @@ import numpy as np
 
 from sim_swim.dynamics.engine import DynamicsEngine
 from sim_swim.model.builder import ModelBuilder
+from sim_swim.sim.debug_summary import StepSummaryRecorder
 from sim_swim.sim.flagella_geometry import FlagellaRig
 from sim_swim.sim.params import SimulationConfig
 
@@ -165,6 +167,7 @@ class Simulator:
         duration_s: float,
         logger: logging.Logger | None = None,
         progress_interval: int | None = None,
+        sim_debug_dir: Path | None = None,
     ) -> List[SimulationState]:
         """与えた時間だけシミュレーションして状態列を返す。
 
@@ -199,28 +202,40 @@ class Simulator:
                 progress_interval,
             )
 
-        for step in range(total_steps + 1):
+        prev = None
+        states.append(self._observe(0.0, prev))
+        debug_recorder = (
+            StepSummaryRecorder(self.model, self.config, sim_debug_dir)
+            if sim_debug_dir is not None
+            else None
+        )
+
+        for step in range(total_steps):
+            t_star_before = self.engine.t_star
+            step_diag = self.engine.step(dt_star)
+
+            if debug_recorder is not None:
+                debug_recorder.record(step=step, t_star=t_star_before, diag=step_diag)
+
             t_now = self.engine.t_star * tau_s
-            prev = states[-1] if states else None
+            prev = states[-1]
             states.append(self._observe(t_now, prev))
 
-            if step < total_steps:
-                self.engine.step(dt_star)
-                completed = step + 1
-                if logger is not None and (
-                    completed % progress_interval == 0 or completed == total_steps
-                ):
-                    logger.info(
-                        (
-                            "Simulation progress: step=%d/%d (%.1f%%), "
-                            "t_star=%.6f, t_s=%.6f s"
-                        ),
-                        completed,
-                        total_steps,
-                        (completed / total_steps) * 100.0,
-                        self.engine.t_star,
-                        self.engine.t_star * tau_s,
-                    )
+            completed = step + 1
+            if logger is not None and (
+                completed % progress_interval == 0 or completed == total_steps
+            ):
+                logger.info(
+                    (
+                        "Simulation progress: step=%d/%d (%.1f%%), "
+                        "t_star=%.6f, t_s=%.6f s"
+                    ),
+                    completed,
+                    total_steps,
+                    (completed / total_steps) * 100.0,
+                    self.engine.t_star,
+                    self.engine.t_star * tau_s,
+                )
 
         if logger is not None:
             logger.info(
@@ -228,5 +243,11 @@ class Simulator:
                 total_steps,
                 time.perf_counter() - wall_start,
             )
+
+        if debug_recorder is not None:
+            step_csv, step_full_csv = debug_recorder.write_csv()
+            if logger is not None:
+                logger.info("Saved step summary to %s", step_csv)
+                logger.info("Saved step summary (full) to %s", step_full_csv)
 
         return states
