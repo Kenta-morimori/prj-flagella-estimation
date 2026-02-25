@@ -332,6 +332,9 @@ class SimulationConfig:
     ) -> None:
         """`dt_s/tau_s` が指定比率と一致するか検証する。"""
 
+        if not (self.use_eta_b3_torque or self.is_motor_off_torque):
+            return
+
         expected = self.expected_dt_s(target_dt_star=target_dt_star)
         if not math.isclose(self.dt_s, expected, rel_tol=rel_tol, abs_tol=abs_tol_s):
             raise ValueError(

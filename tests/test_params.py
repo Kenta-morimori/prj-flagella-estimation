@@ -39,6 +39,25 @@ def test_validate_time_scaling_rejects_non_paper_dt_star() -> None:
         sim_cfg.validate_time_scaling()
 
 
+def test_validate_time_scaling_rejects_non_paper_dt_star_for_motor_off() -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["torque_Nm"] = 0.0
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-7}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    with pytest.raises(ValueError, match="time.dt_s"):
+        sim_cfg.validate_time_scaling()
+
+
+def test_validate_time_scaling_is_skipped_for_explicit_torque() -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["torque_Nm"] = 1.0e-18
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-7}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    sim_cfg.validate_time_scaling()
+
+
 def test_torque_minus_one_uses_eta_b3_and_tau_is_one() -> None:
     cfg = _base_cfg()
     cfg["fluid"]["viscosity_Pa_s"] = 2.0e-3

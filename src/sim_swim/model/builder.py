@@ -156,6 +156,15 @@ class ModelBuilder:
         # Body bending/torsion along each vertical chain
         n_prism = body_layers[0].shape[0]
         n_layers = len(body_layers)
+        for layer in body_layers:
+            a, b, c = int(layer[0]), int(layer[1]), int(layer[2])
+            bending_triplets.append((b, a, c))
+            bending_flag_ids.append(-1)
+            bending_triplets.append((c, b, a))
+            bending_flag_ids.append(-1)
+            bending_triplets.append((a, c, b))
+            bending_flag_ids.append(-1)
+
         for k in range(n_prism):
             chain = [int(body_layers[layer_idx][k]) for layer_idx in range(n_layers)]
             for t in range(len(chain) - 2):

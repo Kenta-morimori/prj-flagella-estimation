@@ -10,6 +10,27 @@ from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import SimulationConfig
 
 
+def _triplet_angle_rad(positions_m: np.ndarray, triplet: np.ndarray) -> float:
+    i, j, k = (int(triplet[0]), int(triplet[1]), int(triplet[2]))
+    u = positions_m[i] - positions_m[j]
+    v = positions_m[k] - positions_m[j]
+    nu = max(float(np.linalg.norm(u)), 1e-18)
+    nv = max(float(np.linalg.norm(v)), 1e-18)
+    c = float(np.clip(np.dot(u, v) / (nu * nv), -1.0, 1.0))
+    return float(np.arccos(c))
+
+
+def _body_spring_rows(sim: Simulator) -> np.ndarray:
+    pairs = sim.model.spring_pairs
+    bi = sim.model.bead_is_body[pairs[:, 0]]
+    bj = sim.model.bead_is_body[pairs[:, 1]]
+    return np.where(bi & bj)[0]
+
+
+def _body_bending_rows(sim: Simulator) -> np.ndarray:
+    return np.where(sim.model.bending_flag_ids < 0)[0]
+
+
 def _make_cfg(
     motor_torque_Nm: float = -1.0,
     hook_enabled: bool = True,
@@ -173,3 +194,64 @@ def test_zero_torque_initial_steps_do_not_scatter(hook_enabled: bool) -> None:
         mean_disp_um.append(float(np.mean(disp) * 1e6))
 
     assert max(mean_disp_um) < 0.1
+
+
+def test_body_constraints_match_initial_reference() -> None:
+    cfg = _make_cfg(motor_torque_Nm=0.0, hook_enabled=False)
+    sim = Simulator(cfg)
+    model = sim.model
+
+    body_spring_rows = _body_spring_rows(sim)
+    spring_pairs = model.spring_pairs[body_spring_rows]
+    spring_l = np.linalg.norm(
+        model.positions_m[spring_pairs[:, 1]] - model.positions_m[spring_pairs[:, 0]],
+        axis=1,
+    )
+    spring_l0 = model.spring_rest_lengths_m[body_spring_rows]
+    rel_err = np.max(np.abs(spring_l - spring_l0) / np.maximum(spring_l0, 1e-30))
+    assert rel_err < 1e-12
+
+    body_bending_rows = _body_bending_rows(sim)
+    theta = np.asarray(
+        [
+            _triplet_angle_rad(model.positions_m, model.bending_triplets[row])
+            for row in body_bending_rows
+        ],
+        dtype=float,
+    )
+    theta0, _ = sim.engine._state_angles_rad()
+    theta0_body = theta0[body_bending_rows]
+    max_theta_err = float(np.max(np.abs(theta - theta0_body)))
+    assert max_theta_err < 1e-12
+
+
+def test_body_constraints_nearly_invariant_after_one_step_without_external_forces() -> (
+    None
+):
+    cfg = _make_cfg(motor_torque_Nm=0.0, hook_enabled=False)
+    sim = Simulator(cfg)
+    model = sim.model
+
+    body_spring_rows = _body_spring_rows(sim)
+    body_bending_rows = _body_bending_rows(sim)
+    theta0, _ = sim.engine._state_angles_rad()
+    theta0_body = theta0[body_bending_rows].copy()
+    spring_l0 = model.spring_rest_lengths_m[body_spring_rows].copy()
+
+    sim.engine.step(cfg.dt_star)
+    pos = model.positions_m
+
+    spring_pairs = model.spring_pairs[body_spring_rows]
+    spring_l = np.linalg.norm(pos[spring_pairs[:, 1]] - pos[spring_pairs[:, 0]], axis=1)
+    rel_err = np.max(np.abs(spring_l - spring_l0) / np.maximum(spring_l0, 1e-30))
+    assert rel_err < 1e-4
+
+    theta = np.asarray(
+        [
+            _triplet_angle_rad(pos, model.bending_triplets[row])
+            for row in body_bending_rows
+        ],
+        dtype=float,
+    )
+    max_theta_err = float(np.max(np.abs(theta - theta0_body)))
+    assert max_theta_err < 1e-3

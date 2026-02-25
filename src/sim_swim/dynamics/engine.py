@@ -97,10 +97,8 @@ class DynamicsEngine:
         self.theta0_ref_rad, self.phi0_ref_rad = self._initial_reference_angles_rad()
 
     def _initial_reference_angles_rad(self) -> tuple[np.ndarray, np.ndarray]:
-        theta0 = np.full((self.model.bending_triplets.shape[0],), math.pi, dtype=float)
+        theta0 = np.zeros((self.model.bending_triplets.shape[0],), dtype=float)
         for idx, (i, j, k) in enumerate(self.model.bending_triplets):
-            if int(self.model.bending_flag_ids[idx]) < 0:
-                continue
             theta0[idx] = _triplet_angle_rad(
                 self.model.positions_m[int(i)],
                 self.model.positions_m[int(j)],
@@ -109,8 +107,6 @@ class DynamicsEngine:
 
         phi0 = np.zeros((self.model.torsion_quads.shape[0],), dtype=float)
         for idx, (i, j, k, ell) in enumerate(self.model.torsion_quads):
-            if int(self.model.torsion_flag_ids[idx]) < 0:
-                continue
             phi0[idx] = _dihedral_angle(
                 self.model.positions_m[int(i)],
                 self.model.positions_m[int(j)],
