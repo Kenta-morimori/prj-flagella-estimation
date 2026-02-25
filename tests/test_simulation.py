@@ -159,3 +159,17 @@ def test_body_flag_bond_metric_is_numeric_across_modes(
     assert first["pos_all_finite"] in {"True", "true", "1"}
     bond_len = float(first["bond_len_mean_body_flag_um"])
     assert np.isfinite(bond_len)
+
+
+@pytest.mark.parametrize("hook_enabled", [False, True])
+def test_zero_torque_initial_steps_do_not_scatter(hook_enabled: bool) -> None:
+    cfg = _make_cfg(motor_torque_Nm=0.0, hook_enabled=hook_enabled)
+    sim = Simulator(cfg)
+
+    mean_disp_um: list[float] = []
+    for _ in range(5):
+        diag = sim.engine.step(cfg.dt_star)
+        disp = np.linalg.norm(diag.positions_after_m - diag.positions_before_m, axis=1)
+        mean_disp_um.append(float(np.mean(disp) * 1e6))
+
+    assert max(mean_disp_um) < 0.1

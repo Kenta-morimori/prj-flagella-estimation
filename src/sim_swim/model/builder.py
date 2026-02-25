@@ -184,15 +184,34 @@ class ModelBuilder:
             x = s
             y = r_um * np.cos(theta) - r_um * math.cos(phase)
             z = r_um * np.sin(theta) - r_um * math.sin(phase)
-            local = np.stack([x, y, z], axis=1)
             attach_point = body_um[int(attach_idx)]
             outward = attach_point - center_layer_point
             outward_norm = float(np.linalg.norm(outward))
             if outward_norm <= 1e-12:
-                hook_offset_um = np.array([0.0, hook_length_um, 0.0], dtype=float)
+                axis_u = np.array([0.0, 1.0, 0.0], dtype=float)
             else:
-                hook_offset_um = (hook_length_um / outward_norm) * outward
-            flag_points = local + attach_point + hook_offset_um
+                axis_u = outward / outward_norm
+            hook_offset_um = hook_length_um * axis_u
+
+            ref = np.array([1.0, 0.0, 0.0], dtype=float)
+            if abs(float(np.dot(axis_u, ref))) > 0.9:
+                ref = np.array([0.0, 0.0, 1.0], dtype=float)
+            axis_v = np.cross(axis_u, ref)
+            axis_v_norm = float(np.linalg.norm(axis_v))
+            if axis_v_norm <= 1e-12:
+                ref = np.array([0.0, 1.0, 0.0], dtype=float)
+                axis_v = np.cross(axis_u, ref)
+                axis_v_norm = float(np.linalg.norm(axis_v))
+            axis_v /= max(axis_v_norm, 1e-12)
+            axis_w = np.cross(axis_u, axis_v)
+
+            flag_points = (
+                attach_point
+                + hook_offset_um
+                + x[:, None] * axis_u
+                + y[:, None] * axis_v
+                + z[:, None] * axis_w
+            )
 
             points_all.append(flag_points)
             idx = np.arange(start_index, start_index + n_flag, dtype=int)

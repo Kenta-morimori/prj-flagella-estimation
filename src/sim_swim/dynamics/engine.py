@@ -22,6 +22,35 @@ from sim_swim.model.types import PolymorphState, SimModel
 from sim_swim.sim.params import SimulationConfig
 
 
+def _triplet_angle_rad(r_i: np.ndarray, r_j: np.ndarray, r_k: np.ndarray) -> float:
+    u = r_i - r_j
+    v = r_k - r_j
+    nu = max(float(np.linalg.norm(u)), 1e-18)
+    nv = max(float(np.linalg.norm(v)), 1e-18)
+    c = float(np.clip(np.dot(u, v) / (nu * nv), -1.0, 1.0))
+    return math.acos(c)
+
+
+def _dihedral_angle(
+    a: np.ndarray, b: np.ndarray, c: np.ndarray, d: np.ndarray
+) -> float:
+    b0 = a - b
+    b1 = c - b
+    b2 = d - c
+
+    b1n = b1 / max(float(np.linalg.norm(b1)), 1e-18)
+    v = b0 - np.dot(b0, b1n) * b1n
+    w = b2 - np.dot(b2, b1n) * b1n
+
+    x = float(np.dot(v, w))
+    y = float(np.dot(np.cross(b1n, v), w))
+    return math.atan2(y, x)
+
+
+def _wrap_angle(rad: float) -> float:
+    return (rad + math.pi) % (2.0 * math.pi) - math.pi
+
+
 @dataclass(frozen=True)
 class StepDiagnostics:
     """1ステップ分の診断情報。"""
@@ -65,6 +94,31 @@ class DynamicsEngine:
         self.repulsion_cutoff_m = (
             cfg.potentials.spring_spring_repulsion.cutoff_over_b * b_m
         )
+        self.theta0_ref_rad, self.phi0_ref_rad = self._initial_reference_angles_rad()
+
+    def _initial_reference_angles_rad(self) -> tuple[np.ndarray, np.ndarray]:
+        theta0 = np.full((self.model.bending_triplets.shape[0],), math.pi, dtype=float)
+        for idx, (i, j, k) in enumerate(self.model.bending_triplets):
+            if int(self.model.bending_flag_ids[idx]) < 0:
+                continue
+            theta0[idx] = _triplet_angle_rad(
+                self.model.positions_m[int(i)],
+                self.model.positions_m[int(j)],
+                self.model.positions_m[int(k)],
+            )
+
+        phi0 = np.zeros((self.model.torsion_quads.shape[0],), dtype=float)
+        for idx, (i, j, k, ell) in enumerate(self.model.torsion_quads):
+            if int(self.model.torsion_flag_ids[idx]) < 0:
+                continue
+            phi0[idx] = _dihedral_angle(
+                self.model.positions_m[int(i)],
+                self.model.positions_m[int(j)],
+                self.model.positions_m[int(k)],
+                self.model.positions_m[int(ell)],
+            )
+
+        return theta0, phi0
 
     def _state_angles_rad(self) -> tuple[np.ndarray, np.ndarray]:
         bend_map = self.cfg.potentials.bend.theta0_deg or {
@@ -78,12 +132,13 @@ class DynamicsEngine:
             "curly1": 120.0,
         }
 
-        theta0 = np.zeros((self.model.bending_triplets.shape[0],), dtype=float)
-        phi0 = np.zeros((self.model.torsion_quads.shape[0],), dtype=float)
+        theta0 = self.theta0_ref_rad.copy()
+        phi0 = self.phi0_ref_rad.copy()
+        theta0_normal = math.radians(float(bend_map["normal"]))
+        phi0_normal = math.radians(float(torsion_map["normal"]))
 
         for i, flag_id in enumerate(self.model.bending_flag_ids):
             if flag_id < 0:
-                theta0[i] = math.pi
                 continue
             state = int(self.model.flag_states[int(flag_id)])
             key = (
@@ -93,11 +148,10 @@ class DynamicsEngine:
                 if state == int(PolymorphState.SEMICOILED)
                 else "curly1"
             )
-            theta0[i] = math.radians(float(bend_map[key]))
+            theta0[i] += math.radians(float(bend_map[key])) - theta0_normal
 
         for i, flag_id in enumerate(self.model.torsion_flag_ids):
             if flag_id < 0:
-                phi0[i] = 0.0
                 continue
             state = int(self.model.flag_states[int(flag_id)])
             key = (
@@ -107,7 +161,9 @@ class DynamicsEngine:
                 if state == int(PolymorphState.SEMICOILED)
                 else "curly1"
             )
-            phi0[i] = math.radians(float(torsion_map[key]))
+            phi0[i] = _wrap_angle(
+                phi0[i] + math.radians(float(torsion_map[key])) - phi0_normal
+            )
 
         return theta0, phi0
 
@@ -164,6 +220,7 @@ class DynamicsEngine:
             spring_rest_lengths_m=self.model.spring_rest_lengths_m,
             h_const=self.spring_h,
             s_limit_m=self.spring_s_m,
+            clamp_eps=1e-3,
         )
         bend_forces = compute_bending_forces(
             positions_m=pos,
@@ -176,7 +233,7 @@ class DynamicsEngine:
             quads=self.model.torsion_quads,
             phi0_rad=phi0,
             kt=self.k_torsion,
-            fd_eps_m=max(self.model.b_m * 1e-4, 1e-12),
+            fd_eps_m=max(self.model.b_m * 1e-1, 1e-7),
         )
 
         hook_forces = np.zeros_like(pos)
