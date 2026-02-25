@@ -58,7 +58,7 @@ class ModelBuilder:
         cfg = self.cfg
         prism = cfg.body.prism
 
-        n_prism = max(3, prism.n_prism)
+        n_prism = prism.n_prism
         n_layers = max(2, cfg.compute_body_n_layers())
         dz_um = prism.dz_over_b * cfg.scale.b_um
         radius_um = prism.radius_over_b * cfg.scale.b_um
@@ -119,25 +119,28 @@ class ModelBuilder:
 
         cfg = self.cfg
         b_um = cfg.scale.b_um
+        if cfg.body.prism.n_prism != 3:
+            raise ValueError("MVP: body.prism.n_prism must be 3")
+        if not (0 <= cfg.flagella.n_flagella <= 3):
+            raise ValueError("MVP: flagella.n_flagella must be in [0,3]")
 
         body_um, body_layers, ring_edges, vertical_edges = self._body_prism_um()
         n_body = body_um.shape[0]
 
-        n_flagella = max(0, cfg.flagella.n_flagella)
+        n_flagella = cfg.flagella.n_flagella
         ds_flag_um = cfg.flagella.discretization.ds_over_b * b_um
         ds_flag_um = max(ds_flag_um, 1e-6)
         L_flag_um = cfg.flagella.length_over_b * b_um
         n_flag = max(2, int(math.floor(L_flag_um / ds_flag_um)) + 1)
 
-        bond_L_flag_um = max(cfg.flagella.bond_L_over_b * b_um, 1e-6)
-
         center_layer = body_layers[len(body_layers) // 2]
         attach_ids = self._flag_attach_indices(center_layer, n_flagella)
+        center_layer_point = np.mean(body_um[center_layer], axis=0)
+        hook_length_um = 0.25 * b_um
 
         points_all = [body_um]
         flagella_indices: list[np.ndarray] = []
         spring_pairs: list[tuple[int, int]] = []
-        spring_rest_lengths_m: list[float] = []
         bending_triplets: list[tuple[int, int, int]] = []
         bending_flag_ids: list[int] = []
         torsion_quads: list[tuple[int, int, int, int]] = []
@@ -147,16 +150,8 @@ class ModelBuilder:
         # Body edges as springs (ring + vertical)
         for i, j in ring_edges:
             spring_pairs.append((int(i), int(j)))
-            dist_m = float(
-                np.linalg.norm((body_um[int(i)] - body_um[int(j)]) * UM_TO_M)
-            )
-            spring_rest_lengths_m.append(dist_m)
         for i, j in vertical_edges:
             spring_pairs.append((int(i), int(j)))
-            dist_m = float(
-                np.linalg.norm((body_um[int(i)] - body_um[int(j)]) * UM_TO_M)
-            )
-            spring_rest_lengths_m.append(dist_m)
 
         # Body bending/torsion along each vertical chain
         n_prism = body_layers[0].shape[0]
@@ -190,7 +185,14 @@ class ModelBuilder:
             y = r_um * np.cos(theta) - r_um * math.cos(phase)
             z = r_um * np.sin(theta) - r_um * math.sin(phase)
             local = np.stack([x, y, z], axis=1)
-            flag_points = local + body_um[int(attach_idx)]
+            attach_point = body_um[int(attach_idx)]
+            outward = attach_point - center_layer_point
+            outward_norm = float(np.linalg.norm(outward))
+            if outward_norm <= 1e-12:
+                hook_offset_um = np.array([0.0, hook_length_um, 0.0], dtype=float)
+            else:
+                hook_offset_um = (hook_length_um / outward_norm) * outward
+            flag_points = local + attach_point + hook_offset_um
 
             points_all.append(flag_points)
             idx = np.arange(start_index, start_index + n_flag, dtype=int)
@@ -198,14 +200,9 @@ class ModelBuilder:
             start_index += n_flag
 
             spring_pairs.append((int(attach_idx), int(idx[0])))
-            dist_attach_m = float(
-                np.linalg.norm((body_um[int(attach_idx)] - flag_points[0]) * UM_TO_M)
-            )
-            spring_rest_lengths_m.append(dist_attach_m)
 
             for j in range(idx.shape[0] - 1):
                 spring_pairs.append((int(idx[j]), int(idx[j + 1])))
-                spring_rest_lengths_m.append(bond_L_flag_um * UM_TO_M)
             for j in range(idx.shape[0] - 2):
                 bending_triplets.append((int(idx[j]), int(idx[j + 1]), int(idx[j + 2])))
                 bending_flag_ids.append(f_id)
@@ -221,7 +218,14 @@ class ModelBuilder:
         positions_m = positions_um * UM_TO_M
 
         spring_pairs_arr = _ensure_arr2(spring_pairs)
-        spring_rest_arr = np.asarray(spring_rest_lengths_m, dtype=float)
+        if spring_pairs_arr.size == 0:
+            spring_rest_arr = np.zeros((0,), dtype=float)
+        else:
+            spring_rest_arr = np.linalg.norm(
+                positions_m[spring_pairs_arr[:, 1]]
+                - positions_m[spring_pairs_arr[:, 0]],
+                axis=1,
+            )
         bending_triplets_arr = _ensure_arr3(bending_triplets)
         bending_flag_ids_arr = np.asarray(bending_flag_ids, dtype=int)
         torsion_quads_arr = _ensure_arr4(torsion_quads)
