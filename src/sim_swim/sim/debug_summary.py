@@ -18,22 +18,6 @@ STEP_SUMMARY_COLUMNS = [
     "step",
     "t_star",
     "dt_star",
-    "pos_all_finite",
-    "mean_disp_um",
-    "bond_len_mean_body_body_um",
-    "bond_len_mean_flag_intra_um",
-    "bond_len_mean_body_flag_um",
-    "F_total_mean_body",
-    "F_total_mean_flag",
-    "F_total_mean_all",
-    "brownian_enabled",
-    "brownian_disp_mean_um",
-]
-
-STEP_SUMMARY_FULL_COLUMNS = [
-    "step",
-    "t_star",
-    "dt_star",
     "t_s",
     "dt_s",
     "tau_s",
@@ -43,12 +27,18 @@ STEP_SUMMARY_FULL_COLUMNS = [
     "any_inf",
     "mean_disp_um",
     "max_disp_um",
+    "bond_count_body_body",
     "bond_len_mean_body_body_um",
+    "flag_intra_count",
     "bond_len_mean_flag_intra_um",
-    "bond_count_body_flag",
+    "flag_intra_len_mean_um",
+    "flag_intra_len_min_um",
+    "flag_intra_len_max_um",
+    "hook_count",
     "bond_len_mean_body_flag_um",
-    "bond_len_min_body_flag_um",
-    "bond_len_max_body_flag_um",
+    "hook_len_mean_um",
+    "hook_len_min_um",
+    "hook_len_max_um",
     "F_total_mean_body",
     "F_total_mean_flag",
     "F_total_mean_all",
@@ -83,17 +73,6 @@ def _mean_norm(forces: np.ndarray, mask: np.ndarray) -> float:
     return float(np.mean(np.linalg.norm(selected, axis=1)))
 
 
-def _mean_pair_distance_um(
-    positions_m: np.ndarray, spring_pairs: np.ndarray, pair_rows: np.ndarray
-) -> float:
-    if pair_rows.size == 0:
-        return float("nan")
-    pairs = spring_pairs[pair_rows]
-    diff = positions_m[pairs[:, 0]] - positions_m[pairs[:, 1]]
-    dist_um = np.linalg.norm(diff, axis=1) * M_TO_UM
-    return float(np.mean(dist_um))
-
-
 def _pair_distance_stats_um(
     positions_m: np.ndarray, spring_pairs: np.ndarray, pair_rows: np.ndarray
 ) -> tuple[int, float, float, float]:
@@ -117,13 +96,11 @@ class StepSummaryRecorder:
     model: SimModel
     cfg: SimulationConfig
     out_dir: Path
-    _rows_min: list[dict[str, float | int | bool]] = field(default_factory=list)
-    _rows_full: list[dict[str, float | int | bool]] = field(default_factory=list)
+    _rows: list[dict[str, float | int | bool]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.out_dir.mkdir(parents=True, exist_ok=True)
         self.step_summary_path = self.out_dir / "step_summary.csv"
-        self.step_summary_full_path = self.out_dir / "step_summary_full.csv"
 
         self.body_mask = self.model.bead_is_body.astype(bool)
         self.flag_mask = ~self.body_mask
@@ -159,13 +136,25 @@ class StepSummaryRecorder:
             brownian_disp_mean_um = float(np.mean(brownian_disp))
 
         (
-            bond_count_body_flag,
-            bond_len_mean_body_flag_um,
-            bond_len_min_body_flag_um,
-            bond_len_max_body_flag_um,
+            bond_count_body_body,
+            bond_len_mean_body_body_um,
+            _bond_len_min_body_body_um,
+            _bond_len_max_body_body_um,
+        ) = _pair_distance_stats_um(pos_after, self.spring_pairs, self.body_body_rows)
+        (
+            flag_intra_count,
+            flag_intra_len_mean_um,
+            flag_intra_len_min_um,
+            flag_intra_len_max_um,
+        ) = _pair_distance_stats_um(pos_after, self.spring_pairs, self.flag_intra_rows)
+        (
+            hook_count,
+            hook_len_mean_um,
+            hook_len_min_um,
+            hook_len_max_um,
         ) = _pair_distance_stats_um(pos_after, self.spring_pairs, self.body_flag_rows)
 
-        row_full: dict[str, float | int | bool] = {
+        row: dict[str, float | int | bool] = {
             "step": int(step),
             "t_star": float(t_star),
             "dt_star": float(diag.dt_star),
@@ -178,16 +167,18 @@ class StepSummaryRecorder:
             "any_inf": any_inf,
             "mean_disp_um": float(np.mean(disp_um)),
             "max_disp_um": float(np.max(disp_um)),
-            "bond_len_mean_body_body_um": _mean_pair_distance_um(
-                pos_after, self.spring_pairs, self.body_body_rows
-            ),
-            "bond_len_mean_flag_intra_um": _mean_pair_distance_um(
-                pos_after, self.spring_pairs, self.flag_intra_rows
-            ),
-            "bond_count_body_flag": bond_count_body_flag,
-            "bond_len_mean_body_flag_um": bond_len_mean_body_flag_um,
-            "bond_len_min_body_flag_um": bond_len_min_body_flag_um,
-            "bond_len_max_body_flag_um": bond_len_max_body_flag_um,
+            "bond_count_body_body": bond_count_body_body,
+            "bond_len_mean_body_body_um": bond_len_mean_body_body_um,
+            "flag_intra_count": flag_intra_count,
+            "bond_len_mean_flag_intra_um": flag_intra_len_mean_um,
+            "flag_intra_len_mean_um": flag_intra_len_mean_um,
+            "flag_intra_len_min_um": flag_intra_len_min_um,
+            "flag_intra_len_max_um": flag_intra_len_max_um,
+            "hook_count": hook_count,
+            "bond_len_mean_body_flag_um": hook_len_mean_um,
+            "hook_len_mean_um": hook_len_mean_um,
+            "hook_len_min_um": hook_len_min_um,
+            "hook_len_max_um": hook_len_max_um,
             "F_total_mean_body": _mean_norm(diag.total_forces, self.body_mask),
             "F_total_mean_flag": _mean_norm(diag.total_forces, self.flag_mask),
             "F_total_mean_all": float(
@@ -217,20 +208,12 @@ class StepSummaryRecorder:
             "brownian_enabled": bool(diag.brownian_enabled),
             "brownian_disp_mean_um": brownian_disp_mean_um,
         }
+        self._rows.append(row)
 
-        row_min = {k: row_full[k] for k in STEP_SUMMARY_COLUMNS}
-        self._rows_min.append(row_min)
-        self._rows_full.append(row_full)
-
-    def write_csv(self) -> tuple[Path, Path]:
+    def write_csv(self) -> Path:
         with self.step_summary_path.open("w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=STEP_SUMMARY_COLUMNS)
             writer.writeheader()
-            writer.writerows(self._rows_min)
+            writer.writerows(self._rows)
 
-        with self.step_summary_full_path.open("w", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=STEP_SUMMARY_FULL_COLUMNS)
-            writer.writeheader()
-            writer.writerows(self._rows_full)
-
-        return self.step_summary_path, self.step_summary_full_path
+        return self.step_summary_path

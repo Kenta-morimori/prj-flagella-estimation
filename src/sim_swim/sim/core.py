@@ -167,7 +167,7 @@ class Simulator:
         duration_s: float,
         logger: logging.Logger | None = None,
         progress_interval: int | None = None,
-        sim_debug_dir: Path | None = None,
+        step_summary_dir: Path | None = None,
     ) -> List[SimulationState]:
         """与えた時間だけシミュレーションして状態列を返す。
 
@@ -205,8 +205,8 @@ class Simulator:
         prev = None
         states.append(self._observe(0.0, prev))
         debug_recorder = (
-            StepSummaryRecorder(self.model, self.config, sim_debug_dir)
-            if sim_debug_dir is not None
+            StepSummaryRecorder(self.model, self.config, step_summary_dir)
+            if step_summary_dir is not None
             else None
         )
 
@@ -245,9 +245,8 @@ class Simulator:
             )
 
         if debug_recorder is not None:
-            step_csv, step_full_csv = debug_recorder.write_csv()
+            step_csv = debug_recorder.write_csv()
             if logger is not None:
                 logger.info("Saved step summary to %s", step_csv)
-                logger.info("Saved step summary (full) to %s", step_full_csv)
 
         return states

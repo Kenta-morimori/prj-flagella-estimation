@@ -95,19 +95,51 @@ class DynamicsEngine:
             cfg.potentials.spring_spring_repulsion.cutoff_over_b * b_m
         )
         self.body_stiffness_scale = 200.0
+        self.constraint_projection_iters = 8
         self.theta0_ref_rad, self.phi0_ref_rad = self._initial_reference_angles_rad()
         spring_pairs = self.model.spring_pairs
         if spring_pairs.size == 0:
             self.body_spring_rows = np.zeros((0,), dtype=int)
             self.other_spring_rows = np.zeros((0,), dtype=int)
+            self.hook_spring_rows = np.zeros((0,), dtype=int)
+            self.flag_intra_spring_rows = np.zeros((0,), dtype=int)
         else:
             bi = self.model.bead_is_body[spring_pairs[:, 0]]
             bj = self.model.bead_is_body[spring_pairs[:, 1]]
+            fi = self.model.bead_flag_ids[spring_pairs[:, 0]]
+            fj = self.model.bead_flag_ids[spring_pairs[:, 1]]
             self.body_spring_rows = np.where(bi & bj)[0]
             self.other_spring_rows = np.where(~(bi & bj))[0]
+            self.hook_spring_rows = np.where(np.logical_xor(bi, bj))[0]
+            self.flag_intra_spring_rows = np.where(
+                (~bi) & (~bj) & (fi == fj) & (fi >= 0)
+            )[0]
         self.body_bending_rows = np.where(self.model.bending_flag_ids < 0)[0]
         self.flag_bending_rows = np.where(self.model.bending_flag_ids >= 0)[0]
         self.body_indices = self.model.body_indices.astype(int, copy=False)
+        self.bead_is_body = self.model.bead_is_body.astype(bool, copy=False)
+        self.flag_chain_edges: list[list[tuple[int, int, float]]] = []
+        for idxs in self.model.flagella_indices:
+            edges: list[tuple[int, int, float]] = []
+            for j in range(1, int(idxs.shape[0])):
+                i = int(idxs[j - 1])
+                k = int(idxs[j])
+                rest = float(
+                    np.linalg.norm(
+                        self.model.positions_m[k] - self.model.positions_m[i]
+                    )
+                )
+                edges.append((i, k, rest))
+            self.flag_chain_edges.append(edges)
+        self.hook_anchor_mask = np.zeros((self.model.positions_m.shape[0],), dtype=bool)
+        if self.hook_spring_rows.size > 0:
+            for i_raw, j_raw in self.model.spring_pairs[self.hook_spring_rows]:
+                i = int(i_raw)
+                j = int(j_raw)
+                if self.bead_is_body[i] and (not self.bead_is_body[j]):
+                    self.hook_anchor_mask[j] = True
+                elif self.bead_is_body[j] and (not self.bead_is_body[i]):
+                    self.hook_anchor_mask[i] = True
         self.body_ref_center = np.mean(
             self.model.positions_m[self.body_indices], axis=0
         )
@@ -234,6 +266,71 @@ class DynamicsEngine:
         out[self.body_indices] = body_projected
         return out
 
+    def _project_distance_pairs(
+        self,
+        positions_m: np.ndarray,
+        pair_rows: np.ndarray,
+        iterations: int,
+        fixed_mask: np.ndarray | None = None,
+    ) -> np.ndarray:
+        if pair_rows.size == 0 or iterations <= 0:
+            return positions_m
+
+        out = positions_m.copy()
+        pairs = self.model.spring_pairs[pair_rows]
+        rests = self.model.spring_rest_lengths_m[pair_rows]
+        for _ in range(iterations):
+            for row, (i_raw, j_raw) in enumerate(pairs):
+                i = int(i_raw)
+                j = int(j_raw)
+                d = out[j] - out[i]
+                dist = float(np.linalg.norm(d))
+                if dist <= 1e-18:
+                    continue
+
+                rest = float(rests[row])
+                corr = ((dist - rest) / dist) * d
+                fixed_i = self.bead_is_body[i] or (
+                    fixed_mask is not None and fixed_mask[i]
+                )
+                fixed_j = self.bead_is_body[j] or (
+                    fixed_mask is not None and fixed_mask[j]
+                )
+                wi = 0.0 if fixed_i else 1.0
+                wj = 0.0 if fixed_j else 1.0
+                wsum = wi + wj
+                if wsum <= 0.0:
+                    continue
+                out[i] += (wi / wsum) * corr
+                out[j] -= (wj / wsum) * corr
+        return out
+
+    def _project_flagella_chain_lengths(
+        self, positions_m: np.ndarray, iterations: int
+    ) -> np.ndarray:
+        if iterations <= 0 or not self.flag_chain_edges:
+            return positions_m
+
+        out = positions_m.copy()
+        for _ in range(iterations):
+            for edges in self.flag_chain_edges:
+                for i, j, rest in edges:
+                    d = out[j] - out[i]
+                    dist = float(np.linalg.norm(d))
+                    if dist <= 1e-18:
+                        continue
+                    out[j] = out[i] + (rest / dist) * d
+        return out
+
+    def _project_hook_and_flag_bonds(self, positions_m: np.ndarray) -> np.ndarray:
+        if self.constraint_projection_iters <= 0:
+            return positions_m
+        out = positions_m
+        for _ in range(self.constraint_projection_iters):
+            out = self._project_distance_pairs(out, self.hook_spring_rows, 1)
+            out = self._project_flagella_chain_lengths(out, 1)
+        return out
+
     def step(self, dt_star: float) -> StepDiagnostics:
         """1ステップ更新する。
 
@@ -356,6 +453,7 @@ class DynamicsEngine:
         brownian_disp = xi.reshape((-1, 3))
         pos_after = pos_before + (drift * dt_s + xi).reshape((-1, 3))
         pos_after = self._project_body_rigid(pos_after)
+        pos_after = self._project_hook_and_flag_bonds(pos_after)
         self.model.positions_m = pos_after
         self.t_star += dt_star_eff
         return StepDiagnostics(

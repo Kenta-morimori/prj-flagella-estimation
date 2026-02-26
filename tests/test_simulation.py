@@ -89,7 +89,7 @@ def _make_cfg(
                 "discretization": {"ds_over_b": 0.58},
                 "bond_L_over_b": 0.58,
                 "length_over_b": 2.32,
-                "helix_init": {"radius_over_b": 0.2, "pitch_over_b": 1.0},
+                "helix_init": {"radius_over_b": 0.25, "pitch_over_b": 2.5},
             },
             "fluid": {"viscosity_Pa_s": 1.0e-3},
             "motor": {"torque_Nm": motor_torque_Nm, "reverse_n_flagella": 1},
@@ -147,6 +147,54 @@ def _make_cfg(
     )
 
 
+def _run_and_load_step_summary(
+    sim: Simulator, duration_s: float, summary_dir: Path
+) -> list[dict[str, str]]:
+    sim.run(duration_s, step_summary_dir=summary_dir)
+    csv_path = summary_dir / "step_summary.csv"
+    assert csv_path.is_file()
+    with csv_path.open("r", encoding="utf-8", newline="") as f:
+        rows = list(csv.DictReader(f))
+    assert rows
+    return rows
+
+
+def _assert_hook_stats_over_all_steps(
+    rows: list[dict[str, str]], b_um: float, n_flagella: int
+) -> None:
+    target_um = 0.25 * b_um
+    mean_tol_um = 0.05 * target_um
+    min_limit_um = 0.85 * target_um
+    max_limit_um = 1.15 * target_um
+
+    for row in rows:
+        assert int(row["hook_count"]) == n_flagella
+        hook_mean = float(row["hook_len_mean_um"])
+        hook_min = float(row["hook_len_min_um"])
+        hook_max = float(row["hook_len_max_um"])
+        assert abs(hook_mean - target_um) <= mean_tol_um
+        assert hook_min >= min_limit_um
+        assert hook_max <= max_limit_um
+
+
+def _assert_flag_intra_stats_over_all_steps(
+    rows: list[dict[str, str]], b_um: float
+) -> None:
+    target_um = 0.58 * b_um
+    mean_tol_um = 0.02 * target_um
+    min_limit_um = 0.95 * target_um
+    max_limit_um = 1.05 * target_um
+
+    for row in rows:
+        assert int(row["flag_intra_count"]) > 0
+        intra_mean = float(row["flag_intra_len_mean_um"])
+        intra_min = float(row["flag_intra_len_min_um"])
+        intra_max = float(row["flag_intra_len_max_um"])
+        assert abs(intra_mean - target_um) <= mean_tol_um
+        assert intra_min >= min_limit_um
+        assert intra_max <= max_limit_um
+
+
 def test_short_run_no_nan_inf() -> None:
     cfg = _make_cfg()
     sim = Simulator(cfg)
@@ -168,12 +216,12 @@ def test_short_run_no_nan_inf() -> None:
 def test_run_writes_step_summary_csv(tmp_path: Path) -> None:
     cfg = _make_cfg()
     sim = Simulator(cfg)
-    sim.run(cfg.time.duration_s, sim_debug_dir=tmp_path / "sim_debug")
+    sim.run(cfg.time.duration_s, step_summary_dir=tmp_path / "sim")
 
-    step_csv = tmp_path / "sim_debug" / "step_summary.csv"
-    step_full_csv = tmp_path / "sim_debug" / "step_summary_full.csv"
+    step_csv = tmp_path / "sim" / "step_summary.csv"
+    step_full_csv = tmp_path / "sim" / "step_summary_full.csv"
     assert step_csv.is_file()
-    assert step_full_csv.is_file()
+    assert not step_full_csv.exists()
 
     with step_csv.open("r", encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f))
@@ -181,15 +229,9 @@ def test_run_writes_step_summary_csv(tmp_path: Path) -> None:
     first = rows[0]
     assert "step" in first
     assert "F_total_mean_all" in first
+    assert "hook_count" in first
+    assert "flag_intra_count" in first
     assert first["brownian_enabled"] in {"False", "false", "0"}
-
-    with step_full_csv.open("r", encoding="utf-8", newline="") as f:
-        rows_full = list(csv.DictReader(f))
-    assert rows_full
-    first_full = rows_full[0]
-    assert "F_motor_mean_flag" in first_full
-    assert "F_repulsion_mean_body" in first_full
-    assert "torque_for_forces_Nm" in first_full
 
 
 @pytest.mark.parametrize(
@@ -205,17 +247,12 @@ def test_body_flag_bond_metric_is_numeric_across_modes(
 ) -> None:
     cfg = _make_cfg(motor_torque_Nm=motor_torque, hook_enabled=hook_enabled)
     sim = Simulator(cfg)
-    sim.run(cfg.time.duration_s, sim_debug_dir=tmp_path / "sim_debug")
-
-    step_full_csv = tmp_path / "sim_debug" / "step_summary_full.csv"
-    with step_full_csv.open("r", encoding="utf-8", newline="") as f:
-        rows = list(csv.DictReader(f))
-    assert len(rows) >= 1
+    rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "sim")
 
     first = rows[0]
     assert first["pos_all_finite"] in {"True", "true", "1"}
-    bond_len = float(first["bond_len_mean_body_flag_um"])
-    assert np.isfinite(bond_len)
+    hook_len = float(first["hook_len_mean_um"])
+    assert np.isfinite(hook_len)
 
 
 @pytest.mark.parametrize("hook_enabled", [False, True])
@@ -235,18 +272,13 @@ def test_zero_torque_initial_steps_do_not_scatter(hook_enabled: bool) -> None:
 def test_hook_bond_stats_columns_and_expected_values(tmp_path: Path) -> None:
     cfg = _make_cfg(motor_torque_Nm=0.0, hook_enabled=True, n_flagella=3)
     sim = Simulator(cfg)
-    sim.run(cfg.time.duration_s, sim_debug_dir=tmp_path / "sim_debug")
-
-    step_full_csv = tmp_path / "sim_debug" / "step_summary_full.csv"
-    with step_full_csv.open("r", encoding="utf-8", newline="") as f:
-        rows = list(csv.DictReader(f))
-    assert rows
+    rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "sim")
 
     first = rows[0]
-    assert int(first["bond_count_body_flag"]) == cfg.flagella.n_flagella
-    mean_len = float(first["bond_len_mean_body_flag_um"])
-    min_len = float(first["bond_len_min_body_flag_um"])
-    max_len = float(first["bond_len_max_body_flag_um"])
+    assert int(first["hook_count"]) == cfg.flagella.n_flagella
+    mean_len = float(first["hook_len_mean_um"])
+    min_len = float(first["hook_len_min_um"])
+    max_len = float(first["hook_len_max_um"])
     target_um = 0.25 * cfg.scale.b_um
     tol_um = 0.05 * target_um
     assert abs(mean_len - target_um) <= tol_um
@@ -346,3 +378,51 @@ def test_motor_on_1e19_stability_and_body_constraints() -> None:
     assert max_angle_error_rad < 2e-3, (
         f"motor-on body angle drifted: max_angle_error_rad={max_angle_error_rad:.6e}"
     )
+
+
+def test_hook_length_multi_step_motor_off(tmp_path: Path) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0, hook_enabled=True, n_flagella=1
+    ).with_overrides({"time": {"duration_s": 2.0}})
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(sim, 2.0, tmp_path / "sim")
+
+    assert len(rows) >= 2000
+    _assert_hook_stats_over_all_steps(rows, cfg.scale.b_um, cfg.flagella.n_flagella)
+
+
+def test_hook_length_multi_step_motor_on(tmp_path: Path) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=1.0e-18,
+        hook_enabled=True,
+        n_flagella=1,
+    ).with_overrides({"time": {"duration_s": 2.0}})
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(sim, 2.0, tmp_path / "sim")
+
+    assert len(rows) >= 2000
+    _assert_hook_stats_over_all_steps(rows, cfg.scale.b_um, cfg.flagella.n_flagella)
+
+
+def test_flag_intra_length_multi_step_motor_off(tmp_path: Path) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0, hook_enabled=True, n_flagella=1
+    ).with_overrides({"time": {"duration_s": 2.0}})
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(sim, 2.0, tmp_path / "sim")
+
+    assert len(rows) >= 2000
+    _assert_flag_intra_stats_over_all_steps(rows, cfg.scale.b_um)
+
+
+def test_flag_intra_length_multi_step_motor_on(tmp_path: Path) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=1.0e-18,
+        hook_enabled=True,
+        n_flagella=1,
+    ).with_overrides({"time": {"duration_s": 2.0}})
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(sim, 2.0, tmp_path / "sim")
+
+    assert len(rows) >= 2000
+    _assert_flag_intra_stats_over_all_steps(rows, cfg.scale.b_um)

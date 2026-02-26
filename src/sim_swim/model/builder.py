@@ -12,6 +12,29 @@ from sim_swim.sim.params import SimulationConfig
 UM_TO_M = 1e-6
 
 
+def _solve_helix_dx_um(radius_um: float, pitch_um: float, bond_len_um: float) -> float:
+    """隣接3D距離が bond_len_um になる軸方向刻み Δx を二分法で解く。"""
+
+    r = max(float(radius_um), 0.0)
+    p = max(float(pitch_um), 1e-12)
+    target_len = max(float(bond_len_um), 1e-12)
+    if r <= 0.0:
+        return target_len
+
+    def dist(dx: float) -> float:
+        return math.sqrt(dx * dx + (2.0 * r * math.sin(math.pi * dx / p)) ** 2)
+
+    lo = 0.0
+    hi = target_len
+    for _ in range(80):
+        mid = 0.5 * (lo + hi)
+        if dist(mid) < target_len:
+            lo = mid
+        else:
+            hi = mid
+    return 0.5 * (lo + hi)
+
+
 def _segment_pairs_without_neighbors(spring_pairs: np.ndarray) -> np.ndarray:
     pairs: list[tuple[int, int]] = []
     m = spring_pairs.shape[0]
@@ -128,10 +151,9 @@ class ModelBuilder:
         n_body = body_um.shape[0]
 
         n_flagella = cfg.flagella.n_flagella
-        ds_flag_um = cfg.flagella.discretization.ds_over_b * b_um
-        ds_flag_um = max(ds_flag_um, 1e-6)
+        bond_len_um = max(cfg.flagella.bond_L_over_b * b_um, 1e-6)
         L_flag_um = cfg.flagella.length_over_b * b_um
-        n_flag = max(2, int(math.floor(L_flag_um / ds_flag_um)) + 1)
+        n_flag = max(2, int(math.floor(L_flag_um / bond_len_um)) + 1)
 
         center_layer = body_layers[len(body_layers) // 2]
         attach_ids = self._flag_attach_indices(center_layer, n_flagella)
@@ -183,15 +205,15 @@ class ModelBuilder:
         start_index = n_body
         for f_id, attach_idx in enumerate(attach_ids):
             phase = 2.0 * math.pi * (f_id / max(n_flagella, 1))
-            s = np.linspace(0.0, L_flag_um, n_flag)
-            theta = (
-                2.0
-                * math.pi
-                * s
-                / max(cfg.flagella.helix_init.pitch_over_b * b_um, 1e-6)
-                + phase
+            pitch_um = max(cfg.flagella.helix_init.pitch_over_b * b_um, 1e-6)
+            r_um = max(cfg.flagella.helix_init.radius_over_b * b_um, 0.0)
+            dx_um = _solve_helix_dx_um(
+                radius_um=r_um,
+                pitch_um=pitch_um,
+                bond_len_um=bond_len_um,
             )
-            r_um = cfg.flagella.helix_init.radius_over_b * b_um
+            s = dx_um * np.arange(n_flag, dtype=float)
+            theta = 2.0 * math.pi * s / pitch_um + phase
 
             x = s
             y = r_um * np.cos(theta) - r_um * math.cos(phase)

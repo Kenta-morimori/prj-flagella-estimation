@@ -20,7 +20,6 @@ def test_init_run_creates_log_and_manifest(
 
     assert ctx.out.root.is_dir()
     assert ctx.out.sim_dir.is_dir()
-    assert ctx.out.sim_debug_dir.is_dir()
     assert ctx.out.render_dir.is_dir()
     assert ctx.out.render2d_dir.is_dir()
 
@@ -32,7 +31,6 @@ def test_init_run_creates_log_and_manifest(
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["input"]["config"] == "conf/sim_swim.yaml"
     assert Path(manifest["outputs"]["sim_dir"]).name == "sim"
-    assert Path(manifest["outputs"]["sim_debug_dir"]).name == "sim_debug"
 
 
 def test_init_run_aborts_when_dirty_and_leaves_no_output(

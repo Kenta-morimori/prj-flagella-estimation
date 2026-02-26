@@ -20,8 +20,8 @@ flagella:
   bond_L_over_b: 0.58          # [-] べん毛spring平衡長 L/b
   length_over_b: 5.8           # [-] 初期べん毛長（離散化計算に使用）
   helix_init:
-    radius_over_b: 0.2         # [-] 初期ヘリックス半径（初期化専用）
-    pitch_over_b: 1.0          # [-] 初期ヘリックスピッチ（初期化専用）
+    radius_over_b: 0.25        # [-] 初期ヘリックス半径（直径0.5b）
+    pitch_over_b: 2.5          # [-] 初期ヘリックスピッチ
 
 fluid:
   viscosity_Pa_s: 0.001        # [Pa*s] 水相当

@@ -35,7 +35,7 @@ def _make_cfg(
                 "discretization": {"ds_over_b": ds_over_b},
                 "bond_L_over_b": ds_over_b,
                 "length_over_b": 2.32,
-                "helix_init": {"radius_over_b": 0.2, "pitch_over_b": 1.0},
+                "helix_init": {"radius_over_b": 0.25, "pitch_over_b": 2.5},
             },
             "time": {"duration_s": 0.02, "dt_s": 1.0e-3},
             "brownian": {"enabled": False},
@@ -150,6 +150,22 @@ def test_spring_rest_lengths_match_initial_distances() -> None:
         axis=1,
     )
     assert np.allclose(model.spring_rest_lengths_m, actual, atol=1e-15)
+
+
+def test_flagella_intra_rest_length_is_initialized_to_0p58b() -> None:
+    cfg = _make_cfg(n_flagella=2, ds_over_b=0.58)
+    model = ModelBuilder(cfg).build()
+
+    pairs = model.spring_pairs
+    bi = model.bead_is_body[pairs[:, 0]]
+    bj = model.bead_is_body[pairs[:, 1]]
+    fi = model.bead_flag_ids[pairs[:, 0]]
+    fj = model.bead_flag_ids[pairs[:, 1]]
+    flag_intra_rows = np.where((~bi) & (~bj) & (fi == fj) & (fi >= 0))[0]
+    assert flag_intra_rows.size > 0
+
+    rest = model.spring_rest_lengths_m[flag_intra_rows]
+    assert np.allclose(rest, 0.58 * cfg.b_m, rtol=0.0, atol=1e-12)
 
 
 def test_body_has_no_torsion_quads() -> None:

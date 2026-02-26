@@ -70,8 +70,8 @@ class FlagellaDiscretizationParams:
 class FlagellaHelixInitParams:
     """べん毛の初期ヘリックス形状設定。"""
 
-    radius_over_b: float = 0.2
-    pitch_over_b: float = 1.0
+    radius_over_b: float = 0.25
+    pitch_over_b: float = 2.5
 
 
 @dataclass(frozen=True)
@@ -502,7 +502,7 @@ class SimulationConfig:
             radius_over_b_h = (
                 float(old_r_um) / max(scale.b_um, 1e-12)
                 if old_r_um is not None
-                else 0.2
+                else 0.25
             )
         pitch_over_b_h = helix_raw.get("pitch_over_b")
         if pitch_over_b_h is None:
@@ -510,7 +510,7 @@ class SimulationConfig:
             pitch_over_b_h = (
                 float(old_pitch_um) / max(scale.b_um, 1e-12)
                 if old_pitch_um is not None
-                else 1.0
+                else 2.5
             )
 
         flagella = FlagellumParams(
