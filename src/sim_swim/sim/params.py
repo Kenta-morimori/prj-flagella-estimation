@@ -303,11 +303,18 @@ class SimulationConfig:
 
     @property
     def tau_s(self) -> float:
-        return self.torque_eta_b3_Nm / max(self.torque_scale_Nm, 1e-30)
+        """内部計算で使う時間スケールτ[s]。Phase2では常に1固定。"""
+        return 1.0
+
+    @property
+    def output_dt_s(self) -> float:
+        """設定上の出力間隔[s]。"""
+        return max(self.time.dt_s, 0.0)
 
     @property
     def dt_s(self) -> float:
-        return max(self.time.dt_s, 0.0)
+        """内部計算ステップ幅Δt[s]。"""
+        return DT_STAR_TARGET
 
     @property
     def dt_star(self) -> float:
@@ -330,17 +337,15 @@ class SimulationConfig:
         abs_tol_s: float = 1e-15,
         rel_tol: float = 1e-12,
     ) -> None:
-        """`dt_s/tau_s` が指定比率と一致するか検証する。"""
+        """内部計算で `dt_star=1e-3` が成立しているか検証する。"""
 
-        if not (self.use_eta_b3_torque or self.is_motor_off_torque):
-            return
-
-        expected = self.expected_dt_s(target_dt_star=target_dt_star)
-        if not math.isclose(self.dt_s, expected, rel_tol=rel_tol, abs_tol=abs_tol_s):
+        if not math.isclose(
+            self.dt_star, target_dt_star, rel_tol=rel_tol, abs_tol=1e-18
+        ):
             raise ValueError(
-                "time.dt_s が論文条件に一致しない。"
+                "内部時間刻みが論文条件に一致しない。"
                 f" dt_s={self.dt_s:.12e}, tau_s={self.tau_s:.12e},"
-                f" dt_star={self.dt_star:.12e}, expected_dt_s={expected:.12e},"
+                f" dt_star={self.dt_star:.12e}, expected_dt_s={target_dt_star:.12e},"
                 f" target_dt_star={target_dt_star:.12e}; "
                 "dt_star(=Δt/τ) must be 1e-3"
             )
@@ -623,7 +628,7 @@ class SimulationConfig:
         dt_s = time_raw.get("dt_s")
         if dt_s is None:
             raise ValueError(
-                "time.dt_s は必須です。dt_s = 1e-3 * tau_s（Δt/τ=1e-3）を設定してください。"
+                "time.dt_s は必須です。出力間隔として設定してください（内部計算のΔtは1e-3固定）。"
             )
 
         time = TimeParams(

@@ -36,6 +36,8 @@ STEP_SUMMARY_FULL_COLUMNS = [
     "dt_star",
     "t_s",
     "dt_s",
+    "tau_s",
+    "dt_internal_s",
     "pos_all_finite",
     "any_nan",
     "any_inf",
@@ -43,7 +45,10 @@ STEP_SUMMARY_FULL_COLUMNS = [
     "max_disp_um",
     "bond_len_mean_body_body_um",
     "bond_len_mean_flag_intra_um",
+    "bond_count_body_flag",
     "bond_len_mean_body_flag_um",
+    "bond_len_min_body_flag_um",
+    "bond_len_max_body_flag_um",
     "F_total_mean_body",
     "F_total_mean_flag",
     "F_total_mean_all",
@@ -87,6 +92,22 @@ def _mean_pair_distance_um(
     diff = positions_m[pairs[:, 0]] - positions_m[pairs[:, 1]]
     dist_um = np.linalg.norm(diff, axis=1) * M_TO_UM
     return float(np.mean(dist_um))
+
+
+def _pair_distance_stats_um(
+    positions_m: np.ndarray, spring_pairs: np.ndarray, pair_rows: np.ndarray
+) -> tuple[int, float, float, float]:
+    if pair_rows.size == 0:
+        return 0, float("nan"), float("nan"), float("nan")
+    pairs = spring_pairs[pair_rows]
+    diff = positions_m[pairs[:, 0]] - positions_m[pairs[:, 1]]
+    dist_um = np.linalg.norm(diff, axis=1) * M_TO_UM
+    return (
+        int(pair_rows.size),
+        float(np.mean(dist_um)),
+        float(np.min(dist_um)),
+        float(np.max(dist_um)),
+    )
 
 
 @dataclass
@@ -137,12 +158,21 @@ class StepSummaryRecorder:
             brownian_disp = np.linalg.norm(diag.brownian_disp_m, axis=1) * M_TO_UM
             brownian_disp_mean_um = float(np.mean(brownian_disp))
 
+        (
+            bond_count_body_flag,
+            bond_len_mean_body_flag_um,
+            bond_len_min_body_flag_um,
+            bond_len_max_body_flag_um,
+        ) = _pair_distance_stats_um(pos_after, self.spring_pairs, self.body_flag_rows)
+
         row_full: dict[str, float | int | bool] = {
             "step": int(step),
             "t_star": float(t_star),
             "dt_star": float(diag.dt_star),
             "t_s": float(t_star * self.cfg.tau_s),
             "dt_s": float(diag.dt_s),
+            "tau_s": float(self.cfg.tau_s),
+            "dt_internal_s": float(self.cfg.dt_s),
             "pos_all_finite": pos_all_finite,
             "any_nan": any_nan,
             "any_inf": any_inf,
@@ -154,9 +184,10 @@ class StepSummaryRecorder:
             "bond_len_mean_flag_intra_um": _mean_pair_distance_um(
                 pos_after, self.spring_pairs, self.flag_intra_rows
             ),
-            "bond_len_mean_body_flag_um": _mean_pair_distance_um(
-                pos_after, self.spring_pairs, self.body_flag_rows
-            ),
+            "bond_count_body_flag": bond_count_body_flag,
+            "bond_len_mean_body_flag_um": bond_len_mean_body_flag_um,
+            "bond_len_min_body_flag_um": bond_len_min_body_flag_um,
+            "bond_len_max_body_flag_um": bond_len_max_body_flag_um,
             "F_total_mean_body": _mean_norm(diag.total_forces, self.body_mask),
             "F_total_mean_flag": _mean_norm(diag.total_forces, self.flag_mask),
             "F_total_mean_all": float(

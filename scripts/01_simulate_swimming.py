@@ -76,6 +76,7 @@ def main(
     logger.info("Loaded simulation config (effective): %s", cfg)
     logger.info("Overrides: %s", override_dict if override_dict else "None")
     cfg.validate_time_scaling()
+    logger.info("[time-scale] τ is fixed to 1.0 in stable integration mode")
 
     if cfg.use_eta_b3_torque:
         logger.info(
@@ -124,10 +125,12 @@ def main(
             cfg.tau_s,
         )
     logger.info(
-        "[time-step ] Δt=dt_s=%.6e s, Δt*=dt_star=%.6e (=Δt/τ)",
+        "[time-step ] Δt_internal=%.6e s, τ=%.6e s, Δt*=dt_star=%.6e (=Δt/τ)",
         cfg.dt_s,
+        cfg.tau_s,
         cfg.dt_star,
     )
+    logger.info("[time-step ] output_dt_s(config)=%.6e s", cfg.output_dt_s)
     logger.info(
         (
             "[duration  ] t_end=duration_s=%.6e s, "

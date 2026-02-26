@@ -146,16 +146,24 @@ class ModelBuilder:
         torsion_quads: list[tuple[int, int, int, int]] = []
         torsion_flag_ids: list[int] = []
         hook_triplets: list[tuple[int, int, int]] = []
+        n_prism = body_layers[0].shape[0]
+        n_layers = len(body_layers)
 
         # Body edges as springs (ring + vertical)
         for i, j in ring_edges:
             spring_pairs.append((int(i), int(j)))
         for i, j in vertical_edges:
             spring_pairs.append((int(i), int(j)))
+        # Body side braces (diagonal) to suppress shear deformation between layers.
+        for layer_idx in range(n_layers - 1):
+            prev_layer = body_layers[layer_idx]
+            curr_layer = body_layers[layer_idx + 1]
+            for k in range(n_prism):
+                i = int(prev_layer[k])
+                j = int(curr_layer[(k + 1) % n_prism])
+                spring_pairs.append((i, j))
 
         # Body bending/torsion along each vertical chain
-        n_prism = body_layers[0].shape[0]
-        n_layers = len(body_layers)
         for layer in body_layers:
             a, b, c = int(layer[0]), int(layer[1]), int(layer[2])
             bending_triplets.append((b, a, c))

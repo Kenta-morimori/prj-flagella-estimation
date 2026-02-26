@@ -94,7 +94,26 @@ class DynamicsEngine:
         self.repulsion_cutoff_m = (
             cfg.potentials.spring_spring_repulsion.cutoff_over_b * b_m
         )
+        self.body_stiffness_scale = 200.0
         self.theta0_ref_rad, self.phi0_ref_rad = self._initial_reference_angles_rad()
+        spring_pairs = self.model.spring_pairs
+        if spring_pairs.size == 0:
+            self.body_spring_rows = np.zeros((0,), dtype=int)
+            self.other_spring_rows = np.zeros((0,), dtype=int)
+        else:
+            bi = self.model.bead_is_body[spring_pairs[:, 0]]
+            bj = self.model.bead_is_body[spring_pairs[:, 1]]
+            self.body_spring_rows = np.where(bi & bj)[0]
+            self.other_spring_rows = np.where(~(bi & bj))[0]
+        self.body_bending_rows = np.where(self.model.bending_flag_ids < 0)[0]
+        self.flag_bending_rows = np.where(self.model.bending_flag_ids >= 0)[0]
+        self.body_indices = self.model.body_indices.astype(int, copy=False)
+        self.body_ref_center = np.mean(
+            self.model.positions_m[self.body_indices], axis=0
+        )
+        self.body_ref_centered = (
+            self.model.positions_m[self.body_indices] - self.body_ref_center
+        )
 
     def _initial_reference_angles_rad(self) -> tuple[np.ndarray, np.ndarray]:
         theta0 = np.zeros((self.model.bending_triplets.shape[0],), dtype=float)
@@ -195,6 +214,26 @@ class DynamicsEngine:
         else:
             self.model.flag_states[reversed_flags] = int(PolymorphState.NORMAL)
 
+    def _project_body_rigid(self, positions_m: np.ndarray) -> np.ndarray:
+        if self.body_indices.size == 0:
+            return positions_m
+
+        body_curr = positions_m[self.body_indices]
+        curr_center = np.mean(body_curr, axis=0)
+        curr_centered = body_curr - curr_center
+
+        h = self.body_ref_centered.T @ curr_centered
+        u, _, vt = np.linalg.svd(h, full_matrices=False)
+        r = vt.T @ u.T
+        if np.linalg.det(r) < 0.0:
+            vt[-1, :] *= -1.0
+            r = vt.T @ u.T
+
+        body_projected = self.body_ref_centered @ r.T + curr_center
+        out = positions_m.copy()
+        out[self.body_indices] = body_projected
+        return out
+
     def step(self, dt_star: float) -> StepDiagnostics:
         """1ステップ更新する。
 
@@ -210,20 +249,44 @@ class DynamicsEngine:
 
         pos_before = self.model.positions_m.copy()
         pos = pos_before
-        spring_forces = compute_spring_forces(
-            positions_m=pos,
-            spring_pairs=self.model.spring_pairs,
-            spring_rest_lengths_m=self.model.spring_rest_lengths_m,
-            h_const=self.spring_h,
-            s_limit_m=self.spring_s_m,
-            clamp_eps=1e-3,
-        )
-        bend_forces = compute_bending_forces(
-            positions_m=pos,
-            triplets=self.model.bending_triplets,
-            theta0_rad=theta0,
-            kb=self.k_bend,
-        )
+        spring_forces = np.zeros_like(pos)
+        if self.body_spring_rows.size > 0:
+            spring_forces += compute_spring_forces(
+                positions_m=pos,
+                spring_pairs=self.model.spring_pairs[self.body_spring_rows],
+                spring_rest_lengths_m=self.model.spring_rest_lengths_m[
+                    self.body_spring_rows
+                ],
+                h_const=self.spring_h * self.body_stiffness_scale,
+                s_limit_m=self.spring_s_m,
+                clamp_eps=1e-3,
+            )
+        if self.other_spring_rows.size > 0:
+            spring_forces += compute_spring_forces(
+                positions_m=pos,
+                spring_pairs=self.model.spring_pairs[self.other_spring_rows],
+                spring_rest_lengths_m=self.model.spring_rest_lengths_m[
+                    self.other_spring_rows
+                ],
+                h_const=self.spring_h,
+                s_limit_m=self.spring_s_m,
+                clamp_eps=1e-3,
+            )
+        bend_forces = np.zeros_like(pos)
+        if self.body_bending_rows.size > 0:
+            bend_forces += compute_bending_forces(
+                positions_m=pos,
+                triplets=self.model.bending_triplets[self.body_bending_rows],
+                theta0_rad=theta0[self.body_bending_rows],
+                kb=self.k_bend * self.body_stiffness_scale,
+            )
+        if self.flag_bending_rows.size > 0:
+            bend_forces += compute_bending_forces(
+                positions_m=pos,
+                triplets=self.model.bending_triplets[self.flag_bending_rows],
+                theta0_rad=theta0[self.flag_bending_rows],
+                kb=self.k_bend,
+            )
         torsion_forces = compute_torsion_forces(
             positions_m=pos,
             quads=self.model.torsion_quads,
@@ -292,6 +355,7 @@ class DynamicsEngine:
 
         brownian_disp = xi.reshape((-1, 3))
         pos_after = pos_before + (drift * dt_s + xi).reshape((-1, 3))
+        pos_after = self._project_body_rigid(pos_after)
         self.model.positions_m = pos_after
         self.t_star += dt_star_eff
         return StepDiagnostics(

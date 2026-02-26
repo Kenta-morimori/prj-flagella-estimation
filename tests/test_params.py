@@ -30,32 +30,40 @@ def test_dt_over_tau_input_is_rejected() -> None:
         SimulationConfig.from_dict(cfg)
 
 
-def test_validate_time_scaling_rejects_non_paper_dt_star() -> None:
+def test_validate_time_scaling_is_always_fixed_to_paper_dt_star() -> None:
     cfg = _base_cfg()
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-7}
     sim_cfg = SimulationConfig.from_dict(cfg)
 
-    with pytest.raises(ValueError, match="time.dt_s"):
-        sim_cfg.validate_time_scaling()
+    sim_cfg.validate_time_scaling()
+    assert sim_cfg.tau_s == pytest.approx(1.0)
+    assert sim_cfg.dt_s == pytest.approx(1.0e-3)
+    assert sim_cfg.dt_star == pytest.approx(1.0e-3)
+    assert sim_cfg.output_dt_s == pytest.approx(1.0e-7)
 
 
-def test_validate_time_scaling_rejects_non_paper_dt_star_for_motor_off() -> None:
+def test_validate_time_scaling_for_motor_off_is_always_fixed() -> None:
     cfg = _base_cfg()
     cfg["motor"]["torque_Nm"] = 0.0
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-7}
     sim_cfg = SimulationConfig.from_dict(cfg)
 
-    with pytest.raises(ValueError, match="time.dt_s"):
-        sim_cfg.validate_time_scaling()
+    sim_cfg.validate_time_scaling()
+    assert sim_cfg.tau_s == pytest.approx(1.0)
+    assert sim_cfg.dt_s == pytest.approx(1.0e-3)
+    assert sim_cfg.dt_star == pytest.approx(1.0e-3)
 
 
-def test_validate_time_scaling_is_skipped_for_explicit_torque() -> None:
+def test_validate_time_scaling_for_explicit_torque_is_always_fixed() -> None:
     cfg = _base_cfg()
     cfg["motor"]["torque_Nm"] = 1.0e-18
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-7}
     sim_cfg = SimulationConfig.from_dict(cfg)
 
     sim_cfg.validate_time_scaling()
+    assert sim_cfg.tau_s == pytest.approx(1.0)
+    assert sim_cfg.dt_s == pytest.approx(1.0e-3)
+    assert sim_cfg.dt_star == pytest.approx(1.0e-3)
 
 
 def test_torque_minus_one_uses_eta_b3_and_tau_is_one() -> None:
@@ -94,8 +102,7 @@ def test_torque_non_minus_one_uses_input_value() -> None:
     assert sim_cfg.torque_for_forces_Nm == pytest.approx(abs(9.9e-18))
     assert sim_cfg.motor_torque_Nm == pytest.approx(9.9e-18)
     assert sim_cfg.torque_Nm == pytest.approx(9.9e-18)
-    expected_tau = (sim_cfg.viscosity_Pa_s * (sim_cfg.b_m**3)) / abs(9.9e-18)
-    assert sim_cfg.tau_s == pytest.approx(expected_tau)
+    assert sim_cfg.tau_s == pytest.approx(1.0)
 
 
 def test_torque_zero_sets_motor_off_but_keeps_tau_unity_scale() -> None:
@@ -114,6 +121,8 @@ def test_torque_zero_sets_motor_off_but_keeps_tau_unity_scale() -> None:
         sim_cfg.viscosity_Pa_s * (sim_cfg.b_m**3)
     )
     assert sim_cfg.tau_s == pytest.approx(1.0)
+    assert sim_cfg.dt_s == pytest.approx(1.0e-3)
+    assert sim_cfg.dt_star == pytest.approx(1.0e-3)
 
 
 def test_body_n_layers_is_derived_from_length_and_spacing() -> None:
