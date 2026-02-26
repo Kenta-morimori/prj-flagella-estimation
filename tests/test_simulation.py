@@ -265,7 +265,8 @@ def test_body_rigidity_is_preserved_over_multiple_steps_without_external_forces(
     sim = Simulator(cfg)
     model = sim.model
 
-    n_steps = 300
+    target_t_star = 0.1
+    n_steps = max(1, int(np.ceil(target_t_star / max(cfg.dt_star, 1e-30))))
     body_spring_rows = _body_spring_rows(sim)
     body_bending_rows = _body_bending_rows(sim)
     theta0, _ = sim.engine._state_angles_rad()
