@@ -170,11 +170,6 @@ class ModelBuilder:
             for t in range(len(chain) - 2):
                 bending_triplets.append((chain[t], chain[t + 1], chain[t + 2]))
                 bending_flag_ids.append(-1)
-            for t in range(len(chain) - 3):
-                torsion_quads.append(
-                    (chain[t], chain[t + 1], chain[t + 2], chain[t + 3])
-                )
-                torsion_flag_ids.append(-1)
 
         # Flagella
         start_index = n_body

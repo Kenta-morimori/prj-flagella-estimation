@@ -34,6 +34,7 @@ def _body_bending_rows(sim: Simulator) -> np.ndarray:
 def _make_cfg(
     motor_torque_Nm: float = -1.0,
     hook_enabled: bool = True,
+    n_flagella: int = 3,
 ) -> SimulationConfig:
     return SimulationConfig.from_dict(
         {
@@ -48,7 +49,7 @@ def _make_cfg(
                 "length_total_um": 2.0,
             },
             "flagella": {
-                "n_flagella": 3,
+                "n_flagella": n_flagella,
                 "placement_mode": "uniform",
                 "discretization": {"ds_over_b": 0.58},
                 "bond_L_over_b": 0.58,
@@ -197,7 +198,7 @@ def test_zero_torque_initial_steps_do_not_scatter(hook_enabled: bool) -> None:
 
 
 def test_body_constraints_match_initial_reference() -> None:
-    cfg = _make_cfg(motor_torque_Nm=0.0, hook_enabled=False)
+    cfg = _make_cfg(motor_torque_Nm=0.0, hook_enabled=False, n_flagella=0)
     sim = Simulator(cfg)
     model = sim.model
 
@@ -228,7 +229,7 @@ def test_body_constraints_match_initial_reference() -> None:
 def test_body_constraints_nearly_invariant_after_one_step_without_external_forces() -> (
     None
 ):
-    cfg = _make_cfg(motor_torque_Nm=0.0, hook_enabled=False)
+    cfg = _make_cfg(motor_torque_Nm=0.0, hook_enabled=False, n_flagella=0)
     sim = Simulator(cfg)
     model = sim.model
 
@@ -255,3 +256,49 @@ def test_body_constraints_nearly_invariant_after_one_step_without_external_force
     )
     max_theta_err = float(np.max(np.abs(theta - theta0_body)))
     assert max_theta_err < 1e-3
+
+
+def test_body_rigidity_is_preserved_over_multiple_steps_without_external_forces() -> (
+    None
+):
+    cfg = _make_cfg(motor_torque_Nm=0.0, hook_enabled=False, n_flagella=0)
+    sim = Simulator(cfg)
+    model = sim.model
+
+    n_steps = 300
+    body_spring_rows = _body_spring_rows(sim)
+    body_bending_rows = _body_bending_rows(sim)
+    theta0, _ = sim.engine._state_angles_rad()
+    theta0_body = theta0[body_bending_rows].copy()
+    spring_l0 = model.spring_rest_lengths_m[body_spring_rows].copy()
+    spring_pairs = model.spring_pairs[body_spring_rows]
+
+    max_stretch_ratio = 0.0
+    max_angle_error_rad = 0.0
+    for _ in range(n_steps):
+        sim.engine.step(cfg.dt_star)
+        pos = model.positions_m
+
+        spring_l = np.linalg.norm(
+            pos[spring_pairs[:, 1]] - pos[spring_pairs[:, 0]],
+            axis=1,
+        )
+        stretch_ratio = np.abs(spring_l - spring_l0) / np.maximum(spring_l0, 1e-30)
+        max_stretch_ratio = max(max_stretch_ratio, float(np.max(stretch_ratio)))
+
+        theta = np.asarray(
+            [
+                _triplet_angle_rad(pos, model.bending_triplets[row])
+                for row in body_bending_rows
+            ],
+            dtype=float,
+        )
+        angle_error_rad = np.abs(theta - theta0_body)
+        max_angle_error_rad = max(max_angle_error_rad, float(np.max(angle_error_rad)))
+
+    assert max_stretch_ratio < 1e-4, (
+        f"body distance constraint drifted: max_stretch_ratio={max_stretch_ratio:.6e}"
+    )
+    assert max_angle_error_rad < 1e-3, (
+        f"body angle constraint drifted: max_angle_error_rad={max_angle_error_rad:.6e}"
+    )

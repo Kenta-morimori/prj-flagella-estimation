@@ -150,3 +150,10 @@ def test_spring_rest_lengths_match_initial_distances() -> None:
         axis=1,
     )
     assert np.allclose(model.spring_rest_lengths_m, actual, atol=1e-15)
+
+
+def test_body_has_no_torsion_quads() -> None:
+    cfg = _make_cfg(n_flagella=3)
+    model = ModelBuilder(cfg).build()
+
+    assert np.all(model.torsion_flag_ids >= 0)
