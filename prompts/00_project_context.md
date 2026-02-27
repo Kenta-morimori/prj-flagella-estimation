@@ -89,3 +89,23 @@ subprocess で scripts を叩く方式は遅く壊れやすい。
 - フック長は long-step（N>=2000）で維持されることを tests/ で担保する。
 
 ---
+
+## べん毛基部接線の「後方整列」要件（MVP・必須）
+目的：初期状態で flagellum が菌体の後方へ伸びるようにし、初期条件の不自然さ（前方へ伸びる等）を除去する。
+
+### 定義（固定）
+- body長軸 `body_axis`：
+  - bodyビーズ座標のPCA第1主成分（単位ベクトル）を用いる。
+- 後方方向 `rear_dir`：
+  - `rear_dir = -body_axis`
+- べん毛基部接線 `tangent0`：
+  - `tangent0 = normalize(flag1_pos - flag0_pos)`
+- 整列条件：
+  - `angle(tangent0, rear_dir) <= 10°`（初期状態で満たす）
+
+### 実装方針（最小破壊）
+- べん毛のローカル座標系の軸 `axis_u` を `rear_dir` に一致させる。
+- 初期点列生成（ヘリックス点列）は既存の処理を使いつつ、「生成座標を `axis_u/axis_v/axis_w` で回転」させる。
+
+### 自動検証（tests/で必須）
+- 初期形状生成直後（step0）の全べん毛について、`angle(tangent0, rear_dir) <= 10°` をassertする。
