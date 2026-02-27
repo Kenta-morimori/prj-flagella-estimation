@@ -2,7 +2,6 @@
 
 ## 概要・目的
 サルモネラなどのバクテリアは、螺旋状の繊維構造であるべん毛を複数本有し、べん毛が束になりながら回転することで推進力を得て遊泳する。べん毛本数は運動様式と関係する。
-
 本プロジェクトの目的は、サルモネラの遊泳を計測した顕微鏡動画像データから、個体ごとのべん毛本数を推定することである。
 予測には機械学習を用いる。学習データは、3D物理シミュレーションを2D投影した擬似顕微鏡像データを生成して用いる。
 
@@ -62,7 +61,6 @@ subprocess で scripts を叩く方式は遅く壊れやすい。
 - 平衡 bending 角（normal）: **142°**
 - 平衡 torsion 角（normal）: **−60°**
 （semicoiled / curly1 への遷移を扱う場合は Table 1 の値へ切替）
-
 ※MVPではまず normal の固定値で「螺旋を潰さない」ことを優先する。
 
 ### 3) 初期形状の生成方針（必須）
@@ -109,3 +107,14 @@ subprocess で scripts を叩く方式は遅く壊れやすい。
 
 ### 自動検証（tests/で必須）
 - 初期形状生成直後（step0）の全べん毛について、`angle(tangent0, rear_dir) <= 10°` をassertする。
+
+---
+
+## Motor switching（★追加・決定）
+目的：run状態（polymorph state固定）を全時間で維持できるようにする。
+
+- 追加パラメータ：`motor.enable_switching`（bool）
+  - デフォルト：false（run固定）
+  - false のとき：run/tumble更新（多形切替）を行わない
+- `step_summary.csv` には `flag_state_changed`（bool）を追加し、
+  `motor.enable_switching=false` のとき常に False であることを multi-step pytest で担保する。
