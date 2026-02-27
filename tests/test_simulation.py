@@ -251,6 +251,7 @@ def test_run_writes_step_summary_csv(tmp_path: Path) -> None:
     assert "flag_intra_count" in first
     assert "flag_bend_err_mean_deg" in first
     assert "flag_torsion_err_mean_deg" in first
+    assert "flag_state_changed" in first
     assert first["brownian_enabled"] in {"False", "false", "0"}
 
 

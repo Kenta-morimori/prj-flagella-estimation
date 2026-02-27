@@ -248,6 +248,9 @@ class DynamicsEngine:
         return theta0, phi0
 
     def _update_run_tumble_state(self) -> None:
+        if not self.cfg.motor.enable_switching:
+            return
+
         rt = self.cfg.run_tumble
 
         run_tau = max(rt.run_tau, 0.0)

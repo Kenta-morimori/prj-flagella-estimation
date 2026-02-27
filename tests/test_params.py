@@ -125,6 +125,23 @@ def test_torque_zero_sets_motor_off_but_keeps_tau_unity_scale() -> None:
     assert sim_cfg.dt_star == pytest.approx(1.0e-3)
 
 
+def test_motor_enable_switching_defaults_to_false() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor.enable_switching is False
+
+
+def test_motor_enable_switching_can_be_enabled() -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["enable_switching"] = True
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor.enable_switching is True
+
+
 def test_body_n_layers_is_derived_from_length_and_spacing() -> None:
     cfg = _base_cfg()
     cfg["body"]["length_total_um"] = 2.5

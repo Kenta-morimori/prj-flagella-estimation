@@ -63,6 +63,7 @@ STEP_SUMMARY_COLUMNS = [
     "motor_degenerate_axis_count",
     "motor_split_rank_deficient_count",
     "motor_bond_length_clipped_count",
+    "flag_state_changed",
     "brownian_enabled",
     "brownian_disp_mean_um",
 ]
@@ -165,6 +166,7 @@ class StepSummaryRecorder:
             "semicoiled": 65.0,
             "curly1": 120.0,
         }
+        self.prev_flag_states = self.model.flag_states.copy()
 
         if self.spring_pairs.size == 0:
             self.body_body_rows = np.zeros((0,), dtype=int)
@@ -257,6 +259,11 @@ class StepSummaryRecorder:
             flag_torsion_err_mean_deg = float(np.mean(err))
             flag_torsion_err_max_deg = float(np.max(err))
 
+        flag_state_changed = bool(
+            self.model.flag_states.shape != self.prev_flag_states.shape
+            or np.any(self.model.flag_states != self.prev_flag_states)
+        )
+
         row: dict[str, float | int | bool] = {
             "step": int(step),
             "t_star": float(t_star),
@@ -312,10 +319,12 @@ class StepSummaryRecorder:
             "motor_bond_length_clipped_count": int(
                 diag.motor_bond_length_clipped_count
             ),
+            "flag_state_changed": flag_state_changed,
             "brownian_enabled": bool(diag.brownian_enabled),
             "brownian_disp_mean_um": brownian_disp_mean_um,
         }
         self._rows.append(row)
+        self.prev_flag_states = self.model.flag_states.copy()
 
     def write_csv(self) -> Path:
         with self.step_summary_path.open("w", encoding="utf-8", newline="") as f:

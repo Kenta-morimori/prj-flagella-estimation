@@ -29,6 +29,7 @@ fluid:
 motor:
   torque_Nm: -1           # [N*m] モーターのトルク(Torque, T)．-1のときはτ=1になるよう「η * b^3」と定義する．
   reverse_n_flagella: 1        # [-] tumble で反転するべん毛本数
+  enable_switching: false      # false: run固定（多形切替なし）
 
 potentials:
   spring:
