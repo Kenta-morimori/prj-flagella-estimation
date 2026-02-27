@@ -16,6 +16,7 @@ def _make_cfg(
     radius_over_b: float = 0.5,
     body_length_um: float = 2.0,
     ds_over_b: float = 0.58,
+    flag_length_over_b: float = 2.32,
 ) -> SimulationConfig:
     return SimulationConfig.from_dict(
         {
@@ -34,7 +35,7 @@ def _make_cfg(
                 "placement_mode": "uniform",
                 "discretization": {"ds_over_b": ds_over_b},
                 "bond_L_over_b": ds_over_b,
-                "length_over_b": 2.32,
+                "length_over_b": flag_length_over_b,
                 "helix_init": {"radius_over_b": 0.25, "pitch_over_b": 2.5},
             },
             "time": {"duration_s": 0.02, "dt_s": 1.0e-3},
@@ -95,24 +96,14 @@ def _estimate_helix_radius_pitch_over_b(
     model: SimModel, cfg: SimulationConfig, flag_id: int
 ) -> tuple[float, float]:
     flag_idx = model.flagella_indices[flag_id]
-    flag0 = int(flag_idx[0])
-    pairs = model.spring_pairs
-
-    attach = None
-    for i_raw, j_raw in pairs:
-        i = int(i_raw)
-        j = int(j_raw)
-        if i == flag0 and bool(model.bead_is_body[j]):
-            attach = j
-            break
-        if j == flag0 and bool(model.bead_is_body[i]):
-            attach = i
-            break
-    assert attach is not None
-
     positions_m = model.positions_m
-    axis = positions_m[flag0] - positions_m[attach]
+    pts = positions_m[flag_idx]
+    centered = pts - np.mean(pts, axis=0)
+    _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    axis = vh[0]
     axis = axis / max(float(np.linalg.norm(axis)), 1e-18)
+    if float(np.dot(axis, pts[-1] - pts[0])) < 0.0:
+        axis = -axis
 
     ref = np.array([1.0, 0.0, 0.0], dtype=float)
     if abs(float(np.dot(ref, axis))) > 0.9:
@@ -121,8 +112,7 @@ def _estimate_helix_radius_pitch_over_b(
     e1 = e1 / max(float(np.linalg.norm(e1)), 1e-18)
     e2 = np.cross(axis, e1)
 
-    pts = positions_m[flag_idx]
-    origin = positions_m[flag0]
+    origin = pts[0]
     rel = pts - origin
     s = rel @ axis
     u = rel @ e1
@@ -256,7 +246,7 @@ def test_flagella_intra_rest_length_is_initialized_to_0p58b() -> None:
 
 
 def test_flagellum_initial_geometry_matches_paper_values() -> None:
-    cfg = _make_cfg(n_flagella=1, ds_over_b=0.58)
+    cfg = _make_cfg(n_flagella=1, ds_over_b=0.58, flag_length_over_b=5.8)
     model = ModelBuilder(cfg).build()
     positions_m = model.positions_m
 
@@ -304,6 +294,30 @@ def test_flagellum_initial_geometry_matches_paper_values() -> None:
         np.arctan2(np.mean(np.sin(torsion_rad)), np.mean(np.cos(torsion_rad)))
     )
     assert abs(_wrap_deg(float(torsion_mean_deg) - (-60.0))) <= 5.0
+
+
+@pytest.mark.parametrize("n_flagella", [1, 3])
+def test_flagella_base_tangent_points_rear(n_flagella: int) -> None:
+    cfg = _make_cfg(n_flagella=n_flagella, ds_over_b=0.58)
+    model = ModelBuilder(cfg).build()
+    positions_m = model.positions_m
+
+    body_points = positions_m[model.body_indices]
+    centered = body_points - np.mean(body_points, axis=0)
+    _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    body_axis = vh[0]
+    body_axis = body_axis / max(float(np.linalg.norm(body_axis)), 1e-18)
+    rear_dir = -body_axis
+
+    for idx in model.flagella_indices:
+        flag0 = int(idx[0])
+        flag1 = int(idx[1])
+        tangent0 = positions_m[flag1] - positions_m[flag0]
+        tangent0 = tangent0 / max(float(np.linalg.norm(tangent0)), 1e-18)
+        angle_deg = np.rad2deg(
+            np.arccos(float(np.clip(np.dot(tangent0, rear_dir), -1.0, 1.0)))
+        )
+        assert angle_deg <= 10.0
 
 
 def test_body_has_no_torsion_quads() -> None:

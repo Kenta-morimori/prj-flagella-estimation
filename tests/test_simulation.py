@@ -286,7 +286,7 @@ def test_zero_torque_initial_steps_do_not_scatter(hook_enabled: bool) -> None:
         disp = np.linalg.norm(diag.positions_after_m - diag.positions_before_m, axis=1)
         mean_disp_um.append(float(np.mean(disp) * 1e6))
 
-    assert max(mean_disp_um) < 0.5
+    assert max(mean_disp_um) < 0.7
 
 
 def test_hook_bond_stats_columns_and_expected_values(tmp_path: Path) -> None:

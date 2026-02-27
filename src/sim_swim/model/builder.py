@@ -35,6 +35,16 @@ def _solve_helix_dx_um(radius_um: float, pitch_um: float, bond_len_um: float) ->
     return 0.5 * (lo + hi)
 
 
+def _principal_axis(points: np.ndarray) -> np.ndarray:
+    centered = points - np.mean(points, axis=0)
+    _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    axis = vh[0]
+    norm = float(np.linalg.norm(axis))
+    if norm <= 1e-12:
+        return np.array([1.0, 0.0, 0.0], dtype=float)
+    return axis / norm
+
+
 def _segment_pairs_without_neighbors(spring_pairs: np.ndarray) -> np.ndarray:
     pairs: list[tuple[int, int]] = []
     m = spring_pairs.shape[0]
@@ -157,8 +167,9 @@ class ModelBuilder:
 
         center_layer = body_layers[len(body_layers) // 2]
         attach_ids = self._flag_attach_indices(center_layer, n_flagella)
-        center_layer_point = np.mean(body_um[center_layer], axis=0)
         hook_length_um = 0.25 * b_um
+        body_axis = _principal_axis(body_um)
+        rear_dir = -body_axis
 
         points_all = [body_um]
         flagella_indices: list[np.ndarray] = []
@@ -219,12 +230,7 @@ class ModelBuilder:
             y = r_um * np.cos(theta) - r_um * math.cos(phase)
             z = -r_um * np.sin(theta) + r_um * math.sin(phase)
             attach_point = body_um[int(attach_idx)]
-            outward = attach_point - center_layer_point
-            outward_norm = float(np.linalg.norm(outward))
-            if outward_norm <= 1e-12:
-                axis_u = np.array([0.0, 1.0, 0.0], dtype=float)
-            else:
-                axis_u = outward / outward_norm
+            axis_u = rear_dir
             hook_offset_um = hook_length_um * axis_u
 
             ref = np.array([1.0, 0.0, 0.0], dtype=float)
@@ -239,13 +245,32 @@ class ModelBuilder:
             axis_v /= max(axis_v_norm, 1e-12)
             axis_w = np.cross(axis_u, axis_v)
 
-            flag_points = (
-                attach_point
-                + hook_offset_um
-                + x[:, None] * axis_u
-                + y[:, None] * axis_v
-                + z[:, None] * axis_w
+            local_points = np.column_stack([x, y, z])
+            local_tangent0 = local_points[1] - local_points[0]
+            local_tangent_norm = max(float(np.linalg.norm(local_tangent0)), 1e-12)
+            local_u = local_tangent0 / local_tangent_norm
+            local_ref = np.array([0.0, 0.0, 1.0], dtype=float)
+            if abs(float(np.dot(local_u, local_ref))) > 0.9:
+                local_ref = np.array([0.0, 1.0, 0.0], dtype=float)
+            local_v = np.cross(local_ref, local_u)
+            local_v /= max(float(np.linalg.norm(local_v)), 1e-12)
+            local_w = np.cross(local_u, local_v)
+
+            local_rot = np.column_stack([local_u, local_v, local_w])
+            world_rot = np.column_stack([axis_u, axis_v, axis_w])
+            rot = world_rot @ local_rot.T
+
+            flag_points = attach_point + hook_offset_um + local_points @ rot.T
+            tangent0 = flag_points[1] - flag_points[0]
+            tangent0 /= max(float(np.linalg.norm(tangent0)), 1e-12)
+            angle_deg = math.degrees(
+                math.acos(float(np.clip(np.dot(tangent0, rear_dir), -1.0, 1.0)))
             )
+            if angle_deg > 10.0 + 1e-8:
+                raise ValueError(
+                    "Flagellum base tangent is not aligned to rear direction:"
+                    f" angle_deg={angle_deg:.6f}"
+                )
 
             points_all.append(flag_points)
             idx = np.arange(start_index, start_index + n_flag, dtype=int)
