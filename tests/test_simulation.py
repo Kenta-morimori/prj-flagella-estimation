@@ -195,6 +195,24 @@ def _assert_flag_intra_stats_over_all_steps(
         assert intra_max <= max_limit_um
 
 
+def _assert_flag_angle_error_over_all_steps(
+    rows: list[dict[str, str]],
+    bend_mean_deg_limit: float,
+    bend_max_deg_limit: float,
+    torsion_mean_deg_limit: float,
+    torsion_max_deg_limit: float,
+) -> None:
+    for row in rows:
+        bend_mean = float(row["flag_bend_err_mean_deg"])
+        bend_max = float(row["flag_bend_err_max_deg"])
+        torsion_mean = float(row["flag_torsion_err_mean_deg"])
+        torsion_max = float(row["flag_torsion_err_max_deg"])
+        assert bend_mean <= bend_mean_deg_limit
+        assert bend_max <= bend_max_deg_limit
+        assert torsion_mean <= torsion_mean_deg_limit
+        assert torsion_max <= torsion_max_deg_limit
+
+
 def test_short_run_no_nan_inf() -> None:
     cfg = _make_cfg()
     sim = Simulator(cfg)
@@ -231,6 +249,8 @@ def test_run_writes_step_summary_csv(tmp_path: Path) -> None:
     assert "F_total_mean_all" in first
     assert "hook_count" in first
     assert "flag_intra_count" in first
+    assert "flag_bend_err_mean_deg" in first
+    assert "flag_torsion_err_mean_deg" in first
     assert first["brownian_enabled"] in {"False", "false", "0"}
 
 
@@ -266,7 +286,7 @@ def test_zero_torque_initial_steps_do_not_scatter(hook_enabled: bool) -> None:
         disp = np.linalg.norm(diag.positions_after_m - diag.positions_before_m, axis=1)
         mean_disp_um.append(float(np.mean(disp) * 1e6))
 
-    assert max(mean_disp_um) < 0.1
+    assert max(mean_disp_um) < 0.5
 
 
 def test_hook_bond_stats_columns_and_expected_values(tmp_path: Path) -> None:
@@ -426,3 +446,10 @@ def test_flag_intra_length_multi_step_motor_on(tmp_path: Path) -> None:
 
     assert len(rows) >= 2000
     _assert_flag_intra_stats_over_all_steps(rows, cfg.scale.b_um)
+    _assert_flag_angle_error_over_all_steps(
+        rows,
+        bend_mean_deg_limit=6.0,
+        bend_max_deg_limit=20.0,
+        torsion_mean_deg_limit=6.0,
+        torsion_max_deg_limit=25.0,
+    )

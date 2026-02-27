@@ -217,7 +217,7 @@ class ModelBuilder:
 
             x = s
             y = r_um * np.cos(theta) - r_um * math.cos(phase)
-            z = r_um * np.sin(theta) - r_um * math.sin(phase)
+            z = -r_um * np.sin(theta) + r_um * math.sin(phase)
             attach_point = body_um[int(attach_idx)]
             outward = attach_point - center_layer_point
             outward_norm = float(np.linalg.norm(outward))

@@ -95,6 +95,8 @@ class DynamicsEngine:
             cfg.potentials.spring_spring_repulsion.cutoff_over_b * b_m
         )
         self.body_stiffness_scale = 200.0
+        self.flag_bend_stiffness_scale = 300.0
+        self.flag_torsion_stiffness_scale = 300.0
         self.constraint_projection_iters = 8
         self.theta0_ref_rad, self.phi0_ref_rad = self._initial_reference_angles_rad()
         spring_pairs = self.model.spring_pairs
@@ -131,6 +133,9 @@ class DynamicsEngine:
                 )
                 edges.append((i, k, rest))
             self.flag_chain_edges.append(edges)
+        self.flag_attach_body_idx = np.full(
+            (len(self.model.flagella_indices),), -1, dtype=int
+        )
         self.hook_anchor_mask = np.zeros((self.model.positions_m.shape[0],), dtype=bool)
         if self.hook_spring_rows.size > 0:
             for i_raw, j_raw in self.model.spring_pairs[self.hook_spring_rows]:
@@ -138,8 +143,40 @@ class DynamicsEngine:
                 j = int(j_raw)
                 if self.bead_is_body[i] and (not self.bead_is_body[j]):
                     self.hook_anchor_mask[j] = True
+                    f_id = int(self.model.bead_flag_ids[j])
+                    if f_id >= 0:
+                        self.flag_attach_body_idx[f_id] = i
                 elif self.bead_is_body[j] and (not self.bead_is_body[i]):
                     self.hook_anchor_mask[i] = True
+                    f_id = int(self.model.bead_flag_ids[i])
+                    if f_id >= 0:
+                        self.flag_attach_body_idx[f_id] = j
+        self.flag_template_local: list[np.ndarray] = []
+        for f_id, idxs in enumerate(self.model.flagella_indices):
+            idx = idxs.astype(int, copy=False)
+            p0 = self.model.positions_m[idx[0]]
+            attach = int(self.flag_attach_body_idx[f_id])
+            if attach >= 0:
+                axis = p0 - self.model.positions_m[attach]
+            else:
+                axis = self.model.positions_m[idx[-1]] - p0
+            axis = axis / max(float(np.linalg.norm(axis)), 1e-18)
+
+            t = self.model.positions_m[idx[min(1, idx.shape[0] - 1)]] - p0
+            v = t - np.dot(t, axis) * axis
+            if float(np.linalg.norm(v)) <= 1e-12:
+                ref = np.array([1.0, 0.0, 0.0], dtype=float)
+                if abs(float(np.dot(ref, axis))) > 0.9:
+                    ref = np.array([0.0, 1.0, 0.0], dtype=float)
+                v = np.cross(axis, ref)
+            v = v / max(float(np.linalg.norm(v)), 1e-18)
+            w = np.cross(axis, v)
+
+            rel = self.model.positions_m[idx] - p0
+            x = rel @ axis
+            y = rel @ v
+            z = rel @ w
+            self.flag_template_local.append(np.column_stack([x, y, z]))
         self.body_ref_center = np.mean(
             self.model.positions_m[self.body_indices], axis=0
         )
@@ -181,8 +218,6 @@ class DynamicsEngine:
 
         theta0 = self.theta0_ref_rad.copy()
         phi0 = self.phi0_ref_rad.copy()
-        theta0_normal = math.radians(float(bend_map["normal"]))
-        phi0_normal = math.radians(float(torsion_map["normal"]))
 
         for i, flag_id in enumerate(self.model.bending_flag_ids):
             if flag_id < 0:
@@ -195,7 +230,7 @@ class DynamicsEngine:
                 if state == int(PolymorphState.SEMICOILED)
                 else "curly1"
             )
-            theta0[i] += math.radians(float(bend_map[key])) - theta0_normal
+            theta0[i] = math.radians(float(bend_map[key]))
 
         for i, flag_id in enumerate(self.model.torsion_flag_ids):
             if flag_id < 0:
@@ -208,9 +243,7 @@ class DynamicsEngine:
                 if state == int(PolymorphState.SEMICOILED)
                 else "curly1"
             )
-            phi0[i] = _wrap_angle(
-                phi0[i] + math.radians(float(torsion_map[key])) - phi0_normal
-            )
+            phi0[i] = _wrap_angle(math.radians(float(torsion_map[key])))
 
         return theta0, phi0
 
@@ -322,13 +355,48 @@ class DynamicsEngine:
                     out[j] = out[i] + (rest / dist) * d
         return out
 
+    def _project_flagella_template(self, positions_m: np.ndarray) -> np.ndarray:
+        if not self.model.flagella_indices:
+            return positions_m
+        out = positions_m.copy()
+        for f_id, idxs in enumerate(self.model.flagella_indices):
+            idx = idxs.astype(int, copy=False)
+            if idx.size < 2:
+                continue
+            attach = int(self.flag_attach_body_idx[f_id])
+            if attach < 0:
+                continue
+
+            p0 = out[idx[0]]
+            axis = p0 - out[attach]
+            axis = axis / max(float(np.linalg.norm(axis)), 1e-18)
+
+            t = out[idx[1]] - p0
+            v = t - np.dot(t, axis) * axis
+            if float(np.linalg.norm(v)) <= 1e-12:
+                ref = np.array([1.0, 0.0, 0.0], dtype=float)
+                if abs(float(np.dot(ref, axis))) > 0.9:
+                    ref = np.array([0.0, 1.0, 0.0], dtype=float)
+                v = np.cross(axis, ref)
+            v = v / max(float(np.linalg.norm(v)), 1e-18)
+            w = np.cross(axis, v)
+
+            local = self.flag_template_local[f_id]
+            out[idx] = (
+                p0
+                + local[:, [0]] * axis[None, :]
+                + local[:, [1]] * v[None, :]
+                + local[:, [2]] * w[None, :]
+            )
+        return out
+
     def _project_hook_and_flag_bonds(self, positions_m: np.ndarray) -> np.ndarray:
         if self.constraint_projection_iters <= 0:
             return positions_m
         out = positions_m
         for _ in range(self.constraint_projection_iters):
             out = self._project_distance_pairs(out, self.hook_spring_rows, 1)
-            out = self._project_flagella_chain_lengths(out, 1)
+            out = self._project_flagella_template(out)
         return out
 
     def step(self, dt_star: float) -> StepDiagnostics:
@@ -382,13 +450,13 @@ class DynamicsEngine:
                 positions_m=pos,
                 triplets=self.model.bending_triplets[self.flag_bending_rows],
                 theta0_rad=theta0[self.flag_bending_rows],
-                kb=self.k_bend,
+                kb=self.k_bend * self.flag_bend_stiffness_scale,
             )
         torsion_forces = compute_torsion_forces(
             positions_m=pos,
             quads=self.model.torsion_quads,
             phi0_rad=phi0,
-            kt=self.k_torsion,
+            kt=self.k_torsion * self.flag_torsion_stiffness_scale,
             fd_eps_m=max(self.model.b_m * 1e-1, 1e-7),
         )
 

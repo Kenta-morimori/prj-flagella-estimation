@@ -57,6 +57,93 @@ def _body_flag_pairs(model: SimModel) -> list[tuple[int, int]]:
     return pairs
 
 
+def _triplet_angle_rad(positions_m: np.ndarray, triplet: np.ndarray) -> float:
+    i, j, k = (int(triplet[0]), int(triplet[1]), int(triplet[2]))
+    u = positions_m[i] - positions_m[j]
+    v = positions_m[k] - positions_m[j]
+    nu = max(float(np.linalg.norm(u)), 1e-18)
+    nv = max(float(np.linalg.norm(v)), 1e-18)
+    c = float(np.clip(np.dot(u, v) / (nu * nv), -1.0, 1.0))
+    return float(np.arccos(c))
+
+
+def _dihedral_angle_rad(
+    positions_m: np.ndarray, quad: np.ndarray | tuple[int, int, int, int]
+) -> float:
+    a_i, b_i, c_i, d_i = (int(quad[0]), int(quad[1]), int(quad[2]), int(quad[3]))
+    a = positions_m[a_i]
+    b = positions_m[b_i]
+    c = positions_m[c_i]
+    d = positions_m[d_i]
+
+    b0 = a - b
+    b1 = c - b
+    b2 = d - c
+    b1n = b1 / max(float(np.linalg.norm(b1)), 1e-18)
+    v = b0 - np.dot(b0, b1n) * b1n
+    w = b2 - np.dot(b2, b1n) * b1n
+    x = float(np.dot(v, w))
+    y = float(np.dot(np.cross(b1n, v), w))
+    return float(np.arctan2(y, x))
+
+
+def _wrap_deg(deg: float) -> float:
+    return float((deg + 180.0) % 360.0 - 180.0)
+
+
+def _estimate_helix_radius_pitch_over_b(
+    model: SimModel, cfg: SimulationConfig, flag_id: int
+) -> tuple[float, float]:
+    flag_idx = model.flagella_indices[flag_id]
+    flag0 = int(flag_idx[0])
+    pairs = model.spring_pairs
+
+    attach = None
+    for i_raw, j_raw in pairs:
+        i = int(i_raw)
+        j = int(j_raw)
+        if i == flag0 and bool(model.bead_is_body[j]):
+            attach = j
+            break
+        if j == flag0 and bool(model.bead_is_body[i]):
+            attach = i
+            break
+    assert attach is not None
+
+    positions_m = model.positions_m
+    axis = positions_m[flag0] - positions_m[attach]
+    axis = axis / max(float(np.linalg.norm(axis)), 1e-18)
+
+    ref = np.array([1.0, 0.0, 0.0], dtype=float)
+    if abs(float(np.dot(ref, axis))) > 0.9:
+        ref = np.array([0.0, 1.0, 0.0], dtype=float)
+    e1 = np.cross(axis, ref)
+    e1 = e1 / max(float(np.linalg.norm(e1)), 1e-18)
+    e2 = np.cross(axis, e1)
+
+    pts = positions_m[flag_idx]
+    origin = positions_m[flag0]
+    rel = pts - origin
+    s = rel @ axis
+    u = rel @ e1
+    v = rel @ e2
+
+    # Least-squares circle fit in the cross-section plane.
+    mat = np.column_stack([u, v, np.ones_like(u)])
+    rhs = -(u * u + v * v)
+    coef, *_ = np.linalg.lstsq(mat, rhs, rcond=None)
+    a, b, c = coef
+    cx = -0.5 * a
+    cy = -0.5 * b
+    radius = np.sqrt(max(cx * cx + cy * cy - c, 0.0))
+
+    phase = np.unwrap(np.arctan2(v - cy, u - cx))
+    slope, _ = np.polyfit(phase, s, 1)
+    pitch = abs(float(slope)) * 2.0 * np.pi
+
+    return radius / cfg.b_m, pitch / cfg.b_m
+
+
 def test_body_prism_bead_count_and_layout() -> None:
     cfg = _make_cfg(
         n_prism=3,
@@ -166,6 +253,57 @@ def test_flagella_intra_rest_length_is_initialized_to_0p58b() -> None:
 
     rest = model.spring_rest_lengths_m[flag_intra_rows]
     assert np.allclose(rest, 0.58 * cfg.b_m, rtol=0.0, atol=1e-12)
+
+
+def test_flagellum_initial_geometry_matches_paper_values() -> None:
+    cfg = _make_cfg(n_flagella=1, ds_over_b=0.58)
+    model = ModelBuilder(cfg).build()
+    positions_m = model.positions_m
+
+    pairs = model.spring_pairs
+    bi = model.bead_is_body[pairs[:, 0]]
+    bj = model.bead_is_body[pairs[:, 1]]
+    fi = model.bead_flag_ids[pairs[:, 0]]
+    fj = model.bead_flag_ids[pairs[:, 1]]
+    flag_intra_rows = np.where((~bi) & (~bj) & (fi == fj) & (fi >= 0))[0]
+    intra_len_over_b = (
+        np.linalg.norm(
+            positions_m[pairs[flag_intra_rows, 1]]
+            - positions_m[pairs[flag_intra_rows, 0]],
+            axis=1,
+        )
+        / cfg.b_m
+    )
+    assert abs(float(np.mean(intra_len_over_b)) - 0.58) <= 0.02 * 0.58
+    assert float(np.min(intra_len_over_b)) >= 0.95 * 0.58
+    assert float(np.max(intra_len_over_b)) <= 1.05 * 0.58
+
+    radius_over_b, pitch_over_b = _estimate_helix_radius_pitch_over_b(model, cfg, 0)
+    assert abs(radius_over_b - 0.25) <= 0.05 * 0.25
+    assert abs(pitch_over_b - 2.5) <= 0.05 * 2.5
+
+    bend_rows = np.where(model.bending_flag_ids >= 0)[0]
+    bend_deg = np.asarray(
+        [
+            np.rad2deg(_triplet_angle_rad(positions_m, model.bending_triplets[row]))
+            for row in bend_rows
+        ],
+        dtype=float,
+    )
+    assert abs(float(np.mean(bend_deg)) - 142.0) <= 5.0
+
+    torsion_rows = np.where(model.torsion_flag_ids >= 0)[0]
+    torsion_rad = np.asarray(
+        [
+            _dihedral_angle_rad(positions_m, model.torsion_quads[row])
+            for row in torsion_rows
+        ],
+        dtype=float,
+    )
+    torsion_mean_deg = np.rad2deg(
+        np.arctan2(np.mean(np.sin(torsion_rad)), np.mean(np.cos(torsion_rad)))
+    )
+    assert abs(_wrap_deg(float(torsion_mean_deg) - (-60.0))) <= 5.0
 
 
 def test_body_has_no_torsion_quads() -> None:

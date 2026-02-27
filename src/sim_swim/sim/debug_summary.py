@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 
 from sim_swim.dynamics.engine import StepDiagnostics
-from sim_swim.model.types import SimModel
+from sim_swim.model.types import PolymorphState, SimModel
 from sim_swim.sim.params import SimulationConfig
 
 M_TO_UM = 1.0e6
@@ -39,6 +39,10 @@ STEP_SUMMARY_COLUMNS = [
     "hook_len_mean_um",
     "hook_len_min_um",
     "hook_len_max_um",
+    "flag_bend_err_mean_deg",
+    "flag_bend_err_max_deg",
+    "flag_torsion_err_mean_deg",
+    "flag_torsion_err_max_deg",
     "F_total_mean_body",
     "F_total_mean_flag",
     "F_total_mean_all",
@@ -62,6 +66,50 @@ STEP_SUMMARY_COLUMNS = [
     "brownian_enabled",
     "brownian_disp_mean_um",
 ]
+
+RAD_TO_DEG = 180.0 / np.pi
+
+
+def _wrap_angle(rad: np.ndarray | float) -> np.ndarray | float:
+    return (np.asarray(rad) + np.pi) % (2.0 * np.pi) - np.pi
+
+
+def _triplet_angles_rad(positions_m: np.ndarray, triplets: np.ndarray) -> np.ndarray:
+    if triplets.size == 0:
+        return np.zeros((0,), dtype=float)
+    i = triplets[:, 0]
+    j = triplets[:, 1]
+    k = triplets[:, 2]
+    u = positions_m[i] - positions_m[j]
+    v = positions_m[k] - positions_m[j]
+    nu = np.linalg.norm(u, axis=1)
+    nv = np.linalg.norm(v, axis=1)
+    denom = np.maximum(nu * nv, 1e-18)
+    cos_t = np.sum(u * v, axis=1) / denom
+    cos_t = np.clip(cos_t, -1.0, 1.0)
+    return np.arccos(cos_t)
+
+
+def _torsion_angles_rad(positions_m: np.ndarray, quads: np.ndarray) -> np.ndarray:
+    if quads.size == 0:
+        return np.zeros((0,), dtype=float)
+    out = np.zeros((quads.shape[0],), dtype=float)
+    for idx, (a_i, b_i, c_i, d_i) in enumerate(quads):
+        a = positions_m[int(a_i)]
+        b = positions_m[int(b_i)]
+        c = positions_m[int(c_i)]
+        d = positions_m[int(d_i)]
+
+        b0 = a - b
+        b1 = c - b
+        b2 = d - c
+        b1n = b1 / max(float(np.linalg.norm(b1)), 1e-18)
+        v = b0 - np.dot(b0, b1n) * b1n
+        w = b2 - np.dot(b2, b1n) * b1n
+        x = float(np.dot(v, w))
+        y = float(np.dot(np.cross(b1n, v), w))
+        out[idx] = float(np.arctan2(y, x))
+    return out
 
 
 def _mean_norm(forces: np.ndarray, mask: np.ndarray) -> float:
@@ -105,6 +153,18 @@ class StepSummaryRecorder:
         self.body_mask = self.model.bead_is_body.astype(bool)
         self.flag_mask = ~self.body_mask
         self.spring_pairs = self.model.spring_pairs.astype(int, copy=False)
+        self.flag_bending_rows = np.where(self.model.bending_flag_ids >= 0)[0]
+        self.flag_torsion_rows = np.where(self.model.torsion_flag_ids >= 0)[0]
+        self.bend_map = self.cfg.potentials.bend.theta0_deg or {
+            "normal": 142.0,
+            "semicoiled": 90.0,
+            "curly1": 105.0,
+        }
+        self.torsion_map = self.cfg.potentials.torsion.phi0_deg or {
+            "normal": -60.0,
+            "semicoiled": 65.0,
+            "curly1": 120.0,
+        }
 
         if self.spring_pairs.size == 0:
             self.body_body_rows = np.zeros((0,), dtype=int)
@@ -153,6 +213,49 @@ class StepSummaryRecorder:
             hook_len_min_um,
             hook_len_max_um,
         ) = _pair_distance_stats_um(pos_after, self.spring_pairs, self.body_flag_rows)
+        flag_bend_err_mean_deg = float("nan")
+        flag_bend_err_max_deg = float("nan")
+        if self.flag_bending_rows.size > 0:
+            rows = self.flag_bending_rows
+            triplets = self.model.bending_triplets[rows]
+            actual = _triplet_angles_rad(pos_after, triplets)
+            target = np.zeros_like(actual)
+            for idx, row in enumerate(rows):
+                flag_id = int(self.model.bending_flag_ids[row])
+                state = int(self.model.flag_states[flag_id])
+                key = (
+                    "normal"
+                    if state == int(PolymorphState.NORMAL)
+                    else "semicoiled"
+                    if state == int(PolymorphState.SEMICOILED)
+                    else "curly1"
+                )
+                target[idx] = np.deg2rad(float(self.bend_map[key]))
+            err = np.abs(actual - target) * RAD_TO_DEG
+            flag_bend_err_mean_deg = float(np.mean(err))
+            flag_bend_err_max_deg = float(np.max(err))
+
+        flag_torsion_err_mean_deg = float("nan")
+        flag_torsion_err_max_deg = float("nan")
+        if self.flag_torsion_rows.size > 0:
+            rows = self.flag_torsion_rows
+            quads = self.model.torsion_quads[rows]
+            actual = _torsion_angles_rad(pos_after, quads)
+            target = np.zeros_like(actual)
+            for idx, row in enumerate(rows):
+                flag_id = int(self.model.torsion_flag_ids[row])
+                state = int(self.model.flag_states[flag_id])
+                key = (
+                    "normal"
+                    if state == int(PolymorphState.NORMAL)
+                    else "semicoiled"
+                    if state == int(PolymorphState.SEMICOILED)
+                    else "curly1"
+                )
+                target[idx] = np.deg2rad(float(self.torsion_map[key]))
+            err = np.abs(_wrap_angle(actual - target)) * RAD_TO_DEG
+            flag_torsion_err_mean_deg = float(np.mean(err))
+            flag_torsion_err_max_deg = float(np.max(err))
 
         row: dict[str, float | int | bool] = {
             "step": int(step),
@@ -179,6 +282,10 @@ class StepSummaryRecorder:
             "hook_len_mean_um": hook_len_mean_um,
             "hook_len_min_um": hook_len_min_um,
             "hook_len_max_um": hook_len_max_um,
+            "flag_bend_err_mean_deg": flag_bend_err_mean_deg,
+            "flag_bend_err_max_deg": flag_bend_err_max_deg,
+            "flag_torsion_err_mean_deg": flag_torsion_err_mean_deg,
+            "flag_torsion_err_max_deg": flag_torsion_err_max_deg,
             "F_total_mean_body": _mean_norm(diag.total_forces, self.body_mask),
             "F_total_mean_flag": _mean_norm(diag.total_forces, self.flag_mask),
             "F_total_mean_all": float(
