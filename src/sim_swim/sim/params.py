@@ -329,13 +329,9 @@ class SimulationConfig:
     def total_steps(self) -> int:
         return max(1, int(math.ceil(self.duration_star / max(self.dt_star, 1e-30))))
 
-    def expected_dt_s(self, target_dt_star: float = DT_STAR_TARGET) -> float:
-        return target_dt_star * self.tau_s
-
     def validate_time_scaling(
         self,
         target_dt_star: float = DT_STAR_TARGET,
-        abs_tol_s: float = 1e-15,
         rel_tol: float = 1e-12,
     ) -> None:
         """内部計算で `dt_star=1e-3` が成立しているか検証する。"""
@@ -346,8 +342,7 @@ class SimulationConfig:
             raise ValueError(
                 "内部時間刻みが論文条件に一致しない。"
                 f" dt_s={self.dt_s:.12e}, tau_s={self.tau_s:.12e},"
-                f" dt_star={self.dt_star:.12e}, expected_dt_s={target_dt_star:.12e},"
-                f" target_dt_star={target_dt_star:.12e}; "
+                f" dt_star={self.dt_star:.12e}, target_dt_star={target_dt_star:.12e}; "
                 "dt_star(=Δt/τ) must be 1e-3"
             )
 

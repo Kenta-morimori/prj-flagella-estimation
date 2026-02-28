@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TextIO
 
 import numpy as np
 
@@ -145,11 +146,15 @@ class StepSummaryRecorder:
     model: SimModel
     cfg: SimulationConfig
     out_dir: Path
-    _rows: list[dict[str, float | int | bool]] = field(default_factory=list)
+    _csv_fp: TextIO | None = field(init=False, default=None, repr=False)
+    _writer: csv.DictWriter | None = field(init=False, default=None, repr=False)
 
     def __post_init__(self) -> None:
         self.out_dir.mkdir(parents=True, exist_ok=True)
         self.step_summary_path = self.out_dir / "step_summary.csv"
+        self._csv_fp = self.step_summary_path.open("w", encoding="utf-8", newline="")
+        self._writer = csv.DictWriter(self._csv_fp, fieldnames=STEP_SUMMARY_COLUMNS)
+        self._writer.writeheader()
 
         self.body_mask = self.model.bead_is_body.astype(bool)
         self.flag_mask = ~self.body_mask
@@ -323,13 +328,15 @@ class StepSummaryRecorder:
             "brownian_enabled": bool(diag.brownian_enabled),
             "brownian_disp_mean_um": brownian_disp_mean_um,
         }
-        self._rows.append(row)
+        if self._writer is None or self._csv_fp is None:
+            raise RuntimeError("step summary writer is not initialized")
+        self._writer.writerow(row)
+        self._csv_fp.flush()
         self.prev_flag_states = self.model.flag_states.copy()
 
     def write_csv(self) -> Path:
-        with self.step_summary_path.open("w", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=STEP_SUMMARY_COLUMNS)
-            writer.writeheader()
-            writer.writerows(self._rows)
-
+        if self._csv_fp is not None:
+            self._csv_fp.close()
+            self._csv_fp = None
+            self._writer = None
         return self.step_summary_path
