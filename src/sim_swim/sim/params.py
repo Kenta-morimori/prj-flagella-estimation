@@ -70,8 +70,8 @@ class FlagellaDiscretizationParams:
 class FlagellaHelixInitParams:
     """べん毛の初期ヘリックス形状設定。"""
 
-    radius_over_b: float = 0.2
-    pitch_over_b: float = 1.0
+    radius_over_b: float = 0.25
+    pitch_over_b: float = 2.5
 
 
 @dataclass(frozen=True)
@@ -101,6 +101,7 @@ class MotorParams:
 
     torque_Nm: float = 4.0e-18
     reverse_n_flagella: int = 1
+    enable_switching: bool = False
 
 
 @dataclass(frozen=True)
@@ -199,10 +200,11 @@ class RenderParams:
     pixel_size_um: float = 0.203
     flagella_linewidth_px: float = 2.0
     render_flagella: bool = True
+    render_flagella_2d: bool = False
 
     save_frames_3d: bool = True
     follow_camera_3d: bool = True
-    view_range_um: float = 10.0
+    view_range_um: float = 8.0
     timestamp_3d: bool = True
     timestamp_fmt: str = "t = {t:.3f} s"
     label_flagella: bool = True
@@ -261,11 +263,40 @@ class SimulationConfig:
         return math.isclose(self.input_torque_Nm, -1.0, rel_tol=0.0, abs_tol=1e-12)
 
     @property
-    def torque_Nm(self) -> float:
-        """時間スケール定義で使用する実効トルク。"""
+    def is_motor_off_torque(self) -> bool:
+        return math.isclose(self.input_torque_Nm, 0.0, rel_tol=0.0, abs_tol=1e-30)
+
+    @property
+    def torque_eta_b3_Nm(self) -> float:
+        return self.viscosity_Pa_s * (self.b_m**3)
+
+    @property
+    def torque_scale_Nm(self) -> float:
+        """τ計算に使うスケールトルク絶対値。"""
+        if self.use_eta_b3_torque or self.is_motor_off_torque:
+            return self.torque_eta_b3_Nm
+        return abs(self.input_torque_Nm)
+
+    @property
+    def torque_for_forces_Nm(self) -> float:
+        """力学パラメータ（剛性/反発）のスケーリングに使うトルク絶対値。"""
+        if self.use_eta_b3_torque or self.is_motor_off_torque:
+            return self.torque_eta_b3_Nm
+        return abs(self.motor_torque_Nm)
+
+    @property
+    def motor_torque_Nm(self) -> float:
+        """モータ力計算で使う符号付きトルク。"""
         if self.use_eta_b3_torque:
-            return self.viscosity_Pa_s * (self.b_m**3)
+            return self.torque_eta_b3_Nm
+        if self.is_motor_off_torque:
+            return 0.0
         return self.input_torque_Nm
+
+    @property
+    def torque_Nm(self) -> float:
+        """後方互換: モータ力計算で使う符号付きトルク。"""
+        return self.motor_torque_Nm
 
     @property
     def bead_radius_m(self) -> float:
@@ -273,11 +304,18 @@ class SimulationConfig:
 
     @property
     def tau_s(self) -> float:
-        return (self.viscosity_Pa_s * (self.b_m**3)) / max(abs(self.torque_Nm), 1e-30)
+        """内部計算で使う時間スケールτ[s]。Phase2では常に1固定。"""
+        return 1.0
+
+    @property
+    def output_dt_s(self) -> float:
+        """設定上の出力間隔[s]。"""
+        return max(self.time.dt_s, 0.0)
 
     @property
     def dt_s(self) -> float:
-        return max(self.time.dt_s, 0.0)
+        """内部計算ステップ幅Δt[s]。"""
+        return DT_STAR_TARGET
 
     @property
     def dt_star(self) -> float:
@@ -291,24 +329,20 @@ class SimulationConfig:
     def total_steps(self) -> int:
         return max(1, int(math.ceil(self.duration_star / max(self.dt_star, 1e-30))))
 
-    def expected_dt_s(self, target_dt_star: float = DT_STAR_TARGET) -> float:
-        return target_dt_star * self.tau_s
-
     def validate_time_scaling(
         self,
         target_dt_star: float = DT_STAR_TARGET,
-        abs_tol_s: float = 1e-15,
         rel_tol: float = 1e-12,
     ) -> None:
-        """`dt_s/tau_s` が指定比率と一致するか検証する。"""
+        """内部計算で `dt_star=1e-3` が成立しているか検証する。"""
 
-        expected = self.expected_dt_s(target_dt_star=target_dt_star)
-        if not math.isclose(self.dt_s, expected, rel_tol=rel_tol, abs_tol=abs_tol_s):
+        if not math.isclose(
+            self.dt_star, target_dt_star, rel_tol=rel_tol, abs_tol=1e-18
+        ):
             raise ValueError(
-                "time.dt_s が論文条件に一致しない。"
+                "内部時間刻みが論文条件に一致しない。"
                 f" dt_s={self.dt_s:.12e}, tau_s={self.tau_s:.12e},"
-                f" dt_star={self.dt_star:.12e}, expected_dt_s={expected:.12e},"
-                f" target_dt_star={target_dt_star:.12e}; "
+                f" dt_star={self.dt_star:.12e}, target_dt_star={target_dt_star:.12e}; "
                 "dt_star(=Δt/τ) must be 1e-3"
             )
 
@@ -464,7 +498,7 @@ class SimulationConfig:
             radius_over_b_h = (
                 float(old_r_um) / max(scale.b_um, 1e-12)
                 if old_r_um is not None
-                else 0.2
+                else 0.25
             )
         pitch_over_b_h = helix_raw.get("pitch_over_b")
         if pitch_over_b_h is None:
@@ -472,7 +506,7 @@ class SimulationConfig:
             pitch_over_b_h = (
                 float(old_pitch_um) / max(scale.b_um, 1e-12)
                 if old_pitch_um is not None
-                else 1.0
+                else 2.5
             )
 
         flagella = FlagellumParams(
@@ -496,6 +530,7 @@ class SimulationConfig:
         motor = MotorParams(
             torque_Nm=float(_get(motor_raw, "torque_Nm", 4e-18)),
             reverse_n_flagella=int(_get(motor_raw, "reverse_n_flagella", 1)),
+            enable_switching=bool(_get(motor_raw, "enable_switching", False)),
         )
 
         thermal = K_B * max(brownian.temperature_K, 1e-9)
@@ -590,7 +625,7 @@ class SimulationConfig:
         dt_s = time_raw.get("dt_s")
         if dt_s is None:
             raise ValueError(
-                "time.dt_s は必須です。dt_s = 1e-3 * tau_s（Δt/τ=1e-3）を設定してください。"
+                "time.dt_s は必須です。出力間隔として設定してください（内部計算のΔtは1e-3固定）。"
             )
 
         time = TimeParams(
@@ -611,9 +646,10 @@ class SimulationConfig:
             pixel_size_um=float(_get(render_raw, "pixel_size_um", 0.203)),
             flagella_linewidth_px=float(_get(render_raw, "flagella_linewidth_px", 2.0)),
             render_flagella=bool(_get(render_raw, "render_flagella", True)),
+            render_flagella_2d=bool(_get(render_raw, "render_flagella_2d", False)),
             save_frames_3d=bool(_get(render_raw, "save_frames_3d", True)),
             follow_camera_3d=bool(_get(render_raw, "follow_camera_3d", True)),
-            view_range_um=float(_get(render_raw, "view_range_um", 10.0)),
+            view_range_um=float(_get(render_raw, "view_range_um", 8.0)),
             timestamp_3d=bool(_get(render_raw, "timestamp_3d", True)),
             timestamp_fmt=str(_get(render_raw, "timestamp_fmt", "t = {t:.3f} s")),
             label_flagella=bool(_get(render_raw, "label_flagella", True)),

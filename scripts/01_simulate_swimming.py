@@ -40,7 +40,11 @@ def main(
     ),
     render_flagella: Optional[bool] = typer.Option(
         None,
-        help="Enable flagella rendering (overrides render.render_flagella)",
+        help="Enable flagella rendering in 3D (overrides render.render_flagella)",
+    ),
+    render_flagella_2d: Optional[bool] = typer.Option(
+        None,
+        help="Enable flagella rendering in 2D (overrides render.render_flagella_2d)",
     ),
     overrides: List[str] = typer.Argument(
         None,
@@ -57,6 +61,10 @@ def main(
         override_dict.setdefault("output_sampling", {})["fps_out_2d"] = fps_out
     if render_flagella is not None:
         override_dict.setdefault("render", {})["render_flagella"] = render_flagella
+    if render_flagella_2d is not None:
+        override_dict.setdefault("render", {})["render_flagella_2d"] = (
+            render_flagella_2d
+        )
     cfg = SimulationConfig.from_dict(raw_cfg).with_overrides(override_dict)
 
     output_base = cfg.output.base_dir
@@ -68,43 +76,61 @@ def main(
     logger.info("Loaded simulation config (effective): %s", cfg)
     logger.info("Overrides: %s", override_dict if override_dict else "None")
     cfg.validate_time_scaling()
+    logger.info("[time-scale] τ is fixed to 1.0 in stable integration mode")
 
     if cfg.use_eta_b3_torque:
         logger.info(
-            "[time-scale] input motor.torque_Nm=-1; using T=ηb^3 (τ=1 definition)"
+            "[time-scale] input motor.torque_Nm=-1; using internal mode (tau=1)"
         )
         logger.info(
             (
                 "[time-scale] b=%.6e um, b_m=%.6e m, η=%.6e Pa·s, "
-                "T=η b^3=%.6e N·m, τ=η b^3/T=%.6e s"
+                "T_scale=η b^3=%.6e N·m, T_motor=%.6e N·m, τ=%.6e s"
             ),
             cfg.scale.b_um,
             cfg.b_m,
             cfg.viscosity_Pa_s,
-            cfg.torque_Nm,
+            cfg.torque_scale_Nm,
+            cfg.motor_torque_Nm,
+            cfg.tau_s,
+        )
+    elif cfg.is_motor_off_torque:
+        logger.info("[time-scale] input motor.torque_Nm=0; motor OFF mode (tau=1)")
+        logger.info(
+            (
+                "[time-scale] b=%.6e um, b_m=%.6e m, η=%.6e Pa·s, "
+                "T_scale=η b^3=%.6e N·m, T_motor=0, τ=%.6e s"
+            ),
+            cfg.scale.b_um,
+            cfg.b_m,
+            cfg.viscosity_Pa_s,
+            cfg.torque_scale_Nm,
             cfg.tau_s,
         )
     else:
         logger.info(
-            "[time-scale] using input motor.torque_Nm as T: %.6e N·m",
+            "[time-scale] using physical motor.torque_Nm: %.6e N·m",
             cfg.input_torque_Nm,
         )
         logger.info(
             (
                 "[time-scale] b=%.6e um, b_m=%.6e m, η=%.6e Pa·s, "
-                "T=%.6e N·m, τ=η b^3/|T|=%.6e s"
+                "T_scale=|T_motor|=%.6e N·m, T_motor=%.6e N·m, τ=%.6e s"
             ),
             cfg.scale.b_um,
             cfg.b_m,
             cfg.viscosity_Pa_s,
-            cfg.torque_Nm,
+            cfg.torque_scale_Nm,
+            cfg.motor_torque_Nm,
             cfg.tau_s,
         )
     logger.info(
-        "[time-step ] Δt=dt_s=%.6e s, Δt*=dt_star=%.6e (=Δt/τ)",
+        "[time-step ] Δt_internal=%.6e s, τ=%.6e s, Δt*=dt_star=%.6e (=Δt/τ)",
         cfg.dt_s,
+        cfg.tau_s,
         cfg.dt_star,
     )
+    logger.info("[time-step ] output_dt_s(config)=%.6e s", cfg.output_dt_s)
     logger.info(
         (
             "[duration  ] t_end=duration_s=%.6e s, "
@@ -141,7 +167,9 @@ def main(
 
     sim_duration_s = float(cfg.time.duration_s)
     simulator = Simulator(cfg)
-    states = simulator.run(sim_duration_s, logger=logger)
+    states = simulator.run(
+        sim_duration_s, logger=logger, step_summary_dir=ctx.out.sim_dir
+    )
 
     # 保存: 3D軌跡（全ステップ）
     traj_path = ctx.out.sim_dir / "trajectory.csv"
@@ -184,6 +212,7 @@ def main(
     outputs.update(
         {
             "trajectory_csv": str(traj_path),
+            "step_summary_csv": str(ctx.out.sim_dir / "step_summary.csv"),
             "render3d": str(ctx.out.render_dir),
             "render2d": str(ctx.out.render2d_dir),
         }
@@ -191,7 +220,7 @@ def main(
     manifest["outputs"] = outputs
     manifest["files"] = [
         str(traj_path.relative_to(ctx.out.root)),
-        "render/movie_3d.mp4",
+        "sim/step_summary.csv",
         "render/swim3d.mp4",
         "render/swim3d_final.png",
         "render2d/projection.mp4",

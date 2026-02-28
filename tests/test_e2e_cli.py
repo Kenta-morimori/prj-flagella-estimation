@@ -37,7 +37,7 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
             "discretization": {"ds_over_b": 0.58},
             "bond_L_over_b": 0.58,
             "length_over_b": 2.32,
-            "helix_init": {"radius_over_b": 0.2, "pitch_over_b": 1.0},
+            "helix_init": {"radius_over_b": 0.25, "pitch_over_b": 2.5},
         },
         "fluid": {"viscosity_Pa_s": 0.001},
         "motor": {"torque_Nm": -1.0, "reverse_n_flagella": 1},
@@ -107,7 +107,8 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
     assert manifests
 
     latest = sorted((tmp_path / "outputs").rglob("manifest.json"))[-1].parent
-    assert (latest / "render" / "movie_3d.mp4").is_file()
+    assert (latest / "sim" / "step_summary.csv").is_file()
+    assert not (latest / "sim" / "step_summary_full.csv").exists()
     assert (latest / "render" / "swim3d.mp4").is_file()
     assert (latest / "render" / "swim3d_final.png").is_file()
     assert any((latest / "render" / "frames_3d").glob("frame_*.png"))

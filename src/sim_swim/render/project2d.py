@@ -100,7 +100,7 @@ def project_states(
             q = to_px(beads[int(j)])
             cv2.line(img, p, q, body_color, line_w, cv2.LINE_AA)
 
-        if cfg.render.render_flagella:
+        if cfg.render.render_flagella_2d:
             for f_id, idxs in enumerate(rig.flagella_indices):
                 color = colors[f_id % len(colors)] if colors else (30, 120, 220)
                 pts = [to_px(beads[int(i)]) for i in idxs]
