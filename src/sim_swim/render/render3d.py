@@ -60,29 +60,18 @@ def _run_tumble_label(st: SimulationState, cfg: SimulationConfig) -> str:
         return "RUN"
 
     states = np.asarray(st.flag_states, dtype=int)
-    if states.size > int(np.max(reverse_ids)):
-        rev_states = states[reverse_ids]
-        is_tumble = np.any(
-            (rev_states == int(PolymorphState.SEMICOILED))
-            | (rev_states == int(PolymorphState.CURLY1))
-        )
-        return "TUMBLE" if bool(is_tumble) else "RUN"
-
-    rt = cfg.run_tumble
-    run_tau = max(rt.run_tau, 0.0)
-    tumble_tau = max(rt.tumble_tau, 0.0)
-    semicoiled_tau = max(rt.semicoiled_tau, 0.0)
-    curly1_tau = max(rt.curly1_tau, 0.0)
-    cycle = max(run_tau + tumble_tau, 1e-12)
-    phase_tau = float(st.t) % cycle
-    if phase_tau < run_tau:
+    # If reverse_flagella contains out-of-bounds indices, treat it as a safe RUN
+    # rather than falling back to a time-based heuristic that may mislabel frames.
+    max_id = int(np.max(reverse_ids))
+    if max_id >= states.size:
         return "RUN"
-    tumble_phase_tau = phase_tau - run_tau
-    if tumble_phase_tau < (semicoiled_tau + curly1_tau):
-        return "TUMBLE"
-    return "RUN"
 
-
+    rev_states = states[reverse_ids]
+    is_tumble = np.any(
+        (rev_states == int(PolymorphState.SEMICOILED))
+        | (rev_states == int(PolymorphState.CURLY1))
+    )
+    return "TUMBLE" if bool(is_tumble) else "RUN"
 def save_swim_movie(
     states: Iterable[SimulationState],
     cfg: SimulationConfig,
