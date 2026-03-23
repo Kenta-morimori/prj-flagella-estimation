@@ -72,6 +72,8 @@ def _run_tumble_label(st: SimulationState, cfg: SimulationConfig) -> str:
         | (rev_states == int(PolymorphState.CURLY1))
     )
     return "TUMBLE" if bool(is_tumble) else "RUN"
+
+
 def save_swim_movie(
     states: Iterable[SimulationState],
     cfg: SimulationConfig,
