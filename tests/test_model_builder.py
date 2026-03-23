@@ -211,13 +211,14 @@ def test_build_supports_n_flagella_9() -> None:
     assert len(model.flagella_indices) == 9
 
 
-def test_attach_positions_have_no_duplicates_for_4_to_9() -> None:
-    cfg = _make_cfg(n_flagella=9, seed=7)
+@pytest.mark.parametrize("n_flagella", [4, 5, 6, 7, 8, 9])
+def test_attach_positions_have_no_duplicates_for_4_to_9(n_flagella: int) -> None:
+    cfg = _make_cfg(n_flagella=n_flagella, seed=7)
     model = ModelBuilder(cfg).build()
     attached_body_indices = [body_idx for body_idx, _ in _body_flag_pairs(model)]
 
-    assert len(attached_body_indices) == 9
-    assert len(set(attached_body_indices)) == 9
+    assert len(attached_body_indices) == n_flagella
+    assert len(set(attached_body_indices)) == n_flagella
 
 
 def test_attach_positions_are_reproducible_with_same_seed() -> None:
