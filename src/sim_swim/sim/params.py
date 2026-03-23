@@ -210,6 +210,7 @@ class RenderParams:
     label_flagella: bool = True
 
     follow_camera_2d: bool = False
+    center_body_in_2d: bool = True
     save_frames_2d: bool = True
 
 
@@ -654,6 +655,7 @@ class SimulationConfig:
             timestamp_fmt=str(_get(render_raw, "timestamp_fmt", "t = {t:.3f} s")),
             label_flagella=bool(_get(render_raw, "label_flagella", True)),
             follow_camera_2d=bool(_get(render_raw, "follow_camera_2d", False)),
+            center_body_in_2d=bool(_get(render_raw, "center_body_in_2d", True)),
             save_frames_2d=bool(_get(render_raw, "save_frames_2d", True)),
         )
 
