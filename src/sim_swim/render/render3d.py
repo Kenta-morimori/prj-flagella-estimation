@@ -12,6 +12,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from sim_swim.model.types import PolymorphState
 from sim_swim.sim.core import SimulationState
 from sim_swim.sim.flagella_geometry import FlagellaRig
 from sim_swim.sim.params import SimulationConfig
@@ -48,6 +49,38 @@ def _select_frames(
     if selected and selected[-1] is not states[-1]:
         selected.append(states[-1])
     return selected
+
+
+def _run_tumble_label(st: SimulationState, cfg: SimulationConfig) -> str:
+    if not cfg.motor.enable_switching:
+        return "RUN"
+
+    reverse_ids = np.asarray(st.reverse_flagella, dtype=int)
+    if reverse_ids.size == 0:
+        return "RUN"
+
+    states = np.asarray(st.flag_states, dtype=int)
+    if states.size > int(np.max(reverse_ids)):
+        rev_states = states[reverse_ids]
+        is_tumble = np.any(
+            (rev_states == int(PolymorphState.SEMICOILED))
+            | (rev_states == int(PolymorphState.CURLY1))
+        )
+        return "TUMBLE" if bool(is_tumble) else "RUN"
+
+    rt = cfg.run_tumble
+    run_tau = max(rt.run_tau, 0.0)
+    tumble_tau = max(rt.tumble_tau, 0.0)
+    semicoiled_tau = max(rt.semicoiled_tau, 0.0)
+    curly1_tau = max(rt.curly1_tau, 0.0)
+    cycle = max(run_tau + tumble_tau, 1e-12)
+    phase_tau = float(st.t) % cycle
+    if phase_tau < run_tau:
+        return "RUN"
+    tumble_phase_tau = phase_tau - run_tau
+    if tumble_phase_tau < (semicoiled_tau + curly1_tau):
+        return "TUMBLE"
+    return "RUN"
 
 
 def save_swim_movie(
@@ -166,7 +199,10 @@ def save_swim_movie(
 
         if cfg.render.timestamp_3d:
             label = cfg.render.timestamp_fmt.format(t=st.t)
-            ax.text2D(0.02, 0.96, label, transform=ax.transAxes)
+            ax.text2D(0.02, 0.90, label, transform=ax.transAxes)
+
+        state_label = _run_tumble_label(st, cfg)
+        ax.text2D(0.02, 0.96, state_label, transform=ax.transAxes)
 
         fig.tight_layout()
         fig.canvas.draw()

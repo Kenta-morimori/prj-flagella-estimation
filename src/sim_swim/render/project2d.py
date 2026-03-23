@@ -41,6 +41,14 @@ def _select_2d_frames(
     return selected
 
 
+def _camera_center_2d(st: SimulationState, cfg: SimulationConfig) -> np.ndarray:
+    if cfg.render.center_body_in_2d:
+        return np.array(st.position_um[:2], dtype=float)
+    if cfg.render.follow_camera_2d:
+        return np.array(st.position_um[:2], dtype=float)
+    return np.zeros(2, dtype=float)
+
+
 def project_states(
     states: Iterable[SimulationState],
     cfg: SimulationConfig,
@@ -80,10 +88,7 @@ def project_states(
         img = np.full((img_size, img_size, 3), 255, dtype=np.uint8)
         beads = st.bead_positions_um
 
-        if cfg.render.follow_camera_2d:
-            cam_center = np.array(st.position_um[:2], dtype=float)
-        else:
-            cam_center = np.zeros(2, dtype=float)
+        cam_center = _camera_center_2d(st, cfg)
 
         def to_px(p: np.ndarray) -> tuple[int, int]:
             x = int(round((p[0] - cam_center[0]) * px_per_um + img_size / 2.0))

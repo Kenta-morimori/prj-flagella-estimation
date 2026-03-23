@@ -111,6 +111,8 @@ class SimulationState:
     velocity_um_s: Tuple[float, float, float]
     omega_rad_s: Tuple[float, float, float]
     bead_positions_um: np.ndarray
+    flag_states: Tuple[int, ...] = ()
+    reverse_flagella: Tuple[int, ...] = ()
 
 
 class Simulator:
@@ -160,6 +162,10 @@ class Simulator:
             velocity_um_s=tuple(vel_um_s.tolist()),
             omega_rad_s=tuple(omega.tolist()),
             bead_positions_um=self.model.positions_m.copy() * M_TO_UM,
+            flag_states=tuple(int(s) for s in self.model.flag_states.tolist()),
+            reverse_flagella=tuple(
+                int(i) for i in self.model.reverse_flagella.tolist()
+            ),
         )
 
     def run(
