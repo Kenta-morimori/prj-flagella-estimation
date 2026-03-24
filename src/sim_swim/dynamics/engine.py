@@ -399,16 +399,20 @@ class DynamicsEngine:
             )
         return out
 
+    def _project_flagella_constraints(self, positions_m: np.ndarray) -> np.ndarray:
+        if self.enable_flagella_template_projection:
+            return self._project_flagella_template(positions_m)
+        if self.enable_flagella_chain_length_projection_when_template_off:
+            return self._project_flagella_chain_lengths(positions_m, 1)
+        return positions_m
+
     def _project_hook_and_flag_bonds(self, positions_m: np.ndarray) -> np.ndarray:
         if self.constraint_projection_iters <= 0:
             return positions_m
         out = positions_m
         for _ in range(self.constraint_projection_iters):
             out = self._project_distance_pairs(out, self.hook_spring_rows, 1)
-            if self.enable_flagella_template_projection:
-                out = self._project_flagella_template(out)
-            elif self.enable_flagella_chain_length_projection_when_template_off:
-                out = self._project_flagella_chain_lengths(out, 1)
+        out = self._project_flagella_constraints(out)
         return out
 
     def step(self, dt_star: float) -> StepDiagnostics:
