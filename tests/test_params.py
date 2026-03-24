@@ -217,6 +217,32 @@ def test_chain_length_projection_can_be_disabled_via_config() -> None:
     )
 
 
+def test_repulsion_defaults_remain_compatible() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    rep = sim_cfg.potentials.spring_spring_repulsion
+    assert rep.A_ss_over_T == pytest.approx(1.0)
+    assert rep.cutoff_over_b == pytest.approx(0.2)
+
+
+def test_repulsion_overrides_are_loaded_from_config() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["potentials"] = {
+        "spring_spring_repulsion": {
+            "A_ss_over_T": 2.5,
+            "cutoff_over_b": 0.35,
+        }
+    }
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    rep = sim_cfg.potentials.spring_spring_repulsion
+    assert rep.A_ss_over_T == pytest.approx(2.5)
+    assert rep.cutoff_over_b == pytest.approx(0.35)
+
+
 def test_body_n_layers_requires_integer_multiple() -> None:
     cfg = _base_cfg()
     cfg["body"]["length_total_um"] = 2.3
