@@ -77,6 +77,9 @@ brownian:
   method: "cholesky"          # cholesky / eigh
   jitter: 1.0e-20              # 数値安定化用
 
+projection:
+  enable_flagella_template_projection: true  # true: 各step後にべん毛を初期テンプレートへ再投影
+
 render:
   image_size_px: 256
   pixel_size_um: 0.203

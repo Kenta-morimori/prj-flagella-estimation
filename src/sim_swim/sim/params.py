@@ -177,6 +177,13 @@ class BrownianParams:
 
 
 @dataclass(frozen=True)
+class ProjectionParams:
+    """拘束投影設定。"""
+
+    enable_flagella_template_projection: bool = True
+
+
+@dataclass(frozen=True)
 class TimeParams:
     """時間設定。"""
 
@@ -243,6 +250,7 @@ class SimulationConfig:
     time: TimeParams
     output_sampling: OutputSamplingParams
     brownian: BrownianParams
+    projection: ProjectionParams
     render: RenderParams
     seed: SeedParams
     output: OutputParams
@@ -429,6 +437,13 @@ class SimulationConfig:
             temperature_K=float(_get(brown_raw, "temperature_K", 298.0)),
             method=str(_get(brown_raw, "method", "cholesky")),
             jitter=float(_get(brown_raw, "jitter", 1e-20)),
+        )
+
+        projection_raw = raw.get("projection", {}) or {}
+        projection = ProjectionParams(
+            enable_flagella_template_projection=bool(
+                _get(projection_raw, "enable_flagella_template_projection", True)
+            )
         )
 
         scale_raw = raw.get("scale", {}) or {}
@@ -677,6 +692,7 @@ class SimulationConfig:
             time=time,
             output_sampling=output_sampling,
             brownian=brownian,
+            projection=projection,
             render=render,
             seed=seed,
             output=output,

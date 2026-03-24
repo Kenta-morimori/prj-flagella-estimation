@@ -98,6 +98,9 @@ class DynamicsEngine:
         self.flag_bend_stiffness_scale = 300.0
         self.flag_torsion_stiffness_scale = 300.0
         self.constraint_projection_iters = 8
+        self.enable_flagella_template_projection = (
+            cfg.projection.enable_flagella_template_projection
+        )
         self.theta0_ref_rad, self.phi0_ref_rad = self._initial_reference_angles_rad()
         spring_pairs = self.model.spring_pairs
         if spring_pairs.size == 0:
@@ -399,7 +402,8 @@ class DynamicsEngine:
         out = positions_m
         for _ in range(self.constraint_projection_iters):
             out = self._project_distance_pairs(out, self.hook_spring_rows, 1)
-            out = self._project_flagella_template(out)
+            if self.enable_flagella_template_projection:
+                out = self._project_flagella_template(out)
         return out
 
     def step(self, dt_star: float) -> StepDiagnostics:

@@ -175,6 +175,23 @@ def test_render_center_body_in_2d_can_be_disabled() -> None:
     assert sim_cfg.render.center_body_in_2d is False
 
 
+def test_template_projection_default_is_enabled() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.projection.enable_flagella_template_projection is True
+
+
+def test_template_projection_can_be_disabled_via_config() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["projection"] = {"enable_flagella_template_projection": False}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.projection.enable_flagella_template_projection is False
+
+
 def test_body_n_layers_requires_integer_multiple() -> None:
     cfg = _base_cfg()
     cfg["body"]["length_total_um"] = 2.3
