@@ -17,6 +17,7 @@ def _make_cfg(
     body_length_um: float = 2.0,
     ds_over_b: float = 0.58,
     flag_length_over_b: float = 2.32,
+    seed: int = 0,
 ) -> SimulationConfig:
     return SimulationConfig.from_dict(
         {
@@ -40,6 +41,7 @@ def _make_cfg(
             },
             "time": {"duration_s": 0.02, "dt_s": 1.0e-3},
             "brownian": {"enabled": False},
+            "seed": {"global_seed": seed},
         }
     )
 
@@ -167,11 +169,11 @@ def test_mvp_requires_n_prism_eq_3() -> None:
         ModelBuilder(cfg).build()
 
 
-@pytest.mark.parametrize("n_flagella", [-1, 4])
+@pytest.mark.parametrize("n_flagella", [-1, 10])
 def test_mvp_requires_n_flagella_in_range(n_flagella: int) -> None:
     cfg = _make_cfg(n_flagella=n_flagella)
     with pytest.raises(
-        ValueError, match=r"MVP: flagella.n_flagella must be in \[0,3\]"
+        ValueError, match=r"MVP: flagella.n_flagella must be in \[0,9\]"
     ):
         ModelBuilder(cfg).build()
 
@@ -183,8 +185,9 @@ def test_body_flag_spring_connection_exists() -> None:
     assert len(_body_flag_pairs(model)) == cfg.flagella.n_flagella
 
 
-def test_flagella_attach_to_center_layer() -> None:
-    cfg = _make_cfg(n_flagella=3)
+@pytest.mark.parametrize("n_flagella", [1, 2, 3])
+def test_flagella_attach_to_center_layer_for_compat_range(n_flagella: int) -> None:
+    cfg = _make_cfg(n_flagella=n_flagella)
     model = ModelBuilder(cfg).build()
 
     center_layer = set(
@@ -199,6 +202,34 @@ def test_flagella_attach_to_center_layer() -> None:
     assert attached_body_indices
     assert attached_body_indices.issubset(center_layer)
     assert attached_body_indices.isdisjoint(last_layer)
+
+
+def test_build_supports_n_flagella_9() -> None:
+    cfg = _make_cfg(n_flagella=9)
+    model = ModelBuilder(cfg).build()
+
+    assert len(model.flagella_indices) == 9
+
+
+@pytest.mark.parametrize("n_flagella", [4, 5, 6, 7, 8, 9])
+def test_attach_positions_have_no_duplicates_for_4_to_9(n_flagella: int) -> None:
+    cfg = _make_cfg(n_flagella=n_flagella, seed=7)
+    model = ModelBuilder(cfg).build()
+    attached_body_indices = [body_idx for body_idx, _ in _body_flag_pairs(model)]
+
+    assert len(attached_body_indices) == n_flagella
+    assert len(set(attached_body_indices)) == n_flagella
+
+
+def test_attach_positions_are_reproducible_with_same_seed() -> None:
+    cfg_a = _make_cfg(n_flagella=9, seed=123)
+    cfg_b = _make_cfg(n_flagella=9, seed=123)
+    model_a = ModelBuilder(cfg_a).build()
+    model_b = ModelBuilder(cfg_b).build()
+
+    attach_a = sorted(body_idx for body_idx, _ in _body_flag_pairs(model_a))
+    attach_b = sorted(body_idx for body_idx, _ in _body_flag_pairs(model_b))
+    assert attach_a == attach_b
 
 
 def test_body_flag_hook_length_is_initialized_to_0p25b() -> None:

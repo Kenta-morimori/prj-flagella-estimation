@@ -92,6 +92,7 @@ render:
   label_flagella: true         # F0/F1/F2 ラベル
 
   follow_camera_2d: false      # false: 2D固定カメラ
+  center_body_in_2d: true      # true: 2D投影では菌体重心を画像中心へ固定
   save_frames_2d: true
 
 seed:

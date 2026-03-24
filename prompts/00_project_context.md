@@ -23,7 +23,7 @@
 ## MVP制約（必須）
 MVPでは以下のみ許容し、それ以外は ValueError とする。
 - `body.n_prism = 3`
-- `0 <= flagella.n_flagella <= 3`
+- `0 <= flagella.n_flagella <= 9`
 
 ---
 

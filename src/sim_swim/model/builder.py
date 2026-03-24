@@ -147,6 +147,19 @@ class ModelBuilder:
         picks = np.floor(slots).astype(int) % max(n_terminal, 1)
         return terminal_layer[picks]
 
+    def _collect_attach_candidates(self, body_layers: list[np.ndarray]) -> np.ndarray:
+        """中心層とその前後層から候補点を集める。"""
+
+        if not body_layers:
+            return np.zeros((0,), dtype=int)
+
+        center_idx = len(body_layers) // 2
+        candidates: list[int] = []
+        for layer_idx in (center_idx - 1, center_idx, center_idx + 1):
+            if 0 <= layer_idx < len(body_layers):
+                candidates.extend(int(i) for i in body_layers[layer_idx])
+        return np.asarray(candidates, dtype=int)
+
     def build(self) -> SimModel:
         """シミュレーションモデルを構築して返す。"""
 
@@ -154,8 +167,8 @@ class ModelBuilder:
         b_um = cfg.scale.b_um
         if cfg.body.prism.n_prism != 3:
             raise ValueError("MVP: body.prism.n_prism must be 3")
-        if not (0 <= cfg.flagella.n_flagella <= 3):
-            raise ValueError("MVP: flagella.n_flagella must be in [0,3]")
+        if not (0 <= cfg.flagella.n_flagella <= 9):
+            raise ValueError("MVP: flagella.n_flagella must be in [0,9]")
 
         body_um, body_layers, ring_edges, vertical_edges = self._body_prism_um()
         n_body = body_um.shape[0]
@@ -166,7 +179,23 @@ class ModelBuilder:
         n_flag = max(2, int(math.floor(L_flag_um / bond_len_um)) + 1)
 
         center_layer = body_layers[len(body_layers) // 2]
-        attach_ids = self._flag_attach_indices(center_layer, n_flagella)
+        if n_flagella <= 3:
+            attach_ids = self._flag_attach_indices(center_layer, n_flagella)
+        else:
+            candidates = self._collect_attach_candidates(body_layers)
+            unique_candidates = np.unique(candidates)
+            if unique_candidates.shape[0] < n_flagella:
+                raise ValueError(
+                    "Not enough unique attach candidates for requested "
+                    "flagella count:"
+                    f" requested={n_flagella}, "
+                    f"available={unique_candidates.shape[0]}"
+                )
+            attach_ids = self.rng.choice(
+                unique_candidates,
+                size=n_flagella,
+                replace=False,
+            )
         hook_length_um = 0.25 * b_um
         body_axis = _principal_axis(body_um)
         rear_dir = -body_axis
