@@ -479,3 +479,31 @@ def test_template_projection_is_skipped_when_disabled(
     monkeypatch.setattr(sim.engine, "_project_flagella_template", _count_calls)
     sim.engine._project_hook_and_flag_bonds(sim.model.positions_m.copy())
     assert calls["count"] == 0
+
+
+def test_chain_length_projection_is_used_when_template_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0,
+        hook_enabled=True,
+        n_flagella=1,
+    ).with_overrides(
+        {
+            "projection": {
+                "enable_flagella_template_projection": False,
+                "enable_flagella_chain_length_projection_when_template_off": True,
+            },
+        }
+    )
+    sim = Simulator(cfg)
+
+    calls = {"count": 0}
+
+    def _count_calls(positions_m: np.ndarray, iterations: int) -> np.ndarray:
+        calls["count"] += 1
+        return positions_m
+
+    monkeypatch.setattr(sim.engine, "_project_flagella_chain_lengths", _count_calls)
+    sim.engine._project_hook_and_flag_bonds(sim.model.positions_m.copy())
+    assert calls["count"] > 0

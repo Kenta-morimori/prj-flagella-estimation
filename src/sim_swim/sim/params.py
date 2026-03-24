@@ -181,6 +181,7 @@ class ProjectionParams:
     """拘束投影設定。"""
 
     enable_flagella_template_projection: bool = True
+    enable_flagella_chain_length_projection_when_template_off: bool = True
 
 
 @dataclass(frozen=True)
@@ -443,7 +444,14 @@ class SimulationConfig:
         projection = ProjectionParams(
             enable_flagella_template_projection=bool(
                 _get(projection_raw, "enable_flagella_template_projection", True)
-            )
+            ),
+            enable_flagella_chain_length_projection_when_template_off=bool(
+                _get(
+                    projection_raw,
+                    "enable_flagella_chain_length_projection_when_template_off",
+                    True,
+                )
+            ),
         )
 
         scale_raw = raw.get("scale", {}) or {}

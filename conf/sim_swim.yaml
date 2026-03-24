@@ -79,6 +79,7 @@ brownian:
 
 projection:
   enable_flagella_template_projection: true  # true: 各step後にべん毛を初期テンプレートへ再投影
+  enable_flagella_chain_length_projection_when_template_off: true  # template OFF時に隣接bead間距離を再投影
 
 render:
   image_size_px: 256

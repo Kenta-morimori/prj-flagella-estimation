@@ -192,6 +192,31 @@ def test_template_projection_can_be_disabled_via_config() -> None:
     assert sim_cfg.projection.enable_flagella_template_projection is False
 
 
+def test_chain_length_projection_default_is_enabled_when_template_off() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert (
+        sim_cfg.projection.enable_flagella_chain_length_projection_when_template_off
+        is True
+    )
+
+
+def test_chain_length_projection_can_be_disabled_via_config() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["projection"] = {
+        "enable_flagella_chain_length_projection_when_template_off": False
+    }
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert (
+        sim_cfg.projection.enable_flagella_chain_length_projection_when_template_off
+        is False
+    )
+
+
 def test_body_n_layers_requires_integer_multiple() -> None:
     cfg = _base_cfg()
     cfg["body"]["length_total_um"] = 2.3

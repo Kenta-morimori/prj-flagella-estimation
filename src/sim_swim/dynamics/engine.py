@@ -101,6 +101,9 @@ class DynamicsEngine:
         self.enable_flagella_template_projection = (
             cfg.projection.enable_flagella_template_projection
         )
+        self.enable_flagella_chain_length_projection_when_template_off = (
+            cfg.projection.enable_flagella_chain_length_projection_when_template_off
+        )
         self.theta0_ref_rad, self.phi0_ref_rad = self._initial_reference_angles_rad()
         spring_pairs = self.model.spring_pairs
         if spring_pairs.size == 0:
@@ -404,6 +407,8 @@ class DynamicsEngine:
             out = self._project_distance_pairs(out, self.hook_spring_rows, 1)
             if self.enable_flagella_template_projection:
                 out = self._project_flagella_template(out)
+            elif self.enable_flagella_chain_length_projection_when_template_off:
+                out = self._project_flagella_chain_lengths(out, 1)
         return out
 
     def step(self, dt_star: float) -> StepDiagnostics:
