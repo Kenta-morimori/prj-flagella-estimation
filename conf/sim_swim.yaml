@@ -86,6 +86,12 @@ stiffness_scales:
   flag_bend: 300.0    # べん毛曲げ剛性スケール
   flag_torsion: 300.0 # べん毛ねじり剛性スケール
 
+local_helix:
+  enabled: false
+  n_local: 4
+  k_radius_over_torque: 0.5
+  k_phase_over_torque: 0.5
+
 render:
   image_size_px: 256
   pixel_size_um: 0.203

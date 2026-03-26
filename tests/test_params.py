@@ -270,6 +270,36 @@ def test_stiffness_scales_overrides_are_loaded_from_config() -> None:
     assert scales.flag_torsion == pytest.approx(340.0)
 
 
+def test_local_helix_defaults() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    local = sim_cfg.local_helix
+    assert local.enabled is False
+    assert local.n_local == 4
+    assert local.k_radius_over_torque == pytest.approx(0.5)
+    assert local.k_phase_over_torque == pytest.approx(0.5)
+
+
+def test_local_helix_overrides_are_loaded() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["local_helix"] = {
+        "enabled": True,
+        "n_local": 3,
+        "k_radius_over_torque": 0.7,
+        "k_phase_over_torque": 0.8,
+    }
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    local = sim_cfg.local_helix
+    assert local.enabled is True
+    assert local.n_local == 3
+    assert local.k_radius_over_torque == pytest.approx(0.7)
+    assert local.k_phase_over_torque == pytest.approx(0.8)
+
+
 def test_body_n_layers_requires_integer_multiple() -> None:
     cfg = _base_cfg()
     cfg["body"]["length_total_um"] = 2.3

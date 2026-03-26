@@ -104,6 +104,20 @@ class DynamicsEngine:
         self.enable_flagella_chain_length_projection_when_template_off = (
             cfg.projection.enable_flagella_chain_length_projection_when_template_off
         )
+        self.enable_local_helix_when_template_off = bool(cfg.local_helix.enabled)
+        self.local_helix_n_local = max(int(cfg.local_helix.n_local), 1)
+        self.local_helix_k_radius = (
+            float(cfg.local_helix.k_radius_over_torque) * torque / max(b_m, 1e-30)
+        )
+        self.local_helix_k_phase = float(cfg.local_helix.k_phase_over_torque) * torque
+        k_radius_ref = torque / max(b_m, 1e-30)
+        k_phase_ref = torque
+        self.local_helix_alpha_radius = 0.2 * min(
+            max(self.local_helix_k_radius / max(k_radius_ref, 1e-30), 0.0), 1.0
+        )
+        self.local_helix_alpha_phase = 0.2 * min(
+            max(self.local_helix_k_phase / max(k_phase_ref, 1e-30), 0.0), 1.0
+        )
         self.theta0_ref_rad, self.phi0_ref_rad = self._initial_reference_angles_rad()
         spring_pairs = self.model.spring_pairs
         if spring_pairs.size == 0:
@@ -183,12 +197,79 @@ class DynamicsEngine:
             y = rel @ v
             z = rel @ w
             self.flag_template_local.append(np.column_stack([x, y, z]))
+        self.local_helix_target_global_indices: list[np.ndarray] = []
+        self.local_helix_radius_ref: list[float] = []
+        self.local_helix_delta_phi_ref: list[np.ndarray] = []
+        for f_id, idxs in enumerate(self.model.flagella_indices):
+            idx = idxs.astype(int, copy=False)
+            n_local = min(self.local_helix_n_local, int(idx.shape[0]))
+            target = idx[:n_local].copy()
+            self.local_helix_target_global_indices.append(target)
+            if n_local == 0:
+                self.local_helix_radius_ref.append(0.0)
+                self.local_helix_delta_phi_ref.append(np.zeros((0,), dtype=float))
+                continue
+
+            attach = int(self.flag_attach_body_idx[f_id])
+            if attach < 0:
+                self.local_helix_radius_ref.append(0.0)
+                self.local_helix_delta_phi_ref.append(
+                    np.zeros((max(n_local - 1, 0),), dtype=float)
+                )
+                continue
+
+            p0, _, v, w = self._build_flag_frame(
+                self.model.positions_m,
+                idx,
+                attach,
+            )
+            rel = self.model.positions_m[target] - p0
+            y = rel @ v
+            z = rel @ w
+            rho = np.sqrt(y * y + z * z)
+            phi = np.arctan2(z, y)
+            self.local_helix_radius_ref.append(float(np.mean(rho)))
+            if n_local >= 2:
+                delta = np.asarray(
+                    [
+                        _wrap_angle(float(phi[i + 1] - phi[i]))
+                        for i in range(n_local - 1)
+                    ],
+                    dtype=float,
+                )
+            else:
+                delta = np.zeros((0,), dtype=float)
+            self.local_helix_delta_phi_ref.append(delta)
         self.body_ref_center = np.mean(
             self.model.positions_m[self.body_indices], axis=0
         )
         self.body_ref_centered = (
             self.model.positions_m[self.body_indices] - self.body_ref_center
         )
+
+    def _build_flag_frame(
+        self,
+        positions_m: np.ndarray,
+        idx: np.ndarray,
+        attach: int,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        p0 = positions_m[int(idx[0])]
+        if attach >= 0:
+            axis = p0 - positions_m[attach]
+        else:
+            axis = positions_m[int(idx[-1])] - p0
+        axis = axis / max(float(np.linalg.norm(axis)), 1e-18)
+
+        t = positions_m[int(idx[min(1, idx.shape[0] - 1)])] - p0
+        v = t - np.dot(t, axis) * axis
+        if float(np.linalg.norm(v)) <= 1e-12:
+            ref = np.array([1.0, 0.0, 0.0], dtype=float)
+            if abs(float(np.dot(ref, axis))) > 0.9:
+                ref = np.array([0.0, 1.0, 0.0], dtype=float)
+            v = np.cross(axis, ref)
+        v = v / max(float(np.linalg.norm(v)), 1e-18)
+        w = np.cross(axis, v)
+        return p0, axis, v, w
 
     def _initial_reference_angles_rad(self) -> tuple[np.ndarray, np.ndarray]:
         theta0 = np.zeros((self.model.bending_triplets.shape[0],), dtype=float)
@@ -376,19 +457,7 @@ class DynamicsEngine:
             if attach < 0:
                 continue
 
-            p0 = out[idx[0]]
-            axis = p0 - out[attach]
-            axis = axis / max(float(np.linalg.norm(axis)), 1e-18)
-
-            t = out[idx[1]] - p0
-            v = t - np.dot(t, axis) * axis
-            if float(np.linalg.norm(v)) <= 1e-12:
-                ref = np.array([1.0, 0.0, 0.0], dtype=float)
-                if abs(float(np.dot(ref, axis))) > 0.9:
-                    ref = np.array([0.0, 1.0, 0.0], dtype=float)
-                v = np.cross(axis, ref)
-            v = v / max(float(np.linalg.norm(v)), 1e-18)
-            w = np.cross(axis, v)
+            p0, axis, v, w = self._build_flag_frame(out, idx, attach)
 
             local = self.flag_template_local[f_id]
             out[idx] = (
@@ -399,12 +468,67 @@ class DynamicsEngine:
             )
         return out
 
+    def _project_local_helix_constraint(self, positions_m: np.ndarray) -> np.ndarray:
+        if not self.model.flagella_indices:
+            return positions_m
+
+        out = positions_m.copy()
+        for f_id, idxs in enumerate(self.model.flagella_indices):
+            idx = idxs.astype(int, copy=False)
+            target = self.local_helix_target_global_indices[f_id]
+            if target.size == 0:
+                continue
+
+            attach = int(self.flag_attach_body_idx[f_id])
+            if attach < 0:
+                continue
+
+            p0, axis, v, w = self._build_flag_frame(out, idx, attach)
+            rel = out[target] - p0
+            y = rel @ v
+            z = rel @ w
+            rho = np.sqrt(y * y + z * z)
+            rho_safe = np.maximum(rho, 1e-18)
+            radius_ref = max(float(self.local_helix_radius_ref[f_id]), 1e-18)
+            radial_scale = np.clip((radius_ref - rho) / rho_safe, -1.0, 1.0)
+            radial_dir = y[:, None] * v[None, :] + z[:, None] * w[None, :]
+            out[target] += (
+                self.local_helix_alpha_radius * radial_scale[:, None] * radial_dir
+            )
+
+            rel2 = out[target] - p0
+            y2 = rel2 @ v
+            z2 = rel2 @ w
+            phi = np.arctan2(z2, y2)
+            delta_ref = self.local_helix_delta_phi_ref[f_id]
+            if phi.size < 2 or delta_ref.size != phi.size - 1:
+                continue
+
+            for j in range(phi.size - 1):
+                err = _wrap_angle(float((phi[j + 1] - phi[j]) - delta_ref[j]))
+                theta_corr = -self.local_helix_alpha_phase * err
+
+                vec_j = y2[j] * v + z2[j] * w
+                vec_k = y2[j + 1] * v + z2[j + 1] * w
+                rho_j = max(float(np.linalg.norm(vec_j)), 1e-18)
+                rho_k = max(float(np.linalg.norm(vec_k)), 1e-18)
+                tan_j = np.cross(axis, vec_j / rho_j)
+                tan_k = np.cross(axis, vec_k / rho_k)
+                out[int(target[j])] += 0.5 * theta_corr * rho_j * tan_j
+                out[int(target[j + 1])] -= 0.5 * theta_corr * rho_k * tan_k
+
+        return out
+
     def _project_flagella_constraints(self, positions_m: np.ndarray) -> np.ndarray:
         if self.enable_flagella_template_projection:
             return self._project_flagella_template(positions_m)
+
+        out = positions_m
         if self.enable_flagella_chain_length_projection_when_template_off:
-            return self._project_flagella_chain_lengths(positions_m, 1)
-        return positions_m
+            out = self._project_flagella_chain_lengths(out, 1)
+        if self.enable_local_helix_when_template_off:
+            out = self._project_local_helix_constraint(out)
+        return out
 
     def _project_hook_and_flag_bonds(self, positions_m: np.ndarray) -> np.ndarray:
         if self.constraint_projection_iters <= 0:
@@ -412,7 +536,7 @@ class DynamicsEngine:
         out = positions_m
         for _ in range(self.constraint_projection_iters):
             out = self._project_distance_pairs(out, self.hook_spring_rows, 1)
-        out = self._project_flagella_constraints(out)
+            out = self._project_flagella_constraints(out)
         return out
 
     def step(self, dt_star: float) -> StepDiagnostics:

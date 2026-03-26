@@ -194,6 +194,16 @@ class StiffnessScaleParams:
 
 
 @dataclass(frozen=True)
+class LocalHelixParams:
+    """基部近傍の局所ヘリックス拘束設定。"""
+
+    enabled: bool = False
+    n_local: int = 4
+    k_radius_over_torque: float = 0.5
+    k_phase_over_torque: float = 0.5
+
+
+@dataclass(frozen=True)
 class TimeParams:
     """時間設定。"""
 
@@ -262,6 +272,7 @@ class SimulationConfig:
     brownian: BrownianParams
     projection: ProjectionParams
     stiffness_scales: StiffnessScaleParams
+    local_helix: LocalHelixParams
     render: RenderParams
     seed: SeedParams
     output: OutputParams
@@ -469,6 +480,18 @@ class SimulationConfig:
             body=float(_get(stiffness_raw, "body", 200.0)),
             flag_bend=float(_get(stiffness_raw, "flag_bend", 300.0)),
             flag_torsion=float(_get(stiffness_raw, "flag_torsion", 300.0)),
+        )
+
+        local_helix_raw = raw.get("local_helix", {}) or {}
+        local_helix = LocalHelixParams(
+            enabled=bool(_get(local_helix_raw, "enabled", False)),
+            n_local=int(_get(local_helix_raw, "n_local", 4)),
+            k_radius_over_torque=float(
+                _get(local_helix_raw, "k_radius_over_torque", 0.5)
+            ),
+            k_phase_over_torque=float(
+                _get(local_helix_raw, "k_phase_over_torque", 0.5)
+            ),
         )
 
         scale_raw = raw.get("scale", {}) or {}
@@ -719,6 +742,7 @@ class SimulationConfig:
             brownian=brownian,
             projection=projection,
             stiffness_scales=stiffness_scales,
+            local_helix=local_helix,
             render=render,
             seed=seed,
             output=output,
