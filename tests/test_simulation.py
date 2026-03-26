@@ -567,3 +567,24 @@ def test_engine_repulsion_parameters_follow_config_overrides() -> None:
     torque = max(cfg.torque_for_forces_Nm, 1e-30)
     assert sim.engine.repulsion_A == pytest.approx(2.5 * torque)
     assert sim.engine.repulsion_cutoff_m == pytest.approx(0.35 * cfg.b_m)
+
+
+def test_engine_stiffness_scales_follow_config_overrides() -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=1.0e-18,
+        hook_enabled=True,
+        n_flagella=1,
+    ).with_overrides(
+        {
+            "stiffness_scales": {
+                "body": 220.0,
+                "flag_bend": 330.0,
+                "flag_torsion": 340.0,
+            }
+        }
+    )
+    sim = Simulator(cfg)
+
+    assert sim.engine.body_stiffness_scale == pytest.approx(220.0)
+    assert sim.engine.flag_bend_stiffness_scale == pytest.approx(330.0)
+    assert sim.engine.flag_torsion_stiffness_scale == pytest.approx(340.0)

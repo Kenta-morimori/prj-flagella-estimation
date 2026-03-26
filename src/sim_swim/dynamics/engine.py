@@ -94,9 +94,9 @@ class DynamicsEngine:
         self.repulsion_cutoff_m = (
             cfg.potentials.spring_spring_repulsion.cutoff_over_b * b_m
         )
-        self.body_stiffness_scale = 200.0
-        self.flag_bend_stiffness_scale = 300.0
-        self.flag_torsion_stiffness_scale = 300.0
+        self.body_stiffness_scale = cfg.stiffness_scales.body
+        self.flag_bend_stiffness_scale = cfg.stiffness_scales.flag_bend
+        self.flag_torsion_stiffness_scale = cfg.stiffness_scales.flag_torsion
         self.constraint_projection_iters = 8
         self.enable_flagella_template_projection = (
             cfg.projection.enable_flagella_template_projection

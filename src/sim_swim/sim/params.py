@@ -185,6 +185,15 @@ class ProjectionParams:
 
 
 @dataclass(frozen=True)
+class StiffnessScaleParams:
+    """剛性スケール設定。"""
+
+    body: float = 200.0
+    flag_bend: float = 300.0
+    flag_torsion: float = 300.0
+
+
+@dataclass(frozen=True)
 class TimeParams:
     """時間設定。"""
 
@@ -252,6 +261,7 @@ class SimulationConfig:
     output_sampling: OutputSamplingParams
     brownian: BrownianParams
     projection: ProjectionParams
+    stiffness_scales: StiffnessScaleParams
     render: RenderParams
     seed: SeedParams
     output: OutputParams
@@ -452,6 +462,13 @@ class SimulationConfig:
                     True,
                 )
             ),
+        )
+
+        stiffness_raw = raw.get("stiffness_scales", {}) or {}
+        stiffness_scales = StiffnessScaleParams(
+            body=float(_get(stiffness_raw, "body", 200.0)),
+            flag_bend=float(_get(stiffness_raw, "flag_bend", 300.0)),
+            flag_torsion=float(_get(stiffness_raw, "flag_torsion", 300.0)),
         )
 
         scale_raw = raw.get("scale", {}) or {}
@@ -701,6 +718,7 @@ class SimulationConfig:
             output_sampling=output_sampling,
             brownian=brownian,
             projection=projection,
+            stiffness_scales=stiffness_scales,
             render=render,
             seed=seed,
             output=output,

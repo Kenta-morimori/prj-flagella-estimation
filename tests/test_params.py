@@ -243,6 +243,33 @@ def test_repulsion_overrides_are_loaded_from_config() -> None:
     assert rep.cutoff_over_b == pytest.approx(0.35)
 
 
+def test_stiffness_scale_defaults_remain_compatible() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    scales = sim_cfg.stiffness_scales
+    assert scales.body == pytest.approx(200.0)
+    assert scales.flag_bend == pytest.approx(300.0)
+    assert scales.flag_torsion == pytest.approx(300.0)
+
+
+def test_stiffness_scales_overrides_are_loaded_from_config() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["stiffness_scales"] = {
+        "body": 220.0,
+        "flag_bend": 330.0,
+        "flag_torsion": 340.0,
+    }
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    scales = sim_cfg.stiffness_scales
+    assert scales.body == pytest.approx(220.0)
+    assert scales.flag_bend == pytest.approx(330.0)
+    assert scales.flag_torsion == pytest.approx(340.0)
+
+
 def test_body_n_layers_requires_integer_multiple() -> None:
     cfg = _base_cfg()
     cfg["body"]["length_total_um"] = 2.3
