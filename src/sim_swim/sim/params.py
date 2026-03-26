@@ -204,6 +204,26 @@ class LocalHelixParams:
 
 
 @dataclass(frozen=True)
+class CollapseDiagnosticsParams:
+    """collapse診断設定。"""
+
+    enabled: bool = True
+    write_every_step: bool = True
+    max_flagella_points: int = 4
+    collapse_distance_um: float = 0.15
+    collapse_consecutive_steps: int = 3
+
+
+@dataclass(frozen=True)
+class DiagnosticsParams:
+    """診断設定。"""
+
+    collapse: CollapseDiagnosticsParams = field(
+        default_factory=CollapseDiagnosticsParams
+    )
+
+
+@dataclass(frozen=True)
 class TimeParams:
     """時間設定。"""
 
@@ -273,6 +293,7 @@ class SimulationConfig:
     projection: ProjectionParams
     stiffness_scales: StiffnessScaleParams
     local_helix: LocalHelixParams
+    diagnostics: DiagnosticsParams
     render: RenderParams
     seed: SeedParams
     output: OutputParams
@@ -492,6 +513,22 @@ class SimulationConfig:
             k_phase_over_torque=float(
                 _get(local_helix_raw, "k_phase_over_torque", 0.5)
             ),
+        )
+
+        diagnostics_raw = raw.get("diagnostics", {}) or {}
+        collapse_raw = diagnostics_raw.get("collapse", {}) or {}
+        diagnostics = DiagnosticsParams(
+            collapse=CollapseDiagnosticsParams(
+                enabled=bool(_get(collapse_raw, "enabled", True)),
+                write_every_step=bool(_get(collapse_raw, "write_every_step", True)),
+                max_flagella_points=int(_get(collapse_raw, "max_flagella_points", 4)),
+                collapse_distance_um=float(
+                    _get(collapse_raw, "collapse_distance_um", 0.15)
+                ),
+                collapse_consecutive_steps=int(
+                    _get(collapse_raw, "collapse_consecutive_steps", 3)
+                ),
+            )
         )
 
         scale_raw = raw.get("scale", {}) or {}
@@ -743,6 +780,7 @@ class SimulationConfig:
             projection=projection,
             stiffness_scales=stiffness_scales,
             local_helix=local_helix,
+            diagnostics=diagnostics,
             render=render,
             seed=seed,
             output=output,

@@ -300,6 +300,41 @@ def test_local_helix_overrides_are_loaded() -> None:
     assert local.k_phase_over_torque == pytest.approx(0.8)
 
 
+def test_collapse_diagnostics_defaults() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    collapse = sim_cfg.diagnostics.collapse
+    assert collapse.enabled is True
+    assert collapse.write_every_step is True
+    assert collapse.max_flagella_points == 4
+    assert collapse.collapse_distance_um == pytest.approx(0.15)
+    assert collapse.collapse_consecutive_steps == 3
+
+
+def test_collapse_diagnostics_overrides_are_loaded() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["diagnostics"] = {
+        "collapse": {
+            "enabled": True,
+            "write_every_step": False,
+            "max_flagella_points": 3,
+            "collapse_distance_um": 0.2,
+            "collapse_consecutive_steps": 2,
+        }
+    }
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    collapse = sim_cfg.diagnostics.collapse
+    assert collapse.enabled is True
+    assert collapse.write_every_step is False
+    assert collapse.max_flagella_points == 3
+    assert collapse.collapse_distance_um == pytest.approx(0.2)
+    assert collapse.collapse_consecutive_steps == 2
+
+
 def test_body_n_layers_requires_integer_multiple() -> None:
     cfg = _base_cfg()
     cfg["body"]["length_total_um"] = 2.3

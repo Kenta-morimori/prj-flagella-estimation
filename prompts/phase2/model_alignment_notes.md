@@ -34,3 +34,24 @@
 - template OFF + chain-length ON でも即時凝集が残るケースがある。
 - repulsion 強化や stiffness 緩和のみでは、現時点の観測では十分な改善に至っていない。
 - 基部近傍の shape 保持を弱く補助する local-helix constraint の評価が次フェーズ課題。
+
+## 2026-03-26 (after 2-15 Phase4 diagnostics)
+
+### 論文モデルと同じ点
+- 力学更新そのもの（spring, bending, torsion, hook, repulsion, motor, hydrodynamics）は変更していない。
+- diagnostics は step 後の状態を読み取るだけで、力計算や積分更新に作用しない。
+
+### 論文モデルと異なる点
+- `collapse_diagnostics.csv` と `collapse_summary.csv` を追加し、collapse onset を定量観測する出力経路を導入した。
+- collapse 判定を `min_interflagella_distance_um < 0.15` の 3 step 連続で判定する実装ルールを導入した。
+
+### 差分の理由
+- OFF 系の即時凝集/発散で「何が先に壊れるか」を比較可能にするため。
+- 物理拘束を追加する前に、崩壊の開始指標を時系列で可視化するため。
+
+### 差分の位置づけ
+- collapse diagnostics: 比較実験用（数値観測用。力学への副作用なし）
+
+### 現時点の課題
+- diagnostics で onset の兆候は見えるが、凝集を解消する機構そのものは未導入。
+- 既存 local-helix を含む拘束群との相互作用の整理が必要。

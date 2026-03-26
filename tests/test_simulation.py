@@ -6,6 +6,11 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from sim_swim.dynamics.engine import StepDiagnostics
+from sim_swim.sim.collapse_diagnostics import (
+    COLLAPSE_DIAGNOSTICS_COLUMNS,
+    COLLAPSE_SUMMARY_COLUMNS,
+)
 from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import SimulationConfig
 
@@ -588,6 +593,101 @@ def test_engine_stiffness_scales_follow_config_overrides() -> None:
     assert sim.engine.body_stiffness_scale == pytest.approx(220.0)
     assert sim.engine.flag_bend_stiffness_scale == pytest.approx(330.0)
     assert sim.engine.flag_torsion_stiffness_scale == pytest.approx(340.0)
+
+
+def _dummy_diag(positions_m: np.ndarray) -> StepDiagnostics:
+    z = np.zeros_like(positions_m)
+    return StepDiagnostics(
+        dt_star=1.0e-3,
+        dt_s=1.0e-3,
+        positions_before_m=positions_m.copy(),
+        positions_after_m=positions_m.copy(),
+        spring_forces=z,
+        bend_forces=z,
+        torsion_forces=z,
+        hook_forces=z,
+        repulsion_forces=z,
+        motor_forces=z,
+        total_forces=z,
+        brownian_enabled=False,
+        brownian_disp_m=z,
+        motor_degenerate_axis_count=0,
+        motor_split_rank_deficient_count=0,
+        motor_bond_length_clipped_count=0,
+    )
+
+
+def test_collapse_diagnostics_files_and_columns_are_written(tmp_path: Path) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0, hook_enabled=True, n_flagella=1
+    ).with_overrides(
+        {
+            "time": {"duration_s": 0.005},
+            "diagnostics": {"collapse": {"enabled": True, "write_every_step": True}},
+        }
+    )
+    sim = Simulator(cfg)
+    sim_dir = tmp_path / "sim"
+    sim.run(0.005, step_summary_dir=sim_dir)
+
+    diag_csv = tmp_path / "collapse_diagnostics.csv"
+    summary_csv = tmp_path / "collapse_summary.csv"
+    assert diag_csv.is_file()
+    assert summary_csv.is_file()
+
+    with diag_csv.open("r", encoding="utf-8", newline="") as f:
+        diag_rows = list(csv.DictReader(f))
+    assert diag_rows
+    assert list(diag_rows[0].keys()) == COLLAPSE_DIAGNOSTICS_COLUMNS
+    expected_steps = int(round(0.005 / cfg.dt_s))
+    assert len(diag_rows) == expected_steps * cfg.flagella.n_flagella
+
+    with summary_csv.open("r", encoding="utf-8", newline="") as f:
+        summary_rows = list(csv.DictReader(f))
+    assert len(summary_rows) == 1
+    assert list(summary_rows[0].keys()) == COLLAPSE_SUMMARY_COLUMNS
+
+
+def test_collapse_detection_uses_distance_and_consecutive_step_threshold(
+    tmp_path: Path,
+) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0, hook_enabled=True, n_flagella=2
+    ).with_overrides(
+        {
+            "diagnostics": {
+                "collapse": {
+                    "enabled": True,
+                    "write_every_step": True,
+                    "collapse_distance_um": 0.15,
+                    "collapse_consecutive_steps": 3,
+                }
+            }
+        }
+    )
+    sim = Simulator(cfg)
+    from sim_swim.sim.collapse_diagnostics import CollapseDiagnosticsRecorder
+
+    rec = CollapseDiagnosticsRecorder(sim.model, cfg, tmp_path / "sim")
+    pos_far = sim.model.positions_m.copy()
+    rec.record(0, 0.0, _dummy_diag(pos_far))
+
+    pos_close = pos_far.copy()
+    f0 = sim.model.flagella_indices[0]
+    f1 = sim.model.flagella_indices[1]
+    pos_close[int(f1[0])] = pos_close[int(f0[0])] + np.array([1.0e-8, 0.0, 0.0])
+    rec.record(1, 0.001, _dummy_diag(pos_close))
+    rec.record(2, 0.002, _dummy_diag(pos_close))
+    rec.record(3, 0.003, _dummy_diag(pos_close))
+    _, summary_path = rec.write_files()
+
+    with summary_path.open("r", encoding="utf-8", newline="") as f:
+        rows = list(csv.DictReader(f))
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["collapse_detected"] in {"True", "true", "1"}
+    assert int(row["first_collapse_step"]) == 1
+    assert float(row["first_collapse_t_s"]) == pytest.approx(0.001)
 
 
 def test_local_helix_is_not_used_when_template_projection_enabled(

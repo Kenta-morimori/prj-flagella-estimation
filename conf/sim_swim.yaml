@@ -92,6 +92,14 @@ local_helix:
   k_radius_over_torque: 0.5
   k_phase_over_torque: 0.5
 
+diagnostics:
+  collapse:
+    enabled: true
+    write_every_step: true
+    max_flagella_points: 4
+    collapse_distance_um: 0.15
+    collapse_consecutive_steps: 3
+
 render:
   image_size_px: 256
   pixel_size_um: 0.203
