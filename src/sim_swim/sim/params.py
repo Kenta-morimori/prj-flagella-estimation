@@ -157,6 +157,13 @@ class HookParams:
 
 
 @dataclass(frozen=True)
+class ProjectionParams:
+    """拘束投影の設定。"""
+
+    enable_body_rigid_projection: bool = True
+
+
+@dataclass(frozen=True)
 class RunTumbleParams:
     """run-and-tumble設定。"""
 
@@ -239,6 +246,7 @@ class SimulationConfig:
     motor: MotorParams
     potentials: PotentialsParams
     hook: HookParams
+    projection: ProjectionParams
     run_tumble: RunTumbleParams
     time: TimeParams
     output_sampling: OutputSamplingParams
@@ -609,6 +617,13 @@ class SimulationConfig:
             kb_over_T=float(kb_hook_over if kb_hook_over is not None else 20.0),
         )
 
+        projection_raw = raw.get("projection", {}) or {}
+        projection = ProjectionParams(
+            enable_body_rigid_projection=bool(
+                _get(projection_raw, "enable_body_rigid_projection", True)
+            ),
+        )
+
         rt_raw = raw.get("run_tumble", {}) or {}
         run_tumble = RunTumbleParams(
             run_tau=float(_get(rt_raw, "run_tau", 1200.0)),
@@ -673,6 +688,7 @@ class SimulationConfig:
             motor=motor,
             potentials=potentials,
             hook=hook,
+            projection=projection,
             run_tumble=run_tumble,
             time=time,
             output_sampling=output_sampling,

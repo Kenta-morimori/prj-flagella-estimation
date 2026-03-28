@@ -69,6 +69,21 @@ STEP_SUMMARY_COLUMNS = [
     "brownian_disp_mean_um",
 ]
 
+BODY_CONSTRAINT_DIAGNOSTICS_COLUMNS = [
+    "step",
+    "t_s",
+    "body_spring_max_stretch_ratio",
+    "body_spring_mean_stretch_ratio",
+    "body_bend_max_error_deg",
+    "body_bend_mean_error_deg",
+    "body_triangle_area_min",
+    "body_triangle_area_max",
+    "body_centerline_max_deviation_um",
+    "com_x_um",
+    "com_y_um",
+    "com_z_um",
+]
+
 RAD_TO_DEG = 180.0 / np.pi
 
 
@@ -137,6 +152,137 @@ def _pair_distance_stats_um(
         float(np.min(dist_um)),
         float(np.max(dist_um)),
     )
+
+
+def _triangle_area(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> float:
+    return 0.5 * float(np.linalg.norm(np.cross(b - a, c - a)))
+
+
+def _point_to_line_distance(
+    points: np.ndarray, p0: np.ndarray, p1: np.ndarray
+) -> np.ndarray:
+    d = p1 - p0
+    d_norm = float(np.linalg.norm(d))
+    if d_norm <= 1e-18:
+        return np.linalg.norm(points - p0[None, :], axis=1)
+    u = d / d_norm
+    proj = p0[None, :] + ((points - p0[None, :]) @ u)[:, None] * u[None, :]
+    return np.linalg.norm(points - proj, axis=1)
+
+
+@dataclass
+class BodyConstraintDiagnosticsRecorder:
+    """body-only安定性評価用の診断CSVを保存する。"""
+
+    model: SimModel
+    cfg: SimulationConfig
+    out_dir: Path
+    _csv_fp: TextIO | None = field(init=False, default=None, repr=False)
+    _writer: csv.DictWriter | None = field(init=False, default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        self.out_dir.mkdir(parents=True, exist_ok=True)
+        self.body_diag_path = self.out_dir / "body_constraint_diagnostics.csv"
+        self._csv_fp = self.body_diag_path.open("w", encoding="utf-8", newline="")
+        self._writer = csv.DictWriter(
+            self._csv_fp, fieldnames=BODY_CONSTRAINT_DIAGNOSTICS_COLUMNS
+        )
+        self._writer.writeheader()
+
+        self.body_indices = self.model.body_indices.astype(int, copy=False)
+        self.spring_pairs = self.model.spring_pairs.astype(int, copy=False)
+        self.spring_rests = self.model.spring_rest_lengths_m.astype(float, copy=False)
+        if self.spring_pairs.size == 0:
+            self.body_spring_rows = np.zeros((0,), dtype=int)
+        else:
+            bi = self.model.bead_is_body[self.spring_pairs[:, 0]]
+            bj = self.model.bead_is_body[self.spring_pairs[:, 1]]
+            self.body_spring_rows = np.where(bi & bj)[0]
+        self.body_bending_rows = np.where(self.model.bending_flag_ids < 0)[0]
+        self.body_theta0 = _triplet_angles_rad(
+            self.model.positions_m,
+            self.model.bending_triplets[self.body_bending_rows],
+        )
+        self.body_layers = [
+            layer.astype(int, copy=False) for layer in self.model.body_layer_indices
+        ]
+
+    def record(self, step: int, t_s: float, pos_after: np.ndarray) -> None:
+        if self._writer is None or self._csv_fp is None:
+            raise RuntimeError("body diagnostics writer is not initialized")
+
+        if self.body_spring_rows.size > 0:
+            pairs = self.spring_pairs[self.body_spring_rows]
+            rests = np.maximum(self.spring_rests[self.body_spring_rows], 1e-30)
+            lens = np.linalg.norm(
+                pos_after[pairs[:, 1]] - pos_after[pairs[:, 0]], axis=1
+            )
+            stretch = np.abs(lens - rests) / rests
+            body_spring_max_stretch_ratio = float(np.max(stretch))
+            body_spring_mean_stretch_ratio = float(np.mean(stretch))
+        else:
+            body_spring_max_stretch_ratio = 0.0
+            body_spring_mean_stretch_ratio = 0.0
+
+        if self.body_bending_rows.size > 0:
+            theta = _triplet_angles_rad(
+                pos_after,
+                self.model.bending_triplets[self.body_bending_rows],
+            )
+            err_deg = np.abs(theta - self.body_theta0) * RAD_TO_DEG
+            body_bend_max_error_deg = float(np.max(err_deg))
+            body_bend_mean_error_deg = float(np.mean(err_deg))
+        else:
+            body_bend_max_error_deg = 0.0
+            body_bend_mean_error_deg = 0.0
+
+        tri_areas = []
+        centroids = []
+        for layer in self.body_layers:
+            pts = pos_after[layer]
+            if pts.shape[0] >= 3:
+                tri_areas.append(_triangle_area(pts[0], pts[1], pts[2]))
+            centroids.append(np.mean(pts, axis=0))
+        if tri_areas:
+            body_triangle_area_min = float(np.min(tri_areas))
+            body_triangle_area_max = float(np.max(tri_areas))
+        else:
+            body_triangle_area_min = 0.0
+            body_triangle_area_max = 0.0
+
+        centers = np.asarray(centroids, dtype=float)
+        if centers.shape[0] >= 2:
+            d = _point_to_line_distance(centers, centers[0], centers[-1])
+            body_centerline_max_deviation_um = float(np.max(d)) * M_TO_UM
+        else:
+            body_centerline_max_deviation_um = 0.0
+
+        body_pos = pos_after[self.body_indices]
+        com = np.mean(body_pos, axis=0) * M_TO_UM
+
+        row = {
+            "step": int(step),
+            "t_s": float(t_s),
+            "body_spring_max_stretch_ratio": body_spring_max_stretch_ratio,
+            "body_spring_mean_stretch_ratio": body_spring_mean_stretch_ratio,
+            "body_bend_max_error_deg": body_bend_max_error_deg,
+            "body_bend_mean_error_deg": body_bend_mean_error_deg,
+            "body_triangle_area_min": body_triangle_area_min,
+            "body_triangle_area_max": body_triangle_area_max,
+            "body_centerline_max_deviation_um": body_centerline_max_deviation_um,
+            "com_x_um": float(com[0]),
+            "com_y_um": float(com[1]),
+            "com_z_um": float(com[2]),
+        }
+        self._writer.writerow(row)
+        self._csv_fp.flush()
+
+    def write_csv(self) -> Path:
+        if self._csv_fp is not None:
+            self._csv_fp.close()
+            self._csv_fp = None
+            self._writer = None
+        return self.body_diag_path
 
 
 @dataclass

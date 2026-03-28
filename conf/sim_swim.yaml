@@ -57,6 +57,9 @@ hook:
   threshold_deg: 90.0          # [deg] hook曲げを課す閾値
   kb_over_T: 20.0              # [-] hook曲げ剛性比: kb_over_T = 20 * Torque
 
+projection:
+  enable_body_rigid_projection: true   # true: 既存互換（body rigid projectionを適用）
+
 run_tumble:
   run_tau: 1200.0              # [tau] run 継続時間（Fig.3 例）
   tumble_tau: 800.0            # [tau] tumble 継続時間

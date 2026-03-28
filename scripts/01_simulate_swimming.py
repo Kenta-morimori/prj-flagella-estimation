@@ -209,6 +209,7 @@ def main(
     except Exception:
         manifest = {}
     outputs = manifest.get("outputs", {})
+    body_diag_csv = ctx.out.sim_dir / "body_constraint_diagnostics.csv"
     outputs.update(
         {
             "trajectory_csv": str(traj_path),
@@ -217,6 +218,8 @@ def main(
             "render2d": str(ctx.out.render2d_dir),
         }
     )
+    if body_diag_csv.is_file():
+        outputs["body_constraint_diagnostics_csv"] = str(body_diag_csv)
     manifest["outputs"] = outputs
     manifest["files"] = [
         str(traj_path.relative_to(ctx.out.root)),

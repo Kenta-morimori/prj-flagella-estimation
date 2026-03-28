@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+from typing import Callable
 
 import numpy as np
 
@@ -81,6 +82,9 @@ class DynamicsEngine:
         self.cfg = cfg
         self.t_star = 0.0
         self.rng = np.random.default_rng(cfg.seed.global_seed)
+        self.external_force_callback: (
+            Callable[[np.ndarray, float], np.ndarray] | None
+        ) = None
 
         torque = max(cfg.torque_for_forces_Nm, 1e-30)
         b_m = cfg.b_m
@@ -200,6 +204,14 @@ class DynamicsEngine:
         self.body_ref_centered = (
             self.model.positions_m[self.body_indices] - self.body_ref_center
         )
+
+    def set_external_force_callback(
+        self,
+        callback: Callable[[np.ndarray, float], np.ndarray] | None,
+    ) -> None:
+        """各ステップの外力（N）を返すコールバックを設定する。"""
+
+        self.external_force_callback = callback
 
     def _initial_reference_angles_rad(self) -> tuple[np.ndarray, np.ndarray]:
         theta0 = np.zeros((self.model.bending_triplets.shape[0],), dtype=float)
@@ -558,6 +570,14 @@ class DynamicsEngine:
             + repulsion_forces
             + motor_forces
         )
+        if self.external_force_callback is not None:
+            external_forces = self.external_force_callback(pos, self.t_star)
+            if external_forces.shape != forces.shape:
+                raise ValueError(
+                    "External force callback must return shape "
+                    f"{forces.shape}, got {external_forces.shape}."
+                )
+            forces = forces + external_forces
 
         mobility = compute_rpy_mobility(
             positions_m=pos_before,
@@ -579,7 +599,8 @@ class DynamicsEngine:
 
         brownian_disp = xi.reshape((-1, 3))
         pos_after = pos_before + (drift * dt_s + xi).reshape((-1, 3))
-        pos_after = self._project_body_rigid(pos_after)
+        if self.cfg.projection.enable_body_rigid_projection:
+            pos_after = self._project_body_rigid(pos_after)
         pos_after = self._project_hook_and_flag_bonds(pos_after)
         self.model.positions_m = pos_after
         self.t_star += dt_star_eff
