@@ -60,6 +60,28 @@ def _body_flag_pairs(model: SimModel) -> list[tuple[int, int]]:
     return pairs
 
 
+def _layer_idx_for_body_bead(model: SimModel, bead_idx: int) -> int:
+    for layer_idx, layer in enumerate(model.body_layer_indices):
+        if int(bead_idx) in set(layer.tolist()):
+            return int(layer_idx)
+    raise ValueError(f"Body bead is not assigned to any layer: bead_idx={bead_idx}")
+
+
+def _hook_rest_length_map(model: SimModel) -> dict[tuple[int, int], float]:
+    out: dict[tuple[int, int], float] = {}
+    for (i, j), rest in zip(model.spring_pairs, model.spring_rest_lengths_m):
+        ii = int(i)
+        jj = int(j)
+        i_is_body = bool(model.bead_is_body[ii])
+        j_is_body = bool(model.bead_is_body[jj])
+        if not (i_is_body ^ j_is_body):
+            continue
+        body_idx = ii if i_is_body else jj
+        flag_idx = jj if i_is_body else ii
+        out[(body_idx, flag_idx)] = float(rest)
+    return out
+
+
 def _triplet_angle_rad(positions_m: np.ndarray, triplet: np.ndarray) -> float:
     i, j, k = (int(triplet[0]), int(triplet[1]), int(triplet[2]))
     u = positions_m[i] - positions_m[j]
@@ -246,6 +268,28 @@ def test_body_flag_hook_length_is_initialized_to_0p25b() -> None:
     )
     assert dists_m.shape[0] == cfg.flagella.n_flagella
     assert np.allclose(dists_m, 0.25 * cfg.b_m, atol=1e-12)
+
+
+def test_basal_link_initial_direction_matches_local_layer_radial() -> None:
+    cfg = _make_cfg(n_flagella=3)
+    model = ModelBuilder(cfg).build()
+    rest_map = _hook_rest_length_map(model)
+
+    for attach_idx, first_idx, _ in model.hook_triplets:
+        attach = int(attach_idx)
+        first = int(first_idx)
+        layer_idx = _layer_idx_for_body_bead(model, attach)
+        layer = model.body_layer_indices[layer_idx]
+        layer_centroid = np.mean(model.positions_m[layer], axis=0)
+
+        link = model.positions_m[first] - model.positions_m[attach]
+        link_norm = float(np.linalg.norm(link))
+        assert np.isclose(link_norm, rest_map[(attach, first)], atol=1e-12)
+
+        radial = model.positions_m[attach] - layer_centroid
+        radial_unit = radial / max(float(np.linalg.norm(radial)), 1e-18)
+        link_unit = link / max(link_norm, 1e-18)
+        assert np.allclose(link_unit, radial_unit, atol=1e-10)
 
 
 def test_spring_rest_lengths_match_initial_distances() -> None:
