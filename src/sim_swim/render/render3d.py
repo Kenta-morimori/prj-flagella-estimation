@@ -11,6 +11,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from tqdm import tqdm
 
 from sim_swim.model.types import PolymorphState
 from sim_swim.sim.core import SimulationState
@@ -107,7 +108,7 @@ def save_swim_movie(
 
     fps_3d = min(60.0, max(1.0, 1.0 / max(cfg.dt_s, 1e-9)))
 
-    for idx, st in enumerate(render_states):
+    for idx, st in enumerate(tqdm(render_states, desc="3D render", unit="frame")):
         fig = plt.figure(figsize=(5, 5))
         ax = fig.add_subplot(111, projection="3d")
         ax.set_facecolor("white")

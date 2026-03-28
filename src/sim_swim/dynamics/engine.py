@@ -94,9 +94,9 @@ class DynamicsEngine:
         self.repulsion_cutoff_m = (
             cfg.potentials.spring_spring_repulsion.cutoff_over_b * b_m
         )
-        self.body_stiffness_scale = 200.0
-        self.flag_bend_stiffness_scale = 300.0
-        self.flag_torsion_stiffness_scale = 300.0
+        self.body_stiffness_scale = cfg.dynamics.body_stiffness_scale
+        self.flag_bend_stiffness_scale = cfg.dynamics.flag_bend_stiffness_scale
+        self.flag_torsion_stiffness_scale = cfg.dynamics.flag_torsion_stiffness_scale
         self.constraint_projection_iters = 8
         self.theta0_ref_rad, self.phi0_ref_rad = self._initial_reference_angles_rad()
         spring_pairs = self.model.spring_pairs
@@ -384,6 +384,21 @@ class DynamicsEngine:
             for layer in self.model.body_layer_indices
         ]
 
+        # Compute body long axis from layer centroids so we can enforce exact
+        # perpendicularity (remove any axial component from the radial direction).
+        body_axis: np.ndarray | None = None
+        if len(layer_centroids) >= 2:
+            body_axis_raw = layer_centroids[-1] - layer_centroids[0]
+            body_axis_norm = float(np.linalg.norm(body_axis_raw))
+            if body_axis_norm > 1e-18:
+                body_axis = body_axis_raw / body_axis_norm
+
+        def _perp(v: np.ndarray) -> np.ndarray:
+            """Remove the axial component from *v* if body axis is available."""
+            if body_axis is None:
+                return v
+            return v - float(np.dot(v, body_axis)) * body_axis
+
         for f_id in range(self.flag_first_bead_idx.shape[0]):
             first = int(self.flag_first_bead_idx[f_id])
             attach = int(self.flag_attach_body_idx[f_id])
@@ -392,10 +407,13 @@ class DynamicsEngine:
             layer_idx = int(self.body_bead_to_layer_idx[attach])
             if layer_idx < 0 or layer_idx >= len(layer_centroids):
                 continue
-            radial = out[attach] - layer_centroids[layer_idx]
+
+            # Radial direction from layer centroid to attachment bead, projected
+            # to be exactly perpendicular to the body long axis.
+            radial = _perp(out[attach] - layer_centroids[layer_idx])
             radial_norm = float(np.linalg.norm(radial))
             if radial_norm <= 1e-18:
-                radial = out[first] - out[attach]
+                radial = _perp(out[first] - out[attach])
                 radial_norm = float(np.linalg.norm(radial))
                 if radial_norm <= 1e-18:
                     continue
@@ -451,11 +469,13 @@ class DynamicsEngine:
         if self.constraint_projection_iters <= 0:
             return positions_m
         out = positions_m
+        enable_template = self.cfg.projection.enable_flagella_template_projection
         for _ in range(self.constraint_projection_iters):
             out = self._project_distance_pairs(out, self.hook_spring_rows, 1)
             out = self._project_basal_link_direction(out)
             out = self._project_flagella_chain_lengths(out, 1)
-            out = self._project_flagella_template(out)
+            if enable_template:
+                out = self._project_flagella_template(out)
         return out
 
     def step(self, dt_star: float) -> StepDiagnostics:

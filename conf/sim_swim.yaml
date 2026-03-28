@@ -100,3 +100,11 @@ seed:
 
 output:
   base_dir: outputs
+
+projection:
+  enable_flagella_template_projection: true  # true: べん毛ヘリックス形状をテンプレート射影で維持
+
+dynamics:
+  body_stiffness_scale: 200.0      # [-] 菌体spring/bendingへの剛性倍率
+  flag_bend_stiffness_scale: 300.0  # [-] べん毛bending剛性への倍率
+  flag_torsion_stiffness_scale: 300.0  # [-] べん毛torsion剛性への倍率
