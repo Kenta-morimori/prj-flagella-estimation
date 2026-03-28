@@ -7,6 +7,7 @@ from typing import Iterable
 
 import cv2
 import numpy as np
+from tqdm import tqdm
 
 from sim_swim.sim.core import SimulationState
 from sim_swim.sim.flagella_geometry import FlagellaRig
@@ -84,7 +85,7 @@ def project_states(
         (img_size, img_size),
     )
 
-    for idx, st in enumerate(sampled):
+    for idx, st in enumerate(tqdm(sampled, desc="2D render", unit="frame")):
         img = np.full((img_size, img_size, 3), 255, dtype=np.uint8)
         beads = st.bead_positions_um
 

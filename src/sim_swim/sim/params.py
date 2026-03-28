@@ -298,6 +298,22 @@ class OutputParams:
 
 
 @dataclass(frozen=True)
+class ProjectionParams:
+    """投影・拘束射影設定。"""
+
+    enable_flagella_template_projection: bool = True
+
+
+@dataclass(frozen=True)
+class DynamicsParams:
+    """力学スケール設定。"""
+
+    body_stiffness_scale: float = 200.0
+    flag_bend_stiffness_scale: float = 300.0
+    flag_torsion_stiffness_scale: float = 300.0
+
+
+@dataclass(frozen=True)
 class SimulationConfig:
     """Phase2シミュレーション設定。"""
 
@@ -321,6 +337,8 @@ class SimulationConfig:
     render: RenderParams
     seed: SeedParams
     output: OutputParams
+    projection: ProjectionParams = field(default_factory=ProjectionParams)
+    dynamics: DynamicsParams = field(default_factory=DynamicsParams)
 
     @property
     def b_m(self) -> float:
@@ -815,6 +833,24 @@ class SimulationConfig:
         output_raw = raw.get("output", {}) or {}
         output = OutputParams(base_dir=str(_get(output_raw, "base_dir", "outputs")))
 
+        proj_raw = raw.get("projection", {}) or {}
+        projection = ProjectionParams(
+            enable_flagella_template_projection=bool(
+                _get(proj_raw, "enable_flagella_template_projection", True)
+            ),
+        )
+
+        dyn_raw = raw.get("dynamics", {}) or {}
+        dynamics = DynamicsParams(
+            body_stiffness_scale=float(_get(dyn_raw, "body_stiffness_scale", 200.0)),
+            flag_bend_stiffness_scale=float(
+                _get(dyn_raw, "flag_bend_stiffness_scale", 300.0)
+            ),
+            flag_torsion_stiffness_scale=float(
+                _get(dyn_raw, "flag_torsion_stiffness_scale", 300.0)
+            ),
+        )
+
         return SimulationConfig(
             scale=scale,
             body=body,
@@ -836,6 +872,8 @@ class SimulationConfig:
             render=render,
             seed=seed,
             output=output,
+            projection=projection,
+            dynamics=dynamics,
         )
 
     def with_overrides(self, overrides: dict[str, Any]) -> "SimulationConfig":
