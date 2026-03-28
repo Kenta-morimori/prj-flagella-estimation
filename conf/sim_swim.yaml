@@ -77,6 +77,43 @@ brownian:
   method: "cholesky"          # cholesky / eigh
   jitter: 1.0e-20              # 数値安定化用
 
+projection:
+  enable_flagella_template_projection: true  # true: 各step後にべん毛を初期テンプレートへ再投影
+  enable_flagella_chain_length_projection_when_template_off: true  # template OFF時に隣接bead間距離を再投影
+
+stiffness_scales:
+  body: 200.0         # 菌体バネ/曲げのスケール
+  flag_bend: 300.0    # べん毛曲げ剛性スケール
+  flag_torsion: 300.0 # べん毛ねじり剛性スケール
+
+local_helix:
+  enabled: false
+  n_local: 4
+  k_radius_over_torque: 0.5
+  k_phase_over_torque: 0.5
+
+basal_link:
+  enabled: false
+  enforce_perpendicular_to_body_axis: true
+  projection_alpha: 1.0
+
+steric_exclusion:
+  enabled: false
+  epsilon_over_torque: 1.0
+  sigma_over_2a: 1.0
+  cutoff_over_sigma: 1.122462048309373
+  exclude_same_flagellum: true
+  exclude_body_body: true
+  exclude_hook_neighbors: true
+
+diagnostics:
+  collapse:
+    enabled: true
+    write_every_step: true
+    max_flagella_points: 4
+    collapse_distance_um: 0.15
+    collapse_consecutive_steps: 3
+
 render:
   image_size_px: 256
   pixel_size_um: 0.203

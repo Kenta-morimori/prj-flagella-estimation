@@ -177,6 +177,75 @@ class BrownianParams:
 
 
 @dataclass(frozen=True)
+class ProjectionParams:
+    """拘束投影設定。"""
+
+    enable_flagella_template_projection: bool = True
+    enable_flagella_chain_length_projection_when_template_off: bool = True
+
+
+@dataclass(frozen=True)
+class StiffnessScaleParams:
+    """剛性スケール設定。"""
+
+    body: float = 200.0
+    flag_bend: float = 300.0
+    flag_torsion: float = 300.0
+
+
+@dataclass(frozen=True)
+class LocalHelixParams:
+    """基部近傍の局所ヘリックス拘束設定。"""
+
+    enabled: bool = False
+    n_local: int = 4
+    k_radius_over_torque: float = 0.5
+    k_phase_over_torque: float = 0.5
+
+
+@dataclass(frozen=True)
+class BasalLinkParams:
+    """基部リンク方向固定設定。"""
+
+    enabled: bool = False
+    enforce_perpendicular_to_body_axis: bool = True
+    projection_alpha: float = 1.0
+
+
+@dataclass(frozen=True)
+class StericExclusionParams:
+    """bead-bead steric exclusion 設定。"""
+
+    enabled: bool = False
+    epsilon_over_torque: float = 1.0
+    sigma_over_2a: float = 1.0
+    cutoff_over_sigma: float = 1.122462048309373
+    exclude_same_flagellum: bool = True
+    exclude_body_body: bool = True
+    exclude_hook_neighbors: bool = True
+
+
+@dataclass(frozen=True)
+class CollapseDiagnosticsParams:
+    """collapse診断設定。"""
+
+    enabled: bool = True
+    write_every_step: bool = True
+    max_flagella_points: int = 4
+    collapse_distance_um: float = 0.15
+    collapse_consecutive_steps: int = 3
+
+
+@dataclass(frozen=True)
+class DiagnosticsParams:
+    """診断設定。"""
+
+    collapse: CollapseDiagnosticsParams = field(
+        default_factory=CollapseDiagnosticsParams
+    )
+
+
+@dataclass(frozen=True)
 class TimeParams:
     """時間設定。"""
 
@@ -243,6 +312,12 @@ class SimulationConfig:
     time: TimeParams
     output_sampling: OutputSamplingParams
     brownian: BrownianParams
+    projection: ProjectionParams
+    stiffness_scales: StiffnessScaleParams
+    local_helix: LocalHelixParams
+    basal_link: BasalLinkParams
+    steric_exclusion: StericExclusionParams
+    diagnostics: DiagnosticsParams
     render: RenderParams
     seed: SeedParams
     output: OutputParams
@@ -429,6 +504,81 @@ class SimulationConfig:
             temperature_K=float(_get(brown_raw, "temperature_K", 298.0)),
             method=str(_get(brown_raw, "method", "cholesky")),
             jitter=float(_get(brown_raw, "jitter", 1e-20)),
+        )
+
+        projection_raw = raw.get("projection", {}) or {}
+        projection = ProjectionParams(
+            enable_flagella_template_projection=bool(
+                _get(projection_raw, "enable_flagella_template_projection", True)
+            ),
+            enable_flagella_chain_length_projection_when_template_off=bool(
+                _get(
+                    projection_raw,
+                    "enable_flagella_chain_length_projection_when_template_off",
+                    True,
+                )
+            ),
+        )
+
+        stiffness_raw = raw.get("stiffness_scales", {}) or {}
+        stiffness_scales = StiffnessScaleParams(
+            body=float(_get(stiffness_raw, "body", 200.0)),
+            flag_bend=float(_get(stiffness_raw, "flag_bend", 300.0)),
+            flag_torsion=float(_get(stiffness_raw, "flag_torsion", 300.0)),
+        )
+
+        local_helix_raw = raw.get("local_helix", {}) or {}
+        local_helix = LocalHelixParams(
+            enabled=bool(_get(local_helix_raw, "enabled", False)),
+            n_local=int(_get(local_helix_raw, "n_local", 4)),
+            k_radius_over_torque=float(
+                _get(local_helix_raw, "k_radius_over_torque", 0.5)
+            ),
+            k_phase_over_torque=float(
+                _get(local_helix_raw, "k_phase_over_torque", 0.5)
+            ),
+        )
+
+        basal_link_raw = raw.get("basal_link", {}) or {}
+        basal_link = BasalLinkParams(
+            enabled=bool(_get(basal_link_raw, "enabled", False)),
+            enforce_perpendicular_to_body_axis=bool(
+                _get(basal_link_raw, "enforce_perpendicular_to_body_axis", True)
+            ),
+            projection_alpha=float(_get(basal_link_raw, "projection_alpha", 1.0)),
+        )
+
+        steric_raw = raw.get("steric_exclusion", {}) or {}
+        steric_exclusion = StericExclusionParams(
+            enabled=bool(_get(steric_raw, "enabled", False)),
+            epsilon_over_torque=float(_get(steric_raw, "epsilon_over_torque", 1.0)),
+            sigma_over_2a=float(_get(steric_raw, "sigma_over_2a", 1.0)),
+            cutoff_over_sigma=float(
+                _get(steric_raw, "cutoff_over_sigma", 1.122462048309373)
+            ),
+            exclude_same_flagellum=bool(
+                _get(steric_raw, "exclude_same_flagellum", True)
+            ),
+            exclude_body_body=bool(_get(steric_raw, "exclude_body_body", True)),
+            exclude_hook_neighbors=bool(
+                _get(steric_raw, "exclude_hook_neighbors", True)
+            ),
+        )
+
+        diagnostics_raw = raw.get("diagnostics", {}) or {}
+        collapse_raw = diagnostics_raw.get("collapse", {}) or {}
+        diagnostics = DiagnosticsParams(
+            collapse=CollapseDiagnosticsParams(
+                enabled=bool(_get(collapse_raw, "enabled", True)),
+                write_every_step=bool(_get(collapse_raw, "write_every_step", True)),
+                max_flagella_points=int(_get(collapse_raw, "max_flagella_points", 4)),
+                collapse_distance_um=float(
+                    _get(collapse_raw, "collapse_distance_um", 0.15)
+                ),
+                collapse_consecutive_steps=int(
+                    _get(collapse_raw, "collapse_consecutive_steps", 3)
+                ),
+            )
         )
 
         scale_raw = raw.get("scale", {}) or {}
@@ -677,6 +827,12 @@ class SimulationConfig:
             time=time,
             output_sampling=output_sampling,
             brownian=brownian,
+            projection=projection,
+            stiffness_scales=stiffness_scales,
+            local_helix=local_helix,
+            basal_link=basal_link,
+            steric_exclusion=steric_exclusion,
+            diagnostics=diagnostics,
             render=render,
             seed=seed,
             output=output,
