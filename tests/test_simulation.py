@@ -31,6 +31,50 @@ def _body_bending_rows(sim: Simulator) -> np.ndarray:
     return np.where(sim.model.bending_flag_ids < 0)[0]
 
 
+def _body_layer_lookup(sim: Simulator) -> dict[int, np.ndarray]:
+    out: dict[int, np.ndarray] = {}
+    for layer in sim.model.body_layer_indices:
+        layer_int = layer.astype(int, copy=False)
+        for bead_idx in layer_int:
+            out[int(bead_idx)] = layer_int
+    return out
+
+
+def _hook_rest_lookup(sim: Simulator) -> dict[tuple[int, int], float]:
+    out: dict[tuple[int, int], float] = {}
+    for (i, j), rest in zip(sim.model.spring_pairs, sim.model.spring_rest_lengths_m):
+        ii = int(i)
+        jj = int(j)
+        i_is_body = bool(sim.model.bead_is_body[ii])
+        j_is_body = bool(sim.model.bead_is_body[jj])
+        if not (i_is_body ^ j_is_body):
+            continue
+        body_idx = ii if i_is_body else jj
+        flag_idx = jj if i_is_body else ii
+        out[(body_idx, flag_idx)] = float(rest)
+    return out
+
+
+def _assert_basal_link_geometry(sim: Simulator, positions_m: np.ndarray) -> None:
+    layer_lookup = _body_layer_lookup(sim)
+    rest_lookup = _hook_rest_lookup(sim)
+    for attach_idx, first_idx, _ in sim.model.hook_triplets:
+        attach = int(attach_idx)
+        first = int(first_idx)
+        layer = layer_lookup[attach]
+        layer_centroid = np.mean(positions_m[layer], axis=0)
+
+        link = positions_m[first] - positions_m[attach]
+        link_norm = float(np.linalg.norm(link))
+        expected_rest = rest_lookup[(attach, first)]
+        assert np.isclose(link_norm, expected_rest, atol=1e-12)
+
+        radial = positions_m[attach] - layer_centroid
+        radial_unit = radial / max(float(np.linalg.norm(radial)), 1e-18)
+        link_unit = link / max(link_norm, 1e-18)
+        assert np.allclose(link_unit, radial_unit, atol=1e-10)
+
+
 def _measure_body_constraint_drift(sim: Simulator, n_steps: int) -> tuple[float, float]:
     model = sim.model
     body_spring_rows = _body_spring_rows(sim)
@@ -305,6 +349,52 @@ def test_hook_bond_stats_columns_and_expected_values(tmp_path: Path) -> None:
     assert abs(mean_len - target_um) <= tol_um
     assert abs(min_len - target_um) <= tol_um
     assert abs(max_len - target_um) <= tol_um
+
+
+def test_basal_link_initial_geometry_matches_local_radial() -> None:
+    cfg = _make_cfg(motor_torque_Nm=0.0, hook_enabled=True, n_flagella=3)
+    sim = Simulator(cfg)
+    _assert_basal_link_geometry(sim, sim.model.positions_m)
+
+
+def test_basal_link_geometry_after_one_step() -> None:
+    cfg = _make_cfg(motor_torque_Nm=1.0e-18, hook_enabled=True, n_flagella=3)
+    sim = Simulator(cfg)
+    sim.engine.step(cfg.dt_star)
+    _assert_basal_link_geometry(sim, sim.model.positions_m)
+
+
+def test_basal_link_geometry_after_multi_step() -> None:
+    cfg = _make_cfg(motor_torque_Nm=1.0e-18, hook_enabled=True, n_flagella=3)
+    sim = Simulator(cfg)
+
+    for _ in range(300):
+        sim.engine.step(cfg.dt_star)
+
+    _assert_basal_link_geometry(sim, sim.model.positions_m)
+
+
+def test_basal_projection_directly_moves_first_bead_only() -> None:
+    cfg = _make_cfg(motor_torque_Nm=1.0e-18, hook_enabled=True, n_flagella=3)
+    sim = Simulator(cfg)
+    before = sim.model.positions_m.copy()
+    perturbed = before.copy()
+
+    all_flag_idx = np.concatenate(sim.model.flagella_indices).astype(int, copy=False)
+    for bead_idx in all_flag_idx:
+        perturbed[bead_idx] += np.array([1.0e-8, -2.0e-8, 1.5e-8], dtype=float)
+
+    projected = sim.engine._project_basal_link_direction(perturbed)
+
+    first_idx = {int(t[1]) for t in sim.model.hook_triplets.tolist()}
+    non_first_flag_idx = sorted(set(all_flag_idx.tolist()) - first_idx)
+    if non_first_flag_idx:
+        assert np.allclose(
+            projected[non_first_flag_idx],
+            perturbed[non_first_flag_idx],
+            atol=0.0,
+            rtol=0.0,
+        )
 
 
 def test_body_constraints_match_initial_reference() -> None:
