@@ -2,8 +2,8 @@
 name: General Issue
 about: バグ報告・改善提案・タスク管理など汎用のIssueテンプレート
 title: "[Issue] "
-labels: ""
-assignees: ""
+labels: []
+assignees: []
 ---
 
 ## 概要・目的
