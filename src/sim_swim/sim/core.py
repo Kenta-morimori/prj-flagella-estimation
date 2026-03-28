@@ -13,6 +13,7 @@ import numpy as np
 
 from sim_swim.dynamics.engine import DynamicsEngine
 from sim_swim.model.builder import ModelBuilder
+from sim_swim.sim.collapse_diagnostics import CollapseDiagnosticsRecorder
 from sim_swim.sim.debug_summary import StepSummaryRecorder
 from sim_swim.sim.flagella_geometry import FlagellaRig
 from sim_swim.sim.params import SimulationConfig
@@ -215,6 +216,11 @@ class Simulator:
             if step_summary_dir is not None
             else None
         )
+        collapse_recorder = (
+            CollapseDiagnosticsRecorder(self.model, self.config, step_summary_dir)
+            if step_summary_dir is not None
+            else None
+        )
 
         for step in range(total_steps):
             t_star_before = self.engine.t_star
@@ -222,6 +228,12 @@ class Simulator:
 
             if debug_recorder is not None:
                 debug_recorder.record(step=step, t_star=t_star_before, diag=step_diag)
+            if collapse_recorder is not None:
+                collapse_recorder.record(
+                    step=step,
+                    t_s=t_star_before * tau_s,
+                    diag=step_diag,
+                )
 
             t_now = self.engine.t_star * tau_s
             prev = states[-1]
@@ -254,5 +266,10 @@ class Simulator:
             step_csv = debug_recorder.write_csv()
             if logger is not None:
                 logger.info("Saved step summary to %s", step_csv)
+        if collapse_recorder is not None:
+            collapse_csv, collapse_summary_csv = collapse_recorder.write_files()
+            if logger is not None and self.config.diagnostics.collapse.enabled:
+                logger.info("Saved collapse diagnostics to %s", collapse_csv)
+                logger.info("Saved collapse summary to %s", collapse_summary_csv)
 
         return states

@@ -175,6 +175,232 @@ def test_render_center_body_in_2d_can_be_disabled() -> None:
     assert sim_cfg.render.center_body_in_2d is False
 
 
+def test_template_projection_default_is_enabled() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.projection.enable_flagella_template_projection is True
+
+
+def test_template_projection_can_be_disabled_via_config() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["projection"] = {"enable_flagella_template_projection": False}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.projection.enable_flagella_template_projection is False
+
+
+def test_chain_length_projection_default_is_enabled_when_template_off() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert (
+        sim_cfg.projection.enable_flagella_chain_length_projection_when_template_off
+        is True
+    )
+
+
+def test_chain_length_projection_can_be_disabled_via_config() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["projection"] = {
+        "enable_flagella_chain_length_projection_when_template_off": False
+    }
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert (
+        sim_cfg.projection.enable_flagella_chain_length_projection_when_template_off
+        is False
+    )
+
+
+def test_repulsion_defaults_remain_compatible() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    rep = sim_cfg.potentials.spring_spring_repulsion
+    assert rep.A_ss_over_T == pytest.approx(1.0)
+    assert rep.cutoff_over_b == pytest.approx(0.2)
+
+
+def test_repulsion_overrides_are_loaded_from_config() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["potentials"] = {
+        "spring_spring_repulsion": {
+            "A_ss_over_T": 2.5,
+            "cutoff_over_b": 0.35,
+        }
+    }
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    rep = sim_cfg.potentials.spring_spring_repulsion
+    assert rep.A_ss_over_T == pytest.approx(2.5)
+    assert rep.cutoff_over_b == pytest.approx(0.35)
+
+
+def test_stiffness_scale_defaults_remain_compatible() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    scales = sim_cfg.stiffness_scales
+    assert scales.body == pytest.approx(200.0)
+    assert scales.flag_bend == pytest.approx(300.0)
+    assert scales.flag_torsion == pytest.approx(300.0)
+
+
+def test_stiffness_scales_overrides_are_loaded_from_config() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["stiffness_scales"] = {
+        "body": 220.0,
+        "flag_bend": 330.0,
+        "flag_torsion": 340.0,
+    }
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    scales = sim_cfg.stiffness_scales
+    assert scales.body == pytest.approx(220.0)
+    assert scales.flag_bend == pytest.approx(330.0)
+    assert scales.flag_torsion == pytest.approx(340.0)
+
+
+def test_local_helix_defaults() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    local = sim_cfg.local_helix
+    assert local.enabled is False
+    assert local.n_local == 4
+    assert local.k_radius_over_torque == pytest.approx(0.5)
+    assert local.k_phase_over_torque == pytest.approx(0.5)
+
+
+def test_local_helix_overrides_are_loaded() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["local_helix"] = {
+        "enabled": True,
+        "n_local": 3,
+        "k_radius_over_torque": 0.7,
+        "k_phase_over_torque": 0.8,
+    }
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    local = sim_cfg.local_helix
+    assert local.enabled is True
+    assert local.n_local == 3
+    assert local.k_radius_over_torque == pytest.approx(0.7)
+    assert local.k_phase_over_torque == pytest.approx(0.8)
+
+
+def test_collapse_diagnostics_defaults() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    collapse = sim_cfg.diagnostics.collapse
+    assert collapse.enabled is True
+    assert collapse.write_every_step is True
+    assert collapse.max_flagella_points == 4
+    assert collapse.collapse_distance_um == pytest.approx(0.15)
+    assert collapse.collapse_consecutive_steps == 3
+
+
+def test_collapse_diagnostics_overrides_are_loaded() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["diagnostics"] = {
+        "collapse": {
+            "enabled": True,
+            "write_every_step": False,
+            "max_flagella_points": 3,
+            "collapse_distance_um": 0.2,
+            "collapse_consecutive_steps": 2,
+        }
+    }
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    collapse = sim_cfg.diagnostics.collapse
+    assert collapse.enabled is True
+    assert collapse.write_every_step is False
+    assert collapse.max_flagella_points == 3
+    assert collapse.collapse_distance_um == pytest.approx(0.2)
+    assert collapse.collapse_consecutive_steps == 2
+
+
+def test_basal_link_defaults() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    basal = sim_cfg.basal_link
+    assert basal.enabled is False
+    assert basal.enforce_perpendicular_to_body_axis is True
+    assert basal.projection_alpha == pytest.approx(1.0)
+
+
+def test_basal_link_overrides_are_loaded() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["basal_link"] = {
+        "enabled": True,
+        "enforce_perpendicular_to_body_axis": False,
+        "projection_alpha": 0.5,
+    }
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    basal = sim_cfg.basal_link
+    assert basal.enabled is True
+    assert basal.enforce_perpendicular_to_body_axis is False
+    assert basal.projection_alpha == pytest.approx(0.5)
+
+
+def test_steric_exclusion_defaults() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    steric = sim_cfg.steric_exclusion
+    assert steric.enabled is False
+    assert steric.epsilon_over_torque == pytest.approx(1.0)
+    assert steric.sigma_over_2a == pytest.approx(1.0)
+    assert steric.cutoff_over_sigma == pytest.approx(1.122462048309373)
+    assert steric.exclude_same_flagellum is True
+    assert steric.exclude_body_body is True
+    assert steric.exclude_hook_neighbors is True
+
+
+def test_steric_exclusion_overrides_are_loaded() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["steric_exclusion"] = {
+        "enabled": True,
+        "epsilon_over_torque": 2.0,
+        "sigma_over_2a": 0.8,
+        "cutoff_over_sigma": 1.2,
+        "exclude_same_flagellum": False,
+        "exclude_body_body": False,
+        "exclude_hook_neighbors": False,
+    }
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    steric = sim_cfg.steric_exclusion
+    assert steric.enabled is True
+    assert steric.epsilon_over_torque == pytest.approx(2.0)
+    assert steric.sigma_over_2a == pytest.approx(0.8)
+    assert steric.cutoff_over_sigma == pytest.approx(1.2)
+    assert steric.exclude_same_flagellum is False
+    assert steric.exclude_body_body is False
+    assert steric.exclude_hook_neighbors is False
+
+
 def test_body_n_layers_requires_integer_multiple() -> None:
     cfg = _base_cfg()
     cfg["body"]["length_total_um"] = 2.3
