@@ -169,6 +169,12 @@ class DynamicsEngine:
                 )
                 edges.append((i, k, rest))
             self.flag_chain_edges.append(edges)
+        self.flag_first_bead_idx = np.full(
+            (len(self.model.flagella_indices),), -1, dtype=int
+        )
+        self.flag_basal_rest_lengths_m = np.zeros(
+            (len(self.model.flagella_indices),), dtype=float
+        )
         self.flag_attach_body_idx = np.full(
             (len(self.model.flagella_indices),), -1, dtype=int
         )
@@ -177,29 +183,27 @@ class DynamicsEngine:
         )
         self.hook_anchor_mask = np.zeros((self.model.positions_m.shape[0],), dtype=bool)
         if self.hook_spring_rows.size > 0:
-            for hook_row, (i_raw, j_raw) in zip(
-                self.hook_spring_rows,
-                self.model.spring_pairs[self.hook_spring_rows],
-                strict=False,
-            ):
+            for row in self.hook_spring_rows:
+                i_raw, j_raw = self.model.spring_pairs[row]
                 i = int(i_raw)
                 j = int(j_raw)
+                rest = float(self.model.spring_rest_lengths_m[row])
                 if self.bead_is_body[i] and (not self.bead_is_body[j]):
                     self.hook_anchor_mask[j] = True
                     f_id = int(self.model.bead_flag_ids[j])
                     if f_id >= 0:
                         self.flag_attach_body_idx[f_id] = i
-                        self.flag_hook_rest_lengths_m[f_id] = float(
-                            self.model.spring_rest_lengths_m[int(hook_row)]
-                        )
+                        self.flag_first_bead_idx[f_id] = j
+                        self.flag_basal_rest_lengths_m[f_id] = rest
+                        self.flag_hook_rest_lengths_m[f_id] = rest
                 elif self.bead_is_body[j] and (not self.bead_is_body[i]):
                     self.hook_anchor_mask[i] = True
                     f_id = int(self.model.bead_flag_ids[i])
                     if f_id >= 0:
                         self.flag_attach_body_idx[f_id] = j
-                        self.flag_hook_rest_lengths_m[f_id] = float(
-                            self.model.spring_rest_lengths_m[int(hook_row)]
-                        )
+                        self.flag_first_bead_idx[f_id] = i
+                        self.flag_basal_rest_lengths_m[f_id] = rest
+                        self.flag_hook_rest_lengths_m[f_id] = rest
         self.flag_template_local: list[np.ndarray] = []
         for f_id, idxs in enumerate(self.model.flagella_indices):
             idx = idxs.astype(int, copy=False)
@@ -269,6 +273,11 @@ class DynamicsEngine:
             else:
                 delta = np.zeros((0,), dtype=float)
             self.local_helix_delta_phi_ref.append(delta)
+        self.body_bead_to_layer_idx = np.full(
+            (self.model.positions_m.shape[0],), -1, dtype=int
+        )
+        for layer_idx, layer in enumerate(self.model.body_layer_indices):
+            self.body_bead_to_layer_idx[layer.astype(int, copy=False)] = int(layer_idx)
         self.body_ref_center = np.mean(
             self.model.positions_m[self.body_indices], axis=0
         )
@@ -308,9 +317,15 @@ class DynamicsEngine:
                 i_attach = int(attach)
                 i_first = int(first)
                 i_second = int(second)
-                hook_neighbor_pairs.add(tuple(sorted((i_attach, i_first))))
-                hook_neighbor_pairs.add(tuple(sorted((i_first, i_second))))
-                hook_neighbor_pairs.add(tuple(sorted((i_attach, i_second))))
+                hook_neighbor_pairs.add(
+                    (min(i_attach, i_first), max(i_attach, i_first))
+                )
+                hook_neighbor_pairs.add(
+                    (min(i_first, i_second), max(i_first, i_second))
+                )
+                hook_neighbor_pairs.add(
+                    (min(i_attach, i_second), max(i_attach, i_second))
+                )
 
         pairs: list[tuple[int, int]] = []
         for i in range(n_beads - 1):
@@ -544,6 +559,74 @@ class DynamicsEngine:
                     out[j] = out[i] + (rest / dist) * d
         return out
 
+    def _project_basal_link_direction(self, positions_m: np.ndarray) -> np.ndarray:
+        if self.flag_first_bead_idx.size == 0:
+            return positions_m
+        out = positions_m.copy()
+
+        if self.basal_link_enforce_perpendicular_to_body_axis:
+            body_axis = self._body_axis_unit(out)
+            alpha = self.basal_link_projection_alpha
+            for f_id in range(self.flag_first_bead_idx.shape[0]):
+                first = int(self.flag_first_bead_idx[f_id])
+                attach = int(self.flag_attach_body_idx[f_id])
+                if first < 0 or attach < 0:
+                    continue
+
+                link = out[first] - out[attach]
+                link_norm = max(float(np.linalg.norm(link)), 1e-18)
+                current_dir = link / link_norm
+                target_vec = current_dir - np.dot(current_dir, body_axis) * body_axis
+                target_norm = float(np.linalg.norm(target_vec))
+                if target_norm <= 1e-12:
+                    fallback = np.array([1.0, 0.0, 0.0], dtype=float)
+                    if abs(float(np.dot(fallback, body_axis))) > 0.9:
+                        fallback = np.array([0.0, 1.0, 0.0], dtype=float)
+                    target_vec = np.cross(body_axis, fallback)
+                    target_norm = float(np.linalg.norm(target_vec))
+                target_dir = target_vec / max(target_norm, 1e-18)
+
+                blended = (1.0 - alpha) * current_dir + alpha * target_dir
+                blended_norm = float(np.linalg.norm(blended))
+                if blended_norm <= 1e-18:
+                    continue
+                rest = max(float(self.flag_hook_rest_lengths_m[f_id]), 1e-18)
+                out[first] = out[attach] + rest * (blended / blended_norm)
+            return out
+
+        layer_centroids = [
+            np.mean(out[layer.astype(int, copy=False)], axis=0)
+            for layer in self.model.body_layer_indices
+        ]
+
+        for f_id in range(self.flag_first_bead_idx.shape[0]):
+            first = int(self.flag_first_bead_idx[f_id])
+            attach = int(self.flag_attach_body_idx[f_id])
+            if first < 0 or attach < 0:
+                continue
+            layer_idx = int(self.body_bead_to_layer_idx[attach])
+            if layer_idx < 0 or layer_idx >= len(layer_centroids):
+                continue
+            radial = out[attach] - layer_centroids[layer_idx]
+            radial_norm = float(np.linalg.norm(radial))
+            if radial_norm <= 1e-18:
+                radial = out[first] - out[attach]
+                radial_norm = float(np.linalg.norm(radial))
+                if radial_norm <= 1e-18:
+                    continue
+
+            rest = max(float(self.flag_basal_rest_lengths_m[f_id]), 0.0)
+            if rest <= 0.0:
+                # Fallback: use current attach→first distance as rest length
+                attach_to_first = out[first] - out[attach]
+                attach_to_first_norm = float(np.linalg.norm(attach_to_first))
+                if attach_to_first_norm <= 1e-18:
+                    # Degenerate configuration: cannot determine a meaningful rest length
+                    continue
+                rest = attach_to_first_norm
+            out[first] = out[attach] + (rest / radial_norm) * radial
+        return out
+
     def _project_flagella_template(self, positions_m: np.ndarray) -> np.ndarray:
         if not self.model.flagella_indices:
             return positions_m
@@ -618,60 +701,11 @@ class DynamicsEngine:
 
         return out
 
-    def _project_basal_link_direction(self, positions_m: np.ndarray) -> np.ndarray:
-        if not self.model.flagella_indices:
-            return positions_m
-
-        out = positions_m.copy()
-        body_axis = self._body_axis_unit(out)
-        alpha = self.basal_link_projection_alpha
-        for f_id, idxs in enumerate(self.model.flagella_indices):
-            idx = idxs.astype(int, copy=False)
-            if idx.size == 0:
-                continue
-            attach = int(self.flag_attach_body_idx[f_id])
-            if attach < 0:
-                continue
-
-            first = int(idx[0])
-            rest = max(float(self.flag_hook_rest_lengths_m[f_id]), 1e-18)
-            link = out[first] - out[attach]
-            link_norm = max(float(np.linalg.norm(link)), 1e-18)
-            current_dir = link / link_norm
-
-            if self.basal_link_enforce_perpendicular_to_body_axis:
-                target_vec = current_dir - np.dot(current_dir, body_axis) * body_axis
-                target_norm = float(np.linalg.norm(target_vec))
-                if target_norm <= 1e-12:
-                    if idx.size >= 2:
-                        ref = out[int(idx[1])] - out[first]
-                    else:
-                        ref = np.array([1.0, 0.0, 0.0], dtype=float)
-                    target_vec = ref - np.dot(ref, body_axis) * body_axis
-                    target_norm = float(np.linalg.norm(target_vec))
-                    if target_norm <= 1e-12:
-                        fallback = np.array([1.0, 0.0, 0.0], dtype=float)
-                        if abs(float(np.dot(fallback, body_axis))) > 0.9:
-                            fallback = np.array([0.0, 1.0, 0.0], dtype=float)
-                        target_vec = np.cross(body_axis, fallback)
-                        target_norm = float(np.linalg.norm(target_vec))
-                target_dir = target_vec / max(target_norm, 1e-18)
-            else:
-                target_dir = current_dir
-
-            blended = (1.0 - alpha) * current_dir + alpha * target_dir
-            blended_norm = float(np.linalg.norm(blended))
-            if blended_norm <= 1e-18:
-                continue
-            out[first] = out[attach] + rest * (blended / blended_norm)
-
-        return out
-
     def _project_flagella_constraints(self, positions_m: np.ndarray) -> np.ndarray:
-        if self.enable_flagella_template_projection:
-            return self._project_flagella_template(positions_m)
-
         out = positions_m
+        if self.enable_flagella_template_projection:
+            return self._project_flagella_template(out)
+
         if self.enable_flagella_chain_length_projection_when_template_off:
             out = self._project_flagella_chain_lengths(out, 1)
         if self.enable_local_helix_when_template_off:

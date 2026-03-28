@@ -199,6 +199,9 @@ class ModelBuilder:
         hook_length_um = 0.25 * b_um
         body_axis = _principal_axis(body_um)
         rear_dir = -body_axis
+        body_bead_to_layer = np.full((n_body,), -1, dtype=int)
+        for layer_idx, layer in enumerate(body_layers):
+            body_bead_to_layer[layer.astype(int, copy=False)] = int(layer_idx)
 
         points_all = [body_um]
         flagella_indices: list[np.ndarray] = []
@@ -259,8 +262,21 @@ class ModelBuilder:
             y = r_um * np.cos(theta) - r_um * math.cos(phase)
             z = -r_um * np.sin(theta) + r_um * math.sin(phase)
             attach_point = body_um[int(attach_idx)]
+            attach_layer_idx = int(body_bead_to_layer[int(attach_idx)])
+            if attach_layer_idx < 0:
+                raise ValueError(
+                    "Failed to locate body layer for attach bead:"
+                    f" attach_idx={int(attach_idx)}"
+                )
+            layer_centroid = np.mean(body_um[body_layers[attach_layer_idx]], axis=0)
+            radial = attach_point - layer_centroid
+            radial_norm = float(np.linalg.norm(radial))
+            if radial_norm <= 1e-12:
+                radial_unit = rear_dir
+            else:
+                radial_unit = radial / radial_norm
             axis_u = rear_dir
-            hook_offset_um = hook_length_um * axis_u
+            hook_offset_um = hook_length_um * radial_unit
 
             ref = np.array([1.0, 0.0, 0.0], dtype=float)
             if abs(float(np.dot(axis_u, ref))) > 0.9:

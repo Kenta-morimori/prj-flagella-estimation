@@ -123,7 +123,7 @@ render:
 
   save_frames_3d: true
   follow_camera_3d: true       # true: 3D追従カメラ
-  view_range_um: 8.0           # [um] 3D表示範囲（中心±R）
+  view_range_um: 5.0           # [um] 3D表示範囲（中心±R）
   timestamp_3d: true
   timestamp_fmt: "t = {t:.3f} s"
   label_flagella: true         # F0/F1/F2 ラベル
