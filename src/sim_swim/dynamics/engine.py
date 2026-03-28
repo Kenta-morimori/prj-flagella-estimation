@@ -402,7 +402,13 @@ class DynamicsEngine:
 
             rest = max(float(self.flag_basal_rest_lengths_m[f_id]), 0.0)
             if rest <= 0.0:
-                rest = radial_norm
+                # Fallback: use current attach→first distance as rest length
+                attach_to_first = out[first] - out[attach]
+                attach_to_first_norm = float(np.linalg.norm(attach_to_first))
+                if attach_to_first_norm <= 1e-18:
+                    # Degenerate configuration: cannot determine a meaningful rest length
+                    continue
+                rest = attach_to_first_norm
             out[first] = out[attach] + (rest / radial_norm) * radial
         return out
 
