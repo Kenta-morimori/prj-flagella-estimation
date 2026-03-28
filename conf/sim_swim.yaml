@@ -92,6 +92,20 @@ local_helix:
   k_radius_over_torque: 0.5
   k_phase_over_torque: 0.5
 
+basal_link:
+  enabled: false
+  enforce_perpendicular_to_body_axis: true
+  projection_alpha: 1.0
+
+steric_exclusion:
+  enabled: false
+  epsilon_over_torque: 1.0
+  sigma_over_2a: 1.0
+  cutoff_over_sigma: 1.122462048309373
+  exclude_same_flagellum: true
+  exclude_body_body: true
+  exclude_hook_neighbors: true
+
 diagnostics:
   collapse:
     enabled: true

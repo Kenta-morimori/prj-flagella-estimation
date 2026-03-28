@@ -10,6 +10,7 @@ import numpy as np
 from sim_swim.dynamics.brownian import sample_brownian_displacement
 from sim_swim.dynamics.forces import (
     MotorForceDiagnostics,
+    compute_bead_steric_exclusion_forces,
     compute_bending_forces,
     compute_hook_forces,
     compute_motor_forces,
@@ -119,6 +120,21 @@ class DynamicsEngine:
             max(self.local_helix_k_phase / max(k_phase_ref, 1e-30), 0.0), 1.0
         )
         self.theta0_ref_rad, self.phi0_ref_rad = self._initial_reference_angles_rad()
+        self.enable_basal_link_projection = bool(cfg.basal_link.enabled)
+        self.basal_link_enforce_perpendicular_to_body_axis = bool(
+            cfg.basal_link.enforce_perpendicular_to_body_axis
+        )
+        self.basal_link_projection_alpha = float(
+            np.clip(cfg.basal_link.projection_alpha, 0.0, 1.0)
+        )
+        self.enable_steric_exclusion = bool(cfg.steric_exclusion.enabled)
+        self.steric_epsilon = float(cfg.steric_exclusion.epsilon_over_torque) * torque
+        self.steric_sigma_m = (
+            float(cfg.steric_exclusion.sigma_over_2a) * 2.0 * self.model.bead_radius_m
+        )
+        self.steric_cutoff_m = (
+            float(cfg.steric_exclusion.cutoff_over_sigma) * self.steric_sigma_m
+        )
         spring_pairs = self.model.spring_pairs
         if spring_pairs.size == 0:
             self.body_spring_rows = np.zeros((0,), dtype=int)
@@ -156,9 +172,16 @@ class DynamicsEngine:
         self.flag_attach_body_idx = np.full(
             (len(self.model.flagella_indices),), -1, dtype=int
         )
+        self.flag_hook_rest_lengths_m = np.zeros(
+            (len(self.model.flagella_indices),), dtype=float
+        )
         self.hook_anchor_mask = np.zeros((self.model.positions_m.shape[0],), dtype=bool)
         if self.hook_spring_rows.size > 0:
-            for i_raw, j_raw in self.model.spring_pairs[self.hook_spring_rows]:
+            for hook_row, (i_raw, j_raw) in zip(
+                self.hook_spring_rows,
+                self.model.spring_pairs[self.hook_spring_rows],
+                strict=False,
+            ):
                 i = int(i_raw)
                 j = int(j_raw)
                 if self.bead_is_body[i] and (not self.bead_is_body[j]):
@@ -166,11 +189,17 @@ class DynamicsEngine:
                     f_id = int(self.model.bead_flag_ids[j])
                     if f_id >= 0:
                         self.flag_attach_body_idx[f_id] = i
+                        self.flag_hook_rest_lengths_m[f_id] = float(
+                            self.model.spring_rest_lengths_m[int(hook_row)]
+                        )
                 elif self.bead_is_body[j] and (not self.bead_is_body[i]):
                     self.hook_anchor_mask[i] = True
                     f_id = int(self.model.bead_flag_ids[i])
                     if f_id >= 0:
                         self.flag_attach_body_idx[f_id] = j
+                        self.flag_hook_rest_lengths_m[f_id] = float(
+                            self.model.spring_rest_lengths_m[int(hook_row)]
+                        )
         self.flag_template_local: list[np.ndarray] = []
         for f_id, idxs in enumerate(self.model.flagella_indices):
             idx = idxs.astype(int, copy=False)
@@ -246,6 +275,76 @@ class DynamicsEngine:
         self.body_ref_centered = (
             self.model.positions_m[self.body_indices] - self.body_ref_center
         )
+        self.steric_pair_indices = self._build_steric_exclusion_pairs(
+            exclude_same_flagellum=bool(cfg.steric_exclusion.exclude_same_flagellum),
+            exclude_body_body=bool(cfg.steric_exclusion.exclude_body_body),
+            exclude_hook_neighbors=bool(cfg.steric_exclusion.exclude_hook_neighbors),
+        )
+
+    def _body_axis_unit(self, positions_m: np.ndarray) -> np.ndarray:
+        if not self.model.body_layer_indices:
+            return np.array([1.0, 0.0, 0.0], dtype=float)
+        first_layer = positions_m[self.model.body_layer_indices[0]].mean(axis=0)
+        last_layer = positions_m[self.model.body_layer_indices[-1]].mean(axis=0)
+        axis = last_layer - first_layer
+        norm = float(np.linalg.norm(axis))
+        if norm <= 1e-18:
+            return np.array([1.0, 0.0, 0.0], dtype=float)
+        return axis / norm
+
+    def _build_steric_exclusion_pairs(
+        self,
+        exclude_same_flagellum: bool,
+        exclude_body_body: bool,
+        exclude_hook_neighbors: bool,
+    ) -> np.ndarray:
+        n_beads = int(self.model.positions_m.shape[0])
+        if n_beads <= 1:
+            return np.zeros((0, 2), dtype=int)
+
+        hook_neighbor_pairs: set[tuple[int, int]] = set()
+        if exclude_hook_neighbors:
+            for attach, first, second in self.model.hook_triplets:
+                i_attach = int(attach)
+                i_first = int(first)
+                i_second = int(second)
+                hook_neighbor_pairs.add(tuple(sorted((i_attach, i_first))))
+                hook_neighbor_pairs.add(tuple(sorted((i_first, i_second))))
+                hook_neighbor_pairs.add(tuple(sorted((i_attach, i_second))))
+
+        pairs: list[tuple[int, int]] = []
+        for i in range(n_beads - 1):
+            for j in range(i + 1, n_beads):
+                bi = bool(self.model.bead_is_body[i])
+                bj = bool(self.model.bead_is_body[j])
+                fi = int(self.model.bead_flag_ids[i])
+                fj = int(self.model.bead_flag_ids[j])
+
+                if bi and bj:
+                    if exclude_body_body:
+                        continue
+                    pairs.append((i, j))
+                    continue
+
+                if (not bi) and (not bj):
+                    if fi == fj and exclude_same_flagellum:
+                        continue
+                    if fi == fj:
+                        continue
+                    pair = (i, j)
+                    if pair in hook_neighbor_pairs:
+                        continue
+                    pairs.append(pair)
+                    continue
+
+                pair = (i, j)
+                if pair in hook_neighbor_pairs:
+                    continue
+                pairs.append(pair)
+
+        if not pairs:
+            return np.zeros((0, 2), dtype=int)
+        return np.asarray(pairs, dtype=int)
 
     def _build_flag_frame(
         self,
@@ -519,6 +618,55 @@ class DynamicsEngine:
 
         return out
 
+    def _project_basal_link_direction(self, positions_m: np.ndarray) -> np.ndarray:
+        if not self.model.flagella_indices:
+            return positions_m
+
+        out = positions_m.copy()
+        body_axis = self._body_axis_unit(out)
+        alpha = self.basal_link_projection_alpha
+        for f_id, idxs in enumerate(self.model.flagella_indices):
+            idx = idxs.astype(int, copy=False)
+            if idx.size == 0:
+                continue
+            attach = int(self.flag_attach_body_idx[f_id])
+            if attach < 0:
+                continue
+
+            first = int(idx[0])
+            rest = max(float(self.flag_hook_rest_lengths_m[f_id]), 1e-18)
+            link = out[first] - out[attach]
+            link_norm = max(float(np.linalg.norm(link)), 1e-18)
+            current_dir = link / link_norm
+
+            if self.basal_link_enforce_perpendicular_to_body_axis:
+                target_vec = current_dir - np.dot(current_dir, body_axis) * body_axis
+                target_norm = float(np.linalg.norm(target_vec))
+                if target_norm <= 1e-12:
+                    if idx.size >= 2:
+                        ref = out[int(idx[1])] - out[first]
+                    else:
+                        ref = np.array([1.0, 0.0, 0.0], dtype=float)
+                    target_vec = ref - np.dot(ref, body_axis) * body_axis
+                    target_norm = float(np.linalg.norm(target_vec))
+                    if target_norm <= 1e-12:
+                        fallback = np.array([1.0, 0.0, 0.0], dtype=float)
+                        if abs(float(np.dot(fallback, body_axis))) > 0.9:
+                            fallback = np.array([0.0, 1.0, 0.0], dtype=float)
+                        target_vec = np.cross(body_axis, fallback)
+                        target_norm = float(np.linalg.norm(target_vec))
+                target_dir = target_vec / max(target_norm, 1e-18)
+            else:
+                target_dir = current_dir
+
+            blended = (1.0 - alpha) * current_dir + alpha * target_dir
+            blended_norm = float(np.linalg.norm(blended))
+            if blended_norm <= 1e-18:
+                continue
+            out[first] = out[attach] + rest * (blended / blended_norm)
+
+        return out
+
     def _project_flagella_constraints(self, positions_m: np.ndarray) -> np.ndarray:
         if self.enable_flagella_template_projection:
             return self._project_flagella_template(positions_m)
@@ -536,6 +684,8 @@ class DynamicsEngine:
         out = positions_m
         for _ in range(self.constraint_projection_iters):
             out = self._project_distance_pairs(out, self.hook_spring_rows, 1)
+            if self.enable_basal_link_projection:
+                out = self._project_basal_link_direction(out)
             out = self._project_flagella_constraints(out)
         return out
 
@@ -618,6 +768,16 @@ class DynamicsEngine:
             a_length=self.repulsion_a_m,
         )
 
+        steric_forces = np.zeros_like(pos)
+        if self.enable_steric_exclusion:
+            steric_forces = compute_bead_steric_exclusion_forces(
+                positions_m=pos,
+                bead_pair_indices=self.steric_pair_indices,
+                epsilon=self.steric_epsilon,
+                sigma=self.steric_sigma_m,
+                cutoff=self.steric_cutoff_m,
+            )
+
         motor_forces = np.zeros_like(pos)
         motor_diag = MotorForceDiagnostics()
         if self.model.motor_triplets.shape[0] > 0:
@@ -638,6 +798,7 @@ class DynamicsEngine:
             + hook_forces
             + repulsion_forces
             + motor_forces
+            + steric_forces
         )
 
         mobility = compute_rpy_mobility(

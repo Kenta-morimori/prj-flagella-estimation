@@ -768,3 +768,176 @@ def test_local_helix_targets_are_limited_to_n_local() -> None:
     assert int(targets.shape[0]) == 4
     expected = sim.model.flagella_indices[0].astype(int, copy=False)[:4]
     assert np.array_equal(targets, expected)
+
+
+def test_basal_link_projection_is_not_used_when_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0, hook_enabled=True, n_flagella=1
+    ).with_overrides(
+        {
+            "projection": {"enable_flagella_template_projection": False},
+            "basal_link": {"enabled": False},
+        }
+    )
+    sim = Simulator(cfg)
+
+    calls = {"count": 0}
+
+    def _count_calls(positions_m: np.ndarray) -> np.ndarray:
+        calls["count"] += 1
+        return positions_m
+
+    monkeypatch.setattr(sim.engine, "_project_basal_link_direction", _count_calls)
+    sim.engine._project_hook_and_flag_bonds(sim.model.positions_m.copy())
+    assert calls["count"] == 0
+
+
+def test_basal_link_projection_is_used_when_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0, hook_enabled=True, n_flagella=1
+    ).with_overrides(
+        {
+            "projection": {"enable_flagella_template_projection": False},
+            "basal_link": {"enabled": True},
+        }
+    )
+    sim = Simulator(cfg)
+
+    calls = {"count": 0}
+
+    def _count_calls(positions_m: np.ndarray) -> np.ndarray:
+        calls["count"] += 1
+        return positions_m
+
+    monkeypatch.setattr(sim.engine, "_project_basal_link_direction", _count_calls)
+    sim.engine._project_hook_and_flag_bonds(sim.model.positions_m.copy())
+    assert calls["count"] == sim.engine.constraint_projection_iters
+
+
+def test_steric_force_is_not_called_when_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0, hook_enabled=True, n_flagella=2
+    ).with_overrides(
+        {
+            "steric_exclusion": {"enabled": False},
+        }
+    )
+    sim = Simulator(cfg)
+
+    calls = {"count": 0}
+
+    def _count_calls(**kwargs: object) -> np.ndarray:
+        calls["count"] += 1
+        positions = kwargs["positions_m"]
+        assert isinstance(positions, np.ndarray)
+        return np.zeros_like(positions)
+
+    monkeypatch.setattr(
+        "sim_swim.dynamics.engine.compute_bead_steric_exclusion_forces",
+        _count_calls,
+    )
+    sim.engine.step(cfg.dt_star)
+    assert calls["count"] == 0
+
+
+def test_steric_force_is_called_when_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0, hook_enabled=True, n_flagella=2
+    ).with_overrides(
+        {
+            "steric_exclusion": {"enabled": True},
+        }
+    )
+    sim = Simulator(cfg)
+
+    calls = {"count": 0}
+
+    def _count_calls(**kwargs: object) -> np.ndarray:
+        calls["count"] += 1
+        positions = kwargs["positions_m"]
+        assert isinstance(positions, np.ndarray)
+        return np.zeros_like(positions)
+
+    monkeypatch.setattr(
+        "sim_swim.dynamics.engine.compute_bead_steric_exclusion_forces",
+        _count_calls,
+    )
+    sim.engine.step(cfg.dt_star)
+    assert calls["count"] == 1
+
+
+def test_steric_pair_indices_exclude_required_pairs() -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0, hook_enabled=True, n_flagella=2
+    ).with_overrides(
+        {
+            "steric_exclusion": {
+                "enabled": True,
+                "exclude_same_flagellum": True,
+                "exclude_body_body": True,
+                "exclude_hook_neighbors": True,
+            }
+        }
+    )
+    sim = Simulator(cfg)
+
+    pairs = {tuple(sorted((int(i), int(j)))) for i, j in sim.engine.steric_pair_indices}
+    assert pairs
+
+    for i, j in pairs:
+        bi = bool(sim.model.bead_is_body[i])
+        bj = bool(sim.model.bead_is_body[j])
+        fi = int(sim.model.bead_flag_ids[i])
+        fj = int(sim.model.bead_flag_ids[j])
+
+        assert not (bi and bj)
+        if (not bi) and (not bj):
+            assert fi != fj
+
+    for attach, first, second in sim.model.hook_triplets:
+        hook_neighbors = {
+            tuple(sorted((int(attach), int(first)))),
+            tuple(sorted((int(first), int(second)))),
+            tuple(sorted((int(attach), int(second)))),
+        }
+        for pair in hook_neighbors:
+            assert pair not in pairs
+
+
+def test_basal_link_projection_enforces_perpendicular_and_length() -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0, hook_enabled=True, n_flagella=1
+    ).with_overrides(
+        {
+            "projection": {"enable_flagella_template_projection": False},
+            "basal_link": {
+                "enabled": True,
+                "enforce_perpendicular_to_body_axis": True,
+                "projection_alpha": 1.0,
+            },
+        }
+    )
+    sim = Simulator(cfg)
+
+    pos = sim.model.positions_m.copy()
+    attach, first, second = (int(v) for v in sim.model.hook_triplets[0])
+    body_axis = sim.engine._body_axis_unit(pos)
+    pos[first] = pos[attach] + body_axis * 1.0e-7
+    pos_second_before = pos[second].copy()
+
+    projected = sim.engine._project_basal_link_direction(pos)
+    link = projected[first] - projected[attach]
+    dot = float(np.dot(link, body_axis))
+    rest = sim.engine.flag_hook_rest_lengths_m[0]
+
+    assert abs(dot) < 1.0e-12
+    assert float(np.linalg.norm(link)) == pytest.approx(rest)
+    assert np.allclose(projected[second], pos_second_before)

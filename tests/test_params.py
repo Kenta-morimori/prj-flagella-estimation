@@ -335,6 +335,72 @@ def test_collapse_diagnostics_overrides_are_loaded() -> None:
     assert collapse.collapse_consecutive_steps == 2
 
 
+def test_basal_link_defaults() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    basal = sim_cfg.basal_link
+    assert basal.enabled is False
+    assert basal.enforce_perpendicular_to_body_axis is True
+    assert basal.projection_alpha == pytest.approx(1.0)
+
+
+def test_basal_link_overrides_are_loaded() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["basal_link"] = {
+        "enabled": True,
+        "enforce_perpendicular_to_body_axis": False,
+        "projection_alpha": 0.5,
+    }
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    basal = sim_cfg.basal_link
+    assert basal.enabled is True
+    assert basal.enforce_perpendicular_to_body_axis is False
+    assert basal.projection_alpha == pytest.approx(0.5)
+
+
+def test_steric_exclusion_defaults() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    steric = sim_cfg.steric_exclusion
+    assert steric.enabled is False
+    assert steric.epsilon_over_torque == pytest.approx(1.0)
+    assert steric.sigma_over_2a == pytest.approx(1.0)
+    assert steric.cutoff_over_sigma == pytest.approx(1.122462048309373)
+    assert steric.exclude_same_flagellum is True
+    assert steric.exclude_body_body is True
+    assert steric.exclude_hook_neighbors is True
+
+
+def test_steric_exclusion_overrides_are_loaded() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["steric_exclusion"] = {
+        "enabled": True,
+        "epsilon_over_torque": 2.0,
+        "sigma_over_2a": 0.8,
+        "cutoff_over_sigma": 1.2,
+        "exclude_same_flagellum": False,
+        "exclude_body_body": False,
+        "exclude_hook_neighbors": False,
+    }
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    steric = sim_cfg.steric_exclusion
+    assert steric.enabled is True
+    assert steric.epsilon_over_torque == pytest.approx(2.0)
+    assert steric.sigma_over_2a == pytest.approx(0.8)
+    assert steric.cutoff_over_sigma == pytest.approx(1.2)
+    assert steric.exclude_same_flagellum is False
+    assert steric.exclude_body_body is False
+    assert steric.exclude_hook_neighbors is False
+
+
 def test_body_n_layers_requires_integer_multiple() -> None:
     cfg = _base_cfg()
     cfg["body"]["length_total_um"] = 2.3

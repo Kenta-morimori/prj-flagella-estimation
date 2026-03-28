@@ -317,6 +317,45 @@ def compute_segment_repulsion_forces(
     return forces
 
 
+def compute_bead_steric_exclusion_forces(
+    positions_m: np.ndarray,
+    bead_pair_indices: np.ndarray,
+    epsilon: float,
+    sigma: float,
+    cutoff: float,
+) -> np.ndarray:
+    """WCA型 bead-bead steric exclusion 力を計算する。"""
+
+    forces = np.zeros_like(positions_m)
+    if bead_pair_indices.size == 0:
+        return forces
+
+    eps = max(float(epsilon), 0.0)
+    sigma_eff = max(float(sigma), 1e-18)
+    cutoff_eff = max(float(cutoff), 0.0)
+    if eps <= 0.0 or cutoff_eff <= 0.0:
+        return forces
+
+    for i_raw, j_raw in bead_pair_indices:
+        i = int(i_raw)
+        j = int(j_raw)
+        dvec = positions_m[i] - positions_m[j]
+        r = max(float(np.linalg.norm(dvec)), 1e-12)
+        if r >= cutoff_eff:
+            continue
+
+        inv_r = 1.0 / r
+        sr = sigma_eff * inv_r
+        sr6 = sr**6
+        sr12 = sr6 * sr6
+        force_mag = 24.0 * eps * (2.0 * sr12 - sr6) * inv_r
+        fij = force_mag * (dvec * inv_r)
+        forces[i] += fij
+        forces[j] -= fij
+
+    return forces
+
+
 def compute_motor_forces(
     positions_m: np.ndarray,
     motor_triplets: np.ndarray,

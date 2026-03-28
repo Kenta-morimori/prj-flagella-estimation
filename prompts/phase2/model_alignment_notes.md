@@ -55,3 +55,37 @@
 ### 現時点の課題
 - diagnostics で onset の兆候は見えるが、凝集を解消する機構そのものは未導入。
 - 既存 local-helix を含む拘束群との相互作用の整理が必要。
+
+## 2026-03-28 (after 2-15 Phase5)
+
+### Phase1-4 の要約
+- template OFF 系の拘束経路を整理し、repulsion/stiffness を CLI 比較可能にした。
+- collapse diagnostics を導入し、崩壊開始は距離指標の急減が先行することを確認できる状態にした。
+
+### diagnostics から見えた collapse onset の支配量
+- `min_interflagella_distance_um` の急減。
+- `min_body_distance_um` の急減。
+
+### Phase5 で導入した basal_link 仕様
+- `basal_link` 設定を追加し、`enabled=true` のとき `body bead - first flag bead` の向きを post-step projection で補正。
+- 補正は body 側 bead を固定し、first flag bead のみ更新。
+- リンク長は hook 接続の spring 平衡長を維持。
+- 補正順は `hook 距離拘束 -> basal_link 方向固定 -> chain-length projection`。
+
+### Phase5 で導入した steric_exclusion 仕様
+- `steric_exclusion` 設定を追加し、WCA 型 bead-bead 反発を力項として導入。
+- 反発は total force の末尾に加算し、post-step projection では適用しない。
+- 対象 pair は事前計算し、step ごとに再構築しない。
+- 対象は `flagella-body` と `異なる flagella 間`、除外は `same-flagellum` `body-body` `hook-neighbor`。
+
+### 論文モデルとの一致点
+- hook は `body bead - first flag bead - second flag bead` の 3 点系として扱う。
+- 非貫通性を強化する意図で反発機構を導入する点は論文の物理的意図と整合。
+
+### 論文モデルとの相違点
+- `body bead - first flag bead` を固定長かつ body 長軸に垂直方向へ補正する点。
+- segment-segment repulsion に加えて bead-bead steric exclusion を追加する点。
+
+### 差分の位置づけ
+- basal_link 方向固定: 比較実験用 / 数値安定化用（恒久仕様ではない）。
+- bead-bead steric exclusion: 比較実験用 / 数値安定化用（恒久仕様ではない）。

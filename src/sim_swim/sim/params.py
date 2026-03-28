@@ -204,6 +204,28 @@ class LocalHelixParams:
 
 
 @dataclass(frozen=True)
+class BasalLinkParams:
+    """基部リンク方向固定設定。"""
+
+    enabled: bool = False
+    enforce_perpendicular_to_body_axis: bool = True
+    projection_alpha: float = 1.0
+
+
+@dataclass(frozen=True)
+class StericExclusionParams:
+    """bead-bead steric exclusion 設定。"""
+
+    enabled: bool = False
+    epsilon_over_torque: float = 1.0
+    sigma_over_2a: float = 1.0
+    cutoff_over_sigma: float = 1.122462048309373
+    exclude_same_flagellum: bool = True
+    exclude_body_body: bool = True
+    exclude_hook_neighbors: bool = True
+
+
+@dataclass(frozen=True)
 class CollapseDiagnosticsParams:
     """collapse診断設定。"""
 
@@ -293,6 +315,8 @@ class SimulationConfig:
     projection: ProjectionParams
     stiffness_scales: StiffnessScaleParams
     local_helix: LocalHelixParams
+    basal_link: BasalLinkParams
+    steric_exclusion: StericExclusionParams
     diagnostics: DiagnosticsParams
     render: RenderParams
     seed: SeedParams
@@ -512,6 +536,32 @@ class SimulationConfig:
             ),
             k_phase_over_torque=float(
                 _get(local_helix_raw, "k_phase_over_torque", 0.5)
+            ),
+        )
+
+        basal_link_raw = raw.get("basal_link", {}) or {}
+        basal_link = BasalLinkParams(
+            enabled=bool(_get(basal_link_raw, "enabled", False)),
+            enforce_perpendicular_to_body_axis=bool(
+                _get(basal_link_raw, "enforce_perpendicular_to_body_axis", True)
+            ),
+            projection_alpha=float(_get(basal_link_raw, "projection_alpha", 1.0)),
+        )
+
+        steric_raw = raw.get("steric_exclusion", {}) or {}
+        steric_exclusion = StericExclusionParams(
+            enabled=bool(_get(steric_raw, "enabled", False)),
+            epsilon_over_torque=float(_get(steric_raw, "epsilon_over_torque", 1.0)),
+            sigma_over_2a=float(_get(steric_raw, "sigma_over_2a", 1.0)),
+            cutoff_over_sigma=float(
+                _get(steric_raw, "cutoff_over_sigma", 1.122462048309373)
+            ),
+            exclude_same_flagellum=bool(
+                _get(steric_raw, "exclude_same_flagellum", True)
+            ),
+            exclude_body_body=bool(_get(steric_raw, "exclude_body_body", True)),
+            exclude_hook_neighbors=bool(
+                _get(steric_raw, "exclude_hook_neighbors", True)
             ),
         )
 
@@ -780,6 +830,8 @@ class SimulationConfig:
             projection=projection,
             stiffness_scales=stiffness_scales,
             local_helix=local_helix,
+            basal_link=basal_link,
+            steric_exclusion=steric_exclusion,
             diagnostics=diagnostics,
             render=render,
             seed=seed,
