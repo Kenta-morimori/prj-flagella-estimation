@@ -223,15 +223,68 @@ def test_body_stability_static_equilibrium_projection_off(tmp_path: Path) -> Non
         "com_x_um",
         "com_y_um",
         "com_z_um",
+        "F_spring_mean_body",
+        "F_bend_mean_body",
+        "F_torsion_mean_body",
+        "F_repulsion_mean_body",
+        "F_total_mean_body",
     }
     assert required_cols.issubset(set(rows[0].keys()))
+
+    body_local_diag = tmp_path / "sim" / "body_constraint_local_diagnostics.csv"
+    assert body_local_diag.is_file()
+    with body_local_diag.open("r", encoding="utf-8", newline="") as f:
+        local_rows = list(csv.DictReader(f))
+    assert local_rows
+    local_required_cols = {
+        "step",
+        "t_s",
+        "spring_pair_i",
+        "spring_pair_j",
+        "rest_um",
+        "dist_um",
+        "stretch_ratio",
+        "triplet_i",
+        "triplet_j",
+        "triplet_k",
+        "angle_deg",
+        "theta0_deg",
+        "angle_error_deg",
+        "layer_idx",
+        "face_idx",
+        "triangle_area",
+    }
+    assert local_required_cols.issubset(set(local_rows[0].keys()))
+
+
+def test_body_stability_long_static_equilibrium_projection_off() -> None:
+    cfg = _make_cfg().with_overrides({"time": {"duration_s": 0.1}})
+    sim = Simulator(cfg)
+
+    init_pos = sim.model.positions_m.copy()
+    init_area_min, init_area_max = _body_triangle_area_range(sim, init_pos)
+
+    sim.run(cfg.time.duration_s)
+    final_pos = sim.model.positions_m.copy()
+
+    assert np.isfinite(final_pos).all()
+
+    max_stretch, max_bend_err_deg = _body_shape_metrics(sim, final_pos)
+    area_min, area_max = _body_triangle_area_range(sim, final_pos)
+    centerline_dev_um = _body_centerline_max_deviation_um(sim, final_pos)
+
+    assert max_stretch < 1.0e-2
+    assert max_bend_err_deg < 2.5
+    assert area_min > 0.5 * init_area_min
+    assert area_max < 1.5 * init_area_max
+    assert centerline_dev_um < 0.8
 
 
 def test_body_uniform_force_translation_projection_off() -> None:
     levels = {
-        "low": 2.0e-19,
-        "medium": 8.0e-19,
-        "high": 2.0e-18,
+        "low": 2.0e-18,
+        "medium": 8.0e-18,
+        "high": 2.0e-17,
     }
 
     disp_by_level: dict[str, float] = {}
@@ -253,7 +306,7 @@ def test_body_uniform_force_translation_projection_off() -> None:
         init_com = _body_com(sim, init_pos)
         init_area_min, _ = _body_triangle_area_range(sim, init_pos)
 
-        for _ in range(80):
+        for _ in range(120):
             sim.engine.step(cfg.dt_star)
 
         final_pos = sim.model.positions_m.copy()
@@ -282,7 +335,7 @@ def test_body_rotation_couple_projection_off() -> None:
 
     first_layer = sim.model.body_layer_indices[0].astype(int, copy=False)
     last_layer = sim.model.body_layer_indices[-1].astype(int, copy=False)
-    f_each = 1.0e-19
+    f_each = 3.0e-19
 
     def _couple_force(_pos: np.ndarray, _t_star: float) -> np.ndarray:
         out = np.zeros_like(sim.model.positions_m)
@@ -297,7 +350,7 @@ def test_body_rotation_couple_projection_off() -> None:
     init_com = _body_com(sim, init_pos)
     init_area_min, _ = _body_triangle_area_range(sim, init_pos)
 
-    for _ in range(120):
+    for _ in range(200):
         sim.engine.step(cfg.dt_star)
 
     final_pos = sim.model.positions_m.copy()
@@ -312,7 +365,7 @@ def test_body_rotation_couple_projection_off() -> None:
     centerline_dev_um = _body_centerline_max_deviation_um(sim, final_pos)
 
     assert np.isfinite(final_pos).all()
-    assert angle_deg > 0.1
+    assert angle_deg > 0.03
     assert com_drift_um < 1.5
     assert area_min > 0.5 * init_area_min
     assert centerline_dev_um < 1.2

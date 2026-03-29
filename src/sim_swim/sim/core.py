@@ -15,6 +15,7 @@ from sim_swim.dynamics.engine import DynamicsEngine
 from sim_swim.model.builder import ModelBuilder
 from sim_swim.sim.debug_summary import (
     BodyConstraintDiagnosticsRecorder,
+    BodyConstraintLocalDiagnosticsRecorder,
     StepSummaryRecorder,
 )
 from sim_swim.sim.flagella_geometry import FlagellaRig
@@ -223,6 +224,15 @@ class Simulator:
             if step_summary_dir is not None and duration_s <= 0.01
             else None
         )
+        body_local_diag_recorder = (
+            BodyConstraintLocalDiagnosticsRecorder(self.model, step_summary_dir)
+            if (
+                step_summary_dir is not None
+                and duration_s <= 0.01
+                and self.config.flagella.n_flagella == 0
+            )
+            else None
+        )
 
         for step in range(total_steps):
             t_star_before = self.engine.t_star
@@ -232,6 +242,12 @@ class Simulator:
                 debug_recorder.record(step=step, t_star=t_star_before, diag=step_diag)
             if body_diag_recorder is not None:
                 body_diag_recorder.record(
+                    step=step,
+                    t_s=t_star_before * tau_s,
+                    diag=step_diag,
+                )
+            if body_local_diag_recorder is not None:
+                body_local_diag_recorder.record(
                     step=step,
                     t_s=t_star_before * tau_s,
                     pos_after=step_diag.positions_after_m,
@@ -272,5 +288,9 @@ class Simulator:
             body_csv = body_diag_recorder.write_csv()
             if logger is not None:
                 logger.info("Saved body diagnostics to %s", body_csv)
+        if body_local_diag_recorder is not None:
+            body_local_csv = body_local_diag_recorder.write_csv()
+            if logger is not None:
+                logger.info("Saved body local diagnostics to %s", body_local_csv)
 
         return states

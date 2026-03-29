@@ -227,9 +227,9 @@ class ModelBuilder:
                 i = int(prev_layer[k])
                 j = int(curr_layer[(k + 1) % n_prism])
                 spring_pairs.append((i, j))
-            i2 = int(prev_layer[(k + 1) % n_prism])
-            j2 = int(curr_layer[k])
-            spring_pairs.append((i2, j2))
+                i2 = int(prev_layer[(k + 1) % n_prism])
+                j2 = int(curr_layer[k])
+                spring_pairs.append((i2, j2))
 
         # Body bending/torsion along each vertical chain
         for layer in body_layers:

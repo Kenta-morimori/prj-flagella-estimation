@@ -82,6 +82,30 @@ BODY_CONSTRAINT_DIAGNOSTICS_COLUMNS = [
     "com_x_um",
     "com_y_um",
     "com_z_um",
+    "F_spring_mean_body",
+    "F_bend_mean_body",
+    "F_torsion_mean_body",
+    "F_repulsion_mean_body",
+    "F_total_mean_body",
+]
+
+BODY_CONSTRAINT_LOCAL_DIAGNOSTICS_COLUMNS = [
+    "step",
+    "t_s",
+    "spring_pair_i",
+    "spring_pair_j",
+    "rest_um",
+    "dist_um",
+    "stretch_ratio",
+    "triplet_i",
+    "triplet_j",
+    "triplet_k",
+    "angle_deg",
+    "theta0_deg",
+    "angle_error_deg",
+    "layer_idx",
+    "face_idx",
+    "triangle_area",
 ]
 
 RAD_TO_DEG = 180.0 / np.pi
@@ -190,6 +214,7 @@ class BodyConstraintDiagnosticsRecorder:
         self._writer.writeheader()
 
         self.body_indices = self.model.body_indices.astype(int, copy=False)
+        self.body_mask = self.model.bead_is_body.astype(bool)
         self.spring_pairs = self.model.spring_pairs.astype(int, copy=False)
         self.spring_rests = self.model.spring_rest_lengths_m.astype(float, copy=False)
         if self.spring_pairs.size == 0:
@@ -207,9 +232,11 @@ class BodyConstraintDiagnosticsRecorder:
             layer.astype(int, copy=False) for layer in self.model.body_layer_indices
         ]
 
-    def record(self, step: int, t_s: float, pos_after: np.ndarray) -> None:
+    def record(self, step: int, t_s: float, diag: StepDiagnostics) -> None:
         if self._writer is None or self._csv_fp is None:
             raise RuntimeError("body diagnostics writer is not initialized")
+
+        pos_after = diag.positions_after_m
 
         if self.body_spring_rows.size > 0:
             pairs = self.spring_pairs[self.body_spring_rows]
@@ -273,6 +300,14 @@ class BodyConstraintDiagnosticsRecorder:
             "com_x_um": float(com[0]),
             "com_y_um": float(com[1]),
             "com_z_um": float(com[2]),
+            "F_spring_mean_body": _mean_norm(diag.spring_forces, self.body_mask),
+            "F_bend_mean_body": _mean_norm(diag.bend_forces, self.body_mask),
+            "F_torsion_mean_body": _mean_norm(diag.torsion_forces, self.body_mask),
+            "F_repulsion_mean_body": _mean_norm(
+                diag.repulsion_forces,
+                self.body_mask,
+            ),
+            "F_total_mean_body": _mean_norm(diag.total_forces, self.body_mask),
         }
         self._writer.writerow(row)
         self._csv_fp.flush()
@@ -283,6 +318,155 @@ class BodyConstraintDiagnosticsRecorder:
             self._csv_fp = None
             self._writer = None
         return self.body_diag_path
+
+
+@dataclass
+class BodyConstraintLocalDiagnosticsRecorder:
+    """body局所崩れ要因の診断CSVを保存する。"""
+
+    model: SimModel
+    out_dir: Path
+    _csv_fp: TextIO | None = field(init=False, default=None, repr=False)
+    _writer: csv.DictWriter | None = field(init=False, default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        self.out_dir.mkdir(parents=True, exist_ok=True)
+        self.body_local_diag_path = (
+            self.out_dir / "body_constraint_local_diagnostics.csv"
+        )
+        self._csv_fp = self.body_local_diag_path.open("w", encoding="utf-8", newline="")
+        self._writer = csv.DictWriter(
+            self._csv_fp,
+            fieldnames=BODY_CONSTRAINT_LOCAL_DIAGNOSTICS_COLUMNS,
+        )
+        self._writer.writeheader()
+
+        spring_pairs = self.model.spring_pairs.astype(int, copy=False)
+        spring_rests = self.model.spring_rest_lengths_m.astype(float, copy=False)
+        if spring_pairs.size == 0:
+            self.body_spring_rows = np.zeros((0,), dtype=int)
+        else:
+            bi = self.model.bead_is_body[spring_pairs[:, 0]]
+            bj = self.model.bead_is_body[spring_pairs[:, 1]]
+            self.body_spring_rows = np.where(bi & bj)[0]
+        self.body_spring_pairs = spring_pairs
+        self.body_spring_rests = spring_rests
+
+        self.body_bending_rows = np.where(self.model.bending_flag_ids < 0)[0]
+        self.body_triplets = self.model.bending_triplets.astype(int, copy=False)
+        self.body_theta0_deg = np.rad2deg(
+            _triplet_angles_rad(
+                self.model.positions_m,
+                self.body_triplets[self.body_bending_rows],
+            )
+        )
+        self.body_layers = [
+            layer.astype(int, copy=False) for layer in self.model.body_layer_indices
+        ]
+
+    def record(self, step: int, t_s: float, pos_after: np.ndarray) -> None:
+        if self._writer is None or self._csv_fp is None:
+            raise RuntimeError("body local diagnostics writer is not initialized")
+
+        if self.body_spring_rows.size > 0:
+            pairs = self.body_spring_pairs[self.body_spring_rows]
+            rests = np.maximum(self.body_spring_rests[self.body_spring_rows], 1e-30)
+            dist_m = np.linalg.norm(
+                pos_after[pairs[:, 1]] - pos_after[pairs[:, 0]], axis=1
+            )
+            stretch = np.abs(dist_m - rests) / rests
+            for (i_raw, j_raw), rest_m, dist_val, stretch_val in zip(
+                pairs,
+                rests,
+                dist_m,
+                stretch,
+            ):
+                self._writer.writerow(
+                    {
+                        "step": int(step),
+                        "t_s": float(t_s),
+                        "spring_pair_i": int(i_raw),
+                        "spring_pair_j": int(j_raw),
+                        "rest_um": float(rest_m * M_TO_UM),
+                        "dist_um": float(dist_val * M_TO_UM),
+                        "stretch_ratio": float(stretch_val),
+                        "triplet_i": "",
+                        "triplet_j": "",
+                        "triplet_k": "",
+                        "angle_deg": "",
+                        "theta0_deg": "",
+                        "angle_error_deg": "",
+                        "layer_idx": "",
+                        "face_idx": "",
+                        "triangle_area": "",
+                    }
+                )
+
+        if self.body_bending_rows.size > 0:
+            triplets = self.body_triplets[self.body_bending_rows]
+            theta_deg = np.rad2deg(_triplet_angles_rad(pos_after, triplets))
+            err_deg = np.abs(theta_deg - self.body_theta0_deg)
+            for (i_raw, j_raw, k_raw), theta_val, theta0_val, err_val in zip(
+                triplets,
+                theta_deg,
+                self.body_theta0_deg,
+                err_deg,
+            ):
+                self._writer.writerow(
+                    {
+                        "step": int(step),
+                        "t_s": float(t_s),
+                        "spring_pair_i": "",
+                        "spring_pair_j": "",
+                        "rest_um": "",
+                        "dist_um": "",
+                        "stretch_ratio": "",
+                        "triplet_i": int(i_raw),
+                        "triplet_j": int(j_raw),
+                        "triplet_k": int(k_raw),
+                        "angle_deg": float(theta_val),
+                        "theta0_deg": float(theta0_val),
+                        "angle_error_deg": float(err_val),
+                        "layer_idx": "",
+                        "face_idx": "",
+                        "triangle_area": "",
+                    }
+                )
+
+        for layer_idx, layer in enumerate(self.body_layers):
+            pts = pos_after[layer]
+            if pts.shape[0] < 3:
+                continue
+            area = _triangle_area(pts[0], pts[1], pts[2])
+            self._writer.writerow(
+                {
+                    "step": int(step),
+                    "t_s": float(t_s),
+                    "spring_pair_i": "",
+                    "spring_pair_j": "",
+                    "rest_um": "",
+                    "dist_um": "",
+                    "stretch_ratio": "",
+                    "triplet_i": "",
+                    "triplet_j": "",
+                    "triplet_k": "",
+                    "angle_deg": "",
+                    "theta0_deg": "",
+                    "angle_error_deg": "",
+                    "layer_idx": int(layer_idx),
+                    "face_idx": 0,
+                    "triangle_area": float(area),
+                }
+            )
+
+        self._csv_fp.flush()
+
+    def write_csv(self) -> Path:
+        if self._csv_fp is not None:
+            self._csv_fp.close()
+            self._csv_fp = None
+            self._writer = None
+        return self.body_local_diag_path
 
 
 @dataclass

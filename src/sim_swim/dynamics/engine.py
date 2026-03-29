@@ -98,7 +98,7 @@ class DynamicsEngine:
         self.repulsion_cutoff_m = (
             cfg.potentials.spring_spring_repulsion.cutoff_over_b * b_m
         )
-        self.body_stiffness_scale = 200.0
+        self.body_stiffness_scale = 50.0
         self.flag_bend_stiffness_scale = 300.0
         self.flag_torsion_stiffness_scale = 300.0
         self.constraint_projection_iters = 8
@@ -122,6 +122,20 @@ class DynamicsEngine:
             )[0]
         self.body_bending_rows = np.where(self.model.bending_flag_ids < 0)[0]
         self.flag_bending_rows = np.where(self.model.bending_flag_ids >= 0)[0]
+        self.body_spring_mask = np.zeros(
+            (self.model.spring_pairs.shape[0],),
+            dtype=bool,
+        )
+        self.body_spring_mask[self.body_spring_rows] = True
+        if self.model.segment_pair_indices.size > 0:
+            seg_pairs = self.model.segment_pair_indices
+            body_body_seg = (
+                self.body_spring_mask[seg_pairs[:, 0]]
+                & self.body_spring_mask[seg_pairs[:, 1]]
+            )
+            self.segment_pair_indices_for_repulsion = seg_pairs[~body_body_seg]
+        else:
+            self.segment_pair_indices_for_repulsion = self.model.segment_pair_indices
         self.body_indices = self.model.body_indices.astype(int, copy=False)
         self.bead_is_body = self.model.bead_is_body.astype(bool, copy=False)
         self.flag_chain_edges: list[list[tuple[int, int, float]]] = []
@@ -543,7 +557,7 @@ class DynamicsEngine:
         repulsion_forces = compute_segment_repulsion_forces(
             positions_m=pos,
             spring_pairs=self.model.spring_pairs,
-            segment_pair_indices=self.model.segment_pair_indices,
+            segment_pair_indices=self.segment_pair_indices_for_repulsion,
             a_ss=self.repulsion_A,
             cutoff=self.repulsion_cutoff_m,
             a_length=self.repulsion_a_m,
