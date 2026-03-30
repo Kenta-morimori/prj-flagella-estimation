@@ -187,6 +187,16 @@ def _make_cfg() -> SimulationConfig:
     )
 
 
+def _make_three_flagella_cfg() -> SimulationConfig:
+    return _make_cfg().with_overrides(
+        {
+            "flagella": {"n_flagella": 3},
+            "hook": {"enabled": True},
+            "motor": {"torque_Nm": -1.0, "reverse_n_flagella": 1},
+        }
+    )
+
+
 def test_body_stability_static_equilibrium_projection_off(tmp_path: Path) -> None:
     cfg = _make_cfg()
     sim = Simulator(cfg)
@@ -369,3 +379,89 @@ def test_body_rotation_couple_projection_off() -> None:
     assert com_drift_um < 1.5
     assert area_min > 0.5 * init_area_min
     assert centerline_dev_um < 1.2
+
+
+def test_body_attach_proxy_projection_off(tmp_path: Path) -> None:
+    cfg = _make_cfg()
+    sim = Simulator(cfg)
+
+    center_layer = sim.model.body_layer_indices[
+        len(sim.model.body_layer_indices) // 2
+    ].astype(int, copy=False)
+    load = 2.0e-18
+
+    def _attach_proxy_force(_pos: np.ndarray, _t_star: float) -> np.ndarray:
+        out = np.zeros_like(sim.model.positions_m)
+        out[center_layer[0], 1] = load
+        out[center_layer[1], 2] = -load
+        out[center_layer[2], 1] = load
+        return out
+
+    sim.engine.set_external_force_callback(_attach_proxy_force)
+
+    init_pos = sim.model.positions_m.copy()
+    init_area_min, _ = _body_triangle_area_range(sim, init_pos)
+
+    sim.run(cfg.time.duration_s, step_summary_dir=tmp_path / "sim")
+    final_pos = sim.model.positions_m.copy()
+
+    assert np.isfinite(final_pos).all()
+    area_min, _ = _body_triangle_area_range(sim, final_pos)
+    centerline_dev_um = _body_centerline_max_deviation_um(sim, final_pos)
+    assert area_min > 0.2 * init_area_min
+    assert centerline_dev_um < 2.0
+
+    local_csv = tmp_path / "sim" / "body_constraint_local_diagnostics.csv"
+    assert local_csv.is_file()
+    with local_csv.open("r", encoding="utf-8", newline="") as f:
+        rows = list(csv.DictReader(f))
+    assert rows
+    assert any(r["spring_pair_i"] != "" for r in rows)
+    assert any(r["triplet_i"] != "" for r in rows)
+    assert any(r["layer_idx"] != "" for r in rows)
+
+
+def test_three_flagella_body_cause_candidates_are_explainable_from_csv(
+    tmp_path: Path,
+) -> None:
+    cfg = _make_three_flagella_cfg()
+    sim = Simulator(cfg)
+    sim.run(cfg.time.duration_s, step_summary_dir=tmp_path / "sim")
+
+    step_csv = tmp_path / "sim" / "step_summary.csv"
+    body_csv = tmp_path / "sim" / "body_constraint_diagnostics.csv"
+    local_csv = tmp_path / "sim" / "body_constraint_local_diagnostics.csv"
+
+    assert step_csv.is_file()
+    assert body_csv.is_file()
+    assert local_csv.is_file()
+
+    with step_csv.open("r", encoding="utf-8", newline="") as f:
+        step_rows = list(csv.DictReader(f))
+    with body_csv.open("r", encoding="utf-8", newline="") as f:
+        body_rows = list(csv.DictReader(f))
+    with local_csv.open("r", encoding="utf-8", newline="") as f:
+        local_rows = list(csv.DictReader(f))
+
+    assert step_rows and body_rows and local_rows
+    first_step = step_rows[0]
+    for key in [
+        "F_motor_mean_body",
+        "F_hook_mean_body",
+        "F_spring_mean_body",
+        "F_bend_mean_body",
+    ]:
+        assert key in first_step
+
+    first_body = body_rows[0]
+    for key in [
+        "body_triangle_area_min",
+        "body_triangle_area_max",
+        "body_centerline_max_deviation_um",
+        "F_total_mean_body",
+    ]:
+        assert key in first_body
+
+    assert any(r["spring_pair_i"] != "" for r in local_rows)
+    assert any(r["triplet_i"] != "" for r in local_rows)
+    assert any(r["layer_idx"] != "" for r in local_rows)

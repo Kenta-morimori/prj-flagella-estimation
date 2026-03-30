@@ -226,11 +226,7 @@ class Simulator:
         )
         body_local_diag_recorder = (
             BodyConstraintLocalDiagnosticsRecorder(self.model, step_summary_dir)
-            if (
-                step_summary_dir is not None
-                and duration_s <= 0.01
-                and self.config.flagella.n_flagella == 0
-            )
+            if (step_summary_dir is not None and duration_s <= 0.01)
             else None
         )
 
