@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+from typing import Callable
 
 import numpy as np
 
@@ -81,6 +82,9 @@ class DynamicsEngine:
         self.cfg = cfg
         self.t_star = 0.0
         self.rng = np.random.default_rng(cfg.seed.global_seed)
+        self.external_force_callback: (
+            Callable[[np.ndarray, float], np.ndarray] | None
+        ) = None
 
         torque = max(cfg.torque_for_forces_Nm, 1e-30)
         b_m = cfg.b_m
@@ -94,7 +98,7 @@ class DynamicsEngine:
         self.repulsion_cutoff_m = (
             cfg.potentials.spring_spring_repulsion.cutoff_over_b * b_m
         )
-        self.body_stiffness_scale = 200.0
+        self.body_stiffness_scale = 50.0
         self.flag_bend_stiffness_scale = 300.0
         self.flag_torsion_stiffness_scale = 300.0
         self.constraint_projection_iters = 8
@@ -118,6 +122,20 @@ class DynamicsEngine:
             )[0]
         self.body_bending_rows = np.where(self.model.bending_flag_ids < 0)[0]
         self.flag_bending_rows = np.where(self.model.bending_flag_ids >= 0)[0]
+        self.body_spring_mask = np.zeros(
+            (self.model.spring_pairs.shape[0],),
+            dtype=bool,
+        )
+        self.body_spring_mask[self.body_spring_rows] = True
+        if self.model.segment_pair_indices.size > 0:
+            seg_pairs = self.model.segment_pair_indices
+            body_body_seg = (
+                self.body_spring_mask[seg_pairs[:, 0]]
+                & self.body_spring_mask[seg_pairs[:, 1]]
+            )
+            self.segment_pair_indices_for_repulsion = seg_pairs[~body_body_seg]
+        else:
+            self.segment_pair_indices_for_repulsion = self.model.segment_pair_indices
         self.body_indices = self.model.body_indices.astype(int, copy=False)
         self.bead_is_body = self.model.bead_is_body.astype(bool, copy=False)
         self.flag_chain_edges: list[list[tuple[int, int, float]]] = []
@@ -200,6 +218,14 @@ class DynamicsEngine:
         self.body_ref_centered = (
             self.model.positions_m[self.body_indices] - self.body_ref_center
         )
+
+    def set_external_force_callback(
+        self,
+        callback: Callable[[np.ndarray, float], np.ndarray] | None,
+    ) -> None:
+        """各ステップの外力（N）を返すコールバックを設定する。"""
+
+        self.external_force_callback = callback
 
     def _initial_reference_angles_rad(self) -> tuple[np.ndarray, np.ndarray]:
         theta0 = np.zeros((self.model.bending_triplets.shape[0],), dtype=float)
@@ -531,7 +557,7 @@ class DynamicsEngine:
         repulsion_forces = compute_segment_repulsion_forces(
             positions_m=pos,
             spring_pairs=self.model.spring_pairs,
-            segment_pair_indices=self.model.segment_pair_indices,
+            segment_pair_indices=self.segment_pair_indices_for_repulsion,
             a_ss=self.repulsion_A,
             cutoff=self.repulsion_cutoff_m,
             a_length=self.repulsion_a_m,
@@ -558,6 +584,14 @@ class DynamicsEngine:
             + repulsion_forces
             + motor_forces
         )
+        if self.external_force_callback is not None:
+            external_forces = self.external_force_callback(pos, self.t_star)
+            if external_forces.shape != forces.shape:
+                raise ValueError(
+                    "External force callback must return shape "
+                    f"{forces.shape}, got {external_forces.shape}."
+                )
+            forces = forces + external_forces
 
         mobility = compute_rpy_mobility(
             positions_m=pos_before,
@@ -579,7 +613,8 @@ class DynamicsEngine:
 
         brownian_disp = xi.reshape((-1, 3))
         pos_after = pos_before + (drift * dt_s + xi).reshape((-1, 3))
-        pos_after = self._project_body_rigid(pos_after)
+        if self.cfg.projection.enable_body_rigid_projection:
+            pos_after = self._project_body_rigid(pos_after)
         pos_after = self._project_hook_and_flag_bonds(pos_after)
         self.model.positions_m = pos_after
         self.t_star += dt_star_eff

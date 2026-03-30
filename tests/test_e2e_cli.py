@@ -108,6 +108,8 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
 
     latest = sorted((tmp_path / "outputs").rglob("manifest.json"))[-1].parent
     assert (latest / "sim" / "step_summary.csv").is_file()
+    assert (latest / "sim" / "body_constraint_diagnostics.csv").is_file()
+    assert (latest / "sim" / "body_constraint_local_diagnostics.csv").is_file()
     assert not (latest / "sim" / "step_summary_full.csv").exists()
     assert (latest / "render" / "swim3d.mp4").is_file()
     assert (latest / "render" / "swim3d_final.png").is_file()

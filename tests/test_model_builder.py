@@ -82,6 +82,15 @@ def _hook_rest_length_map(model: SimModel) -> dict[tuple[int, int], float]:
     return out
 
 
+def _body_bead_layer_and_slot(model: SimModel) -> dict[int, tuple[int, int]]:
+    out: dict[int, tuple[int, int]] = {}
+    for layer_idx, layer in enumerate(model.body_layer_indices):
+        layer_int = layer.astype(int, copy=False)
+        for slot_idx, bead_idx in enumerate(layer_int.tolist()):
+            out[int(bead_idx)] = (int(layer_idx), int(slot_idx))
+    return out
+
+
 def _triplet_angle_rad(positions_m: np.ndarray, triplet: np.ndarray) -> float:
     i, j, k = (int(triplet[0]), int(triplet[1]), int(triplet[2]))
     u = positions_m[i] - positions_m[j]
@@ -268,6 +277,41 @@ def test_body_flag_hook_length_is_initialized_to_0p25b() -> None:
     )
     assert dists_m.shape[0] == cfg.flagella.n_flagella
     assert np.allclose(dists_m, 0.25 * cfg.b_m, atol=1e-12)
+
+
+def test_body_side_brace_has_both_diagonals_per_face() -> None:
+    cfg = _make_cfg(n_flagella=0, body_length_um=2.0, dz_over_b=0.5)
+    model = ModelBuilder(cfg).build()
+
+    layer_and_slot = _body_bead_layer_and_slot(model)
+    n_prism = int(cfg.body.prism.n_prism)
+    n_layers = len(model.body_layer_indices)
+
+    side_brace_count = 0
+    vertical_count = 0
+    for i_raw, j_raw in model.spring_pairs:
+        i = int(i_raw)
+        j = int(j_raw)
+        i_is_body = bool(model.bead_is_body[i])
+        j_is_body = bool(model.bead_is_body[j])
+        if not (i_is_body and j_is_body):
+            continue
+
+        layer_i, slot_i = layer_and_slot[i]
+        layer_j, slot_j = layer_and_slot[j]
+        if abs(layer_i - layer_j) != 1:
+            continue
+
+        delta_slot = (slot_j - slot_i) % n_prism
+        if delta_slot == 0:
+            vertical_count += 1
+        elif delta_slot in {1, n_prism - 1}:
+            side_brace_count += 1
+
+    expected_vertical = n_prism * (n_layers - 1)
+    expected_side_brace = (n_prism * 2) * (n_layers - 1)
+    assert vertical_count == expected_vertical
+    assert side_brace_count == expected_side_brace
 
 
 def test_basal_link_initial_direction_matches_local_layer_radial() -> None:

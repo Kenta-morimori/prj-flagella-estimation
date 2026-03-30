@@ -142,6 +142,23 @@ def test_motor_enable_switching_can_be_enabled() -> None:
     assert sim_cfg.motor.enable_switching is True
 
 
+def test_body_rigid_projection_defaults_to_true() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.projection.enable_body_rigid_projection is True
+
+
+def test_body_rigid_projection_can_be_disabled() -> None:
+    cfg = _base_cfg()
+    cfg["projection"] = {"enable_body_rigid_projection": False}
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.projection.enable_body_rigid_projection is False
+
+
 def test_body_n_layers_is_derived_from_length_and_spacing() -> None:
     cfg = _base_cfg()
     cfg["body"]["length_total_um"] = 2.5
