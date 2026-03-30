@@ -181,6 +181,31 @@ def test_body_n_layers_is_derived_from_length_and_spacing() -> None:
     assert sim_cfg.compute_body_n_layers() == 6
 
 
+def test_flagella_init_mode_defaults_and_bead_count_is_derived() -> None:
+    cfg = _base_cfg()
+    cfg["flagella"] = {"bond_L_over_b": 0.58, "length_over_b": 5.8}
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella.init_mode == "legacy_radius_pitch"
+    assert sim_cfg.flagella.n_beads_per_flagellum == 11
+
+
+def test_flagella_init_mode_can_be_set_to_paper_table1() -> None:
+    cfg = _base_cfg()
+    cfg["flagella"] = {
+        "init_mode": "paper_table1",
+        "n_beads_per_flagellum": 15,
+        "bond_L_over_b": 0.58,
+        "length_over_b": 5.8,
+    }
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella.init_mode == "paper_table1"
+    assert sim_cfg.flagella.n_beads_per_flagellum == 15
+
+
 def test_render2d_flagella_default_is_off() -> None:
     cfg = _base_cfg()
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}

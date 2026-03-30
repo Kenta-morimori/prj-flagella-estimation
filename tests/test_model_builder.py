@@ -17,8 +17,22 @@ def _make_cfg(
     body_length_um: float = 2.0,
     ds_over_b: float = 0.58,
     flag_length_over_b: float = 2.32,
+    init_mode: str = "legacy_radius_pitch",
+    n_beads_per_flagellum: int | None = None,
     seed: int = 0,
 ) -> SimulationConfig:
+    flagella_cfg: dict[str, object] = {
+        "n_flagella": n_flagella,
+        "placement_mode": "uniform",
+        "init_mode": init_mode,
+        "discretization": {"ds_over_b": ds_over_b},
+        "bond_L_over_b": ds_over_b,
+        "length_over_b": flag_length_over_b,
+        "helix_init": {"radius_over_b": 0.25, "pitch_over_b": 2.5},
+    }
+    if n_beads_per_flagellum is not None:
+        flagella_cfg["n_beads_per_flagellum"] = int(n_beads_per_flagellum)
+
     return SimulationConfig.from_dict(
         {
             "scale": {"b_um": 1.0, "bead_radius_a_over_b": 0.1},
@@ -31,14 +45,7 @@ def _make_cfg(
                 },
                 "length_total_um": body_length_um,
             },
-            "flagella": {
-                "n_flagella": n_flagella,
-                "placement_mode": "uniform",
-                "discretization": {"ds_over_b": ds_over_b},
-                "bond_L_over_b": ds_over_b,
-                "length_over_b": flag_length_over_b,
-                "helix_init": {"radius_over_b": 0.25, "pitch_over_b": 2.5},
-            },
+            "flagella": flagella_cfg,
             "time": {"duration_s": 0.02, "dt_s": 1.0e-3},
             "brownian": {"enabled": False},
             "seed": {"global_seed": seed},
@@ -413,6 +420,67 @@ def test_flagellum_initial_geometry_matches_paper_values() -> None:
         np.arctan2(np.mean(np.sin(torsion_rad)), np.mean(np.cos(torsion_rad)))
     )
     assert abs(_wrap_deg(float(torsion_mean_deg) - (-60.0))) <= 5.0
+
+
+def test_paper_table1_mode_matches_target_bend_and_torsion() -> None:
+    cfg = _make_cfg(
+        n_flagella=1,
+        ds_over_b=0.58,
+        flag_length_over_b=5.8,
+        init_mode="paper_table1",
+        n_beads_per_flagellum=11,
+    ).with_overrides(
+        {
+            "flagella": {
+                # paper_table1 mode では source-of-truth ではない値。
+                "helix_init": {"radius_over_b": 0.01, "pitch_over_b": 0.3},
+            }
+        }
+    )
+    model = ModelBuilder(cfg).build()
+    positions_m = model.positions_m
+
+    pairs = model.spring_pairs
+    bi = model.bead_is_body[pairs[:, 0]]
+    bj = model.bead_is_body[pairs[:, 1]]
+    fi = model.bead_flag_ids[pairs[:, 0]]
+    fj = model.bead_flag_ids[pairs[:, 1]]
+    flag_intra_rows = np.where((~bi) & (~bj) & (fi == fj) & (fi >= 0))[0]
+    intra_len_over_b = (
+        np.linalg.norm(
+            positions_m[pairs[flag_intra_rows, 1]]
+            - positions_m[pairs[flag_intra_rows, 0]],
+            axis=1,
+        )
+        / cfg.b_m
+    )
+    assert np.allclose(intra_len_over_b, cfg.flagella.bond_L_over_b, atol=1e-9)
+
+    bend_rows = np.where(model.bending_flag_ids >= 0)[0]
+    bend_deg = np.asarray(
+        [
+            np.rad2deg(_triplet_angle_rad(positions_m, model.bending_triplets[row]))
+            for row in bend_rows
+        ],
+        dtype=float,
+    )
+    bend_target = float(cfg.potentials.bend.theta0_deg["normal"])
+    assert np.max(np.abs(bend_deg - bend_target)) <= 1.0
+
+    torsion_rows = np.where(model.torsion_flag_ids >= 0)[0]
+    torsion_deg = np.asarray(
+        [
+            _dihedral_angle_rad(positions_m, model.torsion_quads[row]) * 180.0 / np.pi
+            for row in torsion_rows
+        ],
+        dtype=float,
+    )
+    torsion_target = float(cfg.potentials.torsion.phi0_deg["normal"])
+    torsion_err = np.asarray(
+        [abs(_wrap_deg(float(v - torsion_target))) for v in torsion_deg],
+        dtype=float,
+    )
+    assert np.max(torsion_err) <= 1.0
 
 
 @pytest.mark.parametrize("n_flagella", [1, 3])

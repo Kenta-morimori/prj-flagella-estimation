@@ -35,6 +35,51 @@ def _solve_helix_dx_um(radius_um: float, pitch_um: float, bond_len_um: float) ->
     return 0.5 * (lo + hi)
 
 
+def _generate_chain_from_bend_torsion(
+    n_beads: int,
+    bond_len_um: float,
+    theta_deg: float,
+    phi_deg: float,
+) -> np.ndarray:
+    """一定 bond / bend / torsion を満たす初期鎖を生成する。"""
+
+    n = max(2, int(n_beads))
+    bond = max(float(bond_len_um), 1e-12)
+    # 入力theta_degはtriplet角（0..180）。接線の回転角はその補角を使う。
+    theta = math.pi - math.radians(float(theta_deg))
+    phi = math.radians(float(phi_deg))
+
+    p = [np.zeros(3, dtype=float)]
+    t_prev = np.array([1.0, 0.0, 0.0], dtype=float)
+    p.append(p[-1] + bond * t_prev)
+    if n == 2:
+        return np.asarray(p, dtype=float)
+
+    n0 = np.array([0.0, 1.0, 0.0], dtype=float)
+    b0 = np.array([0.0, 0.0, 1.0], dtype=float)
+    t_curr = math.cos(theta) * t_prev + math.sin(theta) * n0
+    t_curr = t_curr / max(float(np.linalg.norm(t_curr)), 1e-12)
+    p.append(p[-1] + bond * t_curr)
+
+    binormal = b0.copy()
+    for _ in range(2, n - 1):
+        b_vec = np.cross(t_prev, t_curr)
+        b_norm = float(np.linalg.norm(b_vec))
+        if b_norm > 1e-12:
+            binormal = b_vec / b_norm
+        normal = np.cross(binormal, t_curr)
+        normal = normal / max(float(np.linalg.norm(normal)), 1e-12)
+        t_next = math.cos(theta) * t_curr + math.sin(theta) * (
+            math.cos(phi) * normal + math.sin(phi) * binormal
+        )
+        t_next = t_next / max(float(np.linalg.norm(t_next)), 1e-12)
+        p.append(p[-1] + bond * t_next)
+        t_prev = t_curr
+        t_curr = t_next
+
+    return np.asarray(p, dtype=float)
+
+
 def _principal_axis(points: np.ndarray) -> np.ndarray:
     centered = points - np.mean(points, axis=0)
     _, _, vh = np.linalg.svd(centered, full_matrices=False)
@@ -175,8 +220,7 @@ class ModelBuilder:
 
         n_flagella = cfg.flagella.n_flagella
         bond_len_um = max(cfg.flagella.bond_L_over_b * b_um, 1e-6)
-        L_flag_um = cfg.flagella.length_over_b * b_um
-        n_flag = max(2, int(math.floor(L_flag_um / bond_len_um)) + 1)
+        n_flag = max(2, int(cfg.flagella.n_beads_per_flagellum))
 
         center_layer = body_layers[len(body_layers) // 2]
         if n_flagella <= 3:
@@ -251,19 +295,48 @@ class ModelBuilder:
         start_index = n_body
         for f_id, attach_idx in enumerate(attach_ids):
             phase = 2.0 * math.pi * (f_id / max(n_flagella, 1))
-            pitch_um = max(cfg.flagella.helix_init.pitch_over_b * b_um, 1e-6)
-            r_um = max(cfg.flagella.helix_init.radius_over_b * b_um, 0.0)
-            dx_um = _solve_helix_dx_um(
-                radius_um=r_um,
-                pitch_um=pitch_um,
-                bond_len_um=bond_len_um,
-            )
-            s = dx_um * np.arange(n_flag, dtype=float)
-            theta = 2.0 * math.pi * s / pitch_um + phase
+            init_mode = str(cfg.flagella.init_mode)
+            if init_mode == "legacy_radius_pitch":
+                pitch_um = max(cfg.flagella.helix_init.pitch_over_b * b_um, 1e-6)
+                r_um = max(cfg.flagella.helix_init.radius_over_b * b_um, 0.0)
+                dx_um = _solve_helix_dx_um(
+                    radius_um=r_um,
+                    pitch_um=pitch_um,
+                    bond_len_um=bond_len_um,
+                )
+                s = dx_um * np.arange(n_flag, dtype=float)
+                theta = 2.0 * math.pi * s / pitch_um + phase
 
-            x = s
-            y = r_um * np.cos(theta) - r_um * math.cos(phase)
-            z = -r_um * np.sin(theta) + r_um * math.sin(phase)
+                x = s
+                y = r_um * np.cos(theta) - r_um * math.cos(phase)
+                z = -r_um * np.sin(theta) + r_um * math.sin(phase)
+                local_points = np.column_stack([x, y, z])
+            elif init_mode == "paper_table1":
+                theta0_normal = float(cfg.potentials.bend.theta0_deg["normal"])
+                phi0_normal = float(cfg.potentials.torsion.phi0_deg["normal"])
+                local_points = _generate_chain_from_bend_torsion(
+                    n_beads=n_flag,
+                    bond_len_um=bond_len_um,
+                    theta_deg=theta0_normal,
+                    phi_deg=phi0_normal,
+                )
+                # 複数本で初期形状が完全一致しないよう、軸回り位相だけ回す。
+                c = math.cos(phase)
+                s = math.sin(phase)
+                rot = np.array(
+                    [
+                        [1.0, 0.0, 0.0],
+                        [0.0, c, -s],
+                        [0.0, s, c],
+                    ],
+                    dtype=float,
+                )
+                local_points = local_points @ rot.T
+            else:
+                raise ValueError(
+                    "Unsupported flagella.init_mode:"
+                    f" {init_mode}. Use 'legacy_radius_pitch' or 'paper_table1'."
+                )
             attach_point = body_um[int(attach_idx)]
             attach_layer_idx = int(body_bead_to_layer[int(attach_idx)])
             if attach_layer_idx < 0:
@@ -293,7 +366,6 @@ class ModelBuilder:
             axis_v /= max(axis_v_norm, 1e-12)
             axis_w = np.cross(axis_u, axis_v)
 
-            local_points = np.column_stack([x, y, z])
             local_tangent0 = local_points[1] - local_points[0]
             local_tangent_norm = max(float(np.linalg.norm(local_tangent0)), 1e-12)
             local_u = local_tangent0 / local_tangent_norm

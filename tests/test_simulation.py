@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 from pathlib import Path
 
 import numpy as np
@@ -320,6 +321,35 @@ def test_run_writes_step_summary_csv(tmp_path: Path) -> None:
     assert "flag_bond_len_mean_over_b" in first
     assert "flag_bond_rel_err_mean" in first
     assert first["brownian_enabled"] in {"False", "false", "0"}
+
+
+def test_run_writes_initial_geometry_summary_json(tmp_path: Path) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0, hook_enabled=True, n_flagella=1
+    ).with_overrides(
+        {
+            "flagella": {
+                "init_mode": "paper_table1",
+                "n_beads_per_flagellum": 11,
+            }
+        }
+    )
+    sim = Simulator(cfg)
+    sim.run(cfg.time.duration_s, step_summary_dir=tmp_path / "sim")
+
+    summary_path = tmp_path / "sim" / "initial_geometry_summary.json"
+    assert summary_path.is_file()
+    data = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert data["flagella"]["init_mode"] == "paper_table1"
+    assert data["flagella"]["n_flagella"] == 1
+    assert data["flagella"]["n_beads_per_flagellum"] == 11
+    assert len(data["per_flagellum"]) == 1
+
+    flag0 = data["per_flagellum"][0]
+    assert flag0["bead_count"] == 11
+    assert "contour_length_um" in flag0
+    assert "initial_bend_err_max_deg" in flag0
+    assert "initial_torsion_err_max_deg" in flag0
 
 
 @pytest.mark.parametrize(

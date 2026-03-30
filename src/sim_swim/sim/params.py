@@ -80,9 +80,11 @@ class FlagellumParams:
 
     n_flagella: int = 3
     placement_mode: str = "uniform"
+    init_mode: str = "legacy_radius_pitch"
     discretization: FlagellaDiscretizationParams = field(
         default_factory=FlagellaDiscretizationParams
     )
+    n_beads_per_flagellum: int = 11
     bond_L_over_b: float = 0.58
     length_over_b: float = 5.8
     helix_init: FlagellaHelixInitParams = field(default_factory=FlagellaHelixInitParams)
@@ -504,6 +506,14 @@ class SimulationConfig:
             else:
                 length_over_b = 5.8
 
+        n_beads_per_flagellum = flag_raw.get("n_beads_per_flagellum")
+        if n_beads_per_flagellum is None:
+            n_beads_per_flagellum = max(
+                2,
+                int(math.floor(float(length_over_b) / max(float(bond_L_over_b), 1e-12)))
+                + 1,
+            )
+
         helix_raw = flag_raw.get("helix_init", {}) or {}
         radius_over_b_h = helix_raw.get("radius_over_b")
         if radius_over_b_h is None:
@@ -525,7 +535,9 @@ class SimulationConfig:
         flagella = FlagellumParams(
             n_flagella=int(_get(flag_raw, "n_flagella", 3)),
             placement_mode=str(_get(flag_raw, "placement_mode", "uniform")),
+            init_mode=str(_get(flag_raw, "init_mode", "legacy_radius_pitch")),
             discretization=FlagellaDiscretizationParams(ds_over_b=float(ds_over_b)),
+            n_beads_per_flagellum=max(2, int(n_beads_per_flagellum)),
             bond_L_over_b=float(bond_L_over_b),
             length_over_b=float(length_over_b),
             helix_init=FlagellaHelixInitParams(

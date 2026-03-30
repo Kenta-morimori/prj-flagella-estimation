@@ -15,6 +15,8 @@ body:
 flagella:
   n_flagella: 3                # [-] べん毛本数（論文条件）
   placement_mode: "uniform"   # 終端層の断面ビーズへ均等に付着
+  init_mode: "paper_table1"   # 初期べん毛のsource-of-truth: bond/theta/phi/n_beads
+  n_beads_per_flagellum: 11    # [-] 各べん毛の初期ビーズ数（論文離散化準拠）
   discretization:
     ds_over_b: 0.58            # [-] 隣接間隔 ds/b（Table 1 の L=0.58b 相当）
   bond_L_over_b: 0.58          # [-] べん毛spring平衡長 L/b
