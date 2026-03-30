@@ -148,15 +148,29 @@ def test_body_rigid_projection_defaults_to_true() -> None:
     sim_cfg = SimulationConfig.from_dict(cfg)
 
     assert sim_cfg.projection.enable_body_rigid_projection is True
+    assert sim_cfg.projection.enable_hook_length_projection is True
+    assert sim_cfg.projection.enable_basal_link_direction_projection is True
+    assert sim_cfg.projection.enable_flagella_chain_length_projection is True
+    assert sim_cfg.projection.enable_flagella_template_projection is True
 
 
 def test_body_rigid_projection_can_be_disabled() -> None:
     cfg = _base_cfg()
-    cfg["projection"] = {"enable_body_rigid_projection": False}
+    cfg["projection"] = {
+        "enable_body_rigid_projection": False,
+        "enable_hook_length_projection": False,
+        "enable_basal_link_direction_projection": False,
+        "enable_flagella_chain_length_projection": False,
+        "enable_flagella_template_projection": False,
+    }
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
     sim_cfg = SimulationConfig.from_dict(cfg)
 
     assert sim_cfg.projection.enable_body_rigid_projection is False
+    assert sim_cfg.projection.enable_hook_length_projection is False
+    assert sim_cfg.projection.enable_basal_link_direction_projection is False
+    assert sim_cfg.projection.enable_flagella_chain_length_projection is False
+    assert sim_cfg.projection.enable_flagella_template_projection is False
 
 
 def test_body_n_layers_is_derived_from_length_and_spacing() -> None:

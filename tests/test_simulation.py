@@ -239,6 +239,18 @@ def _assert_flag_intra_stats_over_all_steps(
         assert intra_max <= max_limit_um
 
 
+def _projection_all_off_overrides() -> dict[str, dict[str, bool]]:
+    return {
+        "projection": {
+            "enable_body_rigid_projection": False,
+            "enable_hook_length_projection": False,
+            "enable_basal_link_direction_projection": False,
+            "enable_flagella_chain_length_projection": False,
+            "enable_flagella_template_projection": False,
+        }
+    }
+
+
 def _assert_flag_angle_error_over_all_steps(
     rows: list[dict[str, str]],
     bend_mean_deg_limit: float,
@@ -296,7 +308,90 @@ def test_run_writes_step_summary_csv(tmp_path: Path) -> None:
     assert "flag_bend_err_mean_deg" in first
     assert "flag_torsion_err_mean_deg" in first
     assert "flag_state_changed" in first
+    assert "projection_body_rigid_enabled" in first
+    assert "projection_hook_length_enabled" in first
+    assert "projection_basal_link_direction_enabled" in first
+    assert "projection_flagella_chain_length_enabled" in first
+    assert "projection_flagella_template_enabled" in first
+    assert "hook_len_mean_over_b" in first
+    assert "hook_len_rel_err_mean" in first
+    assert "hook_angle_mean_deg" in first
+    assert "hook_angle_err_max_deg" in first
+    assert "flag_bond_len_mean_over_b" in first
+    assert "flag_bond_rel_err_mean" in first
     assert first["brownian_enabled"] in {"False", "false", "0"}
+
+
+@pytest.mark.parametrize(
+    ("disabled_key", "expected_counter_key"),
+    [
+        ("enable_hook_length_projection", "hook_length"),
+        ("enable_basal_link_direction_projection", "basal_direction"),
+        ("enable_flagella_chain_length_projection", "flag_chain"),
+        ("enable_flagella_template_projection", "flag_template"),
+    ],
+)
+def test_projection_toggle_bypasses_target_projection(
+    disabled_key: str,
+    expected_counter_key: str,
+) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0, hook_enabled=True, n_flagella=1
+    ).with_overrides(
+        {
+            "projection": {
+                disabled_key: False,
+            }
+        }
+    )
+    sim = Simulator(cfg)
+
+    counters = {
+        "hook_length": 0,
+        "basal_direction": 0,
+        "flag_chain": 0,
+        "flag_template": 0,
+    }
+
+    original_distance_pairs = sim.engine._project_distance_pairs
+    original_basal = sim.engine._project_basal_link_direction
+    original_chain = sim.engine._project_flagella_chain_lengths
+    original_template = sim.engine._project_flagella_template
+
+    def wrapped_distance_pairs(
+        positions_m: np.ndarray,
+        pair_rows: np.ndarray,
+        iterations: int,
+        fixed_mask: np.ndarray | None = None,
+    ) -> np.ndarray:
+        if np.array_equal(pair_rows, sim.engine.hook_spring_rows):
+            counters["hook_length"] += 1
+        return original_distance_pairs(positions_m, pair_rows, iterations, fixed_mask)
+
+    def wrapped_basal(positions_m: np.ndarray) -> np.ndarray:
+        counters["basal_direction"] += 1
+        return original_basal(positions_m)
+
+    def wrapped_chain(positions_m: np.ndarray, iterations: int) -> np.ndarray:
+        counters["flag_chain"] += 1
+        return original_chain(positions_m, iterations)
+
+    def wrapped_template(positions_m: np.ndarray) -> np.ndarray:
+        counters["flag_template"] += 1
+        return original_template(positions_m)
+
+    sim.engine._project_distance_pairs = wrapped_distance_pairs
+    sim.engine._project_basal_link_direction = wrapped_basal
+    sim.engine._project_flagella_chain_lengths = wrapped_chain
+    sim.engine._project_flagella_template = wrapped_template
+
+    sim.engine.step(cfg.dt_star)
+
+    assert counters[expected_counter_key] == 0
+    for key, val in counters.items():
+        if key == expected_counter_key:
+            continue
+        assert val > 0
 
 
 @pytest.mark.parametrize(
@@ -500,6 +595,77 @@ def test_hook_length_multi_step_motor_off(tmp_path: Path) -> None:
 
     assert len(rows) >= 2000
     _assert_hook_stats_over_all_steps(rows, cfg.scale.b_um, cfg.flagella.n_flagella)
+
+
+def test_projection_all_off_motor_off_has_stable_short_run_metrics(
+    tmp_path: Path,
+) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0, hook_enabled=True, n_flagella=1
+    ).with_overrides(
+        {
+            "time": {"duration_s": 0.002},
+            **_projection_all_off_overrides(),
+        }
+    )
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "sim")
+
+    assert len(rows) >= 2
+    for row in rows:
+        assert row["pos_all_finite"] in {"True", "true", "1"}
+        assert int(row["hook_count"]) == cfg.flagella.n_flagella
+        assert int(row["flag_intra_count"]) > 0
+
+        hook_mean_over_b = float(row["hook_len_mean_over_b"])
+        hook_max_over_b = float(row["hook_len_max_over_b"])
+        flag_min_over_b = float(row["flag_bond_len_min_over_b"])
+        flag_max_over_b = float(row["flag_bond_len_max_over_b"])
+
+        # projectionを全OFFにした短時間での「極端崩壊なし」を確認する境界。
+        assert np.isfinite(hook_mean_over_b)
+        assert np.isfinite(hook_max_over_b)
+        assert np.isfinite(flag_min_over_b)
+        assert np.isfinite(flag_max_over_b)
+        assert hook_max_over_b <= 10.0
+        assert flag_max_over_b <= 10.0
+
+
+def test_projection_all_off_motor_on_outputs_comparable_diagnostics(
+    tmp_path: Path,
+) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=1.0e-18, hook_enabled=True, n_flagella=1
+    ).with_overrides(
+        {
+            "time": {"duration_s": 0.01},
+            **_projection_all_off_overrides(),
+        }
+    )
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "sim")
+
+    assert rows
+    first = rows[0]
+    assert first["projection_body_rigid_enabled"] in {"False", "false", "0"}
+    assert first["projection_hook_length_enabled"] in {"False", "false", "0"}
+    assert first["projection_basal_link_direction_enabled"] in {
+        "False",
+        "false",
+        "0",
+    }
+    assert first["projection_flagella_chain_length_enabled"] in {
+        "False",
+        "false",
+        "0",
+    }
+    assert first["projection_flagella_template_enabled"] in {
+        "False",
+        "false",
+        "0",
+    }
+    assert np.isfinite(float(first["hook_len_mean_over_b"]))
+    assert np.isfinite(float(first["flag_bond_len_mean_over_b"]))
 
 
 def test_hook_length_multi_step_motor_on(tmp_path: Path) -> None:

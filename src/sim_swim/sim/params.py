@@ -161,6 +161,10 @@ class ProjectionParams:
     """拘束投影の設定。"""
 
     enable_body_rigid_projection: bool = True
+    enable_hook_length_projection: bool = True
+    enable_basal_link_direction_projection: bool = True
+    enable_flagella_chain_length_projection: bool = True
+    enable_flagella_template_projection: bool = True
 
 
 @dataclass(frozen=True)
@@ -621,6 +625,18 @@ class SimulationConfig:
         projection = ProjectionParams(
             enable_body_rigid_projection=bool(
                 _get(projection_raw, "enable_body_rigid_projection", True)
+            ),
+            enable_hook_length_projection=bool(
+                _get(projection_raw, "enable_hook_length_projection", True)
+            ),
+            enable_basal_link_direction_projection=bool(
+                _get(projection_raw, "enable_basal_link_direction_projection", True)
+            ),
+            enable_flagella_chain_length_projection=bool(
+                _get(projection_raw, "enable_flagella_chain_length_projection", True)
+            ),
+            enable_flagella_template_projection=bool(
+                _get(projection_raw, "enable_flagella_template_projection", True)
             ),
         )
 

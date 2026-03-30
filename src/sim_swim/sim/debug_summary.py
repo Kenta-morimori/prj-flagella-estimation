@@ -40,10 +40,25 @@ STEP_SUMMARY_COLUMNS = [
     "hook_len_mean_um",
     "hook_len_min_um",
     "hook_len_max_um",
+    "hook_len_mean_over_b",
+    "hook_len_min_over_b",
+    "hook_len_max_over_b",
+    "hook_len_rel_err_mean",
+    "hook_len_rel_err_max",
+    "hook_angle_mean_deg",
+    "hook_angle_min_deg",
+    "hook_angle_max_deg",
+    "hook_angle_err_mean_deg",
+    "hook_angle_err_max_deg",
     "flag_bend_err_mean_deg",
     "flag_bend_err_max_deg",
     "flag_torsion_err_mean_deg",
     "flag_torsion_err_max_deg",
+    "flag_bond_len_mean_over_b",
+    "flag_bond_len_min_over_b",
+    "flag_bond_len_max_over_b",
+    "flag_bond_rel_err_mean",
+    "flag_bond_rel_err_max",
     "F_total_mean_body",
     "F_total_mean_flag",
     "F_total_mean_all",
@@ -65,6 +80,11 @@ STEP_SUMMARY_COLUMNS = [
     "motor_split_rank_deficient_count",
     "motor_bond_length_clipped_count",
     "flag_state_changed",
+    "projection_body_rigid_enabled",
+    "projection_hook_length_enabled",
+    "projection_basal_link_direction_enabled",
+    "projection_flagella_chain_length_enabled",
+    "projection_flagella_template_enabled",
     "brownian_enabled",
     "brownian_disp_mean_um",
 ]
@@ -176,6 +196,21 @@ def _pair_distance_stats_um(
         float(np.min(dist_um)),
         float(np.max(dist_um)),
     )
+
+
+def _pair_rel_error_stats(
+    positions_m: np.ndarray,
+    spring_pairs: np.ndarray,
+    spring_rests_m: np.ndarray,
+    pair_rows: np.ndarray,
+) -> tuple[float, float]:
+    if pair_rows.size == 0:
+        return float("nan"), float("nan")
+    pairs = spring_pairs[pair_rows]
+    rests = np.maximum(spring_rests_m[pair_rows], 1e-30)
+    lens = np.linalg.norm(positions_m[pairs[:, 1]] - positions_m[pairs[:, 0]], axis=1)
+    rel = np.abs(lens - rests) / rests
+    return float(np.mean(rel)), float(np.max(rel))
 
 
 def _triangle_area(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> float:
@@ -489,6 +524,7 @@ class StepSummaryRecorder:
         self.body_mask = self.model.bead_is_body.astype(bool)
         self.flag_mask = ~self.body_mask
         self.spring_pairs = self.model.spring_pairs.astype(int, copy=False)
+        self.spring_rests_m = self.model.spring_rest_lengths_m.astype(float, copy=False)
         self.flag_bending_rows = np.where(self.model.bending_flag_ids >= 0)[0]
         self.flag_torsion_rows = np.where(self.model.torsion_flag_ids >= 0)[0]
         self.bend_map = self.cfg.potentials.bend.theta0_deg or {
@@ -550,6 +586,67 @@ class StepSummaryRecorder:
             hook_len_min_um,
             hook_len_max_um,
         ) = _pair_distance_stats_um(pos_after, self.spring_pairs, self.body_flag_rows)
+        hook_len_mean_over_b = (
+            hook_len_mean_um / max(self.cfg.scale.b_um, 1e-12)
+            if hook_count > 0
+            else float("nan")
+        )
+        hook_len_min_over_b = (
+            hook_len_min_um / max(self.cfg.scale.b_um, 1e-12)
+            if hook_count > 0
+            else float("nan")
+        )
+        hook_len_max_over_b = (
+            hook_len_max_um / max(self.cfg.scale.b_um, 1e-12)
+            if hook_count > 0
+            else float("nan")
+        )
+        hook_len_rel_err_mean, hook_len_rel_err_max = _pair_rel_error_stats(
+            pos_after,
+            self.spring_pairs,
+            self.spring_rests_m,
+            self.body_flag_rows,
+        )
+
+        hook_angle_mean_deg = float("nan")
+        hook_angle_min_deg = float("nan")
+        hook_angle_max_deg = float("nan")
+        hook_angle_err_mean_deg = float("nan")
+        hook_angle_err_max_deg = float("nan")
+        if self.model.hook_triplets.size > 0:
+            hook_angles_rad = _triplet_angles_rad(pos_after, self.model.hook_triplets)
+            hook_angles_deg = hook_angles_rad * RAD_TO_DEG
+            hook_angle_mean_deg = float(np.mean(hook_angles_deg))
+            hook_angle_min_deg = float(np.min(hook_angles_deg))
+            hook_angle_max_deg = float(np.max(hook_angles_deg))
+            hook_angle_err_deg = np.maximum(
+                float(self.cfg.hook.threshold_deg) - hook_angles_deg,
+                0.0,
+            )
+            hook_angle_err_mean_deg = float(np.mean(hook_angle_err_deg))
+            hook_angle_err_max_deg = float(np.max(hook_angle_err_deg))
+
+        flag_bond_len_mean_over_b = (
+            flag_intra_len_mean_um / max(self.cfg.scale.b_um, 1e-12)
+            if flag_intra_count > 0
+            else float("nan")
+        )
+        flag_bond_len_min_over_b = (
+            flag_intra_len_min_um / max(self.cfg.scale.b_um, 1e-12)
+            if flag_intra_count > 0
+            else float("nan")
+        )
+        flag_bond_len_max_over_b = (
+            flag_intra_len_max_um / max(self.cfg.scale.b_um, 1e-12)
+            if flag_intra_count > 0
+            else float("nan")
+        )
+        flag_bond_rel_err_mean, flag_bond_rel_err_max = _pair_rel_error_stats(
+            pos_after,
+            self.spring_pairs,
+            self.spring_rests_m,
+            self.flag_intra_rows,
+        )
         flag_bend_err_mean_deg = float("nan")
         flag_bend_err_max_deg = float("nan")
         if self.flag_bending_rows.size > 0:
@@ -624,10 +721,25 @@ class StepSummaryRecorder:
             "hook_len_mean_um": hook_len_mean_um,
             "hook_len_min_um": hook_len_min_um,
             "hook_len_max_um": hook_len_max_um,
+            "hook_len_mean_over_b": hook_len_mean_over_b,
+            "hook_len_min_over_b": hook_len_min_over_b,
+            "hook_len_max_over_b": hook_len_max_over_b,
+            "hook_len_rel_err_mean": hook_len_rel_err_mean,
+            "hook_len_rel_err_max": hook_len_rel_err_max,
+            "hook_angle_mean_deg": hook_angle_mean_deg,
+            "hook_angle_min_deg": hook_angle_min_deg,
+            "hook_angle_max_deg": hook_angle_max_deg,
+            "hook_angle_err_mean_deg": hook_angle_err_mean_deg,
+            "hook_angle_err_max_deg": hook_angle_err_max_deg,
             "flag_bend_err_mean_deg": flag_bend_err_mean_deg,
             "flag_bend_err_max_deg": flag_bend_err_max_deg,
             "flag_torsion_err_mean_deg": flag_torsion_err_mean_deg,
             "flag_torsion_err_max_deg": flag_torsion_err_max_deg,
+            "flag_bond_len_mean_over_b": flag_bond_len_mean_over_b,
+            "flag_bond_len_min_over_b": flag_bond_len_min_over_b,
+            "flag_bond_len_max_over_b": flag_bond_len_max_over_b,
+            "flag_bond_rel_err_mean": flag_bond_rel_err_mean,
+            "flag_bond_rel_err_max": flag_bond_rel_err_max,
             "F_total_mean_body": _mean_norm(diag.total_forces, self.body_mask),
             "F_total_mean_flag": _mean_norm(diag.total_forces, self.flag_mask),
             "F_total_mean_all": float(
@@ -655,6 +767,21 @@ class StepSummaryRecorder:
                 diag.motor_bond_length_clipped_count
             ),
             "flag_state_changed": flag_state_changed,
+            "projection_body_rigid_enabled": bool(
+                self.cfg.projection.enable_body_rigid_projection
+            ),
+            "projection_hook_length_enabled": bool(
+                self.cfg.projection.enable_hook_length_projection
+            ),
+            "projection_basal_link_direction_enabled": bool(
+                self.cfg.projection.enable_basal_link_direction_projection
+            ),
+            "projection_flagella_chain_length_enabled": bool(
+                self.cfg.projection.enable_flagella_chain_length_projection
+            ),
+            "projection_flagella_template_enabled": bool(
+                self.cfg.projection.enable_flagella_template_projection
+            ),
             "brownian_enabled": bool(diag.brownian_enabled),
             "brownian_disp_mean_um": brownian_disp_mean_um,
         }

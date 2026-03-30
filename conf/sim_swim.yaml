@@ -59,6 +59,10 @@ hook:
 
 projection:
   enable_body_rigid_projection: true   # true: 既存互換（body rigid projectionを適用）
+  enable_hook_length_projection: true
+  enable_basal_link_direction_projection: true
+  enable_flagella_chain_length_projection: true
+  enable_flagella_template_projection: true
 
 run_tumble:
   run_tau: 1200.0              # [tau] run 継続時間（Fig.3 例）

@@ -477,11 +477,16 @@ class DynamicsEngine:
         if self.constraint_projection_iters <= 0:
             return positions_m
         out = positions_m
+        p = self.cfg.projection
         for _ in range(self.constraint_projection_iters):
-            out = self._project_distance_pairs(out, self.hook_spring_rows, 1)
-            out = self._project_basal_link_direction(out)
-            out = self._project_flagella_chain_lengths(out, 1)
-            out = self._project_flagella_template(out)
+            if p.enable_hook_length_projection:
+                out = self._project_distance_pairs(out, self.hook_spring_rows, 1)
+            if p.enable_basal_link_direction_projection:
+                out = self._project_basal_link_direction(out)
+            if p.enable_flagella_chain_length_projection:
+                out = self._project_flagella_chain_lengths(out, 1)
+            if p.enable_flagella_template_projection:
+                out = self._project_flagella_template(out)
         return out
 
     def step(self, dt_star: float) -> StepDiagnostics:
