@@ -24,6 +24,9 @@ class MotorForceDiagnostics:
     attach_force_norm_mean: float = float("nan")
     first_force_norm_mean: float = float("nan")
     second_force_norm_mean: float = float("nan")
+    split_residual_norm_mean: float = float("nan")
+    ta_dot_ra_abs_mean: float = float("nan")
+    tb_dot_rb_abs_mean: float = float("nan")
 
 
 def _safe_norm(v: np.ndarray, eps: float = 1e-18) -> float:
@@ -351,6 +354,9 @@ def compute_motor_forces(
     attach_force_norm_sum = 0.0
     first_force_norm_sum = 0.0
     second_force_norm_sum = 0.0
+    split_residual_norm_sum = 0.0
+    ta_dot_ra_abs_sum = 0.0
+    tb_dot_rb_abs_sum = 0.0
     r2_eps = 1e-30
 
     for idx, (ib, jf, kf) in enumerate(motor_triplets):
@@ -399,6 +405,9 @@ def compute_motor_forces(
         split = q_inv @ a.T @ (np.linalg.pinv(aqat) @ b)
         t_a = split[0:3]
         t_b = split[3:6]
+        split_residual_norm_sum += float(np.linalg.norm((t_a + t_b) - t_tot))
+        ta_dot_ra_abs_sum += abs(float(np.dot(t_a, r_a)))
+        tb_dot_rb_abs_sum += abs(float(np.dot(t_b, r_b)))
 
         # Step C: Tc = rc × Fc, Fc = (Tc × rc) / ||rc||^2
         if r_a2 < r2_eps:
@@ -443,5 +452,14 @@ def compute_motor_forces(
         ),
         second_force_norm_mean=(
             second_force_norm_sum * inv if valid_count > 0 else float("nan")
+        ),
+        split_residual_norm_mean=(
+            split_residual_norm_sum * inv if valid_count > 0 else float("nan")
+        ),
+        ta_dot_ra_abs_mean=(
+            ta_dot_ra_abs_sum * inv if valid_count > 0 else float("nan")
+        ),
+        tb_dot_rb_abs_mean=(
+            tb_dot_rb_abs_sum * inv if valid_count > 0 else float("nan")
         ),
     )

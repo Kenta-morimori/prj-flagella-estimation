@@ -82,6 +82,9 @@ class StepDiagnostics:
     motor_attach_force_norm: float
     motor_first_force_norm: float
     motor_second_force_norm: float
+    motor_split_residual_norm: float
+    motor_ta_dot_ra_abs: float
+    motor_tb_dot_rb_abs: float
     torsion_fd_eps_m: float
 
 
@@ -710,5 +713,8 @@ class DynamicsEngine:
             motor_attach_force_norm=float(motor_diag.attach_force_norm_mean),
             motor_first_force_norm=float(motor_diag.first_force_norm_mean),
             motor_second_force_norm=float(motor_diag.second_force_norm_mean),
+            motor_split_residual_norm=float(motor_diag.split_residual_norm_mean),
+            motor_ta_dot_ra_abs=float(motor_diag.ta_dot_ra_abs_mean),
+            motor_tb_dot_rb_abs=float(motor_diag.tb_dot_rb_abs_mean),
             torsion_fd_eps_m=self.torsion_fd_eps_m,
         )

@@ -332,6 +332,9 @@ def test_run_writes_step_summary_csv(tmp_path: Path) -> None:
     assert "motor_attach_force_norm" in first
     assert "motor_first_force_norm" in first
     assert "motor_second_force_norm" in first
+    assert "motor_split_residual_norm" in first
+    assert "motor_ta_dot_ra_abs" in first
+    assert "motor_tb_dot_rb_abs" in first
     assert first["brownian_enabled"] in {"False", "false", "0"}
 
 
@@ -718,6 +721,9 @@ def test_projection_all_off_motor_on_outputs_comparable_diagnostics(
     assert np.isfinite(float(first["motor_attach_force_norm"]))
     assert np.isfinite(float(first["motor_first_force_norm"]))
     assert np.isfinite(float(first["motor_second_force_norm"]))
+    assert np.isfinite(float(first["motor_split_residual_norm"]))
+    assert np.isfinite(float(first["motor_ta_dot_ra_abs"]))
+    assert np.isfinite(float(first["motor_tb_dot_rb_abs"]))
 
 
 def test_torsion_fd_eps_sweep_is_traceable_and_reduces_step0_torsion_force(
