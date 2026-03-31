@@ -322,6 +322,16 @@ def test_run_writes_step_summary_csv(tmp_path: Path) -> None:
     assert "hook_angle_err_max_deg" in first
     assert "flag_bond_len_mean_over_b" in first
     assert "flag_bond_rel_err_mean" in first
+    assert "motor_ra_len_um" in first
+    assert "motor_rb_len_um" in first
+    assert "motor_Ta_norm" in first
+    assert "motor_Tb_norm" in first
+    assert "motor_Fa_norm" in first
+    assert "motor_Fb_norm" in first
+    assert "motor_axis_vs_rear_direction_angle_deg" in first
+    assert "motor_attach_force_norm" in first
+    assert "motor_first_force_norm" in first
+    assert "motor_second_force_norm" in first
     assert first["brownian_enabled"] in {"False", "false", "0"}
 
 
@@ -698,6 +708,16 @@ def test_projection_all_off_motor_on_outputs_comparable_diagnostics(
     }
     assert np.isfinite(float(first["hook_len_mean_over_b"]))
     assert np.isfinite(float(first["flag_bond_len_mean_over_b"]))
+    assert np.isfinite(float(first["motor_ra_len_um"]))
+    assert np.isfinite(float(first["motor_rb_len_um"]))
+    assert np.isfinite(float(first["motor_Ta_norm"]))
+    assert np.isfinite(float(first["motor_Tb_norm"]))
+    assert np.isfinite(float(first["motor_Fa_norm"]))
+    assert np.isfinite(float(first["motor_Fb_norm"]))
+    assert np.isfinite(float(first["motor_axis_vs_rear_direction_angle_deg"]))
+    assert np.isfinite(float(first["motor_attach_force_norm"]))
+    assert np.isfinite(float(first["motor_first_force_norm"]))
+    assert np.isfinite(float(first["motor_second_force_norm"]))
 
 
 def test_torsion_fd_eps_sweep_is_traceable_and_reduces_step0_torsion_force(

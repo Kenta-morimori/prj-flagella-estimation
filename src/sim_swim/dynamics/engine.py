@@ -72,6 +72,16 @@ class StepDiagnostics:
     motor_degenerate_axis_count: int
     motor_split_rank_deficient_count: int
     motor_bond_length_clipped_count: int
+    motor_ra_len_m: float
+    motor_rb_len_m: float
+    motor_Ta_norm: float
+    motor_Tb_norm: float
+    motor_Fa_norm: float
+    motor_Fb_norm: float
+    motor_axis_vs_rear_direction_angle_deg: float
+    motor_attach_force_norm: float
+    motor_first_force_norm: float
+    motor_second_force_norm: float
     torsion_fd_eps_m: float
 
 
@@ -491,6 +501,49 @@ class DynamicsEngine:
                 out = self._project_flagella_template(out)
         return out
 
+    def _body_axis_unit(self, positions_m: np.ndarray) -> np.ndarray:
+        if len(self.model.body_layer_indices) >= 2:
+            first = self.model.body_layer_indices[0].astype(int, copy=False)
+            last = self.model.body_layer_indices[-1].astype(int, copy=False)
+            c_first = np.mean(positions_m[first], axis=0)
+            c_last = np.mean(positions_m[last], axis=0)
+            axis = c_last - c_first
+            n_axis = float(np.linalg.norm(axis))
+            if n_axis > 1e-18:
+                return axis / n_axis
+
+        if self.body_indices.shape[0] >= 2:
+            i0 = int(self.body_indices[0])
+            i1 = int(self.body_indices[-1])
+            axis = positions_m[i1] - positions_m[i0]
+            n_axis = float(np.linalg.norm(axis))
+            if n_axis > 1e-18:
+                return axis / n_axis
+
+        axis_key = str(self.cfg.body.prism.axis).lower()
+        if axis_key == "y":
+            return np.array([0.0, 1.0, 0.0], dtype=float)
+        if axis_key == "z":
+            return np.array([0.0, 0.0, 1.0], dtype=float)
+        return np.array([1.0, 0.0, 0.0], dtype=float)
+
+    def _motor_axis_vs_rear_direction_angle_deg(self, positions_m: np.ndarray) -> float:
+        if self.model.motor_triplets.size == 0:
+            return float("nan")
+        rear_dir = -self._body_axis_unit(positions_m)
+        angles_deg: list[float] = []
+        for ib, jf, kf in self.model.motor_triplets:
+            r_b = positions_m[int(kf)] - positions_m[int(jf)]
+            n_rb = float(np.linalg.norm(r_b))
+            if n_rb <= 1e-18:
+                continue
+            axis = r_b / n_rb
+            dot = float(np.clip(np.dot(axis, rear_dir), -1.0, 1.0))
+            angles_deg.append(math.degrees(math.acos(dot)))
+        if not angles_deg:
+            return float("nan")
+        return float(np.mean(np.asarray(angles_deg, dtype=float)))
+
     def step(self, dt_star: float) -> StepDiagnostics:
         """1ステップ更新する。
 
@@ -582,6 +635,9 @@ class DynamicsEngine:
                 motor_triplets=self.model.motor_triplets,
                 torque_per_flag=torque_per_flag,
             )
+        motor_axis_vs_rear_direction_angle_deg = (
+            self._motor_axis_vs_rear_direction_angle_deg(pos)
+        )
 
         forces = (
             spring_forces
@@ -642,5 +698,17 @@ class DynamicsEngine:
             motor_degenerate_axis_count=motor_diag.degenerate_axis_count,
             motor_split_rank_deficient_count=motor_diag.split_rank_deficient_count,
             motor_bond_length_clipped_count=motor_diag.bond_length_clipped_count,
+            motor_ra_len_m=float(motor_diag.ra_len_mean_m),
+            motor_rb_len_m=float(motor_diag.rb_len_mean_m),
+            motor_Ta_norm=float(motor_diag.Ta_norm_mean),
+            motor_Tb_norm=float(motor_diag.Tb_norm_mean),
+            motor_Fa_norm=float(motor_diag.Fa_norm_mean),
+            motor_Fb_norm=float(motor_diag.Fb_norm_mean),
+            motor_axis_vs_rear_direction_angle_deg=float(
+                motor_axis_vs_rear_direction_angle_deg
+            ),
+            motor_attach_force_norm=float(motor_diag.attach_force_norm_mean),
+            motor_first_force_norm=float(motor_diag.first_force_norm_mean),
+            motor_second_force_norm=float(motor_diag.second_force_norm_mean),
             torsion_fd_eps_m=self.torsion_fd_eps_m,
         )
