@@ -373,7 +373,8 @@ def compute_motor_forces(
         t_hat = r_b / axis_norm
         t_tot = tau * t_hat
 
-        # Step B: Ta + Tb = Ttot, Ta·ra = 0, Tb·rb = 0 を最小ノルムで解く。
+        # Step B: Ta + Tb = Ttot, Ta·ra = 0, Tb·rb = 0 を満たしつつ、
+        # 力カップル起因の局所過大力を抑えるよう重み付き最小ノルムで解く。
         a = np.zeros((5, 6), dtype=float)
         b = np.zeros((5,), dtype=float)
         a[0:3, 0:3] = np.eye(3)
@@ -385,19 +386,27 @@ def compute_motor_forces(
         rank = int(np.linalg.matrix_rank(a))
         if rank < 5:
             split_rank_deficient_count += 1
-        split = np.linalg.pinv(a) @ b
+        r_a2 = float(np.dot(r_a, r_a))
+        r_b2 = float(np.dot(r_b, r_b))
+        # |F| ~= |T|/|r| より、短いリンクほど同じトルクで過大力になりやすい。
+        # min ||Ta||^2/r_a^2 + ||Tb||^2/r_b^2 を使い、短リンク側の過大力を抑える。
+        w_a = 1.0 / max(r_a2, r2_eps)
+        w_b = 1.0 / max(r_b2, r2_eps)
+        q_inv = np.zeros((6, 6), dtype=float)
+        q_inv[0:3, 0:3] = np.eye(3) / max(w_a, 1e-30)
+        q_inv[3:6, 3:6] = np.eye(3) / max(w_b, 1e-30)
+        aqat = a @ q_inv @ a.T
+        split = q_inv @ a.T @ (np.linalg.pinv(aqat) @ b)
         t_a = split[0:3]
         t_b = split[3:6]
 
         # Step C: Tc = rc × Fc, Fc = (Tc × rc) / ||rc||^2
-        r_a2 = float(np.dot(r_a, r_a))
         if r_a2 < r2_eps:
             bond_length_clipped_count += 1
         f_a = np.cross(t_a, r_a) / max(r_a2, r2_eps)
         forces[i0] -= f_a
         forces[i1] += f_a
 
-        r_b2 = float(np.dot(r_b, r_b))
         if r_b2 < r2_eps:
             bond_length_clipped_count += 1
         f_b = np.cross(t_b, r_b) / max(r_b2, r2_eps)
