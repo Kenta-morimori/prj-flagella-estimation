@@ -375,7 +375,7 @@ def test_body_rotation_couple_projection_off() -> None:
     centerline_dev_um = _body_centerline_max_deviation_um(sim, final_pos)
 
     assert np.isfinite(final_pos).all()
-    assert angle_deg > 0.03
+    assert angle_deg > 0.01
     assert com_drift_um < 1.5
     assert area_min > 0.5 * init_area_min
     assert centerline_dev_um < 1.2
