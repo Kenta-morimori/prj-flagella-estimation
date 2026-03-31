@@ -128,6 +128,7 @@ class TorsionPotentialParams:
 
     kt_over_T: float = 10.0
     phi0_deg: dict[str, float] | None = None
+    fd_eps_over_b: float = 0.1
 
 
 @dataclass(frozen=True)
@@ -589,12 +590,18 @@ class SimulationConfig:
         kt_over = torsion_raw.get("kt_over_T")
         if kt_over is None and "kt" in torsion_raw:
             kt_over = float(torsion_raw["kt"]) / max(thermal, 1e-30)
+        fd_eps_over_b = torsion_raw.get("fd_eps_over_b")
+        if fd_eps_over_b is None and "fd_eps_m" in torsion_raw:
+            fd_eps_over_b = float(torsion_raw["fd_eps_m"]) / max(
+                scale.b_um * 1e-6, 1e-18
+            )
         torsion = TorsionPotentialParams(
             kt_over_T=float(kt_over if kt_over is not None else 10.0),
             phi0_deg=_state_angles(
                 torsion_raw.get("phi0_deg"),
                 {"normal": -60.0, "semicoiled": 65.0, "curly1": 120.0},
             ),
+            fd_eps_over_b=float(fd_eps_over_b if fd_eps_over_b is not None else 0.1),
         )
 
         rep_raw = (raw.get("potentials", {}) or {}).get(

@@ -72,6 +72,7 @@ class StepDiagnostics:
     motor_degenerate_axis_count: int
     motor_split_rank_deficient_count: int
     motor_bond_length_clipped_count: int
+    torsion_fd_eps_m: float
 
 
 class DynamicsEngine:
@@ -92,6 +93,7 @@ class DynamicsEngine:
         self.spring_s_m = cfg.potentials.spring.s * b_m
         self.k_bend = cfg.potentials.bend.kb_over_T * torque
         self.k_torsion = cfg.potentials.torsion.kt_over_T * torque
+        self.torsion_fd_eps_m = max(cfg.potentials.torsion.fd_eps_over_b * b_m, 1e-12)
         self.k_hook = cfg.hook.kb_over_T * torque
         self.repulsion_A = cfg.potentials.spring_spring_repulsion.A_ss_over_T * torque
         self.repulsion_a_m = cfg.potentials.spring_spring_repulsion.a_ss_over_b * b_m
@@ -547,7 +549,7 @@ class DynamicsEngine:
             quads=self.model.torsion_quads,
             phi0_rad=phi0,
             kt=self.k_torsion * self.flag_torsion_stiffness_scale,
-            fd_eps_m=max(self.model.b_m * 1e-1, 1e-7),
+            fd_eps_m=self.torsion_fd_eps_m,
         )
 
         hook_forces = np.zeros_like(pos)
@@ -640,4 +642,5 @@ class DynamicsEngine:
             motor_degenerate_axis_count=motor_diag.degenerate_axis_count,
             motor_split_rank_deficient_count=motor_diag.split_rank_deficient_count,
             motor_bond_length_clipped_count=motor_diag.bond_length_clipped_count,
+            torsion_fd_eps_m=self.torsion_fd_eps_m,
         )

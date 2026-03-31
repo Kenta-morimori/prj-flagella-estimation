@@ -45,6 +45,7 @@ potentials:
       curly1: 105.0            # [deg] curly1 多形
   torsion:
     kt_over_T: 10.0            # [-] kt = 10 * Torque
+    fd_eps_over_b: 0.1         # [-] torsion force finite-diff 幅（sweep比較対象）
     phi0_deg:
       normal: -60.0            # [deg] normal 多形の平衡二面角
       semicoiled: 65.0         # [deg] semicoiled 多形

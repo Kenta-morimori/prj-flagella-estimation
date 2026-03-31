@@ -314,6 +314,8 @@ def test_run_writes_step_summary_csv(tmp_path: Path) -> None:
     assert "projection_basal_link_direction_enabled" in first
     assert "projection_flagella_chain_length_enabled" in first
     assert "projection_flagella_template_enabled" in first
+    assert "torsion_fd_eps_m" in first
+    assert "torsion_fd_eps_over_b" in first
     assert "hook_len_mean_over_b" in first
     assert "hook_len_rel_err_mean" in first
     assert "hook_angle_mean_deg" in first
@@ -696,6 +698,42 @@ def test_projection_all_off_motor_on_outputs_comparable_diagnostics(
     }
     assert np.isfinite(float(first["hook_len_mean_over_b"]))
     assert np.isfinite(float(first["flag_bond_len_mean_over_b"]))
+
+
+def test_torsion_fd_eps_sweep_is_traceable_and_reduces_step0_torsion_force(
+    tmp_path: Path,
+) -> None:
+    eps_values = [0.1, 0.001, 0.0001]
+    torsion_force_step0: list[float] = []
+
+    for eps in eps_values:
+        cfg = _make_cfg(
+            motor_torque_Nm=0.0,
+            hook_enabled=True,
+            n_flagella=1,
+        ).with_overrides(
+            {
+                "time": {"duration_s": 0.002},
+                "flagella": {
+                    "init_mode": "paper_table1",
+                    "n_beads_per_flagellum": 11,
+                },
+                "potentials": {"torsion": {"fd_eps_over_b": eps}},
+                **_projection_all_off_overrides(),
+            }
+        )
+        sim = Simulator(cfg)
+        rows = _run_and_load_step_summary(
+            sim,
+            cfg.time.duration_s,
+            tmp_path / f"sim_eps_{eps}",
+        )
+        first = rows[0]
+        assert float(first["torsion_fd_eps_over_b"]) == pytest.approx(eps)
+        torsion_force_step0.append(float(first["F_torsion_mean_flag"]))
+
+    assert torsion_force_step0[1] < torsion_force_step0[0]
+    assert torsion_force_step0[2] < torsion_force_step0[0]
 
 
 def test_hook_length_multi_step_motor_on(tmp_path: Path) -> None:

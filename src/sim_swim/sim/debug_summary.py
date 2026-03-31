@@ -76,6 +76,8 @@ STEP_SUMMARY_COLUMNS = [
     "F_hook_mean_flag",
     "torque_for_forces_Nm",
     "motor_torque_Nm",
+    "torsion_fd_eps_m",
+    "torsion_fd_eps_over_b",
     "motor_degenerate_axis_count",
     "motor_split_rank_deficient_count",
     "motor_bond_length_clipped_count",
@@ -759,6 +761,10 @@ class StepSummaryRecorder:
             "F_hook_mean_flag": _mean_norm(diag.hook_forces, self.flag_mask),
             "torque_for_forces_Nm": float(self.cfg.torque_for_forces_Nm),
             "motor_torque_Nm": float(self.cfg.motor_torque_Nm),
+            "torsion_fd_eps_m": float(diag.torsion_fd_eps_m),
+            "torsion_fd_eps_over_b": float(
+                diag.torsion_fd_eps_m / max(self.cfg.b_m, 1e-30)
+            ),
             "motor_degenerate_axis_count": int(diag.motor_degenerate_axis_count),
             "motor_split_rank_deficient_count": int(
                 diag.motor_split_rank_deficient_count

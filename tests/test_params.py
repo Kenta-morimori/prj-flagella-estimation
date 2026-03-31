@@ -206,6 +206,23 @@ def test_flagella_init_mode_can_be_set_to_paper_table1() -> None:
     assert sim_cfg.flagella.n_beads_per_flagellum == 15
 
 
+def test_torsion_fd_eps_over_b_defaults_to_point_one() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.potentials.torsion.fd_eps_over_b == pytest.approx(0.1)
+
+
+def test_torsion_fd_eps_over_b_can_be_overridden() -> None:
+    cfg = _base_cfg()
+    cfg["potentials"] = {"torsion": {"fd_eps_over_b": 0.001}}
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.potentials.torsion.fd_eps_over_b == pytest.approx(0.001)
+
+
 def test_render2d_flagella_default_is_off() -> None:
     cfg = _base_cfg()
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
