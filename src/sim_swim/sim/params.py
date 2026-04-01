@@ -81,6 +81,7 @@ class FlagellumParams:
     n_flagella: int = 3
     placement_mode: str = "uniform"
     init_mode: str = "legacy_radius_pitch"
+    stub_mode: str = "full_flagella"  # none | minimal_basal_stub | full_flagella
     discretization: FlagellaDiscretizationParams = field(
         default_factory=FlagellaDiscretizationParams
     )

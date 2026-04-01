@@ -224,6 +224,7 @@ class Simulator:
         summary: dict[str, Any] = {
             "flagella": {
                 "init_mode": str(self.config.flagella.init_mode),
+                "stub_mode": str(self.config.flagella.stub_mode),
                 "n_flagella": int(self.config.flagella.n_flagella),
                 "n_beads_per_flagellum": int(
                     self.config.flagella.n_beads_per_flagellum

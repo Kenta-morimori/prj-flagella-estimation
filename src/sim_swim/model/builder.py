@@ -214,6 +214,15 @@ class ModelBuilder:
             raise ValueError("MVP: body.prism.n_prism must be 3")
         if not (0 <= cfg.flagella.n_flagella <= 9):
             raise ValueError("MVP: flagella.n_flagella must be in [0,9]")
+        if cfg.flagella.stub_mode not in (
+            "none",
+            "minimal_basal_stub",
+            "full_flagella",
+        ):
+            raise ValueError(
+                f"flagella.stub_mode must be 'none', 'minimal_basal_stub', or 'full_flagella', "
+                f"got: {cfg.flagella.stub_mode}"
+            )
 
         body_um, body_layers, ring_edges, vertical_edges = self._body_prism_um()
         n_body = body_um.shape[0]
@@ -221,6 +230,10 @@ class ModelBuilder:
         n_flagella = cfg.flagella.n_flagella
         bond_len_um = max(cfg.flagella.bond_L_over_b * b_um, 1e-6)
         n_flag = max(2, int(cfg.flagella.n_beads_per_flagellum))
+
+        # minimal_basal_stub モード: attach, first, second のみ (3 beads)
+        if cfg.flagella.stub_mode == "minimal_basal_stub":
+            n_flag = 3
 
         center_layer = body_layers[len(body_layers) // 2]
         if n_flagella <= 3:
