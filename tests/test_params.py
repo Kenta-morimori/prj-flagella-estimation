@@ -173,6 +173,37 @@ def test_body_rigid_projection_can_be_disabled() -> None:
     assert sim_cfg.projection.enable_flagella_template_projection is False
 
 
+def test_body_equiv_load_defaults_to_disabled() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.body_equiv_load.enabled is False
+    assert sim_cfg.body_equiv_load.mode == "none"
+    assert sim_cfg.body_equiv_load.target_torque_Nm == pytest.approx(0.0)
+    assert sim_cfg.body_equiv_load.target_force_N == pytest.approx(0.0)
+    assert sim_cfg.body_equiv_load.attach_region_id == 0
+
+
+def test_body_equiv_load_can_be_overridden() -> None:
+    cfg = _base_cfg()
+    cfg["body_equiv_load"] = {
+        "enabled": True,
+        "mode": "pure_couple",
+        "target_torque_Nm": 5.0e-20,
+        "target_force_N": 2.0e-13,
+        "attach_region_id": 2,
+    }
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.body_equiv_load.enabled is True
+    assert sim_cfg.body_equiv_load.mode == "pure_couple"
+    assert sim_cfg.body_equiv_load.target_torque_Nm == pytest.approx(5.0e-20)
+    assert sim_cfg.body_equiv_load.target_force_N == pytest.approx(2.0e-13)
+    assert sim_cfg.body_equiv_load.attach_region_id == 2
+
+
 def test_body_n_layers_is_derived_from_length_and_spacing() -> None:
     cfg = _base_cfg()
     cfg["body"]["length_total_um"] = 2.5

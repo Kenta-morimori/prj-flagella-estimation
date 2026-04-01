@@ -171,6 +171,17 @@ class ProjectionParams:
 
 
 @dataclass(frozen=True)
+class BodyEquivalentLoadParams:
+    """body-only切り分け用の等価荷重設定。"""
+
+    enabled: bool = False
+    mode: str = "none"
+    target_torque_Nm: float = 0.0
+    target_force_N: float = 0.0
+    attach_region_id: int = 0
+
+
+@dataclass(frozen=True)
 class RunTumbleParams:
     """run-and-tumble設定。"""
 
@@ -254,6 +265,7 @@ class SimulationConfig:
     potentials: PotentialsParams
     hook: HookParams
     projection: ProjectionParams
+    body_equiv_load: BodyEquivalentLoadParams
     run_tumble: RunTumbleParams
     time: TimeParams
     output_sampling: OutputSamplingParams
@@ -659,6 +671,15 @@ class SimulationConfig:
             ),
         )
 
+        body_equiv_raw = raw.get("body_equiv_load", {}) or {}
+        body_equiv_load = BodyEquivalentLoadParams(
+            enabled=bool(_get(body_equiv_raw, "enabled", False)),
+            mode=str(_get(body_equiv_raw, "mode", "none")),
+            target_torque_Nm=float(_get(body_equiv_raw, "target_torque_Nm", 0.0)),
+            target_force_N=float(_get(body_equiv_raw, "target_force_N", 0.0)),
+            attach_region_id=int(_get(body_equiv_raw, "attach_region_id", 0)),
+        )
+
         rt_raw = raw.get("run_tumble", {}) or {}
         run_tumble = RunTumbleParams(
             run_tau=float(_get(rt_raw, "run_tau", 1200.0)),
@@ -724,6 +745,7 @@ class SimulationConfig:
             potentials=potentials,
             hook=hook,
             projection=projection,
+            body_equiv_load=body_equiv_load,
             run_tumble=run_tumble,
             time=time,
             output_sampling=output_sampling,

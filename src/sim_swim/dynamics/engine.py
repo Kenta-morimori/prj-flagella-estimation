@@ -85,6 +85,12 @@ class StepDiagnostics:
     motor_split_residual_norm: float
     motor_ta_dot_ra_abs: float
     motor_tb_dot_rb_abs: float
+    body_equiv_load_mode: str
+    body_equiv_load_target_torque_Nm: float
+    body_equiv_load_target_force_N: float
+    body_equiv_attach_region_id: int
+    body_equiv_force_mean: float
+    body_equiv_force_max: float
     torsion_fd_eps_m: float
 
 
@@ -547,6 +553,87 @@ class DynamicsEngine:
             return float("nan")
         return float(np.mean(np.asarray(angles_deg, dtype=float)))
 
+    def _body_equiv_load_forces(self, positions_m: np.ndarray) -> np.ndarray:
+        out = np.zeros_like(positions_m)
+        cfg = self.cfg.body_equiv_load
+        if (not cfg.enabled) or self.body_indices.size == 0:
+            return out
+
+        mode = str(cfg.mode).strip().lower()
+        if mode in {"", "none", "off", "disabled"}:
+            return out
+
+        if len(self.model.body_layer_indices) == 0:
+            return out
+        rear_layer = self.model.body_layer_indices[0].astype(int, copy=False)
+        if rear_layer.size < 2:
+            return out
+
+        axis = self._body_axis_unit(positions_m)
+        rear_dir = -axis
+        rear_center = np.mean(positions_m[rear_layer], axis=0)
+
+        if mode == "pure_couple":
+            torque = abs(float(cfg.target_torque_Nm))
+            if torque <= 0.0:
+                torque = abs(float(self.cfg.motor_torque_Nm))
+            if torque <= 0.0:
+                return out
+
+            i0 = int(rear_layer[0])
+            i1 = int(rear_layer[1])
+            arm_vec = positions_m[i1] - positions_m[i0]
+            arm = max(float(np.linalg.norm(arm_vec)), 1e-18)
+            arm_hat = arm_vec / arm
+            force_dir = np.cross(rear_dir, arm_hat)
+            n_force = float(np.linalg.norm(force_dir))
+            if n_force <= 1e-18:
+                return out
+            force_dir = force_dir / n_force
+            f_mag = torque / arm
+            out[i0] += force_dir * f_mag
+            out[i1] -= force_dir * f_mag
+            return out
+
+        if mode == "attach_proxy_local":
+            f_mag = abs(float(cfg.target_force_N))
+            if f_mag <= 0.0:
+                return out
+
+            idx = int(cfg.attach_region_id) % int(rear_layer.size)
+            i0 = int(rear_layer[idx])
+            i1 = int(rear_layer[(idx + 1) % int(rear_layer.size)])
+            i2 = int(rear_layer[(idx + 2) % int(rear_layer.size)])
+            r0 = positions_m[i0] - rear_center
+            tangential = np.cross(rear_dir, r0)
+            n_t = float(np.linalg.norm(tangential))
+            if n_t <= 1e-18:
+                return out
+            tangential = tangential / n_t
+
+            out[i0] += tangential * f_mag
+            out[i1] -= tangential * (0.5 * f_mag)
+            out[i2] -= tangential * (0.5 * f_mag)
+            return out
+
+        if mode == "distributed_rear_load":
+            f_mag = abs(float(cfg.target_force_N))
+            if f_mag <= 0.0:
+                return out
+            for bead in rear_layer:
+                i = int(bead)
+                radial = positions_m[i] - rear_center
+                tangential = np.cross(rear_dir, radial)
+                n_t = float(np.linalg.norm(tangential))
+                if n_t <= 1e-18:
+                    continue
+                out[i] += (tangential / n_t) * f_mag
+            mean_force = np.mean(out[rear_layer], axis=0)
+            out[rear_layer] -= mean_force[None, :]
+            return out
+
+        return out
+
     def step(self, dt_star: float) -> StepDiagnostics:
         """1ステップ更新する。
 
@@ -641,6 +728,7 @@ class DynamicsEngine:
         motor_axis_vs_rear_direction_angle_deg = (
             self._motor_axis_vs_rear_direction_angle_deg(pos)
         )
+        body_equiv_forces = self._body_equiv_load_forces(pos)
 
         forces = (
             spring_forces
@@ -649,6 +737,7 @@ class DynamicsEngine:
             + hook_forces
             + repulsion_forces
             + motor_forces
+            + body_equiv_forces
         )
         if self.external_force_callback is not None:
             external_forces = self.external_force_callback(pos, self.t_star)
@@ -684,6 +773,7 @@ class DynamicsEngine:
         pos_after = self._project_hook_and_flag_bonds(pos_after)
         self.model.positions_m = pos_after
         self.t_star += dt_star_eff
+        body_equiv_norm = np.linalg.norm(body_equiv_forces, axis=1)
         return StepDiagnostics(
             dt_star=dt_star_eff,
             dt_s=dt_s,
@@ -716,5 +806,15 @@ class DynamicsEngine:
             motor_split_residual_norm=float(motor_diag.split_residual_norm_mean),
             motor_ta_dot_ra_abs=float(motor_diag.ta_dot_ra_abs_mean),
             motor_tb_dot_rb_abs=float(motor_diag.tb_dot_rb_abs_mean),
+            body_equiv_load_mode=str(self.cfg.body_equiv_load.mode),
+            body_equiv_load_target_torque_Nm=float(
+                self.cfg.body_equiv_load.target_torque_Nm
+            ),
+            body_equiv_load_target_force_N=float(
+                self.cfg.body_equiv_load.target_force_N
+            ),
+            body_equiv_attach_region_id=int(self.cfg.body_equiv_load.attach_region_id),
+            body_equiv_force_mean=float(np.mean(body_equiv_norm)),
+            body_equiv_force_max=float(np.max(body_equiv_norm)),
             torsion_fd_eps_m=self.torsion_fd_eps_m,
         )

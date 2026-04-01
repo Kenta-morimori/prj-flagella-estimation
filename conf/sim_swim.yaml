@@ -67,6 +67,13 @@ projection:
   enable_flagella_chain_length_projection: true
   enable_flagella_template_projection: true
 
+body_equiv_load:
+  enabled: false                        # true: body-only切り分け用の等価荷重を有効化
+  mode: "none"                         # none / pure_couple / attach_proxy_local / distributed_rear_load
+  target_torque_Nm: 0.0                # [N*m] pure_couple モードの目標トルク
+  target_force_N: 0.0                  # [N] attach/distributed モードの目標力スケール
+  attach_region_id: 0                  # [-] attach_proxy_local モードのrear層ローカルID
+
 run_tumble:
   run_tau: 1200.0              # [tau] run 継続時間（Fig.3 例）
   tumble_tau: 800.0            # [tau] tumble 継続時間

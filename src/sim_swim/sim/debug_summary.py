@@ -94,6 +94,12 @@ STEP_SUMMARY_COLUMNS = [
     "motor_degenerate_axis_count",
     "motor_split_rank_deficient_count",
     "motor_bond_length_clipped_count",
+    "F_body_equiv_load_mean",
+    "F_body_equiv_load_max",
+    "body_equiv_load_mode",
+    "body_equiv_load_target_torque_Nm",
+    "body_equiv_load_target_force_N",
+    "body_equiv_attach_region_id",
     "flag_state_changed",
     "projection_body_rigid_enabled",
     "projection_hook_length_enabled",
@@ -800,6 +806,16 @@ class StepSummaryRecorder:
             "motor_bond_length_clipped_count": int(
                 diag.motor_bond_length_clipped_count
             ),
+            "F_body_equiv_load_mean": float(diag.body_equiv_force_mean),
+            "F_body_equiv_load_max": float(diag.body_equiv_force_max),
+            "body_equiv_load_mode": str(diag.body_equiv_load_mode),
+            "body_equiv_load_target_torque_Nm": float(
+                diag.body_equiv_load_target_torque_Nm
+            ),
+            "body_equiv_load_target_force_N": float(
+                diag.body_equiv_load_target_force_N
+            ),
+            "body_equiv_attach_region_id": int(diag.body_equiv_attach_region_id),
             "flag_state_changed": flag_state_changed,
             "projection_body_rigid_enabled": bool(
                 self.cfg.projection.enable_body_rigid_projection

@@ -335,6 +335,12 @@ def test_run_writes_step_summary_csv(tmp_path: Path) -> None:
     assert "motor_split_residual_norm" in first
     assert "motor_ta_dot_ra_abs" in first
     assert "motor_tb_dot_rb_abs" in first
+    assert "F_body_equiv_load_mean" in first
+    assert "F_body_equiv_load_max" in first
+    assert "body_equiv_load_mode" in first
+    assert "body_equiv_load_target_torque_Nm" in first
+    assert "body_equiv_load_target_force_N" in first
+    assert "body_equiv_attach_region_id" in first
     assert first["brownian_enabled"] in {"False", "false", "0"}
 
 
