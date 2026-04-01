@@ -580,12 +580,26 @@ class DynamicsEngine:
             if torque <= 0.0:
                 return out
 
-            i0 = int(rear_layer[0])
-            i1 = int(rear_layer[1])
+            # Use the farthest rear-layer bead pair to avoid over-concentrated local twist.
+            rear_pos = positions_m[rear_layer]
+            pair_i = 0
+            pair_j = 1
+            pair_dist = -1.0
+            for i in range(rear_layer.size):
+                for j in range(i + 1, rear_layer.size):
+                    d = float(np.linalg.norm(rear_pos[j] - rear_pos[i]))
+                    if d > pair_dist:
+                        pair_dist = d
+                        pair_i = i
+                        pair_j = j
+
+            i0 = int(rear_layer[pair_i])
+            i1 = int(rear_layer[pair_j])
             arm_vec = positions_m[i1] - positions_m[i0]
-            arm = max(float(np.linalg.norm(arm_vec)), 1e-18)
-            arm_hat = arm_vec / arm
-            force_dir = np.cross(rear_dir, arm_hat)
+            arm_perp = arm_vec - float(np.dot(arm_vec, rear_dir)) * rear_dir
+            arm = max(float(np.linalg.norm(arm_perp)), 1e-18)
+            arm_hat = arm_perp / arm
+            force_dir = np.cross(arm_hat, rear_dir)
             n_force = float(np.linalg.norm(force_dir))
             if n_force <= 1e-18:
                 return out

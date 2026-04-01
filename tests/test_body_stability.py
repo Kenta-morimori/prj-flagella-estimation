@@ -5,6 +5,7 @@ import math
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import SimulationConfig
@@ -513,3 +514,32 @@ def test_body_only_motor_equiv_load_emits_diagnostics_and_changes_force_level(
         off_last["F_body_equiv_load_mean"]
     )
     assert float(on_last["F_body_equiv_load_max"]) > 0.0
+
+
+def test_pure_couple_has_zero_net_force_and_matches_target_torque() -> None:
+    cfg = _make_cfg().with_overrides(
+        {
+            "body_equiv_load": {
+                "enabled": True,
+                "mode": "pure_couple",
+                "target_torque_Nm": 5.0e-20,
+                "target_force_N": 0.0,
+                "attach_region_id": 0,
+            }
+        }
+    )
+    sim = Simulator(cfg)
+    pos = sim.model.positions_m.copy()
+    rear_layer = sim.model.body_layer_indices[0].astype(int, copy=False)
+
+    f = sim.engine._body_equiv_load_forces(pos)
+    rear_center = np.mean(pos[rear_layer], axis=0)
+    rear_dir = -_body_axis(sim, pos)
+
+    net_force = np.sum(f[rear_layer], axis=0)
+    torque_vec = np.sum(np.cross(pos[rear_layer] - rear_center, f[rear_layer]), axis=0)
+    torque_along_rear = float(np.dot(torque_vec, rear_dir))
+
+    assert np.linalg.norm(net_force) < 1.0e-24
+    assert torque_along_rear > 0.0
+    assert torque_along_rear == pytest.approx(5.0e-20, rel=1.0e-6, abs=1.0e-30)
