@@ -100,6 +100,25 @@ STEP_SUMMARY_COLUMNS = [
     "body_equiv_load_target_torque_Nm",
     "body_equiv_load_target_force_N",
     "body_equiv_attach_region_id",
+    "local_attach_first_len_over_b",
+    "local_attach_first_rel_err",
+    "local_first_second_len_over_b",
+    "local_first_second_rel_err",
+    "local_second_third_len_over_b",
+    "local_second_third_rel_err",
+    "local_basal_bend_angle_deg",
+    "local_basal_bend_err_deg",
+    "local_first_torsion_angle_deg",
+    "local_first_torsion_err_deg",
+    "local_F_spring_attach_first",
+    "local_F_spring_first_second",
+    "local_F_spring_second_third",
+    "local_F_bend_basal",
+    "local_F_torsion_first",
+    "local_F_motor_attach",
+    "local_F_motor_first",
+    "local_F_motor_second",
+    "local_F_repulsion_basal_region",
     "flag_state_changed",
     "projection_body_rigid_enabled",
     "projection_hook_length_enabled",
@@ -201,6 +220,26 @@ def _mean_norm(forces: np.ndarray, mask: np.ndarray) -> float:
     if selected.size == 0:
         return 0.0
     return float(np.mean(np.linalg.norm(selected, axis=1)))
+
+
+def _mean_norm_indices(forces: np.ndarray, bead_indices: list[int]) -> float:
+    if forces.size == 0:
+        return float("nan")
+    idx = [int(i) for i in bead_indices if int(i) >= 0]
+    if not idx:
+        return float("nan")
+    selected = forces[np.asarray(idx, dtype=int)]
+    return float(np.mean(np.linalg.norm(selected, axis=1)))
+
+
+def _pair_row_lookup(spring_pairs: np.ndarray) -> dict[tuple[int, int], int]:
+    out: dict[tuple[int, int], int] = {}
+    for row, (i_raw, j_raw) in enumerate(spring_pairs):
+        i = int(i_raw)
+        j = int(j_raw)
+        key = (i, j) if i < j else (j, i)
+        out[key] = int(row)
+    return out
 
 
 def _pair_distance_stats_um(
@@ -560,6 +599,80 @@ class StepSummaryRecorder:
         }
         self.prev_flag_states = self.model.flag_states.copy()
 
+        self.local_attach_idx = -1
+        self.local_first_idx = -1
+        self.local_second_idx = -1
+        self.local_third_idx = -1
+        self.local_flag_id = -1
+        self.local_attach_first_row = -1
+        self.local_first_second_row = -1
+        self.local_second_third_row = -1
+        self.local_basal_triplet = np.full((3,), -1, dtype=int)
+        self.local_first_torsion_quad = np.full((4,), -1, dtype=int)
+
+        pair_rows = _pair_row_lookup(self.spring_pairs)
+
+        def _find_pair_row(a: int, b: int) -> int:
+            key = (a, b) if a < b else (b, a)
+            return int(pair_rows.get(key, -1))
+
+        if self.model.motor_triplets.size > 0:
+            ib_raw, jf_raw, kf_raw = self.model.motor_triplets[0]
+            self.local_attach_idx = int(ib_raw)
+            self.local_first_idx = int(jf_raw)
+            self.local_second_idx = int(kf_raw)
+            self.local_flag_id = int(self.model.bead_flag_ids[self.local_first_idx])
+
+            if self.local_flag_id >= 0:
+                flag_chain = self.model.flagella_indices[self.local_flag_id].astype(
+                    int, copy=False
+                )
+                pos = np.where(flag_chain == self.local_second_idx)[0]
+                if pos.size > 0 and int(pos[0]) + 1 < int(flag_chain.size):
+                    self.local_third_idx = int(flag_chain[int(pos[0]) + 1])
+
+            self.local_attach_first_row = _find_pair_row(
+                self.local_attach_idx, self.local_first_idx
+            )
+            self.local_first_second_row = _find_pair_row(
+                self.local_first_idx, self.local_second_idx
+            )
+            if self.local_third_idx >= 0:
+                self.local_second_third_row = _find_pair_row(
+                    self.local_second_idx, self.local_third_idx
+                )
+
+            for triplet in self.model.hook_triplets.astype(int, copy=False):
+                a, b, c = int(triplet[0]), int(triplet[1]), int(triplet[2])
+                if (
+                    a == self.local_attach_idx
+                    and b == self.local_first_idx
+                    and c == self.local_second_idx
+                ):
+                    self.local_basal_triplet = np.array([a, b, c], dtype=int)
+                    break
+
+            if self.local_flag_id >= 0 and self.flag_torsion_rows.size > 0:
+                rows = self.flag_torsion_rows[
+                    self.model.torsion_flag_ids[self.flag_torsion_rows]
+                    == self.local_flag_id
+                ]
+                preferred_row = -1
+                for row in rows:
+                    quad = self.model.torsion_quads[int(row)].astype(int, copy=False)
+                    if (
+                        int(quad[0]) == self.local_first_idx
+                        and int(quad[1]) == self.local_second_idx
+                    ):
+                        preferred_row = int(row)
+                        break
+                if preferred_row < 0 and rows.size > 0:
+                    preferred_row = int(rows[0])
+                if preferred_row >= 0:
+                    self.local_first_torsion_quad = self.model.torsion_quads[
+                        preferred_row
+                    ].astype(int, copy=False)
+
         if self.spring_pairs.size == 0:
             self.body_body_rows = np.zeros((0,), dtype=int)
             self.flag_intra_rows = np.zeros((0,), dtype=int)
@@ -717,6 +830,73 @@ class StepSummaryRecorder:
             or np.any(self.model.flag_states != self.prev_flag_states)
         )
 
+        def _local_pair_metrics(row_idx: int) -> tuple[float, float]:
+            if row_idx < 0:
+                return float("nan"), float("nan")
+            i = int(self.spring_pairs[row_idx, 0])
+            j = int(self.spring_pairs[row_idx, 1])
+            rest = max(float(self.spring_rests_m[row_idx]), 1e-30)
+            dist = float(np.linalg.norm(pos_after[j] - pos_after[i]))
+            return (
+                float(dist / max(self.cfg.b_m, 1e-30)),
+                float(abs(dist - rest) / rest),
+            )
+
+        local_attach_first_len_over_b, local_attach_first_rel_err = _local_pair_metrics(
+            self.local_attach_first_row
+        )
+        local_first_second_len_over_b, local_first_second_rel_err = _local_pair_metrics(
+            self.local_first_second_row
+        )
+        local_second_third_len_over_b, local_second_third_rel_err = _local_pair_metrics(
+            self.local_second_third_row
+        )
+
+        local_basal_bend_angle_deg = float("nan")
+        local_basal_bend_err_deg = float("nan")
+        if np.all(self.local_basal_triplet >= 0):
+            basal_angles = _triplet_angles_rad(
+                pos_after, self.local_basal_triplet.reshape(1, 3)
+            )
+            local_basal_bend_angle_deg = float(basal_angles[0] * RAD_TO_DEG)
+            local_basal_bend_err_deg = float(
+                max(
+                    float(self.cfg.hook.threshold_deg) - local_basal_bend_angle_deg, 0.0
+                )
+            )
+
+        local_first_torsion_angle_deg = float("nan")
+        local_first_torsion_err_deg = float("nan")
+        if np.all(self.local_first_torsion_quad >= 0) and self.local_flag_id >= 0:
+            tors = _torsion_angles_rad(
+                pos_after, self.local_first_torsion_quad.reshape(1, 4)
+            )
+            local_first_torsion_angle_deg = float(tors[0] * RAD_TO_DEG)
+            state = int(self.model.flag_states[self.local_flag_id])
+            key = (
+                "normal"
+                if state == int(PolymorphState.NORMAL)
+                else "semicoiled"
+                if state == int(PolymorphState.SEMICOILED)
+                else "curly1"
+            )
+            target = np.deg2rad(float(self.torsion_map[key]))
+            local_first_torsion_err_deg = float(
+                abs(float(_wrap_angle(float(tors[0]) - float(target)))) * RAD_TO_DEG
+            )
+
+        local_region_indices = [
+            self.local_attach_idx,
+            self.local_first_idx,
+            self.local_second_idx,
+            self.local_third_idx,
+        ]
+        local_torsion_indices = (
+            self.local_first_torsion_quad.astype(int).tolist()
+            if np.all(self.local_first_torsion_quad >= 0)
+            else [self.local_first_idx, self.local_second_idx, self.local_third_idx]
+        )
+
         row: dict[str, float | int | bool] = {
             "step": int(step),
             "t_star": float(t_star),
@@ -816,6 +996,40 @@ class StepSummaryRecorder:
                 diag.body_equiv_load_target_force_N
             ),
             "body_equiv_attach_region_id": int(diag.body_equiv_attach_region_id),
+            "local_attach_first_len_over_b": local_attach_first_len_over_b,
+            "local_attach_first_rel_err": local_attach_first_rel_err,
+            "local_first_second_len_over_b": local_first_second_len_over_b,
+            "local_first_second_rel_err": local_first_second_rel_err,
+            "local_second_third_len_over_b": local_second_third_len_over_b,
+            "local_second_third_rel_err": local_second_third_rel_err,
+            "local_basal_bend_angle_deg": local_basal_bend_angle_deg,
+            "local_basal_bend_err_deg": local_basal_bend_err_deg,
+            "local_first_torsion_angle_deg": local_first_torsion_angle_deg,
+            "local_first_torsion_err_deg": local_first_torsion_err_deg,
+            "local_F_spring_attach_first": _mean_norm_indices(
+                diag.spring_forces, [self.local_attach_idx, self.local_first_idx]
+            ),
+            "local_F_spring_first_second": _mean_norm_indices(
+                diag.spring_forces, [self.local_first_idx, self.local_second_idx]
+            ),
+            "local_F_spring_second_third": _mean_norm_indices(
+                diag.spring_forces, [self.local_second_idx, self.local_third_idx]
+            ),
+            "local_F_bend_basal": _mean_norm_indices(
+                diag.hook_forces,
+                [self.local_attach_idx, self.local_first_idx, self.local_second_idx],
+            ),
+            "local_F_torsion_first": _mean_norm_indices(
+                diag.torsion_forces,
+                local_torsion_indices,
+            ),
+            "local_F_motor_attach": float(diag.motor_attach_force_norm),
+            "local_F_motor_first": float(diag.motor_first_force_norm),
+            "local_F_motor_second": float(diag.motor_second_force_norm),
+            "local_F_repulsion_basal_region": _mean_norm_indices(
+                diag.repulsion_forces,
+                local_region_indices,
+            ),
             "flag_state_changed": flag_state_changed,
             "projection_body_rigid_enabled": bool(
                 self.cfg.projection.enable_body_rigid_projection

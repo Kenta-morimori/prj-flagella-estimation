@@ -341,6 +341,25 @@ def test_run_writes_step_summary_csv(tmp_path: Path) -> None:
     assert "body_equiv_load_target_torque_Nm" in first
     assert "body_equiv_load_target_force_N" in first
     assert "body_equiv_attach_region_id" in first
+    assert "local_attach_first_len_over_b" in first
+    assert "local_attach_first_rel_err" in first
+    assert "local_first_second_len_over_b" in first
+    assert "local_first_second_rel_err" in first
+    assert "local_second_third_len_over_b" in first
+    assert "local_second_third_rel_err" in first
+    assert "local_basal_bend_angle_deg" in first
+    assert "local_basal_bend_err_deg" in first
+    assert "local_first_torsion_angle_deg" in first
+    assert "local_first_torsion_err_deg" in first
+    assert "local_F_spring_attach_first" in first
+    assert "local_F_spring_first_second" in first
+    assert "local_F_spring_second_third" in first
+    assert "local_F_bend_basal" in first
+    assert "local_F_torsion_first" in first
+    assert "local_F_motor_attach" in first
+    assert "local_F_motor_first" in first
+    assert "local_F_motor_second" in first
+    assert "local_F_repulsion_basal_region" in first
     assert first["brownian_enabled"] in {"False", "false", "0"}
 
 
