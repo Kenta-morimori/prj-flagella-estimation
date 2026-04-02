@@ -550,6 +550,7 @@ class SimulationConfig:
             n_flagella=int(_get(flag_raw, "n_flagella", 3)),
             placement_mode=str(_get(flag_raw, "placement_mode", "uniform")),
             init_mode=str(_get(flag_raw, "init_mode", "legacy_radius_pitch")),
+            stub_mode=str(_get(flag_raw, "stub_mode", "full_flagella")),
             discretization=FlagellaDiscretizationParams(ds_over_b=float(ds_over_b)),
             n_beads_per_flagellum=max(2, int(n_beads_per_flagellum)),
             bond_L_over_b=float(bond_L_over_b),
