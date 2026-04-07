@@ -152,7 +152,6 @@ def _make_cfg() -> SimulationConfig:
                 },
             },
             "hook": {"enabled": False, "threshold_deg": 90.0, "kb_over_T": 20.0},
-            "projection": {"enable_body_rigid_projection": False},
             "run_tumble": {
                 "run_tau": 20.0,
                 "tumble_tau": 8.0,
@@ -474,7 +473,6 @@ def test_body_only_motor_equiv_load_emits_diagnostics_and_changes_force_level(
     base_cfg = _make_cfg().with_overrides(
         {
             "time": {"duration_s": 0.01},
-            "projection": {"enable_body_rigid_projection": False},
         }
     )
 

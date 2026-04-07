@@ -60,13 +60,6 @@ hook:
   threshold_deg: 90.0          # [deg] hook曲げを課す閾値
   kb_over_T: 20.0              # [-] hook曲げ剛性比: kb_over_T = 20 * Torque
 
-projection:
-  enable_body_rigid_projection: false  # 新規比較・新規評価は OFF; 既存互換は明示的に ON
-  enable_hook_length_projection: false
-  enable_basal_link_direction_projection: false
-  enable_flagella_chain_length_projection: false
-  enable_flagella_template_projection: false
-
 body_equiv_load:
   enabled: false                        # true: body-only切り分け用の等価荷重を有効化
   mode: "none"                         # none / pure_couple / attach_proxy_local / distributed_rear_load

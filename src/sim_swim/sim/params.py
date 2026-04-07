@@ -161,21 +161,6 @@ class HookParams:
 
 
 @dataclass(frozen=True)
-class ProjectionParams:
-    """拘束投影の設定。
-
-    新規比較・新規評価では default は OFF とし，既存互換 run が必要な場合のみ
-    明示的に ON を指定する。
-    """
-
-    enable_body_rigid_projection: bool = False
-    enable_hook_length_projection: bool = False
-    enable_basal_link_direction_projection: bool = False
-    enable_flagella_chain_length_projection: bool = False
-    enable_flagella_template_projection: bool = False
-
-
-@dataclass(frozen=True)
 class BodyEquivalentLoadParams:
     """body-only切り分け用の等価荷重設定。"""
 
@@ -269,7 +254,6 @@ class SimulationConfig:
     motor: MotorParams
     potentials: PotentialsParams
     hook: HookParams
-    projection: ProjectionParams
     body_equiv_load: BodyEquivalentLoadParams
     run_tumble: RunTumbleParams
     time: TimeParams
@@ -658,25 +642,6 @@ class SimulationConfig:
             kb_over_T=float(kb_hook_over if kb_hook_over is not None else 20.0),
         )
 
-        projection_raw = raw.get("projection", {}) or {}
-        projection = ProjectionParams(
-            enable_body_rigid_projection=bool(
-                _get(projection_raw, "enable_body_rigid_projection", False)
-            ),
-            enable_hook_length_projection=bool(
-                _get(projection_raw, "enable_hook_length_projection", False)
-            ),
-            enable_basal_link_direction_projection=bool(
-                _get(projection_raw, "enable_basal_link_direction_projection", False)
-            ),
-            enable_flagella_chain_length_projection=bool(
-                _get(projection_raw, "enable_flagella_chain_length_projection", False)
-            ),
-            enable_flagella_template_projection=bool(
-                _get(projection_raw, "enable_flagella_template_projection", False)
-            ),
-        )
-
         body_equiv_raw = raw.get("body_equiv_load", {}) or {}
         body_equiv_load = BodyEquivalentLoadParams(
             enabled=bool(_get(body_equiv_raw, "enabled", False)),
@@ -750,7 +715,6 @@ class SimulationConfig:
             motor=motor,
             potentials=potentials,
             hook=hook,
-            projection=projection,
             body_equiv_load=body_equiv_load,
             run_tumble=run_tumble,
             time=time,

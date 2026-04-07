@@ -120,11 +120,6 @@ STEP_SUMMARY_COLUMNS = [
     "local_F_motor_second",
     "local_F_repulsion_basal_region",
     "flag_state_changed",
-    "projection_body_rigid_enabled",
-    "projection_hook_length_enabled",
-    "projection_basal_link_direction_enabled",
-    "projection_flagella_chain_length_enabled",
-    "projection_flagella_template_enabled",
     "brownian_enabled",
     "brownian_disp_mean_um",
 ]
@@ -1031,21 +1026,6 @@ class StepSummaryRecorder:
                 local_region_indices,
             ),
             "flag_state_changed": flag_state_changed,
-            "projection_body_rigid_enabled": bool(
-                self.cfg.projection.enable_body_rigid_projection
-            ),
-            "projection_hook_length_enabled": bool(
-                self.cfg.projection.enable_hook_length_projection
-            ),
-            "projection_basal_link_direction_enabled": bool(
-                self.cfg.projection.enable_basal_link_direction_projection
-            ),
-            "projection_flagella_chain_length_enabled": bool(
-                self.cfg.projection.enable_flagella_chain_length_projection
-            ),
-            "projection_flagella_template_enabled": bool(
-                self.cfg.projection.enable_flagella_template_projection
-            ),
             "brownian_enabled": bool(diag.brownian_enabled),
             "brownian_disp_mean_um": brownian_disp_mean_um,
         }

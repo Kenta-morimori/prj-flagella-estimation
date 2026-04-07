@@ -142,21 +142,7 @@ def test_motor_enable_switching_can_be_enabled() -> None:
     assert sim_cfg.motor.enable_switching is True
 
 
-def test_projection_defaults_to_false() -> None:
-    """新規比較・新規評価では projection default は OFF。"""
-    cfg = _base_cfg()
-    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
-    sim_cfg = SimulationConfig.from_dict(cfg)
-
-    assert sim_cfg.projection.enable_body_rigid_projection is False
-    assert sim_cfg.projection.enable_hook_length_projection is False
-    assert sim_cfg.projection.enable_basal_link_direction_projection is False
-    assert sim_cfg.projection.enable_flagella_chain_length_projection is False
-    assert sim_cfg.projection.enable_flagella_template_projection is False
-
-
-def test_projection_can_be_enabled() -> None:
-    """既存互換 run が必要な場合は，明示的に ON を指定できること。"""
+def test_projection_config_is_ignored_after_removal() -> None:
     cfg = _base_cfg()
     cfg["projection"] = {
         "enable_body_rigid_projection": True,
@@ -168,11 +154,7 @@ def test_projection_can_be_enabled() -> None:
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
     sim_cfg = SimulationConfig.from_dict(cfg)
 
-    assert sim_cfg.projection.enable_body_rigid_projection is True
-    assert sim_cfg.projection.enable_hook_length_projection is True
-    assert sim_cfg.projection.enable_basal_link_direction_projection is True
-    assert sim_cfg.projection.enable_flagella_chain_length_projection is True
-    assert sim_cfg.projection.enable_flagella_template_projection is True
+    assert not hasattr(sim_cfg, "projection")
 
 
 def test_body_equiv_load_defaults_to_disabled() -> None:
