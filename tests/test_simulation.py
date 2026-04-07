@@ -115,6 +115,7 @@ def _make_cfg(
     motor_torque_Nm: float = -1.0,
     hook_enabled: bool = True,
     n_flagella: int = 3,
+    enable_projections: bool = True,  # デフォルト ON: 既存テスト互換性
 ) -> SimulationConfig:
     return SimulationConfig.from_dict(
         {
@@ -159,6 +160,13 @@ def _make_cfg(
                 },
             },
             "hook": {"enabled": hook_enabled, "threshold_deg": 90.0, "kb_over_T": 20.0},
+            "projection": {
+                "enable_body_rigid_projection": enable_projections,
+                "enable_hook_length_projection": enable_projections,
+                "enable_basal_link_direction_projection": enable_projections,
+                "enable_flagella_chain_length_projection": enable_projections,
+                "enable_flagella_template_projection": enable_projections,
+            },
             "run_tumble": {
                 "run_tau": 20.0,
                 "tumble_tau": 8.0,

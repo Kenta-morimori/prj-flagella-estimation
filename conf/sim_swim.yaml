@@ -61,11 +61,11 @@ hook:
   kb_over_T: 20.0              # [-] hook曲げ剛性比: kb_over_T = 20 * Torque
 
 projection:
-  enable_body_rigid_projection: true   # true: 既存互換（body rigid projectionを適用）
-  enable_hook_length_projection: true
-  enable_basal_link_direction_projection: true
-  enable_flagella_chain_length_projection: true
-  enable_flagella_template_projection: true
+  enable_body_rigid_projection: false  # 新規比較・新規評価は OFF; 既存互換は明示的に ON
+  enable_hook_length_projection: false
+  enable_basal_link_direction_projection: false
+  enable_flagella_chain_length_projection: false
+  enable_flagella_template_projection: false
 
 body_equiv_load:
   enabled: false                        # true: body-only切り分け用の等価荷重を有効化

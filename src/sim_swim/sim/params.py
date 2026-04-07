@@ -162,13 +162,17 @@ class HookParams:
 
 @dataclass(frozen=True)
 class ProjectionParams:
-    """拘束投影の設定。"""
+    """拘束投影の設定。
 
-    enable_body_rigid_projection: bool = True
-    enable_hook_length_projection: bool = True
-    enable_basal_link_direction_projection: bool = True
-    enable_flagella_chain_length_projection: bool = True
-    enable_flagella_template_projection: bool = True
+    新規比較・新規評価では default は OFF とし，既存互換 run が必要な場合のみ
+    明示的に ON を指定する。
+    """
+
+    enable_body_rigid_projection: bool = False
+    enable_hook_length_projection: bool = False
+    enable_basal_link_direction_projection: bool = False
+    enable_flagella_chain_length_projection: bool = False
+    enable_flagella_template_projection: bool = False
 
 
 @dataclass(frozen=True)
@@ -657,19 +661,19 @@ class SimulationConfig:
         projection_raw = raw.get("projection", {}) or {}
         projection = ProjectionParams(
             enable_body_rigid_projection=bool(
-                _get(projection_raw, "enable_body_rigid_projection", True)
+                _get(projection_raw, "enable_body_rigid_projection", False)
             ),
             enable_hook_length_projection=bool(
-                _get(projection_raw, "enable_hook_length_projection", True)
+                _get(projection_raw, "enable_hook_length_projection", False)
             ),
             enable_basal_link_direction_projection=bool(
-                _get(projection_raw, "enable_basal_link_direction_projection", True)
+                _get(projection_raw, "enable_basal_link_direction_projection", False)
             ),
             enable_flagella_chain_length_projection=bool(
-                _get(projection_raw, "enable_flagella_chain_length_projection", True)
+                _get(projection_raw, "enable_flagella_chain_length_projection", False)
             ),
             enable_flagella_template_projection=bool(
-                _get(projection_raw, "enable_flagella_template_projection", True)
+                _get(projection_raw, "enable_flagella_template_projection", False)
             ),
         )
 
