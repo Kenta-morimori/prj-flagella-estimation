@@ -107,6 +107,14 @@ def _hook_edges(hook_triplets: np.ndarray) -> np.ndarray:
     return np.vstack((first, second))
 
 
+def _resolve_view_range_um(cfg: SimulationConfig, rig: FlagellaRig) -> float:
+    if cfg.render.view_range_um != 5.0:
+        return max(cfg.render.view_range_um, 1e-6)
+
+    default_view_range = 3.0 if len(rig.flagella_indices) == 0 else 5.0
+    return max(default_view_range, 1e-6)
+
+
 def save_swim_movie(
     states: Iterable[SimulationState],
     cfg: SimulationConfig,
@@ -132,7 +140,7 @@ def save_swim_movie(
         frames_dir.mkdir(parents=True, exist_ok=True)
 
     colors = _flagella_colors(len(rig.flagella_indices))
-    view_range = max(cfg.render.view_range_um, 1e-6)
+    view_range = _resolve_view_range_um(cfg, rig)
 
     movie_path = out_dir / "swim3d.mp4"
     writer: cv2.VideoWriter | None = None

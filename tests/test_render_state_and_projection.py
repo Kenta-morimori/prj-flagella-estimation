@@ -5,6 +5,7 @@ import numpy as np
 from sim_swim.render.project2d import _camera_center_2d
 from sim_swim.render.render3d import (
     _hook_edges,
+    _resolve_view_range_um,
     _run_tumble_label,
     save_swim_movie,
 )
@@ -113,6 +114,24 @@ def test_hook_edges_expand_triplets_into_two_segments() -> None:
 
     assert edges.shape == (4, 2)
     assert np.array_equal(edges, np.array([[1, 4], [2, 6], [4, 5], [6, 7]]))
+
+
+def test_view_range_defaults_to_3_when_no_flagella_are_present() -> None:
+    cfg = _make_cfg(
+        center_body_in_2d=True,
+        follow_camera_2d=False,
+        enable_switching=False,
+    )
+    rig = FlagellaRig(
+        body_layer_indices=[np.array([0, 1, 2, 3], dtype=int)],
+        body_ring_edges=np.array([[0, 1]], dtype=int),
+        body_vertical_edges=np.array([[1, 2]], dtype=int),
+        body_spring_edges=np.array([[0, 1]], dtype=int),
+        flagella_indices=[],
+        hook_triplets=np.array([], dtype=int).reshape(0, 3),
+    )
+
+    assert _resolve_view_range_um(cfg, rig) == 3.0
 
 
 def test_save_swim_movie_emits_render_outputs(tmp_path, monkeypatch) -> None:
