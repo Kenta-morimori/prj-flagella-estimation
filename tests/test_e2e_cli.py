@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import json
 from pathlib import Path
 
 import yaml
@@ -108,6 +109,7 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
 
     latest = sorted((tmp_path / "outputs").rglob("manifest.json"))[-1].parent
     assert (latest / "sim" / "step_summary.csv").is_file()
+    assert (latest / "sim" / "initial_geometry_summary.json").is_file()
     assert (latest / "sim" / "body_constraint_diagnostics.csv").is_file()
     assert (latest / "sim" / "body_constraint_local_diagnostics.csv").is_file()
     assert not (latest / "sim" / "step_summary_full.csv").exists()
@@ -116,3 +118,7 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
     assert any((latest / "render" / "frames_3d").glob("frame_*.png"))
     assert (latest / "render2d" / "projection.mp4").is_file()
     assert any((latest / "render2d" / "frames").glob("frame_*.png"))
+
+    manifest = json.loads((latest / "manifest.json").read_text(encoding="utf-8"))
+    outputs = manifest.get("outputs", {})
+    assert "initial_geometry_summary_json" in outputs

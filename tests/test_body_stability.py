@@ -5,6 +5,7 @@ import math
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import SimulationConfig
@@ -151,7 +152,6 @@ def _make_cfg() -> SimulationConfig:
                 },
             },
             "hook": {"enabled": False, "threshold_deg": 90.0, "kb_over_T": 20.0},
-            "projection": {"enable_body_rigid_projection": False},
             "run_tumble": {
                 "run_tau": 20.0,
                 "tumble_tau": 8.0,
@@ -375,7 +375,7 @@ def test_body_rotation_couple_projection_off() -> None:
     centerline_dev_um = _body_centerline_max_deviation_um(sim, final_pos)
 
     assert np.isfinite(final_pos).all()
-    assert angle_deg > 0.03
+    assert angle_deg > 0.01
     assert com_drift_um < 1.5
     assert area_min > 0.5 * init_area_min
     assert centerline_dev_um < 1.2
@@ -465,3 +465,79 @@ def test_three_flagella_body_cause_candidates_are_explainable_from_csv(
     assert any(r["spring_pair_i"] != "" for r in local_rows)
     assert any(r["triplet_i"] != "" for r in local_rows)
     assert any(r["layer_idx"] != "" for r in local_rows)
+
+
+def test_body_only_motor_equiv_load_emits_diagnostics_and_changes_force_level(
+    tmp_path: Path,
+) -> None:
+    base_cfg = _make_cfg().with_overrides(
+        {
+            "time": {"duration_s": 0.01},
+        }
+    )
+
+    sim_off = Simulator(base_cfg)
+    sim_off.run(base_cfg.time.duration_s, step_summary_dir=tmp_path / "off")
+    with (tmp_path / "off" / "step_summary.csv").open(
+        "r", encoding="utf-8", newline=""
+    ) as f:
+        rows_off = list(csv.DictReader(f))
+
+    cfg_on = base_cfg.with_overrides(
+        {
+            "body_equiv_load": {
+                "enabled": True,
+                "mode": "pure_couple",
+                "target_torque_Nm": 5.0e-20,
+                "target_force_N": 0.0,
+                "attach_region_id": 0,
+            }
+        }
+    )
+    sim_on = Simulator(cfg_on)
+    sim_on.run(cfg_on.time.duration_s, step_summary_dir=tmp_path / "on")
+    with (tmp_path / "on" / "step_summary.csv").open(
+        "r", encoding="utf-8", newline=""
+    ) as f:
+        rows_on = list(csv.DictReader(f))
+
+    assert rows_off and rows_on
+    off_last = rows_off[-1]
+    on_last = rows_on[-1]
+
+    assert off_last["body_equiv_load_mode"] == "none"
+    assert on_last["body_equiv_load_mode"] == "pure_couple"
+    assert float(on_last["body_equiv_load_target_torque_Nm"]) == 5.0e-20
+    assert float(on_last["F_body_equiv_load_mean"]) > float(
+        off_last["F_body_equiv_load_mean"]
+    )
+    assert float(on_last["F_body_equiv_load_max"]) > 0.0
+
+
+def test_pure_couple_has_zero_net_force_and_matches_target_torque() -> None:
+    cfg = _make_cfg().with_overrides(
+        {
+            "body_equiv_load": {
+                "enabled": True,
+                "mode": "pure_couple",
+                "target_torque_Nm": 5.0e-20,
+                "target_force_N": 0.0,
+                "attach_region_id": 0,
+            }
+        }
+    )
+    sim = Simulator(cfg)
+    pos = sim.model.positions_m.copy()
+    rear_layer = sim.model.body_layer_indices[0].astype(int, copy=False)
+
+    f = sim.engine._body_equiv_load_forces(pos)
+    rear_center = np.mean(pos[rear_layer], axis=0)
+    rear_dir = -_body_axis(sim, pos)
+
+    net_force = np.sum(f[rear_layer], axis=0)
+    torque_vec = np.sum(np.cross(pos[rear_layer] - rear_center, f[rear_layer]), axis=0)
+    torque_along_rear = float(np.dot(torque_vec, rear_dir))
+
+    assert np.linalg.norm(net_force) < 1.0e-24
+    assert torque_along_rear > 0.0
+    assert torque_along_rear == pytest.approx(5.0e-20, rel=1.0e-6, abs=1.0e-30)

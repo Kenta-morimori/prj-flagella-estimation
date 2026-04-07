@@ -211,6 +211,7 @@ def main(
     outputs = manifest.get("outputs", {})
     body_diag_csv = ctx.out.sim_dir / "body_constraint_diagnostics.csv"
     body_local_diag_csv = ctx.out.sim_dir / "body_constraint_local_diagnostics.csv"
+    init_geom_json = ctx.out.sim_dir / "initial_geometry_summary.json"
     outputs.update(
         {
             "trajectory_csv": str(traj_path),
@@ -219,6 +220,8 @@ def main(
             "render2d": str(ctx.out.render2d_dir),
         }
     )
+    if init_geom_json.is_file():
+        outputs["initial_geometry_summary_json"] = str(init_geom_json)
     if body_diag_csv.is_file():
         outputs["body_constraint_diagnostics_csv"] = str(body_diag_csv)
     if body_local_diag_csv.is_file():
@@ -227,6 +230,7 @@ def main(
     manifest["files"] = [
         str(traj_path.relative_to(ctx.out.root)),
         "sim/step_summary.csv",
+        "sim/initial_geometry_summary.json",
         "render/swim3d.mp4",
         "render/swim3d_final.png",
         "render2d/projection.mp4",

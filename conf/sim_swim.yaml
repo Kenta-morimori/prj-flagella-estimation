@@ -15,6 +15,8 @@ body:
 flagella:
   n_flagella: 3                # [-] べん毛本数（論文条件）
   placement_mode: "uniform"   # 終端層の断面ビーズへ均等に付着
+  init_mode: "paper_table1"   # 初期べん毛のsource-of-truth: bond/theta/phi/n_beads
+  n_beads_per_flagellum: 11    # [-] 各べん毛の初期ビーズ数（論文離散化準拠）
   discretization:
     ds_over_b: 0.58            # [-] 隣接間隔 ds/b（Table 1 の L=0.58b 相当）
   bond_L_over_b: 0.58          # [-] べん毛spring平衡長 L/b
@@ -43,6 +45,7 @@ potentials:
       curly1: 105.0            # [deg] curly1 多形
   torsion:
     kt_over_T: 10.0            # [-] kt = 10 * Torque
+    fd_eps_over_b: 1e-3        # [-] current baseline（paper_table1運用時の候補）
     phi0_deg:
       normal: -60.0            # [deg] normal 多形の平衡二面角
       semicoiled: 65.0         # [deg] semicoiled 多形
@@ -57,8 +60,12 @@ hook:
   threshold_deg: 90.0          # [deg] hook曲げを課す閾値
   kb_over_T: 20.0              # [-] hook曲げ剛性比: kb_over_T = 20 * Torque
 
-projection:
-  enable_body_rigid_projection: true   # true: 既存互換（body rigid projectionを適用）
+body_equiv_load:
+  enabled: false                        # true: body-only切り分け用の等価荷重を有効化
+  mode: "none"                         # none / pure_couple / attach_proxy_local / distributed_rear_load
+  target_torque_Nm: 0.0                # [N*m] pure_couple モードの目標トルク（現実装は絶対値運用）
+  target_force_N: 0.0                  # [N] attach/distributed モードの目標力スケール（現実装は絶対値運用）
+  attach_region_id: 0                  # [-] attach_proxy_local モードのrear層ローカルID
 
 run_tumble:
   run_tau: 1200.0              # [tau] run 継続時間（Fig.3 例）

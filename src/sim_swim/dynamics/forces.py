@@ -15,6 +15,18 @@ class MotorForceDiagnostics:
     degenerate_axis_count: int = 0
     split_rank_deficient_count: int = 0
     bond_length_clipped_count: int = 0
+    ra_len_mean_m: float = float("nan")
+    rb_len_mean_m: float = float("nan")
+    Ta_norm_mean: float = float("nan")
+    Tb_norm_mean: float = float("nan")
+    Fa_norm_mean: float = float("nan")
+    Fb_norm_mean: float = float("nan")
+    attach_force_norm_mean: float = float("nan")
+    first_force_norm_mean: float = float("nan")
+    second_force_norm_mean: float = float("nan")
+    split_residual_norm_mean: float = float("nan")
+    ta_dot_ra_abs_mean: float = float("nan")
+    tb_dot_rb_abs_mean: float = float("nan")
 
 
 def _safe_norm(v: np.ndarray, eps: float = 1e-18) -> float:
@@ -332,6 +344,19 @@ def compute_motor_forces(
     degenerate_axis_count = 0
     split_rank_deficient_count = 0
     bond_length_clipped_count = 0
+    valid_count = 0
+    ra_len_sum = 0.0
+    rb_len_sum = 0.0
+    ta_norm_sum = 0.0
+    tb_norm_sum = 0.0
+    fa_norm_sum = 0.0
+    fb_norm_sum = 0.0
+    attach_force_norm_sum = 0.0
+    first_force_norm_sum = 0.0
+    second_force_norm_sum = 0.0
+    split_residual_norm_sum = 0.0
+    ta_dot_ra_abs_sum = 0.0
+    tb_dot_rb_abs_sum = 0.0
     r2_eps = 1e-30
 
     for idx, (ib, jf, kf) in enumerate(motor_triplets):
@@ -354,7 +379,8 @@ def compute_motor_forces(
         t_hat = r_b / axis_norm
         t_tot = tau * t_hat
 
-        # Step B: Ta + Tb = Ttot, Ta·ra = 0, Tb·rb = 0 を最小ノルムで解く。
+        # Step B: Ta + Tb = Ttot, Ta·ra = 0, Tb·rb = 0 を満たしつつ、
+        # 力カップル起因の局所過大力を抑えるよう重み付き最小ノルムで解く。
         a = np.zeros((5, 6), dtype=float)
         b = np.zeros((5,), dtype=float)
         a[0:3, 0:3] = np.eye(3)
@@ -366,27 +392,74 @@ def compute_motor_forces(
         rank = int(np.linalg.matrix_rank(a))
         if rank < 5:
             split_rank_deficient_count += 1
-        split = np.linalg.pinv(a) @ b
+        r_a2 = float(np.dot(r_a, r_a))
+        r_b2 = float(np.dot(r_b, r_b))
+        # |F| ~= |T|/|r| より、短いリンクほど同じトルクで過大力になりやすい。
+        # min ||Ta||^2/r_a^2 + ||Tb||^2/r_b^2 を使い、短リンク側の過大力を抑える。
+        w_a = 1.0 / max(r_a2, r2_eps)
+        w_b = 1.0 / max(r_b2, r2_eps)
+        q_inv = np.zeros((6, 6), dtype=float)
+        q_inv[0:3, 0:3] = np.eye(3) / max(w_a, 1e-30)
+        q_inv[3:6, 3:6] = np.eye(3) / max(w_b, 1e-30)
+        aqat = a @ q_inv @ a.T
+        split = q_inv @ a.T @ (np.linalg.pinv(aqat) @ b)
         t_a = split[0:3]
         t_b = split[3:6]
+        split_residual_norm_sum += float(np.linalg.norm((t_a + t_b) - t_tot))
+        ta_dot_ra_abs_sum += abs(float(np.dot(t_a, r_a)))
+        tb_dot_rb_abs_sum += abs(float(np.dot(t_b, r_b)))
 
         # Step C: Tc = rc × Fc, Fc = (Tc × rc) / ||rc||^2
-        r_a2 = float(np.dot(r_a, r_a))
         if r_a2 < r2_eps:
             bond_length_clipped_count += 1
         f_a = np.cross(t_a, r_a) / max(r_a2, r2_eps)
         forces[i0] -= f_a
         forces[i1] += f_a
 
-        r_b2 = float(np.dot(r_b, r_b))
         if r_b2 < r2_eps:
             bond_length_clipped_count += 1
         f_b = np.cross(t_b, r_b) / max(r_b2, r2_eps)
         forces[i1] -= f_b
         forces[i2] += f_b
 
+        valid_count += 1
+        ra_len_sum += float(np.linalg.norm(r_a))
+        rb_len_sum += axis_norm
+        ta_norm_sum += float(np.linalg.norm(t_a))
+        tb_norm_sum += float(np.linalg.norm(t_b))
+        fa_norm_sum += float(np.linalg.norm(f_a))
+        fb_norm_sum += float(np.linalg.norm(f_b))
+        attach_force_norm_sum += float(np.linalg.norm(-f_a))
+        first_force_norm_sum += float(np.linalg.norm(f_a - f_b))
+        second_force_norm_sum += float(np.linalg.norm(f_b))
+
+    inv = 1.0 / max(valid_count, 1)
     return forces, MotorForceDiagnostics(
         degenerate_axis_count=degenerate_axis_count,
         split_rank_deficient_count=split_rank_deficient_count,
         bond_length_clipped_count=bond_length_clipped_count,
+        ra_len_mean_m=(ra_len_sum * inv if valid_count > 0 else float("nan")),
+        rb_len_mean_m=(rb_len_sum * inv if valid_count > 0 else float("nan")),
+        Ta_norm_mean=(ta_norm_sum * inv if valid_count > 0 else float("nan")),
+        Tb_norm_mean=(tb_norm_sum * inv if valid_count > 0 else float("nan")),
+        Fa_norm_mean=(fa_norm_sum * inv if valid_count > 0 else float("nan")),
+        Fb_norm_mean=(fb_norm_sum * inv if valid_count > 0 else float("nan")),
+        attach_force_norm_mean=(
+            attach_force_norm_sum * inv if valid_count > 0 else float("nan")
+        ),
+        first_force_norm_mean=(
+            first_force_norm_sum * inv if valid_count > 0 else float("nan")
+        ),
+        second_force_norm_mean=(
+            second_force_norm_sum * inv if valid_count > 0 else float("nan")
+        ),
+        split_residual_norm_mean=(
+            split_residual_norm_sum * inv if valid_count > 0 else float("nan")
+        ),
+        ta_dot_ra_abs_mean=(
+            ta_dot_ra_abs_sum * inv if valid_count > 0 else float("nan")
+        ),
+        tb_dot_rb_abs_mean=(
+            tb_dot_rb_abs_sum * inv if valid_count > 0 else float("nan")
+        ),
     )

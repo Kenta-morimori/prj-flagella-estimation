@@ -80,9 +80,12 @@ class FlagellumParams:
 
     n_flagella: int = 3
     placement_mode: str = "uniform"
+    init_mode: str = "legacy_radius_pitch"
+    stub_mode: str = "full_flagella"  # minimal_basal_stub | full_flagella
     discretization: FlagellaDiscretizationParams = field(
         default_factory=FlagellaDiscretizationParams
     )
+    n_beads_per_flagellum: int = 11
     bond_L_over_b: float = 0.58
     length_over_b: float = 5.8
     helix_init: FlagellaHelixInitParams = field(default_factory=FlagellaHelixInitParams)
@@ -126,6 +129,7 @@ class TorsionPotentialParams:
 
     kt_over_T: float = 10.0
     phi0_deg: dict[str, float] | None = None
+    fd_eps_over_b: float = 0.1
 
 
 @dataclass(frozen=True)
@@ -157,10 +161,15 @@ class HookParams:
 
 
 @dataclass(frozen=True)
-class ProjectionParams:
-    """拘束投影の設定。"""
+class BodyEquivalentLoadParams:
+    """body-only切り分け用の等価荷重設定。"""
 
-    enable_body_rigid_projection: bool = True
+    enabled: bool = False
+    mode: str = "none"
+    # 現実装は magnitude-only 運用（符号は無視）。
+    target_torque_Nm: float = 0.0
+    target_force_N: float = 0.0
+    attach_region_id: int = 0
 
 
 @dataclass(frozen=True)
@@ -246,7 +255,7 @@ class SimulationConfig:
     motor: MotorParams
     potentials: PotentialsParams
     hook: HookParams
-    projection: ProjectionParams
+    body_equiv_load: BodyEquivalentLoadParams
     run_tumble: RunTumbleParams
     time: TimeParams
     output_sampling: OutputSamplingParams
@@ -500,6 +509,14 @@ class SimulationConfig:
             else:
                 length_over_b = 5.8
 
+        n_beads_per_flagellum = flag_raw.get("n_beads_per_flagellum")
+        if n_beads_per_flagellum is None:
+            n_beads_per_flagellum = max(
+                2,
+                int(math.floor(float(length_over_b) / max(float(bond_L_over_b), 1e-12)))
+                + 1,
+            )
+
         helix_raw = flag_raw.get("helix_init", {}) or {}
         radius_over_b_h = helix_raw.get("radius_over_b")
         if radius_over_b_h is None:
@@ -521,7 +538,10 @@ class SimulationConfig:
         flagella = FlagellumParams(
             n_flagella=int(_get(flag_raw, "n_flagella", 3)),
             placement_mode=str(_get(flag_raw, "placement_mode", "uniform")),
+            init_mode=str(_get(flag_raw, "init_mode", "legacy_radius_pitch")),
+            stub_mode=str(_get(flag_raw, "stub_mode", "full_flagella")),
             discretization=FlagellaDiscretizationParams(ds_over_b=float(ds_over_b)),
+            n_beads_per_flagellum=max(2, int(n_beads_per_flagellum)),
             bond_L_over_b=float(bond_L_over_b),
             length_over_b=float(length_over_b),
             helix_init=FlagellaHelixInitParams(
@@ -573,12 +593,18 @@ class SimulationConfig:
         kt_over = torsion_raw.get("kt_over_T")
         if kt_over is None and "kt" in torsion_raw:
             kt_over = float(torsion_raw["kt"]) / max(thermal, 1e-30)
+        fd_eps_over_b = torsion_raw.get("fd_eps_over_b")
+        if fd_eps_over_b is None and "fd_eps_m" in torsion_raw:
+            fd_eps_over_b = float(torsion_raw["fd_eps_m"]) / max(
+                scale.b_um * 1e-6, 1e-18
+            )
         torsion = TorsionPotentialParams(
             kt_over_T=float(kt_over if kt_over is not None else 10.0),
             phi0_deg=_state_angles(
                 torsion_raw.get("phi0_deg"),
                 {"normal": -60.0, "semicoiled": 65.0, "curly1": 120.0},
             ),
+            fd_eps_over_b=float(fd_eps_over_b if fd_eps_over_b is not None else 0.1),
         )
 
         rep_raw = (raw.get("potentials", {}) or {}).get(
@@ -617,11 +643,13 @@ class SimulationConfig:
             kb_over_T=float(kb_hook_over if kb_hook_over is not None else 20.0),
         )
 
-        projection_raw = raw.get("projection", {}) or {}
-        projection = ProjectionParams(
-            enable_body_rigid_projection=bool(
-                _get(projection_raw, "enable_body_rigid_projection", True)
-            ),
+        body_equiv_raw = raw.get("body_equiv_load", {}) or {}
+        body_equiv_load = BodyEquivalentLoadParams(
+            enabled=bool(_get(body_equiv_raw, "enabled", False)),
+            mode=str(_get(body_equiv_raw, "mode", "none")),
+            target_torque_Nm=float(_get(body_equiv_raw, "target_torque_Nm", 0.0)),
+            target_force_N=float(_get(body_equiv_raw, "target_force_N", 0.0)),
+            attach_region_id=int(_get(body_equiv_raw, "attach_region_id", 0)),
         )
 
         rt_raw = raw.get("run_tumble", {}) or {}
@@ -688,7 +716,7 @@ class SimulationConfig:
             motor=motor,
             potentials=potentials,
             hook=hook,
-            projection=projection,
+            body_equiv_load=body_equiv_load,
             run_tumble=run_tumble,
             time=time,
             output_sampling=output_sampling,

@@ -142,21 +142,50 @@ def test_motor_enable_switching_can_be_enabled() -> None:
     assert sim_cfg.motor.enable_switching is True
 
 
-def test_body_rigid_projection_defaults_to_true() -> None:
+def test_projection_config_is_ignored_after_removal() -> None:
+    cfg = _base_cfg()
+    cfg["projection"] = {
+        "enable_body_rigid_projection": True,
+        "enable_hook_length_projection": True,
+        "enable_basal_link_direction_projection": True,
+        "enable_flagella_chain_length_projection": True,
+        "enable_flagella_template_projection": True,
+    }
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert not hasattr(sim_cfg, "projection")
+
+
+def test_body_equiv_load_defaults_to_disabled() -> None:
     cfg = _base_cfg()
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
     sim_cfg = SimulationConfig.from_dict(cfg)
 
-    assert sim_cfg.projection.enable_body_rigid_projection is True
+    assert sim_cfg.body_equiv_load.enabled is False
+    assert sim_cfg.body_equiv_load.mode == "none"
+    assert sim_cfg.body_equiv_load.target_torque_Nm == pytest.approx(0.0)
+    assert sim_cfg.body_equiv_load.target_force_N == pytest.approx(0.0)
+    assert sim_cfg.body_equiv_load.attach_region_id == 0
 
 
-def test_body_rigid_projection_can_be_disabled() -> None:
+def test_body_equiv_load_can_be_overridden() -> None:
     cfg = _base_cfg()
-    cfg["projection"] = {"enable_body_rigid_projection": False}
+    cfg["body_equiv_load"] = {
+        "enabled": True,
+        "mode": "pure_couple",
+        "target_torque_Nm": 5.0e-20,
+        "target_force_N": 2.0e-13,
+        "attach_region_id": 2,
+    }
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
     sim_cfg = SimulationConfig.from_dict(cfg)
 
-    assert sim_cfg.projection.enable_body_rigid_projection is False
+    assert sim_cfg.body_equiv_load.enabled is True
+    assert sim_cfg.body_equiv_load.mode == "pure_couple"
+    assert sim_cfg.body_equiv_load.target_torque_Nm == pytest.approx(5.0e-20)
+    assert sim_cfg.body_equiv_load.target_force_N == pytest.approx(2.0e-13)
+    assert sim_cfg.body_equiv_load.attach_region_id == 2
 
 
 def test_body_n_layers_is_derived_from_length_and_spacing() -> None:
@@ -165,6 +194,61 @@ def test_body_n_layers_is_derived_from_length_and_spacing() -> None:
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
     sim_cfg = SimulationConfig.from_dict(cfg)
     assert sim_cfg.compute_body_n_layers() == 6
+
+
+def test_flagella_init_mode_defaults_and_bead_count_is_derived() -> None:
+    cfg = _base_cfg()
+    cfg["flagella"] = {"bond_L_over_b": 0.58, "length_over_b": 5.8}
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella.init_mode == "legacy_radius_pitch"
+    assert sim_cfg.flagella.n_beads_per_flagellum == 11
+
+
+def test_flagella_init_mode_can_be_set_to_paper_table1() -> None:
+    cfg = _base_cfg()
+    cfg["flagella"] = {
+        "init_mode": "paper_table1",
+        "n_beads_per_flagellum": 15,
+        "bond_L_over_b": 0.58,
+        "length_over_b": 5.8,
+    }
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella.init_mode == "paper_table1"
+    assert sim_cfg.flagella.n_beads_per_flagellum == 15
+
+
+def test_flagella_stub_mode_can_be_set_to_minimal_basal_stub() -> None:
+    cfg = _base_cfg()
+    cfg["flagella"] = {
+        "stub_mode": "minimal_basal_stub",
+        "bond_L_over_b": 0.58,
+        "length_over_b": 5.8,
+    }
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella.stub_mode == "minimal_basal_stub"
+
+
+def test_torsion_fd_eps_over_b_defaults_to_point_one() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.potentials.torsion.fd_eps_over_b == pytest.approx(0.1)
+
+
+def test_torsion_fd_eps_over_b_can_be_overridden() -> None:
+    cfg = _base_cfg()
+    cfg["potentials"] = {"torsion": {"fd_eps_over_b": 0.001}}
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.potentials.torsion.fd_eps_over_b == pytest.approx(0.001)
 
 
 def test_render2d_flagella_default_is_off() -> None:
