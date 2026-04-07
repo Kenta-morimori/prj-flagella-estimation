@@ -13,6 +13,14 @@
 
 この文書では、まず**論文モデルの整理**を行い、その後に**現状実装との差分**および**修正履歴**を追記する。
 
+## Current status (2026-04-07)
+- body static は安定
+- minimal basal stub static（`stub_mode=minimal_basal_stub`, `motor.torque_Nm=0`）は安定
+- full static（`stub_mode=full_flagella`, `motor.torque_Nm=0`）は finite 完走だが幾何崩壊
+- 現時点の最優先残タスクは full flagella 静的安定
+- `n_flagella=1`, motor ON 安定化は次段（次PR）の主対象
+- 解釈として、body 単独は主因候補から後退し、full chain / torsion / chain-maintenance 側が未解決で残っている
+
 ---
 
 ## 対象論文
