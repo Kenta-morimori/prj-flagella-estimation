@@ -45,7 +45,7 @@ potentials:
       curly1: 105.0            # [deg] curly1 多形
   torsion:
     kt_over_T: 10.0            # [-] kt = 10 * Torque
-    fd_eps_over_b: 0.1         # [-] torsion force finite-diff 幅（sweep比較対象）
+    fd_eps_over_b: 1e-3        # [-] current baseline（paper_table1運用時の候補）
     phi0_deg:
       normal: -60.0            # [deg] normal 多形の平衡二面角
       semicoiled: 65.0         # [deg] semicoiled 多形
@@ -63,8 +63,8 @@ hook:
 body_equiv_load:
   enabled: false                        # true: body-only切り分け用の等価荷重を有効化
   mode: "none"                         # none / pure_couple / attach_proxy_local / distributed_rear_load
-  target_torque_Nm: 0.0                # [N*m] pure_couple モードの目標トルク
-  target_force_N: 0.0                  # [N] attach/distributed モードの目標力スケール
+  target_torque_Nm: 0.0                # [N*m] pure_couple モードの目標トルク（現実装は絶対値運用）
+  target_force_N: 0.0                  # [N] attach/distributed モードの目標力スケール（現実装は絶対値運用）
   attach_region_id: 0                  # [-] attach_proxy_local モードのrear層ローカルID
 
 run_tumble:

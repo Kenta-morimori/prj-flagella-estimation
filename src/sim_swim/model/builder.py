@@ -214,13 +214,9 @@ class ModelBuilder:
             raise ValueError("MVP: body.prism.n_prism must be 3")
         if not (0 <= cfg.flagella.n_flagella <= 9):
             raise ValueError("MVP: flagella.n_flagella must be in [0,9]")
-        if cfg.flagella.stub_mode not in (
-            "none",
-            "minimal_basal_stub",
-            "full_flagella",
-        ):
+        if cfg.flagella.stub_mode not in ("minimal_basal_stub", "full_flagella"):
             raise ValueError(
-                f"flagella.stub_mode must be 'none', 'minimal_basal_stub', or 'full_flagella', "
+                f"flagella.stub_mode must be 'minimal_basal_stub' or 'full_flagella', "
                 f"got: {cfg.flagella.stub_mode}"
             )
 

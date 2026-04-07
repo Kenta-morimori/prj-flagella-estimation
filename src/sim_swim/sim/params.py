@@ -81,7 +81,7 @@ class FlagellumParams:
     n_flagella: int = 3
     placement_mode: str = "uniform"
     init_mode: str = "legacy_radius_pitch"
-    stub_mode: str = "full_flagella"  # none | minimal_basal_stub | full_flagella
+    stub_mode: str = "full_flagella"  # minimal_basal_stub | full_flagella
     discretization: FlagellaDiscretizationParams = field(
         default_factory=FlagellaDiscretizationParams
     )
@@ -166,6 +166,7 @@ class BodyEquivalentLoadParams:
 
     enabled: bool = False
     mode: str = "none"
+    # 現実装は magnitude-only 運用（符号は無視）。
     target_torque_Nm: float = 0.0
     target_force_N: float = 0.0
     attach_region_id: int = 0
