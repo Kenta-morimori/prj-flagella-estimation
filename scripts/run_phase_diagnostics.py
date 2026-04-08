@@ -130,12 +130,12 @@ def _make_phase_cfg(phase: str, duration_s: float = 0.01) -> SimulationConfig:
         # minimal_basal_stub + actual motor
         base_cfg["flagella"]["n_flagella"] = 1
         base_cfg["flagella"]["stub_mode"] = "minimal_basal_stub"
-        base_cfg["motor"]["torque_Nm"] = 5.0e-20
+        base_cfg["motor"]["torque_Nm"] = 4.0e-21
     elif phase == "phase3":
         # full_flagella + actual motor
         base_cfg["flagella"]["n_flagella"] = 1
         base_cfg["flagella"]["stub_mode"] = "full_flagella"
-        base_cfg["motor"]["torque_Nm"] = 5.0e-20
+        base_cfg["motor"]["torque_Nm"] = 4.0e-21
     else:
         raise ValueError(f"Unknown phase: {phase}")
 

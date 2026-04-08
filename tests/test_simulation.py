@@ -146,7 +146,7 @@ def _make_phase1_cfg(
 
 
 def _make_phase2_cfg(
-    motor_torque_Nm: float = 5.0e-20, duration_s: float = 1.0e-2
+    motor_torque_Nm: float = 4.0e-21, duration_s: float = 1.0e-2
 ) -> SimulationConfig:
     """Phase2: minimal_basal_stub + actual motor."""
     return _make_cfg(
@@ -158,7 +158,7 @@ def _make_phase2_cfg(
 
 
 def _make_phase3_cfg(
-    motor_torque_Nm: float = 5.0e-20, duration_s: float = 1.0e-2
+    motor_torque_Nm: float = 4.0e-21, duration_s: float = 1.0e-2
 ) -> SimulationConfig:
     """Phase3: full_flagella + actual motor."""
     return _make_cfg(
@@ -357,19 +357,19 @@ def test_phase1_canonical_config_buildable() -> None:
 
 def test_phase2_canonical_config_buildable() -> None:
     """Hard test 1: Phase2 canonical config can be constructed."""
-    cfg = _make_phase2_cfg(motor_torque_Nm=5.0e-20, duration_s=0.01)
+    cfg = _make_phase2_cfg(motor_torque_Nm=4.0e-21, duration_s=0.01)
     assert cfg.flagella.n_flagella == 1
     assert cfg.flagella.stub_mode == "minimal_basal_stub"
-    assert cfg.motor.torque_Nm == 5.0e-20
+    assert cfg.motor.torque_Nm == 4.0e-21
     assert cfg.brownian.enabled is False
 
 
 def test_phase3_canonical_config_buildable() -> None:
     """Hard test 1: Phase3 canonical config can be constructed."""
-    cfg = _make_phase3_cfg(motor_torque_Nm=5.0e-20, duration_s=0.01)
+    cfg = _make_phase3_cfg(motor_torque_Nm=4.0e-21, duration_s=0.01)
     assert cfg.flagella.n_flagella == 1
     assert cfg.flagella.stub_mode == "full_flagella"
-    assert cfg.motor.torque_Nm == 5.0e-20
+    assert cfg.motor.torque_Nm == 4.0e-21
     assert cfg.brownian.enabled is False
 
 
@@ -424,8 +424,8 @@ def test_phase1_body_equiv_load_pure_couple_finite_completion(tmp_path: Path) ->
 
 
 def test_phase2_minimal_stub_motor_on_short_run_diagnostics(tmp_path: Path) -> None:
-    """Hard test 5: Phase2 minimal_basal_stub + motor on short-time diagnostics."""
-    cfg = _make_phase2_cfg(motor_torque_Nm=5.0e-20, duration_s=0.01)
+    """Hard test 5: Phase2 minimal_basal_stub + motor on 0.1s diagnostics."""
+    cfg = _make_phase2_cfg(motor_torque_Nm=5.0e-20, duration_s=0.1)
     sim = Simulator(cfg)
     rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "phase2")
 
@@ -441,8 +441,8 @@ def test_phase2_minimal_stub_motor_on_short_run_diagnostics(tmp_path: Path) -> N
 
 
 def test_phase3_full_flagella_motor_on_short_run_diagnostics(tmp_path: Path) -> None:
-    """Hard test 6: Phase3 full_flagella + motor on short-time diagnostics."""
-    cfg = _make_phase3_cfg(motor_torque_Nm=5.0e-20, duration_s=0.01)
+    """Hard test 6: Phase3 full_flagella + motor on 0.1s diagnostics."""
+    cfg = _make_phase3_cfg(motor_torque_Nm=5.0e-20, duration_s=0.1)
     sim = Simulator(cfg)
     rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "phase3")
 

@@ -142,6 +142,72 @@ class DynamicsEngine:
             )[0]
         self.body_bending_rows = np.where(self.model.bending_flag_ids < 0)[0]
         self.flag_bending_rows = np.where(self.model.bending_flag_ids >= 0)[0]
+        self.body_torsion_rows = np.where(self.model.torsion_flag_ids < 0)[0]
+        self.flag_torsion_rows = np.where(self.model.torsion_flag_ids >= 0)[0]
+        self.flag_local_spring_rows = np.zeros((0,), dtype=int)
+        self.flag_nonlocal_spring_rows = self.flag_intra_spring_rows.copy()
+        self.flag_local_bending_rows = np.zeros((0,), dtype=int)
+        self.flag_nonlocal_bending_rows = self.flag_bending_rows.copy()
+        self.flag_local_torsion_rows = np.zeros((0,), dtype=int)
+        self.flag_nonlocal_torsion_rows = self.flag_torsion_rows.copy()
+
+        local_spring_rows: list[int] = []
+        local_bending_rows: list[int] = []
+        local_torsion_rows: list[int] = []
+        for flag_id, flag_idxs in enumerate(self.model.flagella_indices):
+            idx = flag_idxs.astype(int, copy=False)
+            if idx.size >= 2:
+                pair_mask = (
+                    (self.model.spring_pairs[:, 0] == int(idx[0]))
+                    & (self.model.spring_pairs[:, 1] == int(idx[1]))
+                ) | (
+                    (self.model.spring_pairs[:, 0] == int(idx[1]))
+                    & (self.model.spring_pairs[:, 1] == int(idx[0]))
+                )
+                local_spring_rows.extend(np.where(pair_mask)[0].tolist())
+            if idx.size >= 3:
+                bend_mask = (
+                    (self.model.bending_triplets[:, 0] == int(idx[0]))
+                    & (self.model.bending_triplets[:, 1] == int(idx[1]))
+                    & (self.model.bending_triplets[:, 2] == int(idx[2]))
+                )
+                local_bending_rows.extend(np.where(bend_mask)[0].tolist())
+            if idx.size >= 4:
+                torsion_mask = (
+                    (self.model.torsion_quads[:, 0] == int(idx[0]))
+                    & (self.model.torsion_quads[:, 1] == int(idx[1]))
+                    & (self.model.torsion_quads[:, 2] == int(idx[2]))
+                    & (self.model.torsion_quads[:, 3] == int(idx[3]))
+                )
+                local_torsion_rows.extend(np.where(torsion_mask)[0].tolist())
+
+        if local_spring_rows:
+            self.flag_local_spring_rows = np.asarray(
+                sorted(set(local_spring_rows)), dtype=int
+            )
+            self.flag_nonlocal_spring_rows = np.setdiff1d(
+                self.flag_intra_spring_rows,
+                self.flag_local_spring_rows,
+                assume_unique=False,
+            )
+        if local_bending_rows:
+            self.flag_local_bending_rows = np.asarray(
+                sorted(set(local_bending_rows)), dtype=int
+            )
+            self.flag_nonlocal_bending_rows = np.setdiff1d(
+                self.flag_bending_rows,
+                self.flag_local_bending_rows,
+                assume_unique=False,
+            )
+        if local_torsion_rows:
+            self.flag_local_torsion_rows = np.asarray(
+                sorted(set(local_torsion_rows)), dtype=int
+            )
+            self.flag_nonlocal_torsion_rows = np.setdiff1d(
+                self.flag_torsion_rows,
+                self.flag_local_torsion_rows,
+                assume_unique=False,
+            )
         self.body_spring_mask = np.zeros(
             (self.model.spring_pairs.shape[0],),
             dtype=bool,
@@ -158,6 +224,10 @@ class DynamicsEngine:
             self.segment_pair_indices_for_repulsion = self.model.segment_pair_indices
         self.body_indices = self.model.body_indices.astype(int, copy=False)
         self.bead_is_body = self.model.bead_is_body.astype(bool, copy=False)
+        self.motor_local_hook_scale = 8.0
+        self.motor_local_spring_scale = 5.0
+        self.motor_local_bend_scale = 4.0
+        self.motor_local_torsion_scale = 4.0
 
     def set_external_force_callback(
         self,
@@ -418,6 +488,7 @@ class DynamicsEngine:
 
         pos_before = self.model.positions_m.copy()
         pos = pos_before
+        motor_on = not self.cfg.is_motor_off_torque
         spring_forces = np.zeros_like(pos)
         if self.body_spring_rows.size > 0:
             spring_forces += compute_spring_forces(
@@ -430,12 +501,24 @@ class DynamicsEngine:
                 s_limit_m=self.spring_s_m,
                 clamp_eps=1e-3,
             )
-        if self.other_spring_rows.size > 0:
+        if self.flag_local_spring_rows.size > 0:
             spring_forces += compute_spring_forces(
                 positions_m=pos,
-                spring_pairs=self.model.spring_pairs[self.other_spring_rows],
+                spring_pairs=self.model.spring_pairs[self.flag_local_spring_rows],
                 spring_rest_lengths_m=self.model.spring_rest_lengths_m[
-                    self.other_spring_rows
+                    self.flag_local_spring_rows
+                ],
+                h_const=self.spring_h
+                * (self.motor_local_spring_scale if motor_on else 1.0),
+                s_limit_m=self.spring_s_m,
+                clamp_eps=1e-3,
+            )
+        if self.flag_nonlocal_spring_rows.size > 0:
+            spring_forces += compute_spring_forces(
+                positions_m=pos,
+                spring_pairs=self.model.spring_pairs[self.flag_nonlocal_spring_rows],
+                spring_rest_lengths_m=self.model.spring_rest_lengths_m[
+                    self.flag_nonlocal_spring_rows
                 ],
                 h_const=self.spring_h,
                 s_limit_m=self.spring_s_m,
@@ -449,20 +532,41 @@ class DynamicsEngine:
                 theta0_rad=theta0[self.body_bending_rows],
                 kb=self.k_bend * self.body_stiffness_scale,
             )
-        if self.flag_bending_rows.size > 0:
+        if self.flag_local_bending_rows.size > 0:
             bend_forces += compute_bending_forces(
                 positions_m=pos,
-                triplets=self.model.bending_triplets[self.flag_bending_rows],
-                theta0_rad=theta0[self.flag_bending_rows],
+                triplets=self.model.bending_triplets[self.flag_local_bending_rows],
+                theta0_rad=theta0[self.flag_local_bending_rows],
+                kb=self.k_bend
+                * self.flag_bend_stiffness_scale
+                * (self.motor_local_bend_scale if motor_on else 1.0),
+            )
+        if self.flag_nonlocal_bending_rows.size > 0:
+            bend_forces += compute_bending_forces(
+                positions_m=pos,
+                triplets=self.model.bending_triplets[self.flag_nonlocal_bending_rows],
+                theta0_rad=theta0[self.flag_nonlocal_bending_rows],
                 kb=self.k_bend * self.flag_bend_stiffness_scale,
             )
-        torsion_forces = compute_torsion_forces(
-            positions_m=pos,
-            quads=self.model.torsion_quads,
-            phi0_rad=phi0,
-            kt=self.k_torsion * self.flag_torsion_stiffness_scale,
-            fd_eps_m=self.torsion_fd_eps_m,
-        )
+        torsion_forces = np.zeros_like(pos)
+        if self.flag_local_torsion_rows.size > 0:
+            torsion_forces += compute_torsion_forces(
+                positions_m=pos,
+                quads=self.model.torsion_quads[self.flag_local_torsion_rows],
+                phi0_rad=phi0[self.flag_local_torsion_rows],
+                kt=self.k_torsion
+                * self.flag_torsion_stiffness_scale
+                * (self.motor_local_torsion_scale if motor_on else 1.0),
+                fd_eps_m=self.torsion_fd_eps_m,
+            )
+        if self.flag_nonlocal_torsion_rows.size > 0:
+            torsion_forces += compute_torsion_forces(
+                positions_m=pos,
+                quads=self.model.torsion_quads[self.flag_nonlocal_torsion_rows],
+                phi0_rad=phi0[self.flag_nonlocal_torsion_rows],
+                kt=self.k_torsion * self.flag_torsion_stiffness_scale,
+                fd_eps_m=self.torsion_fd_eps_m,
+            )
 
         hook_forces = np.zeros_like(pos)
         if self.cfg.hook.enabled:
@@ -472,6 +576,8 @@ class DynamicsEngine:
                 kb_hook=self.k_hook,
                 threshold_deg=self.cfg.hook.threshold_deg,
             )
+            if motor_on:
+                hook_forces *= self.motor_local_hook_scale
 
         repulsion_forces = compute_segment_repulsion_forces(
             positions_m=pos,
