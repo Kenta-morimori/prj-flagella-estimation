@@ -333,6 +333,7 @@ def compute_motor_forces(
     positions_m: np.ndarray,
     motor_triplets: np.ndarray,
     torque_per_flag: np.ndarray,
+    body_axis_unit: np.ndarray | None = None,
 ) -> tuple[np.ndarray, MotorForceDiagnostics]:
     """Fig.2準拠でモータトルクを2本ボンドの力カップルへ分配する。
 
@@ -362,7 +363,10 @@ def compute_motor_forces(
     ta_dot_ra_abs_sum = 0.0
     tb_dot_rb_abs_sum = 0.0
     r2_eps = 1e-30
-    preload_attach_first_scale = 0.01
+    preload_attach_first_scale_low_angle = -0.01
+    preload_attach_first_scale_high_angle = 0.015
+    preload_attach_first_angle_mid_deg = 60.0
+    preload_attach_first_angle_width_deg = 8.0
     preload_first_second_scale = 0.01
 
     for idx, (ib, jf, kf) in enumerate(motor_triplets):
@@ -437,7 +441,33 @@ def compute_motor_forces(
         u_b = r_b / rb_len
         ref_attach = abs(tau) / ra_len
         ref_second = abs(tau) / rb_len
-        c_a = preload_attach_first_scale * ref_attach
+        if body_axis_unit is not None:
+            body_axis = np.asarray(body_axis_unit, dtype=float)
+            body_axis_norm = max(float(np.linalg.norm(body_axis)), 1e-18)
+            rear_dir = -body_axis / body_axis_norm
+            axis_dot = float(np.clip(np.dot(u_b, rear_dir), -1.0, 1.0))
+            axis_deg = math.degrees(math.acos(axis_dot))
+            axis_x = (axis_deg - preload_attach_first_angle_mid_deg) / max(
+                preload_attach_first_angle_width_deg, 1e-12
+            )
+            axis_weight = 1.0 / (1.0 + math.exp(-axis_x))
+            attach_scale = (
+                preload_attach_first_scale_low_angle
+                + (
+                    preload_attach_first_scale_high_angle
+                    - preload_attach_first_scale_low_angle
+                )
+                * axis_weight
+            )
+        else:
+            bend_cos = float(np.clip(np.dot(u_a, u_b), -1.0, 1.0))
+            bend_deg = math.degrees(math.acos(bend_cos))
+            attach_scale = (
+                preload_attach_first_scale_high_angle
+                if bend_deg >= preload_attach_first_angle_mid_deg
+                else preload_attach_first_scale_low_angle
+            )
+        c_a = attach_scale * ref_attach
         c_b = preload_first_second_scale * ref_second
 
         motor_attach += c_a * u_a

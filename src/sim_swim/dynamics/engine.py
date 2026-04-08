@@ -599,6 +599,7 @@ class DynamicsEngine:
                 positions_m=pos,
                 motor_triplets=self.model.motor_triplets,
                 torque_per_flag=torque_per_flag,
+                body_axis_unit=self._body_axis_unit(pos),
             )
         motor_axis_vs_rear_direction_angle_deg = (
             self._motor_axis_vs_rear_direction_angle_deg(pos)
