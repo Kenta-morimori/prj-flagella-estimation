@@ -76,12 +76,26 @@ class FlagellaHelixInitParams:
 
 @dataclass(frozen=True)
 class FlagellumParams:
-    """べん毛設定。"""
+    """べん毛設定。
+
+    フェーズ定義との対応:
+    - Phase0a: n_flagella=0 (no flagella, body only)
+    - Phase0b: n_flagella=1, stub_mode='minimal_basal_stub', motor.torque_Nm=0
+               (body + hook + 3-bead minimal flagellar stub, motor off)
+    - Phase1: n_flagella=0, body_equiv_load.mode='pure_couple'
+              (body only with surrogate torque input, no flagella)
+    - Phase2: n_flagella=1, stub_mode='minimal_basal_stub', motor.torque_Nm!=0
+              (minimal stub with actual motor torque)
+    - Phase3: n_flagella=1, stub_mode='full_flagella', motor.torque_Nm!=0
+              (full flagella with actual motor torque)
+    """
 
     n_flagella: int = 3
     placement_mode: str = "uniform"
     init_mode: str = "legacy_radius_pitch"
     stub_mode: str = "full_flagella"  # minimal_basal_stub | full_flagella
+    # stub_mode='minimal_basal_stub': body + hook + 3 beads (attach, first, second)
+    # stub_mode='full_flagella': full flagellum (body attach + n_beads_per_flagellum)
     discretization: FlagellaDiscretizationParams = field(
         default_factory=FlagellaDiscretizationParams
     )
@@ -162,11 +176,19 @@ class HookParams:
 
 @dataclass(frozen=True)
 class BodyEquivalentLoadParams:
-    """body-only切り分け用の等価荷重設定。"""
+    """body-only切り分け用の等価荷重設定。
+
+    Phase1の主目的は、actual motor torque を導入する前に、
+    body が純回転入力（surrogate torque）に耐えるかを切り分けること。
+    enable=True, mode='pure_couple' として使用。
+
+    - enable=False: body_equiv_load 無効（Phase0a, 0b, 2, 3）
+    - enable=True, mode='pure_couple': body-only surrogate torque 投入（Phase1）
+    - 現実装は magnitude-only 運用（符号は無視）
+    """
 
     enabled: bool = False
     mode: str = "none"
-    # 現実装は magnitude-only 運用（符号は無視）。
     target_torque_Nm: float = 0.0
     target_force_N: float = 0.0
     attach_region_id: int = 0

@@ -103,6 +103,72 @@ def _make_cfg(
     )
 
 
+def _make_phase0a_cfg(duration_s: float = 1.0e-2) -> SimulationConfig:
+    """Phase0a: body-only static (no flagella, motor off)."""
+    return _make_cfg(
+        motor_torque_Nm=0.0,
+        n_flagella=0,
+        duration_s=duration_s,
+    )
+
+
+def _make_phase0b_cfg(duration_s: float = 1.0e-2) -> SimulationConfig:
+    """Phase0b: body + hook + minimal_basal_stub static (motor off)."""
+    return _make_cfg(
+        motor_torque_Nm=0.0,
+        n_flagella=1,
+        stub_mode="minimal_basal_stub",
+        duration_s=duration_s,
+    )
+
+
+def _make_phase1_cfg(
+    surrogate_torque_Nm: float = 1.0e-20, duration_s: float = 1.0e-2
+) -> SimulationConfig:
+    """Phase1: body-only surrogate torque (no flagella, body_equiv_load enabled)."""
+    from dataclasses import asdict
+
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0,
+        n_flagella=0,
+        duration_s=duration_s,
+    )
+    # body_equiv_load を有効化
+    cfg_dict = asdict(cfg)
+    cfg_dict["body_equiv_load"] = {
+        "enabled": True,
+        "mode": "pure_couple",
+        "target_torque_Nm": surrogate_torque_Nm,
+        "target_force_N": 0.0,
+        "attach_region_id": 0,
+    }
+    return SimulationConfig.from_dict(cfg_dict)
+
+
+def _make_phase2_cfg(
+    motor_torque_Nm: float = 5.0e-20, duration_s: float = 1.0e-2
+) -> SimulationConfig:
+    """Phase2: minimal_basal_stub + actual motor."""
+    return _make_cfg(
+        motor_torque_Nm=motor_torque_Nm,
+        n_flagella=1,
+        stub_mode="minimal_basal_stub",
+        duration_s=duration_s,
+    )
+
+
+def _make_phase3_cfg(
+    motor_torque_Nm: float = 5.0e-20, duration_s: float = 1.0e-2
+) -> SimulationConfig:
+    """Phase3: full_flagella + actual motor."""
+    return _make_cfg(
+        motor_torque_Nm=motor_torque_Nm,
+        n_flagella=1,
+        stub_mode="full_flagella",
+        duration_s=duration_s,
+    )
+
+
 def _run_and_load_step_summary(
     sim: Simulator, duration_s: float, summary_dir: Path
 ) -> list[dict[str, str]]:
@@ -254,3 +320,147 @@ def test_torsion_fd_eps_sweep_is_traceable_and_reduces_step0_torsion_force(
 
     assert torsion_force_step0[1] < torsion_force_step0[0]
     assert torsion_force_step0[2] < torsion_force_step0[0]
+
+
+# ==============================================================================
+# Phase-gated tests (Issue #37: phase-based decoupling)
+# ==============================================================================
+
+
+def test_phase0a_canonical_config_buildable() -> None:
+    """Hard test 1: Phase0a canonical config can be constructed."""
+    cfg = _make_phase0a_cfg(duration_s=0.01)
+    assert cfg.flagella.n_flagella == 0
+    assert cfg.motor.torque_Nm == 0.0
+    assert cfg.brownian.enabled is False
+    assert cfg.run_tumble.run_tau > 0  # switching off (long tau)
+
+
+def test_phase0b_canonical_config_buildable() -> None:
+    """Hard test 1: Phase0b canonical config can be constructed."""
+    cfg = _make_phase0b_cfg(duration_s=0.01)
+    assert cfg.flagella.n_flagella == 1
+    assert cfg.flagella.stub_mode == "minimal_basal_stub"
+    assert cfg.motor.torque_Nm == 0.0
+    assert cfg.brownian.enabled is False
+
+
+def test_phase1_canonical_config_buildable() -> None:
+    """Hard test 1: Phase1 canonical config can be constructed."""
+    cfg = _make_phase1_cfg(surrogate_torque_Nm=1.0e-20, duration_s=0.01)
+    assert cfg.flagella.n_flagella == 0
+    assert cfg.motor.torque_Nm == 0.0
+    assert cfg.body_equiv_load.enabled is True
+    assert cfg.body_equiv_load.mode == "pure_couple"
+    assert cfg.brownian.enabled is False
+
+
+def test_phase2_canonical_config_buildable() -> None:
+    """Hard test 1: Phase2 canonical config can be constructed."""
+    cfg = _make_phase2_cfg(motor_torque_Nm=5.0e-20, duration_s=0.01)
+    assert cfg.flagella.n_flagella == 1
+    assert cfg.flagella.stub_mode == "minimal_basal_stub"
+    assert cfg.motor.torque_Nm == 5.0e-20
+    assert cfg.brownian.enabled is False
+
+
+def test_phase3_canonical_config_buildable() -> None:
+    """Hard test 1: Phase3 canonical config can be constructed."""
+    cfg = _make_phase3_cfg(motor_torque_Nm=5.0e-20, duration_s=0.01)
+    assert cfg.flagella.n_flagella == 1
+    assert cfg.flagella.stub_mode == "full_flagella"
+    assert cfg.motor.torque_Nm == 5.0e-20
+    assert cfg.brownian.enabled is False
+
+
+def test_phase0a_body_only_finite_completion(tmp_path: Path) -> None:
+    """Hard test 2: Phase0a body-only finite completion."""
+    cfg = _make_phase0a_cfg(duration_s=0.01)
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "phase0a")
+
+    assert len(rows) >= 1
+    # All steps finite
+    for r in rows:
+        assert r["pos_all_finite"] in {"True", "true", "1"}
+        assert r["any_nan"] in {"False", "false", "0"}
+        assert r["any_inf"] in {"False", "false", "0"}
+
+
+def test_phase0b_minimal_stub_motor_off_finite_completion(tmp_path: Path) -> None:
+    """Hard test 3: Phase0b minimal_basal_stub/motor off finite completion."""
+    cfg = _make_phase0b_cfg(duration_s=0.01)
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "phase0b")
+
+    assert len(rows) >= 1
+    # All steps finite
+    for r in rows:
+        assert r["pos_all_finite"] in {"True", "true", "1"}
+        assert r["any_nan"] in {"False", "false", "0"}
+        assert r["any_inf"] in {"False", "false", "0"}
+    # Check diagnostics present
+    first = rows[0]
+    assert float(first["local_attach_first_rel_err"]) >= 0.0
+    assert float(first["local_first_second_rel_err"]) >= 0.0
+
+
+def test_phase1_body_equiv_load_pure_couple_finite_completion(tmp_path: Path) -> None:
+    """Hard test 4: Phase1 body-only + pure_couple finite completion & diagnostics."""
+    cfg = _make_phase1_cfg(surrogate_torque_Nm=1.0e-20, duration_s=0.01)
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "phase1")
+
+    assert len(rows) >= 1
+    # All steps finite
+    for r in rows:
+        assert r["pos_all_finite"] in {"True", "true", "1"}
+        assert r["any_nan"] in {"False", "false", "0"}
+        assert r["any_inf"] in {"False", "false", "0"}
+    # body_equiv_load active
+    first = rows[0]
+    assert first["body_equiv_load_mode"] == "pure_couple"
+    assert float(first["body_equiv_load_target_torque_Nm"]) == 1.0e-20
+
+
+def test_phase2_minimal_stub_motor_on_short_run_diagnostics(tmp_path: Path) -> None:
+    """Hard test 5: Phase2 minimal_basal_stub + motor on short-time diagnostics."""
+    cfg = _make_phase2_cfg(motor_torque_Nm=5.0e-20, duration_s=0.01)
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "phase2")
+
+    assert len(rows) >= 1
+    first = rows[0]
+    # Motor diagnostics present
+    assert "motor_Ta_norm" in first
+    assert "motor_split_residual_norm" in first
+    assert "motor_attach_force_norm" in first
+    # Basal diagnostics present
+    assert "local_attach_first_rel_err" in first
+    assert "local_first_second_rel_err" in first
+
+
+def test_phase3_full_flagella_motor_on_short_run_diagnostics(tmp_path: Path) -> None:
+    """Hard test 6: Phase3 full_flagella + motor on short-time diagnostics."""
+    cfg = _make_phase3_cfg(motor_torque_Nm=5.0e-20, duration_s=0.01)
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "phase3")
+
+    assert len(rows) >= 1
+    first = rows[0]
+    # Full flagella diagnostics present
+    assert "flag_bend_err_max_deg" in first
+    assert "flag_torsion_err_max_deg" in first
+    assert "flag_bond_rel_err_max" in first
+    # Basal diagnostics still present
+    assert "local_attach_first_rel_err" in first
+
+
+def test_sim_diagnostics_docs_file_exists() -> None:
+    """Hard test 7: Verify sim_diagnostics.md exists (docs update rule)."""
+    from pathlib import Path as PathlibPath
+
+    docs_path = (
+        PathlibPath(__file__).parent.parent / "docs" / "phase2" / "sim_diagnostics.md"
+    )
+    assert docs_path.is_file(), f"sim_diagnostics.md missing at {docs_path}"
