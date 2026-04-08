@@ -362,7 +362,7 @@ def compute_motor_forces(
     ta_dot_ra_abs_sum = 0.0
     tb_dot_rb_abs_sum = 0.0
     r2_eps = 1e-30
-    preload_attach_first_scale = -0.01
+    preload_attach_first_scale = 0.01
     preload_first_second_scale = 0.01
 
     for idx, (ib, jf, kf) in enumerate(motor_triplets):
