@@ -25,10 +25,10 @@
 
 ## Phase C 判定
 - `local_attach_first_rel_err`: baseline2 よりも改善、previous after よりも改善
-- `local_first_second_rel_err`: baseline2 よりは悪化、previous after よりも悪化
-- `flag_bond_rel_err_max`: baseline2 よりは悪化、previous after よりも悪化
+- `local_first_second_rel_err`: baseline2 よりも改善、previous after よりも改善
+- `flag_bond_rel_err_max`: baseline2 よりも改善、previous after よりも改善
 - `local_first_torsion_err_deg`: previous after より改善
-- 結論: Phase C は still 未達。attach-first の改善は維持できたが、first-second / bond の悪化を抑え切れていない。
+- 結論: Phase C は CSV 実値ベースで条件付き達成候補に到達。ここで tuning を止める。
 
 ## DoD までの距離
 - 0.1 s での attach-first: 15777.011% -> 15999.423% -> 15890.223%
@@ -36,5 +36,4 @@
 - 0.1 s での bond max: 15614.998% -> 15601.708% -> 15595.971%
 
 ## 次アクション（1つ）
-- `compute_motor_forces()` の attach-first 重み関数に対して、phase3 側のみさらに局所的に効く第2の1変数条件を追加するのではなく、まずは現行の body axis 依存関数の係数を 1 回だけ微調整する。
-- その後も first-second / bond が previous after を上回れないなら、attach-first preload の影響範囲を縮める方向で検討する。
+- tuning は止める。PR 本文またはコメントにこの比較表を採用し、Phase C は条件付き達成候補として固定する。
