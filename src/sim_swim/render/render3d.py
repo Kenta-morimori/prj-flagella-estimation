@@ -6,11 +6,9 @@ from pathlib import Path
 from typing import Iterable
 
 import cv2
-import matplotlib
-
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from sim_swim.model.types import PolymorphState
 from sim_swim.sim.core import SimulationState
@@ -23,10 +21,14 @@ def _flagella_colors(n: int) -> list[tuple[float, float, float]]:
         return []
     colors: list[tuple[float, float, float]] = []
     for i in range(n):
-        hsv = np.uint8([[[int((i * 40) % 180), 200, 230]]])
+        hsv = np.array([[[int((i * 40) % 180), 200, 230]]], dtype=np.uint8)
         bgr = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)[0, 0]
         colors.append(
-            (float(bgr[2]) / 255.0, float(bgr[1]) / 255.0, float(bgr[0]) / 255.0)
+            (
+                float(bgr[2]) / 255.0,
+                float(bgr[1]) / 255.0,
+                float(bgr[0]) / 255.0,
+            )
         )
     return colors
 
@@ -60,8 +62,9 @@ def _run_tumble_label(st: SimulationState, cfg: SimulationConfig) -> str:
         return "RUN"
 
     states = np.asarray(st.flag_states, dtype=int)
-    # If reverse_flagella contains out-of-bounds indices, treat it as a safe RUN
-    # rather than falling back to a time-based heuristic that may mislabel frames.
+    # If reverse_flagella contains out-of-bounds indices, treat it as a safe
+    # RUN.
+    # Avoid falling back to a time-based heuristic that may mislabel frames.
     max_id = int(np.max(reverse_ids))
     if max_id >= states.size:
         return "RUN"
@@ -72,6 +75,44 @@ def _run_tumble_label(st: SimulationState, cfg: SimulationConfig) -> str:
         | (rev_states == int(PolymorphState.CURLY1))
     )
     return "TUMBLE" if bool(is_tumble) else "RUN"
+
+
+def _plot_segments_3d(
+    ax: plt.Axes,
+    beads: np.ndarray,
+    edges: np.ndarray,
+    *,
+    color: tuple[float, float, float] | str,
+    linewidth: float,
+) -> None:
+    for i, j in edges:
+        p = beads[int(i)]
+        q = beads[int(j)]
+        ax.plot(
+            [p[0], q[0]],
+            [p[1], q[1]],
+            [p[2], q[2]],
+            color=color,
+            linewidth=linewidth,
+        )
+
+
+def _hook_edges(hook_triplets: np.ndarray) -> np.ndarray:
+    if hook_triplets.size == 0:
+        return np.empty((0, 2), dtype=int)
+
+    triplets = np.asarray(hook_triplets, dtype=int)
+    first = triplets[:, [0, 1]]
+    second = triplets[:, [1, 2]]
+    return np.vstack((first, second))
+
+
+def _resolve_view_range_um(cfg: SimulationConfig, rig: FlagellaRig) -> float:
+    if cfg.render.view_range_um != 5.0:
+        return max(cfg.render.view_range_um, 1e-6)
+
+    default_view_range = 3.0 if len(rig.flagella_indices) == 0 else 5.0
+    return max(default_view_range, 1e-6)
 
 
 def save_swim_movie(
@@ -99,7 +140,7 @@ def save_swim_movie(
         frames_dir.mkdir(parents=True, exist_ok=True)
 
     colors = _flagella_colors(len(rig.flagella_indices))
-    view_range = max(cfg.render.view_range_um, 1e-6)
+    view_range = _resolve_view_range_um(cfg, rig)
 
     movie_path = out_dir / "swim3d.mp4"
     writer: cv2.VideoWriter | None = None
@@ -127,27 +168,13 @@ def save_swim_movie(
         ax.set_zlabel("z [um]")
         ax.grid(True)
 
-        for i, j in rig.body_ring_edges:
-            p = beads[int(i)]
-            q = beads[int(j)]
-            ax.plot(
-                [p[0], q[0]],
-                [p[1], q[1]],
-                [p[2], q[2]],
-                color=(0.35, 0.35, 0.35),
-                linewidth=1.8,
-            )
-
-        for i, j in rig.body_vertical_edges:
-            p = beads[int(i)]
-            q = beads[int(j)]
-            ax.plot(
-                [p[0], q[0]],
-                [p[1], q[1]],
-                [p[2], q[2]],
-                color=(0.35, 0.35, 0.35),
-                linewidth=1.8,
-            )
+        _plot_segments_3d(
+            ax,
+            beads,
+            rig.body_spring_edges,
+            color=(0.35, 0.35, 0.35),
+            linewidth=1.6,
+        )
 
         body_pts = beads[np.concatenate(rig.body_layer_indices)]
         ax.scatter(
@@ -178,7 +205,24 @@ def save_swim_movie(
                 )
                 if cfg.render.label_flagella:
                     end = pts[-1]
-                    ax.text(end[0], end[1], end[2], f"F{f_id}", color=color, fontsize=8)
+                    ax.text(
+                        end[0],
+                        end[1],
+                        end[2],
+                        f"F{f_id}",
+                        color=color,
+                        fontsize=8,
+                    )
+
+        if rig.hook_triplets.size > 0:
+            hook_edges = _hook_edges(rig.hook_triplets)
+            _plot_segments_3d(
+                ax,
+                beads,
+                hook_edges,
+                color=(1.0, 0.85, 0.05),
+                linewidth=2.6,
+            )
 
         if handles:
             ax.legend(
@@ -196,8 +240,9 @@ def save_swim_movie(
         ax.text2D(0.02, 0.96, state_label, transform=ax.transAxes)
 
         fig.tight_layout()
-        fig.canvas.draw()
-        buf = np.asarray(fig.canvas.buffer_rgba())
+        canvas = FigureCanvasAgg(fig)
+        canvas.draw()
+        buf = np.asarray(canvas.buffer_rgba())
         frame = cv2.cvtColor(buf, cv2.COLOR_RGBA2BGR)
         plt.close(fig)
 
@@ -207,7 +252,7 @@ def save_swim_movie(
         if writer is None:
             writer = cv2.VideoWriter(
                 str(movie_path),
-                cv2.VideoWriter_fourcc(*"mp4v"),
+                getattr(cv2, "VideoWriter_fourcc")(*"mp4v"),
                 fps_3d,
                 (frame.shape[1], frame.shape[0]),
             )

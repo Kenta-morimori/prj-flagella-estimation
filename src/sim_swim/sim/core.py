@@ -204,9 +204,20 @@ class Simulator:
             body_layer_indices=[arr.copy() for arr in self.model.body_layer_indices],
             body_ring_edges=self.model.body_ring_edges.copy(),
             body_vertical_edges=self.model.body_vertical_edges.copy(),
+            body_spring_edges=self._body_spring_edges_for_render(),
             flagella_indices=[arr.copy() for arr in self.model.flagella_indices],
+            hook_triplets=self.model.hook_triplets.copy(),
         )
         self.initial_geometry_summary = self._build_initial_geometry_summary()
+
+    def _body_spring_edges_for_render(self) -> np.ndarray:
+        pairs = self.model.spring_pairs
+        if pairs.size == 0:
+            return np.zeros((0, 2), dtype=int)
+        bi = self.model.bead_is_body[pairs[:, 0]]
+        bj = self.model.bead_is_body[pairs[:, 1]]
+        body_rows = np.where(bi & bj)[0]
+        return pairs[body_rows].astype(int, copy=True)
 
     def _build_initial_geometry_summary(self) -> dict[str, Any]:
         pos = self.model.positions_m

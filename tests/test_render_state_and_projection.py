@@ -3,7 +3,13 @@ from __future__ import annotations
 import numpy as np
 
 from sim_swim.render.project2d import _camera_center_2d
-from sim_swim.render.render3d import _run_tumble_label
+from sim_swim.render.render3d import (
+    _hook_edges,
+    _resolve_view_range_um,
+    _run_tumble_label,
+    save_swim_movie,
+)
+from sim_swim.sim.flagella_geometry import FlagellaRig
 from sim_swim.sim.core import SimulationState
 from sim_swim.sim.params import SimulationConfig
 
@@ -99,3 +105,100 @@ def test_run_tumble_label_is_always_run_when_switching_disabled() -> None:
     )
 
     assert _run_tumble_label(_state(), cfg) == "RUN"
+
+
+def test_hook_edges_expand_triplets_into_two_segments() -> None:
+    triplets = np.array([[1, 4, 5], [2, 6, 7]], dtype=int)
+
+    edges = _hook_edges(triplets)
+
+    assert edges.shape == (4, 2)
+    assert np.array_equal(edges, np.array([[1, 4], [2, 6], [4, 5], [6, 7]]))
+
+
+def test_view_range_defaults_to_3_when_no_flagella_are_present() -> None:
+    cfg = _make_cfg(
+        center_body_in_2d=True,
+        follow_camera_2d=False,
+        enable_switching=False,
+    )
+    rig = FlagellaRig(
+        body_layer_indices=[np.array([0, 1, 2, 3], dtype=int)],
+        body_ring_edges=np.array([[0, 1]], dtype=int),
+        body_vertical_edges=np.array([[1, 2]], dtype=int),
+        body_spring_edges=np.array([[0, 1]], dtype=int),
+        flagella_indices=[],
+        hook_triplets=np.array([], dtype=int).reshape(0, 3),
+    )
+
+    assert _resolve_view_range_um(cfg, rig) == 3.0
+
+
+def test_save_swim_movie_emits_render_outputs(tmp_path, monkeypatch) -> None:
+    cfg = _make_cfg(
+        center_body_in_2d=True,
+        follow_camera_2d=False,
+        enable_switching=False,
+    )
+
+    beads = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [3.0, 0.0, 0.0],
+            [3.0, 1.0, 0.0],
+            [3.0, 2.0, 0.0],
+        ],
+        dtype=float,
+    )
+    state = SimulationState(
+        t=0.0,
+        position_um=(0.0, 0.0, 0.0),
+        quaternion=(0.0, 0.0, 0.0, 1.0),
+        velocity_um_s=(0.0, 0.0, 0.0),
+        omega_rad_s=(0.0, 0.0, 0.0),
+        bead_positions_um=beads,
+        flag_states=(0,),
+        reverse_flagella=(0,),
+    )
+    rig = FlagellaRig(
+        body_layer_indices=[np.array([0, 1, 2, 3], dtype=int)],
+        body_ring_edges=np.array([[0, 1], [1, 2]], dtype=int),
+        body_vertical_edges=np.array([[2, 3]], dtype=int),
+        body_spring_edges=np.array([[0, 1], [1, 2], [2, 3]], dtype=int),
+        flagella_indices=[np.array([3, 4, 5], dtype=int)],
+        hook_triplets=np.array([[1, 4, 5]], dtype=int),
+    )
+
+    class DummyWriter:
+        def __init__(self) -> None:
+            self.frame_shape = None
+            self.write_calls = 0
+            self.released = False
+
+        def write(self, frame) -> None:
+            self.frame_shape = frame.shape
+            self.write_calls += 1
+
+        def release(self) -> None:
+            self.released = True
+
+    writer_calls: list[DummyWriter] = []
+
+    def make_writer(*args, **kwargs) -> DummyWriter:
+        writer = DummyWriter()
+        writer_calls.append(writer)
+        return writer
+
+    monkeypatch.setattr(
+        "sim_swim.render.render3d.cv2.VideoWriter",
+        make_writer,
+    )
+
+    save_swim_movie([state], cfg, rig, tmp_path)
+
+    assert (tmp_path / "swim3d_final.png").exists()
+    assert (tmp_path / "frames_3d" / "frame_000000.png").exists()
+    assert len(writer_calls) == 1
+    assert writer_calls[0].write_calls > 0
