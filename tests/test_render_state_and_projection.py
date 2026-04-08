@@ -172,19 +172,33 @@ def test_save_swim_movie_emits_render_outputs(tmp_path, monkeypatch) -> None:
     )
 
     class DummyWriter:
+        def __init__(self) -> None:
+            self.frame_shape = None
+            self.write_calls = 0
+            self.released = False
+
         def write(self, frame) -> None:
             self.frame_shape = frame.shape
+            self.write_calls += 1
 
         def release(self) -> None:
-            pass
+            self.released = True
+
+    writer_calls: list[DummyWriter] = []
+
+    def make_writer(*args, **kwargs) -> DummyWriter:
+        writer = DummyWriter()
+        writer_calls.append(writer)
+        return writer
 
     monkeypatch.setattr(
         "sim_swim.render.render3d.cv2.VideoWriter",
-        lambda *args, **kwargs: DummyWriter(),
+        make_writer,
     )
 
     save_swim_movie([state], cfg, rig, tmp_path)
 
     assert (tmp_path / "swim3d_final.png").exists()
-    assert not (tmp_path / "swim3d.mp4").exists()
     assert (tmp_path / "frames_3d" / "frame_000000.png").exists()
+    assert len(writer_calls) == 1
+    assert writer_calls[0].write_calls > 0
