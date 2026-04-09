@@ -1355,3 +1355,66 @@ These are symptom treatments, not root-cause fixes.
 **minimal_basal_stub の幾何モデル妥当性（3-bead stub 前提）を先に検証し、
 現在の torque 条件下で shape-preserving finite が理論的に可能かを切り分けること。**
 
+---
+
+## 8.14 motor.torque_Nm = 4e-21 の妥当性確認（2026-04-09）
+
+### 8.14.1 現在の baseline 条件（確定版）
+
+- Phase B canonical: `n_flagella=1`, `stub_mode=minimal_basal_stub`, `duration=0.1 s`
+- motor: `torque_Nm=4e-21`, switching off, Brownian off
+- spring baseline: `H_over_T_over_b=20`, `s=0.2`
+- preload / midpoint / split / local constraint: 現状固定（追加調整しない）
+- 判定 source of truth: `step_summary.csv`
+
+### 8.14.2 コード観点の再確認（torque の意味）
+
+`SimulationConfig` と `DynamicsEngine` では、以下のスケーリングを採用している。
+
+- motor torque 入力: `cfg.motor_torque_Nm`
+- 力学係数スケール: `torque_for_forces_Nm = |motor_torque_Nm|`
+- 代表式:
+  - `spring_h = H_over_T_over_b * torque / b`
+  - `k_bend = kb_over_T * torque`
+  - `k_torsion = kt_over_T * torque`
+  - `repulsion_A = A_ss_over_T * torque`
+
+したがって、torque を変更すると motor だけでなく主要剛性側も同時に比例スケールされる。
+この実装では、torque 値単独の変更は「絶対力の大きさ」を変える一方、
+局所の相対バランスを劇的に変える手段になりにくい。
+
+### 8.14.3 canonical scale との整合（無次元化チェック）
+
+現 baseline (`b=1 um`, `eta=1e-3 Pa·s`) では:
+
+- `eta * b^3 = 1e-21 N·m`
+- `motor.torque_Nm = 4e-21 N·m` は `tau* = T/(eta b^3) = 4`
+- 単位換算では `4e-21 N·m = 4 pN·nm`
+
+解釈:
+- 0037.md に明記の通り、`4e-21` は strict な論文再現値ではなく
+  **比較・安定化用の canonical debug 条件**。
+- 文献一般で言及される E. coli 系 stall torque はしばしば `1e-18 N·m` オーダー
+  （~`10^3 pN·nm`）であり、`4e-21` はそのオーダーより小さい。
+
+### 8.14.4 torque scale vs stub assumption の切り分け
+
+現状観測:
+- `4e-21`（既に小さい側）でも Phase B shape 指標は 3桁超過で未達。
+- preload / weighting / split / ramp（linear, smoothstep）を触っても未達。
+
+このため、優先仮説は次の順序とする。
+
+1. **先に疑うべき: minimal_basal_stub 仮定（3-bead 近傍幾何）**
+   - 現行 torque 条件でも過伸長を抑え切れない。
+   - 局所調整の自由度内で改善余地が尽きている。
+2. torque scale の再設定は二段目
+   - ただし "下げれば通る" は禁止。
+   - 文献整合の最終フェーズでは、むしろ大きい torque 側の整合検証が必要。
+
+### 8.14.5 次に実装で触るべき点（1つ）
+
+**minimal_basal_stub の幾何仮定を検証するため、Phase0b/PhaseB 間で
+attach-first/first-second の基準長と許容伸長率のモデル整合チェックを追加し、
+「現行3-bead stubで strict gate が構造的に到達可能か」を先に判定する。**
+
