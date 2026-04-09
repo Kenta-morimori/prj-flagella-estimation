@@ -1418,3 +1418,61 @@ These are symptom treatments, not root-cause fixes.
 attach-first/first-second の基準長と許容伸長率のモデル整合チェックを追加し、
 「現行3-bead stubで strict gate が構造的に到達可能か」を先に判定する。**
 
+---
+
+## 8.15 minimal_basal_stub（3-bead）での strict gate 到達可能性チェック（2026-04-09）
+
+### 8.15.1 比較条件
+
+- source of truth: `outputs/phase_diagnostics_stub_feasibility/*/step_summary.csv`
+- 比較対象:
+  - Phase0b（motor off, 0.1 s）
+  - PhaseB（motor 4e-21, 0.1 s）
+- 初期幾何（両者共通）:
+  - `stub_mode=minimal_basal_stub`
+  - `bead_count=3`
+  - `bond_L_over_b=0.58`
+  - `initial_attach_first_length_um=0.25`
+
+### 8.15.2 末端 step 実測（0.1 s）
+
+| Metric | Phase0b | PhaseB | PhaseB / Phase0b |
+|---|---:|---:|---:|
+| local_attach_first_len_over_b | 3.5927 | 4.9508 | 1.38x |
+| local_first_second_len_over_b | 4.7418 | 6.4270 | 1.36x |
+| local_second_third_len_over_b | 4.5432 | 7.8238 | 1.72x |
+| local_attach_first_rel_err | 1337.09% | 1880.30% | 1.41x |
+| local_first_second_rel_err | 717.56% | 1008.11% | 1.40x |
+| local_second_third_rel_err | 683.30% | 1248.94% | 1.83x |
+| local_basal_bend_err_deg | 65.14° | 47.76° | 0.73x |
+
+所見:
+- motor off の Phase0b 時点で、local bond 系はすでに strict gate を大幅超過。
+- motor on（PhaseB）で悪化倍率は 1.36x〜1.83x だが、崩壊の起点は motor on 前から存在。
+- したがって、現状未達は「motor split/ramp のみの問題」ではなく、
+  minimal_basal_stub の構造仮定を含む幾何側ボトルネックが主因と判断する。
+
+### 8.15.3 strict gate 項目ごとの到達可能性（現行 3-bead stub 前提）
+
+| 項目 | 現状観測 | 到達可能性判定 |
+|---|---|---|
+| `pos_all_finite=true` / `any_nan=false` / `any_inf=false` | Phase0b/PhaseB とも達成 | likely reachable（実績あり） |
+| motor diagnostics（degenerate/rank_deficient/clipped = 0） | PhaseB で全 0 | likely reachable（実績あり） |
+| `local_attach_first_rel_err <= 0.5` | 13.37（Phase0b）〜18.80（PhaseB） | likely structurally impossible（現行前提では困難） |
+| `local_first_second_rel_err <= 0.5` | 7.18〜10.08 | likely structurally impossible（現行前提では困難） |
+| `local_second_third_rel_err <= 0.5` | 6.83〜12.49 | likely structurally impossible（現行前提では困難） |
+| `flag_bond_rel_err_max <= 0.5` | PhaseB 12.49 | likely structurally impossible（現行前提では困難） |
+| `local_basal_bend_err_deg <= 45` | 65.14°（Phase0b）, 47.76°（PhaseB） | 境界近傍だが未達（単独改善では不十分） |
+
+結論:
+- strict gate は「数値有限性」と「motor 診断」については到達済み。
+- 一方、local bond 系 hard gate は 1桁ではなく 1〜2 桁超過しており、
+  現行 minimal_basal_stub（3-bead）前提のままでは構造的に到達困難と判定する。
+
+### 8.15.4 次の実装アクション（1つだけ）
+
+**minimal_basal_stub の 3-bead 仮定を置き換える比較実装を 1 本だけ入れる（例: basal 近傍 bead 数を増やす拡張 stub モードを追加）**。
+
+目的は、同一 canonical torque（4e-21）で local bond 系誤差が 1桁以上縮小するかを先に確認し、
+strict gate の「構造到達性」を判定すること。
+
