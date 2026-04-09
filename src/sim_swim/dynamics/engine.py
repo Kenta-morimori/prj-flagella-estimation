@@ -378,6 +378,15 @@ class DynamicsEngine:
             return float("nan")
         return float(np.mean(np.asarray(angles_deg, dtype=float)))
 
+    def _motor_torque_ramp_scale(self) -> float:
+        if not self.cfg.motor.torque_ramp_enabled:
+            return 1.0
+        duration_s = max(float(self.cfg.motor.torque_ramp_duration_s), 0.0)
+        if duration_s <= 0.0:
+            return 1.0
+        t_s = max(float(self.t_star * self.cfg.tau_s), 0.0)
+        return float(min(1.0, t_s / duration_s))
+
     def _body_equiv_load_forces(self, positions_m: np.ndarray) -> np.ndarray:
         out = np.zeros_like(positions_m)
         cfg = self.cfg.body_equiv_load
@@ -591,10 +600,10 @@ class DynamicsEngine:
         motor_forces = np.zeros_like(pos)
         motor_diag = MotorForceDiagnostics()
         if self.model.motor_triplets.shape[0] > 0:
+            ramp_scale = self._motor_torque_ramp_scale()
             torque_per_flag = (
-                self.cfg.motor_torque_Nm
-                * self.model.torque_signs[: self.model.motor_triplets.shape[0]]
-            )
+                self.cfg.motor_torque_Nm * ramp_scale
+            ) * self.model.torque_signs[: self.model.motor_triplets.shape[0]]
             motor_forces, motor_diag = compute_motor_forces(
                 positions_m=pos,
                 motor_triplets=self.model.motor_triplets,

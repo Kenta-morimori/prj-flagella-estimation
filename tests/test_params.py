@@ -142,6 +142,26 @@ def test_motor_enable_switching_can_be_enabled() -> None:
     assert sim_cfg.motor.enable_switching is True
 
 
+def test_motor_torque_ramp_defaults_to_disabled() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor.torque_ramp_enabled is False
+    assert sim_cfg.motor.torque_ramp_duration_s == pytest.approx(0.0)
+
+
+def test_motor_torque_ramp_can_be_configured() -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["torque_ramp_enabled"] = True
+    cfg["motor"]["torque_ramp_duration_s"] = 0.05
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor.torque_ramp_enabled is True
+    assert sim_cfg.motor.torque_ramp_duration_s == pytest.approx(0.05)
+
+
 def test_projection_config_is_ignored_after_removal() -> None:
     cfg = _base_cfg()
     cfg["projection"] = {

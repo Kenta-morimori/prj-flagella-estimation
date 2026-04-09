@@ -119,6 +119,8 @@ class MotorParams:
     torque_Nm: float = 4.0e-18
     reverse_n_flagella: int = 1
     enable_switching: bool = False
+    torque_ramp_enabled: bool = False
+    torque_ramp_duration_s: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -582,6 +584,10 @@ class SimulationConfig:
             torque_Nm=float(_get(motor_raw, "torque_Nm", 4e-18)),
             reverse_n_flagella=int(_get(motor_raw, "reverse_n_flagella", 1)),
             enable_switching=bool(_get(motor_raw, "enable_switching", False)),
+            torque_ramp_enabled=bool(_get(motor_raw, "torque_ramp_enabled", False)),
+            torque_ramp_duration_s=float(
+                _get(motor_raw, "torque_ramp_duration_s", 0.0)
+            ),
         )
 
         thermal = K_B * max(brownian.temperature_K, 1e-9)

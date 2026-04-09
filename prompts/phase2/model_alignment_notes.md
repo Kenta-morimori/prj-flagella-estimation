@@ -1255,3 +1255,56 @@ These are symptom treatments, not root-cause fixes.
 - preload/midpoint/局所係数の微調整ループに戻らない
 - split 係数の静的再配分より、過渡ピークへの直接作用が期待できる
 
+---
+
+## 8.12 Motor Torque 時間構造（linear ramp）試行（2026-04-09）
+
+### 8.12.1 spring hardness の扱い（canonical か一時か）
+
+- `H_over_T_over_b = 20`, `s = 0.2` は、今回以降の Phase B strict-gate 調査における
+  **current canonical baseline** とする。
+- すなわち、torque 時間構造を検証するときも spring hardness は固定し、
+  条件差分は ramp 有無のみとする。
+
+### 8.12.2 ramp モデル仕様（最小実装）
+
+- 対象: motor torque 入力の時間ゲインのみ
+- 定常値: `tau_ss = 4e-21`（不変）
+- 実効トルク:
+
+  `tau_eff(t) = tau_ss * g(t)`
+
+  `g(t) = min(1, t / t_ramp)` （単調線形, `t_ramp > 0`）
+
+- 今回試行値: `t_ramp = 0.05 s`
+- `compute_motor_forces()` / preload / split / local constraint は不変更
+
+### 8.12.3 Phase B 0.1 s 比較（source of truth: step_summary.csv）
+
+| Metric | Before (ramp off) | After (linear ramp 0.05 s) | 判定 |
+|---|---:|---:|---|
+| local_attach_first_rel_err | 1880.30% | 3757.15% | 悪化 |
+| local_first_second_rel_err | 1008.11% | 1250.80% | 悪化 |
+| local_second_third_rel_err | 1248.94% | 1858.92% | 悪化 |
+| flag_bond_rel_err_max | 1248.94% | 1858.92% | 悪化 |
+| local_basal_bend_err_deg | 47.76° | 71.63° | 悪化 |
+| motor_degenerate_axis_count | 0 | 0 | 同等 |
+| motor_split_rank_deficient_count | 0 | 0 | 同等 |
+| motor_bond_length_clipped_count | 0 | 0 | 同等 |
+
+### 8.12.4 strict gate に対する評価
+
+- numerical finite は before/after とも維持
+- しかし shape-preserving finite 指標は全般に悪化し、strict gate には遠いまま
+- 特に local bond 関連（attach-first/first-second/second-third）が悪化
+
+### 8.12.5 解釈
+
+- この linear ramp（0.05 s）では、初期の低トルク区間で形状が安定化するのではなく、
+  後半での追い上げ負荷が局所伸長を増幅した可能性が高い。
+- 少なくとも今回の単純 ramp 1種では、Phase B strict-gate 改善は確認できない。
+
+### 8.12.6 次に触るべき点（1つ）
+
+**時間構造は維持しつつ、linear ではなく smoothstep 系 ramp（初期・終端の勾配を0にする）へ切り替えて再評価すること。**
+
