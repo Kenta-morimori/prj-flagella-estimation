@@ -1308,3 +1308,50 @@ These are symptom treatments, not root-cause fixes.
 
 **時間構造は維持しつつ、linear ではなく smoothstep 系 ramp（初期・終端の勾配を0にする）へ切り替えて再評価すること。**
 
+---
+
+## 8.13 Motor Torque 時間構造（smoothstep ramp）試行（2026-04-09）
+
+### 8.13.1 事前方針
+
+- 8.12 の線形 ramp は strict gate 観点で不採用として打ち切る。
+- `compute_motor_forces()` / preload / midpoint / local constraint は固定。
+- `tau_ss = 4e-21`、`H_over_T_over_b = 20`、`s = 0.2` を固定し、
+  時間ゲインのみ smoothstep 1案で評価する。
+
+### 8.13.2 smoothstep ramp 仕様（最小実装）
+
+- 実効トルク: `tau_eff(t) = tau_ss * g(t)`
+- ゲイン関数:
+
+  `x = clip(t / t_ramp, 0, 1)`
+
+  `g(t) = 3x^2 - 2x^3`
+
+- 特性: 単調増加、開始・終了勾配が 0
+- 試行値: `t_ramp = 0.05 s`
+
+### 8.13.3 Phase B 0.1 s 比較（step_summary.csv 実値）
+
+| Metric | Before (ramp off) | After (linear, 8.12) | After (smoothstep) | 判定 |
+|---|---:|---:|---:|---|
+| local_attach_first_rel_err | 1880.30% | 3757.15% | 3195.55% | 悪化（linear よりは小） |
+| local_first_second_rel_err | 1008.11% | 1250.80% | 1130.47% | 悪化（linear よりは小） |
+| local_second_third_rel_err | 1248.94% | 1858.92% | 1674.41% | 悪化（linear よりは小） |
+| flag_bond_rel_err_max | 1248.94% | 1858.92% | 1674.41% | 悪化（linear よりは小） |
+| local_basal_bend_err_deg | 47.76° | 71.63° | 77.58° | 悪化（linear よりも悪化） |
+| motor_degenerate_axis_count | 0 | 0 | 0 | 同等 |
+| motor_split_rank_deficient_count | 0 | 0 | 0 | 同等 |
+| motor_bond_length_clipped_count | 0 | 0 | 0 | 同等 |
+
+### 8.13.4 判定（継続 or 打ち切り）
+
+- 主要5指標のうち、before を明確改善した項目は 0。
+- よって判定ルールに従い、**time-structure 路線（ramp 系）は現時点で一旦打ち切る**。
+- strict gate 達成に向けた主戦場としては不十分。
+
+### 8.13.5 次に触るべき点（1つ）
+
+**minimal_basal_stub の幾何モデル妥当性（3-bead stub 前提）を先に検証し、
+現在の torque 条件下で shape-preserving finite が理論的に可能かを切り分けること。**
+

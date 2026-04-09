@@ -179,13 +179,13 @@ def main() -> None:
     parser.add_argument(
         "--motor-ramp-enabled",
         action="store_true",
-        help="Enable linear motor torque ramp from 0 to steady torque",
+        help="Enable smoothstep motor torque ramp from 0 to steady torque",
     )
     parser.add_argument(
         "--motor-ramp-duration-s",
         type=float,
         default=0.0,
-        help="Ramp duration in seconds (linear, monotonic)",
+        help="Ramp duration in seconds (smoothstep, monotonic)",
     )
     args = parser.parse_args()
 

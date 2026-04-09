@@ -385,7 +385,9 @@ class DynamicsEngine:
         if duration_s <= 0.0:
             return 1.0
         t_s = max(float(self.t_star * self.cfg.tau_s), 0.0)
-        return float(min(1.0, t_s / duration_s))
+        x = float(np.clip(t_s / duration_s, 0.0, 1.0))
+        # Smoothstep ramp: monotonic, with zero slope at start and end.
+        return float(x * x * (3.0 - 2.0 * x))
 
     def _body_equiv_load_forces(self, positions_m: np.ndarray) -> np.ndarray:
         out = np.zeros_like(positions_m)
