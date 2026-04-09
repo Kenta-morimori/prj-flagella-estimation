@@ -1195,3 +1195,63 @@ These are symptom treatments, not root-cause fixes.
 - Phase B absolute hard gate remains **3+ orders of magnitude away**
 - Indicates problem is not in force-distribution mechanics but in motor model scale or basal structure assumption
 
+---
+
+## 8.11 Split Logic 追加試行（2026-04-09, conservative single-implementation）
+
+### 8.11.1 現行 split の問題点（短要約）
+
+- 現行は `Ta + Tb = Ttot, Ta·ra = 0, Tb·rb = 0` を満たす weighted minimum norm。
+- `minimal_basal_stub` では `|ra|` と `|rb|` が同程度に短く、結果的に `Fa` と `Fb` が同時に大きくなりやすい。
+- `attach-first` と `first-second` の両方に大きい couple force が入り、局所伸長が同時に悪化する。
+
+### 8.11.2 検討した 2 案（今回は 1 案のみ実装）
+
+1. **Force-space constrained split（実装）**
+  - 制約は維持: `r_a×f_a + r_b×f_b = Ttot, f_a·r_a = 0, f_b·r_b = 0`
+  - 目的関数: `||f_a||^2 + ||f_b||^2 + λ||f_a-f_b||^2`
+  - ねらい: first bead への差分荷重集中を抑える（保守的）
+2. **Torque split with explicit physical prior（未実装）**
+  - 幾何に応じた split 比を外生で与える方針
+  - 拘束との整合性を保つ調整が必要で、今回は見送り
+
+### 8.11.3 実装結果（Phase B 0.1 s, step_summary.csv 実値）
+
+比較対象:
+- Before: 現行 weighted minimum norm（現行本線）
+- After(trial): force-space constrained split（今回 trial）
+
+| Metric | Before | After(trial) | 判定 |
+|---|---:|---:|---|
+| local_attach_first_rel_err | 1880.30% | 1926.60% | 悪化 |
+| local_first_second_rel_err | 1008.11% | 1038.02% | 悪化 |
+| local_second_third_rel_err | 1248.94% | 1245.15% | 微改善（ただし gate 未達） |
+| flag_bond_rel_err_max | 1248.94% | 1245.15% | 微改善（ただし gate 未達） |
+| local_basal_bend_err_deg | 47.76° | 78.59° | 大幅悪化 |
+| motor_degenerate_axis_count | 0 | 0 | 同等 |
+| motor_split_rank_deficient_count | 0 | 0 | 同等 |
+| motor_bond_length_clipped_count | 0 | 0 | 同等 |
+
+結果:
+- numerical finite は維持
+- shape-preserving finite は未達のまま
+- 特に `local_basal_bend_err_deg` が大幅悪化
+
+このため、trial 実装は **採用しない（revert）**。
+
+### 8.11.4 strict gate に対する未達点
+
+- `local_attach_first_rel_err` 目標 0.5% に対し 1880.30%（3760x over）
+- `local_first_second_rel_err` 目標 0.5% に対し 1008.11%（2016x over）
+- `local_second_third_rel_err` / `flag_bond_rel_err_max` も 3 桁超過
+- `local_basal_bend_err_deg` も閾値 45° を超過
+
+### 8.11.5 次に触るべき点（1つ）
+
+**Motor torque の時系列モデル（定常印加前の ramp 設計）を導入して、初期過渡での局所ピーク荷重を抑えること。**
+
+理由:
+- `torque_Nm` の定常値 4e-21 は維持しつつ、禁止事項を回避できる
+- preload/midpoint/局所係数の微調整ループに戻らない
+- split 係数の静的再配分より、過渡ピークへの直接作用が期待できる
+
