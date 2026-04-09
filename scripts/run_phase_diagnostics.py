@@ -50,7 +50,10 @@ def _make_phase_cfg(phase: str, duration_s: float = 0.01) -> SimulationConfig:
         "fluid": {"viscosity_Pa_s": 1.0e-3},
         "motor": {"torque_Nm": -1.0, "reverse_n_flagella": 1},
         "potentials": {
-            "spring": {"H_over_T_over_b": 10.0, "s": 0.1},
+            "spring": {
+                "H_over_T_over_b": 20.0,
+                "s": 0.2,
+            },  # Trial: Phase B stabilization (H:10->20, s:0.1->0.2)
             "bend": {
                 "kb_over_T": 20.0,
                 "theta0_deg": {

@@ -35,8 +35,8 @@ motor:
 
 potentials:
   spring:
-    H_over_T_over_b: 10.0      # [-] H = 10 * Torque / b
-    s: 0.1                     # [-] 伸長限界 s/b
+    H_over_T_over_b: 20.0      # [-] H = 20 * Torque / b (Trial: increased from 10.0 for Phase B stabilization)
+    s: 0.2                     # [-] 伸長限界 s/b (Trial: increased from 0.1)
   bend:
     kb_over_T: 20.0            # [-] kb = 20 * T
     theta0_deg:
