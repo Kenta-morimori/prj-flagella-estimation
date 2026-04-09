@@ -1522,3 +1522,72 @@ strict gate の「構造到達性」を判定すること。
   （`torque_for_forces_Nm` と `motor_torque_Nm` の結合を切り分け、
   canonical torque 固定のまま local bond 指標への寄与を評価）。
 
+---
+
+## 8.17 torque input と剛性/反発スケールの分離検証（2026-04-09）
+
+### 8.17.1 `torque_for_forces_Nm` が支配する係数（実装整理）
+
+`DynamicsEngine.__init__` では `torque = cfg.torque_for_forces_Nm` を基準に、
+以下を初期化している。
+
+- spring: `spring_h = H_over_T_over_b * torque / b`
+- bend: `k_bend = kb_over_T * torque`
+- torsion: `k_torsion = kt_over_T * torque`
+- hook: `k_hook = hook.kb_over_T * torque`
+- repulsion: `repulsion_A = A_ss_over_T * torque`
+
+一方、motor force には `cfg.motor_torque_Nm` が別経路で使われる。
+したがって、従来は `motor_torque_Nm` と `torque_for_forces_Nm` が実質結合していた。
+
+### 8.17.2 分離検証の最小実装案（今回実装）
+
+- 追加: `motor.torque_for_forces_override_Nm`（既定 0.0 = 無効）
+- 挙動:
+  - `> 0` のとき `torque_for_forces_Nm` をその値で固定
+  - `<= 0` のとき既存挙動を維持（後方互換）
+
+これにより、`motor_torque_Nm` は canonical 値のまま、
+剛性/反発スケールだけを独立に掃引できる。
+
+### 8.17.3 最小比較実験（PhaseB canonical, 0.1 s）
+
+- 共通条件:
+  - `n_flagella=1`
+  - `stub_mode=minimal_basal_stub`
+  - `motor.torque_Nm=4e-21`（固定）
+  - Brownian off, switching off
+- before（結合あり）:
+  - `motor.torque_for_forces_override_Nm=0.0`（既存結合）
+- after（分離）:
+  - `motor.torque_for_forces_override_Nm=1e-21`（eta*b^3 相当）
+- source of truth:
+  - `outputs/phase_diagnostics_torque_force_decouple/*/step_summary.csv`
+
+### 8.17.4 before / after（末端 step）
+
+| Metric | Before (coupled) | After (decoupled) | 改善倍率 (before/after) |
+|---|---:|---:|---:|
+| local_attach_first_rel_err | 18.8030 | 27.7127 | 0.68x |
+| local_first_second_rel_err | 10.0811 | 13.1922 | 0.76x |
+| local_second_third_rel_err | 12.4894 | 14.6612 | 0.85x |
+| flag_bond_rel_err_max | 12.4894 | 14.6612 | 0.85x |
+| local_basal_bend_err_deg | 47.7553° | 69.0063° | 0.69x |
+| motor_degenerate_axis_count | 0 | 0 | 同等 |
+| motor_split_rank_deficient_count | 0 | 0 | 同等 |
+| motor_bond_length_clipped_count | 0 | 0 | 同等 |
+
+### 8.17.5 判定
+
+- strict gate 指標の 1桁改善（>=10x）は 0 項目。
+- 今回の分離設定（force scale を 1e-21 へ低下）では、
+  local bond 系・basal bend はむしろ悪化。
+- よって現時点では、未達の主因を「単純な torque scale」や
+  「単純な stiffness/repulsion scale」単独で説明するより、
+  **両者の結合設計とその比率設定**が本質課題と判断する。
+
+### 8.17.6 次に触るべき点（1つ）
+
+**`motor_torque_Nm` 固定のまま `torque_for_forces_override_Nm` を上方向（>=4e-21）に1点だけ振る対照実験を行い、
+低下側での悪化が「剛性不足」起因かを確認する。**
+

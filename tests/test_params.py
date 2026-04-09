@@ -105,6 +105,28 @@ def test_torque_non_minus_one_uses_input_value() -> None:
     assert sim_cfg.tau_s == pytest.approx(1.0)
 
 
+def test_torque_for_forces_override_decouples_from_motor_torque() -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["torque_Nm"] = 4.0e-21
+    cfg["motor"]["torque_for_forces_override_Nm"] = 1.0e-21
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor_torque_Nm == pytest.approx(4.0e-21)
+    assert sim_cfg.torque_for_forces_Nm == pytest.approx(1.0e-21)
+
+
+def test_torque_for_forces_override_non_positive_uses_default_coupling() -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["torque_Nm"] = 4.0e-21
+    cfg["motor"]["torque_for_forces_override_Nm"] = 0.0
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor_torque_Nm == pytest.approx(4.0e-21)
+    assert sim_cfg.torque_for_forces_Nm == pytest.approx(4.0e-21)
+
+
 def test_torque_zero_sets_motor_off_but_keeps_tau_unity_scale() -> None:
     cfg = _base_cfg()
     cfg["motor"]["torque_Nm"] = 0.0

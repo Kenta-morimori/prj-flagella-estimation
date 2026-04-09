@@ -128,6 +128,7 @@ class MotorParams:
     enable_switching: bool = False
     torque_ramp_enabled: bool = False
     torque_ramp_duration_s: float = 0.0
+    torque_for_forces_override_Nm: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -329,6 +330,8 @@ class SimulationConfig:
     @property
     def torque_for_forces_Nm(self) -> float:
         """力学パラメータ（剛性/反発）のスケーリングに使うトルク絶対値。"""
+        if float(self.motor.torque_for_forces_override_Nm) > 0.0:
+            return float(self.motor.torque_for_forces_override_Nm)
         if self.use_eta_b3_torque or self.is_motor_off_torque:
             return self.torque_eta_b3_Nm
         return abs(self.motor_torque_Nm)
@@ -594,6 +597,9 @@ class SimulationConfig:
             torque_ramp_enabled=bool(_get(motor_raw, "torque_ramp_enabled", False)),
             torque_ramp_duration_s=float(
                 _get(motor_raw, "torque_ramp_duration_s", 0.0)
+            ),
+            torque_for_forces_override_Nm=float(
+                _get(motor_raw, "torque_for_forces_override_Nm", 0.0)
             ),
         )
 
