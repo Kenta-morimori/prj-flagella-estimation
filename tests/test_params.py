@@ -254,6 +254,19 @@ def test_flagella_stub_mode_can_be_set_to_minimal_basal_stub() -> None:
     assert sim_cfg.flagella.stub_mode == "minimal_basal_stub"
 
 
+def test_flagella_stub_mode_can_be_set_to_extended_basal_stub_5() -> None:
+    cfg = _base_cfg()
+    cfg["flagella"] = {
+        "stub_mode": "extended_basal_stub_5",
+        "bond_L_over_b": 0.58,
+        "length_over_b": 5.8,
+    }
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella.stub_mode == "extended_basal_stub_5"
+
+
 def test_torsion_fd_eps_over_b_defaults_to_point_one() -> None:
     cfg = _base_cfg()
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}

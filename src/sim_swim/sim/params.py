@@ -93,9 +93,16 @@ class FlagellumParams:
     n_flagella: int = 3
     placement_mode: str = "uniform"
     init_mode: str = "legacy_radius_pitch"
-    stub_mode: str = "full_flagella"  # minimal_basal_stub | full_flagella
-    # stub_mode='minimal_basal_stub': body + hook + 3 beads (attach, first, second)
-    # stub_mode='full_flagella': full flagellum (body attach + n_beads_per_flagellum)
+    stub_mode: str = (
+        "full_flagella"  # minimal_basal_stub | extended_basal_stub_5 |
+        # full_flagella
+    )
+    # stub_mode='minimal_basal_stub':
+    #   body + hook + 3 beads (attach, first, second)
+    # stub_mode='extended_basal_stub_5':
+    #   body + hook + 5 beads (attach + 4-chain)
+    # stub_mode='full_flagella':
+    #   full flagellum (body attach + n_beads_per_flagellum)
     discretization: FlagellaDiscretizationParams = field(
         default_factory=FlagellaDiscretizationParams
     )

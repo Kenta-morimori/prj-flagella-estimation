@@ -1476,3 +1476,49 @@ attach-first/first-second の基準長と許容伸長率のモデル整合チェ
 目的は、同一 canonical torque（4e-21）で local bond 系誤差が 1桁以上縮小するかを先に確認し、
 strict gate の「構造到達性」を判定すること。
 
+---
+
+## 8.16 比較実装: extended_basal_stub_5（2026-04-09）
+
+### 8.16.1 比較した stub 仮定
+
+- before: `minimal_basal_stub`（bead_count=3）
+- after: `extended_basal_stub_5`（bead_count=5）
+- 共通条件:
+  - `n_flagella=1`
+  - `motor.torque_Nm=4e-21`（PhaseB）
+  - Phase0b は motor off（`torque_Nm=0`）
+  - Brownian off, switching off, `duration_s=0.1`
+- source of truth:
+  - `outputs/phase_diagnostics_stub_compare_5bead/*/step_summary.csv`
+
+### 8.16.2 Phase0b / PhaseB の before-after 実測（末端 step）
+
+| Metric | Phase0b before (3) | Phase0b after (5) | 改善倍率 (before/after) | PhaseB before (3) | PhaseB after (5) | 改善倍率 (before/after) |
+|---|---:|---:|---:|---:|---:|---:|
+| local_attach_first_rel_err | 13.3709 | 22.6954 | 0.59x | 18.8030 | 89.9602 | 0.21x |
+| local_first_second_rel_err | 7.1756 | 8.7571 | 0.82x | 10.0811 | 31.0942 | 0.32x |
+| local_second_third_rel_err | 6.8330 | 8.3120 | 0.82x | 12.4894 | 27.5377 | 0.45x |
+| flag_bond_rel_err_max | 7.1756 | 8.7571 | 0.82x | 12.4894 | 31.0942 | 0.40x |
+| local_basal_bend_err_deg | 65.1366 | 61.0548 | 1.07x | 47.7553 | 62.9847 | 0.76x |
+| motor_degenerate_axis_count | 0 | 0 | 同等 | 0 | 0 | 同等 |
+| motor_split_rank_deficient_count | 0 | 0 | 同等 | 0 | 0 | 同等 |
+| motor_bond_length_clipped_count | 0 | 0 | 同等 | 0 | 0 | 同等 |
+
+### 8.16.3 1桁以上改善したか
+
+- 判定基準: 改善倍率（before/after）>= 10x を「1桁以上改善」とする。
+- 結果: **該当なし（0項目）**。
+- 多くの local bond 指標は改善ではなく悪化（改善倍率 < 1）。
+
+### 8.16.4 判定と次の候補（1つだけ）
+
+判定:
+- `3 -> 5 bead` の stub 拡張だけでは strict gate 未達の主因を解消できなかった。
+- よって、**3-bead 仮定単独を主因とみなすのは不十分**。
+
+次に触るべき点（1つ）:
+- **motor torque で剛性・反発も同時スケールしている力学係数設計を分離検証する**
+  （`torque_for_forces_Nm` と `motor_torque_Nm` の結合を切り分け、
+  canonical torque 固定のまま local bond 指標への寄与を評価）。
+
