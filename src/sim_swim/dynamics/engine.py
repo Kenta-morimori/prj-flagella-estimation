@@ -119,9 +119,12 @@ class DynamicsEngine:
         self.repulsion_cutoff_m = (
             cfg.potentials.spring_spring_repulsion.cutoff_over_b * b_m
         )
+        # Keep body proxy scaling as-is, but avoid hidden flagella multipliers.
+        # For paper-consistent behavior, bend/torsion strengths should come
+        # from cfg.potentials.*_over_T directly.
         self.body_stiffness_scale = 50.0
-        self.flag_bend_stiffness_scale = 300.0
-        self.flag_torsion_stiffness_scale = 300.0
+        self.flag_bend_stiffness_scale = 1.0
+        self.flag_torsion_stiffness_scale = 1.0
         self.theta0_ref_rad, self.phi0_ref_rad = self._initial_reference_angles_rad()
         spring_pairs = self.model.spring_pairs
         if spring_pairs.size == 0:

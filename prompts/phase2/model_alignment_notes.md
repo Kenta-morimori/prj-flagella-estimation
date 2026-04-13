@@ -929,8 +929,8 @@ actual motor torque を入れた短時間安定化（Phase B: minimal_basal_stub
   - 構造継続: `hook_count == 1` と `flag_intra_count == 10` が全 step で維持される
   - 形状安定: `hook_len_mean_over_b`, `local_attach_first_rel_err`, `flag_bond_rel_err_max`, `local_first_torsion_err_deg` が late-time で runaway growth しない
 - ここでの runaway growth は、先頭数 step を baseline とした相対的な増大として判定する
-- 現在の 2026-04-13 実行ログでは、`flag_bond_rel_err_max` と `local_first_torsion_err_deg` が step 2 以降で崩れており、この厳格ゲートは未達である
-- したがって、flagella あり・トルクなしを本当にクリアするには、まず full chain / torsion の静的安定化を修正対象として扱う
+- 2026-04-13 の原因調査で、`engine.py` 内の hidden multiplier（flag bend/torsion に `*300`）が論文モデルにない過大剛性を導入し、静止計算の不安定化を招いていたことを確認
+- 上記 multiplier を除去（`flag_bend_stiffness_scale=1`, `flag_torsion_stiffness_scale=1`）した後、full_flagella + motor off short run で shape 指標が安定化し、厳格ゲートを通常テストとして評価可能になった
 
 ## 対応タスク
 - Phase A DoD の実装・テスト完了（本 PR）

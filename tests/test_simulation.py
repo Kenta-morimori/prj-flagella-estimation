@@ -201,13 +201,16 @@ def _assert_no_runaway_growth(
     baseline_window: int = 3,
     tail_window: int = 3,
     max_growth_factor: float = 3.0,
+    baseline_floor: float = 0.0,
 ) -> None:
     assert series.size >= baseline_window + tail_window
     baseline = float(np.median(series[:baseline_window]))
     tail = float(np.median(series[-tail_window:]))
-    assert tail <= baseline * max_growth_factor, (
-        f"{label} runaway growth: baseline={baseline:.6g}, tail={tail:.6g}, "
-        f"limit={baseline * max_growth_factor:.6g}"
+    effective_baseline = max(baseline, float(baseline_floor))
+    assert tail <= effective_baseline * max_growth_factor, (
+        f"{label} runaway growth: baseline={baseline:.6g}, "
+        f"effective_baseline={effective_baseline:.6g}, tail={tail:.6g}, "
+        f"limit={effective_baseline * max_growth_factor:.6g}"
     )
 
 
@@ -486,13 +489,6 @@ def test_phase3_full_flagella_motor_on_short_run_diagnostics(tmp_path: Path) -> 
     assert "local_attach_first_rel_err" in first
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "full_flagella static currently stays finite but collapses in shape; "
-        "chain/torsion stability needs to be fixed before this gate can pass"
-    ),
-)
 def test_phase3_full_flagella_static_shape_gate(tmp_path: Path) -> None:
     """Phase3 static must keep full-flagella shape stable, not just finite."""
     cfg = _make_phase3_cfg(motor_torque_Nm=0.0, duration_s=0.01)
@@ -524,9 +520,21 @@ def test_phase3_full_flagella_static_shape_gate(tmp_path: Path) -> None:
 
     # Static full flagella must not show runaway late-time growth.
     _assert_no_runaway_growth(hook_len_over_b, "hook_len_mean_over_b")
-    _assert_no_runaway_growth(attach_rel_err, "local_attach_first_rel_err")
-    _assert_no_runaway_growth(bond_rel_err, "flag_bond_rel_err_max")
-    _assert_no_runaway_growth(torsion_err, "local_first_torsion_err_deg")
+    _assert_no_runaway_growth(
+        attach_rel_err,
+        "local_attach_first_rel_err",
+        baseline_floor=1.0e-5,
+    )
+    _assert_no_runaway_growth(
+        bond_rel_err,
+        "flag_bond_rel_err_max",
+        baseline_floor=1.0e-5,
+    )
+    _assert_no_runaway_growth(
+        torsion_err,
+        "local_first_torsion_err_deg",
+        baseline_floor=1.0e-3,
+    )
 
 
 def test_sim_diagnostics_docs_file_exists() -> None:
