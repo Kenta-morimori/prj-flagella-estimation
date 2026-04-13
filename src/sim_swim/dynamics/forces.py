@@ -335,11 +335,7 @@ def compute_motor_forces(
     torque_per_flag: np.ndarray,
     body_axis_unit: np.ndarray | None = None,
 ) -> tuple[np.ndarray, MotorForceDiagnostics]:
-    """Fig.2準拠でモータトルクを2本ボンドの力カップルへ分配する。
-
-    追加で、トルクを変えない軸方向 preload（圧縮）を与え、
-    basal 近傍の過大伸長を抑える。
-    """
+    """Fig.2準拠でモータトルクを2本ボンドの力カップルへ分配する。"""
 
     forces = np.zeros_like(positions_m)
     diag = MotorForceDiagnostics()
@@ -363,12 +359,6 @@ def compute_motor_forces(
     ta_dot_ra_abs_sum = 0.0
     tb_dot_rb_abs_sum = 0.0
     r2_eps = 1e-30
-    preload_attach_first_scale_low_angle = -0.01
-    preload_attach_first_scale_high_angle = 0.015
-    preload_attach_first_angle_mid_deg = 60.0
-    preload_attach_first_angle_width_deg = 8.0
-    preload_first_second_scale = 0.01
-
     for idx, (ib, jf, kf) in enumerate(motor_triplets):
         i0, i1, i2 = int(ib), int(jf), int(kf)
         x0 = positions_m[i0]
@@ -433,47 +423,8 @@ def compute_motor_forces(
         motor_first -= f_b
         motor_second = f_b
 
-        # Step D: torque を変えない軸方向 preload（圧縮）で局所伸長を抑える。
-        # r×(c r_hat)=0 なので追加トルクは理想的にゼロ。
         ra_len = max(float(np.linalg.norm(r_a)), 1e-18)
         rb_len = max(float(np.linalg.norm(r_b)), 1e-18)
-        u_a = r_a / ra_len
-        u_b = r_b / rb_len
-        ref_attach = abs(tau) / ra_len
-        ref_second = abs(tau) / rb_len
-        if body_axis_unit is not None:
-            body_axis = np.asarray(body_axis_unit, dtype=float)
-            body_axis_norm = max(float(np.linalg.norm(body_axis)), 1e-18)
-            rear_dir = -body_axis / body_axis_norm
-            axis_dot = float(np.clip(np.dot(u_b, rear_dir), -1.0, 1.0))
-            axis_deg = math.degrees(math.acos(axis_dot))
-            axis_x = (axis_deg - preload_attach_first_angle_mid_deg) / max(
-                preload_attach_first_angle_width_deg, 1e-12
-            )
-            axis_weight = 1.0 / (1.0 + math.exp(-axis_x))
-            attach_scale = (
-                preload_attach_first_scale_low_angle
-                + (
-                    preload_attach_first_scale_high_angle
-                    - preload_attach_first_scale_low_angle
-                )
-                * axis_weight
-            )
-        else:
-            bend_cos = float(np.clip(np.dot(u_a, u_b), -1.0, 1.0))
-            bend_deg = math.degrees(math.acos(bend_cos))
-            attach_scale = (
-                preload_attach_first_scale_high_angle
-                if bend_deg >= preload_attach_first_angle_mid_deg
-                else preload_attach_first_scale_low_angle
-            )
-        c_a = attach_scale * ref_attach
-        c_b = preload_first_second_scale * ref_second
-
-        motor_attach += c_a * u_a
-        motor_first -= c_a * u_a
-        motor_first += c_b * u_b
-        motor_second -= c_b * u_b
 
         forces[i0] += motor_attach
         forces[i1] += motor_first

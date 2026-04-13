@@ -29,6 +29,8 @@
   - 必須diagnostics列の非数値化/非有限化
   - motor 退化カウンタ増加（`motor_degenerate_axis_count`, `motor_split_rank_deficient_count`, `motor_bond_length_clipped_count`）
 - `n_flagella=1` の short run（minimal/full, motor on）で first-fail が発生しないことを、テストで継続監視する方針。
+- motor 力分配の Step D preload は論文モデルの主経路ではないため、段階的削減の第一段として除去した。
+- 以後は torque-couple とポテンシャル更新で回転が立つかを確認し、必要なら残る安定化補正を個別に切り分ける。
 
 ---
 
