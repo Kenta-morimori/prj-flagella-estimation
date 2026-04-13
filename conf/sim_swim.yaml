@@ -35,8 +35,8 @@ motor:
 
 potentials:
   spring:
-    H_over_T_over_b: 10.0      # [-] H = 10 * Torque / b
-    s: 0.1                     # [-] 伸長限界 s/b
+    H_over_T_over_b: 20.0      # [-] H = 20 * Torque / b（current canonical baseline for Phase B）
+    s: 0.2                     # [-] 伸長限界 s/b（current canonical baseline for Phase B）
   bend:
     kb_over_T: 20.0            # [-] kb = 20 * T
     theta0_deg:

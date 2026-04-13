@@ -163,9 +163,16 @@ class FlagellumParams:
     n_flagella: int = 3
     placement_mode: str = "uniform"
     init_mode: str = "legacy_radius_pitch"
-    stub_mode: str = "full_flagella"  # minimal_basal_stub | full_flagella
-    # stub_mode='minimal_basal_stub': body + hook + 3 beads (attach, first, second)
-    # stub_mode='full_flagella': full flagellum (body attach + n_beads_per_flagellum)
+    stub_mode: str = (
+        "full_flagella"  # minimal_basal_stub | extended_basal_stub_5 |
+        # full_flagella
+    )
+    # stub_mode='minimal_basal_stub':
+    #   body + hook + 3 beads (attach, first, second)
+    # stub_mode='extended_basal_stub_5':
+    #   body + hook + 5 beads (attach + 4-chain)
+    # stub_mode='full_flagella':
+    #   full flagellum (body attach + n_beads_per_flagellum)
     discretization: FlagellaDiscretizationParams = field(
         default_factory=FlagellaDiscretizationParams
     )
@@ -189,6 +196,9 @@ class MotorParams:
     torque_Nm: float = 4.0e-18
     reverse_n_flagella: int = 1
     enable_switching: bool = False
+    torque_ramp_enabled: bool = False
+    torque_ramp_duration_s: float = 0.0
+    torque_for_forces_override_Nm: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -390,6 +400,8 @@ class SimulationConfig:
     @property
     def torque_for_forces_Nm(self) -> float:
         """力学パラメータ（剛性/反発）のスケーリングに使うトルク絶対値。"""
+        if float(self.motor.torque_for_forces_override_Nm) > 0.0:
+            return float(self.motor.torque_for_forces_override_Nm)
         if self.use_eta_b3_torque or self.is_motor_off_torque:
             return self.torque_eta_b3_Nm
         return abs(self.motor_torque_Nm)
@@ -652,6 +664,13 @@ class SimulationConfig:
             torque_Nm=float(_get(motor_raw, "torque_Nm", 4e-18)),
             reverse_n_flagella=int(_get(motor_raw, "reverse_n_flagella", 1)),
             enable_switching=bool(_get(motor_raw, "enable_switching", False)),
+            torque_ramp_enabled=bool(_get(motor_raw, "torque_ramp_enabled", False)),
+            torque_ramp_duration_s=float(
+                _get(motor_raw, "torque_ramp_duration_s", 0.0)
+            ),
+            torque_for_forces_override_Nm=float(
+                _get(motor_raw, "torque_for_forces_override_Nm", 0.0)
+            ),
         )
 
         thermal = K_B * max(brownian.temperature_K, 1e-9)

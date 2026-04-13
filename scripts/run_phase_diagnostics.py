@@ -23,7 +23,12 @@ from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import SimulationConfig
 
 
-def _make_phase_cfg(phase: str, duration_s: float = 0.01) -> SimulationConfig:
+def _make_phase_cfg(
+    phase: str,
+    duration_s: float = 0.01,
+    motor_ramp_enabled: bool = False,
+    motor_ramp_duration_s: float = 0.0,
+) -> SimulationConfig:
     """各フェーズの canonical config を生成する。"""
     base_cfg = {
         "scale": {"b_um": 1.0, "bead_radius_a_over_b": 0.1},
@@ -48,9 +53,17 @@ def _make_phase_cfg(phase: str, duration_s: float = 0.01) -> SimulationConfig:
             "helix_init": {"radius_over_b": 0.25, "pitch_over_b": 2.5},
         },
         "fluid": {"viscosity_Pa_s": 1.0e-3},
-        "motor": {"torque_Nm": -1.0, "reverse_n_flagella": 1},
+        "motor": {
+            "torque_Nm": -1.0,
+            "reverse_n_flagella": 1,
+            "torque_ramp_enabled": motor_ramp_enabled,
+            "torque_ramp_duration_s": motor_ramp_duration_s,
+        },
         "potentials": {
-            "spring": {"H_over_T_over_b": 10.0, "s": 0.1},
+            "spring": {
+                "H_over_T_over_b": 20.0,
+                "s": 0.2,
+            },  # Canonical baseline for current Phase B strict-gate work
             "bend": {
                 "kb_over_T": 20.0,
                 "theta0_deg": {
@@ -130,12 +143,12 @@ def _make_phase_cfg(phase: str, duration_s: float = 0.01) -> SimulationConfig:
         # minimal_basal_stub + actual motor
         base_cfg["flagella"]["n_flagella"] = 1
         base_cfg["flagella"]["stub_mode"] = "minimal_basal_stub"
-        base_cfg["motor"]["torque_Nm"] = 5.0e-20
+        base_cfg["motor"]["torque_Nm"] = 4.0e-21
     elif phase == "phase3":
         # full_flagella + actual motor
         base_cfg["flagella"]["n_flagella"] = 1
         base_cfg["flagella"]["stub_mode"] = "full_flagella"
-        base_cfg["motor"]["torque_Nm"] = 5.0e-20
+        base_cfg["motor"]["torque_Nm"] = 4.0e-21
     else:
         raise ValueError(f"Unknown phase: {phase}")
 
@@ -163,11 +176,27 @@ def main() -> None:
         default="outputs/phase_diagnostics",
         help="Output directory",
     )
+    parser.add_argument(
+        "--motor-ramp-enabled",
+        action="store_true",
+        help="Enable smoothstep motor torque ramp from 0 to steady torque",
+    )
+    parser.add_argument(
+        "--motor-ramp-duration-s",
+        type=float,
+        default=0.0,
+        help="Ramp duration in seconds (smoothstep, monotonic)",
+    )
     args = parser.parse_args()
 
     print(f"Running {args.phase} diagnostics (duration={args.duration:.3f} s)...")
 
-    cfg = _make_phase_cfg(args.phase, duration_s=args.duration)
+    cfg = _make_phase_cfg(
+        args.phase,
+        duration_s=args.duration,
+        motor_ramp_enabled=bool(args.motor_ramp_enabled),
+        motor_ramp_duration_s=float(args.motor_ramp_duration_s),
+    )
     sim = Simulator(cfg)
 
     output_dir = Path(args.output_dir) / args.phase
@@ -197,6 +226,9 @@ def main() -> None:
     if cfg.flagella.n_flagella > 0:
         print(f"    stub_mode: {cfg.flagella.stub_mode}")
     print(f"    motor.torque_Nm: {cfg.motor.torque_Nm}")
+    if cfg.motor.torque_ramp_enabled:
+        print("    motor.torque_ramp_enabled: True")
+        print(f"    motor.torque_ramp_duration_s: {cfg.motor.torque_ramp_duration_s}")
     if cfg.body_equiv_load.enabled:
         print(f"    body_equiv_load.mode: {cfg.body_equiv_load.mode}")
 
