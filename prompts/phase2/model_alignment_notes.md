@@ -21,6 +21,15 @@
 - `n_flagella=1`, motor ON 安定化は次段（次PR）の主対象
 - 解釈として、body 単独は主因候補から後退し、full chain / torsion / chain-maintenance 側が未解決で残っている
 
+## Update (2026-04-13)
+- PhaseA で `full_flagella + motor off` strict gate を必須化済み（shape 崩壊の取りこぼし防止）。
+- PhaseB は固定閾値を置かず、first-fail を以下で定義する運用に更新:
+  - 非有限化（`pos_all_finite=False` / `any_nan=True` / `any_inf=True`）
+  - 必須diagnostics列の欠損
+  - 必須diagnostics列の非数値化/非有限化
+  - motor 退化カウンタ増加（`motor_degenerate_axis_count`, `motor_split_rank_deficient_count`, `motor_bond_length_clipped_count`）
+- `n_flagella=1` の short run（minimal/full, motor on）で first-fail が発生しないことを、テストで継続監視する方針。
+
 ---
 
 ## 対象論文

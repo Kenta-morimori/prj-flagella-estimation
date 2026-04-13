@@ -214,6 +214,45 @@ def _assert_no_runaway_growth(
     )
 
 
+def _find_phaseb_first_fail(
+    rows: list[dict[str, str]],
+    *,
+    required_numeric_columns: tuple[str, ...],
+    required_zero_counter_columns: tuple[str, ...],
+) -> tuple[int, str] | None:
+    """Return first fail step and reason, or None when no fail is detected."""
+    for i, row in enumerate(rows):
+        step = int(row.get("step", i))
+        if row.get("pos_all_finite") not in {"True", "true", "1"}:
+            return step, "pos_all_finite=False"
+        if row.get("any_nan") not in {"False", "false", "0"}:
+            return step, "any_nan=True"
+        if row.get("any_inf") not in {"False", "false", "0"}:
+            return step, "any_inf=True"
+
+        for col in required_numeric_columns:
+            if col not in row:
+                return step, f"missing column: {col}"
+            try:
+                value = float(row[col])
+            except (TypeError, ValueError):
+                return step, f"non-numeric column: {col}"
+            if not np.isfinite(value):
+                return step, f"non-finite value: {col}"
+
+        for col in required_zero_counter_columns:
+            if col not in row:
+                return step, f"missing counter column: {col}"
+            try:
+                count = int(float(row[col]))
+            except (TypeError, ValueError):
+                return step, f"non-integer counter: {col}"
+            if count > 0:
+                return step, f"counter incremented: {col}={count}"
+
+    return None
+
+
 def test_short_run_no_nan_inf() -> None:
     cfg = _make_cfg()
     sim = Simulator(cfg)
@@ -535,6 +574,73 @@ def test_phase3_full_flagella_static_shape_gate(tmp_path: Path) -> None:
         "local_first_torsion_err_deg",
         baseline_floor=1.0e-3,
     )
+
+
+def test_phaseb_minimal_motor_on_first_fail_gate(tmp_path: Path) -> None:
+    """PhaseB-minimal: motor-on short run must stay first-fail free."""
+    cfg = _make_phase2_cfg(motor_torque_Nm=5.0e-20, duration_s=0.01)
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(
+        sim,
+        cfg.time.duration_s,
+        tmp_path / "phaseb_minimal_motor_on",
+    )
+
+    assert len(rows) >= 10
+    assert all(int(r["hook_count"]) == 1 for r in rows)
+    assert all(float(r["motor_torque_Nm"]) != 0.0 for r in rows)
+
+    first_fail = _find_phaseb_first_fail(
+        rows,
+        required_numeric_columns=(
+            "motor_Ta_norm",
+            "motor_attach_force_norm",
+            "motor_split_residual_norm",
+            "local_attach_first_rel_err",
+            "local_first_second_rel_err",
+        ),
+        required_zero_counter_columns=(
+            "motor_degenerate_axis_count",
+            "motor_split_rank_deficient_count",
+            "motor_bond_length_clipped_count",
+        ),
+    )
+    assert first_fail is None, f"PhaseB-minimal first-fail detected: {first_fail}"
+
+
+def test_phaseb_full_motor_on_first_fail_gate(tmp_path: Path) -> None:
+    """PhaseB-full: motor-on short run must keep full-chain diagnostics valid."""
+    cfg = _make_phase3_cfg(motor_torque_Nm=5.0e-20, duration_s=0.01)
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(
+        sim,
+        cfg.time.duration_s,
+        tmp_path / "phaseb_full_motor_on",
+    )
+
+    assert len(rows) >= 10
+    assert all(int(r["hook_count"]) == 1 for r in rows)
+    assert all(int(r["flag_intra_count"]) == 10 for r in rows)
+    assert all(float(r["motor_torque_Nm"]) != 0.0 for r in rows)
+
+    first_fail = _find_phaseb_first_fail(
+        rows,
+        required_numeric_columns=(
+            "motor_Ta_norm",
+            "motor_attach_force_norm",
+            "motor_split_residual_norm",
+            "local_attach_first_rel_err",
+            "local_first_second_rel_err",
+            "flag_bond_rel_err_max",
+            "flag_torsion_err_max_deg",
+        ),
+        required_zero_counter_columns=(
+            "motor_degenerate_axis_count",
+            "motor_split_rank_deficient_count",
+            "motor_bond_length_clipped_count",
+        ),
+    )
+    assert first_fail is None, f"PhaseB-full first-fail detected: {first_fail}"
 
 
 def test_sim_diagnostics_docs_file_exists() -> None:
