@@ -186,6 +186,31 @@ def _run_and_load_step_summary(
     return rows
 
 
+def _series(rows: list[dict[str, str]], key: str) -> np.ndarray:
+    return np.asarray([float(row[key]) for row in rows], dtype=float)
+
+
+def _assert_all_finite(series: np.ndarray, label: str) -> None:
+    assert np.isfinite(series).all(), f"{label} contains NaN/Inf"
+
+
+def _assert_no_runaway_growth(
+    series: np.ndarray,
+    label: str,
+    *,
+    baseline_window: int = 3,
+    tail_window: int = 3,
+    max_growth_factor: float = 3.0,
+) -> None:
+    assert series.size >= baseline_window + tail_window
+    baseline = float(np.median(series[:baseline_window]))
+    tail = float(np.median(series[-tail_window:]))
+    assert tail <= baseline * max_growth_factor, (
+        f"{label} runaway growth: baseline={baseline:.6g}, tail={tail:.6g}, "
+        f"limit={baseline * max_growth_factor:.6g}"
+    )
+
+
 def test_short_run_no_nan_inf() -> None:
     cfg = _make_cfg()
     sim = Simulator(cfg)
@@ -459,6 +484,49 @@ def test_phase3_full_flagella_motor_on_short_run_diagnostics(tmp_path: Path) -> 
     assert "flag_bond_rel_err_max" in first
     # Basal diagnostics still present
     assert "local_attach_first_rel_err" in first
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "full_flagella static currently stays finite but collapses in shape; "
+        "chain/torsion stability needs to be fixed before this gate can pass"
+    ),
+)
+def test_phase3_full_flagella_static_shape_gate(tmp_path: Path) -> None:
+    """Phase3 static must keep full-flagella shape stable, not just finite."""
+    cfg = _make_phase3_cfg(motor_torque_Nm=0.0, duration_s=0.01)
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(
+        sim,
+        cfg.time.duration_s,
+        tmp_path / "phase3_static",
+    )
+
+    assert len(rows) >= 10
+    assert all(r["pos_all_finite"] in {"True", "true", "1"} for r in rows)
+    assert all(r["any_nan"] in {"False", "false", "0"} for r in rows)
+    assert all(r["any_inf"] in {"False", "false", "0"} for r in rows)
+
+    # Structure must remain the full-flagella static baseline.
+    assert all(int(r["hook_count"]) == 1 for r in rows)
+    assert all(int(r["flag_intra_count"]) == 10 for r in rows)
+
+    hook_len_over_b = _series(rows, "hook_len_mean_over_b")
+    attach_rel_err = _series(rows, "local_attach_first_rel_err")
+    bond_rel_err = _series(rows, "flag_bond_rel_err_max")
+    torsion_err = _series(rows, "local_first_torsion_err_deg")
+
+    _assert_all_finite(hook_len_over_b, "hook_len_mean_over_b")
+    _assert_all_finite(attach_rel_err, "local_attach_first_rel_err")
+    _assert_all_finite(bond_rel_err, "flag_bond_rel_err_max")
+    _assert_all_finite(torsion_err, "local_first_torsion_err_deg")
+
+    # Static full flagella must not show runaway late-time growth.
+    _assert_no_runaway_growth(hook_len_over_b, "hook_len_mean_over_b")
+    _assert_no_runaway_growth(attach_rel_err, "local_attach_first_rel_err")
+    _assert_no_runaway_growth(bond_rel_err, "flag_bond_rel_err_max")
+    _assert_no_runaway_growth(torsion_err, "local_first_torsion_err_deg")
 
 
 def test_sim_diagnostics_docs_file_exists() -> None:

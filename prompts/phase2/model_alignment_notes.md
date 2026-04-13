@@ -923,6 +923,15 @@ actual motor torque を入れた短時間安定化（Phase B: minimal_basal_stub
 - DynamicsMode inference と validation がテスト済み
 - Short-run test framework が整備済み
 
+### B.2d Phase3 static の厳格ゲート
+- full_flagella + motor off の短時間実行は、`pos_all_finite=True` だけでは合格にしない
+- 必須条件は以下の両方を満たすこと
+  - 構造継続: `hook_count == 1` と `flag_intra_count == 10` が全 step で維持される
+  - 形状安定: `hook_len_mean_over_b`, `local_attach_first_rel_err`, `flag_bond_rel_err_max`, `local_first_torsion_err_deg` が late-time で runaway growth しない
+- ここでの runaway growth は、先頭数 step を baseline とした相対的な増大として判定する
+- 現在の 2026-04-13 実行ログでは、`flag_bond_rel_err_max` と `local_first_torsion_err_deg` が step 2 以降で崩れており、この厳格ゲートは未達である
+- したがって、flagella あり・トルクなしを本当にクリアするには、まず full chain / torsion の静的安定化を修正対象として扱う
+
 ## 対応タスク
 - Phase A DoD の実装・テスト完了（本 PR）
 - Phase B 要件整理（本ドキュメント）
