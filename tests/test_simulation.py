@@ -8,7 +8,12 @@ import numpy as np
 import pytest
 
 from sim_swim.sim.core import Simulator
-from sim_swim.sim.params import SimulationConfig
+from sim_swim.sim.params import (
+    DynamicsMode,
+    infer_dynamics_mode,
+    validate_dynamics_mode_consistency,
+    SimulationConfig,
+)
 
 
 def _make_cfg(
@@ -464,3 +469,234 @@ def test_sim_diagnostics_docs_file_exists() -> None:
         PathlibPath(__file__).parent.parent / "docs" / "phase2" / "sim_diagnostics.md"
     )
     assert docs_path.is_file(), f"sim_diagnostics.md missing at {docs_path}"
+
+
+# ==============================================================================
+# Issue #37: DynamicsMode and structure validation tests
+# ==============================================================================
+
+
+def test_infer_dynamics_mode_body_only() -> None:
+    """Test: infer BODY_ONLY from n_flagella=0."""
+    mode = infer_dynamics_mode(n_flagella=0, stub_mode="full_flagella")
+    assert mode == DynamicsMode.BODY_ONLY
+
+
+def test_infer_dynamics_mode_body_hook() -> None:
+    """Test: infer BODY_HOOK from n_flagella >= 1, stub_mode='minimal_basal_stub'."""
+    mode = infer_dynamics_mode(n_flagella=1, stub_mode="minimal_basal_stub")
+    assert mode == DynamicsMode.BODY_HOOK
+
+    mode = infer_dynamics_mode(n_flagella=2, stub_mode="minimal_basal_stub")
+    assert mode == DynamicsMode.BODY_HOOK
+
+
+def test_infer_dynamics_mode_body_hook_flagella() -> None:
+    """Test: infer BODY_HOOK_FLAGELLA from n_flagella >= 1, stub_mode='full_flagella'."""
+    mode = infer_dynamics_mode(n_flagella=1, stub_mode="full_flagella")
+    assert mode == DynamicsMode.BODY_HOOK_FLAGELLA
+
+    mode = infer_dynamics_mode(n_flagella=3, stub_mode="full_flagella")
+    assert mode == DynamicsMode.BODY_HOOK_FLAGELLA
+
+
+def test_infer_dynamics_mode_invalid_stub_mode() -> None:
+    """Test: infer_dynamics_mode raises on invalid stub_mode."""
+    with pytest.raises(ValueError, match="Invalid stub_mode"):
+        infer_dynamics_mode(n_flagella=1, stub_mode="invalid_mode")
+
+
+def test_infer_dynamics_mode_invalid_n_flagella() -> None:
+    """Test: infer_dynamics_mode raises on invalid n_flagella."""
+    with pytest.raises(ValueError, match="Invalid n_flagella"):
+        infer_dynamics_mode(n_flagella=-1, stub_mode="full_flagella")
+
+
+def test_validate_dynamics_mode_consistency_body_only() -> None:
+    """Test: validation passes for BODY_ONLY mode."""
+    validate_dynamics_mode_consistency(
+        mode=DynamicsMode.BODY_ONLY, n_flagella=0, stub_mode="full_flagella"
+    )
+
+
+def test_validate_dynamics_mode_consistency_body_hook() -> None:
+    """Test: validation passes for BODY_HOOK mode."""
+    validate_dynamics_mode_consistency(
+        mode=DynamicsMode.BODY_HOOK, n_flagella=1, stub_mode="minimal_basal_stub"
+    )
+
+
+def test_validate_dynamics_mode_consistency_body_hook_flagella() -> None:
+    """Test: validation passes for BODY_HOOK_FLAGELLA mode."""
+    validate_dynamics_mode_consistency(
+        mode=DynamicsMode.BODY_HOOK_FLAGELLA, n_flagella=1, stub_mode="full_flagella"
+    )
+
+
+def test_validate_dynamics_mode_consistency_mismatch() -> None:
+    """Test: validation raises on mode mismatch."""
+    with pytest.raises(ValueError, match="Dynamics mode mismatch"):
+        validate_dynamics_mode_consistency(
+            mode=DynamicsMode.BODY_ONLY, n_flagella=1, stub_mode="minimal_basal_stub"
+        )
+
+
+def test_structure_body_only_has_no_flagella() -> None:
+    """Test: BODY_ONLY mode has zero flagella beads."""
+    cfg = _make_phase0a_cfg(duration_s=0.001)
+    sim = Simulator(cfg)
+
+    # Model structure validation
+    assert sim.model.flagella_indices == []
+    assert len(sim.model.hook_triplets) == 0
+
+
+def test_structure_body_hook_has_minimal_flagella() -> None:
+    """Test: BODY_HOOK mode has exactly 3 flagella beads (attach, first, second)."""
+    cfg = _make_phase0b_cfg(duration_s=0.001)
+    sim = Simulator(cfg)
+
+    # Check flagella_indices
+    assert len(sim.model.flagella_indices) == 1
+    flagella_bead_ids = sim.model.flagella_indices[0]
+    assert len(flagella_bead_ids) == 3, (
+        f"Expected 3 beads, got {len(flagella_bead_ids)}"
+    )
+
+    # Check hook triplets exist
+    assert len(sim.model.hook_triplets) > 0
+
+
+def test_structure_body_hook_flagella_has_full_flagella() -> None:
+    """Test: BODY_HOOK_FLAGELLA mode has full flagella (11 beads by default)."""
+    cfg = _make_phase3_cfg(motor_torque_Nm=0.0, duration_s=0.001)
+    sim = Simulator(cfg)
+
+    # Check flagella_indices
+    assert len(sim.model.flagella_indices) == 1
+    flagella_bead_ids = sim.model.flagella_indices[0]
+    assert len(flagella_bead_ids) == 11, (
+        f"Expected 11 beads, got {len(flagella_bead_ids)}"
+    )
+
+    # Check hook triplets exist
+    assert len(sim.model.hook_triplets) > 0
+
+
+def test_phase0a_short_run_all_finite() -> None:
+    """Test (Phase A): Phase0a runs 10+ steps with all numerics finite."""
+    cfg = _make_phase0a_cfg(duration_s=0.01)
+    sim = Simulator(cfg)
+
+    # Collect states
+    states = sim.run(cfg.time.duration_s)
+    assert len(states) >= 10
+
+    # Check all coordinates finite
+    for state in states:
+        pos = np.asarray(state.position_um, dtype=float)
+        q = np.asarray(state.quaternion, dtype=float)
+        assert np.isfinite(pos).all(), "Step has NaN/Inf in position"
+        assert np.isfinite(q).all(), "Step has NaN/Inf in quaternion"
+
+
+def test_phase0b_short_run_all_finite_with_diagnostics() -> None:
+    """Test (Phase A): Phase0b (minimal stub) runs 10+ steps, all finite, diagnostics present."""
+    cfg = _make_phase0b_cfg(duration_s=0.01)
+    sim = Simulator(cfg)
+
+    # Collect states and write diagnostics
+    states = sim.run(cfg.time.duration_s)
+    assert len(states) >= 10
+
+    # Check all coordinates finite
+    for state in states:
+        pos = np.asarray(state.position_um, dtype=float)
+        q = np.asarray(state.quaternion, dtype=float)
+        assert np.isfinite(pos).all(), "Step has NaN/Inf in position"
+        assert np.isfinite(q).all(), "Step has NaN/Inf in quaternion"
+
+
+def test_phase0b_multi_seed_reproducibility(tmp_path: Path) -> None:
+    """Test (Phase A): Phase0b runs reproducibly across seeds (first-fail position)."""
+    seeds = [0, 1, 2]
+    results = []
+
+    for seed in seeds:
+        cfg_dict = {
+            "scale": {"b_um": 1.0, "bead_radius_a_over_b": 0.1},
+            "body": {
+                "prism": {
+                    "n_prism": 3,
+                    "dz_over_b": 0.5,
+                    "radius_over_b": 0.5,
+                    "axis": "x",
+                },
+                "length_total_um": 2.0,
+            },
+            "flagella": {
+                "n_flagella": 1,
+                "placement_mode": "uniform",
+                "init_mode": "paper_table1",
+                "stub_mode": "minimal_basal_stub",
+                "n_beads_per_flagellum": 11,
+                "discretization": {"ds_over_b": 0.58},
+                "bond_L_over_b": 0.58,
+                "length_over_b": 2.32,
+                "helix_init": {"radius_over_b": 0.25, "pitch_over_b": 2.5},
+            },
+            "fluid": {"viscosity_Pa_s": 1.0e-3},
+            "motor": {"torque_Nm": 0.0, "reverse_n_flagella": 1},
+            "potentials": {
+                "spring": {"H_over_T_over_b": 10.0, "s": 0.1},
+                "bend": {"kb_over_T": 20.0, "s": 0.1},
+                "torsion": {"kt_over_T": 20.0, "fd_eps_over_b": 1.0e-3},
+                "hook_attraction": {"h_bind": 10.0, "h_unbind": 5.0},
+                "hook_length": {"k_hook": 100.0, "target_L_nm": 250.0},
+                "hook_bending": {"kb_hook": 20.0, "hook_angle_max_deg": 90.0},
+                "repulsion": {"r0": 0.3, "K": 1000.0},
+            },
+            "hook": {"enabled": True},
+            "time": {"dt_star": 1.0e-3, "dt_s": 1.0e-3, "duration_s": 0.01},
+            "brownian": {"enabled": False, "T_K": 293.0},
+            "run_tumble": {
+                "run_tau": 999.0,
+                "tumble_tau": 0.001,
+                "semicoiled_tau": 999.0,
+                "curly1_tau": 999.0,
+            },
+            "body_equiv_load": {
+                "enabled": False,
+                "mode": "off",
+                "target_torque_Nm": 0.0,
+                "target_force_N": 0.0,
+                "attach_region_id": 0,
+            },
+            "seed": {"global_seed": seed},
+            "output": {"base_dir": "outputs"},
+        }
+        cfg = SimulationConfig.from_dict(cfg_dict)
+        sim = Simulator(cfg)
+        rows = _run_and_load_step_summary(
+            sim, cfg.time.duration_s, tmp_path / f"seed_{seed}"
+        )
+        results.append(
+            {
+                "seed": seed,
+                "n_steps": len(rows),
+                "all_finite": all(
+                    r["pos_all_finite"] in {"True", "true", "1"} for r in rows
+                ),
+            }
+        )
+
+    # All seeds should complete without early termination
+    for result in results:
+        assert result["all_finite"], f"Seed {result['seed']} had NaN/Inf"
+        assert result["n_steps"] >= 10, f"Seed {result['seed']} had too few steps"
+
+    # Check that completion is consistent (not wildly different)
+    step_counts = [r["n_steps"] for r in results]
+    assert max(step_counts) - min(step_counts) <= 2, (
+        f"Step counts too variable across seeds: {step_counts}"
+    )

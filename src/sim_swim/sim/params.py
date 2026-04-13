@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
+from enum import Enum
 import math
 from typing import Any
 
@@ -31,6 +32,75 @@ def _isclose(
     a: float, b: float, rel_tol: float = 1.0e-12, abs_tol: float = 1.0e-12
 ) -> bool:
     return math.isclose(float(a), float(b), rel_tol=rel_tol, abs_tol=abs_tol)
+
+
+class DynamicsMode(Enum):
+    """力学シミュレーションの構造モード。
+
+    定義:
+    - BODY_ONLY: 菌体のみ（べん毛なし）
+      Condition: n_flagella=0
+
+    - BODY_HOOK: 菌体 + hook + minimal basal stub（最小3ビーズ）
+      Condition: n_flagella >= 1, stub_mode='minimal_basal_stub'
+
+    - BODY_HOOK_FLAGELLA: 菌体 + hook + full flagellum
+      Condition: n_flagella >= 1, stub_mode='full_flagella'
+    """
+
+    BODY_ONLY = "body_only"
+    BODY_HOOK = "body_hook"
+    BODY_HOOK_FLAGELLA = "body_hook_flagella"
+
+
+def infer_dynamics_mode(n_flagella: int, stub_mode: str) -> DynamicsMode:
+    """設定から dynamics_mode を推論する。
+
+    Args:
+        n_flagella: フラジェラ本数
+        stub_mode: 'minimal_basal_stub' or 'full_flagella'
+
+    Returns:
+        DynamicsMode enum value
+
+    Raises:
+        ValueError: 不整合な設定の場合
+    """
+    if n_flagella == 0:
+        return DynamicsMode.BODY_ONLY
+    if n_flagella >= 1:
+        if stub_mode == "minimal_basal_stub":
+            return DynamicsMode.BODY_HOOK
+        elif stub_mode == "full_flagella":
+            return DynamicsMode.BODY_HOOK_FLAGELLA
+        else:
+            raise ValueError(
+                f"Invalid stub_mode: {stub_mode}. "
+                "Must be 'minimal_basal_stub' or 'full_flagella'."
+            )
+    raise ValueError(f"Invalid n_flagella: {n_flagella}. Must be >= 0.")
+
+
+def validate_dynamics_mode_consistency(
+    mode: DynamicsMode, n_flagella: int, stub_mode: str
+) -> None:
+    """dynamics_mode と設定の一貫性を検証する。
+
+    Args:
+        mode: DynamicsMode enum
+        n_flagella: フラジェラ本数
+        stub_mode: 'minimal_basal_stub' or 'full_flagella'
+
+    Raises:
+        ValueError: 不整合が検出された場合
+    """
+    inferred = infer_dynamics_mode(n_flagella, stub_mode)
+    if mode != inferred:
+        raise ValueError(
+            f"Dynamics mode mismatch: specified={mode}, "
+            f"inferred from config={inferred}. "
+            f"n_flagella={n_flagella}, stub_mode={stub_mode}"
+        )
 
 
 @dataclass(frozen=True)
