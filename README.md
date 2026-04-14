@@ -35,3 +35,13 @@ uv run python -m scripts.run_motor_scale_sweep \
 ```
 
 この実行は図を生成せず、`*_sweep_summary.csv` に `torque_Nm`, `shape_pass`, `first_fail_category` を含む観測結果を保存します。
+
+PhaseB1 以降では、同CSVから崩壊の分布を可視化できる。
+
+```bash
+uv run python -m scripts.plot_motor_scale_collapse_heatmap \
+  --summary-csv outputs/phaseb1_torque_scale/local_hook_scale_sweep_summary.csv \
+  --output-dir outputs/phaseb1_torque_scale/plots
+```
+
+この可視化は `*_category_heatmap.png` と `*_shape_pass_heatmap.png`、および正規化した `*_collapse_matrix.csv` を出力する。
