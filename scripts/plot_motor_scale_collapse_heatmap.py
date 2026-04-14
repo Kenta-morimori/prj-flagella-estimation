@@ -3,7 +3,8 @@
 
 This script is intended for PhaseB1 and later only. It reads the long-form
 summary emitted by `scripts.run_motor_scale_sweep`, pivots the table into a
-torque-by-scale grid, and writes compact heatmap figures plus a normalized CSV.
+torque-by-scale grid, and writes a category heatmap plus body / hook / flagella
+pass-fail heatmaps, along with a normalized CSV.
 
 Example:
   uv run python -m scripts.plot_motor_scale_collapse_heatmap \
