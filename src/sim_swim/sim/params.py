@@ -199,6 +199,10 @@ class MotorParams:
     torque_ramp_enabled: bool = False
     torque_ramp_duration_s: float = 0.0
     torque_for_forces_override_Nm: float = 0.0
+    local_hook_scale: float = 8.0
+    local_spring_scale: float = 5.0
+    local_bend_scale: float = 4.0
+    local_torsion_scale: float = 4.0
 
 
 @dataclass(frozen=True)
@@ -671,6 +675,10 @@ class SimulationConfig:
             torque_for_forces_override_Nm=float(
                 _get(motor_raw, "torque_for_forces_override_Nm", 0.0)
             ),
+            local_hook_scale=float(_get(motor_raw, "local_hook_scale", 8.0)),
+            local_spring_scale=float(_get(motor_raw, "local_spring_scale", 5.0)),
+            local_bend_scale=float(_get(motor_raw, "local_bend_scale", 4.0)),
+            local_torsion_scale=float(_get(motor_raw, "local_torsion_scale", 4.0)),
         )
 
         thermal = K_B * max(brownian.temperature_K, 1e-9)

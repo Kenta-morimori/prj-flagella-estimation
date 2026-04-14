@@ -227,10 +227,10 @@ class DynamicsEngine:
             self.segment_pair_indices_for_repulsion = self.model.segment_pair_indices
         self.body_indices = self.model.body_indices.astype(int, copy=False)
         self.bead_is_body = self.model.bead_is_body.astype(bool, copy=False)
-        self.motor_local_hook_scale = 8.0
-        self.motor_local_spring_scale = 5.0
-        self.motor_local_bend_scale = 4.0
-        self.motor_local_torsion_scale = 4.0
+        self.motor_local_hook_scale = float(cfg.motor.local_hook_scale)
+        self.motor_local_spring_scale = float(cfg.motor.local_spring_scale)
+        self.motor_local_bend_scale = float(cfg.motor.local_bend_scale)
+        self.motor_local_torsion_scale = float(cfg.motor.local_torsion_scale)
 
     def set_external_force_callback(
         self,
