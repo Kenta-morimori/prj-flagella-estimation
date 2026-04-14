@@ -7,7 +7,13 @@ signal degrades first.
 
 Example:
   uv run python -m scripts.run_motor_scale_sweep \
-    --target local_hook_scale --values 8,4,2,1,0.5,0.25,0.0
+        --target local_hook_scale --values 8,4,2,1,0.5,0.25,0.0
+
+    # PhaseB1: sweep torque x scale grid without plotting
+    uv run python -m scripts.run_motor_scale_sweep \
+        --target local_hook_scale \
+        --values 8,2,0 \
+        --torques 1e-21,4e-21,1e-20
 """
 
 from __future__ import annotations
@@ -41,6 +47,13 @@ def _parse_values(text: str) -> list[float]:
     if not values:
         raise ValueError("At least one value is required.")
     return values
+
+
+def _parse_torques(text: str) -> list[float]:
+    torques = _parse_values(text)
+    if any(v < 0.0 for v in torques):
+        raise ValueError("Torque list must be non-negative.")
+    return torques
 
 
 def _base_cfg() -> dict[str, Any]:
@@ -274,6 +287,15 @@ def main() -> None:
         help="Simulation duration in seconds.",
     )
     parser.add_argument(
+        "--torques",
+        type=_parse_torques,
+        default=None,
+        help=(
+            "Optional comma-separated torque_Nm values. "
+            "If omitted, uses base config torque only."
+        ),
+    )
+    parser.add_argument(
         "--output-dir",
         type=str,
         default="outputs/motor_scale_sweep",
@@ -290,6 +312,7 @@ def main() -> None:
             handle,
             fieldnames=[
                 "target",
+                "torque_Nm",
                 "value",
                 "output_dir",
                 "pos_all_finite",
@@ -323,95 +346,107 @@ def main() -> None:
         )
         writer.writeheader()
 
-        for value in args.values:
-            cfg_dict = _base_cfg()
-            cfg_dict["motor"][args.target] = float(value)
-            cfg_dict["time"]["duration_s"] = float(args.duration)
-            cfg = SimulationConfig.from_dict(cfg_dict)
+        base_torque = float(_base_cfg()["motor"]["torque_Nm"])
+        torques = args.torques if args.torques is not None else [base_torque]
 
-            run_dir = sweep_dir / f"{args.target}_{value:g}"
-            run_dir.mkdir(parents=True, exist_ok=True)
-            sim = Simulator(cfg)
-            sim.run(cfg.time.duration_s, step_summary_dir=run_dir)
-            last = _collect_last_step_metrics(run_dir / "step_summary.csv")
-            body_shape = _collect_body_shape_metrics(
-                run_dir / "body_constraint_diagnostics.csv"
-            )
+        for torque in torques:
+            for value in args.values:
+                cfg_dict = _base_cfg()
+                cfg_dict["motor"]["torque_Nm"] = float(torque)
+                cfg_dict["motor"][args.target] = float(value)
+                cfg_dict["time"]["duration_s"] = float(args.duration)
+                cfg = SimulationConfig.from_dict(cfg_dict)
 
-            finite_pass = _parse_bool(last.get("finite_pass"))
-            shape_pass_nonbody = _parse_bool(last.get("shape_pass_nonbody"))
-            body_shape_pass = _parse_bool(body_shape.get("body_shape_pass"))
-            shape_pass = bool(finite_pass and shape_pass_nonbody and body_shape_pass)
-            first_fail_category_nonbody = str(
-                last.get("first_fail_category_nonbody", "none")
-            )
-            body_fail_category = str(body_shape.get("body_fail_category", "none"))
-            first_fail_category = (
-                first_fail_category_nonbody
-                if first_fail_category_nonbody != "none"
-                else body_fail_category
-                if body_fail_category != "none"
-                else "none"
-            )
+                run_dir = (
+                    sweep_dir / f"torque_{torque:.2e}" / f"{args.target}_{value:g}"
+                )
+                run_dir.mkdir(parents=True, exist_ok=True)
+                sim = Simulator(cfg)
+                sim.run(cfg.time.duration_s, step_summary_dir=run_dir)
+                last = _collect_last_step_metrics(run_dir / "step_summary.csv")
+                body_shape = _collect_body_shape_metrics(
+                    run_dir / "body_constraint_diagnostics.csv"
+                )
 
-            writer.writerow(
-                {
-                    "target": args.target,
-                    "value": float(value),
-                    "output_dir": str(run_dir),
-                    "pos_all_finite": last.get("pos_all_finite", ""),
-                    "any_nan": last.get("any_nan", ""),
-                    "any_inf": last.get("any_inf", ""),
-                    "finite_pass": finite_pass,
-                    "shape_pass_nonbody": shape_pass_nonbody,
-                    "body_shape_pass": body_shape_pass,
-                    "shape_pass": shape_pass,
-                    "first_fail_category": first_fail_category,
-                    "flag_root_azimuth_deg": last.get("flag_root_azimuth_deg", ""),
-                    "flag_phase_deg": last.get("flag_phase_deg", ""),
-                    "flag_phase_rate_hz": last.get("flag_phase_rate_hz", ""),
-                    "flag_body_phase_diff_deg": last.get(
-                        "flag_body_phase_diff_deg", ""
-                    ),
-                    "local_attach_first_rel_err": last.get(
-                        "local_attach_first_rel_err", ""
-                    ),
-                    "local_first_second_rel_err": last.get(
-                        "local_first_second_rel_err", ""
-                    ),
-                    "hook_angle_err_max_deg": last.get("hook_angle_err_max_deg", ""),
-                    "hook_len_rel_err_max": last.get("hook_len_rel_err_max", ""),
-                    "flag_bond_rel_err_max": last.get("flag_bond_rel_err_max", ""),
-                    "flag_bend_err_max_deg": last.get("flag_bend_err_max_deg", ""),
-                    "flag_torsion_err_max_deg": last.get(
-                        "flag_torsion_err_max_deg", ""
-                    ),
-                    "body_spring_max_stretch_ratio": body_shape.get(
-                        "body_spring_max_stretch_ratio", ""
-                    ),
-                    "body_bend_max_error_deg": body_shape.get(
-                        "body_bend_max_error_deg", ""
-                    ),
-                    "body_centerline_max_deviation_um": body_shape.get(
-                        "body_centerline_max_deviation_um", ""
-                    ),
-                    "body_triangle_area_ratio_min": body_shape.get(
-                        "body_triangle_area_ratio_min", ""
-                    ),
-                    "motor_split_residual_norm": last.get(
-                        "motor_split_residual_norm", ""
-                    ),
-                    "motor_degenerate_axis_count": last.get(
-                        "motor_degenerate_axis_count", ""
-                    ),
-                    "motor_split_rank_deficient_count": last.get(
-                        "motor_split_rank_deficient_count", ""
-                    ),
-                    "motor_bond_length_clipped_count": last.get(
-                        "motor_bond_length_clipped_count", ""
-                    ),
-                }
-            )
+                finite_pass = _parse_bool(last.get("finite_pass"))
+                shape_pass_nonbody = _parse_bool(last.get("shape_pass_nonbody"))
+                body_shape_pass = _parse_bool(body_shape.get("body_shape_pass"))
+                shape_pass = bool(
+                    finite_pass and shape_pass_nonbody and body_shape_pass
+                )
+                first_fail_category_nonbody = str(
+                    last.get("first_fail_category_nonbody", "none")
+                )
+                body_fail_category = str(body_shape.get("body_fail_category", "none"))
+                first_fail_category = (
+                    first_fail_category_nonbody
+                    if first_fail_category_nonbody != "none"
+                    else body_fail_category
+                    if body_fail_category != "none"
+                    else "none"
+                )
+
+                writer.writerow(
+                    {
+                        "target": args.target,
+                        "torque_Nm": float(torque),
+                        "value": float(value),
+                        "output_dir": str(run_dir),
+                        "pos_all_finite": last.get("pos_all_finite", ""),
+                        "any_nan": last.get("any_nan", ""),
+                        "any_inf": last.get("any_inf", ""),
+                        "finite_pass": finite_pass,
+                        "shape_pass_nonbody": shape_pass_nonbody,
+                        "body_shape_pass": body_shape_pass,
+                        "shape_pass": shape_pass,
+                        "first_fail_category": first_fail_category,
+                        "flag_root_azimuth_deg": last.get("flag_root_azimuth_deg", ""),
+                        "flag_phase_deg": last.get("flag_phase_deg", ""),
+                        "flag_phase_rate_hz": last.get("flag_phase_rate_hz", ""),
+                        "flag_body_phase_diff_deg": last.get(
+                            "flag_body_phase_diff_deg", ""
+                        ),
+                        "local_attach_first_rel_err": last.get(
+                            "local_attach_first_rel_err", ""
+                        ),
+                        "local_first_second_rel_err": last.get(
+                            "local_first_second_rel_err", ""
+                        ),
+                        "hook_angle_err_max_deg": last.get(
+                            "hook_angle_err_max_deg", ""
+                        ),
+                        "hook_len_rel_err_max": last.get("hook_len_rel_err_max", ""),
+                        "flag_bond_rel_err_max": last.get("flag_bond_rel_err_max", ""),
+                        "flag_bend_err_max_deg": last.get("flag_bend_err_max_deg", ""),
+                        "flag_torsion_err_max_deg": last.get(
+                            "flag_torsion_err_max_deg", ""
+                        ),
+                        "body_spring_max_stretch_ratio": body_shape.get(
+                            "body_spring_max_stretch_ratio", ""
+                        ),
+                        "body_bend_max_error_deg": body_shape.get(
+                            "body_bend_max_error_deg", ""
+                        ),
+                        "body_centerline_max_deviation_um": body_shape.get(
+                            "body_centerline_max_deviation_um", ""
+                        ),
+                        "body_triangle_area_ratio_min": body_shape.get(
+                            "body_triangle_area_ratio_min", ""
+                        ),
+                        "motor_split_residual_norm": last.get(
+                            "motor_split_residual_norm", ""
+                        ),
+                        "motor_degenerate_axis_count": last.get(
+                            "motor_degenerate_axis_count", ""
+                        ),
+                        "motor_split_rank_deficient_count": last.get(
+                            "motor_split_rank_deficient_count", ""
+                        ),
+                        "motor_bond_length_clipped_count": last.get(
+                            "motor_bond_length_clipped_count", ""
+                        ),
+                    }
+                )
 
     print(f"Sweep summary saved to {summary_path}")
 

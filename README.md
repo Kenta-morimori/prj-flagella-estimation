@@ -23,3 +23,15 @@
 - PhaseA（`motor.torque_Nm=0`）は CSV による判定を行い、図の作成は実施しない。
 - 図の作成は PhaseB1（`motor.torque_Nm!=0`）以降で開始する。
 - 合否判定は `pos_all_finite` 単独ではなく、shape 系列（`shape_pass_nonbody` / body diagnostics / fail category）を優先する。
+
+### PhaseB1 例: torque x scale 観測CSV
+```bash
+uv run python -m scripts.run_motor_scale_sweep \
+  --target local_hook_scale \
+  --values 8,2,0 \
+  --torques 1e-21,4e-21,1e-20 \
+  --duration 0.05 \
+  --output-dir outputs/phaseb1_torque_scale
+```
+
+この実行は図を生成せず、`*_sweep_summary.csv` に `torque_Nm`, `shape_pass`, `first_fail_category` を含む観測結果を保存します。
