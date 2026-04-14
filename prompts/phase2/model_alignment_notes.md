@@ -56,6 +56,7 @@
 - `local_hook_scale=8.0`, `n_flagella=1`, `stub_mode=minimal_basal_stub`, `duration=0.05s` の短時間 sweep では、`torque_Nm=0` と `1e-24`〜`1e-21` までは `shape_pass=True` を確認した。
 - `1.2e-21` 以上では first-fail が再出現し、`1.8e-21` と `2.4e-21` では `body_spring` に寄るケースも観測された。
 - したがって現時点の安定帯は「0 近傍のごく小さいトルク」に限られ、PhaseB1 の追加探索は `1e-21` と `1.2e-21` の間をさらに詰めるのが妥当である。
+- PhaseB1 の可視化は body / hook / flagella の pass/fail heatmap を主図とし、flagella は flag 系失敗がある場合にのみ出力する。
 
 ---
 

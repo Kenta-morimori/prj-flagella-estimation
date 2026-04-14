@@ -44,4 +44,6 @@ uv run python -m scripts.plot_motor_scale_collapse_heatmap \
   --output-dir outputs/phaseb1_torque_scale/plots
 ```
 
-この可視化は `*_category_heatmap.png` と `*_shape_pass_heatmap.png`、および正規化した `*_collapse_matrix.csv` を出力する。
+  この可視化は `*_category_heatmap.png` に加えて、body / hook / flagella の pass/fail heatmap を出力する。
+  body と hook は常時出力し、flagella は flag 系の first-fail がある場合にのみ出力する。
+  また、正規化した `*_collapse_matrix.csv` も出力する。
