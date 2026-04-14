@@ -39,6 +39,7 @@
 - これらの diagnostics は、attachment angle と self-rotation を区別して観測するためのものとし、既存の motor diagnostics を置き換えるものではない。
 - motor の `local_*_scale` は config から調整できるようにし、body + hook から順に弱める sweep を可能にした。
 - これらの scale は最終的に不要化するのが理想だが、現状は観測と安定性を保てる範囲で段階的に削る。
+- 2026-04-14 の hook scale sweep では、短時間では first-fail に到達せず、先に `local_first_second_rel_err` と `flag_bond_rel_err_max` が悪化した。
 
 ---
 
