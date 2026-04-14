@@ -294,6 +294,9 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
 
     # 既存 diagnostics は維持
     for key in [
+        "finite_pass",
+        "shape_pass_nonbody",
+        "first_fail_category_nonbody",
         "torsion_fd_eps_m",
         "torsion_fd_eps_over_b",
         "hook_len_mean_over_b",

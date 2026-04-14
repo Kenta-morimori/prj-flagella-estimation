@@ -26,6 +26,9 @@ STEP_SUMMARY_COLUMNS = [
     "pos_all_finite",
     "any_nan",
     "any_inf",
+    "finite_pass",
+    "shape_pass_nonbody",
+    "first_fail_category_nonbody",
     "mean_disp_um",
     "max_disp_um",
     "bond_count_body_body",
@@ -169,9 +172,63 @@ BODY_CONSTRAINT_LOCAL_DIAGNOSTICS_COLUMNS = [
 
 RAD_TO_DEG = 180.0 / np.pi
 
+NONBODY_HOOK_REL_ERR_MAX_LIMIT = 1.0
+NONBODY_HOOK_ANGLE_ERR_MAX_DEG_LIMIT = 30.0
+NONBODY_FLAG_BOND_REL_ERR_MAX_LIMIT = 1.0
+NONBODY_FLAG_BEND_ERR_MAX_DEG_LIMIT = 60.0
+NONBODY_FLAG_TORSION_ERR_MAX_DEG_LIMIT = 120.0
+
 
 def _wrap_angle(rad: np.ndarray | float) -> np.ndarray | float:
     return (np.asarray(rad) + np.pi) % (2.0 * np.pi) - np.pi
+
+
+def _is_finite_number(value: float) -> bool:
+    return bool(np.isfinite(float(value)))
+
+
+def _check_nonbody_shape_pass(
+    *,
+    finite_pass: bool,
+    local_attach_first_rel_err: float,
+    hook_len_rel_err_max: float,
+    hook_angle_err_max_deg: float,
+    flag_bond_rel_err_max: float,
+    flag_bend_err_max_deg: float,
+    flag_torsion_err_max_deg: float,
+) -> tuple[bool, str]:
+    if not finite_pass:
+        return False, "finite"
+
+    hook_metrics = [
+        local_attach_first_rel_err,
+        hook_len_rel_err_max,
+        hook_angle_err_max_deg,
+    ]
+    if any(not _is_finite_number(v) for v in hook_metrics):
+        return False, "hook_nonfinite"
+    if local_attach_first_rel_err > NONBODY_HOOK_REL_ERR_MAX_LIMIT:
+        return False, "hook"
+    if hook_len_rel_err_max > NONBODY_HOOK_REL_ERR_MAX_LIMIT:
+        return False, "hook"
+    if hook_angle_err_max_deg > NONBODY_HOOK_ANGLE_ERR_MAX_DEG_LIMIT:
+        return False, "hook"
+
+    flag_metrics = [
+        flag_bond_rel_err_max,
+        flag_bend_err_max_deg,
+        flag_torsion_err_max_deg,
+    ]
+    if any(not _is_finite_number(v) for v in flag_metrics):
+        return False, "flag_nonfinite"
+    if flag_bond_rel_err_max > NONBODY_FLAG_BOND_REL_ERR_MAX_LIMIT:
+        return False, "flag"
+    if flag_bend_err_max_deg > NONBODY_FLAG_BEND_ERR_MAX_DEG_LIMIT:
+        return False, "flag"
+    if flag_torsion_err_max_deg > NONBODY_FLAG_TORSION_ERR_MAX_DEG_LIMIT:
+        return False, "flag"
+
+    return True, "none"
 
 
 def _triplet_angles_rad(positions_m: np.ndarray, triplets: np.ndarray) -> np.ndarray:
@@ -752,6 +809,7 @@ class StepSummaryRecorder:
         any_nan = bool(np.isnan(pos_after).any())
         any_inf = bool(np.isinf(pos_after).any())
         pos_all_finite = bool(np.isfinite(pos_after).all())
+        finite_pass = bool(pos_all_finite and (not any_nan) and (not any_inf))
 
         brownian_disp_mean_um = float("nan")
         if diag.brownian_enabled:
@@ -999,6 +1057,15 @@ class StepSummaryRecorder:
             if np.all(self.local_first_torsion_quad >= 0)
             else [self.local_first_idx, self.local_second_idx, self.local_third_idx]
         )
+        shape_pass_nonbody, first_fail_category_nonbody = _check_nonbody_shape_pass(
+            finite_pass=finite_pass,
+            local_attach_first_rel_err=local_attach_first_rel_err,
+            hook_len_rel_err_max=hook_len_rel_err_max,
+            hook_angle_err_max_deg=hook_angle_err_max_deg,
+            flag_bond_rel_err_max=flag_bond_rel_err_max,
+            flag_bend_err_max_deg=flag_bend_err_max_deg,
+            flag_torsion_err_max_deg=flag_torsion_err_max_deg,
+        )
 
         row: dict[str, float | int | bool] = {
             "step": int(step),
@@ -1011,6 +1078,9 @@ class StepSummaryRecorder:
             "pos_all_finite": pos_all_finite,
             "any_nan": any_nan,
             "any_inf": any_inf,
+            "finite_pass": finite_pass,
+            "shape_pass_nonbody": shape_pass_nonbody,
+            "first_fail_category_nonbody": first_fail_category_nonbody,
             "mean_disp_um": float(np.mean(disp_um)),
             "max_disp_um": float(np.max(disp_um)),
             "bond_count_body_body": bond_count_body_body,

@@ -18,10 +18,17 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import SimulationConfig
+
+BODY_SPRING_STRETCH_RATIO_MAX_LIMIT = 1.0
+BODY_BEND_ERR_MAX_DEG_LIMIT = 60.0
+BODY_CENTERLINE_DEV_UM_MAX_LIMIT = 2.0
+BODY_TRIANGLE_AREA_RATIO_MIN_LIMIT = 0.5
 
 
 def _parse_values(text: str) -> list[float]:
@@ -138,6 +145,107 @@ def _collect_last_step_metrics(csv_path: Path) -> dict[str, str]:
     return rows[-1]
 
 
+def _parse_bool(value: str | bool | None) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _parse_float(value: str | float | None) -> float:
+    if value is None:
+        return float("nan")
+    if isinstance(value, float):
+        return value
+    text = str(value).strip()
+    if not text:
+        return float("nan")
+    try:
+        return float(text)
+    except ValueError:
+        return float("nan")
+
+
+def _collect_body_shape_metrics(csv_path: Path) -> dict[str, float | bool | str]:
+    if not csv_path.is_file():
+        return {
+            "body_shape_pass": False,
+            "body_fail_category": "body_diag_missing",
+            "body_spring_max_stretch_ratio": float("nan"),
+            "body_bend_max_error_deg": float("nan"),
+            "body_centerline_max_deviation_um": float("nan"),
+            "body_triangle_area_ratio_min": float("nan"),
+        }
+
+    with csv_path.open("r", encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    if not rows:
+        return {
+            "body_shape_pass": False,
+            "body_fail_category": "body_diag_empty",
+            "body_spring_max_stretch_ratio": float("nan"),
+            "body_bend_max_error_deg": float("nan"),
+            "body_centerline_max_deviation_um": float("nan"),
+            "body_triangle_area_ratio_min": float("nan"),
+        }
+
+    stretch_vals = [_parse_float(r.get("body_spring_max_stretch_ratio")) for r in rows]
+    bend_vals = [_parse_float(r.get("body_bend_max_error_deg")) for r in rows]
+    centerline_vals = [
+        _parse_float(r.get("body_centerline_max_deviation_um")) for r in rows
+    ]
+    area_min_vals = [_parse_float(r.get("body_triangle_area_min")) for r in rows]
+
+    spring_max = max(stretch_vals)
+    bend_max = max(bend_vals)
+    centerline_max = max(centerline_vals)
+    init_area_min = area_min_vals[0]
+    min_area_min = min(area_min_vals)
+    area_ratio_min = (
+        min_area_min / max(init_area_min, 1e-30)
+        if init_area_min > 0.0
+        else float("nan")
+    )
+
+    if not all(
+        np.isfinite(v) for v in [spring_max, bend_max, centerline_max, area_ratio_min]
+    ):
+        return {
+            "body_shape_pass": False,
+            "body_fail_category": "body_nonfinite",
+            "body_spring_max_stretch_ratio": spring_max,
+            "body_bend_max_error_deg": bend_max,
+            "body_centerline_max_deviation_um": centerline_max,
+            "body_triangle_area_ratio_min": area_ratio_min,
+        }
+
+    if spring_max > BODY_SPRING_STRETCH_RATIO_MAX_LIMIT:
+        category = "body_spring"
+        passed = False
+    elif bend_max > BODY_BEND_ERR_MAX_DEG_LIMIT:
+        category = "body_bend"
+        passed = False
+    elif centerline_max > BODY_CENTERLINE_DEV_UM_MAX_LIMIT:
+        category = "body_centerline"
+        passed = False
+    elif area_ratio_min < BODY_TRIANGLE_AREA_RATIO_MIN_LIMIT:
+        category = "body_area"
+        passed = False
+    else:
+        category = "none"
+        passed = True
+
+    return {
+        "body_shape_pass": passed,
+        "body_fail_category": category,
+        "body_spring_max_stretch_ratio": spring_max,
+        "body_bend_max_error_deg": bend_max,
+        "body_centerline_max_deviation_um": centerline_max,
+        "body_triangle_area_ratio_min": area_ratio_min,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run a sweep over motor-local scale factors."
@@ -162,7 +270,7 @@ def main() -> None:
     parser.add_argument(
         "--duration",
         type=float,
-        default=0.01,
+        default=0.05,
         help="Simulation duration in seconds.",
     )
     parser.add_argument(
@@ -187,6 +295,11 @@ def main() -> None:
                 "pos_all_finite",
                 "any_nan",
                 "any_inf",
+                "finite_pass",
+                "shape_pass_nonbody",
+                "body_shape_pass",
+                "shape_pass",
+                "first_fail_category",
                 "flag_root_azimuth_deg",
                 "flag_phase_deg",
                 "flag_phase_rate_hz",
@@ -198,6 +311,10 @@ def main() -> None:
                 "flag_bond_rel_err_max",
                 "flag_bend_err_max_deg",
                 "flag_torsion_err_max_deg",
+                "body_spring_max_stretch_ratio",
+                "body_bend_max_error_deg",
+                "body_centerline_max_deviation_um",
+                "body_triangle_area_ratio_min",
                 "motor_split_residual_norm",
                 "motor_degenerate_axis_count",
                 "motor_split_rank_deficient_count",
@@ -217,6 +334,25 @@ def main() -> None:
             sim = Simulator(cfg)
             sim.run(cfg.time.duration_s, step_summary_dir=run_dir)
             last = _collect_last_step_metrics(run_dir / "step_summary.csv")
+            body_shape = _collect_body_shape_metrics(
+                run_dir / "body_constraint_diagnostics.csv"
+            )
+
+            finite_pass = _parse_bool(last.get("finite_pass"))
+            shape_pass_nonbody = _parse_bool(last.get("shape_pass_nonbody"))
+            body_shape_pass = _parse_bool(body_shape.get("body_shape_pass"))
+            shape_pass = bool(finite_pass and shape_pass_nonbody and body_shape_pass)
+            first_fail_category_nonbody = str(
+                last.get("first_fail_category_nonbody", "none")
+            )
+            body_fail_category = str(body_shape.get("body_fail_category", "none"))
+            first_fail_category = (
+                first_fail_category_nonbody
+                if first_fail_category_nonbody != "none"
+                else body_fail_category
+                if body_fail_category != "none"
+                else "none"
+            )
 
             writer.writerow(
                 {
@@ -226,6 +362,11 @@ def main() -> None:
                     "pos_all_finite": last.get("pos_all_finite", ""),
                     "any_nan": last.get("any_nan", ""),
                     "any_inf": last.get("any_inf", ""),
+                    "finite_pass": finite_pass,
+                    "shape_pass_nonbody": shape_pass_nonbody,
+                    "body_shape_pass": body_shape_pass,
+                    "shape_pass": shape_pass,
+                    "first_fail_category": first_fail_category,
                     "flag_root_azimuth_deg": last.get("flag_root_azimuth_deg", ""),
                     "flag_phase_deg": last.get("flag_phase_deg", ""),
                     "flag_phase_rate_hz": last.get("flag_phase_rate_hz", ""),
@@ -244,6 +385,18 @@ def main() -> None:
                     "flag_bend_err_max_deg": last.get("flag_bend_err_max_deg", ""),
                     "flag_torsion_err_max_deg": last.get(
                         "flag_torsion_err_max_deg", ""
+                    ),
+                    "body_spring_max_stretch_ratio": body_shape.get(
+                        "body_spring_max_stretch_ratio", ""
+                    ),
+                    "body_bend_max_error_deg": body_shape.get(
+                        "body_bend_max_error_deg", ""
+                    ),
+                    "body_centerline_max_deviation_um": body_shape.get(
+                        "body_centerline_max_deviation_um", ""
+                    ),
+                    "body_triangle_area_ratio_min": body_shape.get(
+                        "body_triangle_area_ratio_min", ""
                     ),
                     "motor_split_residual_norm": last.get(
                         "motor_split_residual_norm", ""

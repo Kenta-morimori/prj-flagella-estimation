@@ -41,6 +41,12 @@
 - これらの scale は最終的に不要化するのが理想だが、現状は観測と安定性を保てる範囲で段階的に削る。
 - 2026-04-14 の hook scale sweep では、短時間では first-fail に到達せず、先に `local_first_second_rel_err` と `flag_bond_rel_err_max` が悪化した。
 
+## Update (2026-04-14 / shape-gate hardening)
+- `pos_all_finite` 系は数値健全性のみを表す列として扱い、形状維持判定とは分離する方針を実装に反映した。
+- `step_summary.csv` に `finite_pass` / `shape_pass_nonbody` / `first_fail_category_nonbody` を追加し、非body側の first-fail を機械可読にした。
+- 形状維持の評価窓を 0.05s に統一するため、`body_constraint_diagnostics.csv` と `body_constraint_local_diagnostics.csv` の出力条件を `duration<=0.05` に拡張した。
+- motor scale sweep 集計に `body_shape_pass` / `shape_pass` / `first_fail_category` と body shape 指標を追加し、body/hook/flag の失敗分類を run 単位で比較可能にした。
+
 ---
 
 ## 対象論文

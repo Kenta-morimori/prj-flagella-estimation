@@ -464,12 +464,12 @@ class Simulator:
                 )
         body_diag_recorder = (
             BodyConstraintDiagnosticsRecorder(self.model, self.config, step_summary_dir)
-            if step_summary_dir is not None and duration_s <= 0.01
+            if step_summary_dir is not None and duration_s <= 0.05
             else None
         )
         body_local_diag_recorder = (
             BodyConstraintLocalDiagnosticsRecorder(self.model, step_summary_dir)
-            if (step_summary_dir is not None and duration_s <= 0.01)
+            if (step_summary_dir is not None and duration_s <= 0.05)
             else None
         )
 
