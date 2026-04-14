@@ -47,6 +47,11 @@
 - 形状維持の評価窓を 0.05s に統一するため、`body_constraint_diagnostics.csv` と `body_constraint_local_diagnostics.csv` の出力条件を `duration<=0.05` に拡張した。
 - motor scale sweep 集計に `body_shape_pass` / `shape_pass` / `first_fail_category` と body shape 指標を追加し、body/hook/flag の失敗分類を run 単位で比較可能にした。
 
+## Update (2026-04-14 / phase operation policy)
+- PhaseA は `motor.torque_Nm=0` の検証フェーズとして先行し、判定は CSV（`step_summary.csv` と body diagnostics）を source of truth とする。
+- PhaseA では図作成を行わず、可視化は PhaseB1（`motor.torque_Nm!=0`）以降で開始する運用に固定した。
+- 既知失敗条件（minimal stub, torque=4.0e-21, local_hook_scale=8.0, duration=0.05s）は、B1で再現・分類すべきケースとして管理する。
+
 ---
 
 ## 対象論文

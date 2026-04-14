@@ -186,6 +186,18 @@ def _run_and_load_step_summary(
     return rows
 
 
+def _run_and_load_body_diag(
+    sim: Simulator, duration_s: float, summary_dir: Path
+) -> list[dict[str, str]]:
+    sim.run(duration_s, step_summary_dir=summary_dir)
+    csv_path = summary_dir / "body_constraint_diagnostics.csv"
+    assert csv_path.is_file()
+    with csv_path.open("r", encoding="utf-8", newline="") as f:
+        rows = list(csv.DictReader(f))
+    assert rows
+    return rows
+
+
 def _series(rows: list[dict[str, str]], key: str) -> np.ndarray:
     return np.asarray([float(row[key]) for row in rows], dtype=float)
 
@@ -368,6 +380,39 @@ def test_phase2_body_hook_static_stability_minimal_stub(tmp_path: Path) -> None:
     # Phase2(静的)の暫定許容閾値: 5%
     assert max(attach_rel) < 0.05
     assert max(first_second_rel) < 0.05
+
+
+def test_phasea_minimal_stub_torque_off_shape_gate_005s(tmp_path: Path) -> None:
+    """PhaseA: torque=0, 0.05s, minimal stub must stay shape-pass without figures."""
+    cfg = _make_phase0b_cfg(duration_s=0.05)
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "phasea")
+
+    assert len(rows) >= 50
+    assert all(r["pos_all_finite"] in {"True", "true", "1"} for r in rows)
+    assert all(r["any_nan"] in {"False", "false", "0"} for r in rows)
+    assert all(r["any_inf"] in {"False", "false", "0"} for r in rows)
+    assert all(r["shape_pass_nonbody"] in {"True", "true", "1"} for r in rows)
+    assert all(r["first_fail_category_nonbody"] == "none" for r in rows)
+
+    body_csv = tmp_path / "phasea" / "body_constraint_diagnostics.csv"
+    assert body_csv.is_file()
+
+
+def test_phaseb1_known_failure_case_detected_minimal_stub_005s(
+    tmp_path: Path,
+) -> None:
+    """PhaseB1: user-reported case must be detectable as shape fail category."""
+    cfg = _make_phase2_cfg(motor_torque_Nm=4.0e-21, duration_s=0.05)
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "phaseb1")
+
+    assert len(rows) >= 50
+    assert all(r["finite_pass"] in {"True", "true", "1"} for r in rows)
+    assert any(r["shape_pass_nonbody"] in {"False", "false", "0"} for r in rows)
+
+    fail_cats = [r["first_fail_category_nonbody"] for r in rows]
+    assert any(cat == "hook" for cat in fail_cats)
 
 
 def test_torsion_fd_eps_sweep_is_traceable_and_reduces_step0_torsion_force(
