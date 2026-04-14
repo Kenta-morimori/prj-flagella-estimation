@@ -211,6 +211,120 @@ def _save_pass_fail_heatmap(
     plt.close(fig)
 
 
+def _make_body_shape_pass_matrix(
+    rows: list[dict[str, str]],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Extract body_shape_pass column directly for body component pass/fail judgment.
+
+    This function judges body pass/fail based on the body_shape_pass column,
+    independent of the first_fail_category priority ordering.
+    """
+    scale_col = "value"
+    torque_col = "torque_Nm"
+    if not rows:
+        raise ValueError("summary CSV is empty")
+    if torque_col not in rows[0]:
+        raise ValueError(f"Missing required column: {torque_col}")
+    if "body_shape_pass" not in rows[0]:
+        raise ValueError("Missing required column: body_shape_pass")
+
+    torque_vals = np.array(sorted({float(row[torque_col]) for row in rows}))
+    scale_vals = np.array(sorted({float(row[scale_col]) for row in rows}))
+
+    mat = np.full((torque_vals.size, scale_vals.size), np.nan, dtype=float)
+    for row in rows:
+        t_idx = int(np.where(torque_vals == float(row[torque_col]))[0][0])
+        s_idx = int(np.where(scale_vals == float(row[scale_col]))[0][0])
+        # 1.0 = pass, 0.0 = fail
+        body_pass = str(row.get("body_shape_pass", "")).strip().lower() in {"true", "1"}
+        mat[t_idx, s_idx] = 1.0 if body_pass else 0.0
+
+    return mat, torque_vals, scale_vals
+
+
+def _make_hook_pass_matrix(
+    rows: list[dict[str, str]],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Extract hook pass/fail from first_fail_category."""
+    category_matrix, torque_vals, scale_vals = _make_category_matrix(rows)
+    component_matrix = np.ones_like(category_matrix, dtype=float)
+
+    for row in rows:
+        first_fail_category = str(row.get("first_fail_category", "none")).strip()
+        if first_fail_category in HOOK_FAIL_CATEGORIES:
+            t_idx = int(np.where(torque_vals == float(row["torque_Nm"]))[0][0])
+            s_idx = int(np.where(scale_vals == float(row["value"]))[0][0])
+            component_matrix[t_idx, s_idx] = 0.0
+
+    return component_matrix, torque_vals, scale_vals
+
+
+def _make_flagella_pass_matrix(
+    rows: list[dict[str, str]],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Extract flagella pass/fail from first_fail_category."""
+    category_matrix, torque_vals, scale_vals = _make_category_matrix(rows)
+    component_matrix = np.ones_like(category_matrix, dtype=float)
+
+    for row in rows:
+        first_fail_category = str(row.get("first_fail_category", "none")).strip()
+        if first_fail_category in FLAGELLA_FAIL_CATEGORIES:
+            t_idx = int(np.where(torque_vals == float(row["torque_Nm"]))[0][0])
+            s_idx = int(np.where(scale_vals == float(row["value"]))[0][0])
+            component_matrix[t_idx, s_idx] = 0.0
+
+    return component_matrix, torque_vals, scale_vals
+
+
+def _save_combined_pass_fail_heatmap(
+    body_matrix: np.ndarray,
+    hook_matrix: np.ndarray,
+    flagella_matrix: np.ndarray,
+    torque_vals: np.ndarray,
+    scale_vals: np.ndarray,
+    out_path: Path,
+    *,
+    title: str,
+) -> None:
+    """Save a 1x3 subplot heatmap showing body, hook, and flagella pass/fail."""
+    plt = _get_plt()
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5), constrained_layout=True)
+
+    cmap = ListedColormap(["#c53030", "#2f855a"])
+    norm = BoundaryNorm([-0.5, 0.5, 1.5], 2)
+
+    components = [
+        ("body", body_matrix),
+        ("hook", hook_matrix),
+        ("flagella", flagella_matrix),
+    ]
+
+    for ax, (label, matrix) in zip(axes, components):
+        image = ax.imshow(
+            matrix,
+            origin="lower",
+            aspect="auto",
+            cmap=cmap,
+            norm=norm,
+        )
+        ax.set_xlabel("local scale value")
+        ax.set_ylabel("torque_Nm")
+        ax.set_title(f"{label} pass/fail")
+        ax.set_xticks(np.arange(scale_vals.size))
+        ax.set_xticklabels(
+            [f"{value:g}" for value in scale_vals], rotation=45, ha="right"
+        )
+        ax.set_yticks(np.arange(torque_vals.size))
+        ax.set_yticklabels([f"{value:.2e}" for value in torque_vals])
+
+        cbar = fig.colorbar(image, ax=ax, ticks=[0, 1])
+        cbar.ax.set_yticklabels(["fail", "pass"])
+
+    fig.suptitle(title, fontsize=14, fontweight="bold")
+    fig.savefig(out_path, dpi=220)
+    plt.close(fig)
+
+
 def _has_flagella_failure(rows: list[dict[str, str]]) -> bool:
     return any(
         str(row.get("first_fail_category", "none")).strip() in FLAGELLA_FAIL_CATEGORIES
@@ -230,6 +344,8 @@ def main() -> None:
         raise ValueError("summary CSV must include torque_Nm")
     if "shape_pass" not in rows[0] or "first_fail_category" not in rows[0]:
         raise ValueError("summary CSV must include shape_pass and first_fail_category")
+    if "body_shape_pass" not in rows[0]:
+        raise ValueError("summary CSV must include body_shape_pass")
 
     output_dir = args.output_dir or args.summary_csv.parent
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -280,6 +396,9 @@ def main() -> None:
 
     title_prefix = args.title or args.summary_csv.stem
     category_plot = output_dir / f"{args.summary_csv.stem}_category_heatmap.png"
+    combined_pass_fail_plot = (
+        output_dir / f"{args.summary_csv.stem}_combined_pass_fail_heatmap.png"
+    )
     body_plot = output_dir / f"{args.summary_csv.stem}_body_pass_fail_heatmap.png"
     hook_plot = output_dir / f"{args.summary_csv.stem}_hook_pass_fail_heatmap.png"
     flagella_plot = (
@@ -297,15 +416,25 @@ def main() -> None:
         cbar_ticks=list(range(len(CATEGORY_ORDER))),
     )
 
-    body_matrix, body_torque_vals, body_scale_vals = _make_component_matrix(
-        rows,
-        BODY_FAIL_CATEGORIES,
-    )
-    hook_matrix, hook_torque_vals, hook_scale_vals = _make_component_matrix(
-        rows,
-        HOOK_FAIL_CATEGORIES,
+    # Generate component pass/fail matrices using independent judgment axes
+    body_matrix, body_torque_vals, body_scale_vals = _make_body_shape_pass_matrix(rows)
+    hook_matrix, hook_torque_vals, hook_scale_vals = _make_hook_pass_matrix(rows)
+    flagella_matrix, flag_torque_vals, flag_scale_vals = _make_flagella_pass_matrix(
+        rows
     )
 
+    # Save combined 1x3 subplot heatmap (primary visualization)
+    _save_combined_pass_fail_heatmap(
+        body_matrix,
+        hook_matrix,
+        flagella_matrix,
+        torque_vals,
+        scale_vals,
+        combined_pass_fail_plot,
+        title=f"{title_prefix}: component pass/fail (independent judgment axes)",
+    )
+
+    # Also save individual component heatmaps for backward compatibility
     _save_pass_fail_heatmap(
         body_matrix,
         body_torque_vals,
@@ -322,10 +451,6 @@ def main() -> None:
     )
 
     if _has_flagella_failure(rows):
-        flagella_matrix, flag_torque_vals, flag_scale_vals = _make_component_matrix(
-            rows,
-            FLAGELLA_FAIL_CATEGORIES,
-        )
         _save_pass_fail_heatmap(
             flagella_matrix,
             flag_torque_vals,
@@ -339,6 +464,9 @@ def main() -> None:
 
     print(f"Saved normalized CSV to {normalized_csv}")
     print(f"Saved category heatmap to {category_plot}")
+    print(
+        f"Saved combined pass/fail heatmap (1x3 subplots) to {combined_pass_fail_plot}"
+    )
     print(f"Saved body pass/fail heatmap to {body_plot}")
     print(f"Saved hook pass/fail heatmap to {hook_plot}")
 
