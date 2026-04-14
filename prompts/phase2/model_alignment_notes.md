@@ -58,6 +58,12 @@
 - したがって現時点の安定帯は「0 近傍のごく小さいトルク」に限られ、PhaseB1 の追加探索は `1e-21` と `1.2e-21` の間をさらに詰めるのが妥当である。
 - PhaseB1 の可視化は body / hook / flagella の pass/fail heatmap を主図とし、flagella は flag 系失敗がある場合にのみ出力する。
 
+## Update (2026-04-14 / transition refine)
+- 追加 sweep（`torque_Nm=1.02e-21`〜`1.20e-21`, step `2e-23`, `local_hook_scale=8.0`, `duration=0.05s`）を実施した。
+- `shape_pass=True` は `1.16e-21` まで維持され、`1.18e-21` と `1.20e-21` で `first_fail_category=hook` を確認した。
+- 少なくともこの設定では、短時間ゲートの遷移帯は `1.16e-21`〜`1.18e-21` 付近にある。
+- この追加 sweep でも flag 系失敗は発生せず、可視化スクリプトは仕様どおり flagella pass/fail 図をスキップした。
+
 ---
 
 ## 対象論文
