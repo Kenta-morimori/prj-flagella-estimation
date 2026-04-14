@@ -71,6 +71,10 @@ STEP_SUMMARY_COLUMNS = [
     "motor_Fa_norm",
     "motor_Fb_norm",
     "motor_axis_vs_rear_direction_angle_deg",
+    "flag_root_azimuth_deg",
+    "flag_phase_deg",
+    "flag_phase_rate_hz",
+    "flag_body_phase_diff_deg",
     "motor_attach_force_norm",
     "motor_first_force_norm",
     "motor_second_force_norm",
@@ -604,6 +608,9 @@ class StepSummaryRecorder:
         self.local_second_third_row = -1
         self.local_basal_triplet = np.full((3,), -1, dtype=int)
         self.local_first_torsion_quad = np.full((4,), -1, dtype=int)
+        self.prev_flag_root_azimuth_deg: float | None = None
+        self.prev_flag_phase_deg: float | None = None
+        self.prev_flag_phase_t_s: float | None = None
 
         pair_rows = _pair_row_lookup(self.spring_pairs)
 
@@ -684,6 +691,60 @@ class StepSummaryRecorder:
         self.body_body_rows = np.where(bi & bj)[0]
         self.body_flag_rows = np.where(np.logical_xor(bi, bj))[0]
         self.flag_intra_rows = np.where((~bi) & (~bj) & (fi == fj) & (fi >= 0))[0]
+
+    def _phase_reference_frame(
+        self, positions_m: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        axis = np.zeros(3, dtype=float)
+        if len(self.model.body_layer_indices) >= 2:
+            first = self.model.body_layer_indices[0].astype(int, copy=False)
+            last = self.model.body_layer_indices[-1].astype(int, copy=False)
+            c_first = np.mean(positions_m[first], axis=0)
+            c_last = np.mean(positions_m[last], axis=0)
+            axis = c_last - c_first
+        elif self.model.body_indices.size >= 2:
+            i0 = int(self.model.body_indices[0])
+            i1 = int(self.model.body_indices[-1])
+            axis = positions_m[i1] - positions_m[i0]
+
+        n_axis = float(np.linalg.norm(axis))
+        if n_axis <= 1e-18:
+            axis = np.array([1.0, 0.0, 0.0], dtype=float)
+            n_axis = 1.0
+        axis = axis / n_axis
+
+        ref_candidates = (
+            np.array([1.0, 0.0, 0.0], dtype=float),
+            np.array([0.0, 1.0, 0.0], dtype=float),
+            np.array([0.0, 0.0, 1.0], dtype=float),
+        )
+        e1 = np.zeros(3, dtype=float)
+        for ref in ref_candidates:
+            proj = ref - float(np.dot(ref, axis)) * axis
+            n_proj = float(np.linalg.norm(proj))
+            if n_proj > 1e-18:
+                e1 = proj / n_proj
+                break
+        if float(np.linalg.norm(e1)) <= 1e-18:
+            fallback = np.cross(axis, np.array([0.0, 1.0, 0.0], dtype=float))
+            if float(np.linalg.norm(fallback)) <= 1e-18:
+                fallback = np.cross(axis, np.array([0.0, 0.0, 1.0], dtype=float))
+            e1 = fallback / max(float(np.linalg.norm(fallback)), 1e-18)
+        e2 = np.cross(axis, e1)
+        e2 = e2 / max(float(np.linalg.norm(e2)), 1e-18)
+        return axis, e1, e2
+
+    @staticmethod
+    def _azimuth_deg(vec: np.ndarray, e1: np.ndarray, e2: np.ndarray) -> float:
+        proj_x = float(np.dot(vec, e1))
+        proj_y = float(np.dot(vec, e2))
+        if abs(proj_x) <= 1e-18 and abs(proj_y) <= 1e-18:
+            return float("nan")
+        return float(np.rad2deg(np.arctan2(proj_y, proj_x)))
+
+    @staticmethod
+    def _wrap_deg(deg: float) -> float:
+        return float((deg + 180.0) % 360.0 - 180.0)
 
     def record(self, step: int, t_star: float, diag: StepDiagnostics) -> None:
         pos_after = diag.positions_after_m
@@ -880,6 +941,53 @@ class StepSummaryRecorder:
                 abs(float(_wrap_angle(float(tors[0]) - float(target)))) * RAD_TO_DEG
             )
 
+        flag_root_azimuth_deg = float("nan")
+        flag_phase_deg = float("nan")
+        flag_phase_rate_hz = float("nan")
+        flag_body_phase_diff_deg = float("nan")
+        if self.local_attach_idx >= 0 and self.local_first_idx >= 0:
+            axis, e1, e2 = self._phase_reference_frame(pos_after)
+            attach_vec = pos_after[self.local_attach_idx]
+            first_vec = pos_after[self.local_first_idx]
+            root_vec = first_vec - attach_vec
+            root_proj = root_vec - float(np.dot(root_vec, axis)) * axis
+            flag_root_azimuth_deg = self._azimuth_deg(root_proj, e1, e2)
+
+            body_phase_deg = float("nan")
+            if len(self.model.body_layer_indices) > 0:
+                body_layer = self.model.body_layer_indices[0].astype(int, copy=False)
+                body_center = np.mean(pos_after[body_layer], axis=0)
+                if body_layer.size > 0:
+                    body_marker = pos_after[int(body_layer[0])] - body_center
+                    body_marker = body_marker - float(np.dot(body_marker, axis)) * axis
+                    body_phase_deg = self._azimuth_deg(body_marker, e1, e2)
+
+            if np.isfinite(flag_root_azimuth_deg):
+                if (
+                    self.prev_flag_root_azimuth_deg is None
+                    or self.prev_flag_phase_deg is None
+                ):
+                    flag_phase_deg = flag_root_azimuth_deg
+                    flag_phase_rate_hz = 0.0
+                else:
+                    delta = self._wrap_deg(
+                        flag_root_azimuth_deg - self.prev_flag_root_azimuth_deg
+                    )
+                    flag_phase_deg = self.prev_flag_phase_deg + delta
+                    prev_t_s = self.prev_flag_phase_t_s
+                    if prev_t_s is not None:
+                        dt_s = max(float(t_star * self.cfg.tau_s - prev_t_s), 1e-30)
+                        flag_phase_rate_hz = (
+                            (flag_phase_deg - self.prev_flag_phase_deg) / 360.0 / dt_s
+                        )
+                if np.isfinite(body_phase_deg):
+                    flag_body_phase_diff_deg = self._wrap_deg(
+                        flag_root_azimuth_deg - body_phase_deg
+                    )
+                self.prev_flag_root_azimuth_deg = flag_root_azimuth_deg
+                self.prev_flag_phase_deg = flag_phase_deg
+                self.prev_flag_phase_t_s = float(t_star * self.cfg.tau_s)
+
         local_region_indices = [
             self.local_attach_idx,
             self.local_first_idx,
@@ -952,6 +1060,10 @@ class StepSummaryRecorder:
             "motor_axis_vs_rear_direction_angle_deg": float(
                 diag.motor_axis_vs_rear_direction_angle_deg
             ),
+            "flag_root_azimuth_deg": flag_root_azimuth_deg,
+            "flag_phase_deg": flag_phase_deg,
+            "flag_phase_rate_hz": flag_phase_rate_hz,
+            "flag_body_phase_diff_deg": flag_body_phase_diff_deg,
             "motor_attach_force_norm": float(diag.motor_attach_force_norm),
             "motor_first_force_norm": float(diag.motor_first_force_norm),
             "motor_second_force_norm": float(diag.motor_second_force_norm),

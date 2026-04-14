@@ -507,6 +507,10 @@ def test_phase2_minimal_stub_motor_on_short_run_diagnostics(tmp_path: Path) -> N
     assert "motor_Ta_norm" in first
     assert "motor_split_residual_norm" in first
     assert "motor_attach_force_norm" in first
+    assert "flag_root_azimuth_deg" in first
+    assert "flag_phase_deg" in first
+    assert "flag_phase_rate_hz" in first
+    assert "flag_body_phase_diff_deg" in first
     # Basal diagnostics present
     assert "local_attach_first_rel_err" in first
     assert "local_first_second_rel_err" in first
@@ -524,6 +528,10 @@ def test_phase3_full_flagella_motor_on_short_run_diagnostics(tmp_path: Path) -> 
     assert "flag_bend_err_max_deg" in first
     assert "flag_torsion_err_max_deg" in first
     assert "flag_bond_rel_err_max" in first
+    assert "flag_root_azimuth_deg" in first
+    assert "flag_phase_deg" in first
+    assert "flag_phase_rate_hz" in first
+    assert "flag_body_phase_diff_deg" in first
     # Basal diagnostics still present
     assert "local_attach_first_rel_err" in first
 
@@ -596,6 +604,10 @@ def test_phaseb_minimal_motor_on_first_fail_gate(tmp_path: Path) -> None:
             "motor_Ta_norm",
             "motor_attach_force_norm",
             "motor_split_residual_norm",
+            "flag_root_azimuth_deg",
+            "flag_phase_deg",
+            "flag_phase_rate_hz",
+            "flag_body_phase_diff_deg",
             "local_attach_first_rel_err",
             "local_first_second_rel_err",
         ),
@@ -629,6 +641,10 @@ def test_phaseb_full_motor_on_first_fail_gate(tmp_path: Path) -> None:
             "motor_Ta_norm",
             "motor_attach_force_norm",
             "motor_split_residual_norm",
+            "flag_root_azimuth_deg",
+            "flag_phase_deg",
+            "flag_phase_rate_hz",
+            "flag_body_phase_diff_deg",
             "local_attach_first_rel_err",
             "local_first_second_rel_err",
             "flag_bond_rel_err_max",

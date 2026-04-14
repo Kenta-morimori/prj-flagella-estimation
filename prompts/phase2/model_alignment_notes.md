@@ -32,6 +32,12 @@
 - motor 力分配の Step D preload は論文モデルの主経路ではないため、段階的削減の第一段として除去した。
 - 以後は torque-couple とポテンシャル更新で回転が立つかを確認し、必要なら残る安定化補正を個別に切り分ける。
 
+## Update (2026-04-14)
+- `torque_ramp_enabled` は default off の補助機能として残し、主経路では使わない方針に明確化した。
+- motor の weighted minimum-norm split は、現時点では数値安定化の暫定策として維持しつつ、段階的に simpler coupling へ寄せる検討対象とする。
+- flagellum の回転評価を body への相対量として追跡するため、`flag_root_azimuth_deg` / `flag_phase_deg` / `flag_phase_rate_hz` / `flag_body_phase_diff_deg` を step_summary.csv に追加する方針を固定した。
+- これらの diagnostics は、attachment angle と self-rotation を区別して観測するためのものとし、既存の motor diagnostics を置き換えるものではない。
+
 ---
 
 ## 対象論文

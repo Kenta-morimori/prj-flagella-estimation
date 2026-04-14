@@ -142,6 +142,29 @@
 - **用途**: flagellum 全体での最悪ケース spring stretch; Phase2/3 で early warning
 - **正常範囲**: Phase0b では <50%; Phase2 では <150% 目安; >300% は重度破綻
 
+#### `flag_root_azimuth_deg`
+- **意味**: body axis 周りで見た body attach bead から first flagella bead への接続ベクトルの方位角
+- **値**: float (degrees)
+- **用途**: attachment angle の瞬時値を追跡する主指標
+- **補足**: 1 本目の flagellum を代表値として扱う
+
+#### `flag_phase_deg`
+- **意味**: `flag_root_azimuth_deg` を time continuity で unwrap した位相
+- **値**: float (degrees)
+- **用途**: self-rotation の連続追跡; 360° 折り返しを跨いでも滑らかに比較できる
+
+#### `flag_phase_rate_hz`
+- **意味**: `flag_phase_deg` の時間微分を cycles/s へ換算した値
+- **値**: float (Hz)
+- **用途**: self-rotation の速さを観測する指標
+- **補足**: 先頭 step は 0.0 で出力される
+
+#### `flag_body_phase_diff_deg`
+- **意味**: `flag_root_azimuth_deg` と body 上の基準マーカー方位の差分
+- **値**: float (degrees)
+- **用途**: flagellum attachment が body に対してどれだけ回転しているかを観測する補助指標
+- **補足**: world 参照ではなく body 参照との差として解釈する
+
 #### `flag_bend_err_max_deg`
 - **意味**: 全 bend angle の誤差の最大値 (degrees)
 - **定義**: `max(|angle_error_deg|) over all triplets within flagellum`
