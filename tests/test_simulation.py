@@ -478,6 +478,9 @@ def test_phase0b_minimal_stub_motor_off_finite_completion(tmp_path: Path) -> Non
     first = rows[0]
     assert float(first["local_attach_first_rel_err"]) >= 0.0
     assert float(first["local_first_second_rel_err"]) >= 0.0
+    assert all(r["finite_pass"] in {"True", "true", "1"} for r in rows)
+    assert all(r["shape_pass_nonbody"] in {"True", "true", "1"} for r in rows)
+    assert all(r["first_fail_category_nonbody"] == "none" for r in rows)
 
 
 def test_phase1_body_equiv_load_pure_couple_finite_completion(tmp_path: Path) -> None:

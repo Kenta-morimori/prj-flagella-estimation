@@ -190,6 +190,11 @@ def _is_finite_number(value: float) -> bool:
 def _check_nonbody_shape_pass(
     *,
     finite_pass: bool,
+    has_hook_pair: bool,
+    has_hook_angle: bool,
+    has_flag_bond: bool,
+    has_flag_bend: bool,
+    has_flag_torsion: bool,
     local_attach_first_rel_err: float,
     hook_len_rel_err_max: float,
     hook_angle_err_max_deg: float,
@@ -200,32 +205,37 @@ def _check_nonbody_shape_pass(
     if not finite_pass:
         return False, "finite"
 
-    hook_metrics = [
-        local_attach_first_rel_err,
-        hook_len_rel_err_max,
-        hook_angle_err_max_deg,
-    ]
+    hook_metrics: list[float] = []
+    if has_hook_pair:
+        hook_metrics.extend([local_attach_first_rel_err, hook_len_rel_err_max])
+    if has_hook_angle:
+        hook_metrics.append(hook_angle_err_max_deg)
     if any(not _is_finite_number(v) for v in hook_metrics):
         return False, "hook_nonfinite"
-    if local_attach_first_rel_err > NONBODY_HOOK_REL_ERR_MAX_LIMIT:
+    if has_hook_pair and local_attach_first_rel_err > NONBODY_HOOK_REL_ERR_MAX_LIMIT:
         return False, "hook"
-    if hook_len_rel_err_max > NONBODY_HOOK_REL_ERR_MAX_LIMIT:
+    if has_hook_pair and hook_len_rel_err_max > NONBODY_HOOK_REL_ERR_MAX_LIMIT:
         return False, "hook"
-    if hook_angle_err_max_deg > NONBODY_HOOK_ANGLE_ERR_MAX_DEG_LIMIT:
+    if has_hook_angle and hook_angle_err_max_deg > NONBODY_HOOK_ANGLE_ERR_MAX_DEG_LIMIT:
         return False, "hook"
 
-    flag_metrics = [
-        flag_bond_rel_err_max,
-        flag_bend_err_max_deg,
-        flag_torsion_err_max_deg,
-    ]
+    flag_metrics: list[float] = []
+    if has_flag_bond:
+        flag_metrics.append(flag_bond_rel_err_max)
+    if has_flag_bend:
+        flag_metrics.append(flag_bend_err_max_deg)
+    if has_flag_torsion:
+        flag_metrics.append(flag_torsion_err_max_deg)
     if any(not _is_finite_number(v) for v in flag_metrics):
         return False, "flag_nonfinite"
-    if flag_bond_rel_err_max > NONBODY_FLAG_BOND_REL_ERR_MAX_LIMIT:
+    if has_flag_bond and flag_bond_rel_err_max > NONBODY_FLAG_BOND_REL_ERR_MAX_LIMIT:
         return False, "flag"
-    if flag_bend_err_max_deg > NONBODY_FLAG_BEND_ERR_MAX_DEG_LIMIT:
+    if has_flag_bend and flag_bend_err_max_deg > NONBODY_FLAG_BEND_ERR_MAX_DEG_LIMIT:
         return False, "flag"
-    if flag_torsion_err_max_deg > NONBODY_FLAG_TORSION_ERR_MAX_DEG_LIMIT:
+    if (
+        has_flag_torsion
+        and flag_torsion_err_max_deg > NONBODY_FLAG_TORSION_ERR_MAX_DEG_LIMIT
+    ):
         return False, "flag"
 
     return True, "none"
@@ -1059,6 +1069,11 @@ class StepSummaryRecorder:
         )
         shape_pass_nonbody, first_fail_category_nonbody = _check_nonbody_shape_pass(
             finite_pass=finite_pass,
+            has_hook_pair=hook_count > 0,
+            has_hook_angle=self.model.hook_triplets.size > 0,
+            has_flag_bond=flag_intra_count > 0,
+            has_flag_bend=self.flag_bending_rows.size > 0,
+            has_flag_torsion=self.flag_torsion_rows.size > 0,
             local_attach_first_rel_err=local_attach_first_rel_err,
             hook_len_rel_err_max=hook_len_rel_err_max,
             hook_angle_err_max_deg=hook_angle_err_max_deg,
