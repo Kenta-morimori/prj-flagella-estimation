@@ -326,6 +326,12 @@ def _save_combined_pass_fail_heatmap(
 
 
 def _has_flagella_failure(rows: list[dict[str, str]]) -> bool:
+    """Check if any row has flagella failure.
+
+    Flagella heatmap is output only if at least one run shows flagella failure
+    (first_fail_category in FLAGELLA_FAIL_CATEGORIES). This correctly skips
+    output for minimal_basal_stub mode where flagella is not deployed.
+    """
     return any(
         str(row.get("first_fail_category", "none")).strip() in FLAGELLA_FAIL_CATEGORIES
         for row in rows
@@ -399,8 +405,6 @@ def main() -> None:
     combined_pass_fail_plot = (
         output_dir / f"{args.summary_csv.stem}_combined_pass_fail_heatmap.png"
     )
-    body_plot = output_dir / f"{args.summary_csv.stem}_body_pass_fail_heatmap.png"
-    hook_plot = output_dir / f"{args.summary_csv.stem}_hook_pass_fail_heatmap.png"
     flagella_plot = (
         output_dir / f"{args.summary_csv.stem}_flagella_pass_fail_heatmap.png"
     )
@@ -434,22 +438,7 @@ def main() -> None:
         title=f"{title_prefix}: component pass/fail (independent judgment axes)",
     )
 
-    # Also save individual component heatmaps for backward compatibility
-    _save_pass_fail_heatmap(
-        body_matrix,
-        body_torque_vals,
-        body_scale_vals,
-        body_plot,
-        title=f"{title_prefix}: body pass/fail",
-    )
-    _save_pass_fail_heatmap(
-        hook_matrix,
-        hook_torque_vals,
-        hook_scale_vals,
-        hook_plot,
-        title=f"{title_prefix}: hook pass/fail",
-    )
-
+    # Conditionally save flagella heatmap only if flagella failures exist
     if _has_flagella_failure(rows):
         _save_pass_fail_heatmap(
             flagella_matrix,
@@ -467,8 +456,6 @@ def main() -> None:
     print(
         f"Saved combined pass/fail heatmap (1x3 subplots) to {combined_pass_fail_plot}"
     )
-    print(f"Saved body pass/fail heatmap to {body_plot}")
-    print(f"Saved hook pass/fail heatmap to {hook_plot}")
 
 
 if __name__ == "__main__":

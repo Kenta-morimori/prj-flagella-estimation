@@ -65,16 +65,16 @@ def test_plot_motor_scale_collapse_heatmap(tmp_path: Path, monkeypatch) -> None:
     output_dir = tmp_path / "plots"
     normalized_csv = output_dir / "local_hook_scale_sweep_summary_collapse_matrix.csv"
     category_png = output_dir / "local_hook_scale_sweep_summary_category_heatmap.png"
-    body_png = output_dir / "local_hook_scale_sweep_summary_body_pass_fail_heatmap.png"
-    hook_png = output_dir / "local_hook_scale_sweep_summary_hook_pass_fail_heatmap.png"
+    combined_pass_fail_png = (
+        output_dir / "local_hook_scale_sweep_summary_combined_pass_fail_heatmap.png"
+    )
     flagella_png = (
         output_dir / "local_hook_scale_sweep_summary_flagella_pass_fail_heatmap.png"
     )
 
     assert normalized_csv.is_file()
     assert category_png.is_file()
-    assert body_png.is_file()
-    assert hook_png.is_file()
+    assert combined_pass_fail_png.is_file()
     assert not flagella_png.exists()
 
     with normalized_csv.open("r", encoding="utf-8", newline="") as handle:

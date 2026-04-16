@@ -982,3 +982,91 @@ actual motor torque を入れた短時間安定化（Phase B: minimal_basal_stub
 
 ## 更新履歴
 - 2026-04-13: Issue #37 での要件整理完了
+- 2026-04-16: 三段階実装目標、スクリプト等価性ルール、スイープ拡張計画、可視化出力簡素化を実装・文書化
+
+---
+
+## Update (2026-04-16 / operational rules and changes)
+
+### 1. 三段階実装目標の明確化
+Phase 全体を通じた最終目標「べん毛が発散（divergence）せずに回転する」ことを、以下の3段階で進めることを明確化した：
+
+- **Stage 1**: 単一べん毛の回転安定化（PhaseA-PhaseB）
+  - n_flagella=1, minimal_basal_stub で、flag_phase_rate_hz が継続的に有限値を保つこと
+  
+- **Stage 2**: マルチべん毛等価性検証（PhaseC-PhaseD）
+  - n_flagella > 1 で、各べん毛が互いに発散し合わないこと
+  
+- **Stage 3**: バンドル挙動の観察（PhaseE 以降）
+  - 複数べん毛がバンドル状態で機能し、共通の回転角速度を示すこと
+
+詳細は [prompts/phase2/0037.md](0037.md)「三段階実装目標」セクション参照。
+
+### 2. スクリプト実行等価性ルール
+`scripts/01_simulate_swimming.py` と `scripts/run_motor_scale_sweep.py` は同じ Simulator を使用するが、デフォルト設定が異なるため、以下の規則を新たに定めた：
+
+**重合対象の設定値（差分あり）:**
+- n_flagella: sweep=1, 01=3（conf/sim_swim.yaml） → 必ず明示指定
+- stub_mode: sweep=minimal_basal_stub, 01=未設定 → sweep検証時は必須指定
+- motor.torque_Nm: sweep=4.0e-21等, 01=-1（mode指定） → 物理値で明示
+- duration_s: sweep=0.001～0.05（可変）, 01=0.1 → 短時間検証時は0.01～0.05推奨
+- dt_s: 不指定時は Simulator が自動決定 → 両方で同じ値であることを確認
+
+**規則:**
+sweep で特定条件を実行した場合、同一条件を 01 で再現する際、両者の step_summary.csv が同じ step 数・同じ first_fail_category・同じ rotation tracking を示すことが等価性確認条件。
+
+詳細は [prompts/phase2/0037.md](0037.md)「スクリプト実行等価性」セクション参照。
+
+### 3. スイープ拡張計画の段階化
+Phase 全体を通じた sweep のシーケンスを明確化した：
+
+- **Sweep Step 1**: local_hook_scale sweep（PhaseB-PhaseC 現在実施）
+  - sweep 軸: 1.0 → 2.0 → 4.0 → 8.0 → 16.0
+  
+- **Sweep Step 2**: local_spring_scale sweep（PhaseC 後期予定）
+  - sweep 軸: 0.5 → 0.8 → 1.0 → 1.5 → 2.0
+  
+- **Sweep Step 3**: local_bend_scale sweep（PhaseD 予定）
+  - sweep 軸: 0.5 → 1.0 → 2.0 → 4.0
+  
+- **Sweep Step 4**: local_torsion_scale sweep（PhaseD 後期予定）
+  - sweep 軸: 0.0 → 0.5 → 1.0 → 2.0 → 4.0
+
+Heatmap の水平軸は常に「sweep value」を表示し、軸ラベルに sweep パラメータ名（local_hook_scale 等）を明示する。固定値ではなく、複数条件にわたる sweep として運用する。
+
+詳細は [prompts/phase2/0037.md](0037.md)「スイープ拡張計画」セクション参照。
+
+### 4. Heatmap 可視化出力の簡素化
+[scripts/plot_motor_scale_collapse_heatmap.py](scripts/plot_motor_scale_collapse_heatmap.py) を修正し、以下の変更を実施：
+
+**削除:**
+- 個別の body / hook pass/fail heatmap 出力（redundant）
+- _has_flagella_failure() 関数（first_fail_category 存在のみで判定）
+
+**変更:**
+- 新関数 _has_flagella_matrix_data() を実装：flagella_matrix 全体が NaN でないことで判定
+- flagella heatmap は minimal_basal_stub モード（flagella 未配置）では出力しない（その場合全て NaN）
+
+**メイン出力:**
+- combined_pass_fail_heatmap.png（1×3 subplot: body / hook / flagella）を唯一の基本可視化とする
+- 付随的な category_heatmap.png は診断用として継続出力
+
+出力変更により、独立判定軸（各成分の「崩壊しているか」）と診断軸（「最初に誘発された失敗は何か」）の分離が可視化でも明確化した。
+
+### 5. 実行コマンド参照ドキュメント
+新規ドキュメント [docs/phase2/execution_commands.md](docs/phase2/execution_commands.md) を作成し、以下 4 セクションで統一的なコマンド形式を提供：
+
+1. 単一実行（01_simulate_swimming.py）のよく使う例
+2. Sweep 実行（run_motor_scale_sweep.py）のテンプレート
+3. ビジュアライゼーション（plot_motor_scale_collapse_heatmap.py）の実行例
+4. 等価性検証ワークフロー（sweep から単一実行への再現チェック）
+
+このドキュメントを新しい central reference として、分散されていたコマンド情報を一元化した。
+
+### 6. 今後の運用方針
+本更新により確立した規則・計画に基づき、以下を推進する：
+
+- **短時間検証（PhaseB-C）**: 単一実行と sweep の条件パリティを厳密に保ち、等価性を継続検証
+- **Sweep 展開（PhaseC-D）**: local_*_scale を段階的に変更し、各スケールの影響を分離評価
+- **可視化（PhaseB1 以降）**: 1×3 combined heatmap を基本とし、診断軸（category）で細部を補充
+- **記録（全フェーズ）**: 構成変更・パラメータ変更時に、本セクション（model_alignment_notes.md）を逐次更新
