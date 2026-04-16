@@ -226,7 +226,7 @@ uv run python -m scripts.run_motor_scale_sweep \
 
 ```bash
 uv run python -m scripts.plot_motor_scale_collapse_heatmap \
-  SWEEP_SUMMARY_CSV \
+  --summary-csv SWEEP_SUMMARY_CSV \
   [--output-dir DIR]
 ```
 
@@ -234,7 +234,7 @@ uv run python -m scripts.plot_motor_scale_collapse_heatmap \
 
 | 引数 | 型 | 説明 |
 |-----|-----|------|
-| `SWEEP_SUMMARY_CSV` | path | sweep が生成した `*_sweep_summary.csv` |
+| `--summary-csv` | path | sweep が生成した `*_sweep_summary.csv` |
 | `--output-dir` | str | 出力先（デフォルト：CSV の親ディレクトリ） |
 
 ### よく使う可視化例
@@ -243,7 +243,7 @@ uv run python -m scripts.plot_motor_scale_collapse_heatmap \
 
 ```bash
 uv run python -m scripts.plot_motor_scale_collapse_heatmap \
-  outputs/sweep_hook_scale_2026_04_16/{TIMESTAMP}/hook_scale_sweep_summary.csv
+  --summary-csv outputs/sweep_hook_scale_2026_04_16/{TIMESTAMP}/hook_scale_sweep_summary.csv
 ```
 
 出力: `outputs/sweep_hook_scale_2026_04_16/{TIMESTAMP}/` に heatmap 群を生成
@@ -252,7 +252,7 @@ uv run python -m scripts.plot_motor_scale_collapse_heatmap \
 
 ```bash
 uv run python -m scripts.plot_motor_scale_collapse_heatmap \
-  outputs/2026-04-15/234606/hook_scale_sweep_summary.csv \
+  --summary-csv outputs/2026-04-15/234606/hook_scale_sweep_summary.csv \
   --output-dir outputs/analysis_2026_04_16/
 ```
 
