@@ -421,6 +421,17 @@ def test_body_attach_proxy_projection_off(tmp_path: Path) -> None:
     assert any(r["layer_idx"] != "" for r in rows)
 
 
+def test_body_diagnostics_recorded_for_005s_window(tmp_path: Path) -> None:
+    cfg = _make_cfg().with_overrides({"time": {"duration_s": 0.05}})
+    sim = Simulator(cfg)
+    sim.run(cfg.time.duration_s, step_summary_dir=tmp_path / "sim")
+
+    body_csv = tmp_path / "sim" / "body_constraint_diagnostics.csv"
+    local_csv = tmp_path / "sim" / "body_constraint_local_diagnostics.csv"
+    assert body_csv.is_file()
+    assert local_csv.is_file()
+
+
 def test_three_flagella_body_cause_candidates_are_explainable_from_csv(
     tmp_path: Path,
 ) -> None:

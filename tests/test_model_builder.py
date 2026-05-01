@@ -18,6 +18,7 @@ def _make_cfg(
     ds_over_b: float = 0.58,
     flag_length_over_b: float = 2.32,
     init_mode: str = "legacy_radius_pitch",
+    stub_mode: str = "full_flagella",
     n_beads_per_flagellum: int | None = None,
     seed: int = 0,
 ) -> SimulationConfig:
@@ -25,6 +26,7 @@ def _make_cfg(
         "n_flagella": n_flagella,
         "placement_mode": "uniform",
         "init_mode": init_mode,
+        "stub_mode": stub_mode,
         "discretization": {"ds_over_b": ds_over_b},
         "bond_L_over_b": ds_over_b,
         "length_over_b": flag_length_over_b,
@@ -247,6 +249,18 @@ def test_build_supports_n_flagella_9() -> None:
     model = ModelBuilder(cfg).build()
 
     assert len(model.flagella_indices) == 9
+
+
+def test_extended_basal_stub_mode_uses_five_beads_per_flagellum() -> None:
+    cfg = _make_cfg(
+        n_flagella=1,
+        stub_mode="extended_basal_stub_5",
+        n_beads_per_flagellum=11,
+    )
+    model = ModelBuilder(cfg).build()
+
+    assert len(model.flagella_indices) == 1
+    assert model.flagella_indices[0].shape[0] == 5
 
 
 @pytest.mark.parametrize("n_flagella", [4, 5, 6, 7, 8, 9])

@@ -32,11 +32,15 @@ motor:
   torque_Nm: -1           # [N*m] モーターのトルク(Torque, T)．-1のときはτ=1になるよう「η * b^3」と定義する．
   reverse_n_flagella: 1        # [-] tumble で反転するべん毛本数
   enable_switching: false      # false: run固定（多形切替なし）
+  local_hook_scale: 1.0        # [-] motor ON 時の hook 近傍補助スケール
+  local_spring_scale: 1.0      # [-] motor ON 時の local spring 補助スケール
+  local_bend_scale: 1.0        # [-] motor ON 時の local bend 補助スケール
+  local_torsion_scale: 1.0     # [-] motor ON 時の local torsion 補助スケール
 
 potentials:
   spring:
-    H_over_T_over_b: 10.0      # [-] H = 10 * Torque / b
-    s: 0.1                     # [-] 伸長限界 s/b
+    H_over_T_over_b: 20.0      # [-] H = 20 * Torque / b（current canonical baseline for Phase B）
+    s: 0.2                     # [-] 伸長限界 s/b（current canonical baseline for Phase B）
   bend:
     kb_over_T: 20.0            # [-] kb = 20 * T
     theta0_deg:
