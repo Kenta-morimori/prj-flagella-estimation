@@ -199,10 +199,10 @@ class MotorParams:
     torque_ramp_enabled: bool = False
     torque_ramp_duration_s: float = 0.0
     torque_for_forces_override_Nm: float = 0.0
-    local_hook_scale: float = 8.0
-    local_spring_scale: float = 5.0
-    local_bend_scale: float = 4.0
-    local_torsion_scale: float = 4.0
+    local_hook_scale: float = 1.0
+    local_spring_scale: float = 1.0
+    local_bend_scale: float = 1.0
+    local_torsion_scale: float = 1.0
 
 
 @dataclass(frozen=True)
