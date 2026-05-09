@@ -415,6 +415,51 @@ def test_phaseb1_known_failure_case_detected_minimal_stub_005s(
     assert any(cat == "hook" for cat in fail_cats)
 
 
+def test_phaseb2_break_torque_observed_at_1_2e21_minimal_stub_005s(
+    tmp_path: Path,
+) -> None:
+    """PhaseB2: break torque ≈ 1.1e-21 (paper-aligned settings).
+
+    Observed condition: n_flagella=1, minimal_basal_stub, torque=1.2e-21,
+    local_hook_scale=1.0, local_spring/bend/torsion_scale=1.0,
+    body_stiffness_scale=50.0, duration=0.05s.
+
+    This case is expected to show shape failure (body centerline collapse),
+    recorded as first_fail_category indicating hook or body shape issue.
+    """
+    from dataclasses import asdict
+
+    cfg = _make_phase2_cfg(motor_torque_Nm=1.2e-21, duration_s=0.05)
+    # Override to paper-aligned local scales (already 1.0 in default)
+    cfg_dict = asdict(cfg)
+    cfg_dict["motor"]["local_hook_scale"] = 1.0
+    cfg_dict["motor"]["local_spring_scale"] = 1.0
+    cfg_dict["motor"]["local_bend_scale"] = 1.0
+    cfg_dict["motor"]["local_torsion_scale"] = 1.0
+    cfg = SimulationConfig.from_dict(cfg_dict)
+
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(
+        sim, cfg.time.duration_s, tmp_path / "phaseb2_break_torque"
+    )
+
+    assert len(rows) >= 50
+
+    # At break torque, expect finite_pass to remain True but shape_pass_nonbody to fail
+    finite_values = [r["finite_pass"] in {"True", "true", "1"} for r in rows]
+    shape_values = [r["shape_pass_nonbody"] in {"True", "true", "1"} for r in rows]
+
+    # This is a known failure case; shape must fail at some point
+    assert all(finite_values), "finite_pass should remain True even under break torque"
+    assert not all(shape_values), "shape_pass_nonbody should fail at break torque"
+
+    # Verify first-fail category is recorded
+    fail_cats = [r.get("first_fail_category_nonbody", "none") for r in rows]
+    assert any(cat != "none" for cat in fail_cats), (
+        "Expected first_fail_category_nonbody to be set at break torque"
+    )
+
+
 def test_torsion_fd_eps_sweep_is_traceable_and_reduces_step0_torsion_force(
     tmp_path: Path,
 ) -> None:

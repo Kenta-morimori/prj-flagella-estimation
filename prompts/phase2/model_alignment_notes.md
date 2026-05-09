@@ -64,6 +64,24 @@
 - 少なくともこの設定では、短時間ゲートの遷移帯は `1.16e-21`〜`1.18e-21` 付近にある。
 - この追加 sweep でも flag 系失敗は発生せず、可視化スクリプトは仕様どおり flagella pass/fail 図をスキップした。
 
+## Update (2026-05-09 / PhaseB2 break torque observation)
+- **論文準拠設定での破綻遷移帯の同定**
+  - 設定：n_flagella=1, minimal_basal_stub, local_*_scale=1.0, body_stiffness_scale=50.0, duration=0.05s
+  - 観測結果：
+    - torque ≤ 1.0e-21: 破綻なし（safe band）
+    - **torque = 1.1e-21: 境界（render 観測で定性判定）**
+    - torque ≥ 1.2e-21: 破綻（body centerline collapse が観測される）
+  - **破綻メカニズム**：body 輪郭が膨らむ・縮むを繰り返す形での segmentation
+  - **遷移帯の狭さ**：1.0e-21 ～ 1.2e-21（わずか 20%）が、body_stiffness_scale=50.0 への依存を示唆
+- **pytest 追加**
+  - `test_phaseb2_break_torque_observed_at_1_2e21_minimal_stub_005s` を追加
+  - 条件：torque=1.2e-21（break 側）、paper-aligned settings
+  - 期待値：finite_pass=True だが shape_pass_nonbody=False で first_fail_category が記録される
+- **次ステップ**
+  - PhaseB2.2：body_stiffness_scale 段階削減（50.0 → 25.0 → 10.0 → 5.0）での break torque 変化を定性観測
+  - ユーザー実施：各 scale でのトルク sweep を scripts/01_simulate_swimming.py で実行し render 出力から判定
+  - 結果に基づいて PhaseC 方針（scale 維持 vs 段階削減 vs 代替検討）を決定
+
 ---
 
 ## 対象論文
