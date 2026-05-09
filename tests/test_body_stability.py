@@ -340,7 +340,8 @@ def test_body_uniform_force_translation_projection_off() -> None:
 
 
 def test_body_rotation_couple_projection_off() -> None:
-    cfg = _make_cfg()
+    # Restore legacy body stiffness multiplier for this rotation sensitivity test
+    cfg = _make_cfg().with_overrides({"stiffness_scales": {"body": 50.0}})
     sim = Simulator(cfg)
 
     first_layer = sim.model.body_layer_indices[0].astype(int, copy=False)

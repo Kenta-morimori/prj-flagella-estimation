@@ -351,6 +351,15 @@ class OutputParams:
 
 
 @dataclass(frozen=True)
+class StiffnessScaleParams:
+    """補助的な剛性スケール設定。論文再現性のためデフォルトは 1.0 とする。"""
+
+    body: float = 1.0
+    flag_bend: float = 1.0
+    flag_torsion: float = 1.0
+
+
+@dataclass(frozen=True)
 class SimulationConfig:
     """Phase2シミュレーション設定。"""
 
@@ -369,6 +378,7 @@ class SimulationConfig:
     render: RenderParams
     seed: SeedParams
     output: OutputParams
+    stiffness_scales: StiffnessScaleParams
 
     @property
     def b_m(self) -> float:
@@ -827,6 +837,13 @@ class SimulationConfig:
         output_raw = raw.get("output", {}) or {}
         output = OutputParams(base_dir=str(_get(output_raw, "base_dir", "outputs")))
 
+        stiffness_raw = raw.get("stiffness_scales", {}) or {}
+        stiffness = StiffnessScaleParams(
+            body=float(_get(stiffness_raw, "body", 1.0)),
+            flag_bend=float(_get(stiffness_raw, "flag_bend", 1.0)),
+            flag_torsion=float(_get(stiffness_raw, "flag_torsion", 1.0)),
+        )
+
         return SimulationConfig(
             scale=scale,
             body=body,
@@ -843,6 +860,7 @@ class SimulationConfig:
             render=render,
             seed=seed,
             output=output,
+            stiffness_scales=stiffness,
         )
 
     def with_overrides(self, overrides: dict[str, Any]) -> "SimulationConfig":

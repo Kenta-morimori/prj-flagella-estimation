@@ -147,6 +147,7 @@ def _base_cfg() -> dict[str, Any]:
         },
         "seed": {"global_seed": 0},
         "output": {"base_dir": "outputs"},
+        "stiffness_scales": {"body": 1.0, "flag_bend": 1.0, "flag_torsion": 1.0},
     }
 
 

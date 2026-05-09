@@ -404,6 +404,9 @@ def test_phaseb1_known_failure_case_detected_minimal_stub_005s(
 ) -> None:
     """PhaseB1: user-reported case must be detectable as shape fail category."""
     cfg = _make_phase2_cfg(motor_torque_Nm=4.0e-21, duration_s=0.05)
+    # Preserve historical repo behavior for this known failure case by
+    # restoring the previous body stiffness multiplier used in experiments.
+    cfg = cfg.with_overrides({"stiffness_scales": {"body": 50.0}})
     sim = Simulator(cfg)
     rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "phaseb1")
 
@@ -436,6 +439,9 @@ def test_phaseb2_break_torque_observed_at_1_2e21_minimal_stub_005s(
     cfg_dict["motor"]["local_spring_scale"] = 1.0
     cfg_dict["motor"]["local_bend_scale"] = 1.0
     cfg_dict["motor"]["local_torsion_scale"] = 1.0
+    # This test historically relied on a repo-local body stiffness multiplier
+    # (body_stiffness_scale=50.0). Reintroduce it explicitly for the test.
+    cfg_dict["stiffness_scales"] = {"body": 50.0, "flag_bend": 1.0, "flag_torsion": 1.0}
     cfg = SimulationConfig.from_dict(cfg_dict)
 
     sim = Simulator(cfg)
