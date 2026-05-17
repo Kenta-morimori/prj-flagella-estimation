@@ -88,6 +88,11 @@
 - これにより hook angle は 180deg 近傍を目標とし、デフォルトの論文準拠初期化とは分離して評価する。
 - 旧 `force_rear_alignment` の意味変更は行わず、PhaseC 実験専用の新フラグに置き換える。
 
+## Update (2026-05-17 / internal dt override)
+- `time.dt_s` は出力間隔として扱い、内部積分刻みは `time.dt_star` を CLI override したときのみ更新する方針に整理した。
+- デフォルトの内部 dt は従来どおり `DT_STAR_TARGET` を使い、既存の通常実行を壊さない。
+- `render` や diagnostics では出力間隔と内部刻みを取り違えないよう、列名とログの意味を明示する必要がある。
+
 ---
 
 ## 対象論文

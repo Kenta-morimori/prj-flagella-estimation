@@ -305,6 +305,7 @@ class TimeParams:
 
     duration_s: float = 0.1
     dt_s: float = 1.0e-3
+    dt_star: float | None = None
 
 
 @dataclass(frozen=True)
@@ -452,7 +453,10 @@ class SimulationConfig:
     @property
     def dt_s(self) -> float:
         """内部計算ステップ幅Δt[s]。"""
-        return DT_STAR_TARGET
+        dt_star = self.time.dt_star
+        if dt_star is None:
+            return DT_STAR_TARGET
+        return max(float(dt_star), 0.0) * self.tau_s
 
     @property
     def dt_star(self) -> float:
@@ -468,19 +472,14 @@ class SimulationConfig:
 
     def validate_time_scaling(
         self,
-        target_dt_star: float = DT_STAR_TARGET,
-        rel_tol: float = 1e-12,
     ) -> None:
-        """内部計算で `dt_star=1e-3` が成立しているか検証する。"""
+        """内部計算刻みが有効な値かを検証する。"""
 
-        if not math.isclose(
-            self.dt_star, target_dt_star, rel_tol=rel_tol, abs_tol=1e-18
-        ):
+        if not math.isfinite(self.dt_star) or self.dt_star <= 0.0:
             raise ValueError(
-                "内部時間刻みが論文条件に一致しない。"
+                "内部時間刻みが不正です。"
                 f" dt_s={self.dt_s:.12e}, tau_s={self.tau_s:.12e},"
-                f" dt_star={self.dt_star:.12e}, target_dt_star={target_dt_star:.12e}; "
-                "dt_star(=Δt/τ) must be 1e-3"
+                f" dt_star={self.dt_star:.12e}"
             )
 
     def compute_body_n_layers(
@@ -806,6 +805,11 @@ class SimulationConfig:
         time = TimeParams(
             duration_s=float(_get(time_raw, "duration_s", 0.1)),
             dt_s=float(dt_s),
+            dt_star=(
+                float(time_raw["dt_star"])
+                if time_raw.get("dt_star") not in (None, "")
+                else None
+            ),
         )
 
         out_sample_raw = raw.get("output_sampling", {}) or {}

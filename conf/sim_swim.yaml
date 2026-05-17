@@ -85,6 +85,7 @@ run_tumble:
 time:
   duration_s: 0.1              # [s] 物理時間（デバッグ固定）
   dt_s: 1.0e-3                 # [s] 時間刻み（2-4では tau=1 なので dt=1e-3）
+  dt_star: null                # [-] 内部積分刻みの上書き（CLI 実験用。未指定なら既定値）
 
 output_sampling:
   out_all_steps_3d: true       # true: 3D は dt ごと全step保存

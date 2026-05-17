@@ -42,6 +42,18 @@ def test_validate_time_scaling_is_always_fixed_to_paper_dt_star() -> None:
     assert sim_cfg.output_dt_s == pytest.approx(1.0e-7)
 
 
+def test_time_dt_star_override_changes_internal_dt_only() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-7, "dt_star": 5.0e-4}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    sim_cfg.validate_time_scaling()
+    assert sim_cfg.tau_s == pytest.approx(1.0)
+    assert sim_cfg.dt_s == pytest.approx(5.0e-4)
+    assert sim_cfg.dt_star == pytest.approx(5.0e-4)
+    assert sim_cfg.output_dt_s == pytest.approx(1.0e-7)
+
+
 def test_validate_time_scaling_for_motor_off_is_always_fixed() -> None:
     cfg = _base_cfg()
     cfg["motor"]["torque_Nm"] = 0.0
