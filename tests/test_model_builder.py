@@ -521,6 +521,36 @@ def test_flagella_base_tangent_points_rear(n_flagella: int) -> None:
         assert angle_deg <= 10.0
 
 
+def test_flagella_side_attach_makes_base_tangent_perpendicular_to_body_axis() -> None:
+    cfg = _make_cfg(
+        n_flagella=1,
+        ds_over_b=0.58,
+        init_mode="paper_table1",
+        n_beads_per_flagellum=11,
+    ).with_overrides({"flagella": {"force_side_attach": True}})
+    model = ModelBuilder(cfg).build()
+    positions_m = model.positions_m
+
+    body_points = positions_m[model.body_indices]
+    centered = body_points - np.mean(body_points, axis=0)
+    _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    body_axis = vh[0]
+    body_axis = body_axis / max(float(np.linalg.norm(body_axis)), 1e-18)
+    rear_dir = -body_axis
+
+    for triplet in model.hook_triplets:
+        flag0 = int(triplet[1])
+        flag1 = int(triplet[2])
+        tangent0 = positions_m[flag1] - positions_m[flag0]
+        tangent0 = tangent0 / max(float(np.linalg.norm(tangent0)), 1e-18)
+        angle_to_rear = np.rad2deg(
+            np.arccos(float(np.clip(np.dot(tangent0, rear_dir), -1.0, 1.0)))
+        )
+        hook_angle = np.rad2deg(_triplet_angle_rad(positions_m, triplet))
+        assert abs(angle_to_rear - 90.0) <= 10.0
+        assert abs(hook_angle - 180.0) <= 10.0
+
+
 def test_body_has_no_torsion_quads() -> None:
     cfg = _make_cfg(n_flagella=3)
     model = ModelBuilder(cfg).build()

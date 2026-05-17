@@ -180,7 +180,7 @@ class FlagellumParams:
     bond_L_over_b: float = 0.58
     length_over_b: float = 5.8
     helix_init: FlagellaHelixInitParams = field(default_factory=FlagellaHelixInitParams)
-    force_rear_alignment: bool = False
+    force_side_attach: bool = False
 
 
 @dataclass(frozen=True)
@@ -667,7 +667,7 @@ class SimulationConfig:
                 radius_over_b=float(radius_over_b_h),
                 pitch_over_b=float(pitch_over_b_h),
             ),
-            force_rear_alignment=bool(_get(flag_raw, "force_rear_alignment", False)),
+            force_side_attach=bool(_get(flag_raw, "force_side_attach", False)),
         )
 
         fluid_raw = raw.get("fluid", {}) or {}

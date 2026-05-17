@@ -369,13 +369,11 @@ class ModelBuilder:
                 radial_unit = rear_dir
             else:
                 radial_unit = radial / radial_norm
-            axis_u = rear_dir
-            # Experimental option: force hook offset to align with rear axis
-            if getattr(self.cfg.flagella, "force_rear_alignment", False):
-                # axis_u is rear_dir; use negative to point outward from body toward flagellum base
-                hook_offset_um = hook_length_um * (-axis_u)
-            else:
-                hook_offset_um = hook_length_um * radial_unit
+            force_side_attach = bool(
+                getattr(self.cfg.flagella, "force_side_attach", False)
+            )
+            axis_u = radial_unit if force_side_attach else rear_dir
+            hook_offset_um = hook_length_um * radial_unit
 
             ref = np.array([1.0, 0.0, 0.0], dtype=float)
             if abs(float(np.dot(axis_u, ref))) > 0.9:
@@ -409,10 +407,11 @@ class ModelBuilder:
             angle_deg = math.degrees(
                 math.acos(float(np.clip(np.dot(tangent0, rear_dir), -1.0, 1.0)))
             )
-            if angle_deg > 10.0 + 1e-8:
+            target_angle_deg = 90.0 if force_side_attach else 0.0
+            if abs(angle_deg - target_angle_deg) > 10.0 + 1e-8:
                 raise ValueError(
-                    "Flagellum base tangent is not aligned to rear direction:"
-                    f" angle_deg={angle_deg:.6f}"
+                    "Flagellum base tangent is not aligned to expected direction:"
+                    f" angle_deg={angle_deg:.6f}, target_angle_deg={target_angle_deg:.6f}"
                 )
 
             points_all.append(flag_points)
