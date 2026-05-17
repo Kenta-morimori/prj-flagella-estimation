@@ -84,9 +84,8 @@
 
 ## Update (2026-05-17 / PhaseC side-attach experiment)
 - PhaseC の実験目的を「hook 初期ポテンシャルが破綻原因か」を切り分ける side-attach 初期状態の検証に再定義した。
-- 実験フラグは `flagella.force_side_attach=true` とし、べん毛第一セグメント接線を菌体長軸に直交させる。
-- これにより hook angle は 180deg 近傍を目標とし、デフォルトの論文準拠初期化とは分離して評価する。
-- 旧 `force_rear_alignment` の意味変更は行わず、PhaseC 実験専用の新フラグに置き換える。
+- べん毛第一セグメント接線を菌体長軸に直交させる side-attach 初期配置を常時適用とする。
+- これにより hook angle は 180deg 近傍を目標とし、初期条件の分岐フラグは持たない。
 
 ## Update (2026-05-17 / internal dt override)
 - `time.dt_s` は出力間隔として扱い、内部積分刻みは `time.dt_star` を CLI override したときのみ更新する方針に整理した。

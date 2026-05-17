@@ -24,6 +24,7 @@ flagella:
   helix_init:
     radius_over_b: 0.25        # [-] 初期ヘリックス半径（直径0.5b）
     pitch_over_b: 2.5          # [-] 初期ヘリックスピッチ
+  # NOTE: base tangent / hook configuration is always side-attach (no toggle flag)
 
 fluid:
   viscosity_Pa_s: 0.001        # [Pa*s] 水相当

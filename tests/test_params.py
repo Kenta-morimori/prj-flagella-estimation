@@ -290,19 +290,6 @@ def test_flagella_init_mode_can_be_set_to_paper_table1() -> None:
     assert sim_cfg.flagella.n_beads_per_flagellum == 15
 
 
-def test_flagella_force_side_attach_can_be_set() -> None:
-    cfg = _base_cfg()
-    cfg["flagella"] = {
-        "force_side_attach": True,
-        "bond_L_over_b": 0.58,
-        "length_over_b": 5.8,
-    }
-    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
-    sim_cfg = SimulationConfig.from_dict(cfg)
-
-    assert sim_cfg.flagella.force_side_attach is True
-
-
 def test_flagella_stub_mode_can_be_set_to_minimal_basal_stub() -> None:
     cfg = _base_cfg()
     cfg["flagella"] = {
