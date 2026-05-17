@@ -123,7 +123,7 @@ swim_state_full.npy       # 全状態（オプション）
 ### 基本構文
 
 ```bash
-uv run python -m scripts.run_motor_scale_sweep \
+uv run python -m scripts.01_simulate_swimming.run_motor_scale_sweep \
   [--param-name PARAM] \
   [--param-values VAL1 VAL2 ...] \
   [--sweep-param SWEEP_PARAM] \
@@ -152,7 +152,7 @@ uv run python -m scripts.run_motor_scale_sweep \
 #### local_hook_scale sweep（2軸：torque vs hook_scale）
 
 ```bash
-uv run python -m scripts.run_motor_scale_sweep \
+uv run python -m scripts.01_simulate_swimming.run_motor_scale_sweep \
   --param-name motor.torque_Nm \
   --param-values 1.0e-21 2.0e-21 3.0e-21 4.0e-21 \
   --sweep-param motor.local_hook_scale \
@@ -168,7 +168,7 @@ uv run python -m scripts.run_motor_scale_sweep \
 #### local_spring_scale sweep（2軸：torque vs spring_scale）
 
 ```bash
-uv run python -m scripts.run_motor_scale_sweep \
+uv run python -m scripts.01_simulate_swimming.run_motor_scale_sweep \
   --param-name motor.torque_Nm \
   --param-values 1.0e-21 2.0e-21 3.0e-21 4.0e-21 \
   --sweep-param motor.local_spring_scale \
@@ -182,7 +182,7 @@ uv run python -m scripts.run_motor_scale_sweep \
 #### local_bend_scale sweep（2軸：torque vs bend_scale）
 
 ```bash
-uv run python -m scripts.run_motor_scale_sweep \
+uv run python -m scripts.01_simulate_swimming.run_motor_scale_sweep \
   --param-name motor.torque_Nm \
   --param-values 1.0e-21 2.0e-21 3.0e-21 4.0e-21 \
   --sweep-param motor.local_bend_scale \
@@ -196,7 +196,7 @@ uv run python -m scripts.run_motor_scale_sweep \
 #### local_torsion_scale sweep（2軸：torque vs torsion_scale）
 
 ```bash
-uv run python -m scripts.run_motor_scale_sweep \
+uv run python -m scripts.01_simulate_swimming.run_motor_scale_sweep \
   --param-name motor.torque_Nm \
   --param-values 1.0e-21 2.0e-21 3.0e-21 4.0e-21 \
   --sweep-param motor.local_torsion_scale \
@@ -225,7 +225,7 @@ uv run python -m scripts.run_motor_scale_sweep \
 ### 基本構文
 
 ```bash
-uv run python -m scripts.plot_motor_scale_collapse_heatmap \
+uv run python -m scripts.01_simulate_swimming.plot_motor_scale_collapse_heatmap \
   --summary-csv SWEEP_SUMMARY_CSV \
   [--output-dir DIR]
 ```
@@ -242,7 +242,7 @@ uv run python -m scripts.plot_motor_scale_collapse_heatmap \
 #### 直前の sweep 結果を可視化
 
 ```bash
-uv run python -m scripts.plot_motor_scale_collapse_heatmap \
+uv run python -m scripts.01_simulate_swimming.plot_motor_scale_collapse_heatmap \
   --summary-csv outputs/sweep_hook_scale_2026_04_16/{TIMESTAMP}/hook_scale_sweep_summary.csv
 ```
 
@@ -251,7 +251,7 @@ uv run python -m scripts.plot_motor_scale_collapse_heatmap \
 #### 既存の sweep 結果を再度可視化
 
 ```bash
-uv run python -m scripts.plot_motor_scale_collapse_heatmap \
+uv run python -m scripts.01_simulate_swimming.plot_motor_scale_collapse_heatmap \
   --summary-csv outputs/2026-04-15/234606/hook_scale_sweep_summary.csv \
   --output-dir outputs/analysis_2026_04_16/
 ```
@@ -353,4 +353,3 @@ cat outputs/verify_equiv_torque3e21_hook4/{timestamp}/step_summary.csv | tail -1
 
 - [prompts/phase2/0037.md](../../prompts/phase2/0037.md) - 詳細な実装方針・等価性ルール
 - [docs/phase2/sim_diagnostics.md](sim_diagnostics.md) - 出力列の説明
-- [docs/phase2/2026-04-14_motor_scale_sweep_report.md](2026-04-14_motor_scale_sweep_report.md) - sweep 実行履歴・結果

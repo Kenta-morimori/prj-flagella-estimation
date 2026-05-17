@@ -26,7 +26,7 @@
 
 ### PhaseB1 例: torque x scale 観測CSV
 ```bash
-uv run python -m scripts.run_motor_scale_sweep \
+uv run python -m scripts.01_simulate_swimming.run_motor_scale_sweep \
   --target local_hook_scale \
   --values 8,2,0 \
   --torques 1e-21,4e-21,1e-20 \
@@ -39,7 +39,7 @@ uv run python -m scripts.run_motor_scale_sweep \
 PhaseB1 以降では、同CSVから崩壊の分布を可視化できる。
 
 ```bash
-uv run python -m scripts.plot_motor_scale_collapse_heatmap \
+uv run python -m scripts.01_simulate_swimming.plot_motor_scale_collapse_heatmap \
   --summary-csv outputs/phaseb1_torque_scale/local_hook_scale_sweep_summary.csv \
   --output-dir outputs/phaseb1_torque_scale/plots
 ```

@@ -29,8 +29,10 @@ YOLOで検出した動画像データを前処理後に全時間平均化し，C
 原則として **アルゴリズム/処理本体は `src/` に置き，`scripts/` は設定読み込み・入出力・実行順の制御のみ**を担う．
 
 ### `scripts/` の要素（実行エントリ）
-- `01_simulate_swimming.py`:
-  3D物理シミュレーション結果を2Dへ投影し，擬似顕微鏡像（動画/画像列）と付随するメタ情報を生成する（Phase2）
+- `01_simulate_swimming/`:
+  - `01_simulate_swimming.py`: 3D物理シミュレーション結果を2Dへ投影し，擬似顕微鏡像（動画/画像列）と付随するメタ情報を生成する（Phase2）
+  - `run_motor_scale_sweep.py`: torque×local scale の sweep を実行し，崩壊境界探索用CSVを出力する（Phase2）
+  - `plot_motor_scale_collapse_heatmap.py`: sweep 集約CSVから category/pass-fail heatmap を生成する（Phase2）
 - `02_detect_bac.py`:
   入力動画から菌体を検出し，個体ごとのクリップ（中心化・スケール統一）と検出結果（bbox/track等）を出力する（Phase3）
 - `03_train_evaluate.py`:
