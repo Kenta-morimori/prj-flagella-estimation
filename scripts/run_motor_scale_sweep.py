@@ -93,7 +93,7 @@ def _base_cfg() -> dict[str, Any]:
             "local_torsion_scale": 4.0,
         },
         "potentials": {
-            "spring": {"H_over_T_over_b": 20.0, "s": 0.2},
+            "spring": {"H_over_T_over_b": 10.0, "s": 0.1},
             "bend": {
                 "kb_over_T": 20.0,
                 "theta0_deg": {
