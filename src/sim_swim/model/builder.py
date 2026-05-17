@@ -370,7 +370,12 @@ class ModelBuilder:
             else:
                 radial_unit = radial / radial_norm
             axis_u = rear_dir
-            hook_offset_um = hook_length_um * radial_unit
+            # Experimental option: force hook offset to align with rear axis
+            if getattr(self.cfg.flagella, "force_rear_alignment", False):
+                # axis_u is rear_dir; use negative to point outward from body toward flagellum base
+                hook_offset_um = hook_length_um * (-axis_u)
+            else:
+                hook_offset_um = hook_length_um * radial_unit
 
             ref = np.array([1.0, 0.0, 0.0], dtype=float)
             if abs(float(np.dot(axis_u, ref))) > 0.9:
