@@ -17,6 +17,25 @@ uv run python -m scripts.01_simulate_swimming.run_motor_scale_sweep --help
 uv run python -m scripts.01_simulate_swimming.plot_motor_scale_collapse_heatmap --help
 ```
 
+### `scripts.01_simulate_swimming` のCLI指定方法
+
+- `duration_s` やトルク、`dt_star` など設定キーは `KEY=VALUE` 形式の override で指定します。
+
+例:
+```bash
+# 実行時間を 0.05s に変更
+uv run python -m scripts.01_simulate_swimming time.duration_s=0.05
+
+# トルクを 3.0e-21 N*m に変更
+uv run python -m scripts.01_simulate_swimming motor.torque_Nm=3.0e-21
+
+# 実行時間・トルク・内部刻みを同時指定
+uv run python -m scripts.01_simulate_swimming \
+  time.duration_s=0.05 \
+  motor.torque_Nm=3.0e-21 \
+  time.dt_star=1.0e-4
+```
+
 互換性のため、以下の旧エントリも利用可能です（内部で新モジュールへ委譲）:
 - `scripts.run_motor_scale_sweep`
 - `scripts.plot_motor_scale_collapse_heatmap`
