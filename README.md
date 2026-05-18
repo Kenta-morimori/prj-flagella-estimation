@@ -44,7 +44,6 @@ uv run python -m scripts.01_simulate_swimming.plot_motor_scale_collapse_heatmap 
   --output-dir outputs/phaseb1_torque_scale/plots
 ```
 
-この可視化は `*_category_heatmap.png` に加えて、body / hook / flagella の pass/fail heatmap を出力する。
-出力名はそれぞれ `*_body_pass_fail_heatmap.png`、`*_hook_pass_fail_heatmap.png`、`*_flagella_pass_fail_heatmap.png` である。
-body と hook は常時出力し、flagella は flag 系の first-fail がある場合にのみ出力する。
+この可視化は `*_category_heatmap.png` に加えて、body と hook をまとめた `*_combined_pass_fail_heatmap.png` を出力する。
+`*_flagella_pass_fail_heatmap.png` は、flag 系の first-fail がある場合にのみ追加で出力される。
 また、正規化した `*_collapse_matrix.csv` も出力する。
