@@ -42,6 +42,18 @@ def test_validate_time_scaling_is_always_fixed_to_paper_dt_star() -> None:
     assert sim_cfg.output_dt_s == pytest.approx(1.0e-7)
 
 
+def test_time_dt_star_override_changes_internal_dt_only() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-7, "dt_star": 5.0e-4}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    sim_cfg.validate_time_scaling()
+    assert sim_cfg.tau_s == pytest.approx(1.0)
+    assert sim_cfg.dt_s == pytest.approx(5.0e-4)
+    assert sim_cfg.dt_star == pytest.approx(5.0e-4)
+    assert sim_cfg.output_dt_s == pytest.approx(1.0e-7)
+
+
 def test_validate_time_scaling_for_motor_off_is_always_fixed() -> None:
     cfg = _base_cfg()
     cfg["motor"]["torque_Nm"] = 0.0
@@ -105,6 +117,28 @@ def test_torque_non_minus_one_uses_input_value() -> None:
     assert sim_cfg.tau_s == pytest.approx(1.0)
 
 
+def test_torque_for_forces_override_decouples_from_motor_torque() -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["torque_Nm"] = 4.0e-21
+    cfg["motor"]["torque_for_forces_override_Nm"] = 1.0e-21
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor_torque_Nm == pytest.approx(4.0e-21)
+    assert sim_cfg.torque_for_forces_Nm == pytest.approx(1.0e-21)
+
+
+def test_torque_for_forces_override_non_positive_uses_default_coupling() -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["torque_Nm"] = 4.0e-21
+    cfg["motor"]["torque_for_forces_override_Nm"] = 0.0
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor_torque_Nm == pytest.approx(4.0e-21)
+    assert sim_cfg.torque_for_forces_Nm == pytest.approx(4.0e-21)
+
+
 def test_torque_zero_sets_motor_off_but_keeps_tau_unity_scale() -> None:
     cfg = _base_cfg()
     cfg["motor"]["torque_Nm"] = 0.0
@@ -140,6 +174,41 @@ def test_motor_enable_switching_can_be_enabled() -> None:
     sim_cfg = SimulationConfig.from_dict(cfg)
 
     assert sim_cfg.motor.enable_switching is True
+
+
+def test_motor_torque_ramp_defaults_to_disabled() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor.torque_ramp_enabled is False
+    assert sim_cfg.motor.torque_ramp_duration_s == pytest.approx(0.0)
+
+
+def test_motor_torque_ramp_can_be_configured() -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["torque_ramp_enabled"] = True
+    cfg["motor"]["torque_ramp_duration_s"] = 0.05
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor.torque_ramp_enabled is True
+    assert sim_cfg.motor.torque_ramp_duration_s == pytest.approx(0.05)
+
+
+def test_motor_local_scales_can_be_configured() -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["local_hook_scale"] = 1.5
+    cfg["motor"]["local_spring_scale"] = 1.25
+    cfg["motor"]["local_bend_scale"] = 0.75
+    cfg["motor"]["local_torsion_scale"] = 0.5
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor.local_hook_scale == pytest.approx(1.5)
+    assert sim_cfg.motor.local_spring_scale == pytest.approx(1.25)
+    assert sim_cfg.motor.local_bend_scale == pytest.approx(0.75)
+    assert sim_cfg.motor.local_torsion_scale == pytest.approx(0.5)
 
 
 def test_projection_config_is_ignored_after_removal() -> None:
@@ -232,6 +301,19 @@ def test_flagella_stub_mode_can_be_set_to_minimal_basal_stub() -> None:
     sim_cfg = SimulationConfig.from_dict(cfg)
 
     assert sim_cfg.flagella.stub_mode == "minimal_basal_stub"
+
+
+def test_flagella_stub_mode_can_be_set_to_extended_basal_stub_5() -> None:
+    cfg = _base_cfg()
+    cfg["flagella"] = {
+        "stub_mode": "extended_basal_stub_5",
+        "bond_L_over_b": 0.58,
+        "length_over_b": 5.8,
+    }
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella.stub_mode == "extended_basal_stub_5"
 
 
 def test_torsion_fd_eps_over_b_defaults_to_point_one() -> None:

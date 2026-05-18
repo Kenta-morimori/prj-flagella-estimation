@@ -146,7 +146,7 @@ def save_swim_movie(
     writer: cv2.VideoWriter | None = None
     last_frame: np.ndarray | None = None
 
-    fps_3d = min(60.0, max(1.0, 1.0 / max(cfg.dt_s, 1e-9)))
+    fps_3d = min(60.0, max(1.0, 1.0 / max(cfg.output_dt_s, 1e-9)))
 
     for idx, st in enumerate(render_states):
         fig = plt.figure(figsize=(5, 5))

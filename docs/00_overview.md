@@ -14,6 +14,10 @@
 ### Phase2: 物理シミュレーション
 3次元空間上を菌体が遊泳する物理シミュレーションを行い，２次元投影動画像(擬似顕微鏡像)を得る．菌体を多角柱として，菌体中央から生えたN本のべん毛を回転させることにより遊泳する低レイノルズ数の運動方程式を解くことで得られる，力学シミュレーションを行う．菌体およびべん毛は，ビーズ(node)として離散的に表現し，ノード間をバネのように繋ぎ，剛体制約を加える．
 
+Phase2 の検証運用は以下を基本とする。
+- PhaseA（トルク0）: CSV診断（step_summary / body diagnostics）で判定し，図作成は行わない。
+- PhaseB1 以降（トルクあり）: 崩壊境界の可視化（torque×scale）を開始する。
+
 ### Phase3: 菌体検出
 YOLOにより動画像から菌体を検出し，個体ごとのクリップ画像列を生成する．クリップは菌体が常に中心付近に位置し，全フレームで同一スケールとなるよう整形する．
 
@@ -25,8 +29,10 @@ YOLOで検出した動画像データを前処理後に全時間平均化し，C
 原則として **アルゴリズム/処理本体は `src/` に置き，`scripts/` は設定読み込み・入出力・実行順の制御のみ**を担う．
 
 ### `scripts/` の要素（実行エントリ）
-- `01_simulate_swimming.py`:
-  3D物理シミュレーション結果を2Dへ投影し，擬似顕微鏡像（動画/画像列）と付随するメタ情報を生成する（Phase2）
+- `01_simulate_swimming/`:
+  - `01_simulate_swimming.py`: 3D物理シミュレーション結果を2Dへ投影し，擬似顕微鏡像（動画/画像列）と付随するメタ情報を生成する（Phase2）
+  - `run_motor_scale_sweep.py`: torque×local scale の sweep を実行し，崩壊境界探索用CSVを出力する（Phase2）
+  - `plot_motor_scale_collapse_heatmap.py`: sweep 集約CSVから category/pass-fail heatmap を生成する（Phase2）
 - `02_detect_bac.py`:
   入力動画から菌体を検出し，個体ごとのクリップ（中心化・スケール統一）と検出結果（bbox/track等）を出力する（Phase3）
 - `03_train_evaluate.py`:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
+from enum import Enum
 import math
 from typing import Any
 
@@ -31,6 +32,75 @@ def _isclose(
     a: float, b: float, rel_tol: float = 1.0e-12, abs_tol: float = 1.0e-12
 ) -> bool:
     return math.isclose(float(a), float(b), rel_tol=rel_tol, abs_tol=abs_tol)
+
+
+class DynamicsMode(Enum):
+    """力学シミュレーションの構造モード。
+
+    定義:
+    - BODY_ONLY: 菌体のみ（べん毛なし）
+      Condition: n_flagella=0
+
+    - BODY_HOOK: 菌体 + hook + minimal basal stub（最小3ビーズ）
+      Condition: n_flagella >= 1, stub_mode='minimal_basal_stub'
+
+    - BODY_HOOK_FLAGELLA: 菌体 + hook + full flagellum
+      Condition: n_flagella >= 1, stub_mode='full_flagella'
+    """
+
+    BODY_ONLY = "body_only"
+    BODY_HOOK = "body_hook"
+    BODY_HOOK_FLAGELLA = "body_hook_flagella"
+
+
+def infer_dynamics_mode(n_flagella: int, stub_mode: str) -> DynamicsMode:
+    """設定から dynamics_mode を推論する。
+
+    Args:
+        n_flagella: フラジェラ本数
+        stub_mode: 'minimal_basal_stub' or 'full_flagella'
+
+    Returns:
+        DynamicsMode enum value
+
+    Raises:
+        ValueError: 不整合な設定の場合
+    """
+    if n_flagella == 0:
+        return DynamicsMode.BODY_ONLY
+    if n_flagella >= 1:
+        if stub_mode == "minimal_basal_stub":
+            return DynamicsMode.BODY_HOOK
+        elif stub_mode == "full_flagella":
+            return DynamicsMode.BODY_HOOK_FLAGELLA
+        else:
+            raise ValueError(
+                f"Invalid stub_mode: {stub_mode}. "
+                "Must be 'minimal_basal_stub' or 'full_flagella'."
+            )
+    raise ValueError(f"Invalid n_flagella: {n_flagella}. Must be >= 0.")
+
+
+def validate_dynamics_mode_consistency(
+    mode: DynamicsMode, n_flagella: int, stub_mode: str
+) -> None:
+    """dynamics_mode と設定の一貫性を検証する。
+
+    Args:
+        mode: DynamicsMode enum
+        n_flagella: フラジェラ本数
+        stub_mode: 'minimal_basal_stub' or 'full_flagella'
+
+    Raises:
+        ValueError: 不整合が検出された場合
+    """
+    inferred = infer_dynamics_mode(n_flagella, stub_mode)
+    if mode != inferred:
+        raise ValueError(
+            f"Dynamics mode mismatch: specified={mode}, "
+            f"inferred from config={inferred}. "
+            f"n_flagella={n_flagella}, stub_mode={stub_mode}"
+        )
 
 
 @dataclass(frozen=True)
@@ -76,12 +146,33 @@ class FlagellaHelixInitParams:
 
 @dataclass(frozen=True)
 class FlagellumParams:
-    """べん毛設定。"""
+    """べん毛設定。
+
+    フェーズ定義との対応:
+    - Phase0a: n_flagella=0 (no flagella, body only)
+    - Phase0b: n_flagella=1, stub_mode='minimal_basal_stub', motor.torque_Nm=0
+               (body + hook + 3-bead minimal flagellar stub, motor off)
+    - Phase1: n_flagella=0, body_equiv_load.mode='pure_couple'
+              (body only with surrogate torque input, no flagella)
+    - Phase2: n_flagella=1, stub_mode='minimal_basal_stub', motor.torque_Nm!=0
+              (minimal stub with actual motor torque)
+    - Phase3: n_flagella=1, stub_mode='full_flagella', motor.torque_Nm!=0
+              (full flagella with actual motor torque)
+    """
 
     n_flagella: int = 3
     placement_mode: str = "uniform"
     init_mode: str = "legacy_radius_pitch"
-    stub_mode: str = "full_flagella"  # minimal_basal_stub | full_flagella
+    stub_mode: str = (
+        "full_flagella"  # minimal_basal_stub | extended_basal_stub_5 |
+        # full_flagella
+    )
+    # stub_mode='minimal_basal_stub':
+    #   body + hook + 3 beads (attach, first, second)
+    # stub_mode='extended_basal_stub_5':
+    #   body + hook + 5 beads (attach + 4-chain)
+    # stub_mode='full_flagella':
+    #   full flagellum (body attach + n_beads_per_flagellum)
     discretization: FlagellaDiscretizationParams = field(
         default_factory=FlagellaDiscretizationParams
     )
@@ -105,6 +196,13 @@ class MotorParams:
     torque_Nm: float = 4.0e-18
     reverse_n_flagella: int = 1
     enable_switching: bool = False
+    torque_ramp_enabled: bool = False
+    torque_ramp_duration_s: float = 0.0
+    torque_for_forces_override_Nm: float = 0.0
+    local_hook_scale: float = 1.0
+    local_spring_scale: float = 1.0
+    local_bend_scale: float = 1.0
+    local_torsion_scale: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -162,11 +260,19 @@ class HookParams:
 
 @dataclass(frozen=True)
 class BodyEquivalentLoadParams:
-    """body-only切り分け用の等価荷重設定。"""
+    """body-only切り分け用の等価荷重設定。
+
+    Phase1の主目的は、actual motor torque を導入する前に、
+    body が純回転入力（surrogate torque）に耐えるかを切り分けること。
+    enable=True, mode='pure_couple' として使用。
+
+    - enable=False: body_equiv_load 無効（Phase0a, 0b, 2, 3）
+    - enable=True, mode='pure_couple': body-only surrogate torque 投入（Phase1）
+    - 現実装は magnitude-only 運用（符号は無視）
+    """
 
     enabled: bool = False
     mode: str = "none"
-    # 現実装は magnitude-only 運用（符号は無視）。
     target_torque_Nm: float = 0.0
     target_force_N: float = 0.0
     attach_region_id: int = 0
@@ -198,6 +304,7 @@ class TimeParams:
 
     duration_s: float = 0.1
     dt_s: float = 1.0e-3
+    dt_star: float | None = None
 
 
 @dataclass(frozen=True)
@@ -245,6 +352,15 @@ class OutputParams:
 
 
 @dataclass(frozen=True)
+class StiffnessScaleParams:
+    """補助的な剛性スケール設定。論文再現性のためデフォルトは 1.0 とする。"""
+
+    body: float = 1.0
+    flag_bend: float = 1.0
+    flag_torsion: float = 1.0
+
+
+@dataclass(frozen=True)
 class SimulationConfig:
     """Phase2シミュレーション設定。"""
 
@@ -263,6 +379,7 @@ class SimulationConfig:
     render: RenderParams
     seed: SeedParams
     output: OutputParams
+    stiffness_scales: StiffnessScaleParams
 
     @property
     def b_m(self) -> float:
@@ -298,6 +415,8 @@ class SimulationConfig:
     @property
     def torque_for_forces_Nm(self) -> float:
         """力学パラメータ（剛性/反発）のスケーリングに使うトルク絶対値。"""
+        if float(self.motor.torque_for_forces_override_Nm) > 0.0:
+            return float(self.motor.torque_for_forces_override_Nm)
         if self.use_eta_b3_torque or self.is_motor_off_torque:
             return self.torque_eta_b3_Nm
         return abs(self.motor_torque_Nm)
@@ -333,7 +452,10 @@ class SimulationConfig:
     @property
     def dt_s(self) -> float:
         """内部計算ステップ幅Δt[s]。"""
-        return DT_STAR_TARGET
+        dt_star = self.time.dt_star
+        if dt_star is None:
+            return DT_STAR_TARGET
+        return max(float(dt_star), 0.0) * self.tau_s
 
     @property
     def dt_star(self) -> float:
@@ -349,19 +471,14 @@ class SimulationConfig:
 
     def validate_time_scaling(
         self,
-        target_dt_star: float = DT_STAR_TARGET,
-        rel_tol: float = 1e-12,
     ) -> None:
-        """内部計算で `dt_star=1e-3` が成立しているか検証する。"""
+        """内部計算刻みが有効な値かを検証する。"""
 
-        if not math.isclose(
-            self.dt_star, target_dt_star, rel_tol=rel_tol, abs_tol=1e-18
-        ):
+        if not math.isfinite(self.dt_star) or self.dt_star <= 0.0:
             raise ValueError(
-                "内部時間刻みが論文条件に一致しない。"
+                "内部時間刻みが不正です。"
                 f" dt_s={self.dt_s:.12e}, tau_s={self.tau_s:.12e},"
-                f" dt_star={self.dt_star:.12e}, target_dt_star={target_dt_star:.12e}; "
-                "dt_star(=Δt/τ) must be 1e-3"
+                f" dt_star={self.dt_star:.12e}"
             )
 
     def compute_body_n_layers(
@@ -560,6 +677,17 @@ class SimulationConfig:
             torque_Nm=float(_get(motor_raw, "torque_Nm", 4e-18)),
             reverse_n_flagella=int(_get(motor_raw, "reverse_n_flagella", 1)),
             enable_switching=bool(_get(motor_raw, "enable_switching", False)),
+            torque_ramp_enabled=bool(_get(motor_raw, "torque_ramp_enabled", False)),
+            torque_ramp_duration_s=float(
+                _get(motor_raw, "torque_ramp_duration_s", 0.0)
+            ),
+            torque_for_forces_override_Nm=float(
+                _get(motor_raw, "torque_for_forces_override_Nm", 0.0)
+            ),
+            local_hook_scale=float(_get(motor_raw, "local_hook_scale", 8.0)),
+            local_spring_scale=float(_get(motor_raw, "local_spring_scale", 5.0)),
+            local_bend_scale=float(_get(motor_raw, "local_bend_scale", 4.0)),
+            local_torsion_scale=float(_get(motor_raw, "local_torsion_scale", 4.0)),
         )
 
         thermal = K_B * max(brownian.temperature_K, 1e-9)
@@ -675,6 +803,11 @@ class SimulationConfig:
         time = TimeParams(
             duration_s=float(_get(time_raw, "duration_s", 0.1)),
             dt_s=float(dt_s),
+            dt_star=(
+                float(time_raw["dt_star"])
+                if time_raw.get("dt_star") not in (None, "")
+                else None
+            ),
         )
 
         out_sample_raw = raw.get("output_sampling", {}) or {}
@@ -708,6 +841,13 @@ class SimulationConfig:
         output_raw = raw.get("output", {}) or {}
         output = OutputParams(base_dir=str(_get(output_raw, "base_dir", "outputs")))
 
+        stiffness_raw = raw.get("stiffness_scales", {}) or {}
+        stiffness = StiffnessScaleParams(
+            body=float(_get(stiffness_raw, "body", 1.0)),
+            flag_bend=float(_get(stiffness_raw, "flag_bend", 1.0)),
+            flag_torsion=float(_get(stiffness_raw, "flag_torsion", 1.0)),
+        )
+
         return SimulationConfig(
             scale=scale,
             body=body,
@@ -724,6 +864,7 @@ class SimulationConfig:
             render=render,
             seed=seed,
             output=output,
+            stiffness_scales=stiffness,
         )
 
     def with_overrides(self, overrides: dict[str, Any]) -> "SimulationConfig":

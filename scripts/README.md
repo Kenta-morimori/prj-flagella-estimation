@@ -1,18 +1,44 @@
 # scripts ディレクトリ
 
-## 01_simulate_swimming.py
-Phase2: 3D遊泳シミュレーションを行い、2D投影と可視化成果物を出力するCLIです。
-パラメータは`conf/sim_swim.yaml`をデフォルトで参照しています。別のconfigを参照したい場合は、以下の実行コマンドに`--config [configのパス]`を追加ください。
+## 01_simulate_swimming/
+Phase2 実行系を集約したディレクトリです。
+
+- `01_simulate_swimming/01_simulate_swimming.py`:
+  3D遊泳シミュレーションを行い、2D投影と可視化成果物を出力するCLI
+- `01_simulate_swimming/run_motor_scale_sweep.py`:
+  torque×local scale の sweep を実行するCLI
+- `01_simulate_swimming/plot_motor_scale_collapse_heatmap.py`:
+  sweep 結果CSVから heatmap を生成するCLI
 
 実行例:
 ```
 uv run python -m scripts.01_simulate_swimming
+uv run python -m scripts.01_simulate_swimming.run_motor_scale_sweep --help
+uv run python -m scripts.01_simulate_swimming.plot_motor_scale_collapse_heatmap --help
 ```
 
-パラメータを修正した実行方法
+### `scripts.01_simulate_swimming` のCLI指定方法
+
+- `duration_s` やトルク、`dt_star` など設定キーは `KEY=VALUE` 形式の override で指定します。
+
+例:
+```bash
+# 実行時間を 0.05s に変更
+uv run python -m scripts.01_simulate_swimming time.duration_s=0.05
+
+# トルクを 3.0e-21 N*m に変更
+uv run python -m scripts.01_simulate_swimming motor.torque_Nm=3.0e-21
+
+# 実行時間・トルク・内部刻みを同時指定
+uv run python -m scripts.01_simulate_swimming \
+  time.duration_s=0.05 \
+  motor.torque_Nm=3.0e-21 \
+  time.dt_star=1.0e-4
 ```
-uv run python -m scripts.01_simulate_swimming flagella.n_flagella=6
-```
+
+互換性のため、以下の旧エントリも利用可能です（内部で新モジュールへ委譲）:
+- `scripts.run_motor_scale_sweep`
+- `scripts.plot_motor_scale_collapse_heatmap`
 
 ## 02_detect_bac.py
 Phase3: 動画から菌体検出と個体クリップ生成を行うCLIの雛形です。

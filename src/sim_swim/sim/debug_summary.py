@@ -26,6 +26,9 @@ STEP_SUMMARY_COLUMNS = [
     "pos_all_finite",
     "any_nan",
     "any_inf",
+    "finite_pass",
+    "shape_pass_nonbody",
+    "first_fail_category_nonbody",
     "mean_disp_um",
     "max_disp_um",
     "bond_count_body_body",
@@ -71,6 +74,10 @@ STEP_SUMMARY_COLUMNS = [
     "motor_Fa_norm",
     "motor_Fb_norm",
     "motor_axis_vs_rear_direction_angle_deg",
+    "flag_root_azimuth_deg",
+    "flag_phase_deg",
+    "flag_phase_rate_hz",
+    "flag_body_phase_diff_deg",
     "motor_attach_force_norm",
     "motor_first_force_norm",
     "motor_second_force_norm",
@@ -165,9 +172,73 @@ BODY_CONSTRAINT_LOCAL_DIAGNOSTICS_COLUMNS = [
 
 RAD_TO_DEG = 180.0 / np.pi
 
+NONBODY_HOOK_REL_ERR_MAX_LIMIT = 1.0
+NONBODY_HOOK_ANGLE_ERR_MAX_DEG_LIMIT = 30.0
+NONBODY_FLAG_BOND_REL_ERR_MAX_LIMIT = 1.0
+NONBODY_FLAG_BEND_ERR_MAX_DEG_LIMIT = 60.0
+NONBODY_FLAG_TORSION_ERR_MAX_DEG_LIMIT = 120.0
+
 
 def _wrap_angle(rad: np.ndarray | float) -> np.ndarray | float:
     return (np.asarray(rad) + np.pi) % (2.0 * np.pi) - np.pi
+
+
+def _is_finite_number(value: float) -> bool:
+    return bool(np.isfinite(float(value)))
+
+
+def _check_nonbody_shape_pass(
+    *,
+    finite_pass: bool,
+    has_hook_pair: bool,
+    has_hook_angle: bool,
+    has_flag_bond: bool,
+    has_flag_bend: bool,
+    has_flag_torsion: bool,
+    local_attach_first_rel_err: float,
+    hook_len_rel_err_max: float,
+    hook_angle_err_max_deg: float,
+    flag_bond_rel_err_max: float,
+    flag_bend_err_max_deg: float,
+    flag_torsion_err_max_deg: float,
+) -> tuple[bool, str]:
+    if not finite_pass:
+        return False, "finite"
+
+    hook_metrics: list[float] = []
+    if has_hook_pair:
+        hook_metrics.extend([local_attach_first_rel_err, hook_len_rel_err_max])
+    if has_hook_angle:
+        hook_metrics.append(hook_angle_err_max_deg)
+    if any(not _is_finite_number(v) for v in hook_metrics):
+        return False, "hook_nonfinite"
+    if has_hook_pair and local_attach_first_rel_err > NONBODY_HOOK_REL_ERR_MAX_LIMIT:
+        return False, "hook"
+    if has_hook_pair and hook_len_rel_err_max > NONBODY_HOOK_REL_ERR_MAX_LIMIT:
+        return False, "hook"
+    if has_hook_angle and hook_angle_err_max_deg > NONBODY_HOOK_ANGLE_ERR_MAX_DEG_LIMIT:
+        return False, "hook"
+
+    flag_metrics: list[float] = []
+    if has_flag_bond:
+        flag_metrics.append(flag_bond_rel_err_max)
+    if has_flag_bend:
+        flag_metrics.append(flag_bend_err_max_deg)
+    if has_flag_torsion:
+        flag_metrics.append(flag_torsion_err_max_deg)
+    if any(not _is_finite_number(v) for v in flag_metrics):
+        return False, "flag_nonfinite"
+    if has_flag_bond and flag_bond_rel_err_max > NONBODY_FLAG_BOND_REL_ERR_MAX_LIMIT:
+        return False, "flag"
+    if has_flag_bend and flag_bend_err_max_deg > NONBODY_FLAG_BEND_ERR_MAX_DEG_LIMIT:
+        return False, "flag"
+    if (
+        has_flag_torsion
+        and flag_torsion_err_max_deg > NONBODY_FLAG_TORSION_ERR_MAX_DEG_LIMIT
+    ):
+        return False, "flag"
+
+    return True, "none"
 
 
 def _triplet_angles_rad(positions_m: np.ndarray, triplets: np.ndarray) -> np.ndarray:
@@ -604,6 +675,9 @@ class StepSummaryRecorder:
         self.local_second_third_row = -1
         self.local_basal_triplet = np.full((3,), -1, dtype=int)
         self.local_first_torsion_quad = np.full((4,), -1, dtype=int)
+        self.prev_flag_root_azimuth_deg: float | None = None
+        self.prev_flag_phase_deg: float | None = None
+        self.prev_flag_phase_t_s: float | None = None
 
         pair_rows = _pair_row_lookup(self.spring_pairs)
 
@@ -685,12 +759,67 @@ class StepSummaryRecorder:
         self.body_flag_rows = np.where(np.logical_xor(bi, bj))[0]
         self.flag_intra_rows = np.where((~bi) & (~bj) & (fi == fj) & (fi >= 0))[0]
 
+    def _phase_reference_frame(
+        self, positions_m: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        axis = np.zeros(3, dtype=float)
+        if len(self.model.body_layer_indices) >= 2:
+            first = self.model.body_layer_indices[0].astype(int, copy=False)
+            last = self.model.body_layer_indices[-1].astype(int, copy=False)
+            c_first = np.mean(positions_m[first], axis=0)
+            c_last = np.mean(positions_m[last], axis=0)
+            axis = c_last - c_first
+        elif self.model.body_indices.size >= 2:
+            i0 = int(self.model.body_indices[0])
+            i1 = int(self.model.body_indices[-1])
+            axis = positions_m[i1] - positions_m[i0]
+
+        n_axis = float(np.linalg.norm(axis))
+        if n_axis <= 1e-18:
+            axis = np.array([1.0, 0.0, 0.0], dtype=float)
+            n_axis = 1.0
+        axis = axis / n_axis
+
+        ref_candidates = (
+            np.array([1.0, 0.0, 0.0], dtype=float),
+            np.array([0.0, 1.0, 0.0], dtype=float),
+            np.array([0.0, 0.0, 1.0], dtype=float),
+        )
+        e1 = np.zeros(3, dtype=float)
+        for ref in ref_candidates:
+            proj = ref - float(np.dot(ref, axis)) * axis
+            n_proj = float(np.linalg.norm(proj))
+            if n_proj > 1e-18:
+                e1 = proj / n_proj
+                break
+        if float(np.linalg.norm(e1)) <= 1e-18:
+            fallback = np.cross(axis, np.array([0.0, 1.0, 0.0], dtype=float))
+            if float(np.linalg.norm(fallback)) <= 1e-18:
+                fallback = np.cross(axis, np.array([0.0, 0.0, 1.0], dtype=float))
+            e1 = fallback / max(float(np.linalg.norm(fallback)), 1e-18)
+        e2 = np.cross(axis, e1)
+        e2 = e2 / max(float(np.linalg.norm(e2)), 1e-18)
+        return axis, e1, e2
+
+    @staticmethod
+    def _azimuth_deg(vec: np.ndarray, e1: np.ndarray, e2: np.ndarray) -> float:
+        proj_x = float(np.dot(vec, e1))
+        proj_y = float(np.dot(vec, e2))
+        if abs(proj_x) <= 1e-18 and abs(proj_y) <= 1e-18:
+            return float("nan")
+        return float(np.rad2deg(np.arctan2(proj_y, proj_x)))
+
+    @staticmethod
+    def _wrap_deg(deg: float) -> float:
+        return float((deg + 180.0) % 360.0 - 180.0)
+
     def record(self, step: int, t_star: float, diag: StepDiagnostics) -> None:
         pos_after = diag.positions_after_m
         disp_um = np.linalg.norm(pos_after - diag.positions_before_m, axis=1) * M_TO_UM
         any_nan = bool(np.isnan(pos_after).any())
         any_inf = bool(np.isinf(pos_after).any())
         pos_all_finite = bool(np.isfinite(pos_after).all())
+        finite_pass = bool(pos_all_finite and (not any_nan) and (not any_inf))
 
         brownian_disp_mean_um = float("nan")
         if diag.brownian_enabled:
@@ -880,6 +1009,53 @@ class StepSummaryRecorder:
                 abs(float(_wrap_angle(float(tors[0]) - float(target)))) * RAD_TO_DEG
             )
 
+        flag_root_azimuth_deg = float("nan")
+        flag_phase_deg = float("nan")
+        flag_phase_rate_hz = float("nan")
+        flag_body_phase_diff_deg = float("nan")
+        if self.local_attach_idx >= 0 and self.local_first_idx >= 0:
+            axis, e1, e2 = self._phase_reference_frame(pos_after)
+            attach_vec = pos_after[self.local_attach_idx]
+            first_vec = pos_after[self.local_first_idx]
+            root_vec = first_vec - attach_vec
+            root_proj = root_vec - float(np.dot(root_vec, axis)) * axis
+            flag_root_azimuth_deg = self._azimuth_deg(root_proj, e1, e2)
+
+            body_phase_deg = float("nan")
+            if len(self.model.body_layer_indices) > 0:
+                body_layer = self.model.body_layer_indices[0].astype(int, copy=False)
+                body_center = np.mean(pos_after[body_layer], axis=0)
+                if body_layer.size > 0:
+                    body_marker = pos_after[int(body_layer[0])] - body_center
+                    body_marker = body_marker - float(np.dot(body_marker, axis)) * axis
+                    body_phase_deg = self._azimuth_deg(body_marker, e1, e2)
+
+            if np.isfinite(flag_root_azimuth_deg):
+                if (
+                    self.prev_flag_root_azimuth_deg is None
+                    or self.prev_flag_phase_deg is None
+                ):
+                    flag_phase_deg = flag_root_azimuth_deg
+                    flag_phase_rate_hz = 0.0
+                else:
+                    delta = self._wrap_deg(
+                        flag_root_azimuth_deg - self.prev_flag_root_azimuth_deg
+                    )
+                    flag_phase_deg = self.prev_flag_phase_deg + delta
+                    prev_t_s = self.prev_flag_phase_t_s
+                    if prev_t_s is not None:
+                        dt_s = max(float(t_star * self.cfg.tau_s - prev_t_s), 1e-30)
+                        flag_phase_rate_hz = (
+                            (flag_phase_deg - self.prev_flag_phase_deg) / 360.0 / dt_s
+                        )
+                if np.isfinite(body_phase_deg):
+                    flag_body_phase_diff_deg = self._wrap_deg(
+                        flag_root_azimuth_deg - body_phase_deg
+                    )
+                self.prev_flag_root_azimuth_deg = flag_root_azimuth_deg
+                self.prev_flag_phase_deg = flag_phase_deg
+                self.prev_flag_phase_t_s = float(t_star * self.cfg.tau_s)
+
         local_region_indices = [
             self.local_attach_idx,
             self.local_first_idx,
@@ -890,6 +1066,20 @@ class StepSummaryRecorder:
             self.local_first_torsion_quad.astype(int).tolist()
             if np.all(self.local_first_torsion_quad >= 0)
             else [self.local_first_idx, self.local_second_idx, self.local_third_idx]
+        )
+        shape_pass_nonbody, first_fail_category_nonbody = _check_nonbody_shape_pass(
+            finite_pass=finite_pass,
+            has_hook_pair=hook_count > 0,
+            has_hook_angle=self.model.hook_triplets.size > 0,
+            has_flag_bond=flag_intra_count > 0,
+            has_flag_bend=self.flag_bending_rows.size > 0,
+            has_flag_torsion=self.flag_torsion_rows.size > 0,
+            local_attach_first_rel_err=local_attach_first_rel_err,
+            hook_len_rel_err_max=hook_len_rel_err_max,
+            hook_angle_err_max_deg=hook_angle_err_max_deg,
+            flag_bond_rel_err_max=flag_bond_rel_err_max,
+            flag_bend_err_max_deg=flag_bend_err_max_deg,
+            flag_torsion_err_max_deg=flag_torsion_err_max_deg,
         )
 
         row: dict[str, float | int | bool] = {
@@ -903,6 +1093,9 @@ class StepSummaryRecorder:
             "pos_all_finite": pos_all_finite,
             "any_nan": any_nan,
             "any_inf": any_inf,
+            "finite_pass": finite_pass,
+            "shape_pass_nonbody": shape_pass_nonbody,
+            "first_fail_category_nonbody": first_fail_category_nonbody,
             "mean_disp_um": float(np.mean(disp_um)),
             "max_disp_um": float(np.max(disp_um)),
             "bond_count_body_body": bond_count_body_body,
@@ -952,6 +1145,10 @@ class StepSummaryRecorder:
             "motor_axis_vs_rear_direction_angle_deg": float(
                 diag.motor_axis_vs_rear_direction_angle_deg
             ),
+            "flag_root_azimuth_deg": flag_root_azimuth_deg,
+            "flag_phase_deg": flag_phase_deg,
+            "flag_phase_rate_hz": flag_phase_rate_hz,
+            "flag_body_phase_diff_deg": flag_body_phase_diff_deg,
             "motor_attach_force_norm": float(diag.motor_attach_force_norm),
             "motor_first_force_norm": float(diag.motor_first_force_norm),
             "motor_second_force_norm": float(diag.motor_second_force_norm),

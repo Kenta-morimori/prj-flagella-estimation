@@ -24,6 +24,7 @@ flagella:
   helix_init:
     radius_over_b: 0.25        # [-] 初期ヘリックス半径（直径0.5b）
     pitch_over_b: 2.5          # [-] 初期ヘリックスピッチ
+  # NOTE: base tangent / hook configuration is always side-attach (no toggle flag)
 
 fluid:
   viscosity_Pa_s: 0.001        # [Pa*s] 水相当
@@ -32,11 +33,20 @@ motor:
   torque_Nm: -1           # [N*m] モーターのトルク(Torque, T)．-1のときはτ=1になるよう「η * b^3」と定義する．
   reverse_n_flagella: 1        # [-] tumble で反転するべん毛本数
   enable_switching: false      # false: run固定（多形切替なし）
+  local_hook_scale: 1.0        # [-] motor ON 時の hook 近傍補助スケール
+  local_spring_scale: 1.0      # [-] motor ON 時の local spring 補助スケール
+  local_bend_scale: 1.0        # [-] motor ON 時の local bend 補助スケール
+  local_torsion_scale: 1.0     # [-] motor ON 時の local torsion 補助スケール
+
+stiffness_scales:
+  body: 1.0                    # [-] body 関連ポテンシャルの補助スケール（hidden multiplier を廃止）
+  flag_bend: 1.0               # [-] flagella bend 補助スケール
+  flag_torsion: 1.0            # [-] flagella torsion 補助スケール
 
 potentials:
   spring:
-    H_over_T_over_b: 10.0      # [-] H = 10 * Torque / b
-    s: 0.1                     # [-] 伸長限界 s/b
+    H_over_T_over_b: 10.0      # [-] H = 10 * Torque / b（paper-aligned default）
+    s: 0.1                     # [-] 伸長限界 s/b（paper-aligned default）
   bend:
     kb_over_T: 20.0            # [-] kb = 20 * T
     theta0_deg:
@@ -75,7 +85,8 @@ run_tumble:
 
 time:
   duration_s: 0.1              # [s] 物理時間（デバッグ固定）
-  dt_s: 1.0e-3                 # [s] 時間刻み（2-4では tau=1 なので dt=1e-3）
+  dt_s: 1.0e-3                 # [s] 時間刻み（default: tau=1 より dt=1e-3）
+  dt_star: null                # [-] 内部積分刻みの上書き（CLI 実験用。未指定なら既定値）
 
 output_sampling:
   out_all_steps_3d: true       # true: 3D は dt ごと全step保存

@@ -214,9 +214,15 @@ class ModelBuilder:
             raise ValueError("MVP: body.prism.n_prism must be 3")
         if not (0 <= cfg.flagella.n_flagella <= 9):
             raise ValueError("MVP: flagella.n_flagella must be in [0,9]")
-        if cfg.flagella.stub_mode not in ("minimal_basal_stub", "full_flagella"):
+        if cfg.flagella.stub_mode not in (
+            "minimal_basal_stub",
+            "extended_basal_stub_5",
+            "full_flagella",
+        ):
             raise ValueError(
-                f"flagella.stub_mode must be 'minimal_basal_stub' or 'full_flagella', "
+                "flagella.stub_mode must be "
+                "'minimal_basal_stub', "
+                "'extended_basal_stub_5' or 'full_flagella', "
                 f"got: {cfg.flagella.stub_mode}"
             )
 
@@ -230,6 +236,9 @@ class ModelBuilder:
         # minimal_basal_stub モード: attach, first, second のみ (3 beads)
         if cfg.flagella.stub_mode == "minimal_basal_stub":
             n_flag = 3
+        # 比較実験用: attach + 4-chain の 5 beads stub
+        elif cfg.flagella.stub_mode == "extended_basal_stub_5":
+            n_flag = 5
 
         center_layer = body_layers[len(body_layers) // 2]
         if n_flagella <= 3:
@@ -360,7 +369,7 @@ class ModelBuilder:
                 radial_unit = rear_dir
             else:
                 radial_unit = radial / radial_norm
-            axis_u = rear_dir
+            axis_u = radial_unit
             hook_offset_um = hook_length_um * radial_unit
 
             ref = np.array([1.0, 0.0, 0.0], dtype=float)
@@ -395,10 +404,11 @@ class ModelBuilder:
             angle_deg = math.degrees(
                 math.acos(float(np.clip(np.dot(tangent0, rear_dir), -1.0, 1.0)))
             )
-            if angle_deg > 10.0 + 1e-8:
+            target_angle_deg = 90.0
+            if abs(angle_deg - target_angle_deg) > 10.0 + 1e-8:
                 raise ValueError(
-                    "Flagellum base tangent is not aligned to rear direction:"
-                    f" angle_deg={angle_deg:.6f}"
+                    "Flagellum base tangent is not aligned to expected direction:"
+                    f" angle_deg={angle_deg:.6f}, target_angle_deg={target_angle_deg:.6f}"
                 )
 
             points_all.append(flag_points)

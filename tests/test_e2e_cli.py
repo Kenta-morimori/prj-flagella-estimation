@@ -13,7 +13,10 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(run_context, "_require_clean_git", lambda: None)
 
     script_path = (
-        Path(__file__).resolve().parents[1] / "scripts" / "01_simulate_swimming.py"
+        Path(__file__).resolve().parents[1]
+        / "scripts"
+        / "01_simulate_swimming"
+        / "01_simulate_swimming.py"
     )
     spec = importlib.util.spec_from_file_location("phase2_script", script_path)
     assert spec is not None

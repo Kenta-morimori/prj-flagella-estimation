@@ -333,6 +333,7 @@ def compute_motor_forces(
     positions_m: np.ndarray,
     motor_triplets: np.ndarray,
     torque_per_flag: np.ndarray,
+    body_axis_unit: np.ndarray | None = None,
 ) -> tuple[np.ndarray, MotorForceDiagnostics]:
     """Fig.2準拠でモータトルクを2本ボンドの力カップルへ分配する。"""
 
@@ -358,7 +359,6 @@ def compute_motor_forces(
     ta_dot_ra_abs_sum = 0.0
     tb_dot_rb_abs_sum = 0.0
     r2_eps = 1e-30
-
     for idx, (ib, jf, kf) in enumerate(motor_triplets):
         i0, i1, i2 = int(ib), int(jf), int(kf)
         x0 = positions_m[i0]
@@ -379,7 +379,7 @@ def compute_motor_forces(
         t_hat = r_b / axis_norm
         t_tot = tau * t_hat
 
-        # Step B: Ta + Tb = Ttot, Ta·ra = 0, Tb·rb = 0 を満たしつつ、
+        # Ta + Tb = Ttot, Ta·ra = 0, Tb·rb = 0 を満たしつつ、
         # 力カップル起因の局所過大力を抑えるよう重み付き最小ノルムで解く。
         a = np.zeros((5, 6), dtype=float)
         b = np.zeros((5,), dtype=float)
@@ -392,6 +392,7 @@ def compute_motor_forces(
         rank = int(np.linalg.matrix_rank(a))
         if rank < 5:
             split_rank_deficient_count += 1
+
         r_a2 = float(np.dot(r_a, r_a))
         r_b2 = float(np.dot(r_b, r_b))
         # |F| ~= |T|/|r| より、短いリンクほど同じトルクで過大力になりやすい。
@@ -413,25 +414,32 @@ def compute_motor_forces(
         if r_a2 < r2_eps:
             bond_length_clipped_count += 1
         f_a = np.cross(t_a, r_a) / max(r_a2, r2_eps)
-        forces[i0] -= f_a
-        forces[i1] += f_a
+        motor_attach = -f_a
+        motor_first = f_a
 
         if r_b2 < r2_eps:
             bond_length_clipped_count += 1
         f_b = np.cross(t_b, r_b) / max(r_b2, r2_eps)
-        forces[i1] -= f_b
-        forces[i2] += f_b
+        motor_first -= f_b
+        motor_second = f_b
+
+        ra_len = max(float(np.linalg.norm(r_a)), 1e-18)
+        rb_len = max(float(np.linalg.norm(r_b)), 1e-18)
+
+        forces[i0] += motor_attach
+        forces[i1] += motor_first
+        forces[i2] += motor_second
 
         valid_count += 1
-        ra_len_sum += float(np.linalg.norm(r_a))
-        rb_len_sum += axis_norm
+        ra_len_sum += ra_len
+        rb_len_sum += rb_len
         ta_norm_sum += float(np.linalg.norm(t_a))
         tb_norm_sum += float(np.linalg.norm(t_b))
         fa_norm_sum += float(np.linalg.norm(f_a))
         fb_norm_sum += float(np.linalg.norm(f_b))
-        attach_force_norm_sum += float(np.linalg.norm(-f_a))
-        first_force_norm_sum += float(np.linalg.norm(f_a - f_b))
-        second_force_norm_sum += float(np.linalg.norm(f_b))
+        attach_force_norm_sum += float(np.linalg.norm(motor_attach))
+        first_force_norm_sum += float(np.linalg.norm(motor_first))
+        second_force_norm_sum += float(np.linalg.norm(motor_second))
 
     inv = 1.0 / max(valid_count, 1)
     return forces, MotorForceDiagnostics(
