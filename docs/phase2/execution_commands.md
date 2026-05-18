@@ -29,8 +29,8 @@ uv run python -m scripts.01_simulate_swimming \
 
 | オプション | 型 | デフォルト | 説明 |
 |-----------|-----|----------|------|
-| `--duration-s` | float | 0.1 | シミュレーション時間（秒） |
-| `--render-flagella` | flag | False | べん毛 3D レンダリング有効化 |
+| `--duration-s` | float | `conf/sim_swim.yaml` の設定値 | シミュレーション時間（秒） |
+| `--render-flagella` | flag | True | べん毛 3D レンダリング有効化（既定では有効） |
 | `--no-render-flagella` | flag | - | べん毛 3D レンダリング無効化 |
 | `KEY=VALUE` | 任意 | - | Hydra オーバーライド（`conf/sim_swim.yaml` の任意 key を上書き） |
 
