@@ -92,6 +92,7 @@ class StepDiagnostics:
     body_equiv_force_mean: float
     body_equiv_force_max: float
     torsion_fd_eps_m: float
+    spring_multiplier_current: float
 
 
 class DynamicsEngine:
@@ -119,14 +120,6 @@ class DynamicsEngine:
         self.repulsion_cutoff_m = (
             cfg.potentials.spring_spring_repulsion.cutoff_over_b * b_m
         )
-        # Read stiffness scale multipliers from configuration. Defaults are
-        # 1.0 for paper-consistent behavior.
-        # NOTE: `body_stiffness_scale` was previously hardcoded to 50.0 in the
-        # repo; we remove that hidden multiplier and drive behavior from
-        # `SimulationConfig.stiffness_scales`.
-        self.body_stiffness_scale = float(cfg.stiffness_scales.body)
-        self.flag_bend_stiffness_scale = float(cfg.stiffness_scales.flag_bend)
-        self.flag_torsion_stiffness_scale = float(cfg.stiffness_scales.flag_torsion)
         self.theta0_ref_rad, self.phi0_ref_rad = self._initial_reference_angles_rad()
         spring_pairs = self.model.spring_pairs
         if spring_pairs.size == 0:
@@ -233,6 +226,68 @@ class DynamicsEngine:
         self.motor_local_spring_scale = float(cfg.motor.local_spring_scale)
         self.motor_local_bend_scale = float(cfg.motor.local_bend_scale)
         self.motor_local_torsion_scale = float(cfg.motor.local_torsion_scale)
+        corr = self.cfg.flagella_spring_correction
+        self.flagella_spring_correction_mode = str(corr.mode).strip().lower()
+        if self.flagella_spring_correction_mode not in {"fixed", "adaptive_exp"}:
+            raise ValueError(
+                "flagella_spring_correction.mode must be 'fixed' or 'adaptive_exp', "
+                f"got: {corr.mode}"
+            )
+        self.flagella_spring_multiplier_current = max(
+            float(corr.fixed_multiplier), 1.0e-12
+        )
+        self.flagella_spring_ratio_ema: float | None = None
+
+    def _flag_parallel_force_ratio_median(
+        self,
+        positions_m: np.ndarray,
+        spring_forces: np.ndarray,
+        torsion_forces: np.ndarray,
+        eps: float,
+    ) -> float:
+        if self.flag_intra_spring_rows.size == 0:
+            return float("nan")
+        ratios: list[float] = []
+        for row in self.flag_intra_spring_rows:
+            i = int(self.model.spring_pairs[int(row), 0])
+            j = int(self.model.spring_pairs[int(row), 1])
+            dvec = positions_m[j] - positions_m[i]
+            n = max(float(np.linalg.norm(dvec)), 1e-18)
+            u = dvec / n
+            spring_parallel = float(np.dot(spring_forces[j] - spring_forces[i], u))
+            torsion_parallel = float(np.dot(torsion_forces[j] - torsion_forces[i], u))
+            ratios.append(abs(spring_parallel) / max(abs(torsion_parallel), eps))
+        if not ratios:
+            return float("nan")
+        return float(np.median(np.asarray(ratios, dtype=float)))
+
+    def _update_flagella_spring_multiplier(
+        self, force_ratio_parallel_median: float
+    ) -> None:
+        if self.flagella_spring_correction_mode != "adaptive_exp":
+            return
+        if not math.isfinite(force_ratio_parallel_median):
+            return
+        adaptive = self.cfg.flagella_spring_correction.adaptive_exp
+        beta = float(np.clip(adaptive.ema_beta, 0.0, 1.0))
+        if self.flagella_spring_ratio_ema is None:
+            self.flagella_spring_ratio_ema = force_ratio_parallel_median
+        else:
+            self.flagella_spring_ratio_ema = (
+                beta * self.flagella_spring_ratio_ema
+                + (1.0 - beta) * force_ratio_parallel_median
+            )
+        alpha = max(float(adaptive.alpha), 0.0)
+        m_min = max(float(adaptive.m_min), 1.0e-12)
+        m_max = max(float(adaptive.m_max), m_min)
+        ratio_ema = max(float(self.flagella_spring_ratio_ema), 0.0)
+        # r=1 を目標に multiplicative update。r<1 なら倍率を増やす。
+        multiplier_next = self.flagella_spring_multiplier_current * math.exp(
+            alpha * (1.0 - ratio_ema)
+        )
+        self.flagella_spring_multiplier_current = float(
+            np.clip(multiplier_next, m_min, m_max)
+        )
 
     def set_external_force_callback(
         self,
@@ -505,6 +560,7 @@ class DynamicsEngine:
         pos_before = self.model.positions_m.copy()
         pos = pos_before
         motor_on = not self.cfg.is_motor_off_torque
+        spring_multiplier_current = float(self.flagella_spring_multiplier_current)
         spring_forces = np.zeros_like(pos)
         if self.body_spring_rows.size > 0:
             spring_forces += compute_spring_forces(
@@ -513,7 +569,7 @@ class DynamicsEngine:
                 spring_rest_lengths_m=self.model.spring_rest_lengths_m[
                     self.body_spring_rows
                 ],
-                h_const=self.spring_h * self.body_stiffness_scale,
+                h_const=self.spring_h,
                 s_limit_m=self.spring_s_m,
                 clamp_eps=1e-3,
             )
@@ -525,6 +581,7 @@ class DynamicsEngine:
                     self.flag_local_spring_rows
                 ],
                 h_const=self.spring_h
+                * spring_multiplier_current
                 * (self.motor_local_spring_scale if motor_on else 1.0),
                 s_limit_m=self.spring_s_m,
                 clamp_eps=1e-3,
@@ -536,7 +593,7 @@ class DynamicsEngine:
                 spring_rest_lengths_m=self.model.spring_rest_lengths_m[
                     self.flag_nonlocal_spring_rows
                 ],
-                h_const=self.spring_h,
+                h_const=self.spring_h * spring_multiplier_current,
                 s_limit_m=self.spring_s_m,
                 clamp_eps=1e-3,
             )
@@ -546,23 +603,21 @@ class DynamicsEngine:
                 positions_m=pos,
                 triplets=self.model.bending_triplets[self.body_bending_rows],
                 theta0_rad=theta0[self.body_bending_rows],
-                kb=self.k_bend * self.body_stiffness_scale,
+                kb=self.k_bend,
             )
         if self.flag_local_bending_rows.size > 0:
             bend_forces += compute_bending_forces(
                 positions_m=pos,
                 triplets=self.model.bending_triplets[self.flag_local_bending_rows],
                 theta0_rad=theta0[self.flag_local_bending_rows],
-                kb=self.k_bend
-                * self.flag_bend_stiffness_scale
-                * (self.motor_local_bend_scale if motor_on else 1.0),
+                kb=self.k_bend * (self.motor_local_bend_scale if motor_on else 1.0),
             )
         if self.flag_nonlocal_bending_rows.size > 0:
             bend_forces += compute_bending_forces(
                 positions_m=pos,
                 triplets=self.model.bending_triplets[self.flag_nonlocal_bending_rows],
                 theta0_rad=theta0[self.flag_nonlocal_bending_rows],
-                kb=self.k_bend * self.flag_bend_stiffness_scale,
+                kb=self.k_bend,
             )
         torsion_forces = np.zeros_like(pos)
         if self.flag_local_torsion_rows.size > 0:
@@ -571,7 +626,6 @@ class DynamicsEngine:
                 quads=self.model.torsion_quads[self.flag_local_torsion_rows],
                 phi0_rad=phi0[self.flag_local_torsion_rows],
                 kt=self.k_torsion
-                * self.flag_torsion_stiffness_scale
                 * (self.motor_local_torsion_scale if motor_on else 1.0),
                 fd_eps_m=self.torsion_fd_eps_m,
             )
@@ -580,7 +634,7 @@ class DynamicsEngine:
                 positions_m=pos,
                 quads=self.model.torsion_quads[self.flag_nonlocal_torsion_rows],
                 phi0_rad=phi0[self.flag_nonlocal_torsion_rows],
-                kt=self.k_torsion * self.flag_torsion_stiffness_scale,
+                kt=self.k_torsion,
                 fd_eps_m=self.torsion_fd_eps_m,
             )
 
@@ -639,6 +693,14 @@ class DynamicsEngine:
                     f"{forces.shape}, got {external_forces.shape}."
                 )
             forces = forces + external_forces
+
+        force_ratio_parallel_median = self._flag_parallel_force_ratio_median(
+            positions_m=pos,
+            spring_forces=spring_forces,
+            torsion_forces=torsion_forces,
+            eps=max(self.cfg.flagella_spring_correction.adaptive_exp.eps, 1.0e-30),
+        )
+        self._update_flagella_spring_multiplier(force_ratio_parallel_median)
 
         mobility = compute_rpy_mobility(
             positions_m=pos_before,
@@ -706,4 +768,5 @@ class DynamicsEngine:
             body_equiv_force_mean=float(np.mean(body_equiv_norm)),
             body_equiv_force_max=float(np.max(body_equiv_norm)),
             torsion_fd_eps_m=self.torsion_fd_eps_m,
+            spring_multiplier_current=spring_multiplier_current,
         )

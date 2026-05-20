@@ -38,10 +38,15 @@ motor:
   local_bend_scale: 1.0        # [-] motor ON 時の local bend 補助スケール
   local_torsion_scale: 1.0     # [-] motor ON 時の local torsion 補助スケール
 
-stiffness_scales:
-  body: 1.0                    # [-] body 関連ポテンシャルの補助スケール（hidden multiplier を廃止）
-  flag_bend: 1.0               # [-] flagella bend 補助スケール
-  flag_torsion: 1.0            # [-] flagella torsion 補助スケール
+flagella_spring_correction:
+  mode: "fixed"                # fixed | adaptive_exp
+  fixed_multiplier: 10.0       # [-] flagella intra-spring 係数（Issue #43 default）
+  adaptive_exp:                # 実験モード（mode=adaptive_exp のときのみ使用）
+    alpha: 0.2
+    ema_beta: 0.9
+    m_min: 1.0
+    m_max: 100.0
+    eps: 1e-30
 
 potentials:
   spring:

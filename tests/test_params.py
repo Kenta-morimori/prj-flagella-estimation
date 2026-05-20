@@ -211,6 +211,47 @@ def test_motor_local_scales_can_be_configured() -> None:
     assert sim_cfg.motor.local_torsion_scale == pytest.approx(0.5)
 
 
+def test_flagella_spring_correction_defaults_to_fixed_multiplier_ten() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella_spring_correction.mode == "fixed"
+    assert sim_cfg.flagella_spring_correction.fixed_multiplier == pytest.approx(10.0)
+    adaptive = sim_cfg.flagella_spring_correction.adaptive_exp
+    assert adaptive.alpha == pytest.approx(0.2)
+    assert adaptive.ema_beta == pytest.approx(0.9)
+    assert adaptive.m_min == pytest.approx(1.0)
+    assert adaptive.m_max == pytest.approx(100.0)
+    assert adaptive.eps == pytest.approx(1.0e-30)
+
+
+def test_flagella_spring_correction_can_be_overridden() -> None:
+    cfg = _base_cfg()
+    cfg["flagella_spring_correction"] = {
+        "mode": "adaptive_exp",
+        "fixed_multiplier": 7.0,
+        "adaptive_exp": {
+            "alpha": 0.3,
+            "ema_beta": 0.8,
+            "m_min": 2.0,
+            "m_max": 50.0,
+            "eps": 1.0e-20,
+        },
+    }
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella_spring_correction.mode == "adaptive_exp"
+    assert sim_cfg.flagella_spring_correction.fixed_multiplier == pytest.approx(7.0)
+    adaptive = sim_cfg.flagella_spring_correction.adaptive_exp
+    assert adaptive.alpha == pytest.approx(0.3)
+    assert adaptive.ema_beta == pytest.approx(0.8)
+    assert adaptive.m_min == pytest.approx(2.0)
+    assert adaptive.m_max == pytest.approx(50.0)
+    assert adaptive.eps == pytest.approx(1.0e-20)
+
+
 def test_projection_config_is_ignored_after_removal() -> None:
     cfg = _base_cfg()
     cfg["projection"] = {

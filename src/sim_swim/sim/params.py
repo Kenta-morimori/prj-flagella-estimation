@@ -352,12 +352,25 @@ class OutputParams:
 
 
 @dataclass(frozen=True)
-class StiffnessScaleParams:
-    """補助的な剛性スケール設定。論文再現性のためデフォルトは 1.0 とする。"""
+class FlagellaSpringCorrectionAdaptiveParams:
+    """べん毛バネ補正（実験モード）の更新則パラメータ。"""
 
-    body: float = 1.0
-    flag_bend: float = 1.0
-    flag_torsion: float = 1.0
+    alpha: float = 0.2
+    ema_beta: float = 0.9
+    m_min: float = 1.0
+    m_max: float = 100.0
+    eps: float = 1.0e-30
+
+
+@dataclass(frozen=True)
+class FlagellaSpringCorrectionParams:
+    """べん毛 intra-spring への補正設定。"""
+
+    mode: str = "fixed"  # fixed | adaptive_exp
+    fixed_multiplier: float = 10.0
+    adaptive_exp: FlagellaSpringCorrectionAdaptiveParams = field(
+        default_factory=FlagellaSpringCorrectionAdaptiveParams
+    )
 
 
 @dataclass(frozen=True)
@@ -379,7 +392,7 @@ class SimulationConfig:
     render: RenderParams
     seed: SeedParams
     output: OutputParams
-    stiffness_scales: StiffnessScaleParams
+    flagella_spring_correction: FlagellaSpringCorrectionParams
 
     @property
     def b_m(self) -> float:
@@ -841,11 +854,18 @@ class SimulationConfig:
         output_raw = raw.get("output", {}) or {}
         output = OutputParams(base_dir=str(_get(output_raw, "base_dir", "outputs")))
 
-        stiffness_raw = raw.get("stiffness_scales", {}) or {}
-        stiffness = StiffnessScaleParams(
-            body=float(_get(stiffness_raw, "body", 1.0)),
-            flag_bend=float(_get(stiffness_raw, "flag_bend", 1.0)),
-            flag_torsion=float(_get(stiffness_raw, "flag_torsion", 1.0)),
+        spring_corr_raw = raw.get("flagella_spring_correction", {}) or {}
+        adaptive_raw = spring_corr_raw.get("adaptive_exp", {}) or {}
+        spring_corr = FlagellaSpringCorrectionParams(
+            mode=str(_get(spring_corr_raw, "mode", "fixed")),
+            fixed_multiplier=float(_get(spring_corr_raw, "fixed_multiplier", 10.0)),
+            adaptive_exp=FlagellaSpringCorrectionAdaptiveParams(
+                alpha=float(_get(adaptive_raw, "alpha", 0.2)),
+                ema_beta=float(_get(adaptive_raw, "ema_beta", 0.9)),
+                m_min=float(_get(adaptive_raw, "m_min", 1.0)),
+                m_max=float(_get(adaptive_raw, "m_max", 100.0)),
+                eps=float(_get(adaptive_raw, "eps", 1.0e-30)),
+            ),
         )
 
         return SimulationConfig(
@@ -864,7 +884,7 @@ class SimulationConfig:
             render=render,
             seed=seed,
             output=output,
-            stiffness_scales=stiffness,
+            flagella_spring_correction=spring_corr,
         )
 
     def with_overrides(self, overrides: dict[str, Any]) -> "SimulationConfig":

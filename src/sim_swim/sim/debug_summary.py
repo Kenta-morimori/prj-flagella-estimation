@@ -62,6 +62,9 @@ STEP_SUMMARY_COLUMNS = [
     "flag_bond_len_max_over_b",
     "flag_bond_rel_err_mean",
     "flag_bond_rel_err_max",
+    "force_ratio_parallel_median",
+    "link_stretch_max_over_L0",
+    "link_stretch_p95_over_L0",
     "F_total_mean_body",
     "F_total_mean_flag",
     "F_total_mean_all",
@@ -77,7 +80,9 @@ STEP_SUMMARY_COLUMNS = [
     "flag_root_azimuth_deg",
     "flag_phase_deg",
     "flag_phase_rate_hz",
+    "omega_tip_over_root",
     "flag_body_phase_diff_deg",
+    "spring_multiplier_current",
     "motor_attach_force_norm",
     "motor_first_force_norm",
     "motor_second_force_norm",
@@ -669,6 +674,8 @@ class StepSummaryRecorder:
         self.local_first_idx = -1
         self.local_second_idx = -1
         self.local_third_idx = -1
+        self.local_mid_idx = -1
+        self.local_tip_idx = -1
         self.local_flag_id = -1
         self.local_attach_first_row = -1
         self.local_first_second_row = -1
@@ -678,6 +685,9 @@ class StepSummaryRecorder:
         self.prev_flag_root_azimuth_deg: float | None = None
         self.prev_flag_phase_deg: float | None = None
         self.prev_flag_phase_t_s: float | None = None
+        self.prev_tip_root_azimuth_deg: float | None = None
+        self.prev_tip_phase_deg: float | None = None
+        self.prev_tip_phase_t_s: float | None = None
 
         pair_rows = _pair_row_lookup(self.spring_pairs)
 
@@ -696,6 +706,9 @@ class StepSummaryRecorder:
                 flag_chain = self.model.flagella_indices[self.local_flag_id].astype(
                     int, copy=False
                 )
+                if flag_chain.size > 0:
+                    self.local_tip_idx = int(flag_chain[-1])
+                    self.local_mid_idx = int(flag_chain[flag_chain.size // 2])
                 pos = np.where(flag_chain == self.local_second_idx)[0]
                 if pos.size > 0 and int(pos[0]) + 1 < int(flag_chain.size):
                     self.local_third_idx = int(flag_chain[int(pos[0]) + 1])
@@ -813,6 +826,28 @@ class StepSummaryRecorder:
     def _wrap_deg(deg: float) -> float:
         return float((deg + 180.0) % 360.0 - 180.0)
 
+    def _flag_parallel_force_ratio_median(
+        self,
+        positions_m: np.ndarray,
+        spring_forces: np.ndarray,
+        torsion_forces: np.ndarray,
+    ) -> float:
+        if self.flag_intra_rows.size == 0:
+            return float("nan")
+        ratios: list[float] = []
+        for row in self.flag_intra_rows:
+            i = int(self.spring_pairs[int(row), 0])
+            j = int(self.spring_pairs[int(row), 1])
+            dvec = positions_m[j] - positions_m[i]
+            n = max(float(np.linalg.norm(dvec)), 1e-18)
+            u = dvec / n
+            rel_spring = float(np.dot(spring_forces[j] - spring_forces[i], u))
+            rel_torsion = float(np.dot(torsion_forces[j] - torsion_forces[i], u))
+            ratios.append(abs(rel_spring) / max(abs(rel_torsion), 1e-30))
+        if not ratios:
+            return float("nan")
+        return float(np.median(np.asarray(ratios, dtype=float)))
+
     def record(self, step: int, t_star: float, diag: StepDiagnostics) -> None:
         pos_after = diag.positions_after_m
         disp_um = np.linalg.norm(pos_after - diag.positions_before_m, axis=1) * M_TO_UM
@@ -904,6 +939,20 @@ class StepSummaryRecorder:
             self.spring_pairs,
             self.spring_rests_m,
             self.flag_intra_rows,
+        )
+        link_stretch_max_over_l0 = float("nan")
+        link_stretch_p95_over_l0 = float("nan")
+        if self.flag_intra_rows.size > 0:
+            pairs = self.spring_pairs[self.flag_intra_rows]
+            dist = np.linalg.norm(
+                pos_after[pairs[:, 1]] - pos_after[pairs[:, 0]], axis=1
+            )
+            rests = np.maximum(self.spring_rests_m[self.flag_intra_rows], 1e-30)
+            stretch = dist / rests
+            link_stretch_max_over_l0 = float(np.max(stretch))
+            link_stretch_p95_over_l0 = float(np.percentile(stretch, 95))
+        force_ratio_parallel_median = self._flag_parallel_force_ratio_median(
+            pos_after, diag.spring_forces, diag.torsion_forces
         )
         flag_bend_err_mean_deg = float("nan")
         flag_bend_err_max_deg = float("nan")
@@ -1012,6 +1061,8 @@ class StepSummaryRecorder:
         flag_root_azimuth_deg = float("nan")
         flag_phase_deg = float("nan")
         flag_phase_rate_hz = float("nan")
+        tip_phase_rate_hz = float("nan")
+        omega_tip_over_root = float("nan")
         flag_body_phase_diff_deg = float("nan")
         if self.local_attach_idx >= 0 and self.local_first_idx >= 0:
             axis, e1, e2 = self._phase_reference_frame(pos_after)
@@ -1055,6 +1106,40 @@ class StepSummaryRecorder:
                 self.prev_flag_root_azimuth_deg = flag_root_azimuth_deg
                 self.prev_flag_phase_deg = flag_phase_deg
                 self.prev_flag_phase_t_s = float(t_star * self.cfg.tau_s)
+
+            if self.local_tip_idx >= 0:
+                tip_vec = pos_after[self.local_tip_idx] - attach_vec
+                tip_proj = tip_vec - float(np.dot(tip_vec, axis)) * axis
+                tip_root_azimuth_deg = self._azimuth_deg(tip_proj, e1, e2)
+                if np.isfinite(tip_root_azimuth_deg):
+                    if (
+                        self.prev_tip_root_azimuth_deg is None
+                        or self.prev_tip_phase_deg is None
+                    ):
+                        tip_phase_deg = tip_root_azimuth_deg
+                        tip_phase_rate_hz = 0.0
+                    else:
+                        delta_tip = self._wrap_deg(
+                            tip_root_azimuth_deg - self.prev_tip_root_azimuth_deg
+                        )
+                        tip_phase_deg = self.prev_tip_phase_deg + delta_tip
+                        prev_tip_t_s = self.prev_tip_phase_t_s
+                        if prev_tip_t_s is not None:
+                            dt_tip_s = max(
+                                float(t_star * self.cfg.tau_s - prev_tip_t_s), 1e-30
+                            )
+                            tip_phase_rate_hz = (
+                                (tip_phase_deg - self.prev_tip_phase_deg)
+                                / 360.0
+                                / dt_tip_s
+                            )
+                    self.prev_tip_root_azimuth_deg = tip_root_azimuth_deg
+                    self.prev_tip_phase_deg = tip_phase_deg
+                    self.prev_tip_phase_t_s = float(t_star * self.cfg.tau_s)
+
+            if np.isfinite(flag_phase_rate_hz) and np.isfinite(tip_phase_rate_hz):
+                if abs(flag_phase_rate_hz) > 1e-30:
+                    omega_tip_over_root = float(tip_phase_rate_hz / flag_phase_rate_hz)
 
         local_region_indices = [
             self.local_attach_idx,
@@ -1129,6 +1214,9 @@ class StepSummaryRecorder:
             "flag_bond_len_max_over_b": flag_bond_len_max_over_b,
             "flag_bond_rel_err_mean": flag_bond_rel_err_mean,
             "flag_bond_rel_err_max": flag_bond_rel_err_max,
+            "force_ratio_parallel_median": force_ratio_parallel_median,
+            "link_stretch_max_over_L0": link_stretch_max_over_l0,
+            "link_stretch_p95_over_L0": link_stretch_p95_over_l0,
             "F_total_mean_body": _mean_norm(diag.total_forces, self.body_mask),
             "F_total_mean_flag": _mean_norm(diag.total_forces, self.flag_mask),
             "F_total_mean_all": float(
@@ -1148,7 +1236,9 @@ class StepSummaryRecorder:
             "flag_root_azimuth_deg": flag_root_azimuth_deg,
             "flag_phase_deg": flag_phase_deg,
             "flag_phase_rate_hz": flag_phase_rate_hz,
+            "omega_tip_over_root": omega_tip_over_root,
             "flag_body_phase_diff_deg": flag_body_phase_diff_deg,
+            "spring_multiplier_current": float(diag.spring_multiplier_current),
             "motor_attach_force_norm": float(diag.motor_attach_force_norm),
             "motor_first_force_norm": float(diag.motor_first_force_norm),
             "motor_second_force_norm": float(diag.motor_second_force_norm),

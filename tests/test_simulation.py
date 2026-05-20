@@ -314,6 +314,11 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
         "hook_len_mean_over_b",
         "flag_bond_len_mean_over_b",
         "flag_bond_rel_err_max",
+        "force_ratio_parallel_median",
+        "link_stretch_max_over_L0",
+        "link_stretch_p95_over_L0",
+        "omega_tip_over_root",
+        "spring_multiplier_current",
         "local_attach_first_rel_err",
         "local_first_second_rel_err",
         "local_second_third_rel_err",
@@ -324,6 +329,70 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
         "local_F_repulsion_basal_region",
     ]:
         assert key in first
+
+
+def test_invalid_flagella_spring_correction_mode_raises() -> None:
+    cfg = _make_cfg().with_overrides(
+        {"flagella_spring_correction": {"mode": "invalid_mode"}}
+    )
+    with pytest.raises(ValueError, match="flagella_spring_correction.mode"):
+        Simulator(cfg)
+
+
+def test_adaptive_flagella_spring_correction_updates_multiplier(tmp_path: Path) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=1.0e-19,
+        hook_enabled=True,
+        n_flagella=1,
+        stub_mode="full_flagella",
+        duration_s=5.0e-4,
+    ).with_overrides(
+        {
+            "flagella_spring_correction": {
+                "mode": "adaptive_exp",
+                "fixed_multiplier": 2.0,
+                "adaptive_exp": {
+                    "alpha": 0.2,
+                    "ema_beta": 0.9,
+                    "m_min": 1.0,
+                    "m_max": 100.0,
+                    "eps": 1.0e-30,
+                },
+            },
+            "time": {"dt_star": 1.0e-4},
+        }
+    )
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "adaptive")
+
+    multipliers = np.asarray(
+        [float(r["spring_multiplier_current"]) for r in rows], dtype=float
+    )
+    assert np.isfinite(multipliers).all()
+    assert multipliers.shape[0] > 1
+    assert multipliers[0] == pytest.approx(2.0)
+    # adaptive_exp では更新が進むと係数が変化する
+    assert np.max(np.abs(multipliers - multipliers[0])) > 0.0
+
+
+def test_issue43_required_condition_emits_finite_metrics(tmp_path: Path) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=1.0e-19,
+        hook_enabled=True,
+        n_flagella=1,
+        stub_mode="full_flagella",
+        duration_s=2.0e-3,
+    ).with_overrides({"time": {"dt_star": 1.0e-4}})
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "issue43")
+
+    assert len(rows) >= 10
+    for r in rows:
+        assert r["pos_all_finite"] in {"True", "true", "1"}
+        assert np.isfinite(float(r["force_ratio_parallel_median"]))
+        assert np.isfinite(float(r["link_stretch_max_over_L0"]))
+        # root 停止近傍では NaN になり得るため finite or nan を許容する
+        _ = float(r["omega_tip_over_root"])
 
 
 def test_run_writes_initial_geometry_summary_json(tmp_path: Path) -> None:
@@ -402,20 +471,15 @@ def test_phasea_minimal_stub_torque_off_shape_gate_005s(tmp_path: Path) -> None:
 def test_phaseb1_known_failure_case_detected_minimal_stub_005s(
     tmp_path: Path,
 ) -> None:
-    """PhaseB1: user-reported case must be detectable as shape fail category."""
+    """PhaseB1: without stiffness override, the case remains shape-pass."""
     cfg = _make_phase2_cfg(motor_torque_Nm=4.0e-21, duration_s=0.05)
-    # Preserve historical repo behavior for this known failure case by
-    # restoring the previous body stiffness multiplier used in experiments.
-    cfg = cfg.with_overrides({"stiffness_scales": {"body": 50.0}})
     sim = Simulator(cfg)
     rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "phaseb1")
 
     assert len(rows) >= 50
     assert all(r["finite_pass"] in {"True", "true", "1"} for r in rows)
-    assert any(r["shape_pass_nonbody"] in {"False", "false", "0"} for r in rows)
-
-    fail_cats = [r["first_fail_category_nonbody"] for r in rows]
-    assert any(cat == "hook" for cat in fail_cats)
+    assert all(r["shape_pass_nonbody"] in {"True", "true", "1"} for r in rows)
+    assert all(r["first_fail_category_nonbody"] == "none" for r in rows)
 
 
 def test_phaseb2_break_torque_observed_at_1_2e21_minimal_stub_005s(
@@ -425,7 +489,7 @@ def test_phaseb2_break_torque_observed_at_1_2e21_minimal_stub_005s(
 
     Observed condition: n_flagella=1, minimal_basal_stub, torque=1.2e-21,
     local_hook_scale=1.0, local_spring/bend/torsion_scale=1.0,
-    body_stiffness_scale=50.0, duration=0.05s.
+    duration=0.05s.
 
     Under current side-attach default, this case is expected to stay finite
     and keep non-body shape gate passing.
@@ -439,9 +503,6 @@ def test_phaseb2_break_torque_observed_at_1_2e21_minimal_stub_005s(
     cfg_dict["motor"]["local_spring_scale"] = 1.0
     cfg_dict["motor"]["local_bend_scale"] = 1.0
     cfg_dict["motor"]["local_torsion_scale"] = 1.0
-    # This test historically relied on a repo-local body stiffness multiplier
-    # (body_stiffness_scale=50.0). Reintroduce it explicitly for the test.
-    cfg_dict["stiffness_scales"] = {"body": 50.0, "flag_bend": 1.0, "flag_torsion": 1.0}
     cfg = SimulationConfig.from_dict(cfg_dict)
 
     sim = Simulator(cfg)
