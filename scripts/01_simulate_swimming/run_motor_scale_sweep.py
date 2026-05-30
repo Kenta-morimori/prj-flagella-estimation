@@ -24,17 +24,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-
 sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
 
+from sim_swim.sim.body_shape_gate import summarize_body_shape_diagnostics_csv
 from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import SimulationConfig
-
-BODY_SPRING_STRETCH_RATIO_MAX_LIMIT = 1.0
-BODY_BEND_ERR_MAX_DEG_LIMIT = 60.0
-BODY_CENTERLINE_DEV_UM_MAX_LIMIT = 2.0
-BODY_TRIANGLE_AREA_RATIO_MIN_LIMIT = 0.5
 
 
 def _parse_values(text: str) -> list[float]:
@@ -167,97 +161,8 @@ def _parse_bool(value: str | bool | None) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
-def _parse_float(value: str | float | None) -> float:
-    if value is None:
-        return float("nan")
-    if isinstance(value, float):
-        return value
-    text = str(value).strip()
-    if not text:
-        return float("nan")
-    try:
-        return float(text)
-    except ValueError:
-        return float("nan")
-
-
 def _collect_body_shape_metrics(csv_path: Path) -> dict[str, float | bool | str]:
-    if not csv_path.is_file():
-        return {
-            "body_shape_pass": False,
-            "body_fail_category": "body_diag_missing",
-            "body_spring_max_stretch_ratio": float("nan"),
-            "body_bend_max_error_deg": float("nan"),
-            "body_centerline_max_deviation_um": float("nan"),
-            "body_triangle_area_ratio_min": float("nan"),
-        }
-
-    with csv_path.open("r", encoding="utf-8", newline="") as handle:
-        rows = list(csv.DictReader(handle))
-    if not rows:
-        return {
-            "body_shape_pass": False,
-            "body_fail_category": "body_diag_empty",
-            "body_spring_max_stretch_ratio": float("nan"),
-            "body_bend_max_error_deg": float("nan"),
-            "body_centerline_max_deviation_um": float("nan"),
-            "body_triangle_area_ratio_min": float("nan"),
-        }
-
-    stretch_vals = [_parse_float(r.get("body_spring_max_stretch_ratio")) for r in rows]
-    bend_vals = [_parse_float(r.get("body_bend_max_error_deg")) for r in rows]
-    centerline_vals = [
-        _parse_float(r.get("body_centerline_max_deviation_um")) for r in rows
-    ]
-    area_min_vals = [_parse_float(r.get("body_triangle_area_min")) for r in rows]
-
-    spring_max = max(stretch_vals)
-    bend_max = max(bend_vals)
-    centerline_max = max(centerline_vals)
-    init_area_min = area_min_vals[0]
-    min_area_min = min(area_min_vals)
-    area_ratio_min = (
-        min_area_min / max(init_area_min, 1e-30)
-        if init_area_min > 0.0
-        else float("nan")
-    )
-
-    if not all(
-        np.isfinite(v) for v in [spring_max, bend_max, centerline_max, area_ratio_min]
-    ):
-        return {
-            "body_shape_pass": False,
-            "body_fail_category": "body_nonfinite",
-            "body_spring_max_stretch_ratio": spring_max,
-            "body_bend_max_error_deg": bend_max,
-            "body_centerline_max_deviation_um": centerline_max,
-            "body_triangle_area_ratio_min": area_ratio_min,
-        }
-
-    if spring_max > BODY_SPRING_STRETCH_RATIO_MAX_LIMIT:
-        category = "body_spring"
-        passed = False
-    elif bend_max > BODY_BEND_ERR_MAX_DEG_LIMIT:
-        category = "body_bend"
-        passed = False
-    elif centerline_max > BODY_CENTERLINE_DEV_UM_MAX_LIMIT:
-        category = "body_centerline"
-        passed = False
-    elif area_ratio_min < BODY_TRIANGLE_AREA_RATIO_MIN_LIMIT:
-        category = "body_area"
-        passed = False
-    else:
-        category = "none"
-        passed = True
-
-    return {
-        "body_shape_pass": passed,
-        "body_fail_category": category,
-        "body_spring_max_stretch_ratio": spring_max,
-        "body_bend_max_error_deg": bend_max,
-        "body_centerline_max_deviation_um": centerline_max,
-        "body_triangle_area_ratio_min": area_ratio_min,
-    }
+    return summarize_body_shape_diagnostics_csv(csv_path)
 
 
 def main() -> None:
