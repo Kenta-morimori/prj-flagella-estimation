@@ -38,3 +38,22 @@
   - `uv run pytest tests/test_simulation.py -k phase23_body_only_torque_baseline`
 - docs:
   - `docs/phase2/body_only_baseline.md`
+
+## Phase 2.4: body + hook トルクあり安定回転
+
+### P2-4-003: body+hook トルクあり安定回転と hook 破綻境界を定量化する
+
+- status: completed
+- source proposal: `docs/planning/phase2_task_proposals.md#proposal-p2-4-003-phase-24`
+- branch: `feature/phase2-4-hook-gate`
+- goal: `minimal_basal_stub` 条件で hook first-fail boundary を再現可能にする。
+- acceptance criteria:
+  - [x] `local_hook_scale` を含む sweep 条件が標準化される。
+  - [x] `shape_pass_nonbody` と `first_fail_category_nonbody` の期待推移が pytest で固定される。
+  - [x] hook failure と body failure の切り分け方針が文書化される。
+- verification:
+  - `uv run pytest tests/test_motor_scale_sweep.py`
+  - `uv run pytest tests/test_simulation.py -k "phaseb1 or phaseb2"`
+  - `uv run pytest tests/test_plot_motor_scale_collapse_heatmap.py`
+- docs:
+  - `docs/phase2/hook_gate.md`
