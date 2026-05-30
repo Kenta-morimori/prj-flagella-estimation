@@ -760,15 +760,15 @@ def test_phaseb_full_motor_on_first_fail_gate(tmp_path: Path) -> None:
     assert first_fail is None, f"PhaseB-full first-fail detected: {first_fail}"
 
 
-def test_phase2_diagnostics_docs_exist_in_project_plan() -> None:
-    """Hard test 7: Verify Phase2 diagnostics docs are maintained in PROJECT_PLAN."""
-    from pathlib import Path as PathlibPath
-
-    docs_path = PathlibPath(__file__).parent.parent / "docs" / "PROJECT_PLAN.md"
+def test_phase2_execution_and_diagnostics_guidance_exists_in_project_plan() -> None:
+    """Hard test 7: Verify Phase2 execution and diagnostics guidance is maintained."""
+    docs_path = Path(__file__).parent.parent / "docs" / "PROJECT_PLAN.md"
     assert docs_path.is_file(), f"PROJECT_PLAN.md missing at {docs_path}"
 
     text = docs_path.read_text(encoding="utf-8")
-    assert "### Phase 2実行インターフェース（現行コード準拠）" in text
+    assert "Phase 2実行インターフェース" in text
+    assert "scripts.01_simulate_swimming" in text
+    assert "step_summary.csv" in text
 
 
 # ==============================================================================
