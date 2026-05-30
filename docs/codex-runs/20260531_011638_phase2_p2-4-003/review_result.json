@@ -1,0 +1,32 @@
+{
+  "status": "PASS",
+  "summary": "P2-4-003 hook-gate sweep baseline was implemented, documented, and verified by automated tests.",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "The current diagnostic boundary is torque-dominated for local_hook_scale values 1 and 8; it should not be interpreted as a final physical optimum for hook stiffness.",
+    "The failing high-torque condition can also deform body shape by the final step, so hook/body interpretation uses first_fail_category_nonbody priority and retains body_shape_pass as a parallel diagnostic."
+  ],
+  "tests_reviewed": [
+    "uv run pytest tests/test_motor_scale_sweep.py",
+    "uv run pytest tests/test_simulation.py -k \"phaseb1 or phaseb2\"",
+    "uv run pytest tests/test_plot_motor_scale_collapse_heatmap.py",
+    "uv run pytest tests/test_motor_scale_sweep.py tests/test_plot_motor_scale_collapse_heatmap.py",
+    "uv run pytest -q",
+    "commit hook: uv run ruff format --check .",
+    "commit hook: uv run ruff check .",
+    "commit hook: uv run pytest -q"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "No significant architecture, dependency, output-format, or physical-model change was introduced; the work standardizes an existing sweep helper option and documents current hook-gate diagnostics.",
+  "commit_type": "complete",
+  "commit_hash": "0571a619af2118420f0256d92e95c2b5eaa09269",
+  "push_status": "pushed",
+  "next_actions": [
+    "Proceed to P2-5-004 body+hook+single flagellum motor-on stability.",
+    "After PR #46 is merged, retarget or rebase this stacked branch onto main."
+  ]
+}
