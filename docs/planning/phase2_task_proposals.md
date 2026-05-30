@@ -1,7 +1,7 @@
 # Phase2 Task Proposals (Codex Draft)
 
 本ファイルは **採択済みタスクではない**。  
-`AGENTS.md` / `docs/PROJECT_PLAN.md` / `prompts/00_project_context.md` / `prompts/01_repo_rules.md` / 現在の `docs/phase2/`（空）を確認した上での、Codexによる提案案である。
+`AGENTS.md` / `docs/PROJECT_PLAN.md` / `prompts/00_project_context.md` / `prompts/01_repo_rules.md` を確認した上での、Codexによる提案案である。
 
 ## Proposal P2-2-001 (Phase 2.2)
 - proposal ID: `P2-2-001`
