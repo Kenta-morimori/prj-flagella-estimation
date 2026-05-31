@@ -66,6 +66,21 @@ Phase 2.4 の `minimal_basal_stub` は basal hook 近傍だけを見ていた。
 
 `4.0e-21 N m` 条件では、body gate は pass のままで、hook link も先に gate を超えない。一方で flagellum 側の bond / bend / torsion が閾値を超える。そのため Phase 2.5 の break representative は、Phase 2.4 の hook-dominated failure とは別の、flagellum-chain dominated failure と解釈する。
 
+## Phase 2.5 で実施しないこと
+
+本タスクでは、bond / bend / torsion を維持するための物理パラメータ変更や数値安定化補助は実装しない。
+
+理由は、Phase 2.5 の目的が「full flagellum 条件で短時間 motor-on の safe/fail representatives と first-fail 指標を固定すること」だからである。維持策を同じタスクに含めると、破綻モードの観測と対策の効果が混ざり、どの変更がどの指標を改善したか追跡しにくくなる。
+
+Phase 2.6 では、以下を候補として分けて検証する。
+
+- `dt_s` / `dt_star` を小さくして、bond / bend / torsion の時間発展誤差を抑えられるか。
+- `local_spring_scale`, `local_bend_scale`, `local_torsion_scale` を sweep し、flagellum chain のどの拘束が支配的かを切り分ける。
+- motor torque distribution が flagellum chain に過大な局所変形を与えていないかを、motor split diagnostics と併せて確認する。
+- 必要であれば、物理モデル変更ではなく数値安定化として明示したうえで、最小限の補助拘束を検討する。
+
+各候補は `flag_bond_rel_err_max`, `flag_bend_err_max_deg`, `flag_torsion_err_max_deg` の改善だけでなく、`flag_phase_rate_hz` の回転 activity を保つかも同時に見る。
+
 ## 標準 sweep コマンド
 
 ```bash
