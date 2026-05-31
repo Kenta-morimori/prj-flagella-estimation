@@ -23,7 +23,7 @@
   "adr_reason": "The work adds a diagnostic gate, CLI timestep override, tests, and documentation. It records local_bend_scale=8 as a diagnostic representative rather than changing the global physical model or adding a new dependency.",
   "commit_type": "complete",
   "commit_hash": "b366ca7fd9b13f8b533ce80c4b70c6213438b367",
-  "push_status": "not_pushed",
+  "push_status": "pushed",
   "next_actions": [
     "Proceed to P2-7-006 to characterize multi-flagella stability using the Phase 2.6 helix retention representative.",
     "Treat local_bend_scale=8 as a hypothesis to revalidate before using it for ML dataset generation."
