@@ -5,6 +5,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import pytest
+
 
 def _load_sweep_script():
     script_path = (
@@ -67,6 +69,8 @@ def test_phase24_local_hook_scale_sweep_reproduces_hook_gate(
         assert row["body_shape_pass"] == "True"
         assert row["shape_pass"] == "True"
         assert row["first_fail_category"] == "none"
+        assert row["first_fail_category_nonbody"] == "none"
+        assert row["body_fail_category"] == "none"
         assert float(row["hook_len_rel_err_max"]) < 1.0
         assert float(row["local_attach_first_rel_err"]) < 1.0
 
@@ -77,7 +81,38 @@ def test_phase24_local_hook_scale_sweep_reproduces_hook_gate(
         assert row["shape_pass_nonbody"] == "False"
         assert row["shape_pass"] == "False"
         assert row["first_fail_category"] == "hook"
+        assert row["first_fail_category_nonbody"] == "hook"
+        assert row["body_fail_category"] in {
+            "none",
+            "body_nonfinite",
+            "body_spring",
+            "body_bend",
+            "body_centerline",
+            "body_area",
+        }
         assert float(row["hook_len_rel_err_max"]) > 1.0
         assert float(row["local_attach_first_rel_err"]) > 1.0
         assert row["body_shape_pass"] in {"True", "False"}
         assert row["body_spring_max_stretch_ratio"] != ""
+
+
+def test_body_stiffness_scale_must_be_positive(tmp_path: Path, monkeypatch) -> None:
+    """body stiffness override は無効値を argparse error として早期拒否する。"""
+    sweep_script = _load_sweep_script()
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_motor_scale_sweep",
+            "--body-stiffness-scale",
+            "0",
+            "--output-dir",
+            str(tmp_path / "invalid_body_stiffness"),
+        ],
+    )
+
+    with pytest.raises(SystemExit) as excinfo:
+        sweep_script.main()
+
+    assert excinfo.value.code == 2

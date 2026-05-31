@@ -58,6 +58,13 @@ def _parse_torques(text: str) -> list[float]:
     return torques
 
 
+def _parse_positive_float(text: str) -> float:
+    value = float(text)
+    if value <= 0.0:
+        raise argparse.ArgumentTypeError("value must be strictly positive.")
+    return value
+
+
 def _base_cfg() -> dict[str, Any]:
     return {
         "scale": {"b_um": 1.0, "bead_radius_a_over_b": 0.1},
@@ -202,7 +209,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--body-stiffness-scale",
-        type=float,
+        type=_parse_positive_float,
         default=None,
         help=(
             "Optional override for stiffness_scales.body. "
@@ -247,6 +254,8 @@ def main() -> None:
                 "body_shape_pass",
                 "shape_pass",
                 "first_fail_category",
+                "first_fail_category_nonbody",
+                "body_fail_category",
                 "flag_root_azimuth_deg",
                 "flag_phase_deg",
                 "flag_phase_rate_hz",
@@ -329,6 +338,8 @@ def main() -> None:
                         "body_shape_pass": body_shape_pass,
                         "shape_pass": shape_pass,
                         "first_fail_category": first_fail_category,
+                        "first_fail_category_nonbody": first_fail_category_nonbody,
+                        "body_fail_category": body_fail_category,
                         "flag_root_azimuth_deg": last.get("flag_root_azimuth_deg", ""),
                         "flag_phase_deg": last.get("flag_phase_deg", ""),
                         "flag_phase_rate_hz": last.get("flag_phase_rate_hz", ""),

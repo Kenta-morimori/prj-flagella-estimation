@@ -32,6 +32,7 @@ uv run python -m scripts.01_simulate_swimming.run_motor_scale_sweep \
 | --- | --- |
 | `shape_pass_nonbody` | hook / flagella 側 shape pass |
 | `first_fail_category_nonbody` | non-body 側の first-fail category |
+| `body_fail_category` | body 側 gate の fail category |
 | `local_attach_first_rel_err` | attach-first hook link の相対誤差 |
 | `hook_len_rel_err_max` | hook 長の最大相対誤差 |
 | `hook_angle_err_max_deg` | hook bend 角誤差 |

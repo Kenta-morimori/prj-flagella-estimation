@@ -23,7 +23,7 @@
   "adr_required": false,
   "adr_reason": "No significant architecture, dependency, output-format, or physical-model change was introduced; the work standardizes an existing sweep helper option and documents current hook-gate diagnostics.",
   "commit_type": "complete",
-  "commit_hash": "0571a619af2118420f0256d92e95c2b5eaa09269",
+  "commit_hash": "776aa81b76bcc142d4d46edc79c0e211d81dac1e",
   "push_status": "pushed",
   "next_actions": [
     "Proceed to P2-5-004 body+hook+single flagellum motor-on stability.",

@@ -18,7 +18,7 @@
   "adr_required": false,
   "adr_reason": "文書の言語方針と表現調整であり、物理モデル、出力形式、ディレクトリ構成、テスト戦略の重要変更ではないため。",
   "commit_type": "complete",
-  "commit_hash": "278c80c298013799de3a00e2cb13177798af6371",
+  "commit_hash": "54f54c453b3659a0a2207a3a4cce69a36e79000b",
   "push_status": "pushed",
   "next_actions": [
     "今後 docs/phase*/ に追加・更新するユーザー向け文書は日本語を既定とする。"
