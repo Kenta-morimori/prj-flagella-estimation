@@ -7,7 +7,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from sim_swim.sim.body_shape_gate import summarize_body_shape_diagnostics_csv
+from sim_swim.sim.body_shape_gate import (
+    summarize_body_shape_diagnostics,
+    summarize_body_shape_diagnostics_csv,
+)
 from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import (
     DynamicsMode,
@@ -695,6 +698,29 @@ def test_phase23_body_only_torque_baseline_safe_and_first_fail(
     assert break_summary["body_shape_pass"] is False
     assert break_summary["body_fail_category"] == "body_spring"
     assert break_summary["body_spring_max_stretch_ratio"] > 1.0
+
+
+def test_body_shape_gate_detects_nonfinite_values_in_any_row() -> None:
+    """body_nonfinite は集計値ではなく各 row の非有限値で判定する。"""
+    rows = [
+        {
+            "body_spring_max_stretch_ratio": "0.01",
+            "body_bend_max_error_deg": "1.0",
+            "body_centerline_max_deviation_um": "0.01",
+            "body_triangle_area_min": "1.0",
+        },
+        {
+            "body_spring_max_stretch_ratio": "nan",
+            "body_bend_max_error_deg": "1.0",
+            "body_centerline_max_deviation_um": "0.01",
+            "body_triangle_area_min": "1.0",
+        },
+    ]
+
+    summary = summarize_body_shape_diagnostics(rows)
+
+    assert summary["body_shape_pass"] is False
+    assert summary["body_fail_category"] == "body_nonfinite"
 
 
 def test_phase2_minimal_stub_motor_on_short_run_diagnostics(tmp_path: Path) -> None:

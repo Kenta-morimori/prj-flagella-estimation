@@ -39,6 +39,10 @@ def _empty_result(category: str) -> dict[str, float | bool | str]:
     }
 
 
+def _all_finite(values: Sequence[float]) -> bool:
+    return all(np.isfinite(v) for v in values)
+
+
 def summarize_body_shape_diagnostics(
     rows: Sequence[Mapping[str, str | float | None]],
 ) -> dict[str, float | bool | str]:
@@ -61,11 +65,16 @@ def summarize_body_shape_diagnostics(
     ]
     area_min_vals = [_parse_float(r.get("body_triangle_area_min")) for r in rows]
 
-    spring_max = max(stretch_vals)
-    bend_max = max(bend_vals)
-    centerline_max = max(centerline_vals)
+    stretch_finite = _all_finite(stretch_vals)
+    bend_finite = _all_finite(bend_vals)
+    centerline_finite = _all_finite(centerline_vals)
+    area_min_finite = _all_finite(area_min_vals)
+
+    spring_max = max(stretch_vals) if stretch_finite else float("nan")
+    bend_max = max(bend_vals) if bend_finite else float("nan")
+    centerline_max = max(centerline_vals) if centerline_finite else float("nan")
     init_area_min = area_min_vals[0]
-    min_area_min = min(area_min_vals)
+    min_area_min = min(area_min_vals) if area_min_finite else float("nan")
     area_ratio_min = (
         min_area_min / max(init_area_min, 1e-30)
         if init_area_min > 0.0
@@ -73,7 +82,13 @@ def summarize_body_shape_diagnostics(
     )
 
     if not all(
-        np.isfinite(v) for v in [spring_max, bend_max, centerline_max, area_ratio_min]
+        [
+            stretch_finite,
+            bend_finite,
+            centerline_finite,
+            area_min_finite,
+            np.isfinite(area_ratio_min),
+        ]
     ):
         return {
             "body_shape_pass": False,
