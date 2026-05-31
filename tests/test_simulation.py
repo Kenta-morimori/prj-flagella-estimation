@@ -7,6 +7,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from sim_swim.sim.body_shape_gate import (
+    summarize_body_shape_diagnostics,
+    summarize_body_shape_diagnostics_csv,
+)
 from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import (
     DynamicsMode,
@@ -198,6 +202,16 @@ def _run_and_load_body_diag(
     return rows
 
 
+def _run_and_summarize_body_shape(
+    cfg: SimulationConfig, summary_dir: Path
+) -> dict[str, float | bool | str]:
+    sim = Simulator(cfg)
+    sim.run(cfg.time.duration_s, step_summary_dir=summary_dir)
+    body_csv = summary_dir / "body_constraint_diagnostics.csv"
+    assert body_csv.is_file()
+    return summarize_body_shape_diagnostics_csv(body_csv)
+
+
 def _series(rows: list[dict[str, str]], key: str) -> np.ndarray:
     return np.asarray([float(row[key]) for row in rows], dtype=float)
 
@@ -338,6 +352,68 @@ def test_run_writes_initial_geometry_summary_json(tmp_path: Path) -> None:
     assert data["flagella"]["n_flagella"] == 1
     assert data["flagella"]["n_beads_per_flagellum"] == 11
     assert len(data["per_flagellum"]) == 1
+    assert data["per_flagellum"][0]["initial_geometry_pass"] is True
+    assert data["per_flagellum"][0]["initial_geometry_failures"] == []
+
+
+def test_phase2_initial_geometry_summary_contract_matches_step0(
+    tmp_path: Path,
+) -> None:
+    """P2-2-001: initial geometry contract is explicit and matches step summary."""
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0,
+        hook_enabled=True,
+        n_flagella=1,
+        stub_mode="full_flagella",
+        duration_s=0.001,
+    )
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(
+        sim,
+        cfg.time.duration_s,
+        tmp_path / "phase2_initial_geometry",
+    )
+
+    summary_path = (
+        tmp_path / "phase2_initial_geometry" / "initial_geometry_summary.json"
+    )
+    data = json.loads(summary_path.read_text(encoding="utf-8"))
+    contract = data["flagella"]["geometry_contract"]
+    first_flag = data["per_flagellum"][0]
+    step0 = rows[0]
+
+    assert contract["target_bond_length_over_b"] == pytest.approx(0.58)
+    assert contract["target_helix_radius_over_b"] == pytest.approx(0.25)
+    assert contract["target_helix_pitch_over_b"] == pytest.approx(2.5)
+    assert contract["target_bend_angle_deg"] == pytest.approx(142.0)
+    assert contract["target_torsion_angle_deg"] == pytest.approx(-60.0)
+
+    assert first_flag["initial_geometry_pass"] is True
+    assert first_flag["initial_geometry_failures"] == []
+    assert first_flag["bond_length_mean_over_b"] == pytest.approx(0.58)
+    assert first_flag["derived_helix_radius_over_b"] == pytest.approx(
+        0.25,
+        abs=contract["tolerances"]["helix_radius_abs_tol_over_b"],
+    )
+    assert first_flag["derived_helix_pitch_over_b"] == pytest.approx(
+        2.5,
+        rel=contract["tolerances"]["helix_pitch_rel_tol"],
+    )
+    assert (
+        first_flag["initial_bend_err_max_deg"]
+        <= contract["tolerances"]["bend_err_max_deg"]
+    )
+    assert (
+        first_flag["initial_torsion_err_max_deg"]
+        <= contract["tolerances"]["torsion_err_max_deg"]
+    )
+
+    assert float(step0["flag_bond_len_mean_over_b"]) == pytest.approx(
+        first_flag["bond_length_mean_over_b"],
+        abs=1.0e-5,
+    )
+    assert float(step0["flag_bend_err_max_deg"]) <= 1.0e-2
+    assert float(step0["flag_torsion_err_max_deg"]) <= 1.0e-2
 
 
 def test_phase1_body_static_stability(tmp_path: Path) -> None:
@@ -594,6 +670,57 @@ def test_phase1_body_equiv_load_pure_couple_finite_completion(tmp_path: Path) ->
     first = rows[0]
     assert first["body_equiv_load_mode"] == "pure_couple"
     assert float(first["body_equiv_load_target_torque_Nm"]) == 1.0e-20
+
+
+def test_phase23_body_only_torque_baseline_safe_and_first_fail(
+    tmp_path: Path,
+) -> None:
+    """P2-3-002: body-only torque baseline has fixed safe/break examples."""
+    safe_cfg = _make_phase1_cfg(surrogate_torque_Nm=5.0e-20, duration_s=0.05)
+    safe_summary = _run_and_summarize_body_shape(
+        safe_cfg,
+        tmp_path / "phase23_body_safe",
+    )
+
+    assert safe_summary["body_shape_pass"] is True
+    assert safe_summary["body_fail_category"] == "none"
+    assert safe_summary["body_spring_max_stretch_ratio"] < 1.0
+    assert safe_summary["body_bend_max_error_deg"] < 60.0
+    assert safe_summary["body_centerline_max_deviation_um"] < 2.0
+    assert safe_summary["body_triangle_area_ratio_min"] >= 0.5
+
+    break_cfg = _make_phase1_cfg(surrogate_torque_Nm=1.0e-19, duration_s=0.05)
+    break_summary = _run_and_summarize_body_shape(
+        break_cfg,
+        tmp_path / "phase23_body_break",
+    )
+
+    assert break_summary["body_shape_pass"] is False
+    assert break_summary["body_fail_category"] == "body_spring"
+    assert break_summary["body_spring_max_stretch_ratio"] > 1.0
+
+
+def test_body_shape_gate_detects_nonfinite_values_in_any_row() -> None:
+    """body_nonfinite は集計値ではなく各 row の非有限値で判定する。"""
+    rows = [
+        {
+            "body_spring_max_stretch_ratio": "0.01",
+            "body_bend_max_error_deg": "1.0",
+            "body_centerline_max_deviation_um": "0.01",
+            "body_triangle_area_min": "1.0",
+        },
+        {
+            "body_spring_max_stretch_ratio": "nan",
+            "body_bend_max_error_deg": "1.0",
+            "body_centerline_max_deviation_um": "0.01",
+            "body_triangle_area_min": "1.0",
+        },
+    ]
+
+    summary = summarize_body_shape_diagnostics(rows)
+
+    assert summary["body_shape_pass"] is False
+    assert summary["body_fail_category"] == "body_nonfinite"
 
 
 def test_phase2_minimal_stub_motor_on_short_run_diagnostics(tmp_path: Path) -> None:

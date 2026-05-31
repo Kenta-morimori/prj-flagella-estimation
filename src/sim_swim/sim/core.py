@@ -24,6 +24,17 @@ from sim_swim.sim.params import SimulationConfig
 
 M_TO_UM = 1e6
 
+INITIAL_GEOMETRY_CONTRACT = {
+    "bond_mean_rel_tol": 0.02,
+    "bond_minmax_rel_tol": 0.05,
+    "helix_radius_abs_tol_over_b": 0.035,
+    "helix_pitch_rel_tol": 0.05,
+    "bend_err_max_deg": 5.0,
+    "torsion_err_max_deg": 5.0,
+    "tangent_vs_rear_target_deg": 90.0,
+    "tangent_vs_rear_abs_tol_deg": 10.0,
+}
+
 
 def _quat_normalize(q: np.ndarray) -> np.ndarray:
     norm = np.linalg.norm(q)
@@ -231,6 +242,9 @@ class Simulator:
 
         bend_target = float(self.config.potentials.bend.theta0_deg["normal"])
         torsion_target = float(self.config.potentials.torsion.phi0_deg["normal"])
+        bond_target_over_b = float(self.config.flagella.bond_L_over_b)
+        radius_target_over_b = float(self.config.flagella.helix_init.radius_over_b)
+        pitch_target_over_b = float(self.config.flagella.helix_init.pitch_over_b)
 
         summary: dict[str, Any] = {
             "flagella": {
@@ -240,9 +254,19 @@ class Simulator:
                 "n_beads_per_flagellum": int(
                     self.config.flagella.n_beads_per_flagellum
                 ),
-                "bond_L_over_b": float(self.config.flagella.bond_L_over_b),
+                "bond_L_over_b": bond_target_over_b,
+                "target_helix_radius_over_b": radius_target_over_b,
+                "target_helix_pitch_over_b": pitch_target_over_b,
                 "target_theta0_deg_normal": bend_target,
                 "target_phi0_deg_normal": torsion_target,
+                "geometry_contract": {
+                    "target_bond_length_over_b": bond_target_over_b,
+                    "target_helix_radius_over_b": radius_target_over_b,
+                    "target_helix_pitch_over_b": pitch_target_over_b,
+                    "target_bend_angle_deg": bend_target,
+                    "target_torsion_angle_deg": torsion_target,
+                    "tolerances": dict(INITIAL_GEOMETRY_CONTRACT),
+                },
                 "source_of_truth": (
                     [
                         "bond_L_over_b",
@@ -273,6 +297,9 @@ class Simulator:
             bond_mean_um = float(np.mean(bonds) * M_TO_UM)
             bond_min_um = float(np.min(bonds) * M_TO_UM)
             bond_max_um = float(np.max(bonds) * M_TO_UM)
+            bond_mean_over_b = float(np.mean(bonds) / b_m)
+            bond_min_over_b = float(np.min(bonds) / b_m)
+            bond_max_over_b = float(np.max(bonds) / b_m)
             radius_over_b, pitch_over_b = _estimate_helix_radius_pitch_over_b(
                 pts,
                 b_m,
@@ -328,6 +355,45 @@ class Simulator:
                 )
             )
 
+            tol = INITIAL_GEOMETRY_CONTRACT
+            failures: list[str] = []
+            if (
+                abs(bond_mean_over_b - bond_target_over_b)
+                > tol["bond_mean_rel_tol"] * bond_target_over_b
+            ):
+                failures.append("bond_mean")
+            if (
+                bond_min_over_b
+                < (1.0 - tol["bond_minmax_rel_tol"]) * bond_target_over_b
+            ):
+                failures.append("bond_min")
+            if (
+                bond_max_over_b
+                > (1.0 + tol["bond_minmax_rel_tol"]) * bond_target_over_b
+            ):
+                failures.append("bond_max")
+            if (
+                np.isfinite(radius_over_b)
+                and abs(radius_over_b - radius_target_over_b)
+                > tol["helix_radius_abs_tol_over_b"]
+            ):
+                failures.append("helix_radius")
+            if (
+                np.isfinite(pitch_over_b)
+                and abs(pitch_over_b - pitch_target_over_b)
+                > tol["helix_pitch_rel_tol"] * pitch_target_over_b
+            ):
+                failures.append("helix_pitch")
+            if float(np.max(bend_err)) > tol["bend_err_max_deg"]:
+                failures.append("bend_angle")
+            if float(np.max(torsion_err)) > tol["torsion_err_max_deg"]:
+                failures.append("torsion_angle")
+            if (
+                abs(tangent_vs_rear_deg - tol["tangent_vs_rear_target_deg"])
+                > tol["tangent_vs_rear_abs_tol_deg"]
+            ):
+                failures.append("base_tangent")
+
             summary["per_flagellum"].append(
                 {
                     "flag_id": int(f_id),
@@ -338,6 +404,9 @@ class Simulator:
                     "bond_length_mean_um": bond_mean_um,
                     "bond_length_min_um": bond_min_um,
                     "bond_length_max_um": bond_max_um,
+                    "bond_length_mean_over_b": bond_mean_over_b,
+                    "bond_length_min_over_b": bond_min_over_b,
+                    "bond_length_max_over_b": bond_max_over_b,
                     "derived_helix_radius_over_b": radius_over_b,
                     "derived_helix_pitch_over_b": pitch_over_b,
                     "initial_hook_angle_deg": hook_angle_deg,
@@ -361,6 +430,8 @@ class Simulator:
                     "initial_torsion_err_mean_deg": float(np.mean(torsion_err)),
                     "initial_torsion_err_max_deg": float(np.max(torsion_err)),
                     "initial_tangent_vs_rear_direction_angle_deg": tangent_vs_rear_deg,
+                    "initial_geometry_pass": not failures,
+                    "initial_geometry_failures": failures,
                 }
             )
 
