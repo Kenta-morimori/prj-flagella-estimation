@@ -117,18 +117,22 @@
 
 ## Proposal P2-6-005 (Phase 2.6)
 - proposal ID: `P2-6-005`
-- title: `single flagellum 螺旋形状維持を multi-step で harden する`
-- goal: 1000-2000 step 規模で helix collapse を自動検知し、維持条件を固定する。
-- rationale: 現在の主要失敗モードに helix collapse が含まれており、長時間テストが不足すると見逃す。
+- title: `single flagellum の bond / bend / torsion 維持策を探索し multi-step で harden する`
+- goal: Phase 2.5 で特定した flagellum-chain dominated failure に対して、維持策を仮説ごとに検証し、1000-2000 step 規模で helix collapse を自動検知できる状態にする。
+- rationale: Phase 2.5 では `4.0e-21 N m` 条件で body/hook より先に `flag_bond_rel_err_max` / `flag_bend_err_max_deg` / `flag_torsion_err_max_deg` が破綻することを固定した。次は破綻を観測するだけでなく、どの策で維持できるかを分離評価する必要がある。
 - scope:
+  - Phase 2.5 の safe representative (`1.2e-21 N m`) と break representative (`4.0e-21 N m`) を入力条件として使う
   - multi-step で `flag_bond_rel_err_max` / `flag_bend_err_max_deg` / `flag_torsion_err_max_deg` を監視
+  - `dt_s` / `dt_star`、`local_spring_scale`、`local_bend_scale`、`local_torsion_scale`、motor torque distribution の候補を分けて検証
+  - 維持策が回転 activity (`flag_phase_rate_hz`) を潰していないことを確認
   - 時系列劣化の fail 条件（急増・閾値超過）を定義
-  - fail case を再現シナリオとして保存
+  - pass case と fail case を再現シナリオとして保存
 - out of scope:
   - 多本べん毛の束化最適化
   - 実験動画への適用
 - 論文モデル差異フォーカス:
   - “nearly rigid” の実運用定義を、論文記述と現行離散化の間で明文化
+  - 物理モデル由来の stiffness 変更と、数値安定化由来の補助拘束を区別する
 - 既存実装で確認すべき点:
   - `tests/test_run_state_fixed.py` の長時間テスト設計
   - `src/sim_swim/sim/debug_summary.py` の flag系診断列
@@ -136,7 +140,9 @@
 - suggested acceptance criteria:
   1. multi-step hard test が追加され CI で再現可能
   2. helix collapse を pass/fail で機械判定できる
-  3. 代表 fail case が文書化される
+  3. bond / bend / torsion 維持策の候補ごとの効果が比較できる
+  4. 少なくとも1つの維持策について、回転 activity を保った pass representative または明確な FAIL 診断が記録される
+  5. 代表 pass/fail case が文書化される
 - suggested tests:
   - `pytest tests/test_run_state_fixed.py`
   - `pytest tests/test_simulation.py -k torsion or flag`

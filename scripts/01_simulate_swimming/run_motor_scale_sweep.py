@@ -65,6 +65,13 @@ def _parse_positive_float(text: str) -> float:
     return value
 
 
+def _parse_positive_int(text: str) -> int:
+    value = int(text)
+    if value <= 0:
+        raise argparse.ArgumentTypeError("value must be a positive integer.")
+    return value
+
+
 def _base_cfg() -> dict[str, Any]:
     return {
         "scale": {"b_um": 1.0, "bead_radius_a_over_b": 0.1},
@@ -217,6 +224,21 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--stub-mode",
+        choices=("minimal_basal_stub", "full_flagella"),
+        default="minimal_basal_stub",
+        help=(
+            "Flagellum structure mode. Use full_flagella for the Phase2.5 "
+            "single-flagellum diagnostic baseline."
+        ),
+    )
+    parser.add_argument(
+        "--n-flagella",
+        type=_parse_positive_int,
+        default=1,
+        help="Number of flagella to instantiate for each sweep condition.",
+    )
+    parser.add_argument(
         "--torques",
         type=_parse_torques,
         default=None,
@@ -244,6 +266,8 @@ def main() -> None:
                 "target",
                 "torque_Nm",
                 "value",
+                "stub_mode",
+                "n_flagella",
                 "body_stiffness_scale",
                 "output_dir",
                 "pos_all_finite",
@@ -285,6 +309,8 @@ def main() -> None:
         for torque in torques:
             for value in args.values:
                 cfg_dict = _base_cfg()
+                cfg_dict["flagella"]["stub_mode"] = str(args.stub_mode)
+                cfg_dict["flagella"]["n_flagella"] = int(args.n_flagella)
                 cfg_dict["motor"]["torque_Nm"] = float(torque)
                 cfg_dict["motor"][args.target] = float(value)
                 cfg_dict["time"]["duration_s"] = float(args.duration)
@@ -328,6 +354,8 @@ def main() -> None:
                         "target": args.target,
                         "torque_Nm": float(torque),
                         "value": float(value),
+                        "stub_mode": str(cfg.flagella.stub_mode),
+                        "n_flagella": int(cfg.flagella.n_flagella),
                         "body_stiffness_scale": float(cfg.stiffness_scales.body),
                         "output_dir": str(run_dir),
                         "pos_all_finite": last.get("pos_all_finite", ""),

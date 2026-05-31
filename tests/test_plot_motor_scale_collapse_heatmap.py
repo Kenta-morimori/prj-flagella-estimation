@@ -10,6 +10,7 @@ def _load_plot_script():
     script_path = (
         Path(__file__).resolve().parents[1]
         / "scripts"
+        / "01_simulate_swimming"
         / "plot_motor_scale_collapse_heatmap.py"
     )
     spec = importlib.util.spec_from_file_location("plot_script", script_path)

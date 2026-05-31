@@ -116,3 +116,51 @@ def test_body_stiffness_scale_must_be_positive(tmp_path: Path, monkeypatch) -> N
         sweep_script.main()
 
     assert excinfo.value.code == 2
+
+
+def test_stub_mode_full_flagella_summary_columns(tmp_path: Path, monkeypatch) -> None:
+    """P2-5-004: sweep helper can run the full_flagella single-flagellum baseline."""
+    sweep_script = _load_sweep_script()
+    out_dir = tmp_path / "phase25_full_flagella_sweep"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_motor_scale_sweep",
+            "--target",
+            "local_hook_scale",
+            "--values",
+            "8",
+            "--torques",
+            "1.2e-21,4e-21",
+            "--duration",
+            "0.02",
+            "--stub-mode",
+            "full_flagella",
+            "--output-dir",
+            str(out_dir),
+        ],
+    )
+
+    sweep_script.main()
+
+    summary_csv = out_dir / "local_hook_scale_sweep_summary.csv"
+    with summary_csv.open("r", encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+
+    assert len(rows) == 2
+    by_torque = {float(row["torque_Nm"]): row for row in rows}
+
+    safe = by_torque[1.2e-21]
+    assert safe["stub_mode"] == "full_flagella"
+    assert safe["n_flagella"] == "1"
+    assert safe["shape_pass"] == "True"
+    assert safe["first_fail_category"] == "none"
+
+    fail = by_torque[4.0e-21]
+    assert fail["stub_mode"] == "full_flagella"
+    assert fail["n_flagella"] == "1"
+    assert fail["shape_pass"] == "False"
+    assert fail["first_fail_category"] == "flag"
+    assert fail["first_fail_category_nonbody"] == "flag"
