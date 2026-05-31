@@ -1,0 +1,32 @@
+{
+  "status": "PASS",
+  "summary": "P2-5-004 single full flagellum short-run stability gate was implemented, documented, and verified. The safe representative is 1.2e-21 N m, and the break representative is 4.0e-21 N m with flag first-fail.",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "The Phase 2.5 gate is a short-run diagnostic baseline. Multi-step helix retention remains a Phase 2.6 task.",
+    "The 4.0e-21 N m break representative is interpreted as flagellum-chain dominated because body gate passes and hook relative errors remain below the hook threshold while flag bond/bend/torsion exceed their gates."
+  ],
+  "tests_reviewed": [
+    "uv run pytest tests/test_simulation.py -k \"phase25 or phaseb_full or phase3_full\"",
+    "uv run pytest tests/test_motor_scale_sweep.py",
+    "uv run pytest tests/test_plot_motor_scale_collapse_heatmap.py",
+    "uv run pytest tests/test_motor_forces.py",
+    "uv run pytest tests/test_simulation.py -k phase2_execution_and_diagnostics_guidance_exists_in_project_plan",
+    "uv run ruff format --check .",
+    "uv run ruff check .",
+    "uv run pytest -q"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "This task adds a diagnostic gate, CLI option, tests, and documentation for an existing Phase 2 model path. It does not change the physical model, output directory architecture, major dependency set, or testing strategy.",
+  "commit_type": "complete",
+  "commit_hash": "ea42a17f63a43b81a23b7dbe55daf86acbf28c54",
+  "push_status": "not_pushed",
+  "next_actions": [
+    "Proceed to P2-6-005 to harden multi-step helix retention using the Phase 2.5 safe representative.",
+    "Use scripts.01_simulate_swimming.plot_motor_scale_collapse_heatmap directly; the top-level plot wrapper was removed."
+  ]
+}
