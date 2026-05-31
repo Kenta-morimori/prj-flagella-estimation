@@ -43,8 +43,8 @@
   "adr_required": false,
   "adr_reason": "診断指標と gate の修正であり、現時点では物理モデル自体の変更ではないため。",
   "commit_type": "diagnostic",
-  "commit_hash": "",
-  "push_status": "not_pushed",
+  "commit_hash": "56f9d8b2a081159bf02f9f1b8ae7db29372d8d36",
+  "push_status": "pushed",
   "next_actions": [
     "ユーザー目視レビュー完了後に Phase 2.6 の review_result を PASS へ更新する。",
     "目視レビューで違和感がある場合は high-torque representative の条件探索を続ける。"
