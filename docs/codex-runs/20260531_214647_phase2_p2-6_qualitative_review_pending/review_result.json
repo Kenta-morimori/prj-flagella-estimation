@@ -43,8 +43,8 @@
   "adr_required": false,
   "adr_reason": "既存の診断代表条件とレビュー状態の訂正であり、物理モデルや出力形式の新規決定ではないため。",
   "commit_type": "diagnostic",
-  "commit_hash": "",
-  "push_status": "not_pushed",
+  "commit_hash": "481eb54e8a47cc23c35cde400332949df888f35e",
+  "push_status": "pushed",
   "next_actions": [
     "ユーザー目視レビュー完了後に Phase 2.6 の review_result を PASS へ更新する。",
     "目視レビューで違和感がある場合は local scale representative を Phase 2.6 内で再探索する。"

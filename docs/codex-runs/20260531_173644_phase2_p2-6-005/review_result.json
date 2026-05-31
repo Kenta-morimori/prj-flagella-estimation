@@ -35,7 +35,7 @@
   "adr_required": false,
   "adr_reason": "The work adds a diagnostic gate, CLI timestep override, tests, and documentation. It records motor-on local scale representatives as diagnostic parameters rather than changing the global physical model or adding a new dependency.",
   "commit_type": "diagnostic",
-  "commit_hash": "b366ca7fd9b13f8b533ce80c4b70c6213438b367",
+  "commit_hash": "481eb54e8a47cc23c35cde400332949df888f35e",
   "push_status": "pushed",
   "next_actions": [
     "Complete user visual review for outputs/phase2_6_qualitative_review/2026-05-31/214109 before marking Phase 2.6 complete.",
