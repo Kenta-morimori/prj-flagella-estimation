@@ -24,8 +24,8 @@
   "adr_required": false,
   "adr_reason": "ドキュメント命名とデフォルト設定整理のみで、物理モデル・出力形式・アーキテクチャの重要変更ではないため。",
   "commit_type": "complete",
-  "commit_hash": "",
-  "push_status": "not_pushed",
+  "commit_hash": "eb7e1c2969ba5c2f52adc5a97d782ac4a3329cd5",
+  "push_status": "pushed",
   "next_actions": [
     "Phase 2.7 以降では docs/phase2 配下の新規文書名を phase2_* 接頭辞で作成する。",
     "stiffness_scales を非既定値で使う場合は根拠をタスクログまたは設定コメントに残す。"
