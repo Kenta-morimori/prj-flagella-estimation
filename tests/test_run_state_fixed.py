@@ -51,6 +51,10 @@ def _make_cfg(
                 "torque_Nm": motor_torque_Nm,
                 "reverse_n_flagella": 1,
                 "enable_switching": False,
+                "local_hook_scale": 8.0,
+                "local_spring_scale": 5.0,
+                "local_bend_scale": 4.0,
+                "local_torsion_scale": 4.0,
             },
             "potentials": {
                 "spring": {"H_over_T_over_b": 10.0, "s": 0.1},
@@ -114,11 +118,14 @@ def _make_cfg(
 def _with_motor_local_scales(
     cfg: SimulationConfig,
     *,
-    local_spring_scale: float | None,
-    local_bend_scale: float | None,
-    local_torsion_scale: float | None,
+    local_hook_scale: float | None = None,
+    local_spring_scale: float | None = None,
+    local_bend_scale: float | None = None,
+    local_torsion_scale: float | None = None,
 ) -> SimulationConfig:
     cfg_dict = asdict(cfg)
+    if local_hook_scale is not None:
+        cfg_dict["motor"]["local_hook_scale"] = local_hook_scale
     if local_spring_scale is not None:
         cfg_dict["motor"]["local_spring_scale"] = local_spring_scale
     if local_bend_scale is not None:
@@ -184,6 +191,7 @@ def test_phase26_small_dt_and_bend_scale_retain_helix(tmp_path: Path) -> None:
     cfg = _make_cfg(motor_torque_Nm=4.0e-21, duration_s=0.05, dt_star=2.5e-4)
     cfg = _with_motor_local_scales(
         cfg,
+        local_hook_scale=8.0,
         local_spring_scale=None,
         local_bend_scale=8.0,
         local_torsion_scale=None,
