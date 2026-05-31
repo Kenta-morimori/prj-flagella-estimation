@@ -24,7 +24,7 @@
   "adr_reason": "This task adds a diagnostic gate, CLI option, tests, and documentation for an existing Phase 2 model path. It does not change the physical model, output directory architecture, major dependency set, or testing strategy.",
   "commit_type": "complete",
   "commit_hash": "ea42a17f63a43b81a23b7dbe55daf86acbf28c54",
-  "push_status": "not_pushed",
+  "push_status": "pushed",
   "next_actions": [
     "Proceed to P2-6-005 to harden multi-step helix retention using the Phase 2.5 safe representative.",
     "Use scripts.01_simulate_swimming.plot_motor_scale_collapse_heatmap directly; the top-level plot wrapper was removed."
