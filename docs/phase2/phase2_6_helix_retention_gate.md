@@ -111,7 +111,12 @@ uv run python -m scripts.01_simulate_swimming \
   output.base_dir=outputs/phase2_6_spin_review
 ```
 
-今回生成した確認対象は、生成後に `docs/codex-runs/.../review_result.json` の `user_review_outputs` へ記録する。
+今回生成した確認対象:
+
+- `outputs/phase2_6_spin_review/2026-05-31/222332/render/swim3d.mp4`
+- `outputs/phase2_6_spin_review/2026-05-31/222332/render/swim3d_final.png`
+- `outputs/phase2_6_spin_review/2026-05-31/222332/render2d/projection.mp4`
+- `outputs/phase2_6_spin_review/2026-05-31/222332/sim/step_summary.csv`
 
 目視観点:
 
