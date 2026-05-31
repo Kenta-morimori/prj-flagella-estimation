@@ -39,8 +39,8 @@
   "adr_required": false,
   "adr_reason": "実行時 override 方針と診断代表条件の更新であり、デフォルト設定や物理モデル自体の変更ではないため。",
   "commit_type": "diagnostic",
-  "commit_hash": "",
-  "push_status": "not_pushed",
+  "commit_hash": "f841b61b8e1b9e341d8007dd169e8c0858a3f314",
+  "push_status": "pushed",
   "next_actions": [
     "ユーザー目視レビュー完了後に Phase 2.6 の review_result を PASS へ更新する。",
     "目視レビューで違和感がある場合は dt_star=1.0e-4 固定のまま、torque と local scale の探索を続ける。"
