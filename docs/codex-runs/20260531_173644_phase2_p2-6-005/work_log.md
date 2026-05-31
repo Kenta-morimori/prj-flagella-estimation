@@ -8,7 +8,7 @@
   - `dt_star=2.5e-4` のみでは bond / bend / torsion は維持できるが `motor_no_rotation` になることを固定。
   - `dt_star=2.5e-4`, `local_bend_scale=8` では 200-step CI representative で helix retention と回転 activity が両立することを固定。
 - `scripts.01_simulate_swimming.run_motor_scale_sweep` に `--dt-star` を追加し、summary CSV に `dt_star` と `dt_internal_s` を記録するようにした。
-- `docs/phase2/helix_retention_gate.md`, `docs/phase2/TASKS.md`, `docs/PROJECT_PLAN.md`, `scripts/README.md` を更新した。
+- `docs/phase2/phase2_6_helix_retention_gate.md`, `docs/phase2/phase2_tasks.md`, `docs/PROJECT_PLAN.md`, `scripts/README.md` を更新した。
 
 ## 仮説と結果
 

@@ -49,6 +49,7 @@ Before phase-level work, always read:
 * Phase 2 simulation implementation belongs under `src/sim_swim/`.
 * Phase 3-4 detection and ML implementation belongs under `src/flagella_estimation/`.
 * Codex workflow automation scripts must not be placed under `scripts/`; use `tools/codex/` for Codex-specific development tools.
+* User-facing documents under `docs/phase*/` must start with a phase prefix such as `phase2_6_...md` so the target phase is clear from the filename.
 
 ## Output and reproducibility rules
 
@@ -215,7 +216,7 @@ FAIL commits must:
 * not claim completion,
 * record the review result and remaining blocking issues in `docs/codex-runs/<run-id>/review_result.json`.
 
-Task progress must be updated only after review PASS, once `docs/TASK_MAP.md` or `docs/phase*/TASKS.md` exists.
+Task progress must be updated only after review PASS, once `docs/TASK_MAP.md` or `docs/phase*/phase*_tasks.md` exists.
 
 ## Review result format
 
@@ -298,7 +299,7 @@ If a Codex note conflicts with any of the following, the source document takes p
 * `AGENTS.md`
 * `docs/PROJECT_PLAN.md`
 * `docs/adr/`
-* `docs/phase*/TASKS.md`
+* `docs/phase*/phase*_tasks.md`
 * accepted GitHub issues
 * task prompts under `prompts/phase*/`
 
@@ -349,6 +350,8 @@ When working on Phase 2, Codex must track the difference between:
 Important differences or modeling choices must be documented in task logs or ADRs when they affect interpretation, reproducibility, or downstream ML data generation.
 
 In Phase 2, failures such as collapse, fly-away, unstable hook motion, body deformation, or loss of flagellar helix geometry may be meaningful diagnostic results. Preserve reproducible failure conditions when they help identify the next modeling or numerical issue.
+
+Phase 2 baseline configs should omit `stiffness_scales` when all values are the parser defaults (`1.0`). If non-default stiffness scales are kept in a config, document the reason in the task log or the adjacent config comment.
 
 ## Final response format
 

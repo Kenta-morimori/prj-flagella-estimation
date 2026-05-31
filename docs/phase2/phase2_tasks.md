@@ -20,7 +20,7 @@
   - `uv run pytest tests/test_simulation.py -k phase2_initial_geometry`
   - `uv run pytest tests/test_model_builder.py -k paper_table1`
 - docs:
-  - `docs/phase2/geometry_contract.md`
+  - `docs/phase2/phase2_2_geometry_contract.md`
 
 ## Phase 2.3: body only トルクあり安定回転
 
@@ -37,7 +37,7 @@
 - verification:
   - `uv run pytest tests/test_simulation.py -k phase23_body_only_torque_baseline`
 - docs:
-  - `docs/phase2/body_only_baseline.md`
+  - `docs/phase2/phase2_3_body_only_baseline.md`
 
 ## Phase 2.4: body + hook トルクあり安定回転
 
@@ -56,7 +56,7 @@
   - `uv run pytest tests/test_simulation.py -k "phaseb1 or phaseb2"`
   - `uv run pytest tests/test_plot_motor_scale_collapse_heatmap.py`
 - docs:
-  - `docs/phase2/hook_gate.md`
+  - `docs/phase2/phase2_4_hook_gate.md`
 
 ## Phase 2.5: body + hook + single flagellum トルクあり安定回転
 
@@ -78,7 +78,7 @@
   - `uv run pytest tests/test_motor_scale_sweep.py`
   - `uv run pytest tests/test_motor_forces.py`
 - docs:
-  - `docs/phase2/single_flagellum_stability.md`
+  - `docs/phase2/phase2_5_single_flagellum_stability.md`
 
 ## Phase 2.6: single flagellum 螺旋形状維持
 
@@ -101,4 +101,4 @@
   - `uv run pytest tests/test_run_state_fixed.py`
   - `uv run pytest tests/test_motor_scale_sweep.py`
 - docs:
-  - `docs/phase2/helix_retention_gate.md`
+  - `docs/phase2/phase2_6_helix_retention_gate.md`

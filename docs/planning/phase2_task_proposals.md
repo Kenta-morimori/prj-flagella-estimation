@@ -291,4 +291,4 @@
 
 ## 運用メモ
 - 本ファイルは提案集であり、採択はユーザー判断とする。
-- 採択後は `docs/phase2/TASKS.md` と GitHub Issue へ移管し、進捗は review PASS ベースで更新する。
+- 採択後は `docs/phase2/phase2_tasks.md` と GitHub Issue へ移管し、進捗は review PASS ベースで更新する。

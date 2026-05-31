@@ -38,11 +38,6 @@ motor:
   local_bend_scale: 1.0        # [-] motor ON 時の local bend 補助スケール
   local_torsion_scale: 1.0     # [-] motor ON 時の local torsion 補助スケール
 
-stiffness_scales:
-  body: 1.0                    # [-] body 関連ポテンシャルの補助スケール（hidden multiplier を廃止）
-  flag_bend: 1.0               # [-] flagella bend 補助スケール
-  flag_torsion: 1.0            # [-] flagella torsion 補助スケール
-
 potentials:
   spring:
     H_over_T_over_b: 10.0      # [-] H = 10 * Torque / b（paper-aligned default）

@@ -17,7 +17,7 @@
   - step summary consistency after the first static step,
   - body-only safe and first-fail representative torque conditions.
 - Created Phase 2 task and baseline documentation.
-- Updated `docs/PROJECT_PLAN.md` and `docs/phase2/TASKS.md` after automated review PASS.
+- Updated `docs/PROJECT_PLAN.md` and `docs/phase2/phase2_tasks.md` after automated review PASS.
 
 ## Verification
 

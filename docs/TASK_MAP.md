@@ -4,7 +4,7 @@
 
 ## Phase 2
 
-- 詳細タスク: `docs/phase2/TASKS.md`
+- 詳細タスク: `docs/phase2/phase2_tasks.md`
 - 提案段階のタスク案: `docs/planning/phase2_task_proposals.md`
 
-進捗チェックは review PASS 後に更新する。提案段階のタスク案は、採択後にフェーズ別 `TASKS.md` へ移す。
+進捗チェックは review PASS 後に更新する。提案段階のタスク案は、採択後にフェーズ別 `phase*_tasks.md` へ移す。
