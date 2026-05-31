@@ -1,12 +1,12 @@
-# Phase 2.4 Hook Gate Baseline
+# Phase 2.4 hook gate 基準
 
-## Purpose
+## 目的
 
 Phase 2.4 では、`body + hook` 相当の `minimal_basal_stub` 条件で、motor-on 時の hook 主導 failure を再現可能にする。
 
 この段階では full flagellum の螺旋維持や多本べん毛の束化は対象外とする。対象は basal 近傍、特に attach-first hook link と first-second link の診断である。
 
-## Standard Sweep Command
+## 標準 sweep コマンド
 
 ```bash
 uv run python -m scripts.01_simulate_swimming.run_motor_scale_sweep \
@@ -18,58 +18,58 @@ uv run python -m scripts.01_simulate_swimming.run_motor_scale_sweep \
   --output-dir outputs/phase2_4_hook_gate
 ```
 
-This writes:
+このコマンドは以下を出力する。
 
 - `outputs/phase2_4_hook_gate/local_hook_scale_sweep_summary.csv`
-- per-condition `step_summary.csv`
-- per-condition `body_constraint_diagnostics.csv`
+- 条件ごとの `step_summary.csv`
+- 条件ごとの `body_constraint_diagnostics.csv`
 
-## Gate Metrics
+## Gate 指標
 
-The first source of truth is `step_summary.csv`.
+第一の正本は `step_summary.csv` である。
 
-| metric | role |
+| 指標 | 役割 |
 | --- | --- |
-| `shape_pass_nonbody` | hook / flagella-side shape pass |
-| `first_fail_category_nonbody` | first non-body failure category |
-| `local_attach_first_rel_err` | attach-first hook link relative error |
-| `hook_len_rel_err_max` | maximum hook length relative error |
-| `hook_angle_err_max_deg` | hook bend angle error |
-| `local_first_second_rel_err` | basal first-second link relative error |
+| `shape_pass_nonbody` | hook / flagella 側 shape pass |
+| `first_fail_category_nonbody` | non-body 側の first-fail category |
+| `local_attach_first_rel_err` | attach-first hook link の相対誤差 |
+| `hook_len_rel_err_max` | hook 長の最大相対誤差 |
+| `hook_angle_err_max_deg` | hook bend 角誤差 |
+| `local_first_second_rel_err` | basal first-second link の相対誤差 |
 
-`body_constraint_diagnostics.csv` is also recorded. In the current diagnostic baseline, the failing high-torque condition can also deform body shape by the last step; therefore the hook/body split is interpreted by priority:
+`body_constraint_diagnostics.csv` も記録する。現行の診断 baseline では、高トルク fail 条件で最終 step 時点の body 形状も変形し得る。そのため hook/body の切り分けは以下の優先順位で解釈する。
 
-1. `first_fail_category_nonbody == "hook"` means the basal hook gate detects the non-body failure.
-2. `body_shape_pass` and body metrics are retained in the sweep summary to show whether body deformation is also present by the final step.
-3. If `first_fail_category_nonbody == "none"` but body gate fails, the combined `first_fail_category` is a body category.
+1. `first_fail_category_nonbody == "hook"` なら、basal hook gate が non-body 側 failure を検出したと解釈する。
+2. `body_shape_pass` と body 指標は、最終 step 時点で body 変形も併発しているかを示す並列診断として sweep summary に残す。
+3. `first_fail_category_nonbody == "none"` かつ body gate が fail の場合、統合 `first_fail_category` は body category とする。
 
-## Re-Identified Representatives
+## 再同定した代表条件
 
-Condition:
+条件:
 
 - `stub_mode=minimal_basal_stub`
 - `body_stiffness_scale=50`
 - `duration_s=0.02`
 - `target=local_hook_scale`
 - `values=1,8`
-- deterministic, Brownian off
+- 決定論的条件、Brownian off
 
-| torque | local_hook_scale | expected result | first-fail category |
+| torque | local_hook_scale | 期待結果 | first-fail category |
 | ---: | ---: | --- | --- |
 | `1.2e-21 N m` | `1` | pass | `none` |
 | `1.2e-21 N m` | `8` | pass | `none` |
 | `4.0e-21 N m` | `1` | fail | `hook` |
 | `4.0e-21 N m` | `8` | fail | `hook` |
 
-The current boundary is torque-dominated for this minimal sweep: `1.2e-21 N m` is the pass representative and `4.0e-21 N m` is the hook first-fail representative for both tested hook scales.
+この最小 sweep における現行境界は torque-dominated である。つまり、検証した両方の hook scale で、`1.2e-21 N m` が pass representative、`4.0e-21 N m` が hook first-fail representative である。
 
-## Modeling Note
+## モデリング上の注意
 
-The hook potential threshold remains `90 deg`. Current failures in this diagnostic baseline are dominated by hook length / attach-first relative error rather than hook angle error alone. This means `local_hook_scale` is not a simple monotonic control of failure in the current model; the sweep is used to keep the failure mode traceable, not to claim a final physical optimum.
+hook potential の threshold は `90 deg` のままである。現行診断 baseline の failure は hook angle error 単独ではなく、hook length / attach-first relative error が支配的である。したがって、現行モデルでは `local_hook_scale` が failure を単純に単調制御するわけではない。この sweep は failure mode を再現可能に追跡するためのものであり、最終的な物理最適値を主張するものではない。
 
-## Verification
+## 検証
 
-Automated checks:
+自動検証:
 
 - `tests/test_motor_scale_sweep.py::test_phase24_local_hook_scale_sweep_reproduces_hook_gate`
 - `tests/test_simulation.py::test_phaseb1_known_failure_case_detected_minimal_stub_005s`

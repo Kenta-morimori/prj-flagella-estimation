@@ -26,6 +26,8 @@ Before phase-level work, always read:
 ## Language policy
 
 * Communicate with the user in Japanese unless explicitly requested otherwise.
+* Write user-facing project documents in Japanese by default, especially files under `docs/phase*/`, because these documents are read directly by the user.
+* Keep technical identifiers, column names, config keys, commands, filenames, and accepted domain terms in their original form when translating them would reduce precision.
 * Keep implementation comments and docstrings consistent with the existing repository style.
 * Prefer concise explanations with clear evidence and verification results.
 
