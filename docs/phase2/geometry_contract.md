@@ -1,52 +1,52 @@
-# Phase 2.2 Initial Geometry Contract
+# Phase 2.2 初期幾何検証契約
 
-## Purpose
+## 目的
 
 Phase 2.2 では、参照論文 normal state に基づく初期形状を、動画目視ではなく数値契約として検証する。
 
-対象は `initial_geometry_summary.json` と `step_summary.csv` である。`initial_geometry_summary.json` は初期配置そのものの source of truth とし、`step_summary.csv` は短時間実行後に同じ診断軸が破綻していないことを確認する。
+対象は `initial_geometry_summary.json` と `step_summary.csv` である。`initial_geometry_summary.json` は初期配置そのものの正本とし、`step_summary.csv` は短時間実行後に同じ診断軸が破綻していないことを確認する。
 
-## Reference Targets
+## 参照目標値
 
-| metric | target | source |
+| 指標 | 目標値 | 根拠 |
 | --- | ---: | --- |
-| flag intra bond length | `0.58 b` | Watari and Larson Table 1 / project MVP |
-| helix radius | `0.25 b` | Watari and Larson normal state |
-| helix pitch | `2.5 b` | Watari and Larson normal state |
-| bending angle | `142 deg` | Watari and Larson normal state |
-| torsion angle | `-60 deg` | Watari and Larson normal state |
+| べん毛内部 bond 長 | `0.58 b` | Watari and Larson Table 1 / project MVP |
+| 螺旋半径 | `0.25 b` | Watari and Larson normal state |
+| 螺旋 pitch | `2.5 b` | Watari and Larson normal state |
+| bending 角 | `142 deg` | Watari and Larson normal state |
+| torsion 角 | `-60 deg` | Watari and Larson normal state |
 
-## Operational Tolerances
+## 運用許容範囲
 
-| metric | tolerance | reason |
+| 指標 | 許容範囲 | 理由 |
 | --- | ---: | --- |
-| bond mean | `±2%` | project MVP requirement |
+| bond 平均 | `±2%` | project MVP requirement |
 | bond min/max | `±5%` | project MVP requirement |
-| helix radius | `±0.035 b` absolute | current `paper_table1` construction prioritizes bend/torsion and derives radius around `0.279 b` |
-| helix pitch | `±5%` | current discrete chain remains close to `2.5 b` |
-| bending max error | `<= 5 deg` | paper-normal compatibility gate |
-| torsion max error | `<= 5 deg` | paper-normal compatibility gate |
-| base tangent vs rear direction | `90 ± 10 deg` | current side-attach initial condition places the first bead radially and the first chain segment tangentially |
+| 螺旋半径 | 絶対誤差 `±0.035 b` | 現行 `paper_table1` 生成は bend/torsion を優先し、半径は約 `0.279 b` として導出されるため |
+| 螺旋 pitch | `±5%` | 現行の離散 chain が `2.5 b` 近傍に収まるため |
+| bending 最大誤差 | `<= 5 deg` | paper normal state 互換 gate |
+| torsion 最大誤差 | `<= 5 deg` | paper normal state 互換 gate |
+| 基部接線と後方方向 | `90 ± 10 deg` | 現行 side-attach 初期条件では first bead を半径方向、最初の chain segment を接線方向に置くため |
 
-## Current Model Difference
+## 現行モデルとの差分
 
-`paper_table1` mode uses `bond_L_over_b`, `potentials.bend.theta0_deg.normal`, and `potentials.torsion.phi0_deg.normal` as the source of truth. Therefore radius and pitch are derived diagnostics rather than direct generation parameters in this mode.
+`paper_table1` mode では、`bond_L_over_b`, `potentials.bend.theta0_deg.normal`, `potentials.torsion.phi0_deg.normal` を正本として扱う。そのため、この mode における radius と pitch は直接の生成パラメータではなく、導出診断値である。
 
-Current observed derived values for the default full-flagellum condition are approximately:
+現行 default full-flagellum 条件で観測される導出値は、おおよそ以下である。
 
 - radius: `0.279 b`
 - pitch: `2.40 b`
 
-This is accepted for Phase 2.2 because bend/torsion agreement is the primary contract for the current paper-table initialization. If a future task changes the generator to satisfy radius/pitch exactly, this tolerance should be tightened and the modeling difference should be recorded.
+Phase 2.2 では、現行 paper-table 初期化の主契約を bend/torsion 一致に置くため、この差分を許容する。将来、radius/pitch と bend/torsion を同時に厳密に満たす生成器へ変更する場合は、この許容範囲を狭め、モデル差分として記録する。
 
-## Verification
+## 検証
 
-Automated checks:
+自動検証:
 
 - `tests/test_model_builder.py::test_paper_table1_mode_matches_target_bend_and_torsion`
 - `tests/test_simulation.py::test_phase2_initial_geometry_summary_contract_matches_step0`
 
-Expected artifacts:
+想定成果物:
 
 - `sim/initial_geometry_summary.json`
 - `sim/step_summary.csv`

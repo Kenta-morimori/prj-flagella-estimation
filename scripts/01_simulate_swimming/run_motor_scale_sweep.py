@@ -14,6 +14,14 @@ Example:
         --target local_hook_scale \
         --values 8,2,0 \
         --torques 1e-21,4e-21,1e-20
+
+    # Phase2.4 hook-gate diagnostic baseline
+    uv run python -m scripts.01_simulate_swimming.run_motor_scale_sweep \
+        --target local_hook_scale \
+        --values 1,8 \
+        --torques 1.2e-21,4e-21 \
+        --duration 0.02 \
+        --body-stiffness-scale 50
 """
 
 from __future__ import annotations
@@ -48,6 +56,13 @@ def _parse_torques(text: str) -> list[float]:
     if any(v < 0.0 for v in torques):
         raise ValueError("Torque list must be non-negative.")
     return torques
+
+
+def _parse_positive_float(text: str) -> float:
+    value = float(text)
+    if value <= 0.0:
+        raise argparse.ArgumentTypeError("value must be strictly positive.")
+    return value
 
 
 def _base_cfg() -> dict[str, Any]:
@@ -193,6 +208,15 @@ def main() -> None:
         help="Simulation duration in seconds.",
     )
     parser.add_argument(
+        "--body-stiffness-scale",
+        type=_parse_positive_float,
+        default=None,
+        help=(
+            "Optional override for stiffness_scales.body. "
+            "Use 50.0 to reproduce the Phase2.4 hook-gate diagnostic baseline."
+        ),
+    )
+    parser.add_argument(
         "--torques",
         type=_parse_torques,
         default=None,
@@ -220,6 +244,7 @@ def main() -> None:
                 "target",
                 "torque_Nm",
                 "value",
+                "body_stiffness_scale",
                 "output_dir",
                 "pos_all_finite",
                 "any_nan",
@@ -229,6 +254,8 @@ def main() -> None:
                 "body_shape_pass",
                 "shape_pass",
                 "first_fail_category",
+                "first_fail_category_nonbody",
+                "body_fail_category",
                 "flag_root_azimuth_deg",
                 "flag_phase_deg",
                 "flag_phase_rate_hz",
@@ -261,6 +288,10 @@ def main() -> None:
                 cfg_dict["motor"]["torque_Nm"] = float(torque)
                 cfg_dict["motor"][args.target] = float(value)
                 cfg_dict["time"]["duration_s"] = float(args.duration)
+                if args.body_stiffness_scale is not None:
+                    cfg_dict["stiffness_scales"]["body"] = float(
+                        args.body_stiffness_scale
+                    )
                 cfg = SimulationConfig.from_dict(cfg_dict)
 
                 run_dir = (
@@ -297,6 +328,7 @@ def main() -> None:
                         "target": args.target,
                         "torque_Nm": float(torque),
                         "value": float(value),
+                        "body_stiffness_scale": float(cfg.stiffness_scales.body),
                         "output_dir": str(run_dir),
                         "pos_all_finite": last.get("pos_all_finite", ""),
                         "any_nan": last.get("any_nan", ""),
@@ -306,6 +338,8 @@ def main() -> None:
                         "body_shape_pass": body_shape_pass,
                         "shape_pass": shape_pass,
                         "first_fail_category": first_fail_category,
+                        "first_fail_category_nonbody": first_fail_category_nonbody,
+                        "body_fail_category": body_fail_category,
                         "flag_root_azimuth_deg": last.get("flag_root_azimuth_deg", ""),
                         "flag_phase_deg": last.get("flag_phase_deg", ""),
                         "flag_phase_rate_hz": last.get("flag_phase_rate_hz", ""),

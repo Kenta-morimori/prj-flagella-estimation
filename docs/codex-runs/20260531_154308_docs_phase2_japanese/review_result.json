@@ -1,0 +1,26 @@
+{
+  "status": "PASS",
+  "summary": "docs/phase2 配下の Phase 2 文書を日本語中心に整え、今後の user-facing project documents を日本語で書く方針を AGENTS.md に明文化した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "技術識別子、コマンド、ファイル名、列名、accepted domain terms は精度維持のため英語表記を残している。"
+  ],
+  "tests_reviewed": [
+    "git diff --check",
+    "uv run ruff format --check .",
+    "uv run ruff check .",
+    "uv run pytest -q"
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "文書の言語方針と表現調整であり、物理モデル、出力形式、ディレクトリ構成、テスト戦略の重要変更ではないため。",
+  "commit_type": "complete",
+  "commit_hash": "54f54c453b3659a0a2207a3a4cce69a36e79000b",
+  "push_status": "pushed",
+  "next_actions": [
+    "今後 docs/phase*/ に追加・更新するユーザー向け文書は日本語を既定とする。"
+  ]
+}
