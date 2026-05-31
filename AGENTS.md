@@ -353,6 +353,8 @@ In Phase 2, failures such as collapse, fly-away, unstable hook motion, body defo
 
 Phase 2 baseline configs should omit `stiffness_scales` when all values are the parser defaults (`1.0`). If non-default stiffness scales are kept in a config, document the reason in the task log or the adjacent config comment.
 
+For Phase 2 simulation runs, do not change the default config just to set the integration step. Use an explicit runtime override such as `time.dt_star=1.0e-4` in CLI commands and task logs unless the task explicitly requires another value.
+
 ## Final response format
 
 After each task, report:

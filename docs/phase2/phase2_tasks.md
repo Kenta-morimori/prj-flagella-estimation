@@ -91,12 +91,13 @@
 - hypothesis:
   - `flag_phase_rate_hz` は root azimuth 由来の proxy であり、目視の螺旋スピンと一致しない場合がある。
   - `flag_helix_spin_rate_hz` を用いると、形状維持だけでなく螺旋そのものの安定回転を判定できる。
-  - `torque=3.0e-20`, `dt_star=6.25e-5`, `local_hook_scale=4`, `local_spring_scale=2`, `local_bend_scale=2`, `local_torsion_scale=2` の組み合わせで、0.25 s / 4000 steps の螺旋維持と螺旋スピンを両立できる。
+  - デフォルト設定を変えず、実行時 override の `time.dt_star=1.0e-4` で条件を探索する。
+  - `torque=2.5e-20`, `dt_star=1.0e-4`, `local_hook_scale=4`, `local_spring_scale=2`, `local_bend_scale=2`, `local_torsion_scale=2` の組み合わせで、0.25 s / 2500 steps の螺旋維持と螺旋スピンを両立できる。
 - acceptance criteria:
   - [x] Phase 2.5 break representative が multi-step gate で `flag` fail として再現される。
   - [x] `dt_star` 縮小や旧代表条件では形状を保っても螺旋スピンが出ず `motor_no_rotation` になることを pytest で固定する。
   - [x] `torque=8.0e-21`, `dt_star=1.25e-4`, `local_hook_scale=8`, `local_spring_scale=5`, `local_bend_scale=8`, `local_torsion_scale=4` が 400-step CI representative で pass する。
-  - [x] `torque=3.0e-20`, `dt_star=6.25e-5`, `local_hook_scale=4`, `local_spring_scale=2`, `local_bend_scale=2`, `local_torsion_scale=2` が 4000-step local representative で pass する。
+  - [x] `torque=2.5e-20`, `dt_star=1.0e-4`, `local_hook_scale=4`, `local_spring_scale=2`, `local_bend_scale=2`, `local_torsion_scale=2` が 2500-step local representative で pass する。
   - [x] hard gate の指標と閾値を文書化する。
   - [ ] 生成動画をユーザーが目視し、単一べん毛の定性的な安定回転を確認する。
 - verification:
