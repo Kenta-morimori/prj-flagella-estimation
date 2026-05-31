@@ -89,12 +89,14 @@
 - branch: `feature/phase2-6-helix-retention-gate`
 - goal: Phase 2.5 の flagellum-chain dominated failure に対して、回転 activity を保った multi-step 螺旋維持条件を固定する。
 - hypothesis:
-  - `dt_star` 縮小だけでは bond / bend / torsion は保てても回転 activity が落ちる。
-  - `dt_star=2.5e-4` と `local_hook_scale=8`, `local_spring_scale=5`, `local_bend_scale=8`, `local_torsion_scale=4` の組み合わせで、`4.0e-21 N m` 条件でも multi-step 螺旋維持と回転 activity を両立できる。
+  - `flag_phase_rate_hz` は root azimuth 由来の proxy であり、目視の螺旋スピンと一致しない場合がある。
+  - `flag_helix_spin_rate_hz` を用いると、形状維持だけでなく螺旋そのものの安定回転を判定できる。
+  - `torque=3.0e-20`, `dt_star=6.25e-5`, `local_hook_scale=4`, `local_spring_scale=2`, `local_bend_scale=2`, `local_torsion_scale=2` の組み合わせで、0.25 s / 4000 steps の螺旋維持と螺旋スピンを両立できる。
 - acceptance criteria:
   - [x] Phase 2.5 break representative が multi-step gate で `flag` fail として再現される。
-  - [x] `dt_star` 縮小だけでは `motor_no_rotation` になることを pytest で固定する。
-  - [x] `dt_star=2.5e-4`, `local_hook_scale=8`, `local_spring_scale=5`, `local_bend_scale=8`, `local_torsion_scale=4` が 200-step CI representative で pass する。
+  - [x] `dt_star` 縮小や旧代表条件では形状を保っても螺旋スピンが出ず `motor_no_rotation` になることを pytest で固定する。
+  - [x] `torque=8.0e-21`, `dt_star=1.25e-4`, `local_hook_scale=8`, `local_spring_scale=5`, `local_bend_scale=8`, `local_torsion_scale=4` が 400-step CI representative で pass する。
+  - [x] `torque=3.0e-20`, `dt_star=6.25e-5`, `local_hook_scale=4`, `local_spring_scale=2`, `local_bend_scale=2`, `local_torsion_scale=2` が 4000-step local representative で pass する。
   - [x] hard gate の指標と閾値を文書化する。
   - [ ] 生成動画をユーザーが目視し、単一べん毛の定性的な安定回転を確認する。
 - verification:

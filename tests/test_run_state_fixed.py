@@ -187,7 +187,7 @@ def test_phase26_small_dt_without_bend_scale_loses_rotation(tmp_path: Path) -> N
 
 
 def test_phase26_small_dt_and_bend_scale_retain_helix(tmp_path: Path) -> None:
-    """P2-6-005: dt縮小 + local bend補強で回転activityと螺旋維持を両立する。"""
+    """P2-6-005: old representative keeps shape but does not spin the helix."""
     cfg = _make_cfg(motor_torque_Nm=4.0e-21, duration_s=0.05, dt_star=2.5e-4)
     cfg = _with_motor_local_scales(
         cfg,
@@ -200,10 +200,36 @@ def test_phase26_small_dt_and_bend_scale_retain_helix(tmp_path: Path) -> None:
 
     summary = summarize_single_flagellum_helix_retention(rows, min_steps=100)
 
+    assert summary["helix_retention_pass"] is False
+    assert summary["first_fail_category"] == "motor_no_rotation"
+    assert summary["median_abs_flag_phase_rate_hz"] > 1.0
+    assert summary["median_abs_flag_helix_spin_rate_hz"] < 1.0
+    assert summary["max_flag_bond_rel_err"] < HELIX_RETENTION_BOND_REL_ERR_MAX_LIMIT
+    assert summary["max_flag_bend_err_deg"] < HELIX_RETENTION_BEND_ERR_MAX_DEG_LIMIT
+    assert (
+        summary["max_flag_torsion_err_deg"] < HELIX_RETENTION_TORSION_ERR_MAX_DEG_LIMIT
+    )
+
+
+def test_phase26_higher_torque_spins_and_retains_helix(tmp_path: Path) -> None:
+    """P2-6-005: increased torque gives helix spin while retaining shape."""
+    cfg = _make_cfg(motor_torque_Nm=8.0e-21, duration_s=0.05, dt_star=1.25e-4)
+    cfg = _with_motor_local_scales(
+        cfg,
+        local_hook_scale=8.0,
+        local_spring_scale=5.0,
+        local_bend_scale=8.0,
+        local_torsion_scale=4.0,
+    )
+    rows = _run_step_summary(cfg, tmp_path / "phase26_spin_bend8")
+
+    summary = summarize_single_flagellum_helix_retention(rows, min_steps=200)
+
     assert summary["helix_retention_pass"] is True
     assert summary["first_fail_category"] == "none"
-    assert summary["step_count"] >= 199
-    assert summary["median_abs_flag_phase_rate_hz"] > 1.0
+    assert summary["step_count"] >= 399
+    assert summary["median_abs_flag_helix_spin_rate_hz"] > 1.0
+    assert summary["min_flag_helix_spin_fit_r2"] > 0.5
     assert summary["max_flag_bond_rel_err"] < HELIX_RETENTION_BOND_REL_ERR_MAX_LIMIT
     assert summary["max_flag_bend_err_deg"] < HELIX_RETENTION_BEND_ERR_MAX_DEG_LIMIT
     assert (

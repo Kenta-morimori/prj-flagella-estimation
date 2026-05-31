@@ -12,7 +12,8 @@ HELIX_RETENTION_TORSION_ERR_MAX_DEG_LIMIT = 60.0
 HELIX_RETENTION_HOOK_REL_ERR_MAX_LIMIT = 0.5
 
 REQUIRED_HELIX_RETENTION_NUMERIC_COLUMNS = (
-    "flag_phase_rate_hz",
+    "flag_helix_spin_rate_hz",
+    "flag_helix_spin_fit_r2",
     "hook_len_rel_err_max",
     "local_attach_first_rel_err",
     "flag_bond_rel_err_max",
@@ -49,6 +50,8 @@ def _empty_summary(category: str, reason: str) -> dict[str, bool | int | float |
         "first_fail_category": category,
         "first_fail_reason": reason,
         "median_abs_flag_phase_rate_hz": float("nan"),
+        "median_abs_flag_helix_spin_rate_hz": float("nan"),
+        "min_flag_helix_spin_fit_r2": float("nan"),
         "max_hook_len_rel_err": float("nan"),
         "max_local_attach_first_rel_err": float("nan"),
         "max_flag_bond_rel_err": float("nan"),
@@ -62,7 +65,8 @@ def summarize_single_flagellum_helix_retention(
     *,
     skip_initial_steps: int = 1,
     min_steps: int = 50,
-    min_median_abs_phase_rate_hz: float = 1.0,
+    min_median_abs_spin_rate_hz: float = 1.0,
+    min_helix_spin_fit_r2: float = 0.5,
 ) -> dict[str, bool | int | float | str]:
     """step summary rows から multi-step helix retention gate を判定する。
 
@@ -139,7 +143,15 @@ def summarize_single_flagellum_helix_retention(
     max_bend = max_col("flag_bend_err_max_deg")
     max_torsion = max_col("flag_torsion_err_max_deg")
     phase_rates = series("flag_phase_rate_hz")
-    median_abs_phase_rate_hz = float(np.median(np.abs(phase_rates)))
+    spin_rates = series("flag_helix_spin_rate_hz")
+    spin_fit_r2 = series("flag_helix_spin_fit_r2")
+    median_abs_phase_rate_hz = (
+        float(np.median(np.abs(phase_rates)))
+        if np.isfinite(phase_rates).all()
+        else float("nan")
+    )
+    median_abs_spin_rate_hz = float(np.median(np.abs(spin_rates)))
+    min_spin_fit_r2 = float(np.min(spin_fit_r2))
 
     if first_fail_category == "none":
         hard_limits = [
@@ -182,15 +194,26 @@ def summarize_single_flagellum_helix_retention(
                 break
 
     if first_fail_category == "none" and (
-        not np.isfinite(median_abs_phase_rate_hz)
-        or median_abs_phase_rate_hz < min_median_abs_phase_rate_hz
+        not np.isfinite(median_abs_spin_rate_hz)
+        or median_abs_spin_rate_hz < min_median_abs_spin_rate_hz
     ):
         step_value = _parse_float(eval_rows[-1].get("step"))
         first_fail_step = int(step_value) if np.isfinite(step_value) else len(rows) - 1
         first_fail_category = "motor_no_rotation"
         first_fail_reason = (
-            "median_abs_flag_phase_rate_hz="
-            f"{median_abs_phase_rate_hz:.6g} < {min_median_abs_phase_rate_hz:.6g}"
+            "median_abs_flag_helix_spin_rate_hz="
+            f"{median_abs_spin_rate_hz:.6g} < {min_median_abs_spin_rate_hz:.6g}"
+        )
+
+    if first_fail_category == "none" and (
+        not np.isfinite(min_spin_fit_r2) or min_spin_fit_r2 < min_helix_spin_fit_r2
+    ):
+        step_value = _parse_float(eval_rows[-1].get("step"))
+        first_fail_step = int(step_value) if np.isfinite(step_value) else len(rows) - 1
+        first_fail_category = "motor_spin_metric"
+        first_fail_reason = (
+            "min_flag_helix_spin_fit_r2="
+            f"{min_spin_fit_r2:.6g} < {min_helix_spin_fit_r2:.6g}"
         )
 
     return {
@@ -200,6 +223,8 @@ def summarize_single_flagellum_helix_retention(
         "first_fail_category": first_fail_category,
         "first_fail_reason": first_fail_reason,
         "median_abs_flag_phase_rate_hz": median_abs_phase_rate_hz,
+        "median_abs_flag_helix_spin_rate_hz": median_abs_spin_rate_hz,
+        "min_flag_helix_spin_fit_r2": min_spin_fit_r2,
         "max_hook_len_rel_err": max_hook,
         "max_local_attach_first_rel_err": max_attach,
         "max_flag_bond_rel_err": max_bond,
