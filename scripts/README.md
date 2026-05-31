@@ -17,6 +17,8 @@ uv run python -m scripts.01_simulate_swimming.run_motor_scale_sweep --help
 uv run python -m scripts.01_simulate_swimming.plot_motor_scale_collapse_heatmap --help
 ```
 
+Phase 2.6 の single flagellum 螺旋維持 gate では、`run_motor_scale_sweep` の `--dt-star` と `--stub-mode full_flagella` を使って内部刻みと full flagellum 条件を明示します。
+
 ### `scripts.01_simulate_swimming` のCLI指定方法
 
 - `duration_s` やトルク、`dt_star` など設定キーは `KEY=VALUE` 形式の override で指定します。

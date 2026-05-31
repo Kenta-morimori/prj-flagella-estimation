@@ -79,3 +79,26 @@
   - `uv run pytest tests/test_motor_forces.py`
 - docs:
   - `docs/phase2/single_flagellum_stability.md`
+
+## Phase 2.6: single flagellum 螺旋形状維持
+
+### P2-6-005: single flagellum の bond / bend / torsion 維持策を探索し multi-step で harden する
+
+- status: completed
+- source proposal: `docs/planning/phase2_task_proposals.md#proposal-p2-6-005-phase-26`
+- branch: `feature/phase2-6-helix-retention-gate`
+- goal: Phase 2.5 の flagellum-chain dominated failure に対して、回転 activity を保った multi-step 螺旋維持条件を固定する。
+- hypothesis:
+  - `dt_star` 縮小だけでは bond / bend / torsion は保てても回転 activity が落ちる。
+  - `dt_star=2.5e-4` と `local_bend_scale=8` の組み合わせで、`4.0e-21 N m` 条件でも multi-step 螺旋維持と回転 activity を両立できる。
+- acceptance criteria:
+  - [x] Phase 2.5 break representative が multi-step gate で `flag` fail として再現される。
+  - [x] `dt_star` 縮小だけでは `motor_no_rotation` になることを pytest で固定する。
+  - [x] `dt_star=2.5e-4`, `local_bend_scale=8` が 200-step CI representative で pass する。
+  - [x] hard gate の指標と閾値を文書化する。
+- verification:
+  - `uv run pytest tests/test_run_state_fixed.py -k phase26`
+  - `uv run pytest tests/test_run_state_fixed.py`
+  - `uv run pytest tests/test_motor_scale_sweep.py`
+- docs:
+  - `docs/phase2/helix_retention_gate.md`
