@@ -57,3 +57,25 @@
   - `uv run pytest tests/test_plot_motor_scale_collapse_heatmap.py`
 - docs:
   - `docs/phase2/hook_gate.md`
+
+## Phase 2.5: body + hook + single flagellum トルクあり安定回転
+
+### P2-5-004: body+hook+single flagellum の安定回転条件を確立する
+
+- status: completed
+- source proposal: `docs/planning/phase2_task_proposals.md#proposal-p2-5-004-phase-25`
+- branch: `feature/phase2-5-single-flagella-stability`
+- goal: `stub_mode=full_flagella`, `n_flagella=1` 条件で短時間 motor-on の safe/fail representatives を再現可能にする。
+- hypothesis:
+  - 低トルクでは single full flagellum が短時間の回転 activity を持ちながら形状 gate を通過する。
+  - 高トルクでは hook/body ではなく flagellum bond / bend / torsion が first-fail になる。
+- acceptance criteria:
+  - [x] single flagellum の short run 通過条件を1セット以上確立する。
+  - [x] first-fail が出る条件と出ない条件の差分を文書化する。
+  - [x] 診断列の欠損、非有限値、motor split counter の異常を pytest で検出できる。
+- verification:
+  - `uv run pytest tests/test_simulation.py -k "phase25 or phaseb_full or phase3_full"`
+  - `uv run pytest tests/test_motor_scale_sweep.py`
+  - `uv run pytest tests/test_motor_forces.py`
+- docs:
+  - `docs/phase2/single_flagellum_stability.md`

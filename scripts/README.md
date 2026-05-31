@@ -38,7 +38,8 @@ uv run python -m scripts.01_simulate_swimming \
 
 互換性のため、以下の旧エントリも利用可能です（内部で新モジュールへ委譲）:
 - `scripts.run_motor_scale_sweep`
-- `scripts.plot_motor_scale_collapse_heatmap`
+
+`scripts.plot_motor_scale_collapse_heatmap` は Phase2 実行系の責務境界を明確にするため削除済みです。heatmap 生成は `scripts.01_simulate_swimming.plot_motor_scale_collapse_heatmap` を使用してください。
 
 ## 02_detect_bac.py
 Phase3: 動画から菌体検出と個体クリップ生成を行うCLIの雛形です。

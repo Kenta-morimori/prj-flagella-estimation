@@ -18,6 +18,7 @@ from sim_swim.sim.params import (
     validate_dynamics_mode_consistency,
     SimulationConfig,
 )
+from sim_swim.sim.single_flagellum_gate import summarize_single_flagellum_short_run
 
 
 def _make_cfg(
@@ -210,6 +211,17 @@ def _run_and_summarize_body_shape(
     body_csv = summary_dir / "body_constraint_diagnostics.csv"
     assert body_csv.is_file()
     return summarize_body_shape_diagnostics_csv(body_csv)
+
+
+def _run_phase25_single_flagellum_summary(
+    cfg: SimulationConfig, summary_dir: Path
+) -> dict[str, float | bool | int | str]:
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(sim, cfg.time.duration_s, summary_dir)
+    body_shape = summarize_body_shape_diagnostics_csv(
+        summary_dir / "body_constraint_diagnostics.csv"
+    )
+    return summarize_single_flagellum_short_run(rows, body_shape)
 
 
 def _series(rows: list[dict[str, str]], key: str) -> np.ndarray:
@@ -810,6 +822,41 @@ def test_phase3_full_flagella_static_shape_gate(tmp_path: Path) -> None:
         "local_first_torsion_err_deg",
         baseline_floor=1.0e-3,
     )
+
+
+def test_phase25_single_flagellum_torque_baseline_safe_and_first_fail(
+    tmp_path: Path,
+) -> None:
+    """P2-5-004: full flagellum 短時間 motor-on の safe/fail 仮説を固定する。"""
+    safe_cfg = _make_phase3_cfg(motor_torque_Nm=1.2e-21, duration_s=0.02)
+    safe_summary = _run_phase25_single_flagellum_summary(
+        safe_cfg,
+        tmp_path / "phase25_single_flagellum_safe",
+    )
+
+    assert safe_summary["single_flagellum_short_run_pass"] is True
+    assert safe_summary["first_fail_category"] == "none"
+    assert safe_summary["body_shape_pass"] is True
+    assert safe_summary["median_abs_flag_phase_rate_hz"] > 1.0
+    assert safe_summary["max_hook_len_rel_err"] < 1.0
+    assert safe_summary["max_local_attach_first_rel_err"] < 1.0
+    assert safe_summary["max_flag_bond_rel_err"] < 1.0
+    assert safe_summary["max_flag_bend_err_deg"] < 60.0
+    assert safe_summary["max_flag_torsion_err_deg"] < 120.0
+
+    break_cfg = _make_phase3_cfg(motor_torque_Nm=4.0e-21, duration_s=0.02)
+    break_summary = _run_phase25_single_flagellum_summary(
+        break_cfg,
+        tmp_path / "phase25_single_flagellum_break",
+    )
+
+    assert break_summary["single_flagellum_short_run_pass"] is False
+    assert break_summary["first_fail_category"] == "flag"
+    assert break_summary["body_shape_pass"] is True
+    assert break_summary["max_hook_len_rel_err"] < 1.0
+    assert break_summary["max_flag_bond_rel_err"] > 1.0
+    assert break_summary["max_flag_bend_err_deg"] > 60.0
+    assert break_summary["max_flag_torsion_err_deg"] > 120.0
 
 
 def test_phaseb_minimal_motor_on_first_fail_gate(tmp_path: Path) -> None:
