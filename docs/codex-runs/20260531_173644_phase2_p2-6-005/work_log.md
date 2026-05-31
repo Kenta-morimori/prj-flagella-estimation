@@ -22,7 +22,7 @@
 - default (`dt_star=1.0e-3`): `flag` fail。P2-5 の break representative を再現。
 - `dt_star=2.5e-4` only: `motor_no_rotation`。形状は維持するが安定回転条件としては不十分。
 - `dt_star=2.5e-4`, `local_bend_scale=8`: PASS。200-step CI representative で hard gate を通過。
-- ローカル probe: 同じ pass 条件で `duration_s=0.25` の 1000-step run も PASS。
+- ローカル probe: 同じ pass 条件で `duration_s=0.25` の 1000-step run も PASS。これは単一べん毛・決定論的条件での定量 gate 確認であり，多本べん毛，束化，遊泳軌跡，2D動画自然さは未確認。
 
 ## 検証
 

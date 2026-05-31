@@ -2,9 +2,11 @@
 
 ## 目的
 
-Phase 2.6 では、Phase 2.5 で特定した `flag` first-fail に対して、bond / bend / torsion を維持するための最小条件を分離評価する。
+Phase 2.6 の目的は、**単一 full flagellum が motor-on 条件で回転 activity を保ったまま、multi-step で bond / bend / torsion と螺旋形状を維持できる条件を定量的に固定すること**である。
 
 Phase 2.5 の高トルク break representative (`4.0e-21 N m`) では、body と hook が先に破綻するのではなく、flagellum chain の bond / bend / torsion が gate を超えた。Phase 2.6 では、この破綻を再現しつつ、回転 activity を失わずに multi-step で螺旋形状を維持できる条件を固定する。
+
+本タスクでいう「長時間」は、CI で固定する 200-step representative と、ローカル probe で確認した 1000-step (`duration_s=0.25`) representative を指す。多本べん毛、後方束化、遊泳軌跡の自然さ、2D擬似顕微鏡動画としての利用可能性は Phase 2.7 以降の対象であり、Phase 2.6 の完了条件には含めない。
 
 ## 仮説
 
@@ -74,6 +76,8 @@ uv run python -m scripts.01_simulate_swimming.run_motor_scale_sweep \
 ```
 
 CI では runtime を抑えるため、`duration_s=0.05`, `dt_star=2.5e-4` の 200-step 代表条件を固定する。ローカル確認では、同じ `dt_star` / `local_bend_scale=8` / `torque=4.0e-21 N m` 条件で `duration_s=0.25` の 1000-step probe も pass することを確認した。
+
+したがって、単一べん毛については、上記の定量 gate の範囲で「1000-step までの安定的な回転」を確認済みである。ただし、これは単一べん毛・決定論的条件・現行診断 gate 上の確認であり、長時間の実用動画生成や多本べん毛条件での安定性を保証するものではない。
 
 ## 検証
 

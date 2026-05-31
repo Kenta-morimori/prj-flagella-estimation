@@ -4,7 +4,8 @@
   "blocking_issues": [],
   "non_blocking_issues": [
     "The CI representative uses 200 steps to keep runtime acceptable. A local 1000-step probe with torque=4.0e-21 N m, dt_star=2.5e-4, and local_bend_scale=8 also passed.",
-    "local_bend_scale=8 is a diagnostic representative, not a final physical optimum. It should be treated as a motor-on local bend stabilization parameter until validated against longer and multi-flagella conditions."
+    "local_bend_scale=8 is a diagnostic representative, not a final physical optimum. It should be treated as a motor-on local bend stabilization parameter until validated against longer and multi-flagella conditions.",
+    "The confirmed long-run scope is single-flagellum deterministic quantitative gating up to 1000 steps. Multi-flagella bundling, swimming trajectory naturalness, and 2D pseudo-microscopy usefulness remain out of scope for Phase 2.6."
   ],
   "tests_reviewed": [
     "uv run pytest tests/test_run_state_fixed.py -k phase26",
