@@ -23,8 +23,8 @@
   "adr_required": false,
   "adr_reason": "今回は診断指標と次タスク整理のみで、物理モデル実装は変更していないため。material frame などを実装する場合は ADR を作成する。",
   "commit_type": "diagnostic",
-  "commit_hash": "",
-  "push_status": "not_pushed",
+  "commit_hash": "ba86c55552f9a8ca65594b6e7ac84a642923dedf",
+  "push_status": "pushed",
   "next_actions": [
     "P2-6-007 として material frame / segment twist / axial torque flux の設計候補を比較する。",
     "物理モデル変更を行う場合は ADR を作成し、distributed_flagellum を比較 baseline として評価する。"
