@@ -93,14 +93,15 @@
   - `median(abs(flag_helix_spin_rate_hz))` だけでは、フィット jitter や往復揺れを持続回転として誤判定する。
   - `flag_helix_spin_phase_deg` の累積差と方向一貫性を用いると、目視で見える螺旋全体の net 回転を判定できる。
   - デフォルト設定を変えず、実行時 override の `time.dt_star=1.0e-4` で条件を探索する。
-  - 現行 motor 実装では root 方位や螺旋フィット位相は揺れるが、螺旋全体の累積回転へ十分に伝達されていない可能性が高い。
+  - 従来の `triplet` motor では root 方位や螺旋フィット位相は揺れるが、螺旋全体の累積回転へ十分に伝達されない。
+  - `attach-first` hook spring force を復元し、診断用 `motor.force_distribution=distributed_flagellum` を使うと、単一べん毛の螺旋形状維持と net 回転を両立できる。
 - acceptance criteria:
   - [x] Phase 2.5 break representative が multi-step gate で `flag` fail として再現される。
   - [x] `dt_star` 縮小や旧代表条件では形状を保っても螺旋スピンが出ず `motor_no_rotation` になることを pytest で固定する。
   - [x] `median(abs(flag_helix_spin_rate_hz))` が高くても net 回転がなければ fail することを pytest で固定する。
   - [x] hard gate の指標と閾値を文書化する。
-  - [ ] motor torque が螺旋全体の累積回転へ伝達されない原因を実装レベルで切り分ける。
-  - [ ] `dt_star=1.0e-4` で、螺旋形状維持と net 1回転以上を両立する代表条件を固定する。
+  - [x] motor torque が螺旋全体の累積回転へ伝達されない原因を実装レベルで切り分ける。
+  - [x] `dt_star=1.0e-4` で、螺旋形状維持と net 1回転以上を両立する代表条件を固定する。
   - [ ] 生成動画をユーザーが目視し、単一べん毛の定性的な安定回転を確認する。
 - verification:
   - `uv run pytest tests/test_helix_retention_gate.py`
@@ -112,14 +113,17 @@
 
 ### P2-6-006: motor torque の螺旋 net 回転伝達を診断・修正する
 
-- status: proposed
+- status: user_review_required
 - branch: `feature/phase2-6-helix-retention-gate`
 - goal: motor torque が root 方位の揺れや局所変形に消えず、単一 full flagellum の螺旋全体を継続回転させる条件または実装修正を確立する。
 - background:
   - `torque=2.5e-20`, `dt_star=1.0e-4`, `local scale=(4,2,2,2)` は形状 gate と瞬間スピン rate では pass したが、0.25 s の累積螺旋回転は 0.00139 回転であり、目視でもほぼ回転しなかった。
   - `dt_star=1.0e-4`, 0.05 s の短時間スクリーニングでは、net 回転が大きい条件はすべて `shape_pass_nonbody=False` となり、形状維持と持続回転の両立条件は見つかっていない。
+  - 追加診断で、`attach-first` hook spring が topology には存在するが時間積分で未使用だったことを確認した。
 - tasks:
-  - [ ] motor force couple の作用軸、body/hook/root/flagellum への torque 分配、拘束力との打ち消しを診断する指標を追加する。
-  - [ ] root azimuth, helix phase, body phase の関係を step_summary で比較し、root の揺れと螺旋 net 回転を分離する。
-  - [ ] 参照論文モデルとの差分として、必要なら motor torque distribution または hook/root coupling の実装変更を ADR に記録する。
-  - [ ] 修正後に `time.dt_star=1.0e-4` で形状維持と net 回転 gate を再探索する。
+  - [x] motor force couple の作用軸、body/hook/root/flagellum への torque 分配、拘束力との打ち消しを診断する。
+  - [x] root azimuth, helix phase, body phase の関係を比較し、root の揺れと螺旋 net 回転を分離する。
+  - [x] `attach-first` hook spring force を時間積分へ復元する。
+  - [x] `motor.force_distribution=distributed_flagellum` を追加し、参照論文モデルとの差分を ADR に記録する。
+  - [x] 修正後に `time.dt_star=1.0e-4` で形状維持と net 回転 gate を再探索する。
+  - [ ] 代表動画を生成し、ユーザー目視レビューを受ける。

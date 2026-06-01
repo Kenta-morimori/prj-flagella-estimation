@@ -135,6 +135,15 @@ def _with_motor_local_scales(
     return SimulationConfig.from_dict(cfg_dict)
 
 
+def _with_motor_force_distribution(
+    cfg: SimulationConfig,
+    force_distribution: str,
+) -> SimulationConfig:
+    cfg_dict = asdict(cfg)
+    cfg_dict["motor"]["force_distribution"] = force_distribution
+    return SimulationConfig.from_dict(cfg_dict)
+
+
 def _run_step_summary(cfg: SimulationConfig, out_dir: Path) -> list[dict[str, str]]:
     sim = Simulator(cfg)
     sim.run(cfg.time.duration_s, step_summary_dir=out_dir)
@@ -240,3 +249,35 @@ def test_phase26_higher_torque_jitter_does_not_count_as_net_spin(
         summary["max_flag_torsion_err_deg"] < HELIX_RETENTION_TORSION_ERR_MAX_DEG_LIMIT
     )
     assert summary["max_hook_len_rel_err"] < 0.5
+
+
+def test_phase26_distributed_torque_drives_net_helix_spin(tmp_path: Path) -> None:
+    """P2-6-006: distributed torque drives monotonic net helix rotation."""
+    cfg = _make_cfg(motor_torque_Nm=2.0e-20, duration_s=0.05, dt_star=1.0e-4)
+    cfg = _with_motor_local_scales(
+        cfg,
+        local_hook_scale=1.0,
+        local_spring_scale=1.2,
+        local_bend_scale=1.0,
+        local_torsion_scale=1.0,
+    )
+    cfg = _with_motor_force_distribution(cfg, "distributed_flagellum")
+    rows = _run_step_summary(cfg, tmp_path / "phase26_distributed_spin")
+
+    summary = summarize_single_flagellum_helix_retention(
+        rows,
+        min_steps=400,
+        min_net_abs_spin_revolutions=0.1,
+        min_direction_consistency=0.3,
+    )
+
+    assert summary["helix_retention_pass"] is True
+    assert summary["first_fail_category"] == "none"
+    assert summary["net_abs_flag_helix_spin_revolutions"] > 0.1
+    assert summary["flag_helix_spin_direction_consistency"] > 0.9
+    assert summary["max_hook_len_rel_err"] < 0.5
+    assert summary["max_flag_bond_rel_err"] < HELIX_RETENTION_BOND_REL_ERR_MAX_LIMIT
+    assert summary["max_flag_bend_err_deg"] < HELIX_RETENTION_BEND_ERR_MAX_DEG_LIMIT
+    assert (
+        summary["max_flag_torsion_err_deg"] < HELIX_RETENTION_TORSION_ERR_MAX_DEG_LIMIT
+    )

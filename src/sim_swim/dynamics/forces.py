@@ -471,3 +471,121 @@ def compute_motor_forces(
             tb_dot_rb_abs_sum * inv if valid_count > 0 else float("nan")
         ),
     )
+
+
+def _zero_net_force_torque_drive(
+    *,
+    positions_m: np.ndarray,
+    indices: np.ndarray,
+    origin: np.ndarray,
+    axis: np.ndarray,
+    target_torque_Nm: float,
+) -> tuple[np.ndarray, int, float, float]:
+    idx = indices.astype(int, copy=False)
+    if idx.size < 2 or abs(float(target_torque_Nm)) <= 0.0:
+        return np.zeros_like(positions_m), 0, 0.0, 0.0
+
+    rel = positions_m[idx] - origin
+    radial = rel - np.outer(rel @ axis, axis)
+    drive = np.cross(axis, radial)
+    drive -= np.mean(drive, axis=0, keepdims=True)
+    torque_unit = float(np.sum(np.cross(radial, drive) @ axis))
+    if abs(torque_unit) <= 1e-30:
+        return np.zeros_like(positions_m), 1, 0.0, 0.0
+
+    coeff = float(target_torque_Nm) / torque_unit
+    local_forces = coeff * drive
+    forces = np.zeros_like(positions_m)
+    forces[idx] += local_forces
+    torque_norm = abs(float(np.sum(np.cross(radial, local_forces) @ axis)))
+    force_norm = float(np.mean(np.linalg.norm(local_forces, axis=1)))
+    return forces, 0, torque_norm, force_norm
+
+
+def compute_distributed_flagellar_motor_forces(
+    positions_m: np.ndarray,
+    flagella_indices: list[np.ndarray],
+    body_indices: np.ndarray,
+    torque_per_flag: np.ndarray,
+) -> tuple[np.ndarray, MotorForceDiagnostics]:
+    """螺旋全体に分布トルクを与える診断用 motor force。
+
+    既定の triplet motor では root 近傍の局所変形にトルクが消える場合がある。
+    この force は flagellum 点群の主軸回りにゼロ合力の接線力を分布させ、
+    同じ軸回りの反作用トルクを body 側へ与える。
+    """
+
+    forces = np.zeros_like(positions_m)
+    if len(flagella_indices) == 0:
+        return forces, MotorForceDiagnostics()
+
+    degenerate_count = 0
+    valid_count = 0
+    flag_torque_sum = 0.0
+    body_torque_sum = 0.0
+    flag_force_sum = 0.0
+    body_force_sum = 0.0
+    body_idx = body_indices.astype(int, copy=False)
+
+    for f_id, flag_idx_raw in enumerate(flagella_indices):
+        if f_id >= torque_per_flag.shape[0]:
+            break
+        tau = float(torque_per_flag[f_id])
+        if abs(tau) <= 0.0:
+            continue
+
+        flag_idx = flag_idx_raw.astype(int, copy=False)
+        if flag_idx.size < 5 or body_idx.size < 3:
+            degenerate_count += 1
+            continue
+
+        flag_pts = positions_m[flag_idx]
+        origin = np.mean(flag_pts, axis=0)
+        centered = flag_pts - origin
+        _, _, vh = np.linalg.svd(centered, full_matrices=False)
+        axis = vh[0]
+        axis_norm = float(np.linalg.norm(axis))
+        if axis_norm <= 1e-18:
+            degenerate_count += 1
+            continue
+        axis = axis / axis_norm
+        if float(np.dot(axis, flag_pts[-1] - flag_pts[0])) < 0.0:
+            axis = -axis
+
+        flag_forces, flag_degenerate, flag_torque, flag_force = (
+            _zero_net_force_torque_drive(
+                positions_m=positions_m,
+                indices=flag_idx,
+                origin=origin,
+                axis=axis,
+                target_torque_Nm=tau,
+            )
+        )
+        body_forces, body_degenerate, body_torque, body_force = (
+            _zero_net_force_torque_drive(
+                positions_m=positions_m,
+                indices=body_idx,
+                origin=origin,
+                axis=axis,
+                target_torque_Nm=-tau,
+            )
+        )
+        if flag_degenerate or body_degenerate:
+            degenerate_count += flag_degenerate + body_degenerate
+            continue
+
+        forces += flag_forces + body_forces
+        valid_count += 1
+        flag_torque_sum += flag_torque
+        body_torque_sum += body_torque
+        flag_force_sum += flag_force
+        body_force_sum += body_force
+
+    inv = 1.0 / max(valid_count, 1)
+    return forces, MotorForceDiagnostics(
+        degenerate_axis_count=degenerate_count,
+        Ta_norm_mean=(flag_torque_sum * inv if valid_count > 0 else float("nan")),
+        Tb_norm_mean=(body_torque_sum * inv if valid_count > 0 else float("nan")),
+        Fa_norm_mean=(flag_force_sum * inv if valid_count > 0 else float("nan")),
+        Fb_norm_mean=(body_force_sum * inv if valid_count > 0 else float("nan")),
+    )

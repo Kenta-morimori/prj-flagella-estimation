@@ -12,6 +12,7 @@ from sim_swim.dynamics.brownian import sample_brownian_displacement
 from sim_swim.dynamics.forces import (
     MotorForceDiagnostics,
     compute_bending_forces,
+    compute_distributed_flagellar_motor_forces,
     compute_hook_forces,
     compute_motor_forces,
     compute_segment_repulsion_forces,
@@ -517,6 +518,18 @@ class DynamicsEngine:
                 s_limit_m=self.spring_s_m,
                 clamp_eps=1e-3,
             )
+        if self.hook_spring_rows.size > 0:
+            spring_forces += compute_spring_forces(
+                positions_m=pos,
+                spring_pairs=self.model.spring_pairs[self.hook_spring_rows],
+                spring_rest_lengths_m=self.model.spring_rest_lengths_m[
+                    self.hook_spring_rows
+                ],
+                h_const=self.spring_h
+                * (self.motor_local_spring_scale if motor_on else 1.0),
+                s_limit_m=self.spring_s_m,
+                clamp_eps=1e-3,
+            )
         if self.flag_local_spring_rows.size > 0:
             spring_forces += compute_spring_forces(
                 positions_m=pos,
@@ -611,12 +624,26 @@ class DynamicsEngine:
             torque_per_flag = (
                 self.cfg.motor_torque_Nm * ramp_scale
             ) * self.model.torque_signs[: self.model.motor_triplets.shape[0]]
-            motor_forces, motor_diag = compute_motor_forces(
-                positions_m=pos,
-                motor_triplets=self.model.motor_triplets,
-                torque_per_flag=torque_per_flag,
-                body_axis_unit=self._body_axis_unit(pos),
-            )
+            distribution = self.cfg.motor.force_distribution
+            if distribution == "triplet":
+                motor_forces, motor_diag = compute_motor_forces(
+                    positions_m=pos,
+                    motor_triplets=self.model.motor_triplets,
+                    torque_per_flag=torque_per_flag,
+                    body_axis_unit=self._body_axis_unit(pos),
+                )
+            elif distribution == "distributed_flagellum":
+                motor_forces, motor_diag = compute_distributed_flagellar_motor_forces(
+                    positions_m=pos,
+                    flagella_indices=self.model.flagella_indices,
+                    body_indices=self.model.body_indices,
+                    torque_per_flag=torque_per_flag,
+                )
+            else:
+                raise ValueError(
+                    "Unsupported motor.force_distribution: "
+                    f"{distribution!r}. Use 'triplet' or 'distributed_flagellum'."
+                )
         motor_axis_vs_rear_direction_angle_deg = (
             self._motor_axis_vs_rear_direction_angle_deg(pos)
         )
