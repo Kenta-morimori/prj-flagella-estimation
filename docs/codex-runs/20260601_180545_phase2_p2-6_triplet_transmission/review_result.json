@@ -1,0 +1,32 @@
+{
+  "status": "PASS",
+  "summary": "triplet + hook spring fix を再評価し、root 方位の回転が螺旋全体の net 回転へ十分に伝わらないことを root-to-helix 伝達比で定量化した。次タスク P2-6-007 として、material frame / segment twist / axial torque flux の設計検討を追加した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "material frame / segment twist / axial torque flux の実装は未着手。",
+    "distributed_flagellum は診断 baseline として有効だが、参照論文の厳密な motor torque 伝搬ではない。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_helix_retention_gate.py -q",
+      "result": "3 passed"
+    },
+    {
+      "command": "triplet + hook spring fix re-evaluation, dt_star=1.0e-4, duration_s=0.25",
+      "result": "torque=2.5e-20, local_scale=(4,2,2,2) で root net rev=0.8796, helix net rev=0.00139, transfer ratio=0.00158"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "今回は診断指標と次タスク整理のみで、物理モデル実装は変更していないため。material frame などを実装する場合は ADR を作成する。",
+  "commit_type": "diagnostic",
+  "commit_hash": "",
+  "push_status": "not_pushed",
+  "next_actions": [
+    "P2-6-007 として material frame / segment twist / axial torque flux の設計候補を比較する。",
+    "物理モデル変更を行う場合は ADR を作成し、distributed_flagellum を比較 baseline として評価する。"
+  ]
+}

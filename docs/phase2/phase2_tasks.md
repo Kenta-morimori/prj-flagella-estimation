@@ -84,7 +84,7 @@
 
 ### P2-6-005: single flagellum の bond / bend / torsion 維持策を探索し multi-step で harden する
 
-- status: in_progress
+- status: complete
 - source proposal: `docs/planning/phase2_task_proposals.md#proposal-p2-6-005-phase-26`
 - branch: `feature/phase2-6-helix-retention-gate`
 - goal: Phase 2.5 の flagellum-chain dominated failure に対して、回転 activity を保った multi-step 螺旋維持条件を固定する。
@@ -102,7 +102,7 @@
   - [x] hard gate の指標と閾値を文書化する。
   - [x] motor torque が螺旋全体の累積回転へ伝達されない原因を実装レベルで切り分ける。
   - [x] `dt_star=1.0e-4` で、螺旋形状維持と net 1回転以上を両立する代表条件を固定する。
-  - [ ] 生成動画をユーザーが目視し、単一べん毛の定性的な安定回転を確認する。
+  - [x] 生成動画をユーザーが目視し、単一べん毛の定性的な安定回転を確認する。
 - verification:
   - `uv run pytest tests/test_helix_retention_gate.py`
   - `uv run pytest tests/test_run_state_fixed.py -k phase26`
@@ -113,7 +113,7 @@
 
 ### P2-6-006: motor torque の螺旋 net 回転伝達を診断・修正する
 
-- status: user_review_required
+- status: complete
 - branch: `feature/phase2-6-helix-retention-gate`
 - goal: motor torque が root 方位の揺れや局所変形に消えず、単一 full flagellum の螺旋全体を継続回転させる条件または実装修正を確立する。
 - background:
@@ -126,4 +126,19 @@
   - [x] `attach-first` hook spring force を時間積分へ復元する。
   - [x] `motor.force_distribution=distributed_flagellum` を追加し、参照論文モデルとの差分を ADR に記録する。
   - [x] 修正後に `time.dt_star=1.0e-4` で形状維持と net 回転 gate を再探索する。
-  - [ ] 代表動画を生成し、ユーザー目視レビューを受ける。
+  - [x] 代表動画を生成し、ユーザー目視レビューを受ける。
+
+### P2-6-007: triplet motor でのねじれ・回転自由度不足を明確化する
+
+- status: proposed
+- branch: `feature/phase2-6-helix-retention-gate`
+- goal: `distributed_flagellum` を最終解とせず、root motor torque が hook/root から flagellum chain へ伝搬するために必要な回転自由度・ねじれ自由度を明確化する。
+- background:
+  - `distributed_flagellum` では、トルクが螺旋全体へ伝われば単一べん毛が綺麗に回転することを確認した。
+  - しかし `triplet + hook spring fix` では、root 方位の net 回転と螺旋全体の net 回転が分離している。
+  - `torque=2.5e-20`, `dt_star=1.0e-4`, `local_scale=(4,2,2,2)` の `triplet` 条件では、0.25 s で `net_abs_flag_root_revolutions=0.8796` に対して `net_abs_flag_helix_spin_revolutions=0.00139`、`helix_to_root_net_rotation_ratio=0.00158` だった。
+- tasks:
+  - [ ] 現行 bead-position-only モデルで、material frame / segment twist / axial torque flux が明示されていないことを整理する。
+  - [ ] root torque を segment chain へ伝える候補として、material frame 導入、segment torsional torque flux、quasi-rigid helical body approximation を比較する。
+  - [ ] `distributed_flagellum` を diagnostic upper-bound とし、triplet 系モデルの改善量を `helix_to_root_net_rotation_ratio` で評価する。
+  - [ ] 物理モデル変更を行う場合は ADR を作成し、`time.dt_star=1.0e-4`, 0.5 s, net 1回転以上、shape gate PASS を受入基準にする。

@@ -1,9 +1,7 @@
 {
-  "status": "FAIL",
-  "summary": "hook spring force を復元し、診断用 motor.force_distribution=distributed_flagellum を追加した。0.5 s / 5000 steps で螺旋形状維持と net 1回転以上の定量 gate は PASS したが、ユーザー目視レビューが未完了のため FAIL とする。",
-  "blocking_issues": [
-    "ユーザー目視レビューが未完了。"
-  ],
+  "status": "PASS",
+  "summary": "hook spring force を復元し、診断用 motor.force_distribution=distributed_flagellum を追加した。0.5 s / 5000 steps で螺旋形状維持と net 1回転以上の定量 gate が PASS し、ユーザー目視でも綺麗に回転していることを確認済み。",
+  "blocking_issues": [],
   "non_blocking_issues": [
     "distributed_flagellum は Phase 2 診断用の近似であり、参照論文の厳密な motor 実装ではない。",
     "多本べん毛、束化、遊泳軌跡、2D 擬似顕微鏡動画の自然さは Phase 2.7 以降の対象。"
@@ -22,7 +20,7 @@
       "result": "outputs/phase2_6_distributed_spin_review/2026-06-01/134726/ を生成"
     }
   ],
-  "user_review_required": true,
+  "user_review_required": false,
   "user_review_command": "uv run python -m scripts.01_simulate_swimming --config conf/sim_swim.yaml --duration-s 0.5 --fps-out 100 --render-flagella --render-flagella-2d flagella.n_flagella=1 flagella.stub_mode=full_flagella motor.torque_Nm=2.0e-20 motor.force_distribution=distributed_flagellum motor.local_hook_scale=1 motor.local_spring_scale=1.2 motor.local_bend_scale=1 motor.local_torsion_scale=1 time.dt_star=1.0e-4 output_sampling.out_all_steps_3d=false render.save_frames_3d=false render.save_frames_2d=false output.base_dir=outputs/phase2_6_distributed_spin_review",
   "user_review_outputs": [
     "outputs/phase2_6_distributed_spin_review/2026-06-01/134726/render/swim3d.mp4",
@@ -42,7 +40,7 @@
   "commit_hash": "bc70cc10e6d4d9d535d4aa51626019ac322e905f",
   "push_status": "pushed",
   "next_actions": [
-    "ユーザー目視レビュー完了後に Phase 2.6 の review_result を PASS へ更新する。",
-    "目視レビューで違和感がある場合は distributed_flagellum の force 分布、hook/root coupling、表示方法を再検討する。"
+    "distributed_flagellum を診断 baseline として残しつつ、triplet motor に材料ねじれ・回転自由度を追加できるかを検討する。",
+    "多本べん毛条件へ進む前に、motor torque 伝搬モデルの採用方針を再評価する。"
   ]
 }
