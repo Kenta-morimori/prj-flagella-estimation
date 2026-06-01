@@ -39,8 +39,8 @@
   "adr_required": true,
   "adr_reason": "motor torque distribution に診断用の distributed_flagellum 方式を追加し、参照論文モデルとの差分が解釈に影響するため。",
   "commit_type": "diagnostic",
-  "commit_hash": "",
-  "push_status": "not_pushed",
+  "commit_hash": "bc70cc10e6d4d9d535d4aa51626019ac322e905f",
+  "push_status": "pushed",
   "next_actions": [
     "ユーザー目視レビュー完了後に Phase 2.6 の review_result を PASS へ更新する。",
     "目視レビューで違和感がある場合は distributed_flagellum の force 分布、hook/root coupling、表示方法を再検討する。"
