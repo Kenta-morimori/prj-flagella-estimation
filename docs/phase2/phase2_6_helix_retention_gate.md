@@ -99,40 +99,52 @@ CI では runtime を抑えるため、`duration_s=0.05`, `dt_star=1.0e-4` の 5
 
 Phase 2.6 は、ユーザー目視レビューが完了するまで完了扱いにしない。
 
-失敗を再現するコマンド:
+代表条件の再実行コマンド:
 
 ```bash
 uv run python -m scripts.01_simulate_swimming \
   --config conf/sim_swim.yaml \
-  --duration-s 0.25 \
+  --duration-s 0.5 \
   --fps-out 100 \
   --render-flagella \
   --render-flagella-2d \
   flagella.n_flagella=1 \
   flagella.stub_mode=full_flagella \
-  motor.torque_Nm=2.5e-20 \
-  motor.local_hook_scale=4 \
-  motor.local_spring_scale=2 \
-  motor.local_bend_scale=2 \
-  motor.local_torsion_scale=2 \
+  motor.torque_Nm=2.0e-20 \
+  motor.force_distribution=distributed_flagellum \
+  motor.local_hook_scale=1 \
+  motor.local_spring_scale=1.2 \
+  motor.local_bend_scale=1 \
+  motor.local_torsion_scale=1 \
   time.dt_star=1.0e-4 \
   output_sampling.out_all_steps_3d=false \
   render.save_frames_3d=false \
   render.save_frames_2d=false \
-  output.base_dir=outputs/phase2_6_dt1e4_spin_review
+  output.base_dir=outputs/phase2_6_distributed_spin_review
 ```
 
 確認対象:
 
-- `outputs/phase2_6_dt1e4_spin_review/2026-05-31/230124/render/swim3d.mp4`
-- `outputs/phase2_6_dt1e4_spin_review/2026-05-31/230124/render/swim3d_final.png`
-- `outputs/phase2_6_dt1e4_spin_review/2026-05-31/230124/render2d/projection.mp4`
-- `outputs/phase2_6_dt1e4_spin_review/2026-05-31/230124/sim/step_summary.csv`
+- `outputs/phase2_6_distributed_spin_review/2026-06-01/134726/render/swim3d.mp4`
+- `outputs/phase2_6_distributed_spin_review/2026-06-01/134726/render/swim3d_final.png`
+- `outputs/phase2_6_distributed_spin_review/2026-06-01/134726/render2d/projection.mp4`
+- `outputs/phase2_6_distributed_spin_review/2026-06-01/134726/sim/step_summary.csv`
 
-目視結果:
+前回の目視結果:
 
 - ユーザー確認では、`swim3d.mp4` はほとんど回転していない。
 - 新 gate でも `net_abs_flag_helix_spin_revolutions=0.00139` のため fail。
+
+新代表条件の定量結果:
+
+- `helix_retention_pass=True`
+- `net_abs_flag_helix_spin_revolutions=1.0416129331359716`
+- `flag_helix_spin_direction_consistency=0.9988303405443211`
+- `median_abs_flag_helix_spin_rate_hz=2.142334537325277`
+- `max_hook_len_rel_err=0.4045704218609963`
+- `max_flag_bond_rel_err=0.17236812212772734`
+- `max_flag_bend_err_deg=0.996803008165139`
+- `max_flag_torsion_err_deg=3.038765579091419`
 
 今後の目視観点:
 
