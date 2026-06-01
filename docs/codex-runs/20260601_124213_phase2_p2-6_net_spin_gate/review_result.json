@@ -34,8 +34,8 @@
   "adr_required": false,
   "adr_reason": "今回は gate 指標とタスク分解の修正であり、物理モデルや motor torque distribution の実装変更はまだ行っていないため。次に motor 実装を変更する場合は ADR を検討する。",
   "commit_type": "diagnostic",
-  "commit_hash": "",
-  "push_status": "not_pushed",
+  "commit_hash": "13a5e92bf0267a23239de42c4e44a2549205d2ed",
+  "push_status": "pushed",
   "next_actions": [
     "P2-6-006 として motor torque の螺旋 net 回転伝達を診断・修正する。",
     "修正後、time.dt_star=1.0e-4 固定で螺旋形状維持と net 1回転以上を両立する代表条件を再探索する。"
