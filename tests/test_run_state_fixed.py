@@ -211,8 +211,10 @@ def test_phase26_small_dt_and_bend_scale_retain_helix(tmp_path: Path) -> None:
     )
 
 
-def test_phase26_higher_torque_spins_and_retains_helix(tmp_path: Path) -> None:
-    """P2-6-005: increased torque gives helix spin while retaining shape."""
+def test_phase26_higher_torque_jitter_does_not_count_as_net_spin(
+    tmp_path: Path,
+) -> None:
+    """P2-6-005: high instantaneous spin must not pass without net rotation."""
     cfg = _make_cfg(motor_torque_Nm=8.0e-21, duration_s=0.05, dt_star=1.25e-4)
     cfg = _with_motor_local_scales(
         cfg,
@@ -225,10 +227,12 @@ def test_phase26_higher_torque_spins_and_retains_helix(tmp_path: Path) -> None:
 
     summary = summarize_single_flagellum_helix_retention(rows, min_steps=200)
 
-    assert summary["helix_retention_pass"] is True
-    assert summary["first_fail_category"] == "none"
+    assert summary["helix_retention_pass"] is False
+    assert summary["first_fail_category"] == "motor_no_rotation"
     assert summary["step_count"] >= 399
     assert summary["median_abs_flag_helix_spin_rate_hz"] > 1.0
+    assert summary["net_abs_flag_helix_spin_revolutions"] < 0.01
+    assert summary["flag_helix_spin_direction_consistency"] < 0.1
     assert summary["min_flag_helix_spin_fit_r2"] > 0.5
     assert summary["max_flag_bond_rel_err"] < HELIX_RETENTION_BOND_REL_ERR_MAX_LIMIT
     assert summary["max_flag_bend_err_deg"] < HELIX_RETENTION_BEND_ERR_MAX_DEG_LIMIT

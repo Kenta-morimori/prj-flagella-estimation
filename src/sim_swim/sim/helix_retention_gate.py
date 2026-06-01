@@ -12,6 +12,7 @@ HELIX_RETENTION_TORSION_ERR_MAX_DEG_LIMIT = 60.0
 HELIX_RETENTION_HOOK_REL_ERR_MAX_LIMIT = 0.5
 
 REQUIRED_HELIX_RETENTION_NUMERIC_COLUMNS = (
+    "flag_helix_spin_phase_deg",
     "flag_helix_spin_rate_hz",
     "flag_helix_spin_fit_r2",
     "hook_len_rel_err_max",
@@ -51,6 +52,9 @@ def _empty_summary(category: str, reason: str) -> dict[str, bool | int | float |
         "first_fail_reason": reason,
         "median_abs_flag_phase_rate_hz": float("nan"),
         "median_abs_flag_helix_spin_rate_hz": float("nan"),
+        "net_abs_flag_helix_spin_revolutions": float("nan"),
+        "signed_flag_helix_spin_rate_hz": float("nan"),
+        "flag_helix_spin_direction_consistency": float("nan"),
         "min_flag_helix_spin_fit_r2": float("nan"),
         "max_hook_len_rel_err": float("nan"),
         "max_local_attach_first_rel_err": float("nan"),
@@ -66,6 +70,8 @@ def summarize_single_flagellum_helix_retention(
     skip_initial_steps: int = 1,
     min_steps: int = 50,
     min_median_abs_spin_rate_hz: float = 1.0,
+    min_net_abs_spin_revolutions: float = 1.0,
+    min_direction_consistency: float = 0.5,
     min_helix_spin_fit_r2: float = 0.5,
 ) -> dict[str, bool | int | float | str]:
     """step summary rows から multi-step helix retention gate を判定する。
@@ -143,6 +149,7 @@ def summarize_single_flagellum_helix_retention(
     max_bend = max_col("flag_bend_err_max_deg")
     max_torsion = max_col("flag_torsion_err_max_deg")
     phase_rates = series("flag_phase_rate_hz")
+    spin_phases = series("flag_helix_spin_phase_deg")
     spin_rates = series("flag_helix_spin_rate_hz")
     spin_fit_r2 = series("flag_helix_spin_fit_r2")
     median_abs_phase_rate_hz = (
@@ -151,6 +158,24 @@ def summarize_single_flagellum_helix_retention(
         else float("nan")
     )
     median_abs_spin_rate_hz = float(np.median(np.abs(spin_rates)))
+    spin_phase_deltas = np.diff(spin_phases)
+    net_spin_deg = float(spin_phases[-1] - spin_phases[0])
+    total_abs_spin_deg = float(np.sum(np.abs(spin_phase_deltas)))
+    net_abs_spin_revolutions = abs(net_spin_deg) / 360.0
+    total_abs_spin_revolutions = total_abs_spin_deg / 360.0
+    duration_s = float(_parse_float(eval_rows[-1].get("t_s"))) - float(
+        _parse_float(eval_rows[0].get("t_s"))
+    )
+    signed_spin_rate_hz = (
+        net_spin_deg / 360.0 / duration_s
+        if np.isfinite(duration_s) and duration_s > 0.0
+        else float("nan")
+    )
+    direction_consistency = (
+        net_abs_spin_revolutions / total_abs_spin_revolutions
+        if total_abs_spin_revolutions > 0.0
+        else 0.0
+    )
     min_spin_fit_r2 = float(np.min(spin_fit_r2))
 
     if first_fail_category == "none":
@@ -206,6 +231,30 @@ def summarize_single_flagellum_helix_retention(
         )
 
     if first_fail_category == "none" and (
+        not np.isfinite(net_abs_spin_revolutions)
+        or net_abs_spin_revolutions < min_net_abs_spin_revolutions
+    ):
+        step_value = _parse_float(eval_rows[-1].get("step"))
+        first_fail_step = int(step_value) if np.isfinite(step_value) else len(rows) - 1
+        first_fail_category = "motor_no_rotation"
+        first_fail_reason = (
+            "net_abs_flag_helix_spin_revolutions="
+            f"{net_abs_spin_revolutions:.6g} < {min_net_abs_spin_revolutions:.6g}"
+        )
+
+    if first_fail_category == "none" and (
+        not np.isfinite(direction_consistency)
+        or direction_consistency < min_direction_consistency
+    ):
+        step_value = _parse_float(eval_rows[-1].get("step"))
+        first_fail_step = int(step_value) if np.isfinite(step_value) else len(rows) - 1
+        first_fail_category = "motor_no_rotation"
+        first_fail_reason = (
+            "flag_helix_spin_direction_consistency="
+            f"{direction_consistency:.6g} < {min_direction_consistency:.6g}"
+        )
+
+    if first_fail_category == "none" and (
         not np.isfinite(min_spin_fit_r2) or min_spin_fit_r2 < min_helix_spin_fit_r2
     ):
         step_value = _parse_float(eval_rows[-1].get("step"))
@@ -224,6 +273,9 @@ def summarize_single_flagellum_helix_retention(
         "first_fail_reason": first_fail_reason,
         "median_abs_flag_phase_rate_hz": median_abs_phase_rate_hz,
         "median_abs_flag_helix_spin_rate_hz": median_abs_spin_rate_hz,
+        "net_abs_flag_helix_spin_revolutions": net_abs_spin_revolutions,
+        "signed_flag_helix_spin_rate_hz": signed_spin_rate_hz,
+        "flag_helix_spin_direction_consistency": direction_consistency,
         "min_flag_helix_spin_fit_r2": min_spin_fit_r2,
         "max_hook_len_rel_err": max_hook,
         "max_local_attach_first_rel_err": max_attach,

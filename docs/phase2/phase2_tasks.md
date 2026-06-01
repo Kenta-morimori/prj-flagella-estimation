@@ -84,25 +84,42 @@
 
 ### P2-6-005: single flagellum の bond / bend / torsion 維持策を探索し multi-step で harden する
 
-- status: user_review_required
+- status: in_progress
 - source proposal: `docs/planning/phase2_task_proposals.md#proposal-p2-6-005-phase-26`
 - branch: `feature/phase2-6-helix-retention-gate`
 - goal: Phase 2.5 の flagellum-chain dominated failure に対して、回転 activity を保った multi-step 螺旋維持条件を固定する。
 - hypothesis:
   - `flag_phase_rate_hz` は root azimuth 由来の proxy であり、目視の螺旋スピンと一致しない場合がある。
-  - `flag_helix_spin_rate_hz` を用いると、形状維持だけでなく螺旋そのものの安定回転を判定できる。
+  - `median(abs(flag_helix_spin_rate_hz))` だけでは、フィット jitter や往復揺れを持続回転として誤判定する。
+  - `flag_helix_spin_phase_deg` の累積差と方向一貫性を用いると、目視で見える螺旋全体の net 回転を判定できる。
   - デフォルト設定を変えず、実行時 override の `time.dt_star=1.0e-4` で条件を探索する。
-  - `torque=2.5e-20`, `dt_star=1.0e-4`, `local_hook_scale=4`, `local_spring_scale=2`, `local_bend_scale=2`, `local_torsion_scale=2` の組み合わせで、0.25 s / 2500 steps の螺旋維持と螺旋スピンを両立できる。
+  - 現行 motor 実装では root 方位や螺旋フィット位相は揺れるが、螺旋全体の累積回転へ十分に伝達されていない可能性が高い。
 - acceptance criteria:
   - [x] Phase 2.5 break representative が multi-step gate で `flag` fail として再現される。
   - [x] `dt_star` 縮小や旧代表条件では形状を保っても螺旋スピンが出ず `motor_no_rotation` になることを pytest で固定する。
-  - [x] `torque=8.0e-21`, `dt_star=1.25e-4`, `local_hook_scale=8`, `local_spring_scale=5`, `local_bend_scale=8`, `local_torsion_scale=4` が 400-step CI representative で pass する。
-  - [x] `torque=2.5e-20`, `dt_star=1.0e-4`, `local_hook_scale=4`, `local_spring_scale=2`, `local_bend_scale=2`, `local_torsion_scale=2` が 2500-step local representative で pass する。
+  - [x] `median(abs(flag_helix_spin_rate_hz))` が高くても net 回転がなければ fail することを pytest で固定する。
   - [x] hard gate の指標と閾値を文書化する。
+  - [ ] motor torque が螺旋全体の累積回転へ伝達されない原因を実装レベルで切り分ける。
+  - [ ] `dt_star=1.0e-4` で、螺旋形状維持と net 1回転以上を両立する代表条件を固定する。
   - [ ] 生成動画をユーザーが目視し、単一べん毛の定性的な安定回転を確認する。
 - verification:
+  - `uv run pytest tests/test_helix_retention_gate.py`
   - `uv run pytest tests/test_run_state_fixed.py -k phase26`
   - `uv run pytest tests/test_run_state_fixed.py`
   - `uv run pytest tests/test_motor_scale_sweep.py`
 - docs:
   - `docs/phase2/phase2_6_helix_retention_gate.md`
+
+### P2-6-006: motor torque の螺旋 net 回転伝達を診断・修正する
+
+- status: proposed
+- branch: `feature/phase2-6-helix-retention-gate`
+- goal: motor torque が root 方位の揺れや局所変形に消えず、単一 full flagellum の螺旋全体を継続回転させる条件または実装修正を確立する。
+- background:
+  - `torque=2.5e-20`, `dt_star=1.0e-4`, `local scale=(4,2,2,2)` は形状 gate と瞬間スピン rate では pass したが、0.25 s の累積螺旋回転は 0.00139 回転であり、目視でもほぼ回転しなかった。
+  - `dt_star=1.0e-4`, 0.05 s の短時間スクリーニングでは、net 回転が大きい条件はすべて `shape_pass_nonbody=False` となり、形状維持と持続回転の両立条件は見つかっていない。
+- tasks:
+  - [ ] motor force couple の作用軸、body/hook/root/flagellum への torque 分配、拘束力との打ち消しを診断する指標を追加する。
+  - [ ] root azimuth, helix phase, body phase の関係を step_summary で比較し、root の揺れと螺旋 net 回転を分離する。
+  - [ ] 参照論文モデルとの差分として、必要なら motor torque distribution または hook/root coupling の実装変更を ADR に記録する。
+  - [ ] 修正後に `time.dt_star=1.0e-4` で形状維持と net 回転 gate を再探索する。
