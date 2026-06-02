@@ -20,8 +20,8 @@
   "adr_required": false,
   "adr_reason": "P2-6-007では物理モデルを変更せず、不足自由度の明確化と診断gateの強化のみを行ったため。material frame / segment twistを実装するP2-6-008ではADRが必要。",
   "commit_type": "complete",
-  "commit_hash": "",
-  "push_status": "not_pushed",
+  "commit_hash": "be69481be73203e5414953bdeddc6e28aa259b25",
+  "push_status": "pushed",
   "next_actions": [
     "P2-6-008でmaterial frame / segment twist導入ADRを作成する。",
     "ADR後にtriplet motor torqueをsegment chainへ伝える最小実装を行う。",
