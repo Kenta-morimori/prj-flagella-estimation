@@ -11,6 +11,7 @@ import numpy as np
 from sim_swim.dynamics.brownian import sample_brownian_displacement
 from sim_swim.dynamics.forces import (
     MotorForceDiagnostics,
+    compute_axial_torque_flux_probe_forces,
     compute_bending_forces,
     compute_distributed_flagellar_motor_forces,
     compute_hook_forces,
@@ -639,10 +640,18 @@ class DynamicsEngine:
                     body_indices=self.model.body_indices,
                     torque_per_flag=torque_per_flag,
                 )
+            elif distribution == "axial_torque_flux_probe":
+                motor_forces, motor_diag = compute_axial_torque_flux_probe_forces(
+                    positions_m=pos,
+                    flagella_indices=self.model.flagella_indices,
+                    body_indices=self.model.body_indices,
+                    torque_per_flag=torque_per_flag,
+                )
             else:
                 raise ValueError(
                     "Unsupported motor.force_distribution: "
-                    f"{distribution!r}. Use 'triplet' or 'distributed_flagellum'."
+                    f"{distribution!r}. Use 'triplet', 'distributed_flagellum', "
+                    "or 'axial_torque_flux_probe'."
                 )
         motor_axis_vs_rear_direction_angle_deg = (
             self._motor_axis_vs_rear_direction_angle_deg(pos)
