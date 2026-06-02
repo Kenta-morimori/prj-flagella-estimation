@@ -17,8 +17,8 @@
   "adr_required": true,
   "adr_reason": "local twist transmissionはPhase 2の物理モデル拡張方針であり、実装前に解釈と段階を固定する必要があるため。",
   "commit_type": "complete",
-  "commit_hash": "",
-  "push_status": "not_pushed",
+  "commit_hash": "26b55687c39d5141ad573620594ce9fc944c3f49",
+  "push_status": "pushed",
   "next_actions": [
     "orientation/local_twist診断状態を追加する。",
     "root torque入力でroot側local_twistが増えることを確認する。",
