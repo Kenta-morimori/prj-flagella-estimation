@@ -67,3 +67,18 @@ Phase 2.6の方針としては、`distributed_flagellum`を上限診断、`axial
 - `uv run pytest tests/test_motor_forces.py tests/test_run_state_fixed.py::test_phase26_local_twist_transmission_probe_tracks_twist_state -q`: PASS
 - `uv run pytest tests/test_run_state_fixed.py -q`: PASS
 - `uv run pytest -q`: PASS, 141 passed
+- 代表動画生成: PASS
+  - `outputs/phase2_6_local_twist_review/2026-06-02/221954/render/swim3d.mp4`
+  - `outputs/phase2_6_local_twist_review/2026-06-02/221954/render2d/projection.mp4`
+  - `outputs/phase2_6_local_twist_review/2026-06-02/221954/sim/step_summary.csv`
+
+代表動画生成runのhelix retention summary:
+
+- `helix_retention_pass=True`
+- `first_fail_category=none`
+- `net_abs_flag_helix_spin_revolutions=1.0474479497573188`
+- `flag_helix_spin_direction_consistency=0.8150711113472757`
+- `max_hook_len_rel_err=0.31502368424398897`
+- `max_flag_bond_rel_err=0.17313621315973723`
+- `max_flag_bend_err_deg=2.5258957111137565`
+- `max_flag_torsion_err_deg=7.779637196442446`

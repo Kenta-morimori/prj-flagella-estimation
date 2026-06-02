@@ -12,19 +12,27 @@
     "uv run ruff check .",
     "uv run pytest tests/test_motor_forces.py tests/test_run_state_fixed.py::test_phase26_local_twist_transmission_probe_tracks_twist_state -q",
     "uv run pytest tests/test_run_state_fixed.py -q",
-    "uv run pytest -q"
+    "uv run pytest -q",
+    "uv run python -m scripts.01_simulate_swimming --config conf/sim_swim.yaml --duration-s 0.5 --fps-out 100 --render-flagella --render-flagella-2d flagella.n_flagella=1 flagella.stub_mode=full_flagella motor.torque_Nm=2.0e-20 motor.force_distribution=local_twist_transmission_probe motor.local_hook_scale=1 motor.local_spring_scale=1.2 motor.local_bend_scale=1 motor.local_torsion_scale=1 time.dt_star=1.0e-4 output_sampling.out_all_steps_3d=false render.save_frames_3d=false render.save_frames_2d=false output.base_dir=outputs/phase2_6_local_twist_review"
   ],
   "user_review_required": false,
   "user_review_command": "",
-  "user_review_outputs": [],
-  "user_review_points": [],
+  "user_review_outputs": [
+    "outputs/phase2_6_local_twist_review/2026-06-02/221954/render/swim3d.mp4",
+    "outputs/phase2_6_local_twist_review/2026-06-02/221954/render2d/projection.mp4",
+    "outputs/phase2_6_local_twist_review/2026-06-02/221954/sim/step_summary.csv"
+  ],
+  "user_review_points": [
+    "任意確認: 単一べん毛が螺旋形状を保ったままnet回転しているか。",
+    "任意確認: 菌体からべん毛まで潰れず、hook近傍が破綻していないか。"
+  ],
   "adr_required": true,
   "adr_reason": "motor.force_distributionに新しい実験用force distributionを追加し、Phase 2の物理モデル解釈と論文モデルとの差分に影響するため。",
   "commit_type": "complete",
-  "commit_hash": "pending",
-  "push_status": "not_pushed",
+  "commit_hash": "670e1332b27283a716bb5cd4ebf1634a2e033305",
+  "push_status": "pushed",
   "next_actions": [
-    "代表動画を生成して任意の目視確認用output pathを記録する。",
+    "必要に応じて生成済み代表動画を任意で目視確認する。",
     "Phase 2.7でdistributed_flagellum/local_twist系の複数べん毛非崩壊条件を検証する。",
     "必要に応じてlocal_twist_transmission_probeのbead force変換を、より厳密なtwist potential由来のforce coupleへ近づける。"
   ]
