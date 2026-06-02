@@ -155,6 +155,8 @@
   - 妥協案候補としては、`distributed_flagellum` より root 起点の torque flux に近い `axial_torque_flux_probe` を優先する。
   - `distributed_flagellum` は、螺旋全体へ torque が届いた場合の上限診断として残す。
   - 論文モデルへの忠実性を高める本命候補は material frame / segment twist の導入である。
+  - local twist transmission は、べん毛全体に1つのねじれ量を与えるのではなく、隣接segment同士の軸まわり向きの差を局所twistとして扱う。
+  - 実装は、orientation/local_twist診断、root torque入力、twist relaxation、bead force変換の順に段階化する。
 - verification:
   - `uv run pytest tests/test_helix_retention_gate.py -q`
   - `uv run pytest tests/test_motor_forces.py -q`
@@ -162,6 +164,7 @@
 - docs:
   - `docs/phase2/phase2_6_triplet_twist_dof_design.md`
   - `docs/adr/0002_phase2_axial_torque_flux_probe.md`
+  - `docs/adr/0003_phase2_local_twist_transmission.md`
 
 ## Phase 2.7: multi flagella 非崩壊検証
 
