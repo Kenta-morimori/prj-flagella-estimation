@@ -19,8 +19,8 @@
   "adr_required": true,
   "adr_reason": "motor.force_distributionに新しい実験用force distributionを追加し、Phase 2の物理モデル解釈に影響するため。",
   "commit_type": "complete",
-  "commit_hash": "",
-  "push_status": "not_pushed",
+  "commit_hash": "80c5dddeb2004827d0578875d9420872a9824d6e",
+  "push_status": "pushed",
   "next_actions": [
     "必要に応じてaxial_torque_flux_probeの代表動画を生成し、ユーザー目視レビューを受ける。",
     "material frame / segment twistの明示導入を検討する場合は、axial_torque_flux_probeの0.5 s pass条件を最低限の比較基準にする。",
