@@ -74,6 +74,11 @@ STEP_SUMMARY_COLUMNS = [
     "motor_Fa_norm",
     "motor_Fb_norm",
     "motor_axis_vs_rear_direction_angle_deg",
+    "local_twist_root_orientation_deg",
+    "local_twist_tip_orientation_deg",
+    "local_twist_abs_mean_deg",
+    "local_twist_abs_max_deg",
+    "local_twist_tip_activity_ratio",
     "flag_root_azimuth_deg",
     "flag_phase_deg",
     "flag_phase_rate_hz",
@@ -1274,6 +1279,17 @@ class StepSummaryRecorder:
             "motor_Fb_norm": float(diag.motor_Fb_norm),
             "motor_axis_vs_rear_direction_angle_deg": float(
                 diag.motor_axis_vs_rear_direction_angle_deg
+            ),
+            "local_twist_root_orientation_deg": float(
+                diag.local_twist_root_orientation_deg
+            ),
+            "local_twist_tip_orientation_deg": float(
+                diag.local_twist_tip_orientation_deg
+            ),
+            "local_twist_abs_mean_deg": float(diag.local_twist_abs_mean_deg),
+            "local_twist_abs_max_deg": float(diag.local_twist_abs_max_deg),
+            "local_twist_tip_activity_ratio": float(
+                diag.local_twist_tip_activity_ratio
             ),
             "flag_root_azimuth_deg": flag_root_azimuth_deg,
             "flag_phase_deg": flag_phase_deg,

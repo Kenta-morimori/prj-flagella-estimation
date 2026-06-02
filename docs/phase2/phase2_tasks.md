@@ -146,13 +146,14 @@
   - [x] root torque を segment chain へ伝える候補として、material frame 導入、segment torsional torque flux、quasi-rigid helical body approximation を比較する。
   - [x] `distributed_flagellum` を diagnostic upper-bound とし、triplet 系モデルの改善量を `helix_to_root_net_rotation_ratio` で評価する。
   - [x] `axial_torque_flux_probe` を実装し、現行 bead-position-only model で torque flux 近似が有効か検証する。
+  - [x] `local_twist_transmission_probe` を実装し、segment orientation state が root から先端側へ伝わるか検証する。
   - [x] `time.dt_star=1.0e-4`, 0.5 s, net 1回転以上、shape gate PASS を満たす条件を確認する。
   - [x] 実装検証の結果と考察を記録し、有効なアプローチを提案する。
   - [x] 物理モデル変更を行う場合は ADR を作成し、`time.dt_star=1.0e-4`, 0.5 s, net 1回転以上、shape gate PASS を受入基準にする。
 - decision:
-  - `axial_torque_flux_probe` は短期的な有効アプローチとして残す。
-  - ただし material frame / segment twist を明示しないため、最終的な物理モデルとしては扱わない。
-  - 妥協案候補としては、`distributed_flagellum` より root 起点の torque flux に近い `axial_torque_flux_probe` を優先する。
+  - `axial_torque_flux_probe` は短期比較用の有効アプローチとして残す。
+  - `local_twist_transmission_probe` は、orientation/local_twist状態を持つため、妥協案候補として `axial_torque_flux_probe` より優先する。
+  - ただし bead force 変換はまだ近似であり、完全な material frame / segment twist 物理モデルとしては扱わない。
   - `distributed_flagellum` は、螺旋全体へ torque が届いた場合の上限診断として残す。
   - 論文モデルへの忠実性を高める本命候補は material frame / segment twist の導入である。
   - local twist transmission は、べん毛全体に1つのねじれ量を与えるのではなく、隣接segment同士の軸まわり向きの差を局所twistとして扱う。

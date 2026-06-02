@@ -316,3 +316,42 @@ def test_phase26_axial_torque_flux_probe_drives_net_helix_spin(
     assert (
         summary["max_flag_torsion_err_deg"] < HELIX_RETENTION_TORSION_ERR_MAX_DEG_LIMIT
     )
+
+
+def test_phase26_local_twist_transmission_probe_tracks_twist_state(
+    tmp_path: Path,
+) -> None:
+    """P2-6-007: local twist state propagates root torque toward the tip."""
+    cfg = _make_cfg(motor_torque_Nm=2.0e-20, duration_s=0.05, dt_star=1.0e-4)
+    cfg = _with_motor_local_scales(
+        cfg,
+        local_hook_scale=1.0,
+        local_spring_scale=1.2,
+        local_bend_scale=1.0,
+        local_torsion_scale=1.0,
+    )
+    cfg = _with_motor_force_distribution(cfg, "local_twist_transmission_probe")
+    rows = _run_step_summary(cfg, tmp_path / "phase26_local_twist_probe")
+
+    summary = summarize_single_flagellum_helix_retention(
+        rows,
+        min_steps=400,
+        min_net_abs_spin_revolutions=0.1,
+        min_direction_consistency=0.3,
+    )
+    last = rows[-1]
+
+    assert summary["helix_retention_pass"] is True
+    assert summary["first_fail_category"] == "none"
+    assert summary["net_abs_flag_helix_spin_revolutions"] > 0.1
+    assert summary["flag_helix_spin_direction_consistency"] > 0.9
+    assert float(last["local_twist_root_orientation_deg"]) > 1.0
+    assert float(last["local_twist_tip_orientation_deg"]) > 0.0
+    assert float(last["local_twist_abs_max_deg"]) > 0.0
+    assert float(last["local_twist_tip_activity_ratio"]) > 0.0
+    assert summary["max_hook_len_rel_err"] < 0.5
+    assert summary["max_flag_bond_rel_err"] < HELIX_RETENTION_BOND_REL_ERR_MAX_LIMIT
+    assert summary["max_flag_bend_err_deg"] < HELIX_RETENTION_BEND_ERR_MAX_DEG_LIMIT
+    assert (
+        summary["max_flag_torsion_err_deg"] < HELIX_RETENTION_TORSION_ERR_MAX_DEG_LIMIT
+    )
