@@ -85,3 +85,20 @@ def test_helix_retention_summary_reports_root_to_helix_transfer_ratio() -> None:
     assert summary["net_abs_flag_root_revolutions"] > 3.0
     assert summary["net_abs_flag_helix_spin_revolutions"] > 0.3
     assert 0.09 < summary["helix_to_root_net_rotation_ratio"] < 0.11
+
+
+def test_helix_retention_gate_requires_root_phase_for_transfer_ratio() -> None:
+    rows = [_base_row(step, step * 10.0) for step in range(120)]
+    for row in rows:
+        del row["flag_phase_deg"]
+
+    summary = summarize_single_flagellum_helix_retention(
+        rows,
+        skip_initial_steps=0,
+        min_steps=50,
+        min_net_abs_spin_revolutions=1.0,
+    )
+
+    assert summary["helix_retention_pass"] is False
+    assert summary["first_fail_category"] == "nonfinite"
+    assert summary["first_fail_reason"] == "non-finite value: flag_phase_deg"

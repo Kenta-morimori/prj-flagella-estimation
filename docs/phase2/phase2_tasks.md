@@ -130,7 +130,7 @@
 
 ### P2-6-007: triplet motor でのねじれ・回転自由度不足を明確化する
 
-- status: proposed
+- status: complete
 - branch: `feature/phase2-6-helix-retention-gate`
 - goal: `distributed_flagellum` を最終解とせず、root motor torque が hook/root から flagellum chain へ伝搬するために必要な回転自由度・ねじれ自由度を明確化する。
 - background:
@@ -142,10 +142,33 @@
   - segment twist: 隣接 segment の material frame 同士が、segment 軸まわりにどれだけ相対回転しているかを表すねじれ量。root torque を弾性的な torsional deformation として chain に蓄える・伝えるために必要。
   - axial torque flux: root から flagellum 先端側へ、segment 軸方向に伝わる torque の流れ。現行の bead-position-only model ではこれを明示的に保存・輸送する状態量がない。
 - tasks:
-  - [ ] 現行 bead-position-only モデルで、material frame / segment twist / axial torque flux が明示されていないことを整理する。
-  - [ ] root torque を segment chain へ伝える候補として、material frame 導入、segment torsional torque flux、quasi-rigid helical body approximation を比較する。
-  - [ ] `distributed_flagellum` を diagnostic upper-bound とし、triplet 系モデルの改善量を `helix_to_root_net_rotation_ratio` で評価する。
-  - [ ] 物理モデル変更を行う場合は ADR を作成し、`time.dt_star=1.0e-4`, 0.5 s, net 1回転以上、shape gate PASS を受入基準にする。
+  - [x] 現行 bead-position-only モデルで、material frame / segment twist / axial torque flux が明示されていないことを整理する。
+  - [x] root torque を segment chain へ伝える候補として、material frame 導入、segment torsional torque flux、quasi-rigid helical body approximation を比較する。
+  - [x] `distributed_flagellum` を diagnostic upper-bound とし、triplet 系モデルの改善量を `helix_to_root_net_rotation_ratio` で評価する。
+  - [x] 物理モデル変更を行う場合は ADR を作成し、`time.dt_star=1.0e-4`, 0.5 s, net 1回転以上、shape gate PASS を受入基準にする。
+- decision:
+  - このタスクでは物理モデル変更を実装しないため、新規ADRは作成しない。
+  - 次に実装する場合の第一候補は material frame / segment twist の導入とし、実装前にADRを作成する。
+- verification:
+  - `uv run pytest tests/test_helix_retention_gate.py -q`
+- docs:
+  - `docs/phase2/phase2_6_triplet_twist_dof_design.md`
+
+### P2-6-008: material frame / segment twist による triplet torque 伝搬を実装検証する
+
+- status: proposed
+- branch: TBD
+- goal: `triplet` root motor torque を flagellum chain の一方向 net 回転へ伝えるため、material frame / segment twist を導入する最小物理モデルを実装・検証する。
+- background:
+  - P2-6-007 で、現行 bead-position-only model には軸まわり姿勢と axial torque flux が明示されていないことを整理した。
+  - `distributed_flagellum` は diagnostic upper-bound として有用だが、root motor torque の物理的伝搬モデルではない。
+  - 物理モデル拡張を伴うため、実装前にADRを作成する。
+- tasks:
+  - [ ] material frame / segment twist 導入のADRを作成する。
+  - [ ] 単一 flagellum の segment twist state と torsional update の最小実装を行う。
+  - [ ] `motor.force_distribution=triplet` のまま `time.dt_star=1.0e-4`, 0.5 s, net 1回転以上、shape gate PASS を確認する。
+  - [ ] `distributed_flagellum` 代表条件を upper-bound とし、`helix_to_root_net_rotation_ratio` を比較する。
+  - [ ] 代表動画を生成し、ユーザー目視レビューを受ける。
 
 ## Phase 2.7: multi flagella 非崩壊検証
 

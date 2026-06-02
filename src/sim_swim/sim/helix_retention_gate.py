@@ -12,6 +12,8 @@ HELIX_RETENTION_TORSION_ERR_MAX_DEG_LIMIT = 60.0
 HELIX_RETENTION_HOOK_REL_ERR_MAX_LIMIT = 0.5
 
 REQUIRED_HELIX_RETENTION_NUMERIC_COLUMNS = (
+    "flag_phase_deg",
+    "flag_phase_rate_hz",
     "flag_helix_spin_phase_deg",
     "flag_helix_spin_rate_hz",
     "flag_helix_spin_fit_r2",

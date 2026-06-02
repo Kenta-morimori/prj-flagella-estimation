@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "summary": "P2-6-007として、triplet motorに不足しているmaterial frame / segment twist / axial torque fluxを整理し、候補モデルを比較した。root-to-helix伝達比を評価可能にするため、helix retention gateでroot phase列を必須化した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "material frame / segment twist の物理モデル実装はP2-6-008として残した。",
+    "triplet motorだけで単一べん毛の0.5 s net 1回転を達成する検証は未実施。",
+    "distributed_flagellumは診断用upper-boundとして残しているが、root motor torqueの物理的伝搬モデルではない。"
+  ],
+  "tests_reviewed": [
+    "uv run pytest tests/test_helix_retention_gate.py -q",
+    "uv run ruff format --check src/sim_swim/sim/helix_retention_gate.py tests/test_helix_retention_gate.py",
+    "uv run ruff check src/sim_swim/sim/helix_retention_gate.py tests/test_helix_retention_gate.py",
+    "uv run pytest -q"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "P2-6-007では物理モデルを変更せず、不足自由度の明確化と診断gateの強化のみを行ったため。material frame / segment twistを実装するP2-6-008ではADRが必要。",
+  "commit_type": "complete",
+  "commit_hash": "",
+  "push_status": "not_pushed",
+  "next_actions": [
+    "P2-6-008でmaterial frame / segment twist導入ADRを作成する。",
+    "ADR後にtriplet motor torqueをsegment chainへ伝える最小実装を行う。",
+    "distributed_flagellum代表条件をupper-boundとしてhelix_to_root_net_rotation_ratioとshape gateを比較する。"
+  ]
+}
