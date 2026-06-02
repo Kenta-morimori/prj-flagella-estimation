@@ -152,6 +152,8 @@
 - decision:
   - `axial_torque_flux_probe` は短期的な有効アプローチとして残す。
   - ただし material frame / segment twist を明示しないため、最終的な物理モデルとしては扱わない。
+  - 妥協案候補としては、`distributed_flagellum` より root 起点の torque flux に近い `axial_torque_flux_probe` を優先する。
+  - `distributed_flagellum` は、螺旋全体へ torque が届いた場合の上限診断として残す。
   - 論文モデルへの忠実性を高める本命候補は material frame / segment twist の導入である。
 - verification:
   - `uv run pytest tests/test_helix_retention_gate.py -q`
