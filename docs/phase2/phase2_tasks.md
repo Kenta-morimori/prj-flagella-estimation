@@ -137,8 +137,29 @@
   - `distributed_flagellum` では、トルクが螺旋全体へ伝われば単一べん毛が綺麗に回転することを確認した。
   - しかし `triplet + hook spring fix` では、root 方位の net 回転と螺旋全体の net 回転が分離している。
   - `torque=2.5e-20`, `dt_star=1.0e-4`, `local_scale=(4,2,2,2)` の `triplet` 条件では、0.25 s で `net_abs_flag_root_revolutions=0.8796` に対して `net_abs_flag_helix_spin_revolutions=0.00139`、`helix_to_root_net_rotation_ratio=0.00158` だった。
+- terms:
+  - material frame: 各 flagellum segment に付随する局所座標系で、segment 接線方向だけでなく断面の向きを表す。bead 位置だけでは表せない「軸まわりの向き」を状態として持つための概念。
+  - segment twist: 隣接 segment の material frame 同士が、segment 軸まわりにどれだけ相対回転しているかを表すねじれ量。root torque を弾性的な torsional deformation として chain に蓄える・伝えるために必要。
+  - axial torque flux: root から flagellum 先端側へ、segment 軸方向に伝わる torque の流れ。現行の bead-position-only model ではこれを明示的に保存・輸送する状態量がない。
 - tasks:
   - [ ] 現行 bead-position-only モデルで、material frame / segment twist / axial torque flux が明示されていないことを整理する。
   - [ ] root torque を segment chain へ伝える候補として、material frame 導入、segment torsional torque flux、quasi-rigid helical body approximation を比較する。
   - [ ] `distributed_flagellum` を diagnostic upper-bound とし、triplet 系モデルの改善量を `helix_to_root_net_rotation_ratio` で評価する。
   - [ ] 物理モデル変更を行う場合は ADR を作成し、`time.dt_star=1.0e-4`, 0.5 s, net 1回転以上、shape gate PASS を受入基準にする。
+
+## Phase 2.7: multi flagella 非崩壊検証
+
+### P2-7-006: 複数べん毛条件での形状崩壊耐性を段階評価する
+
+- status: proposed
+- source proposal: `docs/planning/phase2_task_proposals.md#proposal-p2-7-006-phase-27`
+- goal: `n_flagella=3..9` での非崩壊条件帯を把握し、特に `motor.force_distribution=distributed_flagellum` で複数べん毛が破綻しないかを検証する。
+- background:
+  - Phase 2.6 では `distributed_flagellum` により単一べん毛の螺旋形状維持と net 回転を確認した。
+  - 複数べん毛に拡張した場合、distributed torque が flagellum 間干渉、hook 変形、body 変形を増幅して collapse/fly-away を起こす可能性がある。
+  - posterior bundling の成立可否は別 issue として扱い、本タスクでは束化の良否ではなく非崩壊性を先に評価する。
+- tasks:
+  - [ ] `motor.force_distribution=distributed_flagellum`, `time.dt_star=1.0e-4` を明示した `n_flagella=3` representative を作る。
+  - [ ] `n_flagella` を段階的に増やし、body/hook/flag の first-fail 分布を整理する。
+  - [ ] collapse/fly-away が出る条件を再現可能な diagnostic output として保存する。
+  - [ ] posterior bundling 判定は Phase 2.8 または別 issue の scope として分離する。
