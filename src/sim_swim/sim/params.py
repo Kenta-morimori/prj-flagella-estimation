@@ -194,7 +194,7 @@ class MotorParams:
     """モータ設定。"""
 
     torque_Nm: float = 4.0e-18
-    force_distribution: str = "triplet"
+    force_distribution: str = "material_twist_local_couple"
     reverse_n_flagella: int = 1
     enable_switching: bool = False
     torque_ramp_enabled: bool = False
@@ -676,7 +676,13 @@ class SimulationConfig:
         motor_raw = raw.get("motor", {}) or {}
         motor = MotorParams(
             torque_Nm=float(_get(motor_raw, "torque_Nm", 4e-18)),
-            force_distribution=str(_get(motor_raw, "force_distribution", "triplet")),
+            force_distribution=str(
+                _get(
+                    motor_raw,
+                    "force_distribution",
+                    "material_twist_local_couple",
+                )
+            ),
             reverse_n_flagella=int(_get(motor_raw, "reverse_n_flagella", 1)),
             enable_switching=bool(_get(motor_raw, "enable_switching", False)),
             torque_ramp_enabled=bool(_get(motor_raw, "torque_ramp_enabled", False)),

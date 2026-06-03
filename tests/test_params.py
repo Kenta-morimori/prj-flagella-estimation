@@ -30,6 +30,14 @@ def test_dt_over_tau_input_is_rejected() -> None:
         SimulationConfig.from_dict(cfg)
 
 
+def test_default_motor_force_distribution_is_material_twist_local_couple() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor.force_distribution == "material_twist_local_couple"
+
+
 def test_validate_time_scaling_is_always_fixed_to_paper_dt_star() -> None:
     cfg = _base_cfg()
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-7}

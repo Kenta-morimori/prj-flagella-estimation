@@ -1,0 +1,77 @@
+{
+  "status": "PASS",
+  "summary": "P2-6-008として motor.force_distribution=material_twist_local_couple を追加し、segment orientation state を隣接bead対の局所force coupleへ変換する最小物理実装を検証した。代表条件 duration_s=0.5, time.dt_star=1.0e-4, motor.torque_Nm=2.0e-20, local_spring_scale=1.2 で net 1回転以上と shape gate PASS を確認した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "material_twist_local_couple は完全な3軸 material frame / Cosserat rod 実装ではなく、segment軸まわりのscalar orientationを使う最小物理実装である。",
+    "torsion force OFF + material_twist_local_couple ON では0.5 s代表条件でshape gateがFAILしたため、現時点では既存 torsion force を置き換えない。",
+    "P2-6-008後のdefault force_distribution は material_twist_local_couple とする。triplet は比較・診断用modeとして明示指定で残す。",
+    "複数べん毛での非崩壊検証、束化、遊泳軌跡、2D動画自然さはPhase 2.7以降で扱う。"
+  ],
+  "tests_reviewed": [
+    "uv run ruff format src/sim_swim/dynamics/forces.py src/sim_swim/dynamics/engine.py src/sim_swim/sim/helix_retention_gate.py tests/test_motor_forces.py tests/test_run_state_fixed.py tests/test_helix_retention_gate.py",
+    "uv run ruff format --check src/sim_swim/dynamics/forces.py src/sim_swim/dynamics/engine.py src/sim_swim/sim/helix_retention_gate.py tests/test_motor_forces.py tests/test_run_state_fixed.py tests/test_helix_retention_gate.py",
+    "uv run ruff check .",
+    "uv run pytest tests/test_motor_forces.py tests/test_helix_retention_gate.py tests/test_run_state_fixed.py -q",
+    "uv run pytest -q",
+    "uv run python -c '<P2-6-008 material_twist_local_couple 0.5 s representative>'",
+    "uv run python -c '<P2-6-008 torsion OFF 0.5 s counterexample>'",
+    "git commit hook: uv run ruff format --check .; uv run ruff check .; uv run pytest -q"
+  ],
+  "representative_result": {
+    "mode": "material_twist_local_couple",
+    "duration_s": 0.5,
+    "dt_star": 0.0001,
+    "torque_Nm": 2e-20,
+    "local_hook_scale": 1.0,
+    "local_spring_scale": 1.2,
+    "local_bend_scale": 1.0,
+    "local_torsion_scale": 1.0,
+    "output_dir": "/private/tmp/p2_6_008_material_twist_local_couple_verify",
+    "helix_retention_pass": true,
+    "first_fail_category": "none",
+    "net_abs_flag_helix_spin_revolutions": 1.1169834466127073,
+    "flag_helix_spin_direction_consistency": 0.981747947248682,
+    "helix_to_root_net_rotation_ratio": 8.771178783249558,
+    "max_hook_len_rel_err": 0.40113477213486026,
+    "max_flag_bond_rel_err": 0.17372724278455898,
+    "max_flag_bend_err_deg": 4.3491832837972915,
+    "max_flag_torsion_err_deg": 6.210473374082372,
+    "local_twist_root_orientation_deg": 66.8086721135233,
+    "local_twist_tip_orientation_deg": 23.273408110082322,
+    "local_twist_tip_activity_ratio": 0.3483590883311593
+  },
+  "torsion_off_counterexample": {
+    "mode": "material_twist_local_couple",
+    "duration_s": 0.5,
+    "dt_star": 0.0001,
+    "torque_Nm": 2e-20,
+    "local_torsion_scale": 0.0,
+    "flag_torsion_stiffness_scale": 0.0,
+    "output_dir": "/private/tmp/p2_6_008_material_twist_torsion_off_verify",
+    "helix_retention_pass": false,
+    "first_fail_category": "flag",
+    "first_fail_step": 146,
+    "max_hook_len_rel_err": 0.7655563853323256,
+    "max_flag_bond_rel_err": 0.4783030996100029,
+    "max_flag_bend_err_deg": 15.535621542831464,
+    "max_flag_torsion_err_deg": 179.9956070777144
+  },
+  "user_review_required": false,
+  "user_review_command": "uv run python -m scripts.01_simulate_swimming --config conf/sim_swim.yaml --duration-s 0.5 --fps-out 100 --render-flagella --render-flagella-2d flagella.n_flagella=1 flagella.stub_mode=full_flagella motor.torque_Nm=2.0e-20 motor.force_distribution=material_twist_local_couple motor.local_hook_scale=1 motor.local_spring_scale=1.2 motor.local_bend_scale=1 motor.local_torsion_scale=1 time.dt_star=1.0e-4 output_sampling.out_all_steps_3d=false render.save_frames_3d=false render.save_frames_2d=false output.base_dir=outputs/phase2_6_material_twist_local_couple_review",
+  "user_review_outputs": [],
+  "user_review_points": [
+    "任意確認: 単一べん毛が螺旋形状を保ったままnet回転しているか。",
+    "任意確認: hook近傍で不自然な折れ曲がりや飛びが出ていないか。"
+  ],
+  "adr_required": true,
+  "adr_reason": "motor.force_distributionに新しいmaterial twist系modeを追加し、Phase 2の物理モデル解釈、論文モデルとの差分、既存torsion forceとの役割分担に影響するため。",
+  "commit_type": "complete",
+  "commit_hash": "9116e918ba3646551a1cf34e238da2715b25d95d",
+  "push_status": "pushed",
+  "next_actions": [
+    "Phase 2.7で複数べん毛条件の非崩壊性を評価する。",
+    "必要に応じて完全な3軸material frame / Cosserat rod拡張を別タスクで検討する。",
+    "既存torsion forceの置き換え可否は、長時間・複数べん毛条件を含む別タスクで再評価する。"
+  ]
+}

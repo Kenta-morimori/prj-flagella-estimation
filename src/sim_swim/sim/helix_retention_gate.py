@@ -69,6 +69,11 @@ def _empty_summary(category: str, reason: str) -> dict[str, bool | int | float |
     }
 
 
+def _row_step_or_fallback(row: Mapping[str, str | float | None], fallback: int) -> int:
+    step_value = _parse_float(row.get("step"))
+    return int(step_value) if np.isfinite(step_value) else int(fallback)
+
+
 def summarize_single_flagellum_helix_retention(
     rows: Sequence[Mapping[str, str | float | None]],
     *,
@@ -101,8 +106,8 @@ def summarize_single_flagellum_helix_retention(
     first_fail_category = "none"
     first_fail_reason = "none"
     for row_idx, row in enumerate(eval_rows):
-        step_value = _parse_float(row.get("step"))
-        step = int(step_value) if np.isfinite(step_value) else row_idx
+        absolute_row_idx = int(skip_initial_steps) + row_idx
+        step = _row_step_or_fallback(row, absolute_row_idx)
 
         if not _parse_bool(row.get("finite_pass")):
             first_fail_step = step
@@ -231,7 +236,7 @@ def summarize_single_flagellum_helix_retention(
         ]
         for category, name, value, limit in hard_limits:
             if not np.isfinite(value) or value > limit:
-                first_fail_step = int(_parse_float(eval_rows[-1].get("step")))
+                first_fail_step = _row_step_or_fallback(eval_rows[-1], len(rows) - 1)
                 first_fail_category = category
                 first_fail_reason = f"{name}={value:.6g} > {limit:.6g}"
                 break
@@ -240,8 +245,7 @@ def summarize_single_flagellum_helix_retention(
         not np.isfinite(median_abs_spin_rate_hz)
         or median_abs_spin_rate_hz < min_median_abs_spin_rate_hz
     ):
-        step_value = _parse_float(eval_rows[-1].get("step"))
-        first_fail_step = int(step_value) if np.isfinite(step_value) else len(rows) - 1
+        first_fail_step = _row_step_or_fallback(eval_rows[-1], len(rows) - 1)
         first_fail_category = "motor_no_rotation"
         first_fail_reason = (
             "median_abs_flag_helix_spin_rate_hz="
@@ -252,8 +256,7 @@ def summarize_single_flagellum_helix_retention(
         not np.isfinite(net_abs_spin_revolutions)
         or net_abs_spin_revolutions < min_net_abs_spin_revolutions
     ):
-        step_value = _parse_float(eval_rows[-1].get("step"))
-        first_fail_step = int(step_value) if np.isfinite(step_value) else len(rows) - 1
+        first_fail_step = _row_step_or_fallback(eval_rows[-1], len(rows) - 1)
         first_fail_category = "motor_no_rotation"
         first_fail_reason = (
             "net_abs_flag_helix_spin_revolutions="
@@ -264,8 +267,7 @@ def summarize_single_flagellum_helix_retention(
         not np.isfinite(direction_consistency)
         or direction_consistency < min_direction_consistency
     ):
-        step_value = _parse_float(eval_rows[-1].get("step"))
-        first_fail_step = int(step_value) if np.isfinite(step_value) else len(rows) - 1
+        first_fail_step = _row_step_or_fallback(eval_rows[-1], len(rows) - 1)
         first_fail_category = "motor_no_rotation"
         first_fail_reason = (
             "flag_helix_spin_direction_consistency="
@@ -275,8 +277,7 @@ def summarize_single_flagellum_helix_retention(
     if first_fail_category == "none" and (
         not np.isfinite(min_spin_fit_r2) or min_spin_fit_r2 < min_helix_spin_fit_r2
     ):
-        step_value = _parse_float(eval_rows[-1].get("step"))
-        first_fail_step = int(step_value) if np.isfinite(step_value) else len(rows) - 1
+        first_fail_step = _row_step_or_fallback(eval_rows[-1], len(rows) - 1)
         first_fail_category = "motor_spin_metric"
         first_fail_reason = (
             "min_flag_helix_spin_fit_r2="
