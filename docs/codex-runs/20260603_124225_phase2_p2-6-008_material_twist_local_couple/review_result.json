@@ -67,7 +67,7 @@
   "adr_required": true,
   "adr_reason": "motor.force_distributionに新しいmaterial twist系modeを追加し、Phase 2の物理モデル解釈、論文モデルとの差分、既存torsion forceとの役割分担に影響するため。",
   "commit_type": "complete",
-  "commit_hash": "c8f2bf57a2b24edadd215cbce84a99ca7fb72a5d",
+  "commit_hash": "9116e918ba3646551a1cf34e238da2715b25d95d",
   "push_status": "pushed",
   "next_actions": [
     "Phase 2.7で複数べん毛条件の非崩壊性を評価する。",
