@@ -25,3 +25,6 @@ P2-6-007のmerge前整理として、本PRをprobe成功までのscopeに限定�
 - `uv run python -m json.tool docs/codex-runs/20260602_221638_phase2_p2-6-007_local_twist_probe/review_result.json`
 - `uv run python -m json.tool docs/codex-runs/20260603_111352_phase2_p2-6_probe_scope_docs/review_result.json`
 - `uv run ruff check .`
+- commit hook: `uv run ruff format --check .`: PASS
+- commit hook: `uv run ruff check .`: PASS
+- commit hook: `uv run pytest -q`: PASS, 141 passed
