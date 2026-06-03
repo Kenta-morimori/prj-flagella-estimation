@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "summary": "docs/phase2 配下のファイル名を Phase 接頭辞付きに統一し、conf/sim_swim.yaml の default-only stiffness_scales を削除した。参照更新と全pytest通過を確認した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    {
+      "command": "grep -RInE \"docs/phase2/(TASKS|body_only_baseline|geometry_contract|helix_retention_gate|hook_gate|single_flagellum_stability)\" docs AGENTS.md",
+      "result": "旧 docs/phase2 パス参照なし"
+    },
+    {
+      "command": "targeted grep for legacy Phase 2 task-list naming outside this review log",
+      "result": "旧タスクリスト命名参照なし"
+    },
+    {
+      "command": "uv run pytest",
+      "result": "130 passed in 50.06s"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "ドキュメント命名とデフォルト設定整理のみで、物理モデル・出力形式・アーキテクチャの重要変更ではないため。",
+  "commit_type": "complete",
+  "commit_hash": "eb7e1c2969ba5c2f52adc5a97d782ac4a3329cd5",
+  "push_status": "pushed",
+  "next_actions": [
+    "Phase 2.7 以降では docs/phase2 配下の新規文書名を phase2_* 接頭辞で作成する。",
+    "stiffness_scales を非既定値で使う場合は根拠をタスクログまたは設定コメントに残す。"
+  ]
+}

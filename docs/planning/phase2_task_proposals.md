@@ -156,10 +156,12 @@
 - rationale: 本プロジェクト固有拡張（0〜9本）であり、論文3本条件からの差分管理が必須。
 - scope:
   - `n_flagella` を段階的に増やした short run/mid run 検証
+  - `motor.force_distribution=distributed_flagellum` を明示した複数べん毛条件の非崩壊検証
   - body/hook/flag の first-fail 分布を整理
   - 不安定化の主因（トルク過大、干渉、剛性不足）仮説を分類
 - out of scope:
   - Posterior bundle の定性的最終判断
+  - `distributed_flagellum` 条件で束化するかの判定（別 issue として扱う）
   - ML学習データ整備
 - 論文モデル差異フォーカス:
   - 論文3本条件と、プロジェクト拡張9本条件の運用差異を明示
@@ -291,4 +293,4 @@
 
 ## 運用メモ
 - 本ファイルは提案集であり、採択はユーザー判断とする。
-- 採択後は `docs/phase2/TASKS.md` と GitHub Issue へ移管し、進捗は review PASS ベースで更新する。
+- 採択後は `docs/phase2/phase2_tasks.md` と GitHub Issue へ移管し、進捗は review PASS ベースで更新する。

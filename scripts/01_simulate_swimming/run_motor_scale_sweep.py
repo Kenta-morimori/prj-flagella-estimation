@@ -215,6 +215,12 @@ def main() -> None:
         help="Simulation duration in seconds.",
     )
     parser.add_argument(
+        "--dt-star",
+        type=_parse_positive_float,
+        default=None,
+        help="Optional internal dimensionless timestep override.",
+    )
+    parser.add_argument(
         "--body-stiffness-scale",
         type=_parse_positive_float,
         default=None,
@@ -268,6 +274,8 @@ def main() -> None:
                 "value",
                 "stub_mode",
                 "n_flagella",
+                "dt_star",
+                "dt_internal_s",
                 "body_stiffness_scale",
                 "output_dir",
                 "pos_all_finite",
@@ -314,6 +322,8 @@ def main() -> None:
                 cfg_dict["motor"]["torque_Nm"] = float(torque)
                 cfg_dict["motor"][args.target] = float(value)
                 cfg_dict["time"]["duration_s"] = float(args.duration)
+                if args.dt_star is not None:
+                    cfg_dict["time"]["dt_star"] = float(args.dt_star)
                 if args.body_stiffness_scale is not None:
                     cfg_dict["stiffness_scales"]["body"] = float(
                         args.body_stiffness_scale
@@ -356,6 +366,8 @@ def main() -> None:
                         "value": float(value),
                         "stub_mode": str(cfg.flagella.stub_mode),
                         "n_flagella": int(cfg.flagella.n_flagella),
+                        "dt_star": float(cfg.dt_star),
+                        "dt_internal_s": float(cfg.dt_s),
                         "body_stiffness_scale": float(cfg.stiffness_scales.body),
                         "output_dir": str(run_dir),
                         "pos_all_finite": last.get("pos_all_finite", ""),

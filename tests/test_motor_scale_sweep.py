@@ -65,6 +65,7 @@ def test_phase24_local_hook_scale_sweep_reproduces_hook_gate(
     for scale in (1.0, 8.0):
         row = by_condition[(1.2e-21, scale)]
         assert row["body_stiffness_scale"] == "50.0"
+        assert row["dt_star"] == "0.001"
         assert row["shape_pass_nonbody"] == "True"
         assert row["body_shape_pass"] == "True"
         assert row["shape_pass"] == "True"
@@ -155,6 +156,7 @@ def test_stub_mode_full_flagella_summary_columns(tmp_path: Path, monkeypatch) ->
     safe = by_torque[1.2e-21]
     assert safe["stub_mode"] == "full_flagella"
     assert safe["n_flagella"] == "1"
+    assert safe["dt_star"] == "0.001"
     assert safe["shape_pass"] == "True"
     assert safe["first_fail_category"] == "none"
 

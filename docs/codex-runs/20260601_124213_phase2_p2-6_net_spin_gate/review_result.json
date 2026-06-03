@@ -1,0 +1,43 @@
+{
+  "status": "FAIL",
+  "summary": "旧 Phase 2.6 gate が瞬間スピン rate の揺れを持続回転として誤検出していたため、累積 net 回転と方向一貫性を hard gate に追加した。現行モデルでは形状維持と持続的な net 回転を両立する代表条件が未確立のため FAIL とする。",
+  "blocking_issues": [
+    "単一べん毛で螺旋形状を保ったまま net 1回転以上の持続回転を示す条件が未確立。",
+    "motor torque が螺旋全体の累積回転へ十分に伝達されない原因の実装修正が未完了。"
+  ],
+  "non_blocking_issues": [
+    "多本べん毛、束化、遊泳軌跡、2D 擬似顕微鏡動画の自然さは Phase 2.7 以降の対象。",
+    "今回の短時間スクリーニングは診断用であり、物理的な最適条件探索ではない。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_helix_retention_gate.py tests/test_run_state_fixed.py -q",
+      "result": "7 passed"
+    },
+    {
+      "command": "uv run ruff format --check . && uv run ruff check . && uv run pytest -q",
+      "result": "56 files already formatted, All checks passed, 133 passed"
+    },
+    {
+      "command": "re-evaluate outputs/phase2_6_dt1e4_spin_review/2026-05-31/230124/sim/step_summary.csv",
+      "result": "median_abs_flag_helix_spin_rate_hz=24.400110847247923, net_abs_flag_helix_spin_revolutions=0.0013917990878730456, flag_helix_spin_direction_consistency=0.00022068721845754322, motor_no_rotation fail"
+    },
+    {
+      "command": "dt_star=1.0e-4 short screening, duration_s=0.05",
+      "result": "net 回転が大きい条件はすべて shape_pass_nonbody=False。形状維持と持続回転の両立条件は未検出。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "今回は gate 指標とタスク分解の修正であり、物理モデルや motor torque distribution の実装変更はまだ行っていないため。次に motor 実装を変更する場合は ADR を検討する。",
+  "commit_type": "diagnostic",
+  "commit_hash": "13a5e92bf0267a23239de42c4e44a2549205d2ed",
+  "push_status": "pushed",
+  "next_actions": [
+    "P2-6-006 として motor torque の螺旋 net 回転伝達を診断・修正する。",
+    "修正後、time.dt_star=1.0e-4 固定で螺旋形状維持と net 1回転以上を両立する代表条件を再探索する。"
+  ]
+}

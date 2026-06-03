@@ -1,0 +1,52 @@
+{
+  "status": "FAIL",
+  "summary": "Phase 2.6 の回転判定を root azimuth proxy から螺旋スピン指標へ変更し、形状維持と螺旋スピンを両立する高トルク代表条件を固定した。ユーザー定性レビューが未完了のため FAIL のままとする。",
+  "blocking_issues": [
+    "ユーザー目視レビューが未完了。"
+  ],
+  "non_blocking_issues": [
+    "local scale representative は診断用の数値安定化寄りパラメータであり、物理最適値ではない。",
+    "多本べん毛、束化、遊泳軌跡、2D 擬似顕微鏡動画の自然さは Phase 2.7 以降の対象。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_run_state_fixed.py -k phase26",
+      "result": "4 passed, 1 deselected"
+    },
+    {
+      "command": "uv run pytest",
+      "result": "131 passed in 54.02s"
+    },
+    {
+      "command": "uv run python -m scripts.01_simulate_swimming --config conf/sim_swim.yaml --duration-s 0.25 --fps-out 100 --render-flagella --render-flagella-2d flagella.n_flagella=1 flagella.stub_mode=full_flagella motor.torque_Nm=3.0e-20 motor.local_hook_scale=4 motor.local_spring_scale=2 motor.local_bend_scale=2 motor.local_torsion_scale=2 time.dt_star=6.25e-5 output_sampling.out_all_steps_3d=false render.save_frames_3d=false render.save_frames_2d=false output.base_dir=outputs/phase2_6_spin_review",
+      "result": "outputs/phase2_6_spin_review/2026-05-31/222332/ を生成"
+    },
+    {
+      "command": "summarize_single_flagellum_helix_retention(outputs/phase2_6_spin_review/2026-05-31/222332/sim/step_summary.csv)",
+      "result": "helix_retention_pass=true, step_count=3999, median_abs_flag_helix_spin_rate_hz=4.485931809409611, min_flag_helix_spin_fit_r2=0.9975927221736666, max_flag_bond_rel_err=0.10778140765242737, max_flag_bend_err_deg=3.2403337537261647, max_flag_torsion_err_deg=13.545541770924038"
+    }
+  ],
+  "user_review_required": true,
+  "user_review_command": "uv run python -m scripts.01_simulate_swimming --config conf/sim_swim.yaml --duration-s 0.25 --fps-out 100 --render-flagella --render-flagella-2d flagella.n_flagella=1 flagella.stub_mode=full_flagella motor.torque_Nm=3.0e-20 motor.local_hook_scale=4 motor.local_spring_scale=2 motor.local_bend_scale=2 motor.local_torsion_scale=2 time.dt_star=6.25e-5 output_sampling.out_all_steps_3d=false render.save_frames_3d=false render.save_frames_2d=false output.base_dir=outputs/phase2_6_spin_review",
+  "user_review_outputs": [
+    "outputs/phase2_6_spin_review/2026-05-31/222332/render/swim3d.mp4",
+    "outputs/phase2_6_spin_review/2026-05-31/222332/render/swim3d_final.png",
+    "outputs/phase2_6_spin_review/2026-05-31/222332/render2d/projection.mp4",
+    "outputs/phase2_6_spin_review/2026-05-31/222332/sim/step_summary.csv"
+  ],
+  "user_review_points": [
+    "単一べん毛の螺旋形状が 0.25 s / 4000 steps の間に潰れないこと。",
+    "hook 近傍で不自然な折れ曲がりや飛びが出ないこと。",
+    "べん毛が停止せず、連続的に回転して見えること。",
+    "菌体やべん毛が画面外へ飛ぶ、または急激に拡大・縮小して見えないこと。"
+  ],
+  "adr_required": false,
+  "adr_reason": "診断指標と gate の修正であり、現時点では物理モデル自体の変更ではないため。",
+  "commit_type": "diagnostic",
+  "commit_hash": "56f9d8b2a081159bf02f9f1b8ae7db29372d8d36",
+  "push_status": "pushed",
+  "next_actions": [
+    "ユーザー目視レビュー完了後に Phase 2.6 の review_result を PASS へ更新する。",
+    "目視レビューで違和感がある場合は high-torque representative の条件探索を続ける。"
+  ]
+}

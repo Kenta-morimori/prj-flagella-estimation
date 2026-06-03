@@ -74,10 +74,18 @@ STEP_SUMMARY_COLUMNS = [
     "motor_Fa_norm",
     "motor_Fb_norm",
     "motor_axis_vs_rear_direction_angle_deg",
+    "local_twist_root_orientation_deg",
+    "local_twist_tip_orientation_deg",
+    "local_twist_abs_mean_deg",
+    "local_twist_abs_max_deg",
+    "local_twist_tip_activity_ratio",
     "flag_root_azimuth_deg",
     "flag_phase_deg",
     "flag_phase_rate_hz",
     "flag_body_phase_diff_deg",
+    "flag_helix_spin_phase_deg",
+    "flag_helix_spin_rate_hz",
+    "flag_helix_spin_fit_r2",
     "motor_attach_force_norm",
     "motor_first_force_norm",
     "motor_second_force_norm",
@@ -185,6 +193,90 @@ def _wrap_angle(rad: np.ndarray | float) -> np.ndarray | float:
 
 def _is_finite_number(value: float) -> bool:
     return bool(np.isfinite(float(value)))
+
+
+def _body_frame_basis(
+    positions_m: np.ndarray, model: SimModel
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    if len(model.body_layer_indices) >= 2:
+        first = model.body_layer_indices[0].astype(int, copy=False)
+        last = model.body_layer_indices[-1].astype(int, copy=False)
+        c_first = np.mean(positions_m[first], axis=0)
+        c_last = np.mean(positions_m[last], axis=0)
+        origin = c_first
+        axis = c_last - c_first
+        marker = positions_m[int(first[0])] - c_first if first.size > 0 else np.zeros(3)
+    else:
+        body_idx = model.body_indices.astype(int, copy=False)
+        origin = np.mean(positions_m[body_idx], axis=0)
+        axis = positions_m[int(body_idx[-1])] - positions_m[int(body_idx[0])]
+        marker = positions_m[int(body_idx[0])] - origin
+
+    axis_norm = float(np.linalg.norm(axis))
+    if axis_norm <= 1e-18:
+        axis = np.array([1.0, 0.0, 0.0], dtype=float)
+    else:
+        axis = axis / axis_norm
+
+    marker = marker - float(np.dot(marker, axis)) * axis
+    marker_norm = float(np.linalg.norm(marker))
+    if marker_norm <= 1e-18:
+        marker = np.array([0.0, 1.0, 0.0], dtype=float)
+        marker = marker - float(np.dot(marker, axis)) * axis
+        marker_norm = float(np.linalg.norm(marker))
+    if marker_norm <= 1e-18:
+        marker = np.cross(axis, np.array([0.0, 0.0, 1.0], dtype=float))
+        marker_norm = float(np.linalg.norm(marker))
+    e1 = marker / max(marker_norm, 1e-18)
+    e2 = np.cross(axis, e1)
+    e2 = e2 / max(float(np.linalg.norm(e2)), 1e-18)
+    return origin, axis, e1, e2
+
+
+def _to_body_frame(positions_m: np.ndarray, model: SimModel) -> np.ndarray:
+    origin, axis, e1, e2 = _body_frame_basis(positions_m, model)
+    rel = positions_m - origin
+    return np.column_stack((rel @ axis, rel @ e1, rel @ e2))
+
+
+def _estimate_helix_spin_offset_deg(points_body: np.ndarray) -> tuple[float, float]:
+    if points_body.shape[0] < 5:
+        return float("nan"), float("nan")
+
+    centered = points_body - np.mean(points_body, axis=0)
+    _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    axis = vh[0]
+    axis = axis / max(float(np.linalg.norm(axis)), 1e-18)
+    if float(np.dot(axis, points_body[-1] - points_body[0])) < 0.0:
+        axis = -axis
+
+    ref = np.array([0.0, 1.0, 0.0], dtype=float)
+    if abs(float(np.dot(ref, axis))) > 0.9:
+        ref = np.array([0.0, 0.0, 1.0], dtype=float)
+    e1 = ref - float(np.dot(ref, axis)) * axis
+    e1 = e1 / max(float(np.linalg.norm(e1)), 1e-18)
+    e2 = np.cross(axis, e1)
+    e2 = e2 / max(float(np.linalg.norm(e2)), 1e-18)
+
+    rel = points_body - points_body[0]
+    s = rel @ axis
+    u = rel @ e1
+    v = rel @ e2
+    mat = np.column_stack([u, v, np.ones_like(u)])
+    rhs = -(u * u + v * v)
+    coef, *_ = np.linalg.lstsq(mat, rhs, rcond=None)
+    cx = -0.5 * float(coef[0])
+    cy = -0.5 * float(coef[1])
+    theta = np.unwrap(np.arctan2(v - cy, u - cx))
+    if theta.size < 3 or not np.isfinite(theta).all():
+        return float("nan"), float("nan")
+
+    slope, intercept = np.polyfit(s, theta, 1)
+    pred = slope * s + intercept
+    ss_res = float(np.sum((theta - pred) ** 2))
+    ss_tot = float(np.sum((theta - float(np.mean(theta))) ** 2))
+    fit_r2 = 1.0 - ss_res / max(ss_tot, 1e-30)
+    return float(np.rad2deg(intercept)), float(fit_r2)
 
 
 def _check_nonbody_shape_pass(
@@ -678,6 +770,9 @@ class StepSummaryRecorder:
         self.prev_flag_root_azimuth_deg: float | None = None
         self.prev_flag_phase_deg: float | None = None
         self.prev_flag_phase_t_s: float | None = None
+        self.prev_flag_helix_spin_offset_deg: float | None = None
+        self.prev_flag_helix_spin_phase_deg: float | None = None
+        self.prev_flag_helix_spin_t_s: float | None = None
 
         pair_rows = _pair_row_lookup(self.spring_pairs)
 
@@ -1013,6 +1108,9 @@ class StepSummaryRecorder:
         flag_phase_deg = float("nan")
         flag_phase_rate_hz = float("nan")
         flag_body_phase_diff_deg = float("nan")
+        flag_helix_spin_phase_deg = float("nan")
+        flag_helix_spin_rate_hz = float("nan")
+        flag_helix_spin_fit_r2 = float("nan")
         if self.local_attach_idx >= 0 and self.local_first_idx >= 0:
             axis, e1, e2 = self._phase_reference_frame(pos_after)
             attach_vec = pos_after[self.local_attach_idx]
@@ -1055,6 +1153,43 @@ class StepSummaryRecorder:
                 self.prev_flag_root_azimuth_deg = flag_root_azimuth_deg
                 self.prev_flag_phase_deg = flag_phase_deg
                 self.prev_flag_phase_t_s = float(t_star * self.cfg.tau_s)
+
+        if self.local_flag_id >= 0:
+            flag_chain = self.model.flagella_indices[self.local_flag_id].astype(
+                int, copy=False
+            )
+            body_frame_pos = _to_body_frame(pos_after, self.model)
+            spin_offset_deg, flag_helix_spin_fit_r2 = _estimate_helix_spin_offset_deg(
+                body_frame_pos[flag_chain]
+            )
+            if np.isfinite(spin_offset_deg):
+                if (
+                    self.prev_flag_helix_spin_offset_deg is None
+                    or self.prev_flag_helix_spin_phase_deg is None
+                ):
+                    flag_helix_spin_phase_deg = spin_offset_deg
+                    flag_helix_spin_rate_hz = 0.0
+                else:
+                    delta = self._wrap_deg(
+                        spin_offset_deg - self.prev_flag_helix_spin_offset_deg
+                    )
+                    flag_helix_spin_phase_deg = (
+                        self.prev_flag_helix_spin_phase_deg + delta
+                    )
+                    prev_t_s = self.prev_flag_helix_spin_t_s
+                    if prev_t_s is not None:
+                        dt_s = max(float(t_star * self.cfg.tau_s - prev_t_s), 1e-30)
+                        flag_helix_spin_rate_hz = (
+                            (
+                                flag_helix_spin_phase_deg
+                                - self.prev_flag_helix_spin_phase_deg
+                            )
+                            / 360.0
+                            / dt_s
+                        )
+                self.prev_flag_helix_spin_offset_deg = spin_offset_deg
+                self.prev_flag_helix_spin_phase_deg = flag_helix_spin_phase_deg
+                self.prev_flag_helix_spin_t_s = float(t_star * self.cfg.tau_s)
 
         local_region_indices = [
             self.local_attach_idx,
@@ -1145,10 +1280,24 @@ class StepSummaryRecorder:
             "motor_axis_vs_rear_direction_angle_deg": float(
                 diag.motor_axis_vs_rear_direction_angle_deg
             ),
+            "local_twist_root_orientation_deg": float(
+                diag.local_twist_root_orientation_deg
+            ),
+            "local_twist_tip_orientation_deg": float(
+                diag.local_twist_tip_orientation_deg
+            ),
+            "local_twist_abs_mean_deg": float(diag.local_twist_abs_mean_deg),
+            "local_twist_abs_max_deg": float(diag.local_twist_abs_max_deg),
+            "local_twist_tip_activity_ratio": float(
+                diag.local_twist_tip_activity_ratio
+            ),
             "flag_root_azimuth_deg": flag_root_azimuth_deg,
             "flag_phase_deg": flag_phase_deg,
             "flag_phase_rate_hz": flag_phase_rate_hz,
             "flag_body_phase_diff_deg": flag_body_phase_diff_deg,
+            "flag_helix_spin_phase_deg": flag_helix_spin_phase_deg,
+            "flag_helix_spin_rate_hz": flag_helix_spin_rate_hz,
+            "flag_helix_spin_fit_r2": flag_helix_spin_fit_r2,
             "motor_attach_force_norm": float(diag.motor_attach_force_norm),
             "motor_first_force_norm": float(diag.motor_first_force_norm),
             "motor_second_force_norm": float(diag.motor_second_force_norm),

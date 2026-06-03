@@ -1,0 +1,46 @@
+{
+  "status": "PASS",
+  "summary": "hook spring force を復元し、診断用 motor.force_distribution=distributed_flagellum を追加した。0.5 s / 5000 steps で螺旋形状維持と net 1回転以上の定量 gate が PASS し、ユーザー目視でも綺麗に回転していることを確認済み。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "distributed_flagellum は Phase 2 診断用の近似であり、参照論文の厳密な motor 実装ではない。",
+    "多本べん毛、束化、遊泳軌跡、2D 擬似顕微鏡動画の自然さは Phase 2.7 以降の対象。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run ruff format --check . && uv run ruff check . && uv run pytest -q",
+      "result": "56 files already formatted, All checks passed, 135 passed"
+    },
+    {
+      "command": "0.5 s probe with torque=2.0e-20, dt_star=1.0e-4, motor.force_distribution=distributed_flagellum, local_spring_scale=1.2",
+      "result": "helix_retention_pass=True, net_abs_flag_helix_spin_revolutions=1.0416129331359716, max_hook_len_rel_err=0.4045704218609963, max_flag_bond_rel_err=0.17236812212772734"
+    },
+    {
+      "command": "uv run python -m scripts.01_simulate_swimming --config conf/sim_swim.yaml --duration-s 0.5 --fps-out 100 --render-flagella --render-flagella-2d flagella.n_flagella=1 flagella.stub_mode=full_flagella motor.torque_Nm=2.0e-20 motor.force_distribution=distributed_flagellum motor.local_hook_scale=1 motor.local_spring_scale=1.2 motor.local_bend_scale=1 motor.local_torsion_scale=1 time.dt_star=1.0e-4 output_sampling.out_all_steps_3d=false render.save_frames_3d=false render.save_frames_2d=false output.base_dir=outputs/phase2_6_distributed_spin_review",
+      "result": "outputs/phase2_6_distributed_spin_review/2026-06-01/134726/ を生成"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "uv run python -m scripts.01_simulate_swimming --config conf/sim_swim.yaml --duration-s 0.5 --fps-out 100 --render-flagella --render-flagella-2d flagella.n_flagella=1 flagella.stub_mode=full_flagella motor.torque_Nm=2.0e-20 motor.force_distribution=distributed_flagellum motor.local_hook_scale=1 motor.local_spring_scale=1.2 motor.local_bend_scale=1 motor.local_torsion_scale=1 time.dt_star=1.0e-4 output_sampling.out_all_steps_3d=false render.save_frames_3d=false render.save_frames_2d=false output.base_dir=outputs/phase2_6_distributed_spin_review",
+  "user_review_outputs": [
+    "outputs/phase2_6_distributed_spin_review/2026-06-01/134726/render/swim3d.mp4",
+    "outputs/phase2_6_distributed_spin_review/2026-06-01/134726/render/swim3d_final.png",
+    "outputs/phase2_6_distributed_spin_review/2026-06-01/134726/render2d/projection.mp4",
+    "outputs/phase2_6_distributed_spin_review/2026-06-01/134726/sim/step_summary.csv"
+  ],
+  "user_review_points": [
+    "単一べん毛の螺旋形状が 0.5 s / 5000 steps の間に潰れないこと。",
+    "べん毛全体が停止せず、一方向に約1回転以上して見えること。",
+    "hook 近傍で不自然な伸び、折れ曲がり、飛びが出ないこと。",
+    "菌体やべん毛が画面外へ飛ぶ、または急激に拡大・縮小して見えないこと。"
+  ],
+  "adr_required": true,
+  "adr_reason": "motor torque distribution に診断用の distributed_flagellum 方式を追加し、参照論文モデルとの差分が解釈に影響するため。",
+  "commit_type": "diagnostic",
+  "commit_hash": "bc70cc10e6d4d9d535d4aa51626019ac322e905f",
+  "push_status": "pushed",
+  "next_actions": [
+    "distributed_flagellum を診断 baseline として残しつつ、triplet motor に材料ねじれ・回転自由度を追加できるかを検討する。",
+    "多本べん毛条件へ進む前に、motor torque 伝搬モデルの採用方針を再評価する。"
+  ]
+}

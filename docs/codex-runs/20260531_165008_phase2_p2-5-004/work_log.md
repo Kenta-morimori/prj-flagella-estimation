@@ -13,7 +13,7 @@
 - `1.2e-21 N m` を safe representative、`4.0e-21 N m` を `flag` first-fail representative として pytest で固定した。
 - `scripts.01_simulate_swimming.run_motor_scale_sweep` に `--stub-mode` と `--n-flagella` を追加し、full flagellum sweep を標準コマンドで実行できるようにした。
 - `scripts/plot_motor_scale_collapse_heatmap.py` は phase-specific 実体への wrapper であり、Phase2 実行系の責務境界を明確にするため削除した。テストは `scripts/01_simulate_swimming/plot_motor_scale_collapse_heatmap.py` を直接読むように更新した。
-- `docs/phase2/single_flagellum_stability.md`, `docs/phase2/TASKS.md`, `docs/PROJECT_PLAN.md`, `scripts/README.md` を更新した。
+- `docs/phase2/phase2_5_single_flagellum_stability.md`, `docs/phase2/phase2_tasks.md`, `docs/PROJECT_PLAN.md`, `scripts/README.md` を更新した。
 
 ## 仮説と結果
 

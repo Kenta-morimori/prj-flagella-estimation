@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "summary": "P2-6-007の続きとして、P2-6-008予定内容を吸収し、axial_torque_flux_probeを実装検証した。0.5 s / dt_star=1.0e-4でnet 1回転以上とshape gate PASSを確認し、短期的に有効な近似アプローチとして提案した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "axial_torque_flux_probeはmaterial frame / segment twistを明示する物理モデルではなく、bead-position-only model上の近似である。",
+    "代表動画のユーザー目視レビューは未実施。",
+    "複数べん毛での非崩壊検証と束化評価は未実施。"
+  ],
+  "tests_reviewed": [
+    "uv run pytest tests/test_motor_forces.py -q",
+    "uv run pytest tests/test_motor_forces.py tests/test_run_state_fixed.py::test_phase26_axial_torque_flux_probe_drives_net_helix_spin -q",
+    "uv run pytest tests/test_run_state_fixed.py -q"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": true,
+  "adr_reason": "motor.force_distributionに新しい実験用force distributionを追加し、Phase 2の物理モデル解釈に影響するため。",
+  "commit_type": "complete",
+  "commit_hash": "80c5dddeb2004827d0578875d9420872a9824d6e",
+  "push_status": "pushed",
+  "next_actions": [
+    "必要に応じてaxial_torque_flux_probeの代表動画を生成し、ユーザー目視レビューを受ける。",
+    "material frame / segment twistの明示導入を検討する場合は、axial_torque_flux_probeの0.5 s pass条件を最低限の比較基準にする。",
+    "Phase 2.7で複数べん毛条件の非崩壊検証へ進む。"
+  ]
+}

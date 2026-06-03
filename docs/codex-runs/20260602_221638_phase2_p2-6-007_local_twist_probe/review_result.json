@@ -1,0 +1,40 @@
+{
+  "status": "PASS",
+  "summary": "P2-6-007の続きとして、segment orientation stateを持つlocal_twist_transmission_probeを実装し、root側orientation activityが先端側へ部分伝搬することをstep_summary.csvへ記録できるようにした。0.5 s / dt_star=1.0e-4 / torque=2.0e-20条件でnet 1回転以上とshape gate PASSを確認した。本PRはprobe成功までをscopeとし、完全物理実装は次タスクへ分離する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "local_twist_transmission_probeは完全なCosserat rod / material frame実装ではなく、orientation activityを重み付きbead接線forceへ変換する近似である。",
+    "triplet既定値は変更していないため、従来triplet単独ではroot torqueが螺旋全体のnet回転へ十分に伝わらない課題が残る。",
+    "material frame / segment twist / 局所force coupleによる完全物理実装はP2-6-008で扱う。",
+    "複数べん毛での非崩壊検証、束化、遊泳軌跡、2D動画自然さはPhase 2.7以降で扱う。"
+  ],
+  "tests_reviewed": [
+    "uv run ruff format --check .",
+    "uv run ruff check .",
+    "uv run pytest tests/test_motor_forces.py tests/test_run_state_fixed.py::test_phase26_local_twist_transmission_probe_tracks_twist_state -q",
+    "uv run pytest tests/test_run_state_fixed.py -q",
+    "uv run pytest -q",
+    "uv run python -m scripts.01_simulate_swimming --config conf/sim_swim.yaml --duration-s 0.5 --fps-out 100 --render-flagella --render-flagella-2d flagella.n_flagella=1 flagella.stub_mode=full_flagella motor.torque_Nm=2.0e-20 motor.force_distribution=local_twist_transmission_probe motor.local_hook_scale=1 motor.local_spring_scale=1.2 motor.local_bend_scale=1 motor.local_torsion_scale=1 time.dt_star=1.0e-4 output_sampling.out_all_steps_3d=false render.save_frames_3d=false render.save_frames_2d=false output.base_dir=outputs/phase2_6_local_twist_review"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [
+    "outputs/phase2_6_local_twist_review/2026-06-02/221954/render/swim3d.mp4",
+    "outputs/phase2_6_local_twist_review/2026-06-02/221954/render2d/projection.mp4",
+    "outputs/phase2_6_local_twist_review/2026-06-02/221954/sim/step_summary.csv"
+  ],
+  "user_review_points": [
+    "任意確認: 単一べん毛が螺旋形状を保ったままnet回転しているか。",
+    "任意確認: 菌体からべん毛まで潰れず、hook近傍が破綻していないか。"
+  ],
+  "adr_required": true,
+  "adr_reason": "motor.force_distributionに新しい実験用force distributionを追加し、Phase 2の物理モデル解釈と論文モデルとの差分に影響するため。",
+  "commit_type": "complete",
+  "commit_hash": "670e1332b27283a716bb5cd4ebf1634a2e033305",
+  "push_status": "pushed",
+  "next_actions": [
+    "必要に応じて生成済み代表動画を任意で目視確認する。",
+    "Phase 2.7でdistributed_flagellum/local_twist系の複数べん毛非崩壊条件を検証する。",
+    "P2-6-008でmaterial frame / segment twist / 局所force coupleによる完全物理実装を検証する。"
+  ]
+}

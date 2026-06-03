@@ -1,0 +1,48 @@
+{
+  "status": "FAIL",
+  "summary": "dt_star=1.0e-4 固定で探索し、0.25 s / 2500 steps で螺旋形状維持と螺旋スピンを両立する候補を得た。ユーザー定性レビューが未完了のため FAIL のままとする。",
+  "blocking_issues": [
+    "ユーザー目視レビューが未完了。"
+  ],
+  "non_blocking_issues": [
+    "local scale representative は診断用の数値安定化寄りパラメータであり、物理最適値ではない。",
+    "多本べん毛、束化、遊泳軌跡、2D 擬似顕微鏡動画の自然さは Phase 2.7 以降の対象。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "dt_star=1.0e-4 focused screening",
+      "result": "torque=2.5e-20, local scale=(4,2,2,2) が 0.10 s で pass。torque=3.0e-20 は flag_bond_rel_err_max=0.314 > 0.25 で fail。"
+    },
+    {
+      "command": "0.25 s probe with torque=2.5e-20, dt_star=1.0e-4, local scale=(4,2,2,2)",
+      "result": "helix_retention_pass=true, step_count=2499, median_abs_flag_helix_spin_rate_hz=24.400110847247923, min_flag_helix_spin_fit_r2=0.9960544884061735, max_flag_bond_rel_err=0.1981248773709303, max_flag_bend_err_deg=13.571589875584383, max_flag_torsion_err_deg=39.72389200140437"
+    },
+    {
+      "command": "uv run python -m scripts.01_simulate_swimming --config conf/sim_swim.yaml --duration-s 0.25 --fps-out 100 --render-flagella --render-flagella-2d flagella.n_flagella=1 flagella.stub_mode=full_flagella motor.torque_Nm=2.5e-20 motor.local_hook_scale=4 motor.local_spring_scale=2 motor.local_bend_scale=2 motor.local_torsion_scale=2 time.dt_star=1.0e-4 output_sampling.out_all_steps_3d=false render.save_frames_3d=false render.save_frames_2d=false output.base_dir=outputs/phase2_6_dt1e4_spin_review",
+      "result": "outputs/phase2_6_dt1e4_spin_review/2026-05-31/230124/ を生成"
+    }
+  ],
+  "user_review_required": true,
+  "user_review_command": "uv run python -m scripts.01_simulate_swimming --config conf/sim_swim.yaml --duration-s 0.25 --fps-out 100 --render-flagella --render-flagella-2d flagella.n_flagella=1 flagella.stub_mode=full_flagella motor.torque_Nm=2.5e-20 motor.local_hook_scale=4 motor.local_spring_scale=2 motor.local_bend_scale=2 motor.local_torsion_scale=2 time.dt_star=1.0e-4 output_sampling.out_all_steps_3d=false render.save_frames_3d=false render.save_frames_2d=false output.base_dir=outputs/phase2_6_dt1e4_spin_review",
+  "user_review_outputs": [
+    "outputs/phase2_6_dt1e4_spin_review/2026-05-31/230124/render/swim3d.mp4",
+    "outputs/phase2_6_dt1e4_spin_review/2026-05-31/230124/render/swim3d_final.png",
+    "outputs/phase2_6_dt1e4_spin_review/2026-05-31/230124/render2d/projection.mp4",
+    "outputs/phase2_6_dt1e4_spin_review/2026-05-31/230124/sim/step_summary.csv"
+  ],
+  "user_review_points": [
+    "単一べん毛の螺旋形状が 0.25 s / 2500 steps の間に潰れないこと。",
+    "hook 近傍で不自然な折れ曲がりや飛びが出ないこと。",
+    "べん毛が停止せず、連続的に回転して見えること。",
+    "菌体やべん毛が画面外へ飛ぶ、または急激に拡大・縮小して見えないこと。"
+  ],
+  "adr_required": false,
+  "adr_reason": "実行時 override 方針と診断代表条件の更新であり、デフォルト設定や物理モデル自体の変更ではないため。",
+  "commit_type": "diagnostic",
+  "commit_hash": "f841b61b8e1b9e341d8007dd169e8c0858a3f314",
+  "push_status": "pushed",
+  "next_actions": [
+    "ユーザー目視レビュー完了後に Phase 2.6 の review_result を PASS へ更新する。",
+    "目視レビューで違和感がある場合は dt_star=1.0e-4 固定のまま、torque と local scale の探索を続ける。"
+  ]
+}

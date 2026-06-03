@@ -1,0 +1,31 @@
+{
+  "status": "PASS",
+  "summary": "P2-6-007のmerge前整理として、本PRのscopeをprobe成功までに限定し、完全物理実装をP2-6-008へ分離する方針をdocsへ反映した。axial_torque_flux_probeとlocal_twist_transmission_probeはADR 0002へ統合し、material frame / segment twist / 局所force coupleによる完全物理実装はADR 0004として新規作成した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "P2-6-008はproposedであり、material frame / segment twistの実装検証は未着手。",
+    "ADR 0003は履歴ADRとしてsupersededにしたため、今後の正本はADR 0002とADR 0004を参照する。"
+  ],
+  "tests_reviewed": [
+    "uv run python -m json.tool docs/codex-runs/20260602_221638_phase2_p2-6-007_local_twist_probe/review_result.json",
+    "uv run python -m json.tool docs/codex-runs/20260603_111352_phase2_p2-6_probe_scope_docs/review_result.json",
+    "uv run ruff check .",
+    "git commit hook: uv run ruff format --check .",
+    "git commit hook: uv run ruff check .",
+    "git commit hook: uv run pytest -q"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": true,
+  "adr_reason": "probeのscope整理と完全物理実装の分離はPhase 2物理モデルの解釈に影響するため。",
+  "commit_type": "complete",
+  "commit_hash": "29af743",
+  "push_status": "pushed",
+  "next_actions": [
+    "P2-6-008でmaterial frame / segment twist / 局所force coupleによる完全物理実装を検証する。",
+    "P2-6-008では既存torsion forceとの二重カウントを評価する。",
+    "P2-6-008では非局所force injectionを使わないことをacceptance criteriaに含める。"
+  ]
+}

@@ -11,8 +11,11 @@ import numpy as np
 from sim_swim.dynamics.brownian import sample_brownian_displacement
 from sim_swim.dynamics.forces import (
     MotorForceDiagnostics,
+    compute_axial_torque_flux_probe_forces,
     compute_bending_forces,
+    compute_distributed_flagellar_motor_forces,
     compute_hook_forces,
+    compute_local_twist_transmission_probe_forces,
     compute_motor_forces,
     compute_segment_repulsion_forces,
     compute_spring_forces,
@@ -92,6 +95,11 @@ class StepDiagnostics:
     body_equiv_force_mean: float
     body_equiv_force_max: float
     torsion_fd_eps_m: float
+    local_twist_root_orientation_deg: float
+    local_twist_tip_orientation_deg: float
+    local_twist_abs_mean_deg: float
+    local_twist_abs_max_deg: float
+    local_twist_tip_activity_ratio: float
 
 
 class DynamicsEngine:
@@ -233,6 +241,17 @@ class DynamicsEngine:
         self.motor_local_spring_scale = float(cfg.motor.local_spring_scale)
         self.motor_local_bend_scale = float(cfg.motor.local_bend_scale)
         self.motor_local_torsion_scale = float(cfg.motor.local_torsion_scale)
+        self.local_twist_orientations = [
+            np.zeros((max(int(idxs.size) - 1, 1),), dtype=float)
+            for idxs in self.model.flagella_indices
+        ]
+        self.local_twist_latest_diag = {
+            "root_orientation_deg": float("nan"),
+            "tip_orientation_deg": float("nan"),
+            "abs_mean_deg": float("nan"),
+            "abs_max_deg": float("nan"),
+            "tip_activity_ratio": float("nan"),
+        }
 
     def set_external_force_callback(
         self,
@@ -489,6 +508,82 @@ class DynamicsEngine:
 
         return out
 
+    def _advance_local_twist_state(
+        self,
+        torque_per_flag: np.ndarray,
+        dt_s: float,
+    ) -> list[np.ndarray]:
+        """root torque を segment orientation state として先端側へ拡散する。"""
+
+        torque_ref = 2.0e-20
+        drive_rate_ref_rad_s = 2.0 * math.pi * 2.2
+        diffusion_rate_s = 80.0
+        relaxation_rate_s = 0.05
+        weights: list[np.ndarray] = []
+
+        root_orientation = float("nan")
+        tip_orientation = float("nan")
+        abs_mean = float("nan")
+        abs_max = float("nan")
+        tip_activity_ratio = float("nan")
+
+        for f_id, orientation in enumerate(self.local_twist_orientations):
+            if f_id >= torque_per_flag.shape[0]:
+                weights.append(np.ones_like(orientation))
+                continue
+
+            tau = float(torque_per_flag[f_id])
+            drive_rate = drive_rate_ref_rad_s * (tau / torque_ref)
+
+            lap = np.zeros_like(orientation)
+            if orientation.size > 1:
+                lap[0] = orientation[1] - orientation[0]
+                lap[-1] = orientation[-2] - orientation[-1]
+                if orientation.size > 2:
+                    lap[1:-1] = (
+                        orientation[:-2] - 2.0 * orientation[1:-1] + orientation[2:]
+                    )
+            orientation += dt_s * (
+                diffusion_rate_s * lap - relaxation_rate_s * orientation
+            )
+            orientation[0] += drive_rate * dt_s
+
+            activity = np.abs(orientation)
+            if float(np.max(activity)) <= 1e-12:
+                weights.append(np.ones_like(orientation))
+            else:
+                weights.append(activity / max(float(np.max(activity)), 1e-12))
+
+            if f_id == 0:
+                local_twist = (
+                    np.diff(orientation)
+                    if orientation.size > 1
+                    else np.zeros((0,), dtype=float)
+                )
+                root_orientation = float(math.degrees(orientation[0]))
+                tip_orientation = float(math.degrees(orientation[-1]))
+                if local_twist.size > 0:
+                    abs_twist_deg = np.abs(np.rad2deg(local_twist))
+                    abs_mean = float(np.mean(abs_twist_deg))
+                    abs_max = float(np.max(abs_twist_deg))
+                else:
+                    abs_mean = 0.0
+                    abs_max = 0.0
+                tip_activity_ratio = (
+                    float(activity[-1] / max(float(activity[0]), 1e-12))
+                    if activity.size > 0
+                    else float("nan")
+                )
+
+        self.local_twist_latest_diag = {
+            "root_orientation_deg": root_orientation,
+            "tip_orientation_deg": tip_orientation,
+            "abs_mean_deg": abs_mean,
+            "abs_max_deg": abs_max,
+            "tip_activity_ratio": tip_activity_ratio,
+        }
+        return weights
+
     def step(self, dt_star: float) -> StepDiagnostics:
         """1ステップ更新する。
 
@@ -514,6 +609,18 @@ class DynamicsEngine:
                     self.body_spring_rows
                 ],
                 h_const=self.spring_h * self.body_stiffness_scale,
+                s_limit_m=self.spring_s_m,
+                clamp_eps=1e-3,
+            )
+        if self.hook_spring_rows.size > 0:
+            spring_forces += compute_spring_forces(
+                positions_m=pos,
+                spring_pairs=self.model.spring_pairs[self.hook_spring_rows],
+                spring_rest_lengths_m=self.model.spring_rest_lengths_m[
+                    self.hook_spring_rows
+                ],
+                h_const=self.spring_h
+                * (self.motor_local_spring_scale if motor_on else 1.0),
                 s_limit_m=self.spring_s_m,
                 clamp_eps=1e-3,
             )
@@ -611,12 +718,49 @@ class DynamicsEngine:
             torque_per_flag = (
                 self.cfg.motor_torque_Nm * ramp_scale
             ) * self.model.torque_signs[: self.model.motor_triplets.shape[0]]
-            motor_forces, motor_diag = compute_motor_forces(
-                positions_m=pos,
-                motor_triplets=self.model.motor_triplets,
-                torque_per_flag=torque_per_flag,
-                body_axis_unit=self._body_axis_unit(pos),
-            )
+            distribution = self.cfg.motor.force_distribution
+            if distribution == "triplet":
+                motor_forces, motor_diag = compute_motor_forces(
+                    positions_m=pos,
+                    motor_triplets=self.model.motor_triplets,
+                    torque_per_flag=torque_per_flag,
+                    body_axis_unit=self._body_axis_unit(pos),
+                )
+            elif distribution == "distributed_flagellum":
+                motor_forces, motor_diag = compute_distributed_flagellar_motor_forces(
+                    positions_m=pos,
+                    flagella_indices=self.model.flagella_indices,
+                    body_indices=self.model.body_indices,
+                    torque_per_flag=torque_per_flag,
+                )
+            elif distribution == "axial_torque_flux_probe":
+                motor_forces, motor_diag = compute_axial_torque_flux_probe_forces(
+                    positions_m=pos,
+                    flagella_indices=self.model.flagella_indices,
+                    body_indices=self.model.body_indices,
+                    torque_per_flag=torque_per_flag,
+                )
+            elif distribution == "local_twist_transmission_probe":
+                segment_weights = self._advance_local_twist_state(
+                    torque_per_flag=torque_per_flag,
+                    dt_s=dt_s,
+                )
+                motor_forces, motor_diag = (
+                    compute_local_twist_transmission_probe_forces(
+                        positions_m=pos,
+                        flagella_indices=self.model.flagella_indices,
+                        body_indices=self.model.body_indices,
+                        torque_per_flag=torque_per_flag,
+                        segment_weights=segment_weights,
+                    )
+                )
+            else:
+                raise ValueError(
+                    "Unsupported motor.force_distribution: "
+                    f"{distribution!r}. Use 'triplet', 'distributed_flagellum', "
+                    "'axial_torque_flux_probe', or "
+                    "'local_twist_transmission_probe'."
+                )
         motor_axis_vs_rear_direction_angle_deg = (
             self._motor_axis_vs_rear_direction_angle_deg(pos)
         )
@@ -706,4 +850,17 @@ class DynamicsEngine:
             body_equiv_force_mean=float(np.mean(body_equiv_norm)),
             body_equiv_force_max=float(np.max(body_equiv_norm)),
             torsion_fd_eps_m=self.torsion_fd_eps_m,
+            local_twist_root_orientation_deg=float(
+                self.local_twist_latest_diag["root_orientation_deg"]
+            ),
+            local_twist_tip_orientation_deg=float(
+                self.local_twist_latest_diag["tip_orientation_deg"]
+            ),
+            local_twist_abs_mean_deg=float(
+                self.local_twist_latest_diag["abs_mean_deg"]
+            ),
+            local_twist_abs_max_deg=float(self.local_twist_latest_diag["abs_max_deg"]),
+            local_twist_tip_activity_ratio=float(
+                self.local_twist_latest_diag["tip_activity_ratio"]
+            ),
         )

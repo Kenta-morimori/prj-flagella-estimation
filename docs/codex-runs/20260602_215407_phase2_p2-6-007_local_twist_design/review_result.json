@@ -1,0 +1,27 @@
+{
+  "status": "PASS",
+  "summary": "P2-6-007の続きとして、local twist transmissionの考え方をADRとPhase 2.6設計メモに明文化した。現行実装は変更せず、次の実装段階をorientation/local_twist診断、root torque入力、twist relaxation、bead force変換の順に整理した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "local twist transmissionのコード実装は未着手。",
+    "material frame / local twistをbead forceへ変換する具体式は次段階で検証する。",
+    "axial_torque_flux_probeは短期的な妥協案として残るが、物理モデルとしてはlocal twist transmissionの実装検証が必要。"
+  ],
+  "tests_reviewed": [
+    "docs-only change; no runtime behavior was changed."
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": true,
+  "adr_reason": "local twist transmissionはPhase 2の物理モデル拡張方針であり、実装前に解釈と段階を固定する必要があるため。",
+  "commit_type": "complete",
+  "commit_hash": "26b55687c39d5141ad573620594ce9fc944c3f49",
+  "push_status": "pushed",
+  "next_actions": [
+    "orientation/local_twist診断状態を追加する。",
+    "root torque入力でroot側local_twistが増えることを確認する。",
+    "twist relaxationとbead force変換を段階的に実装検証する。"
+  ]
+}

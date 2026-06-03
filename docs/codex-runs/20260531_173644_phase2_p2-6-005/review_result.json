@@ -1,0 +1,44 @@
+{
+  "status": "FAIL",
+  "summary": "P2-6-005 implemented a multi-step helix retention gate and fixed a quantitative representative for the Phase 2.5 flagellum-chain failure, but user qualitative review is still required before completion.",
+  "blocking_issues": [
+    "User visual review of the generated single-flagellum rotation movie has not been completed."
+  ],
+  "non_blocking_issues": [
+    "The CI representative uses 200 steps to keep runtime acceptable. A local 1000-step probe with torque=4.0e-21 N m, dt_star=2.5e-4, local_hook_scale=8, local_spring_scale=5, local_bend_scale=8, and local_torsion_scale=4 also passed the quantitative gate.",
+    "The local scales are diagnostic representatives, not final physical optima. They should be treated as motor-on local stabilization parameters until validated qualitatively and against multi-flagella conditions.",
+    "The confirmed long-run scope is single-flagellum deterministic quantitative gating up to 1000 steps. Multi-flagella bundling, swimming trajectory naturalness, and 2D pseudo-microscopy usefulness remain out of scope for Phase 2.6."
+  ],
+  "tests_reviewed": [
+    "uv run pytest tests/test_run_state_fixed.py -k phase26",
+    "uv run pytest tests/test_run_state_fixed.py",
+    "uv run pytest tests/test_motor_scale_sweep.py",
+    "uv run pytest tests/test_simulation.py -k phase2_execution_and_diagnostics_guidance_exists_in_project_plan",
+    "uv run ruff format --check .",
+    "uv run ruff check .",
+    "uv run pytest -q"
+  ],
+  "user_review_required": true,
+  "user_review_command": "uv run python -m scripts.01_simulate_swimming --config conf/sim_swim.yaml --duration-s 0.25 --fps-out 25 --render-flagella --render-flagella-2d flagella.n_flagella=1 flagella.stub_mode=full_flagella motor.torque_Nm=4.0e-21 motor.local_hook_scale=8 motor.local_spring_scale=5 motor.local_bend_scale=8 motor.local_torsion_scale=4 time.dt_star=2.5e-4 output.base_dir=outputs/phase2_6_qualitative_review",
+  "user_review_outputs": [
+    "outputs/phase2_6_qualitative_review/2026-05-31/214109/render/swim3d.mp4",
+    "outputs/phase2_6_qualitative_review/2026-05-31/214109/render/swim3d_final.png",
+    "outputs/phase2_6_qualitative_review/2026-05-31/214109/render2d/projection.mp4",
+    "outputs/phase2_6_qualitative_review/2026-05-31/214109/sim/step_summary.csv"
+  ],
+  "user_review_points": [
+    "単一べん毛の螺旋形状が 0.25 s / 1000 steps の間に潰れないこと。",
+    "hook 近傍で不自然な折れ曲がりや飛びが出ないこと。",
+    "べん毛が停止せず、連続的に回転して見えること。",
+    "菌体やべん毛が画面外へ飛ぶ、または急激に拡大・縮小して見えないこと。"
+  ],
+  "adr_required": false,
+  "adr_reason": "The work adds a diagnostic gate, CLI timestep override, tests, and documentation. It records motor-on local scale representatives as diagnostic parameters rather than changing the global physical model or adding a new dependency.",
+  "commit_type": "diagnostic",
+  "commit_hash": "481eb54e8a47cc23c35cde400332949df888f35e",
+  "push_status": "pushed",
+  "next_actions": [
+    "Complete user visual review for outputs/phase2_6_qualitative_review/2026-05-31/214109 before marking Phase 2.6 complete.",
+    "Treat the local scale representative as a hypothesis to revalidate before using it for ML dataset generation."
+  ]
+}
