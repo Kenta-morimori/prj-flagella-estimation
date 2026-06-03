@@ -16,6 +16,7 @@ from sim_swim.dynamics.forces import (
     compute_distributed_flagellar_motor_forces,
     compute_hook_forces,
     compute_local_twist_transmission_probe_forces,
+    compute_material_twist_local_couple_forces,
     compute_motor_forces,
     compute_segment_repulsion_forces,
     compute_spring_forces,
@@ -754,12 +755,25 @@ class DynamicsEngine:
                         segment_weights=segment_weights,
                     )
                 )
+            elif distribution == "material_twist_local_couple":
+                segment_weights = self._advance_local_twist_state(
+                    torque_per_flag=torque_per_flag,
+                    dt_s=dt_s,
+                )
+                motor_forces, motor_diag = compute_material_twist_local_couple_forces(
+                    positions_m=pos,
+                    flagella_indices=self.model.flagella_indices,
+                    body_indices=self.model.body_indices,
+                    torque_per_flag=torque_per_flag,
+                    segment_weights=segment_weights,
+                )
             else:
                 raise ValueError(
                     "Unsupported motor.force_distribution: "
                     f"{distribution!r}. Use 'triplet', 'distributed_flagellum', "
                     "'axial_torque_flux_probe', or "
-                    "'local_twist_transmission_probe'."
+                    "'local_twist_transmission_probe', "
+                    "'material_twist_local_couple'."
                 )
         motor_axis_vs_rear_direction_angle_deg = (
             self._motor_axis_vs_rear_direction_angle_deg(pos)

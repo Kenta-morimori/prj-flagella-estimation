@@ -52,9 +52,15 @@ def _make_cfg(
                 "reverse_n_flagella": 1,
                 "enable_switching": False,
                 "local_hook_scale": 8.0,
-                "local_spring_scale": 5.0,
-                "local_bend_scale": 4.0,
-                "local_torsion_scale": 4.0,
+                "local_spring_scale": (
+                    5.0 if local_spring_scale is None else local_spring_scale
+                ),
+                "local_bend_scale": (
+                    4.0 if local_bend_scale is None else local_bend_scale
+                ),
+                "local_torsion_scale": (
+                    4.0 if local_torsion_scale is None else local_torsion_scale
+                ),
             },
             "potentials": {
                 "spring": {"H_over_T_over_b": 10.0, "s": 0.1},
@@ -144,6 +150,15 @@ def _with_motor_force_distribution(
     return SimulationConfig.from_dict(cfg_dict)
 
 
+def _with_flag_torsion_stiffness_scale(
+    cfg: SimulationConfig,
+    scale: float,
+) -> SimulationConfig:
+    cfg_dict = asdict(cfg)
+    cfg_dict["stiffness_scales"]["flag_torsion"] = scale
+    return SimulationConfig.from_dict(cfg_dict)
+
+
 def _run_step_summary(cfg: SimulationConfig, out_dir: Path) -> list[dict[str, str]]:
     sim = Simulator(cfg)
     sim.run(cfg.time.duration_s, step_summary_dir=out_dir)
@@ -159,6 +174,18 @@ def test_flag_state_is_fixed_when_switching_disabled(tmp_path: Path) -> None:
 
     assert len(rows) >= 1000
     assert all(row["flag_state_changed"] in {"False", "false", "0"} for row in rows)
+
+
+def test_make_cfg_applies_local_scale_arguments() -> None:
+    cfg = _make_cfg(
+        local_spring_scale=1.25,
+        local_bend_scale=2.5,
+        local_torsion_scale=3.75,
+    )
+
+    assert cfg.motor.local_spring_scale == 1.25
+    assert cfg.motor.local_bend_scale == 2.5
+    assert cfg.motor.local_torsion_scale == 3.75
 
 
 def test_phase26_default_break_fails_helix_retention_gate(tmp_path: Path) -> None:
@@ -354,4 +381,70 @@ def test_phase26_local_twist_transmission_probe_tracks_twist_state(
     assert summary["max_flag_bend_err_deg"] < HELIX_RETENTION_BEND_ERR_MAX_DEG_LIMIT
     assert (
         summary["max_flag_torsion_err_deg"] < HELIX_RETENTION_TORSION_ERR_MAX_DEG_LIMIT
+    )
+
+
+def test_phase26_material_twist_local_couple_drives_net_helix_spin(
+    tmp_path: Path,
+) -> None:
+    """P2-6-008: local segment couples transmit twist without flag-wide force injection."""
+    cfg = _make_cfg(motor_torque_Nm=2.0e-20, duration_s=0.05, dt_star=1.0e-4)
+    cfg = _with_motor_local_scales(
+        cfg,
+        local_hook_scale=1.0,
+        local_spring_scale=1.2,
+        local_bend_scale=1.0,
+        local_torsion_scale=1.0,
+    )
+    cfg = _with_motor_force_distribution(cfg, "material_twist_local_couple")
+    rows = _run_step_summary(cfg, tmp_path / "phase26_material_twist_local_couple")
+
+    summary = summarize_single_flagellum_helix_retention(
+        rows,
+        min_steps=400,
+        min_net_abs_spin_revolutions=0.1,
+        min_direction_consistency=0.3,
+    )
+    last = rows[-1]
+
+    assert summary["helix_retention_pass"] is True
+    assert summary["first_fail_category"] == "none"
+    assert summary["net_abs_flag_helix_spin_revolutions"] > 0.1
+    assert summary["flag_helix_spin_direction_consistency"] > 0.9
+    assert float(last["local_twist_tip_activity_ratio"]) > 0.0
+    assert summary["max_hook_len_rel_err"] < 0.5
+    assert summary["max_flag_bond_rel_err"] < HELIX_RETENTION_BOND_REL_ERR_MAX_LIMIT
+    assert summary["max_flag_bend_err_deg"] < HELIX_RETENTION_BEND_ERR_MAX_DEG_LIMIT
+    assert (
+        summary["max_flag_torsion_err_deg"] < HELIX_RETENTION_TORSION_ERR_MAX_DEG_LIMIT
+    )
+
+
+def test_phase26_material_twist_requires_torsion_shape_force(
+    tmp_path: Path,
+) -> None:
+    """P2-6-008: current torsion force still owns helix-shape retention."""
+    cfg = _make_cfg(motor_torque_Nm=2.0e-20, duration_s=0.05, dt_star=1.0e-4)
+    cfg = _with_motor_local_scales(
+        cfg,
+        local_hook_scale=1.0,
+        local_spring_scale=1.2,
+        local_bend_scale=1.0,
+        local_torsion_scale=0.0,
+    )
+    cfg = _with_flag_torsion_stiffness_scale(cfg, 0.0)
+    cfg = _with_motor_force_distribution(cfg, "material_twist_local_couple")
+    rows = _run_step_summary(cfg, tmp_path / "phase26_material_twist_torsion_off")
+
+    summary = summarize_single_flagellum_helix_retention(
+        rows,
+        min_steps=400,
+        min_net_abs_spin_revolutions=0.1,
+        min_direction_consistency=0.3,
+    )
+
+    assert summary["helix_retention_pass"] is False
+    assert summary["first_fail_category"] == "flag"
+    assert (
+        summary["max_flag_torsion_err_deg"] > HELIX_RETENTION_TORSION_ERR_MAX_DEG_LIMIT
     )

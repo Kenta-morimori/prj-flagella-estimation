@@ -816,3 +816,135 @@ def compute_local_twist_transmission_probe_forces(
         Fa_norm_mean=(flag_force_sum * inv if valid_count > 0 else float("nan")),
         Fb_norm_mean=(body_force_sum * inv if valid_count > 0 else float("nan")),
     )
+
+
+def compute_material_twist_local_couple_forces(
+    positions_m: np.ndarray,
+    flagella_indices: list[np.ndarray],
+    body_indices: np.ndarray,
+    torque_per_flag: np.ndarray,
+    segment_weights: list[np.ndarray],
+) -> tuple[np.ndarray, MotorForceDiagnostics]:
+    """segment twist state を隣接bead対の局所force coupleへ変換する。
+
+    `local_twist_transmission_probe` は activity をflagellum beads全体の接線force
+    重みとして使う。こちらは各segmentの隣接bead対に作用反作用のforce couple
+    を置き、離れたbeadへ一括でforceを入れない。
+    """
+
+    forces = np.zeros_like(positions_m)
+    if len(flagella_indices) == 0:
+        return forces, MotorForceDiagnostics()
+
+    degenerate_count = 0
+    valid_count = 0
+    flag_torque_sum = 0.0
+    body_torque_sum = 0.0
+    flag_force_sum = 0.0
+    body_force_sum = 0.0
+    body_idx = body_indices.astype(int, copy=False)
+
+    for f_id, flag_idx_raw in enumerate(flagella_indices):
+        if f_id >= torque_per_flag.shape[0]:
+            break
+        tau = float(torque_per_flag[f_id])
+        if abs(tau) <= 0.0:
+            continue
+
+        flag_idx = flag_idx_raw.astype(int, copy=False)
+        if flag_idx.size < 5 or body_idx.size < 3:
+            degenerate_count += 1
+            continue
+
+        flag_pts = positions_m[flag_idx]
+        origin = flag_pts[0]
+        centered = flag_pts - np.mean(flag_pts, axis=0)
+        _, _, vh = np.linalg.svd(centered, full_matrices=False)
+        axis = vh[0]
+        axis_norm = float(np.linalg.norm(axis))
+        if axis_norm <= 1e-18:
+            degenerate_count += 1
+            continue
+        axis = axis / axis_norm
+        if float(np.dot(axis, flag_pts[-1] - flag_pts[0])) < 0.0:
+            axis = -axis
+
+        seg_count = flag_idx.size - 1
+        if f_id < len(segment_weights):
+            seg_w = np.asarray(segment_weights[f_id], dtype=float)
+        else:
+            seg_w = np.ones((seg_count,), dtype=float)
+        if seg_w.shape[0] != seg_count:
+            seg_w = np.resize(seg_w, (seg_count,))
+        seg_w = np.maximum(seg_w, 0.0)
+        if float(np.sum(seg_w)) <= 1e-12:
+            seg_w = np.ones((seg_count,), dtype=float)
+        seg_w = seg_w / max(float(np.sum(seg_w)), 1e-12)
+
+        flag_forces = np.zeros_like(positions_m)
+        flag_torque = 0.0
+        flag_force_norms: list[float] = []
+        local_degenerate = 0
+        for seg_id in range(seg_count):
+            target_tau = tau * float(seg_w[seg_id])
+            if abs(target_tau) <= 0.0:
+                continue
+
+            i = int(flag_idx[seg_id])
+            j = int(flag_idx[seg_id + 1])
+            arm = positions_m[i] - positions_m[j]
+            arm_perp = arm - float(np.dot(arm, axis)) * axis
+            arm_perp2 = float(np.dot(arm_perp, arm_perp))
+            if arm_perp2 <= 1e-30:
+                local_degenerate += 1
+                continue
+
+            force_dir = np.cross(axis, arm)
+            force_dir_norm = float(np.linalg.norm(force_dir))
+            if force_dir_norm <= 1e-30:
+                local_degenerate += 1
+                continue
+            force_dir = force_dir / force_dir_norm
+            force_mag = target_tau / arm_perp2 * force_dir_norm
+            force = force_dir * force_mag
+            flag_forces[i] += force
+            flag_forces[j] -= force
+            local_torque = float(np.dot(np.cross(arm, force), axis))
+            flag_torque += abs(local_torque)
+            flag_force_norms.append(float(np.linalg.norm(force)))
+
+        if local_degenerate >= seg_count:
+            degenerate_count += local_degenerate
+            continue
+
+        body_forces, body_degenerate, body_torque, body_force = (
+            _zero_net_force_torque_drive(
+                positions_m=positions_m,
+                indices=body_idx,
+                origin=origin,
+                axis=axis,
+                target_torque_Nm=-tau,
+            )
+        )
+        if body_degenerate:
+            degenerate_count += body_degenerate
+            continue
+
+        forces += flag_forces + body_forces
+        valid_count += 1
+        degenerate_count += local_degenerate
+        flag_torque_sum += flag_torque
+        body_torque_sum += body_torque
+        flag_force_sum += (
+            float(np.mean(flag_force_norms)) if flag_force_norms else float("nan")
+        )
+        body_force_sum += body_force
+
+    inv = 1.0 / max(valid_count, 1)
+    return forces, MotorForceDiagnostics(
+        degenerate_axis_count=degenerate_count,
+        Ta_norm_mean=(flag_torque_sum * inv if valid_count > 0 else float("nan")),
+        Tb_norm_mean=(body_torque_sum * inv if valid_count > 0 else float("nan")),
+        Fa_norm_mean=(flag_force_sum * inv if valid_count > 0 else float("nan")),
+        Fb_norm_mean=(body_force_sum * inv if valid_count > 0 else float("nan")),
+    )
