@@ -433,6 +433,81 @@ def test_phase2_initial_geometry_summary_contract_matches_step0(
     assert float(step0["flag_torsion_err_max_deg"]) <= 1.0e-2
 
 
+def test_posterior_aligned_initial_geometry_summary_uses_rearward_tangent_contract(
+    tmp_path: Path,
+) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0,
+        hook_enabled=True,
+        n_flagella=3,
+        stub_mode="full_flagella",
+        duration_s=0.001,
+    ).with_overrides({"flagella": {"initial_orientation_mode": "posterior_aligned"}})
+    sim = Simulator(cfg)
+    sim.run(cfg.time.duration_s, step_summary_dir=tmp_path / "posterior_initial")
+
+    data = json.loads(
+        (tmp_path / "posterior_initial" / "initial_geometry_summary.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert data["flagella"]["initial_orientation_mode"] == "posterior_aligned"
+    assert data["flagella"]["geometry_contract"]["tolerances"][
+        "tangent_vs_rear_target_deg"
+    ] == pytest.approx(0.0)
+    assert [f["initial_geometry_pass"] for f in data["per_flagellum"]] == [
+        True,
+        True,
+        True,
+    ]
+    assert [
+        f["initial_tangent_vs_rear_direction_angle_deg"] for f in data["per_flagellum"]
+    ] == pytest.approx([0.0, 0.0, 0.0], abs=1.0e-6)
+
+
+def test_phase27_step_summary_includes_bundle_and_swimming_metrics(
+    tmp_path: Path,
+) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0,
+        hook_enabled=True,
+        n_flagella=3,
+        stub_mode="full_flagella",
+        duration_s=0.001,
+    ).with_overrides({"flagella": {"initial_orientation_mode": "posterior_aligned"}})
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(
+        sim,
+        cfg.time.duration_s,
+        tmp_path / "phase27_metrics",
+    )
+    first = rows[0]
+
+    for key in [
+        "body_displacement_um",
+        "body_speed_um_s",
+        "body_axis_cumulative_angle_deg",
+        "body_axis_wobble_rms_deg",
+        "body_angular_velocity_rms_rad_s",
+        "bundle_axis_vs_body_axis_angle_deg",
+        "bundle_axis_vs_rear_angle_deg",
+        "bundle_rearward_projection",
+        "bundle_tip_axis_dist_mean_um",
+        "bundle_participation_ratio",
+        "bundle_independent_flagella_count",
+        "flag_tip_pair_dist_mean_um",
+    ]:
+        assert key in first
+
+    assert float(first["bundle_axis_vs_rear_angle_deg"]) == pytest.approx(
+        0.0,
+        abs=1.0e-5,
+    )
+    assert float(first["bundle_rearward_projection"]) == pytest.approx(1.0)
+    assert float(first["bundle_participation_ratio"]) >= 0.0
+
+
 def test_phase1_body_static_stability(tmp_path: Path) -> None:
     cfg = _make_cfg(
         motor_torque_Nm=0.0,

@@ -7,6 +7,7 @@ from sim_swim.render.render3d import (
     _hook_edges,
     _resolve_view_range_um,
     _run_tumble_label,
+    _select_frames,
     save_swim_movie,
 )
 from sim_swim.sim.flagella_geometry import FlagellaRig
@@ -132,6 +133,24 @@ def test_view_range_defaults_to_3_when_no_flagella_are_present() -> None:
     )
 
     assert _resolve_view_range_um(cfg, rig) == 3.0
+
+
+def test_select_frames_uses_3d_sampling_rate_when_not_all_steps() -> None:
+    states = [
+        SimulationState(
+            t=float(i) * 0.01,
+            position_um=(0.0, 0.0, 0.0),
+            quaternion=(0.0, 0.0, 0.0, 1.0),
+            velocity_um_s=(0.0, 0.0, 0.0),
+            omega_rad_s=(0.0, 0.0, 0.0),
+            bead_positions_um=np.zeros((1, 3), dtype=float),
+        )
+        for i in range(11)
+    ]
+
+    selected = _select_frames(states, out_all_steps_3d=False, fps_hint=20.0)
+
+    assert [round(st.t, 2) for st in selected] == [0.0, 0.05, 0.1]
 
 
 def test_save_swim_movie_emits_render_outputs(tmp_path, monkeypatch) -> None:

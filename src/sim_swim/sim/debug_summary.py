@@ -62,6 +62,22 @@ STEP_SUMMARY_COLUMNS = [
     "flag_bond_len_max_over_b",
     "flag_bond_rel_err_mean",
     "flag_bond_rel_err_max",
+    "body_displacement_um",
+    "body_speed_um_s",
+    "body_axis_step_angle_deg",
+    "body_axis_cumulative_angle_deg",
+    "body_axis_wobble_rms_deg",
+    "body_angular_velocity_rms_rad_s",
+    "bundle_axis_vs_body_axis_angle_deg",
+    "bundle_axis_vs_rear_angle_deg",
+    "bundle_rearward_projection",
+    "bundle_tip_axis_dist_mean_um",
+    "bundle_tip_axis_dist_max_um",
+    "bundle_participation_ratio",
+    "bundle_independent_flagella_count",
+    "flag_tip_pair_dist_mean_um",
+    "flag_tip_pair_dist_min_um",
+    "flag_tip_pair_dist_max_um",
     "F_total_mean_body",
     "F_total_mean_flag",
     "F_total_mean_all",
@@ -431,6 +447,126 @@ def _pair_rel_error_stats(
     return float(np.mean(rel)), float(np.max(rel))
 
 
+def _unit_vector(vec: np.ndarray) -> np.ndarray:
+    norm = float(np.linalg.norm(vec))
+    if norm <= 1e-18:
+        return np.zeros(3, dtype=float)
+    return vec / norm
+
+
+def _angle_between_deg(a: np.ndarray, b: np.ndarray) -> float:
+    a_u = _unit_vector(a)
+    b_u = _unit_vector(b)
+    if float(np.linalg.norm(a_u)) <= 1e-18 or float(np.linalg.norm(b_u)) <= 1e-18:
+        return float("nan")
+    return float(np.rad2deg(np.arccos(float(np.clip(np.dot(a_u, b_u), -1.0, 1.0)))))
+
+
+def _body_center_axis_rear(
+    positions_m: np.ndarray, model: SimModel
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    body_idx = model.body_indices.astype(int, copy=False)
+    center = np.mean(positions_m[body_idx], axis=0)
+    if len(model.body_layer_indices) >= 2:
+        first = model.body_layer_indices[0].astype(int, copy=False)
+        last = model.body_layer_indices[-1].astype(int, copy=False)
+        c_first = np.mean(positions_m[first], axis=0)
+        c_last = np.mean(positions_m[last], axis=0)
+        axis = _unit_vector(c_last - c_first)
+    else:
+        axis = np.array([1.0, 0.0, 0.0], dtype=float)
+    if float(np.linalg.norm(axis)) <= 1e-18:
+        axis = np.array([1.0, 0.0, 0.0], dtype=float)
+    rear = -axis
+    return center, axis, rear
+
+
+def _flag_tip_pair_stats_um(tips_m: np.ndarray) -> tuple[float, float, float]:
+    if tips_m.shape[0] < 2:
+        return float("nan"), float("nan"), float("nan")
+    dists: list[float] = []
+    for i in range(tips_m.shape[0]):
+        for j in range(i + 1, tips_m.shape[0]):
+            dists.append(float(np.linalg.norm(tips_m[i] - tips_m[j]) * M_TO_UM))
+    arr = np.asarray(dists, dtype=float)
+    return float(np.mean(arr)), float(np.min(arr)), float(np.max(arr))
+
+
+def _bundle_metrics(
+    positions_m: np.ndarray,
+    model: SimModel,
+    cfg: SimulationConfig,
+    body_axis: np.ndarray,
+    rear_dir: np.ndarray,
+) -> dict[str, float | int]:
+    n_flagella = len(model.flagella_indices)
+    if n_flagella <= 0:
+        return {
+            "bundle_axis_vs_body_axis_angle_deg": float("nan"),
+            "bundle_axis_vs_rear_angle_deg": float("nan"),
+            "bundle_rearward_projection": float("nan"),
+            "bundle_tip_axis_dist_mean_um": float("nan"),
+            "bundle_tip_axis_dist_max_um": float("nan"),
+            "bundle_participation_ratio": float("nan"),
+            "bundle_independent_flagella_count": 0,
+            "flag_tip_pair_dist_mean_um": float("nan"),
+            "flag_tip_pair_dist_min_um": float("nan"),
+            "flag_tip_pair_dist_max_um": float("nan"),
+        }
+
+    roots = np.asarray(
+        [positions_m[int(idx[0])] for idx in model.flagella_indices],
+        dtype=float,
+    )
+    tips = np.asarray(
+        [positions_m[int(idx[-1])] for idx in model.flagella_indices],
+        dtype=float,
+    )
+    root_center = np.mean(roots, axis=0)
+    tip_center = np.mean(tips, axis=0)
+    bundle_axis = _unit_vector(tip_center - root_center)
+    if float(np.linalg.norm(bundle_axis)) <= 1e-18:
+        bundle_axis_body_angle = float("nan")
+        bundle_axis_rear_angle = float("nan")
+        rearward_projection = float("nan")
+        tip_axis_dist_um = np.full((n_flagella,), float("nan"), dtype=float)
+    else:
+        angle_forward = _angle_between_deg(bundle_axis, body_axis)
+        angle_rear = _angle_between_deg(bundle_axis, -body_axis)
+        bundle_axis_body_angle = float(np.nanmin([angle_forward, angle_rear]))
+        bundle_axis_rear_angle = _angle_between_deg(bundle_axis, rear_dir)
+        rearward_projection = float(np.dot(bundle_axis, rear_dir))
+        p1 = root_center + bundle_axis
+        tip_axis_dist_um = _point_to_line_distance(tips, root_center, p1) * M_TO_UM
+
+    threshold_um = max(0.75 * float(cfg.scale.b_um), 1e-12)
+    if np.isfinite(tip_axis_dist_um).all():
+        participants = tip_axis_dist_um <= threshold_um
+        participation_ratio = float(np.mean(participants))
+        independent_count = int(np.sum(~participants))
+        tip_axis_dist_mean_um = float(np.mean(tip_axis_dist_um))
+        tip_axis_dist_max_um = float(np.max(tip_axis_dist_um))
+    else:
+        participation_ratio = float("nan")
+        independent_count = n_flagella
+        tip_axis_dist_mean_um = float("nan")
+        tip_axis_dist_max_um = float("nan")
+
+    pair_mean, pair_min, pair_max = _flag_tip_pair_stats_um(tips)
+    return {
+        "bundle_axis_vs_body_axis_angle_deg": bundle_axis_body_angle,
+        "bundle_axis_vs_rear_angle_deg": bundle_axis_rear_angle,
+        "bundle_rearward_projection": rearward_projection,
+        "bundle_tip_axis_dist_mean_um": tip_axis_dist_mean_um,
+        "bundle_tip_axis_dist_max_um": tip_axis_dist_max_um,
+        "bundle_participation_ratio": participation_ratio,
+        "bundle_independent_flagella_count": independent_count,
+        "flag_tip_pair_dist_mean_um": pair_mean,
+        "flag_tip_pair_dist_min_um": pair_min,
+        "flag_tip_pair_dist_max_um": pair_max,
+    }
+
+
 def _triangle_area(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> float:
     return 0.5 * float(np.linalg.norm(np.cross(b - a, c - a)))
 
@@ -773,6 +909,20 @@ class StepSummaryRecorder:
         self.prev_flag_helix_spin_offset_deg: float | None = None
         self.prev_flag_helix_spin_phase_deg: float | None = None
         self.prev_flag_helix_spin_t_s: float | None = None
+        initial_center, initial_axis, _ = _body_center_axis_rear(
+            self.model.positions_m,
+            self.model,
+        )
+        self.initial_body_center_m = initial_center
+        self.initial_body_axis = initial_axis
+        self.prev_body_center_m: np.ndarray | None = None
+        self.prev_body_axis: np.ndarray | None = None
+        self.prev_body_t_s: float | None = None
+        self.body_axis_cumulative_angle_deg = 0.0
+        self.body_axis_wobble_square_sum = 0.0
+        self.body_axis_wobble_count = 0
+        self.body_omega_square_sum = 0.0
+        self.body_omega_count = 0
 
         pair_rows = _pair_row_lookup(self.spring_pairs)
 
@@ -1216,6 +1366,58 @@ class StepSummaryRecorder:
             flag_bend_err_max_deg=flag_bend_err_max_deg,
             flag_torsion_err_max_deg=flag_torsion_err_max_deg,
         )
+        body_center_m, body_axis, rear_dir = _body_center_axis_rear(
+            pos_after,
+            self.model,
+        )
+        t_s = float(t_star * self.cfg.tau_s)
+        body_displacement_um = float(
+            np.linalg.norm(body_center_m - self.initial_body_center_m) * M_TO_UM
+        )
+        body_speed_um_s = float("nan")
+        body_axis_step_angle_deg = 0.0
+        if self.prev_body_center_m is not None and self.prev_body_t_s is not None:
+            body_dt_s = max(t_s - self.prev_body_t_s, 1e-30)
+            body_speed_um_s = float(
+                np.linalg.norm(body_center_m - self.prev_body_center_m)
+                * M_TO_UM
+                / body_dt_s
+            )
+            body_axis_step_angle_deg = _angle_between_deg(
+                self.prev_body_axis,
+                body_axis,
+            )
+            if np.isfinite(body_axis_step_angle_deg):
+                self.body_axis_cumulative_angle_deg += float(body_axis_step_angle_deg)
+                omega_rad_s = np.deg2rad(float(body_axis_step_angle_deg)) / body_dt_s
+                self.body_omega_square_sum += float(omega_rad_s * omega_rad_s)
+                self.body_omega_count += 1
+        body_wobble_deg = _angle_between_deg(self.initial_body_axis, body_axis)
+        if np.isfinite(body_wobble_deg):
+            self.body_axis_wobble_square_sum += float(body_wobble_deg**2)
+            self.body_axis_wobble_count += 1
+        body_axis_wobble_rms_deg = (
+            float(
+                np.sqrt(
+                    self.body_axis_wobble_square_sum
+                    / max(self.body_axis_wobble_count, 1)
+                )
+            )
+            if self.body_axis_wobble_count > 0
+            else float("nan")
+        )
+        body_angular_velocity_rms_rad_s = (
+            float(np.sqrt(self.body_omega_square_sum / max(self.body_omega_count, 1)))
+            if self.body_omega_count > 0
+            else float("nan")
+        )
+        bundle_metrics = _bundle_metrics(
+            pos_after,
+            self.model,
+            self.cfg,
+            body_axis,
+            rear_dir,
+        )
 
         row: dict[str, float | int | bool] = {
             "step": int(step),
@@ -1264,6 +1466,13 @@ class StepSummaryRecorder:
             "flag_bond_len_max_over_b": flag_bond_len_max_over_b,
             "flag_bond_rel_err_mean": flag_bond_rel_err_mean,
             "flag_bond_rel_err_max": flag_bond_rel_err_max,
+            "body_displacement_um": body_displacement_um,
+            "body_speed_um_s": body_speed_um_s,
+            "body_axis_step_angle_deg": body_axis_step_angle_deg,
+            "body_axis_cumulative_angle_deg": self.body_axis_cumulative_angle_deg,
+            "body_axis_wobble_rms_deg": body_axis_wobble_rms_deg,
+            "body_angular_velocity_rms_rad_s": body_angular_velocity_rms_rad_s,
+            **bundle_metrics,
             "F_total_mean_body": _mean_norm(diag.total_forces, self.body_mask),
             "F_total_mean_flag": _mean_norm(diag.total_forces, self.flag_mask),
             "F_total_mean_all": float(
@@ -1380,6 +1589,9 @@ class StepSummaryRecorder:
         self._writer.writerow(row)
         self._csv_fp.flush()
         self.prev_flag_states = self.model.flag_states.copy()
+        self.prev_body_center_m = body_center_m.copy()
+        self.prev_body_axis = body_axis.copy()
+        self.prev_body_t_s = t_s
 
     def write_csv(self) -> Path:
         if self._csv_fp is not None:

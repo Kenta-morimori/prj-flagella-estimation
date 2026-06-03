@@ -132,7 +132,7 @@ def save_swim_movie(
     render_states = _select_frames(
         states_list,
         out_all_steps_3d=cfg.output_sampling.out_all_steps_3d,
-        fps_hint=cfg.output_sampling.fps_out_2d,
+        fps_hint=cfg.output_sampling.fps_out_3d,
     )
 
     frames_dir = out_dir / "frames_3d"
@@ -146,7 +146,10 @@ def save_swim_movie(
     writer: cv2.VideoWriter | None = None
     last_frame: np.ndarray | None = None
 
-    fps_3d = min(60.0, max(1.0, 1.0 / max(cfg.output_dt_s, 1e-9)))
+    if cfg.output_sampling.out_all_steps_3d:
+        fps_3d = min(60.0, max(1.0, 1.0 / max(cfg.output_dt_s, 1e-9)))
+    else:
+        fps_3d = max(1.0, float(cfg.output_sampling.fps_out_3d))
 
     for idx, st in enumerate(render_states):
         fig = plt.figure(figsize=(5, 5))
