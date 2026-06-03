@@ -191,6 +191,7 @@ def test_make_cfg_applies_local_scale_arguments() -> None:
 def test_phase26_default_break_fails_helix_retention_gate(tmp_path: Path) -> None:
     """P2-6-005: P2-5 break representative remains a reproducible flag fail."""
     cfg = _make_cfg(motor_torque_Nm=4.0e-21, duration_s=0.05)
+    cfg = _with_motor_force_distribution(cfg, "triplet")
     rows = _run_step_summary(cfg, tmp_path / "phase26_default_break")
 
     summary = summarize_single_flagellum_helix_retention(rows, min_steps=10)
@@ -208,6 +209,7 @@ def test_phase26_default_break_fails_helix_retention_gate(tmp_path: Path) -> Non
 def test_phase26_small_dt_without_bend_scale_loses_rotation(tmp_path: Path) -> None:
     """P2-6-005: dt縮小だけでは形状維持と回転activityを両立しない。"""
     cfg = _make_cfg(motor_torque_Nm=4.0e-21, duration_s=0.05, dt_star=2.5e-4)
+    cfg = _with_motor_force_distribution(cfg, "triplet")
     rows = _run_step_summary(cfg, tmp_path / "phase26_small_dt_only")
 
     summary = summarize_single_flagellum_helix_retention(rows, min_steps=100)
@@ -225,6 +227,7 @@ def test_phase26_small_dt_without_bend_scale_loses_rotation(tmp_path: Path) -> N
 def test_phase26_small_dt_and_bend_scale_retain_helix(tmp_path: Path) -> None:
     """P2-6-005: old representative keeps shape but does not spin the helix."""
     cfg = _make_cfg(motor_torque_Nm=4.0e-21, duration_s=0.05, dt_star=2.5e-4)
+    cfg = _with_motor_force_distribution(cfg, "triplet")
     cfg = _with_motor_local_scales(
         cfg,
         local_hook_scale=8.0,
@@ -252,6 +255,7 @@ def test_phase26_higher_torque_jitter_does_not_count_as_net_spin(
 ) -> None:
     """P2-6-005: high instantaneous spin must not pass without net rotation."""
     cfg = _make_cfg(motor_torque_Nm=8.0e-21, duration_s=0.05, dt_star=1.25e-4)
+    cfg = _with_motor_force_distribution(cfg, "triplet")
     cfg = _with_motor_local_scales(
         cfg,
         local_hook_scale=8.0,

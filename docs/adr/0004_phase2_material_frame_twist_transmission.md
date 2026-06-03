@@ -86,8 +86,9 @@ torsion force OFF + `material_twist_local_couple` ON の診断では、0.5 s 条
 
 P2-6-008の受入条件は、少なくとも以下とする。
 
-- default `triplet` と既存 paper-compatible geometry は変更しない。
-- 新しい material-frame系挙動は明示的な mode または設定で有効化する。
+- 既存 paper-compatible geometry は変更しない。
+- P2-6-008後のdefault `motor.force_distribution` は `material_twist_local_couple` とする。
+- `triplet` は比較・診断用modeとして残し、必要な場合は明示的に指定する。
 - 非局所 force injection を使わず、隣接segmentまたは局所bead群への force couple として torque を伝える。
 - `time.dt_star=1.0e-4` を明示する。
 - `duration_s >= 0.5`、可能なら `1.0` で評価する。

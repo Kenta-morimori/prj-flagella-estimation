@@ -28,6 +28,7 @@ def _make_cfg(
     stub_mode: str = "full_flagella",
     duration_s: float = 5.0e-5,
     fd_eps_over_b: float = 1.0e-3,
+    force_distribution: str = "triplet",
 ) -> SimulationConfig:
     return SimulationConfig.from_dict(
         {
@@ -53,7 +54,11 @@ def _make_cfg(
                 "helix_init": {"radius_over_b": 0.25, "pitch_over_b": 2.5},
             },
             "fluid": {"viscosity_Pa_s": 1.0e-3},
-            "motor": {"torque_Nm": motor_torque_Nm, "reverse_n_flagella": 1},
+            "motor": {
+                "torque_Nm": motor_torque_Nm,
+                "force_distribution": force_distribution,
+                "reverse_n_flagella": 1,
+            },
             "potentials": {
                 "spring": {"H_over_T_over_b": 10.0, "s": 0.1},
                 "bend": {

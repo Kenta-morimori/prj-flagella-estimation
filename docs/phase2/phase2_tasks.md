@@ -92,7 +92,7 @@
   - `flag_phase_rate_hz` は root azimuth 由来の proxy であり、目視の螺旋スピンと一致しない場合がある。
   - `median(abs(flag_helix_spin_rate_hz))` だけでは、フィット jitter や往復揺れを持続回転として誤判定する。
   - `flag_helix_spin_phase_deg` の累積差と方向一貫性を用いると、目視で見える螺旋全体の net 回転を判定できる。
-  - デフォルト設定を変えず、実行時 override の `time.dt_star=1.0e-4` で条件を探索する。
+  - `time.dt_star` のデフォルトは変えず、実行時 override の `time.dt_star=1.0e-4` で条件を探索する。
   - 従来の `triplet` motor では root 方位や螺旋フィット位相は揺れるが、螺旋全体の累積回転へ十分に伝達されない。
   - `attach-first` hook spring force を復元し、診断用 `motor.force_distribution=distributed_flagellum` を使うと、単一べん毛の螺旋形状維持と net 回転を両立できる。
 - acceptance criteria:
@@ -193,7 +193,8 @@
   - torsion force OFF + 新手法 ON では shape gate が fail したため、現時点では既存 torsion force を置き換えない。
   - 既存 torsion force は螺旋形状維持、新手法は root torque の保存・伝搬として役割分担する。
 - acceptance criteria:
-  - default `triplet` と paper-compatible geometry 契約を壊さない。
+  - paper-compatible geometry 契約を壊さない。
+  - P2-6-008後のdefault `motor.force_distribution` は `material_twist_local_couple` とし、`triplet` は比較・診断用modeとして明示指定で残す。
   - 新しい material-frame系挙動は明示的なmodeまたは設定で有効化する。
   - `net_abs_flag_helix_spin_revolutions >= 1.0`
   - `flag_helix_spin_direction_consistency >= 0.5`
