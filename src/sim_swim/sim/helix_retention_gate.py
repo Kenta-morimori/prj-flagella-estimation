@@ -106,7 +106,8 @@ def summarize_single_flagellum_helix_retention(
     first_fail_category = "none"
     first_fail_reason = "none"
     for row_idx, row in enumerate(eval_rows):
-        step = _row_step_or_fallback(row, row_idx)
+        absolute_row_idx = int(skip_initial_steps) + row_idx
+        step = _row_step_or_fallback(row, absolute_row_idx)
 
         if not _parse_bool(row.get("finite_pass")):
             first_fail_step = step

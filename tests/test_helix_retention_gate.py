@@ -121,3 +121,22 @@ def test_helix_retention_gate_handles_missing_step_on_hard_limit() -> None:
     assert summary["first_fail_category"] == "flag"
     assert summary["first_fail_step"] == len(rows) - 1
     assert summary["first_fail_reason"].startswith("flag_bond_rel_err_max=")
+
+
+def test_helix_retention_gate_missing_step_fallback_includes_skip_offset() -> None:
+    rows = [_base_row(step, step * 10.0) for step in range(120)]
+    for row in rows:
+        del row["step"]
+    rows[15]["shape_pass_nonbody"] = "False"
+    rows[15]["first_fail_category_nonbody"] = "flag"
+
+    summary = summarize_single_flagellum_helix_retention(
+        rows,
+        skip_initial_steps=10,
+        min_steps=50,
+        min_net_abs_spin_revolutions=1.0,
+    )
+
+    assert summary["helix_retention_pass"] is False
+    assert summary["first_fail_category"] == "flag"
+    assert summary["first_fail_step"] == 15

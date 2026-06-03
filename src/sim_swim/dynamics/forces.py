@@ -882,7 +882,6 @@ def compute_material_twist_local_couple_forces(
         seg_w = seg_w / max(float(np.sum(seg_w)), 1e-12)
 
         flag_forces = np.zeros_like(positions_m)
-        flag_torque = 0.0
         flag_force_norms: list[float] = []
         local_degenerate = 0
         for seg_id in range(seg_count):
@@ -909,12 +908,23 @@ def compute_material_twist_local_couple_forces(
             force = force_dir * force_mag
             flag_forces[i] += force
             flag_forces[j] -= force
-            local_torque = float(np.dot(np.cross(arm, force), axis))
-            flag_torque += abs(local_torque)
             flag_force_norms.append(float(np.linalg.norm(force)))
 
         if local_degenerate >= seg_count:
             degenerate_count += local_degenerate
+            continue
+
+        applied_flag_torque = float(
+            np.dot(
+                np.sum(
+                    np.cross(positions_m[flag_idx] - origin, flag_forces[flag_idx]),
+                    axis=0,
+                ),
+                axis,
+            )
+        )
+        if abs(applied_flag_torque) <= 1e-30:
+            degenerate_count += local_degenerate + 1
             continue
 
         body_forces, body_degenerate, body_torque, body_force = (
@@ -923,7 +933,7 @@ def compute_material_twist_local_couple_forces(
                 indices=body_idx,
                 origin=origin,
                 axis=axis,
-                target_torque_Nm=-tau,
+                target_torque_Nm=-applied_flag_torque,
             )
         )
         if body_degenerate:
@@ -933,7 +943,7 @@ def compute_material_twist_local_couple_forces(
         forces += flag_forces + body_forces
         valid_count += 1
         degenerate_count += local_degenerate
-        flag_torque_sum += flag_torque
+        flag_torque_sum += abs(applied_flag_torque)
         body_torque_sum += body_torque
         flag_force_sum += (
             float(np.mean(flag_force_norms)) if flag_force_norms else float("nan")
