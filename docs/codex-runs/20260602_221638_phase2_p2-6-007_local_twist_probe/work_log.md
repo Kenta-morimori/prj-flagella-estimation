@@ -58,7 +58,7 @@ Phase 2.6の主課題は、単一べん毛で螺旋形状を崩さず、`dt_star
 
 ただし、このprobeは完全なmaterial frame / segment twist物理モデルではない。local twist potentialから厳密にbead forceを導出しているわけではなく、orientation activityをbead接線forceの重みに使う近似である。論文モデルへの重大な違反として既定値を変えることは避け、`triplet`を既定値のまま残し、実験用modeとして明示的に選択する。
 
-Phase 2.6の方針としては、`distributed_flagellum`を上限診断、`axial_torque_flux_probe`を短期比較用、`local_twist_transmission_probe`を内部twist状態を持つ妥協案候補として整理する。
+Phase 2.6の方針としては、`distributed_flagellum`を上限診断、`axial_torque_flux_probe`を短期比較用、`local_twist_transmission_probe`を内部twist状態を持つ主probeとして整理する。本PRはprobe成功までをscopeとし、material frame / segment twist / 局所force coupleによる完全物理実装はP2-6-008へ分離する。
 
 ## 確認
 

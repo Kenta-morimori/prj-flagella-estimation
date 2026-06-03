@@ -128,11 +128,11 @@
   - [x] 修正後に `time.dt_star=1.0e-4` で形状維持と net 回転 gate を再探索する。
   - [x] 代表動画を生成し、ユーザー目視レビューを受ける。
 
-### P2-6-007: triplet motor でのねじれ・回転自由度不足を明確化する
+### P2-6-007: triplet motor でのねじれ・回転自由度不足を明確化しprobeで検証する
 
 - status: complete
 - branch: `feature/phase2-6-helix-retention-gate`
-- goal: `distributed_flagellum` を最終解とせず、root motor torque が hook/root から flagellum chain へ伝搬するために必要な回転自由度・ねじれ自由度を明確化する。
+- goal: `distributed_flagellum` を最終解とせず、root motor torque が hook/root から flagellum chain へ伝搬するために必要な回転自由度・ねじれ自由度を明確化し、実験用probeで仮説を検証する。
 - background:
   - `distributed_flagellum` では、トルクが螺旋全体へ伝われば単一べん毛が綺麗に回転することを確認した。
   - しかし `triplet + hook spring fix` では、root 方位の net 回転と螺旋全体の net 回転が分離している。
@@ -151,21 +151,54 @@
   - [x] 実装検証の結果と考察を記録し、有効なアプローチを提案する。
   - [x] 物理モデル変更を行う場合は ADR を作成し、`time.dt_star=1.0e-4`, 0.5 s, net 1回転以上、shape gate PASS を受入基準にする。
 - decision:
+  - 本PRはprobe成功までをscopeとし、完全な material frame / segment twist 物理実装は次タスクへ分離する。
   - `axial_torque_flux_probe` は短期比較用の有効アプローチとして残す。
-  - `local_twist_transmission_probe` は、orientation/local_twist状態を持つため、妥協案候補として `axial_torque_flux_probe` より優先する。
+  - `local_twist_transmission_probe` は、orientation/local_twist状態を持つため、主probeとして `axial_torque_flux_probe` より優先する。
   - ただし bead force 変換はまだ近似であり、完全な material frame / segment twist 物理モデルとしては扱わない。
   - `distributed_flagellum` は、螺旋全体へ torque が届いた場合の上限診断として残す。
   - 論文モデルへの忠実性を高める本命候補は material frame / segment twist の導入である。
   - local twist transmission は、べん毛全体に1つのねじれ量を与えるのではなく、隣接segment同士の軸まわり向きの差を局所twistとして扱う。
-  - 実装は、orientation/local_twist診断、root torque入力、twist relaxation、bead force変換の順に段階化する。
+  - 完全物理実装では、orientation/material frame診断、root torque入力、twist potential、局所force couple変換の順に段階化する。
 - verification:
   - `uv run pytest tests/test_helix_retention_gate.py -q`
   - `uv run pytest tests/test_motor_forces.py -q`
   - `uv run pytest tests/test_run_state_fixed.py -q`
 - docs:
   - `docs/phase2/phase2_6_triplet_twist_dof_design.md`
-  - `docs/adr/0002_phase2_axial_torque_flux_probe.md`
+  - `docs/adr/0002_phase2_torque_transmission_probes.md`
   - `docs/adr/0003_phase2_local_twist_transmission.md`
+  - `docs/adr/0004_phase2_material_frame_twist_transmission.md`
+
+### P2-6-008: material frame / segment twist による局所 torque transmission を実装検証する
+
+- status: proposed
+- branch: TBD
+- goal: `triplet` root motor torque を、非局所force injectionではなく material frame / segment twist / 局所force couple により flagellum chain へ伝搬し、単一べん毛の螺旋形状維持とnet回転を両立できるか検証する。
+- background:
+  - P2-6-007では、`axial_torque_flux_probe` と `local_twist_transmission_probe` により、root torque が螺旋全体へ届けば安定回転できることを確認した。
+  - ただし両probeは、bead force への最終変換で離れたflagellum beadへ直接接線力を入れる近似を含む。
+  - 現行 torsion force は4 bead dihedral angle による螺旋形状復元力であり、root motor torque を時間発展する内部ねじれ状態として保存・伝搬する仕組みではない。
+- tasks:
+  - [ ] `orientation` と `material frame` の状態量・初期化・出力列を定義する。
+  - [ ] `local_twist_i = wrap_angle(orientation_{i+1} - orientation_i - rest_twist_i)` を診断する。
+  - [ ] `U_twist_i = 0.5 * k_twist * local_twist_i^2` を第一候補とし、必要なら `1 - cos(local_twist_i)` 型と比較する。
+  - [ ] root motor torque を root側orientation/material frameへ入力する。
+  - [ ] twist potential から隣接segmentまたは局所bead群への force couple を導出し、非局所force injectionを使わない。
+  - [ ] 既存 torsion force との二重カウントを評価し、形状維持と torque transmission の役割分担を記録する。
+  - [ ] `time.dt_star=1.0e-4`, `duration_s>=0.5` で net 1回転以上、shape gate PASS を確認する。可能なら `duration_s=1.0` も確認する。
+  - [ ] 物理モデル拡張の結果を ADR 0004 または後続ADRに記録する。
+- acceptance criteria:
+  - default `triplet` と paper-compatible geometry 契約を壊さない。
+  - 新しい material-frame系挙動は明示的なmodeまたは設定で有効化する。
+  - `net_abs_flag_helix_spin_revolutions >= 1.0`
+  - `flag_helix_spin_direction_consistency >= 0.5`
+  - `hook_len_rel_err_max <= 0.5`
+  - `flag_bond_rel_err_max <= 0.25`
+  - `flag_bend_err_max_deg <= 30`
+  - `flag_torsion_err_max_deg <= 60`
+- docs:
+  - `docs/adr/0004_phase2_material_frame_twist_transmission.md`
+  - `docs/phase2/phase2_6_triplet_twist_dof_design.md`
 
 ## Phase 2.7: multi flagella 非崩壊検証
 
