@@ -12,6 +12,15 @@ P2-6-007では、`axial_torque_flux_probe` と `local_twist_transmission_probe` 
 
 現行 `triplet` motor が失敗する主因は、現行 bead-position-only model に segment の軸まわり姿勢、つまり material frame / segment twist を保存・輸送する状態量がないことである。現行 torsion force は4点dihedral angleの形状復元力であり、root motor torque を先端側へ伝える内部状態ではない。
 
+## Terms
+
+- `axial_torque_flux_probe`: root bead を起点に、flagellum のroot-to-tip主軸まわりへ接線力を分布させる診断用mode。root側を強く、先端側を弱くすることで「rootから先端へtorqueが流れたらどう見えるか」を近似する。ただし、離れたbeadへ直接forceを入れるため、最終モデルではなくprobeとして扱う。
+- `local_twist_transmission_probe`: segmentごとのscalar `orientation` を内部状態として持ち、root側のorientation activityを先端側へ拡散・緩和させる診断用mode。bead forceへの変換では、activityを重みとしてflagellum beads全体へ接線forceを分布させるため、非局所force injectionが残る。
+- `material_twist_local_couple`: P2-6-008で採用したmode。`local_twist_transmission_probe` と同じくscalar `orientation` を使うが、bead forceへの変換を隣接bead対の局所force coupleに限定する。これにより、flagellum全体へ一括でforceを入れる非局所force injectionを避ける。
+- `orientation`: segment軸まわりの向きを表す1自由度の角度。完全な3軸material frameではなく、material frameの軸まわり成分だけを取り出した最小状態である。
+- `material frame`: 各segmentに付随する局所座標系。segment接線方向だけでなく、断面が軸まわりにどちらを向いているかを表すための概念。
+- `segment twist`: 隣接segmentのmaterial frame同士が、segment軸まわりにどれだけ相対回転しているかを表す局所ねじれ量。
+
 ## Decision
 
 `motor.force_distribution=material_twist_local_couple` を追加する。
@@ -20,9 +29,26 @@ P2-6-007では、`axial_torque_flux_probe` と `local_twist_transmission_probe` 
 
 `orientation` は、segment 軸まわりの向きを表す1自由度の角度であり、material frame の軸まわり成分の簡略表現として扱う。本実装では、完全な3軸material frameではなく、この scalar orientation を最小物理状態として採用する。
 
-`material frame` は、各 segment に付随する局所座標系であり、segment 接線方向だけでなく断面の向きを表す。隣接する material frame 同士の軸まわり相対回転を `segment twist` として定義する。
+今回確定した実装は、explicitなtwist potentialからforceを導出するenergy-based実装ではない。root torque を `orientation_0` へ入力し、orientation activityをdiffusion/relaxationで先端側へ伝え、そのactivityを隣接bead対の局所force coupleへ変換する最小実装である。
 
-twist potential の第一候補は harmonic potential とする。
+## Confirmed Implementation
+
+P2-6-008で採用した実装は以下である。
+
+1. root torque を root側 `orientation_0` に入力する。
+2. orientation activity を diffusion/relaxation で先端側へ伝える。
+3. segmentごとの activity を torque weight として正規化する。
+4. 各segmentの隣接bead対に作用反作用のforce coupleを置く。
+5. 各force coupleはflagellum主軸まわりの局所torqueを作る。
+6. flagellum側の合計torqueと反対向きのreaction torqueをbody側へ与える。
+
+つまり、**P2-6-008で確定したのは harmonic potential 型でも cosine potential 型でもなく、diffusion/relaxationで伝搬したorientation activityを局所force coupleへ変換する実装**である。
+
+## Future Candidate: Energy-Based Twist Potential
+
+将来、完全なmaterial frame / segment twistモデルへ寄せる場合は、twist potentialからtorqueとbead forceを導出するenergy-based実装を比較候補にする。
+
+第一候補は harmonic potential である。
 
 ```text
 local_twist_i = wrap_angle(orientation_{i+1} - orientation_i - rest_twist_i)
@@ -32,7 +58,7 @@ torque_i = -dU_twist / d orientation_i
 
 この式は、小変形の弾性エネルギーがずれの2乗に比例すること、現行 spring / bend / torsion potential の設計思想と整合すること、rod/filament のねじれ弾性を離散化した形として自然であることを根拠にする。
 
-角度は周期量であるため、実装では `wrap_angle` により `[-pi, pi]` へ畳む。大回転で harmonic potential が不安定または不自然な場合は、`k_twist * (1 - cos(local_twist_i))` 型を比較候補にする。
+ただし、これはP2-6-008の確定実装ではない。角度は周期量であるため、大回転で harmonic potential が不安定または不自然な場合は、将来タスクで `k_twist * (1 - cos(local_twist_i))` 型を比較候補にする。
 
 ## Torsion force との役割分担
 
@@ -47,18 +73,14 @@ torsion force OFF + `material_twist_local_couple` ON の診断では、0.5 s 条
 
 この結果から、既存 torsion force は螺旋形状維持を担い、新しい material twist local couple は root torque の伝搬を担う、という役割分担を採用する。将来置き換えを検討する場合は、Phase 2.2で固定した paper normal state の幾何契約、長時間条件、複数べん毛条件を再検証する。
 
-## Implemented mode
+## Difference From Previous Probes
 
-`material_twist_local_couple` は以下のように動作する。
+`material_twist_local_couple` は `local_twist_transmission_probe` と同じく内部orientation状態を持つが、force変換が異なる。
 
-1. root torque を root側 `orientation_0` に入力する。
-2. orientation activity を diffusion/relaxation で先端側へ伝える。
-3. segmentごとの activity を torque weight として正規化する。
-4. 各 segment の隣接bead対に作用反作用の force couple を置く。
-5. 各 force couple は flagellum 主軸まわりの局所 torque を作る。
-6. flagellum側の合計 torque と反対向きの reaction torque を body 側へ与える。
+- `local_twist_transmission_probe`: activityをflagellum beads全体の接線force重みに使う。root torque伝搬の診断として有効だが、離れたbeadへ直接forceを入れる。
+- `material_twist_local_couple`: activityを隣接bead対ごとの局所force coupleに変換する。各segment近傍でtorqueを作るため、非局所force injectionを避ける。
 
-`local_twist_transmission_probe` と異なり、flagellum beads全体へ一括で接線forceを分布させない。各segmentの隣接bead対で局所的に torque を作るため、非局所force injectionを避けた最小実装である。
+`axial_torque_flux_probe` はmaterial frameやorientation状態を持たず、root-to-tip主軸に沿って接線forceを分布させるだけの診断modeである。P2-6-008の採用対象ではない。
 
 ## Acceptance criteria
 
