@@ -351,6 +351,20 @@ def test_flagella_initial_orientation_mode_can_be_set_to_posterior_aligned() -> 
     assert sim_cfg.flagella.initial_orientation_mode == "posterior_aligned"
 
 
+def test_flagella_initial_tangent_vs_rear_deg_can_be_configured() -> None:
+    cfg = _base_cfg()
+    cfg["flagella"] = {
+        "initial_tangent_vs_rear_deg": 10.0,
+        "bond_L_over_b": 0.58,
+        "length_over_b": 5.8,
+    }
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella.initial_tangent_vs_rear_deg == pytest.approx(10.0)
+
+
 def test_flagella_stub_mode_can_be_set_to_minimal_basal_stub() -> None:
     cfg = _base_cfg()
     cfg["flagella"] = {

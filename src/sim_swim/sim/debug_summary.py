@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import csv
 from dataclasses import dataclass, field
+import math
 from pathlib import Path
 from typing import TextIO
 
 import numpy as np
 
 from sim_swim.dynamics.engine import StepDiagnostics
+from sim_swim.dynamics.forces import _closest_points_on_segments
 from sim_swim.model.types import PolymorphState, SimModel
 from sim_swim.sim.params import SimulationConfig
 
@@ -78,6 +80,13 @@ STEP_SUMMARY_COLUMNS = [
     "flag_tip_pair_dist_mean_um",
     "flag_tip_pair_dist_min_um",
     "flag_tip_pair_dist_max_um",
+    "flag_flag_segment_dist_min_um",
+    "flag_flag_segment_dist_mean_um",
+    "flag_flag_close_pair_count",
+    "flag_flag_repulsion_force_mean_N",
+    "flag_flag_repulsion_force_max_N",
+    "flag_flag_basal_repulsion_force_mean_N",
+    "flag_flag_basal_repulsion_force_max_N",
     "F_total_mean_body",
     "F_total_mean_flag",
     "F_total_mean_all",
@@ -567,6 +576,90 @@ def _bundle_metrics(
     }
 
 
+def _flag_flag_repulsion_metrics(
+    positions_m: np.ndarray,
+    spring_pairs: np.ndarray,
+    segment_pair_indices: np.ndarray,
+    basal_flag_bead_indices: np.ndarray,
+    cfg: SimulationConfig,
+) -> dict[str, float | int]:
+    if segment_pair_indices.size == 0:
+        return {
+            "flag_flag_segment_dist_min_um": float("nan"),
+            "flag_flag_segment_dist_mean_um": float("nan"),
+            "flag_flag_close_pair_count": 0,
+            "flag_flag_repulsion_force_mean_N": 0.0,
+            "flag_flag_repulsion_force_max_N": 0.0,
+            "flag_flag_basal_repulsion_force_mean_N": 0.0,
+            "flag_flag_basal_repulsion_force_max_N": 0.0,
+        }
+
+    cutoff_m = (
+        float(cfg.potentials.spring_spring_repulsion.cutoff_over_b)
+        * max(float(cfg.scale.b_um), 1e-12)
+        * 1.0e-6
+    )
+    a_length_m = (
+        float(cfg.potentials.spring_spring_repulsion.a_ss_over_b)
+        * max(float(cfg.scale.b_um), 1e-12)
+        * 1.0e-6
+    )
+    a_ss = float(cfg.potentials.spring_spring_repulsion.A_ss_over_T) * float(
+        cfg.torque_for_forces_Nm
+    )
+    cutoff_eff = max(cutoff_m, 0.0)
+    a_eff = max(a_length_m, 1e-12)
+    forces = np.zeros_like(positions_m)
+    distances_um: list[float] = []
+    active_magnitudes: list[float] = []
+
+    for seg_a, seg_b in segment_pair_indices.astype(int, copy=False):
+        i, j = spring_pairs[int(seg_a)]
+        k, ell = spring_pairs[int(seg_b)]
+        p1 = positions_m[int(i)]
+        q1 = positions_m[int(j)]
+        p2 = positions_m[int(k)]
+        q2 = positions_m[int(ell)]
+        pa, pb, s, t, dist = _closest_points_on_segments(p1, q1, p2, q2)
+        distances_um.append(float(dist * M_TO_UM))
+        if dist >= cutoff_eff:
+            continue
+
+        dir_vec = (pa - pb) / max(float(np.linalg.norm(pa - pb)), 1e-18)
+        mag = (a_ss / a_eff) * math.exp(-dist / a_eff)
+        active_magnitudes.append(float(abs(mag)))
+        f = mag * dir_vec
+        forces[int(i)] += (1.0 - s) * f
+        forces[int(j)] += s * f
+        forces[int(k)] -= (1.0 - t) * f
+        forces[int(ell)] -= t * f
+
+    distances = np.asarray(distances_um, dtype=float)
+    active = np.asarray(active_magnitudes, dtype=float)
+    basal = basal_flag_bead_indices.astype(int, copy=False)
+    if basal.size > 0:
+        basal_norms = np.linalg.norm(forces[basal], axis=1)
+        basal_mean = float(np.mean(basal_norms))
+        basal_max = float(np.max(basal_norms))
+    else:
+        basal_mean = float("nan")
+        basal_max = float("nan")
+
+    return {
+        "flag_flag_segment_dist_min_um": float(np.min(distances)),
+        "flag_flag_segment_dist_mean_um": float(np.mean(distances)),
+        "flag_flag_close_pair_count": int(active.size),
+        "flag_flag_repulsion_force_mean_N": (
+            float(np.mean(active)) if active.size > 0 else 0.0
+        ),
+        "flag_flag_repulsion_force_max_N": (
+            float(np.max(active)) if active.size > 0 else 0.0
+        ),
+        "flag_flag_basal_repulsion_force_mean_N": basal_mean,
+        "flag_flag_basal_repulsion_force_max_N": basal_max,
+    }
+
+
 def _triangle_area(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> float:
     return 0.5 * float(np.linalg.norm(np.cross(b - a, c - a)))
 
@@ -991,6 +1084,8 @@ class StepSummaryRecorder:
             self.body_body_rows = np.zeros((0,), dtype=int)
             self.flag_intra_rows = np.zeros((0,), dtype=int)
             self.body_flag_rows = np.zeros((0,), dtype=int)
+            self.flag_flag_segment_pair_indices = np.zeros((0, 2), dtype=int)
+            self.basal_flag_bead_indices = np.zeros((0,), dtype=int)
             return
 
         i = self.spring_pairs[:, 0]
@@ -1003,6 +1098,30 @@ class StepSummaryRecorder:
         self.body_body_rows = np.where(bi & bj)[0]
         self.body_flag_rows = np.where(np.logical_xor(bi, bj))[0]
         self.flag_intra_rows = np.where((~bi) & (~bj) & (fi == fj) & (fi >= 0))[0]
+
+        spring_flag_ids = np.full((self.spring_pairs.shape[0],), -1, dtype=int)
+        spring_flag_ids[self.flag_intra_rows] = fi[self.flag_intra_rows]
+        flag_flag_segment_pairs: list[tuple[int, int]] = []
+        for seg_a_raw, seg_b_raw in self.model.segment_pair_indices.astype(
+            int, copy=False
+        ):
+            seg_a = int(seg_a_raw)
+            seg_b = int(seg_b_raw)
+            if seg_a >= spring_flag_ids.size or seg_b >= spring_flag_ids.size:
+                continue
+            flag_a = int(spring_flag_ids[seg_a])
+            flag_b = int(spring_flag_ids[seg_b])
+            if flag_a >= 0 and flag_b >= 0 and flag_a != flag_b:
+                flag_flag_segment_pairs.append((seg_a, seg_b))
+        self.flag_flag_segment_pair_indices = np.asarray(
+            flag_flag_segment_pairs, dtype=int
+        ).reshape((-1, 2))
+
+        basal_beads: list[int] = []
+        for flag_indices in self.model.flagella_indices:
+            chain = flag_indices.astype(int, copy=False)
+            basal_beads.extend(chain[: min(2, chain.size)].tolist())
+        self.basal_flag_bead_indices = np.asarray(basal_beads, dtype=int)
 
     def _phase_reference_frame(
         self, positions_m: np.ndarray
@@ -1418,6 +1537,13 @@ class StepSummaryRecorder:
             body_axis,
             rear_dir,
         )
+        flag_flag_repulsion_metrics = _flag_flag_repulsion_metrics(
+            pos_after,
+            self.spring_pairs,
+            self.flag_flag_segment_pair_indices,
+            self.basal_flag_bead_indices,
+            self.cfg,
+        )
 
         row: dict[str, float | int | bool] = {
             "step": int(step),
@@ -1473,6 +1599,7 @@ class StepSummaryRecorder:
             "body_axis_wobble_rms_deg": body_axis_wobble_rms_deg,
             "body_angular_velocity_rms_rad_s": body_angular_velocity_rms_rad_s,
             **bundle_metrics,
+            **flag_flag_repulsion_metrics,
             "F_total_mean_body": _mean_norm(diag.total_forces, self.body_mask),
             "F_total_mean_flag": _mean_norm(diag.total_forces, self.flag_mask),
             "F_total_mean_all": float(

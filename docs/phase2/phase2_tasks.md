@@ -246,6 +246,11 @@
   - 2026-06-03時点では、`n_flagella=3`, `posterior_aligned`, `duration_s=0.5`, `time.dt_star=1.0e-4` の代表条件で `0.5e-20..2.0e-20 N m` を確認したが、いずれも最終的に `hook` first-fail となった。
   - `motor.local_spring_scale=1.2` はhook破綻を遅らせたが、0.5 s最終stepで `hook_len_rel_err_max=1.0713` となり、shape gate は未達だった。
   - `posterior_aligned` により束軸は後方を向くが、`bundle_participation_ratio=0.0` のままであり、後方束化そのものは未確認である。
+  - 2026-06-04時点では、`flagella.initial_tangent_vs_rear_deg` と flagella-flagella repulsion診断を追加し、`0,10,30,60,90 deg` をscreeningした。
+  - `initial_tangent_vs_rear_deg=10`, `torque_Nm=0.5e-20`, `motor.local_spring_scale=1.2`, `duration_s=0.5` は shape gate を通過したが、`bundle_participation_ratio=0.0`, `flag_flag_close_pair_count=0` で no_bundle だった。
+  - `initial_tangent_vs_rear_deg=10`, `torque_Nm=1.0e-20`, `motor.local_spring_scale=2.0` も shape gate を通過したが、同様に no_bundle だった。
+  - `1.0e-20` を `local_spring_scale=1.2` で回す条件、および `2.0e-20` 条件では、束化より先に hook length gate が破綻した。
+  - 現時点の主因は、形状が保てるトルク帯では `no_bundle_drive`、トルクを上げると `hook_drift` が先行すること。詳細は `docs/phase2/phase2_7_bundling_stability_plan.md` に記録した。
 
 ## Phase 2.8: 遊泳挙動の運動指標検証
 

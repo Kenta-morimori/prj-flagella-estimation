@@ -16,6 +16,7 @@ from sim_swim.sim.params import SimulationConfig, merge_overrides
 
 SUMMARY_FIELDS = [
     "orientation_mode",
+    "initial_tangent_vs_rear_deg",
     "n_flagella",
     "torque_Nm",
     "duration_s",
@@ -25,6 +26,11 @@ SUMMARY_FIELDS = [
     "shape_pass_nonbody",
     "first_fail_category_nonbody",
     "net_abs_flag_helix_spin_revolutions",
+    "hook_len_rel_err_max",
+    "hook_angle_err_max_deg",
+    "flag_bond_rel_err_max",
+    "flag_bend_err_max_deg",
+    "flag_torsion_err_max_deg",
     "bundle_axis_vs_rear_angle_deg",
     "bundle_axis_vs_body_axis_angle_deg",
     "bundle_rearward_projection",
@@ -32,6 +38,13 @@ SUMMARY_FIELDS = [
     "bundle_independent_flagella_count",
     "bundle_tip_axis_dist_mean_um",
     "flag_tip_pair_dist_mean_um",
+    "flag_flag_segment_dist_min_um",
+    "flag_flag_segment_dist_mean_um",
+    "flag_flag_close_pair_count",
+    "flag_flag_repulsion_force_mean_N",
+    "flag_flag_repulsion_force_max_N",
+    "flag_flag_basal_repulsion_force_mean_N",
+    "flag_flag_basal_repulsion_force_max_N",
     "body_displacement_um",
     "body_speed_um_s",
     "body_axis_cumulative_angle_deg",
@@ -45,6 +58,7 @@ STEP_SUMMARY_METRIC_FIELDS = [
     if key
     not in {
         "orientation_mode",
+        "initial_tangent_vs_rear_deg",
         "n_flagella",
         "torque_Nm",
         "duration_s",
@@ -137,6 +151,7 @@ def _build_config(
     raw_cfg: dict[str, Any],
     *,
     orientation_mode: str,
+    initial_tangent_vs_rear_deg: float | None,
     n_flagella: int,
     torque_Nm: float,
     duration_s: float,
@@ -144,10 +159,15 @@ def _build_config(
     overrides: list[str] | None,
 ) -> SimulationConfig:
     override_dict = merge_overrides({}, overrides)
-    override_dict.setdefault("flagella", {})["initial_orientation_mode"] = (
-        orientation_mode
-    )
-    override_dict.setdefault("flagella", {})["n_flagella"] = int(n_flagella)
+    flagella_overrides = override_dict.setdefault("flagella", {})
+    flagella_overrides["initial_orientation_mode"] = orientation_mode
+    if initial_tangent_vs_rear_deg is not None:
+        flagella_overrides["initial_tangent_vs_rear_deg"] = float(
+            initial_tangent_vs_rear_deg
+        )
+    else:
+        flagella_overrides["initial_tangent_vs_rear_deg"] = None
+    flagella_overrides["n_flagella"] = int(n_flagella)
     override_dict.setdefault("motor", {})["torque_Nm"] = float(torque_Nm)
     override_dict.setdefault("time", {})["duration_s"] = float(duration_s)
     override_dict.setdefault("time", {})["dt_star"] = float(dt_star)
@@ -162,6 +182,15 @@ def main() -> None:
         type=_parse_csv_strs,
         default=["side_attach", "posterior_aligned"],
         help="Comma-separated initial orientation modes.",
+    )
+    parser.add_argument(
+        "--tangent-angles-deg",
+        type=_parse_csv_floats,
+        default=None,
+        help=(
+            "Optional comma-separated flagella.initial_tangent_vs_rear_deg values. "
+            "When set, angles override orientation mode and are swept once."
+        ),
     )
     parser.add_argument(
         "--n-flagella",
@@ -198,21 +227,38 @@ def main() -> None:
         writer = csv.DictWriter(handle, fieldnames=SUMMARY_FIELDS)
         writer.writeheader()
 
-        for orientation_mode in args.orientation_modes:
+        orientation_angle_pairs: list[tuple[str, float | None]]
+        if args.tangent_angles_deg is None:
+            orientation_angle_pairs = [
+                (str(mode), None) for mode in args.orientation_modes
+            ]
+        else:
+            orientation_angle_pairs = [
+                ("side_attach", float(angle)) for angle in args.tangent_angles_deg
+            ]
+
+        for orientation_mode, tangent_angle_deg in orientation_angle_pairs:
             for n_flagella in args.n_flagella:
                 for torque in args.torques:
                     cfg = _build_config(
                         raw_cfg,
                         orientation_mode=orientation_mode,
+                        initial_tangent_vs_rear_deg=tangent_angle_deg,
                         n_flagella=int(n_flagella),
                         torque_Nm=float(torque),
                         duration_s=float(args.duration_s),
                         dt_star=float(args.dt_star),
                         overrides=args.overrides,
                     )
+                    angle_label = (
+                        "default"
+                        if tangent_angle_deg is None
+                        else f"{float(tangent_angle_deg):g}deg"
+                    )
                     run_dir = (
                         out_dir
                         / f"orientation_{orientation_mode}"
+                        / f"angle_{angle_label}"
                         / f"n_{int(n_flagella)}"
                         / f"torque_{float(torque):.2e}"
                     )
@@ -227,6 +273,11 @@ def main() -> None:
                     writer.writerow(
                         {
                             "orientation_mode": orientation_mode,
+                            "initial_tangent_vs_rear_deg": (
+                                ""
+                                if tangent_angle_deg is None
+                                else float(tangent_angle_deg)
+                            ),
                             "n_flagella": int(n_flagella),
                             "torque_Nm": float(torque),
                             "duration_s": float(cfg.time.duration_s),

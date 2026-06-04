@@ -497,6 +497,13 @@ def test_phase27_step_summary_includes_bundle_and_swimming_metrics(
         "bundle_participation_ratio",
         "bundle_independent_flagella_count",
         "flag_tip_pair_dist_mean_um",
+        "flag_flag_segment_dist_min_um",
+        "flag_flag_segment_dist_mean_um",
+        "flag_flag_close_pair_count",
+        "flag_flag_repulsion_force_mean_N",
+        "flag_flag_repulsion_force_max_N",
+        "flag_flag_basal_repulsion_force_mean_N",
+        "flag_flag_basal_repulsion_force_max_N",
     ]:
         assert key in first
 
@@ -506,6 +513,8 @@ def test_phase27_step_summary_includes_bundle_and_swimming_metrics(
     )
     assert float(first["bundle_rearward_projection"]) == pytest.approx(1.0)
     assert float(first["bundle_participation_ratio"]) >= 0.0
+    assert float(first["flag_flag_segment_dist_min_um"]) > 0.0
+    assert int(first["flag_flag_close_pair_count"]) >= 0
 
 
 def test_phase1_body_static_stability(tmp_path: Path) -> None:

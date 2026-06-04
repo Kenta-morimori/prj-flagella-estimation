@@ -116,6 +116,8 @@ Phase 2.6では，従来の `flag_phase_rate_hz` と `median(abs(flag_helix_spin
 
 Phase 2.7では，旧P2-7（複数べん毛の非崩壊検証）と旧P2-8（後方束化判定）を統合し，**崩壊せず，かつ後方束化する条件**を探索する。主な探索軸は `n_flagella`, `motor.torque_Nm`, hook初期角度または付着直後の接線方向である。短時間で束化候補を見たい場合は，すべてのべん毛が菌体後方へ向くよう hook 角度・初期姿勢を調整した条件を代表条件に含める。束化は完全な二値判定が難しく，1本だけ独立する部分束化も想定されるため，定量指標は束中心軸への距離，束参加率，独立べん毛数，束軸と菌体軸の角度を候補とし，最終判定には目視レビューも含める。
 
+2026-06-04時点のPhase 2.7診断では，`flagella.initial_tangent_vs_rear_deg` により菌体後方軸からの初期接線角度を `0, 10, 30, 60, 90 deg` で探索し，flagella-flagella repulsion診断も追加した。`10 deg`, `0.5e-20 N m`, `local_spring_scale=1.2` および `10 deg`, `1.0e-20 N m`, `local_spring_scale=2.0` は `duration_s=0.5`, `dt_star=1.0e-4` でshape gateを通過したが，`bundle_participation_ratio=0.0`, `flag_flag_close_pair_count=0` で後方束化は未達だった。一方，より高トルクでは束化前にhook length gateが破綻した。現時点では，形状が保てるトルク帯では `no_bundle_drive`，トルク上昇時は `hook_drift` が支配的な失敗原因である。
+
 Phase 2.8では，崩壊しない多本べん毛条件を使い，遊泳挙動を運動指標で評価する。特に，べん毛束軸と菌体軸がずれた場合に菌体姿勢がどれだけ揺れるかを，body axis の角度変化，angular velocity，姿勢揺らぎ，束軸-body軸角度として定量化する。本数差によって推進量や姿勢安定性がどう変わるかを比較する。長時間実行では `dt_star=1.0e-4` により3D出力枚数が過大になるため，Phase 2.7または2.8の前提整備として `output_sampling.fps_out_3d` を導入し，3D動画保存を間引けるようにする。
 
 ### Phase 2運用フェーズ（A/B/C/D）と現状

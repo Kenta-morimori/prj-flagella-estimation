@@ -19,6 +19,7 @@ def _make_cfg(
     flag_length_over_b: float = 2.32,
     init_mode: str = "legacy_radius_pitch",
     initial_orientation_mode: str = "side_attach",
+    initial_tangent_vs_rear_deg: float | None = None,
     stub_mode: str = "full_flagella",
     n_beads_per_flagellum: int | None = None,
     seed: int = 0,
@@ -28,6 +29,7 @@ def _make_cfg(
         "placement_mode": "uniform",
         "init_mode": init_mode,
         "initial_orientation_mode": initial_orientation_mode,
+        "initial_tangent_vs_rear_deg": initial_tangent_vs_rear_deg,
         "stub_mode": stub_mode,
         "discretization": {"ds_over_b": ds_over_b},
         "bond_L_over_b": ds_over_b,
@@ -550,6 +552,28 @@ def test_posterior_aligned_base_tangent_points_rearward() -> None:
 
     angles = [_base_tangent_vs_rear_deg(model, f_id) for f_id in range(3)]
     assert angles == pytest.approx([0.0, 0.0, 0.0], abs=1.0e-6)
+
+
+def test_initial_tangent_vs_rear_deg_overrides_orientation_mode() -> None:
+    cfg = _make_cfg(
+        n_flagella=3,
+        init_mode="paper_table1",
+        initial_orientation_mode="side_attach",
+        initial_tangent_vs_rear_deg=10.0,
+        n_beads_per_flagellum=11,
+    )
+
+    model = ModelBuilder(cfg).build()
+
+    angles = [_base_tangent_vs_rear_deg(model, f_id) for f_id in range(3)]
+    assert angles == pytest.approx([10.0, 10.0, 10.0], abs=1.0e-6)
+
+
+def test_invalid_initial_tangent_vs_rear_deg_is_rejected() -> None:
+    cfg = _make_cfg(initial_tangent_vs_rear_deg=-1.0)
+
+    with pytest.raises(ValueError, match="initial_tangent_vs_rear_deg"):
+        ModelBuilder(cfg).build()
 
 
 def test_invalid_initial_orientation_mode_is_rejected() -> None:

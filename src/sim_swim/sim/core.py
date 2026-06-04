@@ -36,7 +36,12 @@ INITIAL_GEOMETRY_CONTRACT = {
 }
 
 
-def _target_tangent_vs_rear_deg(initial_orientation_mode: str) -> float:
+def _target_tangent_vs_rear_deg(
+    initial_orientation_mode: str,
+    initial_tangent_vs_rear_deg: float | None,
+) -> float:
+    if initial_tangent_vs_rear_deg is not None:
+        return float(initial_tangent_vs_rear_deg)
     if initial_orientation_mode == "side_attach":
         return 90.0
     if initial_orientation_mode == "posterior_aligned":
@@ -263,6 +268,11 @@ class Simulator:
                 "initial_orientation_mode": str(
                     self.config.flagella.initial_orientation_mode
                 ),
+                "initial_tangent_vs_rear_deg": (
+                    float(self.config.flagella.initial_tangent_vs_rear_deg)
+                    if self.config.flagella.initial_tangent_vs_rear_deg is not None
+                    else None
+                ),
                 "stub_mode": str(self.config.flagella.stub_mode),
                 "n_flagella": int(self.config.flagella.n_flagella),
                 "n_beads_per_flagellum": int(
@@ -302,7 +312,8 @@ class Simulator:
             "per_flagellum": [],
         }
         tangent_target_deg = _target_tangent_vs_rear_deg(
-            str(self.config.flagella.initial_orientation_mode)
+            str(self.config.flagella.initial_orientation_mode),
+            self.config.flagella.initial_tangent_vs_rear_deg,
         )
         summary["flagella"]["geometry_contract"]["tolerances"][
             "tangent_vs_rear_target_deg"

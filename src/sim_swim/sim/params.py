@@ -164,6 +164,7 @@ class FlagellumParams:
     placement_mode: str = "uniform"
     init_mode: str = "legacy_radius_pitch"
     initial_orientation_mode: str = "side_attach"
+    initial_tangent_vs_rear_deg: float | None = None
     stub_mode: str = (
         "full_flagella"  # minimal_basal_stub | extended_basal_stub_5 |
         # full_flagella
@@ -661,6 +662,11 @@ class SimulationConfig:
             init_mode=str(_get(flag_raw, "init_mode", "legacy_radius_pitch")),
             initial_orientation_mode=str(
                 _get(flag_raw, "initial_orientation_mode", "side_attach")
+            ),
+            initial_tangent_vs_rear_deg=(
+                float(flag_raw["initial_tangent_vs_rear_deg"])
+                if flag_raw.get("initial_tangent_vs_rear_deg") not in (None, "")
+                else None
             ),
             stub_mode=str(_get(flag_raw, "stub_mode", "full_flagella")),
             discretization=FlagellaDiscretizationParams(ds_over_b=float(ds_over_b)),
