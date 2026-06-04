@@ -25,8 +25,8 @@
   "adr_required": false,
   "adr_reason": "今回の変更は既存のPhase 2.7診断に初期角度指定とCSV診断指標を追加したもので、物理モデルの採用判断や重大な仕様変更ではない。束化未達の原因整理はPhase 2.7計画書へ記録した。",
   "commit_type": "diagnostic",
-  "commit_hash": "",
-  "push_status": "not_pushed",
+  "commit_hash": "2d6c300",
+  "push_status": "pushed",
   "next_actions": [
     "distributed_flagellum または診断modeで多本べん毛を比較し、torqueが届いた場合にも束化しないかを確認する。",
     "hook drift を局所spring補強以外の方法で抑える方針を検討する。",
