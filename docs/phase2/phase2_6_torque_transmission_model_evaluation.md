@@ -44,15 +44,15 @@ Phase 2.6 では、従来の `triplet` motor で root torque が螺旋全体の 
 
 - `0.5e-20 N m`
 - `1.0e-20 N m`
-- `1.5e-20 N m`
 - `2.0e-20 N m`
-- `2.5e-20 N m`
-- `3.0e-20 N m`
 - `4.0e-20 N m`
+- `6.0e-20 N m`
+- `8.0e-20 N m`
+- `1.0e-19 N m`
 
 `2.0e-20 N m` は P2-6-008 の代表条件であるため、必ず含める。
 
-上限は初期案として `4.0e-20 N m` まで含める。これは、形状安定性だけでなく、遊泳へ進むために十分な駆動力があるかを見たいからである。`4.0e-20 N m` まで全て collapse する、または逆に十分安定する場合は、結果に応じて次の sweep 幅を調整する。
+上限は `1.0e-19 N m` とする。`material_twist_local_couple` 未反映の単一べん毛条件でも `time.dt_star=1.0e-4` でこのトルク帯を扱えた実績があるため、採用済み拡張モデルでも同じ上限まで形状安定性と駆動力を評価する。
 
 全 torque 条件は `duration_s=0.5` で評価する。短時間 screening は使わず、比較対象を同じ時間条件に揃える。
 
@@ -155,6 +155,90 @@ torsion force OFF + 新手法 ON で一部条件が通った場合でも、Phase
 - 代表 PASS 条件で、菌体重心変位または平均速度が報告されている。
 - 多べん毛・後方束化に進むための代表条件が1つ以上提示されている。
 
+## 評価結果（2026-06-06）
+
+実行条件:
+
+- `motor.force_distribution=material_twist_local_couple`
+- `flagella.n_flagella=1`
+- `flagella.stub_mode=full_flagella`
+- `time.dt_star=1.0e-4`
+- `duration_s=0.5`
+- `motor.local_hook_scale=1.0`
+- `motor.local_spring_scale=1.0`
+- `motor.local_bend_scale=1.0`
+- `motor.local_torsion_scale=1.0`
+- Brownian off
+
+実行コマンド:
+
+```bash
+uv run python -m scripts.01_simulate_swimming.run_phase2_6_torque_model_evaluation --scale-torques none
+uv run python -m scripts.01_simulate_swimming.run_phase2_6_torque_model_evaluation --torques 2.5e-20,3.0e-20,3.5e-20 --scale-torques none
+uv run python -m scripts.01_simulate_swimming.run_phase2_6_torque_model_evaluation --torques 3.5e-20 --scale-torques all --scale-values 2.0
+```
+
+出力:
+
+- `outputs/2026-06-06/195006/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv`
+- `outputs/2026-06-06/201058/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv`
+- `outputs/2026-06-06/201631/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv`
+
+### local scale 1.0 の torque 境界
+
+| torque [N m] | 判定 | 主な理由 | net helix rev | direction consistency | flag bond max | bend max [deg] | torsion max [deg] | body displacement [um] | mean speed [um/s] |
+|---:|---|---|---:|---:|---:|---:|---:|---:|---:|
+| `0.5e-20` | FAIL | `motor_no_rotation` | 0.288 | 1.000 | 0.172 | 3.22 | 3.21 | 0.030 | 0.060 |
+| `1.0e-20` | FAIL | `motor_no_rotation` | 0.564 | 1.000 | 0.172 | 3.82 | 3.93 | 0.073 | 0.146 |
+| `2.0e-20` | PASS | none | 1.120 | 0.985 | 0.174 | 4.35 | 6.19 | 0.057 | 0.114 |
+| `2.5e-20` | PASS | none | 1.242 | 0.682 | 0.176 | 6.33 | 27.07 | 0.075 | 0.151 |
+| `3.0e-20` | PASS | none | 1.297 | 0.704 | 0.249 | 18.61 | 51.95 | 0.119 | 0.239 |
+| `3.5e-20` | FAIL | `flag` | 1.328 | 0.486 | 1.648 | 96.48 | 105.45 | 0.190 | 0.379 |
+| `4.0e-20` | FAIL | `flag` | 1.359 | 0.304 | 0.627 | 62.97 | 157.39 | 0.262 | 0.524 |
+| `6.0e-20` | FAIL | `flag` | 1.488 | 0.152 | 2.025 | 102.31 | 151.59 | 0.619 | 1.239 |
+| `8.0e-20` | FAIL | `flag` | 0.612 | 0.043 | 2.712 | 101.34 | 159.34 | 0.969 | 1.938 |
+| `1.0e-19` | FAIL | `flag` | 1.834 | 0.070 | 6.646 | 131.47 | 175.22 | 1.254 | 2.507 |
+
+解釈:
+
+- `local_*_scale=1.0` のまま、`2.0e-20` から `3.0e-20 N m` は 0.5 s で shape gate と net 1回転以上を満たした。
+- `0.5e-20` と `1.0e-20 N m` は形状破綻ではなく、0.5 s 内に net 1回転へ届かないため FAIL とした。
+- `3.5e-20 N m` 以上は net 回転自体は出るが、flag bond / bend / torsion が gate を超え、螺旋形状を保てない。
+- 上限 `1.0e-19 N m` は、菌体変位は大きいが flag 形状破綻が支配的であり、Issue #58 へ渡す代表条件にはしない。
+
+### local scaling の必要性
+
+`3.5e-20 N m` で各 local scale を個別に `2.0` へ上げた one-factor rescue を行った。
+
+| target | value | 判定 | 主な理由 | net helix rev | direction consistency | flag bond max | bend max [deg] | torsion max [deg] |
+|---|---:|---|---|---:|---:|---:|---:|---:|
+| baseline | 1.0 | FAIL | `flag` | 1.328 | 0.486 | 1.648 | 96.48 | 105.45 |
+| `local_spring_scale` | 2.0 | FAIL | `flag` | 1.323 | 0.466 | 1.648 | 96.48 | 105.45 |
+| `local_bend_scale` | 2.0 | FAIL | `flag` | 1.315 | 0.438 | 1.821 | 99.41 | 107.06 |
+| `local_torsion_scale` | 2.0 | FAIL | `flag` | 1.113 | 0.083 | 1.623 | 89.09 | 157.12 |
+| `local_hook_scale` | 2.0 | FAIL | `flag` | 1.327 | 0.487 | 1.648 | 96.48 | 105.45 |
+
+結論:
+
+- `motor.local_spring_scale=1.2` は、少なくとも `motor.torque_Nm=2.0e-20`, `duration_s=0.5`, `time.dt_star=1.0e-4` では不要である。scale 1.0 のまま PASS した。
+- `3.5e-20 N m` の flag 破綻は、単純に local spring / bend / torsion / hook を `2.0` へ上げても救済できなかった。
+- したがって、今回の結果では local scaling を高トルク安定化の主手段として採用しない。高トルク側をさらに安定させたい場合は、局所剛性倍率ではなく、flag geometry、repulsion、時間刻み、または motor force の分配式そのものを別タスクで検討する。
+
+### 代表条件
+
+Issue #58 の多べん毛・後方束化検証へ渡す候補は以下とする。
+
+- 第一候補: `motor.torque_Nm=2.5e-20`
+  - shape gate PASS、net helix rev 1.242、body mean speed 0.151 um/s。
+  - `3.0e-20` より shape margin が広く、初期代表条件として安全。
+- 上限側候補: `motor.torque_Nm=3.0e-20`
+  - shape gate PASS、net helix rev 1.297、body mean speed 0.239 um/s。
+  - torsion max 51.95 deg で gate 上限 60 deg に近いため、後続では注意して扱う。
+- 失敗境界代表: `motor.torque_Nm=3.5e-20`
+  - flag 破綻が再現するため、崩壊診断・比較用に残す。
+
+単一べん毛では菌体重心変位は確認できるが、body axis 角度変化も大きい。これは「単一べん毛で安定遊泳する」確認ではなく、Issue #58 で多べん毛・後方束化条件へ進むための駆動力評価として扱う。
+
 ## 今回の実装範囲
 
 最初のPRでは、評価のための sweep tooling、集計、可視化、ドキュメント整理を中心にする。
@@ -163,7 +247,7 @@ torsion force OFF + 新手法 ON で一部条件が通った場合でも、Phase
 
 ## 実装前確認事項と方針
 
-1. torque sweep の上限を `3.0e-20 N m` で十分とするか、`4.0e-20 N m` 以上も含めるか。
+1. torque sweep の上限をどこまで含めるか。
 2. `duration_s=0.5` を全条件に適用するか、短時間 screening 後に代表条件だけ 0.5 s へ伸ばすか。
 3. heatmap の主軸を `local_spring_scale` にするか、one-factor sweep の結果で決めるか。
 4. `distributed_flagellum` と probe 系 mode をどこまで比較対象に含めるか。
@@ -171,7 +255,7 @@ torsion force OFF + 新手法 ON で一部条件が通った場合でも、Phase
 
 2026-06-06時点の方針:
 
-- torque sweep は初期上限を `4.0e-20 N m` とする。
+- torque sweep は上限を `1.0e-19 N m` とする。
 - 全条件を `duration_s=0.5` で評価する。
 - heatmap の主軸は one-factor sweep の結果で決める。
 - `distributed_flagellum` と probe 系 mode は必須比較に含めない。
