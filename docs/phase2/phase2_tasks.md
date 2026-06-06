@@ -241,7 +241,7 @@
 
 ### P2-8-008: 束化条件で菌体の推進・姿勢変化を定量化する
 
-- status: proposed
+- status: accepted
 - source proposal: `docs/planning/phase2_task_proposals.md#proposal-p2-9-008-phase-29`
 - renumbered from proposal: `P2-9-008`
 - branch: `feature/phase2-8-swimming-motion-metrics`
