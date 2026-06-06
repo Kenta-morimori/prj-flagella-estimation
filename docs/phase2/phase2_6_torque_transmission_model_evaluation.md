@@ -24,16 +24,15 @@ Phase 2.6 では、従来の `triplet` motor で root torque が螺旋全体の 
 - `flagella.stub_mode=full_flagella`
 - `motor.force_distribution=material_twist_local_couple`
 - `time.dt_star=1.0e-4`
-- `duration_s>=0.5`
+- `duration_s=0.5`
 - Brownian off の決定論的条件
 
 比較対象:
 
-- `motor.force_distribution=triplet`
-- `motor.force_distribution=distributed_flagellum`
-- 必要に応じて probe 系 mode
+- 原則として必須比較は置かず、`material_twist_local_couple` を単独で評価する。
+- `distributed_flagellum` や probe 系 mode は、評価結果の解釈に詰まった場合の追加診断に限定する。
 
-比較対象は最終候補ではなく、`material_twist_local_couple` の安定性・回転性を解釈するための reference として扱う。
+理由は、Issue #54 の主目的が「採用済み mode の安定境界と scaling 必要性」を明確にすることであり、診断用 mode との再比較を主軸にすると評価対象が広がりすぎるためである。
 
 ## 評価軸
 
@@ -43,13 +42,19 @@ Phase 2.6 では、従来の `triplet` motor で root torque が螺旋全体の 
 
 初期候補:
 
+- `0.5e-20 N m`
 - `1.0e-20 N m`
 - `1.5e-20 N m`
 - `2.0e-20 N m`
 - `2.5e-20 N m`
 - `3.0e-20 N m`
+- `4.0e-20 N m`
 
 `2.0e-20 N m` は P2-6-008 の代表条件であるため、必ず含める。
+
+上限は初期案として `4.0e-20 N m` まで含める。これは、形状安定性だけでなく、遊泳へ進むために十分な駆動力があるかを見たいからである。`4.0e-20 N m` まで全て collapse する、または逆に十分安定する場合は、結果に応じて次の sweep 幅を調整する。
+
+全 torque 条件は `duration_s=0.5` で評価する。短時間 screening は使わず、比較対象を同じ時間条件に揃える。
 
 ### 2. local scaling sweep
 
@@ -70,11 +75,34 @@ torque sweep で破綻する条件が見えたら、以下を個別に sweep す
 
 まず one-factor sweep で支配的な項を探し、その後必要な2軸だけ heatmap 化する。
 
-### 3. torsion force の役割確認
+### 3. 代表条件での遊泳駆動確認
+
+shape gate と net 回転を満たす代表条件について、菌体の重心変位と速度を確認する。
+
+Issue #54 の主対象は単一べん毛モデル評価であり、多べん毛の後方束化・遊泳検証は Issue #58 に分離する。ただし、単一べん毛代表条件で菌体位置が長時間でほとんど変化しない場合、その torque 条件は後続の遊泳検証に渡す候補として弱い。
+
+そのため、代表 PASS 条件では以下も記録する。
+
+- body center displacement
+- body mean speed
+- body axis 角度変化
+- torque と重心変位の関係
+
+この指標は「多べん毛で遊泳する」ことの判定ではなく、Issue #58 へ渡す torque 条件が駆動力として十分かを判断するための前段評価である。
+
+### 4. torsion force の役割確認
 
 既存 torsion force は、root torque を伝搬するものではなく、螺旋形状を normal state へ戻す形状復元力である。
 
-そのため、torsion force OFF は置き換え可否の即時判断ではなく、以下を確認する診断条件として扱う。
+ただし、P2-6-008 ですでに torsion force OFF + `material_twist_local_couple` ON は shape gate fail となることを確認している。そのため、Issue #54 の初回評価では torsion force OFF を必須項目にしない。
+
+今回の基本方針は以下とする。
+
+- 既存 torsion force は螺旋形状維持のために残す。
+- `material_twist_local_couple` は root torque の保存・伝搬を担う。
+- torsion force OFF は、評価結果で置き換え可能性を再検討する必要が出た場合の追加診断に限る。
+
+追加診断を行う場合は、以下を確認する。
 
 - `material_twist_local_couple` が torsion force の代替になっていないこと。
 - torsion force がないと、どの形状指標が最初に破綻するか。
@@ -100,6 +128,9 @@ torsion force OFF + 新手法 ON で一部条件が通った場合でも、Phase
 - `local_twist_root_orientation_deg`
 - `local_twist_tip_orientation_deg`
 - `local_twist_tip_activity_ratio`
+- `body_displacement_um`
+- `body_mean_speed_um_s`
+- `body_axis_angle_change_deg`
 
 解釈では、shape gate PASS だけでなく、net 回転と方向一貫性を同時に見る。
 
@@ -111,6 +142,7 @@ torsion force OFF + 新手法 ON で一部条件が通った場合でも、Phase
 - `local_*_scale=1.0` の限界条件
 - scaling が必要な場合の最小条件
 - scaling の役割に関する考察
+- 代表条件での菌体重心変位・速度
 - Issue #58 へ渡す代表条件
 
 ## 受け入れ条件
@@ -120,6 +152,7 @@ torsion force OFF + 新手法 ON で一部条件が通った場合でも、Phase
 - scaling が必要な場合、どの局所項が効いているかが one-factor sweep または heatmap で示されている。
 - 代表 PASS 条件と代表 FAIL 条件が `duration_s>=0.5`, `time.dt_star=1.0e-4` で再現可能である。
 - 既存 torsion force の役割が明確化されている。
+- 代表 PASS 条件で、菌体重心変位または平均速度が報告されている。
 - 多べん毛・後方束化に進むための代表条件が1つ以上提示されている。
 
 ## 今回の実装範囲
@@ -128,12 +161,18 @@ torsion force OFF + 新手法 ON で一部条件が通った場合でも、Phase
 
 物理モデル本体の変更は、評価で明確な不足が示された場合に限定する。新しい物理実装を追加する場合は、論文モデルとの差分、数値安定化との区別、ADR要否を review_result に記録する。
 
-## 事前に詰めるべき点
-
-現時点では、以下を実装開始前の確認事項として残す。
+## 実装前確認事項と方針
 
 1. torque sweep の上限を `3.0e-20 N m` で十分とするか、`4.0e-20 N m` 以上も含めるか。
 2. `duration_s=0.5` を全条件に適用するか、短時間 screening 後に代表条件だけ 0.5 s へ伸ばすか。
 3. heatmap の主軸を `local_spring_scale` にするか、one-factor sweep の結果で決めるか。
 4. `distributed_flagellum` と probe 系 mode をどこまで比較対象に含めるか。
 5. torsion force OFF 診断を今回の必須項目にするか、追加診断に分けるか。
+
+2026-06-06時点の方針:
+
+- torque sweep は初期上限を `4.0e-20 N m` とする。
+- 全条件を `duration_s=0.5` で評価する。
+- heatmap の主軸は one-factor sweep の結果で決める。
+- `distributed_flagellum` と probe 系 mode は必須比較に含めない。
+- torsion force OFF 診断は必須にしない。

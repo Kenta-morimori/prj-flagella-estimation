@@ -222,14 +222,16 @@
   - [ ] `local_spring_scale`, `local_bend_scale`, `local_torsion_scale`, `local_hook_scale` の one-factor sweep を行う。
   - [ ] 支配的な local scale が見えたら、torque x scale の破綻 heatmap を作成する。
   - [ ] shape gate, first-fail category, net 回転数, 方向一貫性, helix/root 回転比を集計する。
-  - [ ] torsion force の役割を診断し、既存 torsion force を置き換えない/置き換える場合の根拠を整理する。
+  - [ ] 代表 PASS 条件で、菌体重心変位・平均速度・body axis 角度変化を確認する。
+  - [ ] 既存 torsion force は残す前提で評価し、torsion force OFF は必要時の追加診断に留める。
   - [ ] Issue #58 へ渡す多べん毛評価用の代表条件を提示する。
 - acceptance criteria:
   - [ ] `local_*_scale=1.0` での torque 安定境界が報告されている。
   - [ ] `motor.local_spring_scale=1.2` が必要か、不要か、条件付きで必要かが説明されている。
   - [ ] scaling が必要な場合、どの局所項が効いているかが one-factor sweep または heatmap で示されている。
   - [ ] 代表 PASS / FAIL 条件が `duration_s>=0.5`, `time.dt_star=1.0e-4` で再現可能である。
-  - [ ] 既存 torsion force の役割が明確化されている。
+  - [ ] 代表 PASS 条件で、菌体重心変位または平均速度が報告されている。
+  - [ ] 既存 torsion force を残す前提が評価結果と矛盾しない。
 - docs:
   - `docs/phase2/phase2_6_torque_transmission_model_evaluation.md`
 
