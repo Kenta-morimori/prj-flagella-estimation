@@ -206,6 +206,33 @@
   - `docs/adr/0004_phase2_material_frame_twist_transmission.md`
   - `docs/phase2/phase2_6_triplet_twist_dof_design.md`
 
+### P2-6-009: トルク伝搬機構を修正した拡張モデルの詳細評価
+
+- status: in_progress
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/54`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/53`
+- branch: `feature/phase2-54-torque-transmission-eval`
+- goal: `material_twist_local_couple` 導入後の単一べん毛モデルについて、高トルク条件での形状安定性と local stiffness scaling の必要性を定量評価する。
+- background:
+  - P2-6-008 では、`motor.torque_Nm=2.0e-20`, `time.dt_star=1.0e-4`, `duration_s=0.5`, `motor.local_spring_scale=1.2` で shape gate PASS と net 1回転以上を確認した。
+  - ただし `local_spring_scale=1.2` が物理的に必要な拡張なのか、数値安定化なのか、あるいは不要なのかは未評価である。
+  - 後方束化・遊泳検証へ進む前に、単一べん毛で安定トルク帯、scaling の必要性、既存 torsion force の役割を整理する。
+- tasks:
+  - [ ] `local_*_scale=1.0` で torque sweep を行い、安定境界を確認する。
+  - [ ] `local_spring_scale`, `local_bend_scale`, `local_torsion_scale`, `local_hook_scale` の one-factor sweep を行う。
+  - [ ] 支配的な local scale が見えたら、torque x scale の破綻 heatmap を作成する。
+  - [ ] shape gate, first-fail category, net 回転数, 方向一貫性, helix/root 回転比を集計する。
+  - [ ] torsion force の役割を診断し、既存 torsion force を置き換えない/置き換える場合の根拠を整理する。
+  - [ ] Issue #58 へ渡す多べん毛評価用の代表条件を提示する。
+- acceptance criteria:
+  - [ ] `local_*_scale=1.0` での torque 安定境界が報告されている。
+  - [ ] `motor.local_spring_scale=1.2` が必要か、不要か、条件付きで必要かが説明されている。
+  - [ ] scaling が必要な場合、どの局所項が効いているかが one-factor sweep または heatmap で示されている。
+  - [ ] 代表 PASS / FAIL 条件が `duration_s>=0.5`, `time.dt_star=1.0e-4` で再現可能である。
+  - [ ] 既存 torsion force の役割が明確化されている。
+- docs:
+  - `docs/phase2/phase2_6_torque_transmission_model_evaluation.md`
+
 ## Phase 2.7: multi flagella 後方束化・非崩壊条件探索
 
 ### P2-7-006: 複数べん毛で崩壊せず後方束化する条件を探索する
