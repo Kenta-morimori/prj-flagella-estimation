@@ -35,7 +35,7 @@
   "adr_required": false,
   "adr_reason": "今回は診断用初期条件、出力サンプリング、診断指標、sweep toolingの追加であり、物理モデル本体の新しい決定は行っていない。hook破綻対策として物理モデルを変更する場合は別途ADR候補。",
   "commit_type": "diagnostic",
-  "commit_hash": "08ce65e",
+  "commit_hash": "d4702ffc54ea388565e45ec979c27a547f65b3ee",
   "push_status": "pushed",
   "next_actions": [
     "hook破綻を抑える条件を、motor.local_spring_scale, motor.local_hook_scale, hook初期形状, hook spring/bendの役割から切り分ける。",

@@ -280,11 +280,13 @@
 
 ### P2-9-009: 3D/2D動画出力のレビュー向けサンプリングを整備する
 
-- status: accepted
-- branch: `feature/phase2-9-output-sampling`
+- status: in_progress
+- branch: `feature/phase2-7-bundling-stability`
+- covered by: `P2-7-006`
 - background:
   - `dt_star=1.0e-4` では内部step数が多く、3D出力を全step保存するとファイル数・動画生成時間が大きくなる。
   - 2D側には `fps_out_2d` があるが、3D側にも同様の `fps_out_3d` が必要である。
+  - Phase 2.7の0.5 s検証を現実的なフレーム数でレビューする前提整備として、P2-7-006と同じPRで扱う。
 - tasks:
   - [ ] `output_sampling.fps_out_3d` を追加する。
   - [ ] 3D render / frame保存 / manifest に `fps_out_3d` を反映する。
