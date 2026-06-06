@@ -36,6 +36,22 @@ INITIAL_GEOMETRY_CONTRACT = {
 }
 
 
+def _target_tangent_vs_rear_deg(
+    initial_orientation_mode: str,
+    initial_tangent_vs_rear_deg: float | None,
+) -> float:
+    if initial_tangent_vs_rear_deg is not None:
+        return float(initial_tangent_vs_rear_deg)
+    if initial_orientation_mode == "side_attach":
+        return 90.0
+    if initial_orientation_mode == "posterior_aligned":
+        return 0.0
+    raise ValueError(
+        "Unsupported flagella.initial_orientation_mode:"
+        f" {initial_orientation_mode}. Use 'side_attach' or 'posterior_aligned'."
+    )
+
+
 def _quat_normalize(q: np.ndarray) -> np.ndarray:
     norm = np.linalg.norm(q)
     if norm == 0:
@@ -249,6 +265,14 @@ class Simulator:
         summary: dict[str, Any] = {
             "flagella": {
                 "init_mode": str(self.config.flagella.init_mode),
+                "initial_orientation_mode": str(
+                    self.config.flagella.initial_orientation_mode
+                ),
+                "initial_tangent_vs_rear_deg": (
+                    float(self.config.flagella.initial_tangent_vs_rear_deg)
+                    if self.config.flagella.initial_tangent_vs_rear_deg is not None
+                    else None
+                ),
                 "stub_mode": str(self.config.flagella.stub_mode),
                 "n_flagella": int(self.config.flagella.n_flagella),
                 "n_beads_per_flagellum": int(
@@ -287,6 +311,13 @@ class Simulator:
             },
             "per_flagellum": [],
         }
+        tangent_target_deg = _target_tangent_vs_rear_deg(
+            str(self.config.flagella.initial_orientation_mode),
+            self.config.flagella.initial_tangent_vs_rear_deg,
+        )
+        summary["flagella"]["geometry_contract"]["tolerances"][
+            "tangent_vs_rear_target_deg"
+        ] = tangent_target_deg
 
         for f_id, idxs in enumerate(self.model.flagella_indices):
             idx = idxs.astype(int, copy=False)
@@ -389,7 +420,7 @@ class Simulator:
             if float(np.max(torsion_err)) > tol["torsion_err_max_deg"]:
                 failures.append("torsion_angle")
             if (
-                abs(tangent_vs_rear_deg - tol["tangent_vs_rear_target_deg"])
+                abs(tangent_vs_rear_deg - tangent_target_deg)
                 > tol["tangent_vs_rear_abs_tol_deg"]
             ):
                 failures.append("base_tangent")

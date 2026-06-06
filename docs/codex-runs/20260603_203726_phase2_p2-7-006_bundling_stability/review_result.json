@@ -1,0 +1,45 @@
+{
+  "status": "FAIL",
+  "summary": "Phase 2.7の実装基盤として fps_out_3d、posterior_aligned初期条件、束化・遊泳指標、専用torque sweepを追加した。短時間では形状PASSするが、0.5 s代表条件では低トルクでもhook first-failとなり、後方束化も未確認だった。",
+  "blocking_issues": [
+    "n_flagella=3, posterior_aligned, duration_s=0.5, time.dt_star=1.0e-4 で 0.5e-20, 1.0e-20, 2.0e-20 N m がいずれも hook first-fail になる。",
+    "motor.local_spring_scale=1.2 はhook破綻を遅らせるが、0.5e-20 N mでも最終stepで hook_len_rel_err_max=1.0713 となりshape gate未達。",
+    "posterior_alignedで束軸は後方を向くが、bundle_participation_ratio=0.0 のままで後方束化は未確認。"
+  ],
+  "non_blocking_issues": [
+    "0.5 sを多数条件で直接sweepすると計算時間が大きい。短時間screening後に代表条件だけ0.5 sへ伸ばす運用が必要。",
+    "束化分類閾値は初期実装であり、目視レビューと追加データで調整する必要がある。"
+  ],
+  "tests_reviewed": [
+    "uv run ruff check src/sim_swim/model/builder.py src/sim_swim/render/render3d.py src/sim_swim/sim/core.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/params.py scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py tests/test_model_builder.py tests/test_params.py tests/test_render_state_and_projection.py tests/test_simulation.py tests/test_phase2_7_bundling_sweep.py",
+    "uv run pytest tests/test_phase2_7_bundling_sweep.py tests/test_params.py tests/test_model_builder.py tests/test_simulation.py tests/test_render_state_and_projection.py -k \"phase27 or initial_orientation or posterior_aligned or flagella_base_tangent or output_sampling_fps or select_frames\" -q (15 passed)",
+    "uv run pytest -q (163 passed)",
+    "commit hook: uv run ruff format --check .",
+    "commit hook: uv run ruff check .",
+    "commit hook: uv run pytest -q (163 passed)"
+  ],
+  "user_review_required": true,
+  "user_review_command": "uv run python -m scripts.01_simulate_swimming time.duration_s=0.1 time.dt_star=1.0e-4 flagella.n_flagella=3 flagella.initial_orientation_mode=posterior_aligned motor.torque_Nm=0.5e-20 motor.local_spring_scale=1.2 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.save_frames_2d=false render.save_frames_3d=true",
+  "user_review_outputs": [
+    "outputs/2026-06-03/203936/render/swim3d.mp4",
+    "outputs/2026-06-03/203936/render/swim3d_final.png",
+    "outputs/2026-06-03/203936/sim/step_summary.csv",
+    "outputs/phase2_7_bundling_sweep/2026-06-03_n3_dt1e4_dur0p02/phase2_7_bundling_sweep_summary.csv",
+    "outputs/phase2_7_bundling_sweep/2026-06-03_n3_posterior_torque0p5e20_spring1p2_dur0p5/phase2_7_bundling_sweep_summary.csv"
+  ],
+  "user_review_points": [
+    "posterior_alignedで初期べん毛が菌体後方を向いているか。",
+    "0.1 s動画で後方束化に見える接近があるか。自動指標ではbundle_participation_ratio=0.0。",
+    "菌体の推進や姿勢変化が視覚的に不自然でないか。"
+  ],
+  "adr_required": false,
+  "adr_reason": "今回は診断用初期条件、出力サンプリング、診断指標、sweep toolingの追加であり、物理モデル本体の新しい決定は行っていない。hook破綻対策として物理モデルを変更する場合は別途ADR候補。",
+  "commit_type": "diagnostic",
+  "commit_hash": "d4702ffc54ea388565e45ec979c27a547f65b3ee",
+  "push_status": "pushed",
+  "next_actions": [
+    "hook破綻を抑える条件を、motor.local_spring_scale, motor.local_hook_scale, hook初期形状, hook spring/bendの役割から切り分ける。",
+    "後方へ向くが束化しない原因を、flagella間距離、流体相互作用、接触・反発、初期配置から切り分ける。",
+    "shape gate PASSが0.5 sで得られるまで、P2-7-006の完了チェックは更新しない。"
+  ]
+}

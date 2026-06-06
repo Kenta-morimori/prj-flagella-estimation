@@ -1,0 +1,35 @@
+{
+  "status": "FAIL",
+  "summary": "Phase 2.7 の後方束化探索で、初期接線角度sweepとflagella-flagella repulsion診断を追加した。形状が保てる条件は見つかったが、後方束化は未達。失敗原因は no_bundle_drive と hook_drift に整理した。",
+  "blocking_issues": [
+    "n_flagella=3, duration_s=0.5, dt_star=1.0e-4 で shape gate PASS かつ posterior_bundle/partial_bundle の条件が見つかっていない。",
+    "形状が保てるトルク帯では bundle_participation_ratio=0.0 かつ flag_flag_close_pair_count=0 で、べん毛同士が束化距離まで近づかない。",
+    "トルクを上げると束化より先に hook length gate が破綻する。"
+  ],
+  "non_blocking_issues": [
+    "代表動画の目視確認は未実施。今回の結論は定量CSVに基づく診断であり、束化成功判定ではない。",
+    "distributed_flagellum または診断modeで多本べん毛を比較し、torque伝達不足と相互作用モデル不足をさらに切り分ける余地がある。"
+  ],
+  "tests_reviewed": [
+    "uv run pytest tests/test_params.py tests/test_model_builder.py tests/test_simulation.py::test_phase27_step_summary_includes_bundle_and_swimming_metrics tests/test_phase2_7_bundling_sweep.py",
+    "uv run ruff check src/sim_swim/model/builder.py src/sim_swim/sim/core.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/params.py scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py tests/test_params.py tests/test_model_builder.py tests/test_simulation.py tests/test_phase2_7_bundling_sweep.py",
+    "outputs/phase2_7_bundling_sweep/2026-06-04_n3_angle_screen_dur0p02/phase2_7_bundling_sweep_summary.csv",
+    "outputs/phase2_7_bundling_sweep/2026-06-04_n3_angle_representative_dur0p5/phase2_7_bundling_sweep_summary.csv",
+    "outputs/phase2_7_bundling_sweep/2026-06-04_n3_angle10_torque_escalation_dur0p5/phase2_7_bundling_sweep_summary.csv",
+    "outputs/phase2_7_bundling_sweep/2026-06-04_n3_angle10_spring2_dur0p5/phase2_7_bundling_sweep_summary.csv"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "今回の変更は既存のPhase 2.7診断に初期角度指定とCSV診断指標を追加したもので、物理モデルの採用判断や重大な仕様変更ではない。束化未達の原因整理はPhase 2.7計画書へ記録した。",
+  "commit_type": "diagnostic",
+  "commit_hash": "0e127a70535c7296e21876a9d56ae03ea837a828",
+  "push_status": "pushed",
+  "next_actions": [
+    "distributed_flagellum または診断modeで多本べん毛を比較し、torqueが届いた場合にも束化しないかを確認する。",
+    "hook drift を局所spring補強以外の方法で抑える方針を検討する。",
+    "流体相互作用または近接相互作用が後方束化を作れる実装になっているか確認する。"
+  ]
+}

@@ -210,7 +210,7 @@
 
 ### P2-7-006: 複数べん毛で崩壊せず後方束化する条件を探索する
 
-- status: proposed
+- status: in_progress
 - source proposal: `docs/planning/phase2_task_proposals.md#proposal-p2-7-006-phase-27`
 - supersedes: `P2-8-007`
 - branch: `feature/phase2-7-bundling-stability`
@@ -222,12 +222,15 @@
   - 短時間で後方束化候補を観察するには、hook角度または初期接線方向を調整し、すべてのべん毛を菌体後方へ向けた代表条件を作るのが有効である。
   - 束化は完全な二値判定が難しい。1本だけ独立し、残りが束化する部分束化もあり得るため、定量指標と目視レビューを併用する。
 - tasks:
-  - [ ] `motor.force_distribution=material_twist_local_couple`, `time.dt_star=1.0e-4` を基本条件とした `n_flagella=3` representative を作る。
+  - [ ] 長時間レビュー用に3D出力を間引ける `output_sampling.fps_out_3d` を使い、`time.dt_star=1.0e-4` と `duration_s>=0.5` の検証を現実的なフレーム数で実行できるようにする。
+  - [ ] 自然初期条件で、`motor.force_distribution=material_twist_local_couple`, `time.dt_star=1.0e-4` を基本条件とした `n_flagella=3` representative を作る。
+  - [ ] 自然初期条件で `motor.torque_Nm` をsweepし、多べん毛での形状安定トルク帯を先に把握する。
+  - [ ] hook角度または初期接線方向を調整した `posterior_aligned` 条件を追加し、短時間で全べん毛が菌体後方へ向かう初期条件を作る。
+  - [ ] `posterior_aligned` 条件で `motor.torque_Nm` をsweepし、崩壊しないが束化しない条件、束化する条件、崩壊する条件を分類する。
   - [ ] `distributed_flagellum` は診断用比較条件として残し、必要に応じて同じ `n_flagella` / torque で比較する。
-  - [ ] hook角度または初期接線方向を調整し、短時間で全べん毛が菌体後方へ向かう初期条件を作る。
-  - [ ] `motor.torque_Nm` をsweepし、崩壊しないが束化しない条件、束化する条件、崩壊する条件を分類する。
   - [ ] `n_flagella=3,6,9` を段階評価し、body/hook/flag の first-fail 分布を整理する。
   - [ ] 束化候補指標を実装・記録する。候補は、束中心軸への距離、束参加率、独立べん毛数、束軸と菌体軸の角度、flagella間距離である。
+  - [ ] 後方束化候補条件で、菌体重心移動量、平均速度、body axis角度変化、姿勢揺らぎRMS、bundle axis と body axis の角度を出力する。
   - [ ] 1本のみ独立する部分束化をFAILではなく別カテゴリとして記録する。
   - [ ] collapse/fly-away が出る条件を再現可能な diagnostic output として保存する。
   - [ ] 代表PASS/FAIL/PARTIAL条件について、定量結果と目視レビュー対象動画を記録する。
@@ -235,7 +238,19 @@
   - [ ] `n_flagella=3` で、0.5 s以上、shape gate PASS、後方束化候補あり、の代表条件が1つ以上ある。
   - [ ] `n_flagella` と torque ごとの collapse / no bundle / partial bundle / posterior bundle の分類表がある。
   - [ ] 後方束化の定量指標が `step_summary.csv` または別CSVへ記録される。
+  - [ ] 後方束化候補条件で、菌体の推進量と姿勢変化を確認できる運動指標が出力される。
   - [ ] 目視レビューが必要な条件では、対象動画・確認観点・自動判定の限界をreview_resultに記録する。
+- docs:
+  - `docs/phase2/phase2_7_bundling_stability_plan.md`
+- latest diagnostic:
+  - 2026-06-03時点では、`n_flagella=3`, `posterior_aligned`, `duration_s=0.5`, `time.dt_star=1.0e-4` の代表条件で `0.5e-20..2.0e-20 N m` を確認したが、いずれも最終的に `hook` first-fail となった。
+  - `motor.local_spring_scale=1.2` はhook破綻を遅らせたが、0.5 s最終stepで `hook_len_rel_err_max=1.0713` となり、shape gate は未達だった。
+  - `posterior_aligned` により束軸は後方を向くが、`bundle_participation_ratio=0.0` のままであり、後方束化そのものは未確認である。
+  - 2026-06-04時点では、`flagella.initial_tangent_vs_rear_deg` と flagella-flagella repulsion診断を追加し、`0,10,30,60,90 deg` をscreeningした。
+  - `initial_tangent_vs_rear_deg=10`, `torque_Nm=0.5e-20`, `motor.local_spring_scale=1.2`, `duration_s=0.5` は shape gate を通過したが、`bundle_participation_ratio=0.0`, `flag_flag_close_pair_count=0` で no_bundle だった。
+  - `initial_tangent_vs_rear_deg=10`, `torque_Nm=1.0e-20`, `motor.local_spring_scale=2.0` も shape gate を通過したが、同様に no_bundle だった。
+  - `1.0e-20` を `local_spring_scale=1.2` で回す条件、および `2.0e-20` 条件では、束化より先に hook length gate が破綻した。
+  - 現時点の主因は、形状が保てるトルク帯では `no_bundle_drive`、トルクを上げると `hook_drift` が先行すること。詳細は `docs/phase2/phase2_7_bundling_stability_plan.md` に記録した。
 
 ## Phase 2.8: 遊泳挙動の運動指標検証
 
@@ -265,11 +280,13 @@
 
 ### P2-9-009: 3D/2D動画出力のレビュー向けサンプリングを整備する
 
-- status: accepted
-- branch: `feature/phase2-9-output-sampling`
+- status: in_progress
+- branch: `feature/phase2-7-bundling-stability`
+- covered by: `P2-7-006`
 - background:
   - `dt_star=1.0e-4` では内部step数が多く、3D出力を全step保存するとファイル数・動画生成時間が大きくなる。
   - 2D側には `fps_out_2d` があるが、3D側にも同様の `fps_out_3d` が必要である。
+  - Phase 2.7の0.5 s検証を現実的なフレーム数でレビューする前提整備として、P2-7-006と同じPRで扱う。
 - tasks:
   - [ ] `output_sampling.fps_out_3d` を追加する。
   - [ ] 3D render / frame保存 / manifest に `fps_out_3d` を反映する。

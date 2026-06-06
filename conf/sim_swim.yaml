@@ -16,6 +16,12 @@ flagella:
   n_flagella: 3                # [-] べん毛本数（論文条件）
   placement_mode: "uniform"   # 終端層の断面ビーズへ均等に付着
   init_mode: "paper_table1"   # 初期べん毛のsource-of-truth: bond/theta/phi/n_beads
+  # 初期接線方向:
+  # - side_attach: 既定値。菌体側面から横向きに出す従来条件。
+  # - posterior_aligned: 診断用。hookは側面付着のまま、べん毛接線を菌体後方へ向ける。
+  # - initial_tangent_vs_rear_deg: 指定時はmodeより優先。0=後方軸, 90=従来side_attach。
+  initial_orientation_mode: "side_attach"
+  initial_tangent_vs_rear_deg: null
   n_beads_per_flagellum: 11    # [-] 各べん毛の初期ビーズ数（論文離散化準拠）
   discretization:
     ds_over_b: 0.58            # [-] 隣接間隔 ds/b（Table 1 の L=0.58b 相当）
@@ -24,7 +30,7 @@ flagella:
   helix_init:
     radius_over_b: 0.25        # [-] 初期ヘリックス半径（直径0.5b）
     pitch_over_b: 2.5          # [-] 初期ヘリックスピッチ
-  # NOTE: base tangent / hook configuration is always side-attach (no toggle flag)
+  # NOTE: posterior_aligned は後方束化を短時間で見るための診断条件。
 
 fluid:
   viscosity_Pa_s: 0.001        # [Pa*s] 水相当
@@ -93,6 +99,7 @@ time:
 
 output_sampling:
   out_all_steps_3d: true       # true: 3D は dt ごと全step保存
+  fps_out_3d: 25.0             # [Hz] out_all_steps_3d=false のときの3D動画出力fps
   fps_out_2d: 25.0             # [Hz] 2D は固定25Hzで間引き
 
 brownian:

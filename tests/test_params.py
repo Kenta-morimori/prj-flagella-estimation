@@ -219,6 +219,35 @@ def test_motor_local_scales_can_be_configured() -> None:
     assert sim_cfg.motor.local_torsion_scale == pytest.approx(0.5)
 
 
+def test_output_sampling_fps_out_3d_can_be_configured() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["output_sampling"] = {
+        "out_all_steps_3d": False,
+        "fps_out_3d": 12.5,
+        "fps_out_2d": 25.0,
+    }
+
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.output_sampling.out_all_steps_3d is False
+    assert sim_cfg.output_sampling.fps_out_3d == pytest.approx(12.5)
+    assert sim_cfg.output_sampling.fps_out_2d == pytest.approx(25.0)
+
+
+def test_output_sampling_accepts_fps_3d_out_alias() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["output_sampling"] = {
+        "out_all_steps_3d": False,
+        "fps_3d_out": 10.0,
+    }
+
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.output_sampling.fps_out_3d == pytest.approx(10.0)
+
+
 def test_projection_config_is_ignored_after_removal() -> None:
     cfg = _base_cfg()
     cfg["projection"] = {
@@ -296,6 +325,44 @@ def test_flagella_init_mode_can_be_set_to_paper_table1() -> None:
 
     assert sim_cfg.flagella.init_mode == "paper_table1"
     assert sim_cfg.flagella.n_beads_per_flagellum == 15
+
+
+def test_flagella_initial_orientation_mode_defaults_to_side_attach() -> None:
+    cfg = _base_cfg()
+    cfg["flagella"] = {"bond_L_over_b": 0.58, "length_over_b": 5.8}
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella.initial_orientation_mode == "side_attach"
+
+
+def test_flagella_initial_orientation_mode_can_be_set_to_posterior_aligned() -> None:
+    cfg = _base_cfg()
+    cfg["flagella"] = {
+        "initial_orientation_mode": "posterior_aligned",
+        "bond_L_over_b": 0.58,
+        "length_over_b": 5.8,
+    }
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella.initial_orientation_mode == "posterior_aligned"
+
+
+def test_flagella_initial_tangent_vs_rear_deg_can_be_configured() -> None:
+    cfg = _base_cfg()
+    cfg["flagella"] = {
+        "initial_tangent_vs_rear_deg": 10.0,
+        "bond_L_over_b": 0.58,
+        "length_over_b": 5.8,
+    }
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella.initial_tangent_vs_rear_deg == pytest.approx(10.0)
 
 
 def test_flagella_stub_mode_can_be_set_to_minimal_basal_stub() -> None:
