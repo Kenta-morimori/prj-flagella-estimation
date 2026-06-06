@@ -206,19 +206,76 @@
   - `docs/adr/0004_phase2_material_frame_twist_transmission.md`
   - `docs/phase2/phase2_6_triplet_twist_dof_design.md`
 
-## Phase 2.7: multi flagella 非崩壊検証
+## Phase 2.7: multi flagella 後方束化・非崩壊条件探索
 
-### P2-7-006: 複数べん毛条件での形状崩壊耐性を段階評価する
+### P2-7-006: 複数べん毛で崩壊せず後方束化する条件を探索する
 
 - status: proposed
 - source proposal: `docs/planning/phase2_task_proposals.md#proposal-p2-7-006-phase-27`
-- goal: `n_flagella=3..9` での非崩壊条件帯を把握し、特に `motor.force_distribution=distributed_flagellum` で複数べん毛が破綻しないかを検証する。
+- supersedes: `P2-8-007`
+- branch: `feature/phase2-7-bundling-stability`
+- goal: `n_flagella=3..9` で、螺旋形状・hook・bodyが崩壊せず、かつ後方束化する条件帯を把握する。特にトルク、hook初期角度、べん毛本数の関係を整理する。
 - background:
-  - Phase 2.6 では `distributed_flagellum` により単一べん毛の螺旋形状維持と net 回転を確認した。
-  - 複数べん毛に拡張した場合、distributed torque が flagellum 間干渉、hook 変形、body 変形を増幅して collapse/fly-away を起こす可能性がある。
-  - posterior bundling の成立可否は別 issue として扱い、本タスクでは束化の良否ではなく非崩壊性を先に評価する。
+  - Phase 2.6 では `material_twist_local_couple` により、単一べん毛の螺旋形状維持とnet回転を確認した。
+  - 次に必要なのは、複数べん毛で collapse/fly-away せず、後方へ束化する条件を探索することである。
+  - 旧P2-7の「非崩壊性」と旧P2-8の「後方束化判定」は分離すると同じ実験を二度行うため、本タスクで統合する。
+  - 短時間で後方束化候補を観察するには、hook角度または初期接線方向を調整し、すべてのべん毛を菌体後方へ向けた代表条件を作るのが有効である。
+  - 束化は完全な二値判定が難しい。1本だけ独立し、残りが束化する部分束化もあり得るため、定量指標と目視レビューを併用する。
 - tasks:
-  - [ ] `motor.force_distribution=distributed_flagellum`, `time.dt_star=1.0e-4` を明示した `n_flagella=3` representative を作る。
-  - [ ] `n_flagella` を段階的に増やし、body/hook/flag の first-fail 分布を整理する。
+  - [ ] `motor.force_distribution=material_twist_local_couple`, `time.dt_star=1.0e-4` を基本条件とした `n_flagella=3` representative を作る。
+  - [ ] `distributed_flagellum` は診断用比較条件として残し、必要に応じて同じ `n_flagella` / torque で比較する。
+  - [ ] hook角度または初期接線方向を調整し、短時間で全べん毛が菌体後方へ向かう初期条件を作る。
+  - [ ] `motor.torque_Nm` をsweepし、崩壊しないが束化しない条件、束化する条件、崩壊する条件を分類する。
+  - [ ] `n_flagella=3,6,9` を段階評価し、body/hook/flag の first-fail 分布を整理する。
+  - [ ] 束化候補指標を実装・記録する。候補は、束中心軸への距離、束参加率、独立べん毛数、束軸と菌体軸の角度、flagella間距離である。
+  - [ ] 1本のみ独立する部分束化をFAILではなく別カテゴリとして記録する。
   - [ ] collapse/fly-away が出る条件を再現可能な diagnostic output として保存する。
-  - [ ] posterior bundling 判定は Phase 2.8 または別 issue の scope として分離する。
+  - [ ] 代表PASS/FAIL/PARTIAL条件について、定量結果と目視レビュー対象動画を記録する。
+- acceptance criteria:
+  - [ ] `n_flagella=3` で、0.5 s以上、shape gate PASS、後方束化候補あり、の代表条件が1つ以上ある。
+  - [ ] `n_flagella` と torque ごとの collapse / no bundle / partial bundle / posterior bundle の分類表がある。
+  - [ ] 後方束化の定量指標が `step_summary.csv` または別CSVへ記録される。
+  - [ ] 目視レビューが必要な条件では、対象動画・確認観点・自動判定の限界をreview_resultに記録する。
+
+## Phase 2.8: 遊泳挙動の運動指標検証
+
+### P2-8-008: 束化条件で菌体の推進・姿勢変化を定量化する
+
+- status: accepted
+- source proposal: `docs/planning/phase2_task_proposals.md#proposal-p2-9-008-phase-29`
+- renumbered from proposal: `P2-9-008`
+- branch: `feature/phase2-8-swimming-motion-metrics`
+- goal: 複数べん毛が回転する条件で、菌体がどの程度推進し、どの程度姿勢を変えるかを定量化する。
+- background:
+  - べん毛が回転し束化しても、遊泳らしい推進や姿勢安定性が出るとは限らない。
+  - べん毛束軸と菌体軸がずれると、菌体が揺れる・首振りする・角度を変える可能性がある。
+  - 本数差により、推進速度、姿勢揺らぎ、角度変化が変わる可能性がある。
+- tasks:
+  - [ ] body重心trajectory、body axis、body angular velocityを時系列出力・集計する。
+  - [ ] べん毛束軸を定義し、bundle axis と body axis の角度を出力する。
+  - [ ] 遊泳速度、直進性、姿勢角の累積変化、姿勢揺らぎRMS、角速度RMSを指標化する。
+  - [ ] `n_flagella=1,3,6,9` で、推進量と姿勢安定性の差を比較する。
+  - [ ] fly-awayや異常回転を運動指標で検出する。
+- acceptance criteria:
+  - [ ] 遊泳指標CSVが再現可能に出力される。
+  - [ ] 少なくとも1条件で、推進速度・body axis角度変化・bundle-body軸角度を報告できる。
+  - [ ] 本数差による挙動比較の最小表がある。
+
+## Phase 2.9: 動画出力・サンプリング整備
+
+### P2-9-009: 3D/2D動画出力のレビュー向けサンプリングを整備する
+
+- status: accepted
+- branch: `feature/phase2-9-output-sampling`
+- background:
+  - `dt_star=1.0e-4` では内部step数が多く、3D出力を全step保存するとファイル数・動画生成時間が大きくなる。
+  - 2D側には `fps_out_2d` があるが、3D側にも同様の `fps_out_3d` が必要である。
+- tasks:
+  - [ ] `output_sampling.fps_out_3d` を追加する。
+  - [ ] 3D render / frame保存 / manifest に `fps_out_3d` を反映する。
+  - [ ] 既存の `output_sampling.out_all_steps_3d` との優先順位を定義する。
+  - [ ] CLI overrideで `output_sampling.fps_out_3d=100` のように指定できることを確認する。
+- acceptance criteria:
+  - [ ] `dt_star=1.0e-4`, `duration_s>=0.5` でも3D動画フレーム数を制御できる。
+  - [ ] manifestに3D出力サンプリング条件が記録される。
+  - [ ] 既存の全step保存挙動を必要時に維持できる。

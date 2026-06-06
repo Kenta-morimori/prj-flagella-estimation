@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "summary": "P2-7-006 と旧 P2-8-007 を統合し、後方束化と非崩壊条件探索を同一タスクとして整理した。遊泳挙動指標は P2-8-008、3D出力サンプリングは P2-9-009 として分離した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "P2-7-006 の実装時には、hook角度または初期接線方向をどのconfig keyで表現するかを設計する必要がある。",
+    "後方束化の定量指標は候補段階であり、目視レビューと併用して閾値を調整する必要がある。"
+  ],
+  "tests_reviewed": [
+    "git diff --check",
+    "pre-commit: uv run ruff format --check .",
+    "pre-commit: uv run ruff check .",
+    "pre-commit: uv run pytest -q (149 passed)"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "今回はPhase 2タスク分解と実施順の整理であり、物理モデル、出力データ形式、依存関係の変更は行っていない。",
+  "commit_type": "complete",
+  "commit_hash": "b1baeaa",
+  "push_status": "pushed",
+  "next_actions": [
+    "P2-7-006: material_twist_local_couple を基本条件に、複数べん毛で崩壊せず後方束化する torque / hook角度 / 本数条件を探索する。",
+    "P2-9-009: dt_star=1.0e-4 の長時間実行に備えて output_sampling.fps_out_3d を追加する。",
+    "P2-8-008: 束化条件が得られた後、body姿勢変化、姿勢揺らぎ、bundle axis と body axis のずれを定量化する。"
+  ]
+}
