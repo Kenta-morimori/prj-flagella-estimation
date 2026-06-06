@@ -16,6 +16,14 @@
 
 多べん毛・後方束化・遊泳検証は Issue #58 に分離し、Issue #54 の結果で代表条件を決めてから進める。
 
+2026-06-06の追加方針:
+
+- torque sweep は初期上限を `4.0e-20 N m` とする。
+- 全条件を `duration_s=0.5` で評価する。
+- `distributed_flagellum` と probe 系 mode は必須比較に含めず、`material_twist_local_couple` を単独評価する。
+- torsion force OFF 診断は必須にしない。
+- 代表PASS条件では、遊泳に必要な駆動力の前段評価として菌体重心変位・平均速度・body axis角度変化も確認する。
+
 ## 検証
 
 - `git diff --check`
