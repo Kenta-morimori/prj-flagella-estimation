@@ -265,9 +265,8 @@
 
 ### P2-9-009: 3D/2D動画出力のレビュー向けサンプリングを整備する
 
-- status: proposed
+- status: accepted
 - branch: `feature/phase2-9-output-sampling`
-- goal: `dt_star=1.0e-4` の長時間実行でも、3D動画と2D動画を現実的なフレーム数で保存できるようにする。
 - background:
   - `dt_star=1.0e-4` では内部step数が多く、3D出力を全step保存するとファイル数・動画生成時間が大きくなる。
   - 2D側には `fps_out_2d` があるが、3D側にも同様の `fps_out_3d` が必要である。
