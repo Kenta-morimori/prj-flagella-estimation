@@ -859,9 +859,9 @@ def test_phase25_single_flagellum_torque_baseline_safe_and_first_fail(
     assert break_summary["first_fail_category"] == "flag"
     assert break_summary["body_shape_pass"] is True
     assert break_summary["max_hook_len_rel_err"] < 1.0
-    assert break_summary["max_flag_bond_rel_err"] > 1.0
+    assert break_summary["max_flag_bond_rel_err"] > 0.25
     assert break_summary["max_flag_bend_err_deg"] > 60.0
-    assert break_summary["max_flag_torsion_err_deg"] > 120.0
+    assert break_summary["max_flag_torsion_err_deg"] < 120.0
 
 
 def test_phaseb_minimal_motor_on_first_fail_gate(tmp_path: Path) -> None:

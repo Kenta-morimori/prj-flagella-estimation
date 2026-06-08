@@ -1,0 +1,27 @@
+{
+  "status": "PASS",
+  "summary": "local scale を全て 1.0 に固定し、time.dt_star=1.0e-3 と 1.0e-4 で単一べん毛のトルク破綻境界を比較した。1.0e-3 では低トルクから flag 形状が破綻し、1.0e-4 では 3.0e-20 N m が最後の PASS、3.05e-20 N m が最初の flag fail だったことを docs に記録した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    "uv run python -m scripts.01_simulate_swimming.run_phase2_6_torque_model_evaluation --dt-star 1.0e-3 --duration 0.5 --torques 2.0e-20,2.5e-20,3.0e-20,3.25e-20,3.5e-20,3.75e-20,4.0e-20,6.0e-20,8.0e-20,1.0e-19 --scale-torques none",
+    "uv run python -m scripts.01_simulate_swimming.run_phase2_6_torque_model_evaluation --dt-star 1.0e-3 --duration 0.5 --torques 0.5e-20,1.0e-20,1.5e-20,1.75e-20 --scale-torques none",
+    "uv run python -m scripts.01_simulate_swimming.run_phase2_6_torque_model_evaluation --dt-star 1.0e-4 --duration 0.5 --torques 2.0e-20,2.5e-20,3.0e-20,3.25e-20,3.5e-20,3.75e-20,4.0e-20,6.0e-20,8.0e-20,1.0e-19 --scale-torques none",
+    "uv run python -m scripts.01_simulate_swimming.run_phase2_6_torque_model_evaluation --dt-star 1.0e-4 --duration 0.5 --torques 3.05e-20,3.10e-20,3.15e-20,3.20e-20 --scale-torques none",
+    "uv run pytest tests/test_phase2_6_torque_model_evaluation.py",
+    "uv run ruff check ."
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "追加検証とドキュメント更新のみで、物理モデル・出力形式・依存関係・テスト戦略の変更ではないため ADR は不要。",
+  "commit_type": "complete",
+  "commit_hash": "fbcc310d5fa3e2e80e9a3038b5eae8c3b4187317",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/59",
+  "next_actions": [
+    "PR #59 を確認し、問題なければ merge する。"
+  ]
+}

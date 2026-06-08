@@ -1,0 +1,31 @@
+{
+  "status": "PASS",
+  "summary": "dt_star=1.0e-3 の torque x dt_star heatmap 欠損セルを埋めるため、境界付近の 3.05e-20, 3.10e-20, 3.15e-20, 3.20e-20 N m を追加実行した。再生成後の heatmap では dt_star=1.0e-3 列の全18条件が FAIL として表示される。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    "uv run python -m scripts.01_simulate_swimming.run_phase2_6_torque_model_evaluation --dt-star 1.0e-3 --duration 0.5 --torques 3.05e-20,3.10e-20,3.15e-20,3.20e-20 --scale-torques none",
+    "uv run python -m scripts.01_simulate_swimming.plot_phase2_6_dt_star_torque_heatmap --summary-csv outputs/2026-06-08/224052/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv --summary-csv outputs/2026-06-08/230008/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv --summary-csv outputs/2026-06-09/002638/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv --summary-csv outputs/2026-06-08/224240/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv --summary-csv outputs/2026-06-08/230113/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv --output-dir outputs/2026-06-09/phase2_6_dt_star_torque_heatmap",
+    "normalized CSV check: dt_star=0.001 has 18 rows and all shape_pass=False",
+    "manual image inspection of regenerated pass/fail and category heatmaps",
+    "uv run pytest tests/test_phase2_6_dt_star_torque_heatmap.py tests/test_phase2_6_torque_model_evaluation.py",
+    "uv run ruff check ."
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [
+    "outputs/2026-06-09/phase2_6_dt_star_torque_heatmap/phase2_6_dt_star_torque_heatmap.csv",
+    "outputs/2026-06-09/phase2_6_dt_star_torque_heatmap/phase2_6_dt_star_torque_category_heatmap.png",
+    "outputs/2026-06-09/phase2_6_dt_star_torque_heatmap/phase2_6_dt_star_torque_pass_fail_heatmap.png"
+  ],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "追加検証とドキュメント更新のみで、物理モデル・出力形式・依存関係・テスト戦略の変更ではないため ADR は不要。",
+  "commit_type": "complete",
+  "commit_hash": "77fb50a74e7805c412fe13d284d15317699ae9c0",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/59",
+  "next_actions": [
+    "PR #59 を確認し、問題なければ merge する。"
+  ]
+}

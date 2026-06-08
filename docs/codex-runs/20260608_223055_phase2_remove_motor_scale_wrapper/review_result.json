@@ -1,0 +1,24 @@
+{
+  "status": "PASS",
+  "summary": "Phase 2 CLI の標準導線を scripts.01_simulate_swimming.run_motor_scale_sweep に統一するため、top-level の後方互換 wrapper scripts/run_motor_scale_sweep.py を削除し、scripts/README.md から旧エントリ記述を削除した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    "grep -R \"scripts.run_motor_scale_sweep\\|scripts/run_motor_scale_sweep.py\" -n README.md scripts docs/phase2 tests --exclude-dir=__pycache__",
+    "uv run pytest tests/test_motor_scale_sweep.py tests/test_plot_motor_scale_collapse_heatmap.py",
+    "uv run ruff check ."
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "Phase 2 CLI wrapper の削除とドキュメント導線整理のみで、物理モデル・出力形式・依存関係・テスト戦略の変更ではないため ADR は不要。",
+  "commit_type": "complete",
+  "commit_hash": "53333ddfb6949bb3bf3323161556ab5a53ec0d4e",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/59",
+  "next_actions": [
+    "PR #59 を確認し、問題なければ merge する。"
+  ]
+}

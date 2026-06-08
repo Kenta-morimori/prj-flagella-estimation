@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "summary": "Phase 2.6 の torque x dt_star heatmap 生成 script を追加し、既存 summary CSV から pass/fail と first-fail category の heatmap を作成した。local scale は baseline の all_local_scales=1.0 のみを対象にする。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    "uv run python -m scripts.01_simulate_swimming.plot_phase2_6_dt_star_torque_heatmap --summary-csv outputs/2026-06-08/224052/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv --summary-csv outputs/2026-06-08/230008/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv --summary-csv outputs/2026-06-08/224240/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv --summary-csv outputs/2026-06-08/230113/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv --output-dir outputs/2026-06-09/phase2_6_dt_star_torque_heatmap",
+    "manual image inspection of outputs/2026-06-09/phase2_6_dt_star_torque_heatmap/phase2_6_dt_star_torque_pass_fail_heatmap.png",
+    "manual image inspection of outputs/2026-06-09/phase2_6_dt_star_torque_heatmap/phase2_6_dt_star_torque_category_heatmap.png",
+    "uv run pytest tests/test_phase2_6_dt_star_torque_heatmap.py tests/test_phase2_6_torque_model_evaluation.py",
+    "uv run ruff check ."
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [
+    "outputs/2026-06-09/phase2_6_dt_star_torque_heatmap/phase2_6_dt_star_torque_heatmap.csv",
+    "outputs/2026-06-09/phase2_6_dt_star_torque_heatmap/phase2_6_dt_star_torque_category_heatmap.png",
+    "outputs/2026-06-09/phase2_6_dt_star_torque_heatmap/phase2_6_dt_star_torque_pass_fail_heatmap.png"
+  ],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "既存評価結果の可視化 script とドキュメント更新のみで、物理モデル・出力形式・依存関係・テスト戦略の変更ではないため ADR は不要。",
+  "commit_type": "complete",
+  "commit_hash": "37f4858fd795e67d4f6ba07439562f14668148a2",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/59",
+  "next_actions": [
+    "PR #59 を確認し、問題なければ merge する。"
+  ]
+}

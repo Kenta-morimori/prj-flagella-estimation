@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import numpy as np
 
 from sim_swim.render.project2d import _camera_center_2d
@@ -7,6 +9,7 @@ from sim_swim.render.render3d import (
     _hook_edges,
     _resolve_view_range_um,
     _run_tumble_label,
+    _select_frames,
     save_swim_movie,
 )
 from sim_swim.sim.flagella_geometry import FlagellaRig
@@ -132,6 +135,16 @@ def test_view_range_defaults_to_3_when_no_flagella_are_present() -> None:
     )
 
     assert _resolve_view_range_um(cfg, rig) == 3.0
+
+
+def test_select_frames_uses_3d_fps_when_not_saving_all_steps() -> None:
+    states = [replace(_state(), t=0.1 * idx) for idx in range(11)]
+
+    assert _select_frames(states, out_all_steps_3d=True, fps_hint=2.0) == states
+
+    selected = _select_frames(states, out_all_steps_3d=False, fps_hint=2.0)
+
+    assert [state.t for state in selected] == [0.0, 0.5, 1.0]
 
 
 def test_save_swim_movie_emits_render_outputs(tmp_path, monkeypatch) -> None:

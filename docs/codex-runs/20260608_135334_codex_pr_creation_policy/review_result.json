@@ -1,0 +1,24 @@
+{
+  "status": "PASS",
+  "summary": "AGENTS.md の Codex 運用ルールを更新し、非 main/master の feature branch で commit/push した場合は pull request 作成まで必須とした。従来の「pull request は明示依頼があるまで作成しない」記述を削除し、completion 条件と review_result 項目にも PR URL を追加した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    "uv run ruff format --check .",
+    "uv run ruff check .",
+    "uv run pytest -q"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "Codex workflow policy の文書更新であり、物理モデル・出力形式・依存関係・テスト戦略の変更ではないため ADR は不要。",
+  "commit_type": "complete",
+  "commit_hash": "79d9f6744cf1107116461421bf59ec196b11315a",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/59",
+  "next_actions": [
+    "PR #59 を確認し、問題なければ merge する。"
+  ]
+}

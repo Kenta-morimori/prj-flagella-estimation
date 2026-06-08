@@ -1,0 +1,28 @@
+{
+  "status": "PASS",
+  "summary": "PR #55 の output_sampling.fps_out_3d 相当の変更を、Phase 2.6 評価ブランチへ必要最小限で反映した。3D出力は out_all_steps_3d=false のとき fps_out_3d で間引き、動画fpsも fps_out_3d を使う。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    "uv run pytest tests/test_params.py tests/test_render_state_and_projection.py",
+    "uv run ruff check .",
+    "uv run python -m scripts.01_simulate_swimming flagella.n_flagella=1 time.duration_s=0.01 motor.torque_Nm=2.5e-20 time.dt_star=1.0e-4 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.save_frames_3d=false output.base_dir=outputs/phase2_6_fps_out_3d_smoke",
+    "find outputs/phase2_6_fps_out_3d_smoke/2026-06-09/014841/render -maxdepth 2 -type f -print"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [
+    "outputs/phase2_6_fps_out_3d_smoke/2026-06-09/014841/render/swim3d.mp4",
+    "outputs/phase2_6_fps_out_3d_smoke/2026-06-09/014841/render/swim3d_final.png"
+  ],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "3D出力サンプリング設定とレンダリング出力の軽量化であり、物理モデル・依存関係・主要出力形式の変更ではないため ADR は不要。",
+  "commit_type": "complete",
+  "commit_hash": "624c59733fa4c55013105923728390d7fb081062",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/59",
+  "next_actions": [
+    "PR #59 を確認し、問題なければ merge する。"
+  ]
+}

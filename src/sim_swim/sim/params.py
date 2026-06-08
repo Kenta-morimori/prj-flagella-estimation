@@ -9,6 +9,13 @@ from typing import Any
 
 K_B = 1.380649e-23
 DT_STAR_TARGET = 1.0e-3
+MOTOR_LOCAL_SCALE_DEFAULT = 1.0
+MOTOR_LOCAL_SCALE_KEYS = (
+    "local_hook_scale",
+    "local_spring_scale",
+    "local_bend_scale",
+    "local_torsion_scale",
+)
 
 
 def _get(raw: dict[str, Any], key: str, default: Any) -> Any:
@@ -313,6 +320,7 @@ class OutputSamplingParams:
     """出力サンプリング設定。"""
 
     out_all_steps_3d: bool = True
+    fps_out_3d: float = 25.0
     fps_out_2d: float = 25.0
 
 
@@ -481,6 +489,16 @@ class SimulationConfig:
                 f" dt_s={self.dt_s:.12e}, tau_s={self.tau_s:.12e},"
                 f" dt_star={self.dt_star:.12e}"
             )
+
+    def motor_local_scale_deviations(self) -> dict[str, float]:
+        """Return motor local scales that differ from the paper-aligned default."""
+
+        values = {key: getattr(self.motor, key) for key in MOTOR_LOCAL_SCALE_KEYS}
+        return {
+            key: float(value)
+            for key, value in values.items()
+            if not _isclose(float(value), MOTOR_LOCAL_SCALE_DEFAULT)
+        }
 
     def compute_body_n_layers(
         self,
@@ -692,10 +710,18 @@ class SimulationConfig:
             torque_for_forces_override_Nm=float(
                 _get(motor_raw, "torque_for_forces_override_Nm", 0.0)
             ),
-            local_hook_scale=float(_get(motor_raw, "local_hook_scale", 8.0)),
-            local_spring_scale=float(_get(motor_raw, "local_spring_scale", 5.0)),
-            local_bend_scale=float(_get(motor_raw, "local_bend_scale", 4.0)),
-            local_torsion_scale=float(_get(motor_raw, "local_torsion_scale", 4.0)),
+            local_hook_scale=float(
+                _get(motor_raw, "local_hook_scale", MOTOR_LOCAL_SCALE_DEFAULT)
+            ),
+            local_spring_scale=float(
+                _get(motor_raw, "local_spring_scale", MOTOR_LOCAL_SCALE_DEFAULT)
+            ),
+            local_bend_scale=float(
+                _get(motor_raw, "local_bend_scale", MOTOR_LOCAL_SCALE_DEFAULT)
+            ),
+            local_torsion_scale=float(
+                _get(motor_raw, "local_torsion_scale", MOTOR_LOCAL_SCALE_DEFAULT)
+            ),
         )
 
         thermal = K_B * max(brownian.temperature_K, 1e-9)
@@ -820,8 +846,12 @@ class SimulationConfig:
 
         out_sample_raw = raw.get("output_sampling", {}) or {}
         old_fps = (raw.get("time", {}) or {}).get("fps_out")
+        fps_out_3d_raw = out_sample_raw.get(
+            "fps_out_3d", out_sample_raw.get("fps_3d_out", old_fps or 25.0)
+        )
         output_sampling = OutputSamplingParams(
             out_all_steps_3d=bool(_get(out_sample_raw, "out_all_steps_3d", True)),
+            fps_out_3d=float(fps_out_3d_raw),
             fps_out_2d=float(_get(out_sample_raw, "fps_out_2d", old_fps or 25.0)),
         )
 
