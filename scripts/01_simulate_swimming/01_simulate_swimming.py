@@ -165,6 +165,17 @@ def main(
                 expected,
             )
 
+    for key, value in cfg.motor_local_scale_deviations().items():
+        logger.warning(
+            (
+                "Paper model extension: motor.%s=%.6g differs from the "
+                "paper-aligned default 1.0. Treat this run as a local stiffness "
+                "scaling diagnostic, not a paper-model baseline."
+            ),
+            key,
+            value,
+        )
+
     sim_duration_s = float(cfg.time.duration_s)
     simulator = Simulator(cfg)
     states = simulator.run(

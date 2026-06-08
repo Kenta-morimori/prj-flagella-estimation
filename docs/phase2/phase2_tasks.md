@@ -216,6 +216,8 @@
 - result:
   - `local_*_scale=1.0`, `duration_s=0.5`, `time.dt_star=1.0e-4` で、`2.0e-20` から `3.0e-20 N m` は PASS、`3.5e-20 N m` 以上は flag 破綻、`1.0e-19 N m` も FAIL。
   - `3.5e-20 N m` で local spring / bend / torsion / hook を個別に `2.0` へ上げても PASS しないため、local scaling は高トルク安定化の主手段として採用しない。
+  - `torque x local-scale mode` heatmap でも、`3.5e-20 N m` 以上は `all=1`, `spring=2`, `bend=2`, `torsion=2`, `hook=2` の全 mode で `flag` fail となることを確認した。
+  - `local_*_scale=1.0` を baseline とし、非 1.0 は論文モデルとの差分を伴う診断条件として warning を出す。
   - Issue #58 へ渡す代表候補は `2.5e-20 N m`、上限側候補は `3.0e-20 N m`、失敗境界代表は `3.5e-20 N m` とする。
 - background:
   - P2-6-008 では、`motor.torque_Nm=2.0e-20`, `time.dt_star=1.0e-4`, `duration_s=0.5`, `motor.local_spring_scale=1.2` で shape gate PASS と net 1回転以上を確認した。
@@ -224,7 +226,7 @@
 - tasks:
   - [x] `local_*_scale=1.0` で `1.0e-19 N m` までの torque sweep を行い、安定境界を確認する。
   - [x] `local_spring_scale`, `local_bend_scale`, `local_torsion_scale`, `local_hook_scale` の one-factor sweep を行う。
-  - [x] one-factor sweep で支配的な local scale が見えないことを確認し、torque x scale heatmap は不要と判断する。
+  - [x] local-scale mode heatmap で、local scale 変更が高トルク collapse を救済しないことを可視化する。
   - [x] shape gate, first-fail category, net 回転数, 方向一貫性, helix/root 回転比を集計する。
   - [x] 代表 PASS 条件で、菌体重心変位・平均速度・body axis 角度変化を確認する。
   - [x] 既存 torsion force は残す前提で評価し、torsion force OFF は必要時の追加診断に留める。

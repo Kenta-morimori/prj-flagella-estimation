@@ -1,0 +1,32 @@
+{
+  "status": "PASS",
+  "summary": "P2-6-009 / Issue #54 の追加整理として、local scale 変更が高トルク collapse を救済しないことを torque x local-scale mode heatmap で可視化した。3.5e-20 N m 以上では all=1, spring=2, bend=2, torsion=2, hook=2 の全 mode で flag fail となる。local_*_scale は 1.0 を paper-aligned baseline とし、非 1.0 条件では論文モデルとの差分を warning としてログ出力する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "heatmap は one-factor local scale value=2.0 の mode 比較であり、全ての連続値を網羅する dense grid ではない。ただし 3.5e-20 N m の collapse は spring/bend/torsion/hook を個別に 2.0 へ上げても救済されないことを示すには十分である。",
+    "標準 CLI の warning smoke は未コミット変更がある状態では clean-git gate により実行できなかったため、commit 後に再確認する。"
+  ],
+  "tests_reviewed": [
+    "uv run pytest tests/test_params.py tests/test_phase2_6_local_scale_mode_heatmap.py tests/test_phase2_6_torque_model_evaluation.py",
+    "uv run ruff check src/sim_swim/sim/params.py scripts/01_simulate_swimming/01_simulate_swimming.py scripts/01_simulate_swimming/run_phase2_6_torque_model_evaluation.py scripts/01_simulate_swimming/plot_phase2_6_local_scale_mode_heatmap.py tests/test_params.py tests/test_phase2_6_local_scale_mode_heatmap.py",
+    "uv run python -m scripts.01_simulate_swimming.run_phase2_6_torque_model_evaluation --torques 3.0e-20,4.0e-20 --scale-torques all --scale-values 2.0",
+    "uv run python -m scripts.01_simulate_swimming.plot_phase2_6_local_scale_mode_heatmap --summary-csv outputs/2026-06-06/201631/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv --summary-csv outputs/2026-06-08/115401/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv --torques 3.0e-20,3.5e-20,4.0e-20 --output-dir outputs/2026-06-08/115401/phase2_6_torque_model_evaluation/heatmap_local_scale_mode"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [
+    "outputs/2026-06-08/115401/phase2_6_torque_model_evaluation/heatmap_local_scale_mode/phase2_6_local_scale_mode_heatmap.csv",
+    "outputs/2026-06-08/115401/phase2_6_torque_model_evaluation/heatmap_local_scale_mode/phase2_6_local_scale_mode_category_heatmap.png",
+    "outputs/2026-06-08/115401/phase2_6_torque_model_evaluation/heatmap_local_scale_mode/phase2_6_local_scale_mode_pass_fail_heatmap.png"
+  ],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "物理モデル本体は変更していない。local_*_scale の暗黙 default を conf の baseline と同じ 1.0 に揃え、非 1.0 を診断条件として warning する運用上の明確化である。",
+  "commit_type": "complete",
+  "commit_hash": "pending",
+  "push_status": "pending",
+  "next_actions": [
+    "commit 後に標準 CLI の local scale warning smoke を clean-git 状態で確認する。",
+    "Issue #58 では local_*_scale=1.0 を baseline として多べん毛・後方束化検証へ進む。"
+  ]
+}

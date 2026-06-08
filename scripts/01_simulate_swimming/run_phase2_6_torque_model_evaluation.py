@@ -243,6 +243,16 @@ def _run_condition(
         condition.value,
         condition.torque_Nm,
     )
+    for key, value in cfg.motor_local_scale_deviations().items():
+        logger.warning(
+            (
+                "Paper model extension: motor.%s=%.6g differs from the "
+                "paper-aligned default 1.0. Treat this condition as a local "
+                "stiffness scaling diagnostic."
+            ),
+            key,
+            value,
+        )
     run_dir.mkdir(parents=True, exist_ok=True)
     sim = Simulator(cfg)
     states = sim.run(cfg.time.duration_s, step_summary_dir=run_dir)
