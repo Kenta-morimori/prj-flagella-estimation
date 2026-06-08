@@ -22,8 +22,8 @@
   "adr_required": false,
   "adr_reason": "追加検証とドキュメント更新のみで、物理モデル・出力形式・依存関係・テスト戦略の変更ではないため ADR は不要。",
   "commit_type": "complete",
-  "commit_hash": "pending",
-  "push_status": "pending",
+  "commit_hash": "77fb50a74e7805c412fe13d284d15317699ae9c0",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/59",
   "next_actions": [
     "PR #59 を確認し、問題なければ merge する。"
