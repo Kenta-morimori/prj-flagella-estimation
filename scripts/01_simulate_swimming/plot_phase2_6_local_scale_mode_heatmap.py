@@ -220,10 +220,18 @@ def _write_normalized_csv(rows: list[dict[str, str]], out_path: Path) -> None:
 def main() -> None:
     args = _parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
+
+    mode_value = float(args.mode_value)
+    if not np.isclose(mode_value, 2.0):
+        raise SystemExit(
+            f"--mode-value={mode_value:g} is not supported yet (expected 2.0). "
+            "Update MODE_ORDER/sorting logic to enable other values."
+        )
+
     rows = _collect_rows(
         args.summary_csv,
         torques_filter=_parse_float_list(args.torques),
-        mode_value=float(args.mode_value),
+        mode_value=mode_value,
     )
     category, torques, modes, pass_fail = _build_matrices(rows)
     normalized_csv = args.output_dir / "phase2_6_local_scale_mode_heatmap.csv"
