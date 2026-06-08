@@ -1,0 +1,24 @@
+{
+  "status": "PASS",
+  "summary": "PR #55 の output_sampling.fps_out_3d 相当の変更を、Phase 2.6 評価ブランチへ必要最小限で反映した。3D出力は out_all_steps_3d=false のとき fps_out_3d で間引き、動画fpsも fps_out_3d を使う。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    "uv run pytest tests/test_params.py tests/test_render_state_and_projection.py",
+    "uv run ruff check .",
+    "CLI smoke pending after initial commit because init_run rejects dirty worktrees"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "3D出力サンプリング設定とレンダリング出力の軽量化であり、物理モデル・依存関係・主要出力形式の変更ではないため ADR は不要。",
+  "commit_type": "complete",
+  "commit_hash": "pending",
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/59",
+  "next_actions": [
+    "PR #59 を確認し、問題なければ merge する。"
+  ]
+}

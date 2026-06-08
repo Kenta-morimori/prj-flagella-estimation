@@ -318,6 +318,19 @@ uv run python -m scripts.01_simulate_swimming.plot_phase2_6_dt_star_torque_heatm
 - `dt_star=1.0e-4` では、破綻境界は `3.0e-20 < torque_Nm <= 3.05e-20` と見る。
 - `3.0e-20 N m` は PASS だが、`flag_bond_rel_err_max=0.249` と bond gate 上限 `0.25` に非常に近い。多べん毛・後方束化へ渡す代表条件としては、引き続き `2.5e-20 N m` を第一候補、`3.0e-20 N m` を上限側候補として扱う。
 
+`time.dt_star=1.0e-4` の長時間定性確認では全stepを3D出力すると重くなるため、3D動画は `output_sampling.out_all_steps_3d=false` と `output_sampling.fps_out_3d` で間引く。例:
+
+```bash
+uv run python -m scripts.01_simulate_swimming \
+  flagella.n_flagella=1 \
+  time.duration_s=0.5 \
+  motor.torque_Nm=2.5e-20 \
+  time.dt_star=1.0e-4 \
+  output_sampling.out_all_steps_3d=false \
+  output_sampling.fps_out_3d=25 \
+  output.base_dir=outputs/phase2_6_single_flagellum_dt1e4_review
+```
+
 ### local scaling の必要性
 
 `3.5e-20 N m` で各 local scale を個別に `2.0` へ上げた one-factor rescue を行った。

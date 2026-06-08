@@ -242,6 +242,35 @@ def test_motor_local_scales_can_be_configured() -> None:
     assert deviations["local_torsion_scale"] == pytest.approx(0.5)
 
 
+def test_output_sampling_fps_out_3d_can_be_configured() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["output_sampling"] = {
+        "out_all_steps_3d": False,
+        "fps_out_3d": 12.5,
+        "fps_out_2d": 25.0,
+    }
+
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.output_sampling.out_all_steps_3d is False
+    assert sim_cfg.output_sampling.fps_out_3d == pytest.approx(12.5)
+    assert sim_cfg.output_sampling.fps_out_2d == pytest.approx(25.0)
+
+
+def test_output_sampling_accepts_fps_3d_out_alias() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["output_sampling"] = {
+        "out_all_steps_3d": False,
+        "fps_3d_out": 10.0,
+    }
+
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.output_sampling.fps_out_3d == pytest.approx(10.0)
+
+
 def test_projection_config_is_ignored_after_removal() -> None:
     cfg = _base_cfg()
     cfg["projection"] = {

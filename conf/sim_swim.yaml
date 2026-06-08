@@ -93,6 +93,7 @@ time:
 
 output_sampling:
   out_all_steps_3d: true       # true: 3D は dt ごと全step保存
+  fps_out_3d: 25.0             # [Hz] out_all_steps_3d=false のときの3D動画出力fps
   fps_out_2d: 25.0             # [Hz] 2D は固定25Hzで間引き
 
 brownian:
