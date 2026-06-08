@@ -127,7 +127,6 @@ The user decides which proposals become GitHub issues.
 Until the workflow explicitly allows it, Codex must not:
 
 * create GitHub issues automatically,
-* create pull requests automatically,
 * merge branches or pull requests.
 
 Codex may prepare:
@@ -154,12 +153,12 @@ Codex may:
 * perform a review step,
 * create ADRs when needed,
 * commit changes,
-* push the working branch.
+* push the working branch,
+* create a pull request after pushing a feature branch.
 
 Codex must not:
 
 * create GitHub issues unless explicitly requested,
-* create pull requests unless explicitly requested,
 * merge pull requests,
 * delete important project documents without migrating their content,
 * bypass tests without explanation,
@@ -190,6 +189,7 @@ A task is complete only when all of the following are true:
 5. Work logs are saved under `docs/codex-runs/<run-id>/`.
 6. The final state is committed.
 7. The branch is pushed when GitHub remote access is available.
+8. If the work was done on a non-main/non-master branch and the branch was pushed, a pull request is created.
 
 `review_result.json` is the primary completion record.
 
@@ -240,6 +240,7 @@ The expected fields are:
 * `commit_type`: `"complete"`, `"diagnostic"`, `"wip"`, or `"none"`
 * `commit_hash`: commit hash if committed
 * `push_status`: `"pushed"`, `"not_pushed"`, or `"not_applicable"`
+* `pull_request_url`: pull request URL if a pushed feature branch has a PR, otherwise an empty string
 * `next_actions`: suggested next actions
 
 The schema for this file will be defined later in:
