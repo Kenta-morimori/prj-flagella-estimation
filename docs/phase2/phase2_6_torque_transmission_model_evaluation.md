@@ -263,6 +263,23 @@ uv run python -m scripts.01_simulate_swimming.run_phase2_6_torque_model_evaluati
 - `outputs/2026-06-08/224240/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv`
 - `outputs/2026-06-08/230113/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv`
 
+ヒートマップ生成コマンド:
+
+```bash
+uv run python -m scripts.01_simulate_swimming.plot_phase2_6_dt_star_torque_heatmap \
+  --summary-csv outputs/2026-06-08/224052/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv \
+  --summary-csv outputs/2026-06-08/230008/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv \
+  --summary-csv outputs/2026-06-08/224240/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv \
+  --summary-csv outputs/2026-06-08/230113/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv \
+  --output-dir outputs/2026-06-09/phase2_6_dt_star_torque_heatmap
+```
+
+ヒートマップ出力:
+
+- `outputs/2026-06-09/phase2_6_dt_star_torque_heatmap/phase2_6_dt_star_torque_heatmap.csv`
+- `outputs/2026-06-09/phase2_6_dt_star_torque_heatmap/phase2_6_dt_star_torque_category_heatmap.png`
+- `outputs/2026-06-09/phase2_6_dt_star_torque_heatmap/phase2_6_dt_star_torque_pass_fail_heatmap.png`
+
 `dt_star=1.0e-3` は、低トルクを含めて全条件で `flag` または `hook` fail となった。これは「破綻トルクが少し下がる」ではなく、この刻みでは螺旋形状維持と安定回転の条件が成立しない、という結果である。
 
 | torque [N m] | 判定 | 主な理由 | net helix rev | direction consistency | flag bond max | bend max [deg] | torsion max [deg] |
