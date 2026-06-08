@@ -244,6 +244,12 @@ uv run python -m scripts.01_simulate_swimming.run_phase2_6_torque_model_evaluati
   --scale-torques none
 
 uv run python -m scripts.01_simulate_swimming.run_phase2_6_torque_model_evaluation \
+  --dt-star 1.0e-3 \
+  --duration 0.5 \
+  --torques 3.05e-20,3.10e-20,3.15e-20,3.20e-20 \
+  --scale-torques none
+
+uv run python -m scripts.01_simulate_swimming.run_phase2_6_torque_model_evaluation \
   --dt-star 1.0e-4 \
   --duration 0.5 \
   --torques 2.0e-20,2.5e-20,3.0e-20,3.25e-20,3.5e-20,3.75e-20,4.0e-20,6.0e-20,8.0e-20,1.0e-19 \
@@ -260,6 +266,7 @@ uv run python -m scripts.01_simulate_swimming.run_phase2_6_torque_model_evaluati
 
 - `outputs/2026-06-08/224052/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv`
 - `outputs/2026-06-08/230008/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv`
+- `outputs/2026-06-09/002638/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv`
 - `outputs/2026-06-08/224240/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv`
 - `outputs/2026-06-08/230113/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv`
 
@@ -269,6 +276,7 @@ uv run python -m scripts.01_simulate_swimming.run_phase2_6_torque_model_evaluati
 uv run python -m scripts.01_simulate_swimming.plot_phase2_6_dt_star_torque_heatmap \
   --summary-csv outputs/2026-06-08/224052/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv \
   --summary-csv outputs/2026-06-08/230008/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv \
+  --summary-csv outputs/2026-06-09/002638/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv \
   --summary-csv outputs/2026-06-08/224240/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv \
   --summary-csv outputs/2026-06-08/230113/phase2_6_torque_model_evaluation/phase2_6_torque_model_evaluation_summary.csv \
   --output-dir outputs/2026-06-09/phase2_6_dt_star_torque_heatmap
@@ -279,6 +287,8 @@ uv run python -m scripts.01_simulate_swimming.plot_phase2_6_dt_star_torque_heatm
 - `outputs/2026-06-09/phase2_6_dt_star_torque_heatmap/phase2_6_dt_star_torque_heatmap.csv`
 - `outputs/2026-06-09/phase2_6_dt_star_torque_heatmap/phase2_6_dt_star_torque_category_heatmap.png`
 - `outputs/2026-06-09/phase2_6_dt_star_torque_heatmap/phase2_6_dt_star_torque_pass_fail_heatmap.png`
+
+2026-06-09 に `dt_star=1.0e-3` 側の境界付近の欠損セル（`3.05e-20`, `3.10e-20`, `3.15e-20`, `3.20e-20`）を追加実行した。これにより、`dt_star=1.0e-3` 列は表示されている全 torque で実行済みとなり、全て FAIL として表示される。なお、heatmap に残る白セルは `dt_star=1.0e-4` の低トルク側で今回の入力CSVに含めていない未実行条件を示す。
 
 `dt_star=1.0e-3` は、低トルクを含めて全条件で `flag` または `hook` fail となった。これは「破綻トルクが少し下がる」ではなく、この刻みでは螺旋形状維持と安定回転の条件が成立しない、という結果である。
 
