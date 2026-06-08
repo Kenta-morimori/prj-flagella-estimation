@@ -415,7 +415,10 @@ def _write_manifest(
 
 def _setup_logger(output_dir: Path) -> logging.Logger:
     logger = logging.getLogger("phase2_6_torque_model_evaluation")
+    for handler in list(logger.handlers):
+        handler.close()
     logger.handlers.clear()
+    logger.propagate = False
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
     file_handler = logging.FileHandler(output_dir / "run.log", encoding="utf-8")
