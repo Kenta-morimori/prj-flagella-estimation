@@ -350,6 +350,46 @@ def test_flagella_init_mode_can_be_set_to_paper_table1() -> None:
     assert sim_cfg.flagella.n_beads_per_flagellum == 15
 
 
+def test_flagella_initial_orientation_mode_defaults_to_side_attach() -> None:
+    cfg = _base_cfg()
+    cfg["flagella"] = {"bond_L_over_b": 0.58, "length_over_b": 5.8}
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella.initial_orientation_mode == "side_attach"
+    assert sim_cfg.flagella.initial_tangent_vs_rear_deg is None
+
+
+def test_flagella_initial_orientation_mode_can_be_set_to_posterior_aligned() -> None:
+    cfg = _base_cfg()
+    cfg["flagella"] = {
+        "initial_orientation_mode": "posterior_aligned",
+        "bond_L_over_b": 0.58,
+        "length_over_b": 5.8,
+    }
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella.initial_orientation_mode == "posterior_aligned"
+
+
+def test_flagella_initial_tangent_vs_rear_deg_can_be_configured() -> None:
+    cfg = _base_cfg()
+    cfg["flagella"] = {
+        "initial_tangent_vs_rear_deg": 10.0,
+        "bond_L_over_b": 0.58,
+        "length_over_b": 5.8,
+    }
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella.initial_orientation_mode == "side_attach"
+    assert sim_cfg.flagella.initial_tangent_vs_rear_deg == pytest.approx(10.0)
+
+
 def test_flagella_stub_mode_can_be_set_to_minimal_basal_stub() -> None:
     cfg = _base_cfg()
     cfg["flagella"] = {

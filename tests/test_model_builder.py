@@ -18,6 +18,8 @@ def _make_cfg(
     ds_over_b: float = 0.58,
     flag_length_over_b: float = 2.32,
     init_mode: str = "legacy_radius_pitch",
+    initial_orientation_mode: str = "side_attach",
+    initial_tangent_vs_rear_deg: float | None = None,
     stub_mode: str = "full_flagella",
     n_beads_per_flagellum: int | None = None,
     seed: int = 0,
@@ -26,6 +28,8 @@ def _make_cfg(
         "n_flagella": n_flagella,
         "placement_mode": "uniform",
         "init_mode": init_mode,
+        "initial_orientation_mode": initial_orientation_mode,
+        "initial_tangent_vs_rear_deg": initial_tangent_vs_rear_deg,
         "stub_mode": stub_mode,
         "discretization": {"ds_over_b": ds_over_b},
         "bond_L_over_b": ds_over_b,
@@ -132,6 +136,21 @@ def _dihedral_angle_rad(
 
 def _wrap_deg(deg: float) -> float:
     return float((deg + 180.0) % 360.0 - 180.0)
+
+
+def _base_tangent_vs_rear_deg(model: SimModel, flag_id: int) -> float:
+    first = np.mean(model.positions_m[model.body_layer_indices[0]], axis=0)
+    last = np.mean(model.positions_m[model.body_layer_indices[-1]], axis=0)
+    body_axis = last - first
+    body_axis = body_axis / max(float(np.linalg.norm(body_axis)), 1e-18)
+    rear_dir = -body_axis
+
+    idx = model.flagella_indices[flag_id].astype(int, copy=False)
+    tangent = model.positions_m[idx[1]] - model.positions_m[idx[0]]
+    tangent = tangent / max(float(np.linalg.norm(tangent)), 1e-18)
+    return float(
+        np.rad2deg(np.arccos(float(np.clip(np.dot(tangent, rear_dir), -1.0, 1.0))))
+    )
 
 
 def _estimate_helix_radius_pitch_over_b(
@@ -519,6 +538,49 @@ def test_flagella_base_tangent_is_perpendicular_to_rear(n_flagella: int) -> None
             np.arccos(float(np.clip(np.dot(tangent0, rear_dir), -1.0, 1.0)))
         )
         assert abs(angle_deg - 90.0) <= 10.0
+
+
+def test_posterior_aligned_base_tangent_points_rearward() -> None:
+    cfg = _make_cfg(
+        n_flagella=3,
+        init_mode="paper_table1",
+        initial_orientation_mode="posterior_aligned",
+        n_beads_per_flagellum=11,
+    )
+
+    model = ModelBuilder(cfg).build()
+
+    angles = [_base_tangent_vs_rear_deg(model, f_id) for f_id in range(3)]
+    assert angles == pytest.approx([0.0, 0.0, 0.0], abs=1.0e-6)
+
+
+def test_initial_tangent_vs_rear_deg_overrides_orientation_mode() -> None:
+    cfg = _make_cfg(
+        n_flagella=3,
+        init_mode="paper_table1",
+        initial_orientation_mode="side_attach",
+        initial_tangent_vs_rear_deg=10.0,
+        n_beads_per_flagellum=11,
+    )
+
+    model = ModelBuilder(cfg).build()
+
+    angles = [_base_tangent_vs_rear_deg(model, f_id) for f_id in range(3)]
+    assert angles == pytest.approx([10.0, 10.0, 10.0], abs=1.0e-6)
+
+
+def test_invalid_initial_tangent_vs_rear_deg_is_rejected() -> None:
+    cfg = _make_cfg(initial_tangent_vs_rear_deg=-1.0)
+
+    with pytest.raises(ValueError, match="initial_tangent_vs_rear_deg"):
+        ModelBuilder(cfg).build()
+
+
+def test_invalid_initial_orientation_mode_is_rejected() -> None:
+    cfg = _make_cfg(initial_orientation_mode="invalid")
+
+    with pytest.raises(ValueError, match="initial_orientation_mode"):
+        ModelBuilder(cfg).build()
 
 
 def test_body_has_no_torsion_quads() -> None:
