@@ -34,7 +34,7 @@
   "adr_reason": "新しい物理モデル決定ではなく、Issue #58 の診断指標・初期条件・sweep支援実装であるため。後方束化駆動を追加する場合は別途ADR候補。",
   "commit_type": "diagnostic",
   "commit_hash": "f02f0b3",
-  "push_status": "not_pushed",
+  "push_status": "pushed",
   "next_actions": [
     "後方10度初期条件で hook_len_rel_err_max が伸びる原因を、hook長・hook曲げ・attach-first spring の局所診断から切り分ける。",
     "現行 repulsion だけでは束化駆動がない可能性を、流体相互作用または束化を促す近接モデルの不足として評価する。",
