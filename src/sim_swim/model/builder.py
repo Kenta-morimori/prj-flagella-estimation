@@ -369,7 +369,40 @@ class ModelBuilder:
                 radial_unit = rear_dir
             else:
                 radial_unit = radial / radial_norm
-            axis_u = radial_unit
+            initial_orientation_mode = str(cfg.flagella.initial_orientation_mode)
+            if cfg.flagella.initial_tangent_vs_rear_deg is not None:
+                target_angle_deg = float(cfg.flagella.initial_tangent_vs_rear_deg)
+                if not (0.0 <= target_angle_deg <= 180.0):
+                    raise ValueError(
+                        "flagella.initial_tangent_vs_rear_deg must be in [0, 180]:"
+                        f" {target_angle_deg}"
+                    )
+                target_rad = math.radians(target_angle_deg)
+                side_component = (
+                    radial_unit - float(np.dot(radial_unit, rear_dir)) * rear_dir
+                )
+                side_norm = float(np.linalg.norm(side_component))
+                if side_norm <= 1e-12:
+                    side_component = radial_unit
+                else:
+                    side_component /= side_norm
+                axis_u = (
+                    math.cos(target_rad) * rear_dir
+                    + math.sin(target_rad) * side_component
+                )
+                axis_u /= max(float(np.linalg.norm(axis_u)), 1e-12)
+            elif initial_orientation_mode == "side_attach":
+                axis_u = radial_unit
+                target_angle_deg = 90.0
+            elif initial_orientation_mode == "posterior_aligned":
+                axis_u = rear_dir
+                target_angle_deg = 0.0
+            else:
+                raise ValueError(
+                    "Unsupported flagella.initial_orientation_mode:"
+                    f" {initial_orientation_mode}. Use 'side_attach' or"
+                    " 'posterior_aligned'."
+                )
             hook_offset_um = hook_length_um * radial_unit
 
             ref = np.array([1.0, 0.0, 0.0], dtype=float)
@@ -404,7 +437,6 @@ class ModelBuilder:
             angle_deg = math.degrees(
                 math.acos(float(np.clip(np.dot(tangent0, rear_dir), -1.0, 1.0)))
             )
-            target_angle_deg = 90.0
             if abs(angle_deg - target_angle_deg) > 10.0 + 1e-8:
                 raise ValueError(
                     "Flagellum base tangent is not aligned to expected direction:"
