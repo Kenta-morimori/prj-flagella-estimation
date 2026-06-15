@@ -31,7 +31,7 @@
   "commit_type": "complete",
   "commit_hash": "0b1ee04",
   "push_status": "pushed",
-  "pull_request_url": "",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/63",
   "next_actions": [
     "Phase 2.7 sweep script が入っているブランチでは、flag_helix_axis_vs_rear_angle_deg_* を sweep summary に含める。",
     "後方束化代表条件の目視レビュー時は render.show_flagella_helix_axis_3d=true を指定し、hook長と螺旋軸を同時に確認する。"
