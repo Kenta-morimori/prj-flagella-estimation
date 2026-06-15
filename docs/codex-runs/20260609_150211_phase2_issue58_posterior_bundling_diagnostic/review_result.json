@@ -44,7 +44,7 @@
   "adr_required": false,
   "adr_reason": "新しい物理モデル決定ではなく、Issue #58 の診断指標・初期条件・sweep支援実装であるため。後方束化駆動を追加する場合は別途ADR候補。",
   "commit_type": "diagnostic",
-  "commit_hash": "84972cb",
+  "commit_hash": "a72703b",
   "push_status": "pushed",
   "next_actions": [
     "後方10度初期条件では、hook角度ではなく attach-first の外向き維持とhook長が先に崩れる。次はattach-first spring / motor force couple / body側拘束のどれが主因かを切り分ける。",
