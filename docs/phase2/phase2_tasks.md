@@ -263,6 +263,8 @@
   - [ ] `motor.torque_Nm` をsweepし、崩壊しないが束化しない条件、束化する条件、崩壊する条件を分類する。
   - [ ] `n_flagella=3,6,9` を段階評価し、body/hook/flag の first-fail 分布を整理する。
   - [ ] 束化候補指標を実装・記録する。候補は、束中心軸への距離、束参加率、独立べん毛数、束軸と菌体軸の角度、flagella間距離である。
+  - [ ] 各べん毛の第2ビーズ以降から螺旋中心軸を推定し、`flag_helix_axis_vs_rear_angle_deg` として後方向きかを記録する。
+  - [ ] hook length drift は自動判定だけで採否を決めず、3D螺旋軸overlayと併せて定性評価する。
   - [ ] 1本のみ独立する部分束化をFAILではなく別カテゴリとして記録する。
   - [ ] collapse/fly-away が出る条件を再現可能な diagnostic output として保存する。
   - [ ] 代表PASS/FAIL/PARTIAL条件について、定量結果と目視レビュー対象動画を記録する。
@@ -271,6 +273,8 @@
   - [ ] `n_flagella` と torque ごとの collapse / no bundle / partial bundle / posterior bundle の分類表がある。
   - [ ] 後方束化の定量指標が `step_summary.csv` または別CSVへ記録される。
   - [ ] 目視レビューが必要な条件では、対象動画・確認観点・自動判定の限界をreview_resultに記録する。
+- docs:
+  - `docs/phase2/phase2_7_flag_helix_axis_diagnostics.md`
 
 ## Phase 2.8: 遊泳挙動の運動指標検証
 

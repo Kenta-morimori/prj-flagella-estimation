@@ -215,3 +215,65 @@ def test_save_swim_movie_emits_render_outputs(tmp_path, monkeypatch) -> None:
     assert (tmp_path / "frames_3d" / "frame_000000.png").exists()
     assert len(writer_calls) == 1
     assert writer_calls[0].write_calls > 0
+
+
+def test_save_swim_movie_can_overlay_flagella_helix_axes(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    cfg = _make_cfg(
+        center_body_in_2d=True,
+        follow_camera_2d=False,
+        enable_switching=False,
+    )
+    cfg = replace(
+        cfg,
+        render=replace(cfg.render, show_flagella_helix_axis_3d=True),
+    )
+
+    beads = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [3.0, 0.0, 0.0],
+            [3.0, 1.0, 0.0],
+            [3.4, 2.0, 0.2],
+            [2.9, 3.0, -0.2],
+        ],
+        dtype=float,
+    )
+    state = SimulationState(
+        t=0.0,
+        position_um=(0.0, 0.0, 0.0),
+        quaternion=(0.0, 0.0, 0.0, 1.0),
+        velocity_um_s=(0.0, 0.0, 0.0),
+        omega_rad_s=(0.0, 0.0, 0.0),
+        bead_positions_um=beads,
+        flag_states=(0,),
+        reverse_flagella=(0,),
+    )
+    rig = FlagellaRig(
+        body_layer_indices=[np.array([0, 1, 2, 3], dtype=int)],
+        body_ring_edges=np.array([[0, 1], [1, 2]], dtype=int),
+        body_vertical_edges=np.array([[2, 3]], dtype=int),
+        body_spring_edges=np.array([[0, 1], [1, 2], [2, 3]], dtype=int),
+        flagella_indices=[np.array([3, 4, 5, 6], dtype=int)],
+        hook_triplets=np.array([[1, 4, 5]], dtype=int),
+    )
+
+    class DummyWriter:
+        def write(self, frame) -> None:
+            self.frame_shape = frame.shape
+
+        def release(self) -> None:
+            self.released = True
+
+    monkeypatch.setattr(
+        "sim_swim.render.render3d.cv2.VideoWriter",
+        lambda *args, **kwargs: DummyWriter(),
+    )
+
+    save_swim_movie([state], cfg, rig, tmp_path)
+
+    assert (tmp_path / "swim3d_final.png").exists()

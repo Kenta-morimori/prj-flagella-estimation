@@ -345,6 +345,12 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
         "hook_len_mean_over_b",
         "flag_bond_len_mean_over_b",
         "flag_bond_rel_err_max",
+        "flag_helix_axis_vs_rear_angle_deg_min",
+        "flag_helix_axis_vs_rear_angle_deg_mean",
+        "flag_helix_axis_vs_rear_angle_deg_max",
+        "flag_helix_axis_rearward_projection_min",
+        "flag_helix_axis_fit_r2_min",
+        "flag_helix_axis_degenerate_count",
         "local_attach_first_rel_err",
         "local_first_second_rel_err",
         "local_second_third_rel_err",
@@ -355,6 +361,18 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
         "local_F_repulsion_basal_region",
     ]:
         assert key in first
+
+    axis_csv_path = tmp_path / "sim" / "flag_helix_axis_diagnostics.csv"
+    assert axis_csv_path.is_file()
+    with axis_csv_path.open("r", encoding="utf-8", newline="") as f:
+        axis_rows = list(csv.DictReader(f))
+    assert len(axis_rows) == len(rows) * cfg.flagella.n_flagella
+    first_axis = axis_rows[0]
+    assert first_axis["flag_id"] == "0"
+    assert "flag_helix_axis_vs_rear_angle_deg" in first_axis
+    assert "axis_origin_x_um" in first_axis
+    assert np.isfinite(float(first["flag_helix_axis_vs_rear_angle_deg_mean"]))
+    assert np.isfinite(float(first_axis["flag_helix_axis_fit_r2"]))
 
 
 def test_run_writes_initial_geometry_summary_json(tmp_path: Path) -> None:

@@ -115,6 +115,7 @@ render:
   timestamp_3d: true
   timestamp_fmt: "t = {t:.3f} s"
   label_flagella: true         # F0/F1/F2 ラベル
+  show_flagella_helix_axis_3d: false  # true: 第2ビーズ以降から推定した螺旋中心軸を3Dに重ねる
 
   follow_camera_2d: false      # false: 2D固定カメラ
   center_body_in_2d: true      # true: 2D投影では菌体重心を画像中心へ固定

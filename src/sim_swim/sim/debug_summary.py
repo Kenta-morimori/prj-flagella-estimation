@@ -11,6 +11,11 @@ import numpy as np
 
 from sim_swim.dynamics.engine import StepDiagnostics
 from sim_swim.model.types import PolymorphState, SimModel
+from sim_swim.sim.helix_axis import (
+    angle_deg_between,
+    estimate_body_axis,
+    estimate_flag_helix_axis,
+)
 from sim_swim.sim.params import SimulationConfig
 
 M_TO_UM = 1.0e6
@@ -62,6 +67,12 @@ STEP_SUMMARY_COLUMNS = [
     "flag_bond_len_max_over_b",
     "flag_bond_rel_err_mean",
     "flag_bond_rel_err_max",
+    "flag_helix_axis_vs_rear_angle_deg_min",
+    "flag_helix_axis_vs_rear_angle_deg_mean",
+    "flag_helix_axis_vs_rear_angle_deg_max",
+    "flag_helix_axis_rearward_projection_min",
+    "flag_helix_axis_fit_r2_min",
+    "flag_helix_axis_degenerate_count",
     "F_total_mean_body",
     "F_total_mean_flag",
     "F_total_mean_all",
@@ -176,6 +187,21 @@ BODY_CONSTRAINT_LOCAL_DIAGNOSTICS_COLUMNS = [
     "layer_idx",
     "face_idx",
     "triangle_area",
+]
+
+FLAG_HELIX_AXIS_DIAGNOSTICS_COLUMNS = [
+    "step",
+    "t_s",
+    "flag_id",
+    "flag_helix_axis_vs_rear_angle_deg",
+    "flag_helix_axis_rearward_projection",
+    "flag_helix_axis_fit_r2",
+    "axis_origin_x_um",
+    "axis_origin_y_um",
+    "axis_origin_z_um",
+    "axis_dir_x",
+    "axis_dir_y",
+    "axis_dir_z",
 ]
 
 RAD_TO_DEG = 180.0 / np.pi
@@ -731,6 +757,8 @@ class StepSummaryRecorder:
     out_dir: Path
     _csv_fp: TextIO | None = field(init=False, default=None, repr=False)
     _writer: csv.DictWriter | None = field(init=False, default=None, repr=False)
+    _axis_csv_fp: TextIO | None = field(init=False, default=None, repr=False)
+    _axis_writer: csv.DictWriter | None = field(init=False, default=None, repr=False)
 
     def __post_init__(self) -> None:
         self.out_dir.mkdir(parents=True, exist_ok=True)
@@ -738,6 +766,20 @@ class StepSummaryRecorder:
         self._csv_fp = self.step_summary_path.open("w", encoding="utf-8", newline="")
         self._writer = csv.DictWriter(self._csv_fp, fieldnames=STEP_SUMMARY_COLUMNS)
         self._writer.writeheader()
+
+        self.flag_helix_axis_diag_path = (
+            self.out_dir / "flag_helix_axis_diagnostics.csv"
+        )
+        self._axis_csv_fp = self.flag_helix_axis_diag_path.open(
+            "w",
+            encoding="utf-8",
+            newline="",
+        )
+        self._axis_writer = csv.DictWriter(
+            self._axis_csv_fp,
+            fieldnames=FLAG_HELIX_AXIS_DIAGNOSTICS_COLUMNS,
+        )
+        self._axis_writer.writeheader()
 
         self.body_mask = self.model.bead_is_body.astype(bool)
         self.flag_mask = ~self.body_mask
@@ -910,6 +952,7 @@ class StepSummaryRecorder:
 
     def record(self, step: int, t_star: float, diag: StepDiagnostics) -> None:
         pos_after = diag.positions_after_m
+        t_s = float(t_star * self.cfg.tau_s)
         disp_um = np.linalg.norm(pos_after - diag.positions_before_m, axis=1) * M_TO_UM
         any_nan = bool(np.isnan(pos_after).any())
         any_inf = bool(np.isinf(pos_after).any())
@@ -999,6 +1042,70 @@ class StepSummaryRecorder:
             self.spring_pairs,
             self.spring_rests_m,
             self.flag_intra_rows,
+        )
+        body_axis = estimate_body_axis(
+            pos_after,
+            self.model.body_layer_indices,
+            self.model.body_indices,
+        )
+        helix_axis_angles: list[float] = []
+        helix_axis_rearward_projections: list[float] = []
+        helix_axis_fit_r2_values: list[float] = []
+        helix_axis_degenerate_count = 0
+        for flag_id, flag_indices in enumerate(self.model.flagella_indices):
+            estimate = estimate_flag_helix_axis(pos_after, flag_indices, flag_id)
+            angle_deg = angle_deg_between(estimate.axis, body_axis.rear_direction)
+            rearward_projection = float(np.dot(estimate.axis, body_axis.rear_direction))
+            if estimate.degenerate:
+                helix_axis_degenerate_count += 1
+            if np.isfinite(angle_deg):
+                helix_axis_angles.append(float(angle_deg))
+            if np.isfinite(rearward_projection):
+                helix_axis_rearward_projections.append(float(rearward_projection))
+            if np.isfinite(estimate.fit_r2):
+                helix_axis_fit_r2_values.append(float(estimate.fit_r2))
+
+            if self._axis_writer is None:
+                raise RuntimeError(
+                    "flag helix axis diagnostics writer is not initialized"
+                )
+            self._axis_writer.writerow(
+                {
+                    "step": int(step),
+                    "t_s": t_s,
+                    "flag_id": int(flag_id),
+                    "flag_helix_axis_vs_rear_angle_deg": angle_deg,
+                    "flag_helix_axis_rearward_projection": rearward_projection,
+                    "flag_helix_axis_fit_r2": estimate.fit_r2,
+                    "axis_origin_x_um": float(estimate.origin[0] * M_TO_UM),
+                    "axis_origin_y_um": float(estimate.origin[1] * M_TO_UM),
+                    "axis_origin_z_um": float(estimate.origin[2] * M_TO_UM),
+                    "axis_dir_x": float(estimate.axis[0]),
+                    "axis_dir_y": float(estimate.axis[1]),
+                    "axis_dir_z": float(estimate.axis[2]),
+                }
+            )
+        if self._axis_csv_fp is not None:
+            self._axis_csv_fp.flush()
+
+        flag_helix_axis_vs_rear_angle_deg_min = (
+            float(np.min(helix_axis_angles)) if helix_axis_angles else float("nan")
+        )
+        flag_helix_axis_vs_rear_angle_deg_mean = (
+            float(np.mean(helix_axis_angles)) if helix_axis_angles else float("nan")
+        )
+        flag_helix_axis_vs_rear_angle_deg_max = (
+            float(np.max(helix_axis_angles)) if helix_axis_angles else float("nan")
+        )
+        flag_helix_axis_rearward_projection_min = (
+            float(np.min(helix_axis_rearward_projections))
+            if helix_axis_rearward_projections
+            else float("nan")
+        )
+        flag_helix_axis_fit_r2_min = (
+            float(np.min(helix_axis_fit_r2_values))
+            if helix_axis_fit_r2_values
+            else float("nan")
         )
         flag_bend_err_mean_deg = float("nan")
         flag_bend_err_max_deg = float("nan")
@@ -1221,7 +1328,7 @@ class StepSummaryRecorder:
             "step": int(step),
             "t_star": float(t_star),
             "dt_star": float(diag.dt_star),
-            "t_s": float(t_star * self.cfg.tau_s),
+            "t_s": t_s,
             "dt_s": float(diag.dt_s),
             "tau_s": float(self.cfg.tau_s),
             "dt_internal_s": float(self.cfg.dt_s),
@@ -1264,6 +1371,20 @@ class StepSummaryRecorder:
             "flag_bond_len_max_over_b": flag_bond_len_max_over_b,
             "flag_bond_rel_err_mean": flag_bond_rel_err_mean,
             "flag_bond_rel_err_max": flag_bond_rel_err_max,
+            "flag_helix_axis_vs_rear_angle_deg_min": (
+                flag_helix_axis_vs_rear_angle_deg_min
+            ),
+            "flag_helix_axis_vs_rear_angle_deg_mean": (
+                flag_helix_axis_vs_rear_angle_deg_mean
+            ),
+            "flag_helix_axis_vs_rear_angle_deg_max": (
+                flag_helix_axis_vs_rear_angle_deg_max
+            ),
+            "flag_helix_axis_rearward_projection_min": (
+                flag_helix_axis_rearward_projection_min
+            ),
+            "flag_helix_axis_fit_r2_min": flag_helix_axis_fit_r2_min,
+            "flag_helix_axis_degenerate_count": int(helix_axis_degenerate_count),
             "F_total_mean_body": _mean_norm(diag.total_forces, self.body_mask),
             "F_total_mean_flag": _mean_norm(diag.total_forces, self.flag_mask),
             "F_total_mean_all": float(
@@ -1382,6 +1503,10 @@ class StepSummaryRecorder:
         self.prev_flag_states = self.model.flag_states.copy()
 
     def write_csv(self) -> Path:
+        if self._axis_csv_fp is not None:
+            self._axis_csv_fp.close()
+            self._axis_csv_fp = None
+            self._axis_writer = None
         if self._csv_fp is not None:
             self._csv_fp.close()
             self._csv_fp = None
