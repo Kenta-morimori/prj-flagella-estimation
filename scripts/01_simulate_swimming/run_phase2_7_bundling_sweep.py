@@ -29,6 +29,8 @@ SUMMARY_FIELDS = [
     "net_abs_flag_helix_spin_revolutions",
     "hook_len_rel_err_max",
     "hook_angle_err_max_deg",
+    "local_attach_first_vs_body_axis_angle_deg",
+    "local_attach_first_vs_body_axis_err_deg",
     "flag_bond_rel_err_max",
     "flag_bend_err_max_deg",
     "flag_torsion_err_max_deg",

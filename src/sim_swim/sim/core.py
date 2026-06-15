@@ -143,6 +143,13 @@ def _triplet_angle_deg(positions_m: np.ndarray, triplet: np.ndarray) -> float:
     return float(np.rad2deg(np.arccos(c)))
 
 
+def _vector_angle_deg(a: np.ndarray, b: np.ndarray) -> float:
+    na = max(float(np.linalg.norm(a)), 1e-18)
+    nb = max(float(np.linalg.norm(b)), 1e-18)
+    c = float(np.clip(np.dot(a, b) / (na * nb), -1.0, 1.0))
+    return float(np.rad2deg(np.arccos(c)))
+
+
 def _dihedral_angle_deg(positions_m: np.ndarray, quad: np.ndarray) -> float:
     a_i, b_i, c_i, d_i = (int(quad[0]), int(quad[1]), int(quad[2]), int(quad[3]))
     a = positions_m[a_i]
@@ -339,13 +346,17 @@ class Simulator:
 
             attach_first_len_um = float("nan")
             hook_angle_deg = float("nan")
+            attach_first_vs_body_axis_angle_deg = float("nan")
             for triplet in self.model.hook_triplets:
                 a, first, second = (int(triplet[0]), int(triplet[1]), int(triplet[2]))
                 if first == int(idx[0]) and second == int(idx[1]):
-                    attach_first_len_um = float(
-                        np.linalg.norm(pos[first] - pos[a]) * M_TO_UM
-                    )
+                    attach_first = pos[first] - pos[a]
+                    attach_first_len_um = float(np.linalg.norm(attach_first) * M_TO_UM)
                     hook_angle_deg = _triplet_angle_deg(pos, triplet)
+                    attach_first_vs_body_axis_angle_deg = _vector_angle_deg(
+                        attach_first,
+                        body_axis,
+                    )
                     break
 
             bend_rows = np.where(self.model.bending_flag_ids == f_id)[0]
@@ -433,6 +444,9 @@ class Simulator:
                     "contour_length_um": contour_len_um,
                     "end_to_end_length_um": end_to_end_len_um,
                     "attach_first_length_um": attach_first_len_um,
+                    "attach_first_vs_body_axis_angle_deg": (
+                        attach_first_vs_body_axis_angle_deg
+                    ),
                     "bond_length_mean_um": bond_mean_um,
                     "bond_length_min_um": bond_min_um,
                     "bond_length_max_um": bond_max_um,

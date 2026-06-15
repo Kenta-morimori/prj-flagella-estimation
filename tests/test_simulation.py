@@ -464,6 +464,9 @@ def test_posterior_aligned_initial_geometry_summary_uses_rearward_tangent_contra
     assert [
         f["initial_tangent_vs_rear_direction_angle_deg"] for f in data["per_flagellum"]
     ] == pytest.approx([0.0, 0.0, 0.0], abs=1.0e-6)
+    assert [
+        f["attach_first_vs_body_axis_angle_deg"] for f in data["per_flagellum"]
+    ] == pytest.approx([90.0, 90.0, 90.0], abs=1.0e-6)
 
 
 def test_phase27_step_summary_includes_bundle_and_swimming_metrics(
@@ -493,6 +496,8 @@ def test_phase27_step_summary_includes_bundle_and_swimming_metrics(
         "bundle_axis_vs_body_axis_angle_deg",
         "bundle_axis_vs_rear_angle_deg",
         "bundle_rearward_projection",
+        "local_attach_first_vs_body_axis_angle_deg",
+        "local_attach_first_vs_body_axis_err_deg",
         "bundle_tip_axis_dist_mean_um",
         "bundle_participation_ratio",
         "bundle_independent_flagella_count",
@@ -512,6 +517,14 @@ def test_phase27_step_summary_includes_bundle_and_swimming_metrics(
         abs=1.0e-5,
     )
     assert float(first["bundle_rearward_projection"]) == pytest.approx(1.0)
+    assert float(first["local_attach_first_vs_body_axis_angle_deg"]) == pytest.approx(
+        90.0,
+        abs=1.0e-5,
+    )
+    assert float(first["local_attach_first_vs_body_axis_err_deg"]) == pytest.approx(
+        0.0,
+        abs=1.0e-5,
+    )
     assert float(first["bundle_participation_ratio"]) >= 0.0
     assert float(first["flag_flag_bead_pair_dist_min_um"]) > 0.0
     assert int(first["flag_flag_close_pair_count"]) >= 0

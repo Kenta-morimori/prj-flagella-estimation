@@ -53,6 +53,8 @@ STEP_SUMMARY_COLUMNS = [
     "hook_angle_max_deg",
     "hook_angle_err_mean_deg",
     "hook_angle_err_max_deg",
+    "local_attach_first_vs_body_axis_angle_deg",
+    "local_attach_first_vs_body_axis_err_deg",
     "flag_bend_err_mean_deg",
     "flag_bend_err_max_deg",
     "flag_torsion_err_mean_deg",
@@ -497,6 +499,38 @@ def _flag_tip_pair_stats_um(tips_m: np.ndarray) -> tuple[float, float, float]:
             dists.append(float(np.linalg.norm(tips_m[i] - tips_m[j]) * M_TO_UM))
     arr = np.asarray(dists, dtype=float)
     return float(np.mean(arr)), float(np.min(arr)), float(np.max(arr))
+
+
+def _attach_first_body_axis_metrics(
+    positions_m: np.ndarray,
+    hook_triplets: np.ndarray,
+    body_axis: np.ndarray,
+) -> dict[str, float]:
+    if hook_triplets.size == 0:
+        return {
+            "local_attach_first_vs_body_axis_angle_deg": float("nan"),
+            "local_attach_first_vs_body_axis_err_deg": float("nan"),
+        }
+
+    angles: list[float] = []
+    for attach_raw, first_raw, _second_raw in hook_triplets.astype(int, copy=False):
+        attach = int(attach_raw)
+        first = int(first_raw)
+        attach_first = positions_m[first] - positions_m[attach]
+        angle = _angle_between_deg(attach_first, body_axis)
+        if np.isfinite(angle):
+            angles.append(float(angle))
+
+    if not angles:
+        return {
+            "local_attach_first_vs_body_axis_angle_deg": float("nan"),
+            "local_attach_first_vs_body_axis_err_deg": float("nan"),
+        }
+    arr = np.asarray(angles, dtype=float)
+    return {
+        "local_attach_first_vs_body_axis_angle_deg": float(np.mean(arr)),
+        "local_attach_first_vs_body_axis_err_deg": float(np.max(np.abs(arr - 90.0))),
+    }
 
 
 def _bundle_metrics(
@@ -1540,6 +1574,11 @@ class StepSummaryRecorder:
             self.basal_flag_bead_indices,
             self.cfg,
         )
+        attach_first_body_axis_metrics = _attach_first_body_axis_metrics(
+            pos_after,
+            self.model.hook_triplets,
+            body_axis,
+        )
 
         row: dict[str, float | int | bool] = {
             "step": int(step),
@@ -1579,6 +1618,7 @@ class StepSummaryRecorder:
             "hook_angle_max_deg": hook_angle_max_deg,
             "hook_angle_err_mean_deg": hook_angle_err_mean_deg,
             "hook_angle_err_max_deg": hook_angle_err_max_deg,
+            **attach_first_body_axis_metrics,
             "flag_bend_err_mean_deg": flag_bend_err_mean_deg,
             "flag_bend_err_max_deg": flag_bend_err_max_deg,
             "flag_torsion_err_mean_deg": flag_torsion_err_mean_deg,
