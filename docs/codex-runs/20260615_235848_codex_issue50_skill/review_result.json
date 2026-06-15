@@ -1,0 +1,34 @@
+{
+  "status": "PASS",
+  "summary": "Issue #50 に対応し、issue 単位作業で Codex の context / tool / simulation resource を削減するための repository-local skill を tools/codex/skills/flagella-issue-workflow/ に追加した。SKILL.md は短い入口に限定し、context routing、completion policy、resource reduction 案を references へ分離した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "この skill は repository 内のレビュー対象として追加したものであり、現環境の自動 discovery 用 ~/.codex/skills には install していない。",
+    "repo の .codex/ はこの実行環境では read-only 扱いだったため、Codex workflow 用の tools/codex/skills 配下に配置した。",
+    "実際のリソース削減効果は、今後の issue 本文に task type、scope、execution budget を書く運用と併用して評価する必要がある。"
+  ],
+  "tests_reviewed": [
+    "python3 /Users/kentatakemori/.codex/skills/.system/skill-creator/scripts/quick_validate.py tools/codex/skills/flagella-issue-workflow",
+    "python3 -m json.tool docs/codex-runs/20260615_235848_codex_issue50_skill/review_result.json",
+    "rg -n \"TODO|\\\\[TODO|Use -issue\" tools/codex/skills/flagella-issue-workflow",
+    "git diff --cached --check",
+    "commit hook: uv run ruff format --check .",
+    "commit hook: uv run ruff check .",
+    "commit hook: uv run pytest -q (159 passed)"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "Codex workflow 用 skill と運用 reference の追加であり、物理モデル、出力形式、依存関係、テスト戦略の大きな変更ではないため ADR は不要。",
+  "commit_type": "complete",
+  "commit_hash": "2ea781a",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/62",
+  "next_actions": [
+    "今後の issue template に task type、scope、required context、execution budget、completion target を追加するか検討する。",
+    "必要に応じて docs/codex-notes/phase2_current_index.md または docs/codex-runs/RUN_INDEX.md を別 issue で作成し、過去ログ探索コストをさらに下げる。",
+    "この repository-local skill を実運用で使い、不要な context 読み込みや重い simulation 実行が減るか確認する。"
+  ]
+}
