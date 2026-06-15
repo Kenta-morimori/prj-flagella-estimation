@@ -60,8 +60,9 @@
   "adr_required": false,
   "adr_reason": "新しい物理モデル決定ではなく、Issue #58 の診断指標・初期条件・sweep支援実装であるため。後方束化駆動を追加する場合は別途ADR候補。",
   "commit_type": "diagnostic",
-  "commit_hash": "a72703b",
+  "commit_hash": "661190a",
   "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/60",
   "next_actions": [
     "後方10度初期条件では、hook角度ではなく attach-first の外向き維持とhook長が先に崩れる。hook長relaxed gate で軽微な巻き付き候補は分離できたが、代表トルクでは 0.5 s 継続時に relaxed gate も破綻するため、次はattach-first spring / motor force couple / body側拘束のどれが主因かを切り分ける。",
     "現行 repulsion だけでは束化駆動がない可能性を、流体相互作用または束化を促す近接モデルの不足として評価する。",
