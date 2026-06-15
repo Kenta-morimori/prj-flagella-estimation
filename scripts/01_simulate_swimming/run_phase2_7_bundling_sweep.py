@@ -24,8 +24,15 @@ SUMMARY_FIELDS = [
     "dt_star",
     "output_dir",
     "phase27_class",
+    "phase27_class_hook_len_relaxed",
     "shape_pass_nonbody",
     "first_fail_category_nonbody",
+    "shape_pass_nonbody_strict",
+    "first_fail_category_nonbody_strict",
+    "shape_pass_nonbody_hook_len_relaxed",
+    "first_fail_category_nonbody_hook_len_relaxed",
+    "hook_len_strict_limit",
+    "hook_len_relaxed_limit",
     "net_abs_flag_helix_spin_revolutions",
     "hook_len_rel_err_max",
     "hook_angle_err_max_deg",
@@ -69,6 +76,7 @@ STEP_SUMMARY_METRIC_FIELDS = [
         "dt_star",
         "output_dir",
         "phase27_class",
+        "phase27_class_hook_len_relaxed",
     }
 ]
 
@@ -139,6 +147,16 @@ def classify_phase27_condition(row: dict[str, str], n_flagella: int) -> str:
     if posterior_like and participation >= 0.5 and independent < n_flagella:
         return "partial_bundle"
     return "no_bundle"
+
+
+def classify_phase27_condition_hook_len_relaxed(
+    row: dict[str, str],
+    n_flagella: int,
+) -> str:
+    relaxed_row = dict(row)
+    if "shape_pass_nonbody_hook_len_relaxed" in row:
+        relaxed_row["shape_pass_nonbody"] = row["shape_pass_nonbody_hook_len_relaxed"]
+    return classify_phase27_condition(relaxed_row, n_flagella)
 
 
 def _net_abs_helix_spin_revolutions(rows: list[dict[str, str]]) -> float:
@@ -283,6 +301,12 @@ def main() -> None:
                     last = step_rows[-1] if step_rows else {}
                     net_abs_spin = _net_abs_helix_spin_revolutions(step_rows)
                     phase27_class = classify_phase27_condition(last, int(n_flagella))
+                    phase27_class_hook_len_relaxed = (
+                        classify_phase27_condition_hook_len_relaxed(
+                            last,
+                            int(n_flagella),
+                        )
+                    )
 
                     writer.writerow(
                         {
@@ -299,6 +323,9 @@ def main() -> None:
                             "dt_star": float(cfg.dt_star),
                             "output_dir": str(run_dir),
                             "phase27_class": phase27_class,
+                            "phase27_class_hook_len_relaxed": (
+                                phase27_class_hook_len_relaxed
+                            ),
                             "net_abs_flag_helix_spin_revolutions": net_abs_spin,
                             **{
                                 key: last.get(key, "")

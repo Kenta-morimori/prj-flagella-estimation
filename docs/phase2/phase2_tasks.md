@@ -283,6 +283,9 @@
   - `2.5e-21` まで下げると `n_flagella=3,9` は0.5秒のshape gateを通過したが、どちらも `no_bundle` であり、束化・接触・反発は確認されなかった。
   - 現時点の未達理由は、代表トルク帯では `hook_drift` が先に出ること、形状を保てる低トルクでは `no_bundle_drive` になることである。
   - 2026-06-15の追加診断では、初期geometryは「第1ビーズ外向き90度、べん毛軸後方10度」を満たしたが、トルク入力後に `attach -> first` が110度前後へ傾き、hook角度ではなくhook長誤差が1.0を越えてfailした。
+  - hook巻き付きは実在挙動として許容し得るため、既存strict判定は残しつつ、hook長のみ `2.0` まで許容する `shape_pass_nonbody_hook_len_relaxed` と `phase27_class_hook_len_relaxed` を併記する。
+  - hook長relaxed判定では、`n_flagella=3`, `torque=2.5e-20`, `time.dt_star=1.0e-4` のstrict停止時点は `no_bundle` として扱えるが、0.5秒まで継続すると `hook_len_rel_err_max=2.3783` まで伸びて relaxed 判定でも `collapse / hook` になる。
+  - `torque=5.0e-21` では0.5秒まで hook長relaxedで `no_bundle` を維持したが、`bundle_participation_ratio=0.0`, `flag_flag_close_pair_count=0` であり、束化駆動は確認できていない。
   - 今後は、hook drift の原因解明、束化駆動の有無評価、多本数拡張、遊泳挙動評価、2D/ML用データ妥当性評価を目的別に分ける。
   - 詳細は `docs/phase2/phase2_7_bundling_stability_plan.md` に記録する。
 

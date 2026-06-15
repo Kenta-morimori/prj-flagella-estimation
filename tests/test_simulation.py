@@ -493,6 +493,12 @@ def test_phase27_step_summary_includes_bundle_and_swimming_metrics(
         "body_axis_cumulative_angle_deg",
         "body_axis_wobble_rms_deg",
         "body_angular_velocity_rms_rad_s",
+        "shape_pass_nonbody_strict",
+        "first_fail_category_nonbody_strict",
+        "shape_pass_nonbody_hook_len_relaxed",
+        "first_fail_category_nonbody_hook_len_relaxed",
+        "hook_len_strict_limit",
+        "hook_len_relaxed_limit",
         "bundle_axis_vs_body_axis_angle_deg",
         "bundle_axis_vs_rear_angle_deg",
         "bundle_rearward_projection",
@@ -517,6 +523,10 @@ def test_phase27_step_summary_includes_bundle_and_swimming_metrics(
         abs=1.0e-5,
     )
     assert float(first["bundle_rearward_projection"]) == pytest.approx(1.0)
+    assert first["shape_pass_nonbody_strict"] in {"True", "true", "1"}
+    assert first["shape_pass_nonbody_hook_len_relaxed"] in {"True", "true", "1"}
+    assert float(first["hook_len_strict_limit"]) == pytest.approx(1.0)
+    assert float(first["hook_len_relaxed_limit"]) == pytest.approx(2.0)
     assert float(first["local_attach_first_vs_body_axis_angle_deg"]) == pytest.approx(
         90.0,
         abs=1.0e-5,

@@ -23,6 +23,23 @@ def test_phase27_classifies_shape_fail_as_collapse() -> None:
     assert phase27.classify_phase27_condition(row, n_flagella=3) == "collapse"
 
 
+def test_phase27_hook_len_relaxed_classification_uses_relaxed_shape_pass() -> None:
+    row = {
+        "shape_pass_nonbody": "False",
+        "shape_pass_nonbody_hook_len_relaxed": "True",
+        "bundle_axis_vs_rear_angle_deg": "90.0",
+        "bundle_rearward_projection": "0.0",
+        "bundle_participation_ratio": "0.0",
+        "bundle_independent_flagella_count": "3",
+    }
+
+    assert phase27.classify_phase27_condition(row, n_flagella=3) == "collapse"
+    assert (
+        phase27.classify_phase27_condition_hook_len_relaxed(row, n_flagella=3)
+        == "no_bundle"
+    )
+
+
 def test_phase27_classifies_posterior_bundle() -> None:
     row = {
         "shape_pass_nonbody": "True",

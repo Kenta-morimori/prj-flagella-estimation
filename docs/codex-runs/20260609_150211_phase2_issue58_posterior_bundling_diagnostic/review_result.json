@@ -1,16 +1,19 @@
 {
   "status": "FAIL",
-  "summary": "Issue #58 の後方10度初期条件を最新 main 派生ブランチへ実装し、n_flagella=3,6,9 で 0.5 s sweep を実施した。代表トルク 2.5e-20 N m では全条件が hook drift で早期 collapse し、2.5e-21 N m では一部条件が shape gate を通過したが no_bundle のままだったため、Phase 2.7 の完了条件は未達。",
+  "summary": "Issue #58 の後方10度初期条件を最新 main 派生ブランチへ実装し、n_flagella=3,6,9 で 0.5 s sweep を実施した。追加で hook長だけを緩める relaxed gate を実装し、strict hook fail と hook wrapping 許容候補を分離した。代表トルク 2.5e-20 N m は relaxed gate でも 0.5 s 維持できず、5.0e-21 N m は relaxed gate を維持したが no_bundle のままだったため、Phase 2.7 の完了条件は未達。",
   "blocking_issues": [
     "motor.torque_Nm=2.5e-20, flagella.initial_flagellum_axis_from_rear_deg=10, motor.local_*_scale=1.0 では n_flagella=3,6,9 が 0.5 s 前に hook gate で collapse する。",
     "2026-06-15 の追加診断では、初期geometryは attach-first が菌体長軸に対して90度、べん毛軸が後方10度を満たしたが、torque入力後に attach-first が110度前後へ傾き、hook_len_rel_err_max が1.0を越えてfailした。",
+    "hook長relaxed gate では、n_flagella=3, torque=2.5e-20 N m の strict停止時点は no_bundle として扱えるが、0.5 s 継続すると hook_len_rel_err_max=2.3783 まで伸びて relaxed 判定でも collapse / hook になる。",
+    "torque=5.0e-21 N m では 0.5 s まで hook長relaxed gate を維持したが、bundle_participation_ratio=0.0, flag_flag_close_pair_count=0 の no_bundle であり、後方束化条件ではない。",
     "torque を 2.5e-21 N m まで下げると n_flagella=3,9 は shape gate を通過するが、bundle_participation_ratio=0.0, flag_flag_close_pair_count=0 の no_bundle であり、後方束化条件ではない。",
     "現行の spring-spring repulsion は反発診断であり、べん毛同士を束へ近づける駆動が確認できていない。"
   ],
   "non_blocking_issues": [
     "flag-flag 距離指標は長時間 n=9 sweep のため厳密な segment-segment 距離ではなく bead-pair proxy として実装した。列名は flag_flag_bead_pair_dist_* として区別している。",
     "stop_on_shape_fail は sweep 用診断オプションであり、通常の scripts.01_simulate_swimming 実行には影響しない。",
-    "PR #60 初期実装名 initial_tangent_vs_rear_deg は initial_flagellum_axis_from_rear_deg にrenameした。旧名は一時aliasとして読み取り、DeprecationWarning を出す。"
+    "PR #60 初期実装名 initial_tangent_vs_rear_deg は initial_flagellum_axis_from_rear_deg にrenameした。旧名は一時aliasとして読み取り、DeprecationWarning を出す。",
+    "hook長relaxed gate は診断用分類であり、既存互換の shape_pass_nonbody / phase27_class は strict 判定のまま維持している。"
   ],
   "tests_reviewed": [
     "uv run ruff check src/sim_swim/sim/debug_summary.py src/sim_swim/sim/core.py src/sim_swim/model/builder.py src/sim_swim/sim/params.py scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py tests/test_params.py tests/test_model_builder.py tests/test_phase2_7_bundling_sweep.py tests/test_simulation.py",
@@ -25,7 +28,16 @@
     ,
     "uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --n-flagella 3 --torques 2.5e-20 --duration-s 0.02 --dt-star 1.0e-4 --tangent-angles-deg 10 --output-dir outputs/phase2_7_issue58_posterior_axis_metrics_short_v1 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.save_frames_3d=false",
     "uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --n-flagella 3 --torques 2.5e-20 --duration-s 0.5 --dt-star 1.0e-4 --tangent-angles-deg 10 --output-dir outputs/phase2_7_issue58_posterior_axis_metrics_representative_v1 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.save_frames_3d=false",
-    "uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --n-flagella 3 --torques 0.5e-20,1.0e-20,1.5e-20,2.0e-20,2.5e-20 --duration-s 0.5 --dt-star 1.0e-4 --tangent-angles-deg 10 --output-dir outputs/phase2_7_issue58_posterior_axis_metrics_torque_sweep_v1 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.save_frames_3d=false"
+    "uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --n-flagella 3 --torques 0.5e-20,1.0e-20,1.5e-20,2.0e-20,2.5e-20 --duration-s 0.5 --dt-star 1.0e-4 --tangent-angles-deg 10 --output-dir outputs/phase2_7_issue58_posterior_axis_metrics_torque_sweep_v1 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.save_frames_3d=false",
+    "uv run ruff check src/sim_swim/sim/debug_summary.py scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py tests/test_simulation.py tests/test_phase2_7_bundling_sweep.py",
+    "uv run pytest tests/test_simulation.py tests/test_phase2_7_bundling_sweep.py -q",
+    "uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --n-flagella 3 --torques 2.5e-20 --duration-s 0.5 --dt-star 1.0e-4 --tangent-angles-deg 10 --output-dir outputs/phase2_7_issue58_hook_len_relaxed_representative_v1 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.save_frames_3d=false",
+    "uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --n-flagella 3 --torques 2.5e-20 --duration-s 0.5 --dt-star 1.0e-4 --tangent-angles-deg 10 --no-stop-on-shape-fail --output-dir outputs/phase2_7_issue58_hook_len_relaxed_representative_full_v1 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.save_frames_3d=false",
+    "uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --n-flagella 3 --torques 0.5e-20,1.0e-20,1.5e-20,2.0e-20,2.5e-20 --duration-s 0.5 --dt-star 1.0e-4 --tangent-angles-deg 10 --output-dir outputs/phase2_7_issue58_hook_len_relaxed_torque_sweep_v1 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.save_frames_3d=false",
+    "uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --n-flagella 3 --torques 0.5e-20 --duration-s 0.5 --dt-star 1.0e-4 --tangent-angles-deg 10 --no-stop-on-shape-fail --output-dir outputs/phase2_7_issue58_hook_len_relaxed_low_torque_full_v1 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.save_frames_3d=false",
+    "uv run ruff format --check .",
+    "uv run ruff check .",
+    "uv run pytest -q (177 passed)"
   ],
   "user_review_required": false,
   "user_review_command": "",
@@ -35,7 +47,11 @@
     "outputs/phase2_7_issue58_posterior_bundling_very_low_torque_v1/phase2_7_bundling_sweep_summary.csv",
     "outputs/phase2_7_issue58_posterior_axis_metrics_short_v1/phase2_7_bundling_sweep_summary.csv",
     "outputs/phase2_7_issue58_posterior_axis_metrics_representative_v1/phase2_7_bundling_sweep_summary.csv",
-    "outputs/phase2_7_issue58_posterior_axis_metrics_torque_sweep_v1/phase2_7_bundling_sweep_summary.csv"
+    "outputs/phase2_7_issue58_posterior_axis_metrics_torque_sweep_v1/phase2_7_bundling_sweep_summary.csv",
+    "outputs/phase2_7_issue58_hook_len_relaxed_representative_v1/phase2_7_bundling_sweep_summary.csv",
+    "outputs/phase2_7_issue58_hook_len_relaxed_representative_full_v1/phase2_7_bundling_sweep_summary.csv",
+    "outputs/phase2_7_issue58_hook_len_relaxed_torque_sweep_v1/phase2_7_bundling_sweep_summary.csv",
+    "outputs/phase2_7_issue58_hook_len_relaxed_low_torque_full_v1/phase2_7_bundling_sweep_summary.csv"
   ],
   "user_review_points": [
     "今回の自動判定では後方束化条件が見つかっていないため、目視レビューは完了判定には不要。",
@@ -47,7 +63,7 @@
   "commit_hash": "a72703b",
   "push_status": "pushed",
   "next_actions": [
-    "後方10度初期条件では、hook角度ではなく attach-first の外向き維持とhook長が先に崩れる。次はattach-first spring / motor force couple / body側拘束のどれが主因かを切り分ける。",
+    "後方10度初期条件では、hook角度ではなく attach-first の外向き維持とhook長が先に崩れる。hook長relaxed gate で軽微な巻き付き候補は分離できたが、代表トルクでは 0.5 s 継続時に relaxed gate も破綻するため、次はattach-first spring / motor force couple / body側拘束のどれが主因かを切り分ける。",
     "現行 repulsion だけでは束化駆動がない可能性を、流体相互作用または束化を促す近接モデルの不足として評価する。",
     "2.5e-21 N m は形状維持診断条件として残し、束化・遊泳代表条件とは区別する。"
   ]
