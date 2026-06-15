@@ -1,0 +1,39 @@
+{
+  "status": "PASS",
+  "summary": "Phase 2.7 の後方束化評価に向けて、第2ビーズ以降から推定するべん毛螺旋軸診断と3D overlayを追加した。step_summary.csv には集約列、flag_helix_axis_diagnostics.csv には各べん毛ごとの軸・後方角度・fit品質を出力する。hook長破綻の採否は自動判定だけでなく3D可視化による定性評価が必要であることも文書化した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "現ブランチには Phase 2.7 専用 sweep script が存在しないため、sweep summary への列継承は未実装。共通の step_summary.csv と per-flagellum CSV は出力済みなので、該当scriptが入ったブランチで summary 対象列へ追加する。",
+    "hook length drift の許容可否は、具体的な代表条件ごとの3D動画目視レビューで判断する。本変更はそのためのoverlayと診断列を提供する。"
+  ],
+  "tests_reviewed": [
+    "uv run ruff check src/sim_swim/sim/helix_axis.py src/sim_swim/sim/debug_summary.py src/sim_swim/render/render3d.py src/sim_swim/sim/params.py tests/test_helix_axis.py tests/test_simulation.py tests/test_render_state_and_projection.py tests/test_params.py",
+    "uv run pytest tests/test_helix_axis.py tests/test_params.py tests/test_render_state_and_projection.py tests/test_simulation.py -q (87 passed)",
+    "uv run ruff format --check .",
+    "uv run ruff check .",
+    "uv run pytest -q (164 passed)",
+    "uv run python -m scripts.01_simulate_swimming time.duration_s=0.001 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=5 render.show_flagella_helix_axis_3d=true render.save_frames_3d=false render.save_frames_2d=false output.base_dir=outputs/phase2_7_helix_axis_cli_check"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [
+    "outputs/phase2_7_helix_axis_cli_check/2026-06-16/010004/sim/step_summary.csv",
+    "outputs/phase2_7_helix_axis_cli_check/2026-06-16/010004/sim/flag_helix_axis_diagnostics.csv",
+    "outputs/phase2_7_helix_axis_cli_check/2026-06-16/010004/render/swim3d.mp4",
+    "outputs/phase2_7_helix_axis_cli_check/2026-06-16/010004/render/swim3d_final.png"
+  ],
+  "user_review_points": [
+    "今回の短時間CLI確認は機能確認であり、hook length drift の採否判断用ではない。",
+    "代表条件評価では、螺旋軸overlayをONにして、hookが菌体へ巻き付いて許容できるのか、非物理的に伸びているのかを確認する。"
+  ],
+  "adr_required": false,
+  "adr_reason": "新しい物理モデルではなく、既存モデル状態の診断列と3D可視化補助を追加する変更であるため。",
+  "commit_type": "complete",
+  "commit_hash": "0b1ee04",
+  "push_status": "pushed",
+  "pull_request_url": "",
+  "next_actions": [
+    "Phase 2.7 sweep script が入っているブランチでは、flag_helix_axis_vs_rear_angle_deg_* を sweep summary に含める。",
+    "後方束化代表条件の目視レビュー時は render.show_flagella_helix_axis_3d=true を指定し、hook長と螺旋軸を同時に確認する。"
+  ]
+}
