@@ -1,0 +1,4 @@
+interface:
+  display_name: "Flagella Issue Workflow"
+  short_description: "Issue-driven Codex workflow for this repo"
+  default_prompt: "Use $flagella-issue-workflow to handle a project issue with scoped planning, implementation, verification, and reporting."
