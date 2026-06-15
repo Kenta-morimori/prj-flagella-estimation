@@ -23,9 +23,9 @@
   "adr_required": false,
   "adr_reason": "Codex workflow 用 skill と運用 reference の追加であり、物理モデル、出力形式、依存関係、テスト戦略の大きな変更ではないため ADR は不要。",
   "commit_type": "complete",
-  "commit_hash": "d995859",
-  "push_status": "not_pushed",
-  "pull_request_url": "",
+  "commit_hash": "2ea781a",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/62",
   "next_actions": [
     "今後の issue template に task type、scope、required context、execution budget、completion target を追加するか検討する。",
     "必要に応じて docs/codex-notes/phase2_current_index.md または docs/codex-runs/RUN_INDEX.md を別 issue で作成し、過去ログ探索コストをさらに下げる。",
