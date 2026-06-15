@@ -73,6 +73,10 @@ STEP_SUMMARY_COLUMNS = [
     "flag_helix_axis_rearward_projection_min",
     "flag_helix_axis_fit_r2_min",
     "flag_helix_axis_degenerate_count",
+    "flag_flag_helix_bead_dist_min_um",
+    "flag_flag_helix_close_pair_count",
+    "flag_helix_bundle_radius_mean_um",
+    "flag_helix_bundle_radius_max_um",
     "F_total_mean_body",
     "F_total_mean_flag",
     "F_total_mean_all",
@@ -471,6 +475,56 @@ def _point_to_line_distance(
     u = d / d_norm
     proj = p0[None, :] + ((points - p0[None, :]) @ u)[:, None] * u[None, :]
     return np.linalg.norm(points - proj, axis=1)
+
+
+def _flag_flag_helix_distance_stats_um(
+    positions_m: np.ndarray,
+    flagella_indices: list[np.ndarray],
+    close_threshold_um: float,
+) -> tuple[float, int]:
+    min_dist_um = float("nan")
+    close_count = 0
+    for i, idx_i in enumerate(flagella_indices):
+        pts_i = positions_m[np.asarray(idx_i, dtype=int)[1:]]
+        if pts_i.size == 0:
+            continue
+        for idx_j in flagella_indices[i + 1 :]:
+            pts_j = positions_m[np.asarray(idx_j, dtype=int)[1:]]
+            if pts_j.size == 0:
+                continue
+            diff = pts_i[:, None, :] - pts_j[None, :, :]
+            dist_um = np.linalg.norm(diff, axis=2) * M_TO_UM
+            pair_min = float(np.min(dist_um))
+            min_dist_um = (
+                pair_min if not np.isfinite(min_dist_um) else min(min_dist_um, pair_min)
+            )
+            close_count += int(np.count_nonzero(dist_um <= close_threshold_um))
+    return min_dist_um, close_count
+
+
+def _flag_helix_bundle_radius_stats_um(
+    positions_m: np.ndarray,
+    flagella_indices: list[np.ndarray],
+) -> tuple[float, float]:
+    helix_points = [
+        positions_m[np.asarray(idx, dtype=int)[1:]]
+        for idx in flagella_indices
+        if np.asarray(idx, dtype=int).size > 1
+    ]
+    if not helix_points:
+        return float("nan"), float("nan")
+    points = np.vstack(helix_points)
+    if points.shape[0] < 2:
+        return float("nan"), float("nan")
+    origin = np.mean(points, axis=0)
+    centered = points - origin
+    _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    axis = vh[0]
+    axis = axis / max(float(np.linalg.norm(axis)), 1.0e-18)
+    projections = centered @ axis
+    closest = origin + projections[:, None] * axis[None, :]
+    dist_um = np.linalg.norm(points - closest, axis=1) * M_TO_UM
+    return float(np.mean(dist_um)), float(np.max(dist_um))
 
 
 @dataclass
@@ -1107,6 +1161,18 @@ class StepSummaryRecorder:
             if helix_axis_fit_r2_values
             else float("nan")
         )
+        (
+            flag_flag_helix_bead_dist_min_um,
+            flag_flag_helix_close_pair_count,
+        ) = _flag_flag_helix_distance_stats_um(
+            pos_after,
+            self.model.flagella_indices,
+            close_threshold_um=0.3,
+        )
+        (
+            flag_helix_bundle_radius_mean_um,
+            flag_helix_bundle_radius_max_um,
+        ) = _flag_helix_bundle_radius_stats_um(pos_after, self.model.flagella_indices)
         flag_bend_err_mean_deg = float("nan")
         flag_bend_err_max_deg = float("nan")
         if self.flag_bending_rows.size > 0:
@@ -1385,6 +1451,10 @@ class StepSummaryRecorder:
             ),
             "flag_helix_axis_fit_r2_min": flag_helix_axis_fit_r2_min,
             "flag_helix_axis_degenerate_count": int(helix_axis_degenerate_count),
+            "flag_flag_helix_bead_dist_min_um": flag_flag_helix_bead_dist_min_um,
+            "flag_flag_helix_close_pair_count": int(flag_flag_helix_close_pair_count),
+            "flag_helix_bundle_radius_mean_um": flag_helix_bundle_radius_mean_um,
+            "flag_helix_bundle_radius_max_um": flag_helix_bundle_radius_max_um,
             "F_total_mean_body": _mean_norm(diag.total_forces, self.body_mask),
             "F_total_mean_flag": _mean_norm(diag.total_forces, self.flag_mask),
             "F_total_mean_all": float(

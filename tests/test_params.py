@@ -435,6 +435,23 @@ def test_render_flagella_helix_axis_3d_can_be_enabled() -> None:
     assert sim_cfg.render.show_flagella_helix_axis_3d is True
 
 
+def test_initial_helix_axis_from_rear_deg_defaults_to_none() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella.initial_helix_axis_from_rear_deg is None
+
+
+def test_initial_helix_axis_from_rear_deg_can_be_set() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["flagella"] = {"initial_helix_axis_from_rear_deg": 0.0}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella.initial_helix_axis_from_rear_deg == pytest.approx(0.0)
+
+
 def test_body_n_layers_requires_integer_multiple() -> None:
     cfg = _base_cfg()
     cfg["body"]["length_total_um"] = 2.3

@@ -22,6 +22,10 @@
 - `flag_helix_axis_rearward_projection_min`
 - `flag_helix_axis_fit_r2_min`
 - `flag_helix_axis_degenerate_count`
+- `flag_flag_helix_bead_dist_min_um`
+- `flag_flag_helix_close_pair_count`
+- `flag_helix_bundle_radius_mean_um`
+- `flag_helix_bundle_radius_max_um`
 
 各べん毛ごとの詳細は `flag_helix_axis_diagnostics.csv` に出力する。
 
@@ -38,10 +42,16 @@
 
 hookは従来どおり黄色で描画する。hook length drift は数値だけでは許容可否を決めず、螺旋軸 overlay と併せて、菌体への巻き付きとして許容できるか、非物理的な伸びとして扱うべきかを目視レビューで確認する。
 
+## 後方螺旋軸初期条件
+
+`flagella.initial_helix_axis_from_rear_deg` を指定すると、各べん毛の第2ビーズ以降から推定される螺旋中心軸を菌体後方から指定角度だけ傾ける。`0` は全べん毛の螺旋軸を同一の菌体後方方向へ揃える条件である。`null` は従来の side-attach 条件を維持する。
+
+この設定は第1ビーズを菌体側hookとして残したまま、螺旋本体の軸だけを後方へ揃える診断条件である。そのため、hook長やhook近傍の形状破綻は別途確認する必要がある。
+
 ## 確認観点
 
 - `flag_helix_axis_vs_rear_angle_deg_*` が意図した後方向き条件を反映しているか。
 - 第1ビーズの位置ずれや hook伸長が、螺旋軸推定に混入していないか。
 - `flag_helix_axis_fit_r2_min` が極端に低い条件では、螺旋軸の解釈が不安定でないか。
+- `flag_flag_helix_bead_dist_min_um` と `flag_helix_bundle_radius_*` が減少するかを見て、fail判定時でも束化らしい接近が起きていないかを確認する。
 - `hook_len_rel_err_max` が大きい条件では、3D動画で hook の巻き付き・伸長を定性評価する。
-

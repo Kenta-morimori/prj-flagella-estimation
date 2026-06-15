@@ -351,6 +351,10 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
         "flag_helix_axis_rearward_projection_min",
         "flag_helix_axis_fit_r2_min",
         "flag_helix_axis_degenerate_count",
+        "flag_flag_helix_bead_dist_min_um",
+        "flag_flag_helix_close_pair_count",
+        "flag_helix_bundle_radius_mean_um",
+        "flag_helix_bundle_radius_max_um",
         "local_attach_first_rel_err",
         "local_first_second_rel_err",
         "local_second_third_rel_err",
@@ -373,6 +377,7 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
     assert "axis_origin_x_um" in first_axis
     assert np.isfinite(float(first["flag_helix_axis_vs_rear_angle_deg_mean"]))
     assert np.isfinite(float(first_axis["flag_helix_axis_fit_r2"]))
+    assert int(first["flag_flag_helix_close_pair_count"]) >= 0
 
 
 def test_run_writes_initial_geometry_summary_json(tmp_path: Path) -> None:

@@ -24,6 +24,7 @@ flagella:
   helix_init:
     radius_over_b: 0.25        # [-] 初期ヘリックス半径（直径0.5b）
     pitch_over_b: 2.5          # [-] 初期ヘリックスピッチ
+  initial_helix_axis_from_rear_deg: null  # [deg|null] null: 従来side-attach, 0: 第2ビーズ以降の螺旋軸を菌体後方へ揃える
   # NOTE: base tangent / hook configuration is always side-attach (no toggle flag)
 
 fluid:

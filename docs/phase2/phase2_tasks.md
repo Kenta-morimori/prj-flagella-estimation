@@ -260,6 +260,7 @@
   - [ ] `motor.force_distribution=material_twist_local_couple`, `time.dt_star=1.0e-4` を基本条件とした `n_flagella=3` representative を作る。
   - [ ] `distributed_flagellum` は診断用比較条件として残し、必要に応じて同じ `n_flagella` / torque で比較する。
   - [ ] hook角度または初期接線方向を調整し、短時間で全べん毛が菌体後方へ向かう初期条件を作る。
+  - [ ] `flagella.initial_helix_axis_from_rear_deg=0` で、第2ビーズ以降の螺旋軸を同一の菌体後方方向へ揃えた診断条件を作る。
   - [ ] `motor.torque_Nm` をsweepし、崩壊しないが束化しない条件、束化する条件、崩壊する条件を分類する。
   - [ ] `n_flagella=3,6,9` を段階評価し、body/hook/flag の first-fail 分布を整理する。
   - [ ] 束化候補指標を実装・記録する。候補は、束中心軸への距離、束参加率、独立べん毛数、束軸と菌体軸の角度、flagella間距離である。

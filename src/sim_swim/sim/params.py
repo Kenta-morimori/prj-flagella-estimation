@@ -187,6 +187,7 @@ class FlagellumParams:
     bond_L_over_b: float = 0.58
     length_over_b: float = 5.8
     helix_init: FlagellaHelixInitParams = field(default_factory=FlagellaHelixInitParams)
+    initial_helix_axis_from_rear_deg: float | None = None
 
 
 @dataclass(frozen=True)
@@ -684,6 +685,11 @@ class SimulationConfig:
             helix_init=FlagellaHelixInitParams(
                 radius_over_b=float(radius_over_b_h),
                 pitch_over_b=float(pitch_over_b_h),
+            ),
+            initial_helix_axis_from_rear_deg=(
+                float(flag_raw["initial_helix_axis_from_rear_deg"])
+                if flag_raw.get("initial_helix_axis_from_rear_deg") not in (None, "")
+                else None
             ),
         )
 
