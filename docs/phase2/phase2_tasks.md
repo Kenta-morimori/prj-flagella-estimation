@@ -269,6 +269,12 @@
   - [ ] 1本のみ独立する部分束化をFAILではなく別カテゴリとして記録する。
   - [ ] collapse/fly-away が出る条件を再現可能な diagnostic output として保存する。
   - [ ] 代表PASS/FAIL/PARTIAL条件について、定量結果と目視レビュー対象動画を記録する。
+- current observations:
+  - `flagella.initial_helix_axis_from_rear_deg=0`, `duration_s=0.5`, `time.dt_star=1.0e-4` では、初期螺旋軸を菌体後方へ揃えることはできた。
+  - `n_flagella=3` では `motor.torque_Nm=0, 5.0e-21, 1.0e-20, 2.5e-20` の範囲で close pair は 0 であり、束化候補は出ていない。高トルクでは hook fail が先行する。
+  - `n_flagella=6`, `motor.torque_Nm=5.0e-21` では `shape_pass_nonbody=True` のまま `flag_flag_helix_close_pair_count_max=9` となり、定量上の束化候補になった。
+  - `n_flagella=6`, `motor.torque_Nm=1.0e-20` と `2.5e-20` では hook fail が出るが、fail 後も close pair が残るため、目視レビューで hook巻き付きとして許容できるかを確認する。
+  - ただし `flag_helix_bundle_radius_mean_um` は大きく縮まっていないため、現時点の結果は完全束化ではなく、部分的な近接・束化候補として扱う。
 - acceptance criteria:
   - [ ] `n_flagella=3` で、0.5 s以上、shape gate PASS、後方束化候補あり、の代表条件が1つ以上ある。
   - [ ] `n_flagella` と torque ごとの collapse / no bundle / partial bundle / posterior bundle の分類表がある。

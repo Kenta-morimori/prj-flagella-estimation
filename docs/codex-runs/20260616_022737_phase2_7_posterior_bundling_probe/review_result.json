@@ -1,0 +1,48 @@
+{
+  "status": "FAIL",
+  "summary": "後方螺旋軸初期条件で定量probeを実施した。n=3では束化候補は出なかったが、n=6では5.0e-21 N mでshape gate PASSのままclose pairが出た。1.0e-20および2.5e-20 N mではhook fail後にもclose pairが残るため、fail条件でも束化候補として定性評価が必要である。",
+  "blocking_issues": [
+    "Phase 2.7の完了条件である定性評価が未実施である。",
+    "n_flagella=3では0.5 s, shape gate PASS, 後方束化候補ありの代表条件がまだ見つかっていない。",
+    "n_flagella=6の候補はclose pair proxyでは検出されたが、完全な後方束化か、部分束化か、hook巻き付き由来の見かけ接近かは3D動画で未確認である。"
+  ],
+  "non_blocking_issues": [
+    "flag_helix_bundle_radius_mean_umは大きく縮んでいないため、現proxyは完全束化ではなく部分的な近接候補を示す。",
+    "n_flagella=9条件は未評価である。n=6の定性評価後に必要性を判断する。"
+  ],
+  "tests_reviewed": [
+    "uv run ruff check src/sim_swim/model/builder.py src/sim_swim/sim/params.py src/sim_swim/sim/debug_summary.py tests/test_model_builder.py tests/test_params.py tests/test_simulation.py",
+    "uv run pytest tests/test_model_builder.py tests/test_params.py tests/test_simulation.py -q (107 passed)",
+    "uv run pytest -q (167 passed, pre-commit hook during commit 0617627)",
+    "uv run python -m scripts.01_simulate_swimming time.duration_s=0.001 time.dt_star=1.0e-4 flagella.initial_helix_axis_from_rear_deg=0 flagella.n_flagella=3 motor.torque_Nm=0 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=5 render.show_flagella_helix_axis_3d=true render.save_frames_3d=false render.save_frames_2d=false output.base_dir=outputs/phase2_7_posterior_axis_probe",
+    "direct Simulator quantitative probe: n_flagella=3, torque_Nm=0/5.0e-21/1.0e-20/2.5e-20, duration_s=0.5, time.dt_star=1.0e-4",
+    "direct Simulator quantitative probe: n_flagella=6, torque_Nm=5.0e-21/1.0e-20/2.5e-20, duration_s=0.5, time.dt_star=1.0e-4",
+    "uv run ruff format --check .",
+    "uv run ruff check .",
+    "uv run pytest -q (167 passed)"
+  ],
+  "user_review_required": true,
+  "user_review_command": "uv run python -m scripts.01_simulate_swimming time.duration_s=0.5 time.dt_star=1.0e-4 flagella.n_flagella=6 flagella.initial_helix_axis_from_rear_deg=0 motor.torque_Nm=5.0e-21 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=5 render.show_flagella_helix_axis_3d=true output.base_dir=outputs/phase2_7_posterior_axis_visual_review",
+  "user_review_outputs": [
+    "outputs/2026-06-16/012334_phase2_7_posterior_axis_bundling_probe/summary_recomputed.csv",
+    "outputs/2026-06-16/014710_phase2_7_posterior_axis_bundling_probe_n6/summary_recomputed.csv",
+    "outputs/phase2_7_posterior_axis_probe/2026-06-16/012149/render/swim3d.mp4"
+  ],
+  "user_review_points": [
+    "n_flagella=6, torque_Nm=5.0e-21が実際に後方で束化して見えるか。",
+    "close pairが完全束化ではなく、部分束化または一時的接近に過ぎないか。",
+    "hook length driftが菌体への巻き付きとして許容できる範囲か、非物理的な伸長か。",
+    "fail_bundle_candidate条件では、fail後にも束化らしい形が残るか。"
+  ],
+  "adr_required": false,
+  "adr_reason": "今回は既存のmaterial_twist_local_coupleモデルの評価と診断出力追加であり、新しい物理モデル決定ではないため。",
+  "commit_type": "diagnostic",
+  "commit_hash": "0617627",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/63",
+  "next_actions": [
+    "n_flagella=6, torque_Nm=5.0e-21の3D動画を生成し、後方束化・部分束化・hook巻き付きの定性評価を行う。",
+    "n_flagella=6, torque_Nm=1.0e-20と2.5e-20を比較動画として生成し、fail_bundle_candidateの意味を確認する。",
+    "定性評価後にn_flagella=9または追加torque sweepの必要性を判断する。"
+  ]
+}
