@@ -36,7 +36,7 @@
   "adr_required": false,
   "adr_reason": "新しい物理モデル決定ではなく、Issue #58 の診断指標・初期条件・sweep支援実装であるため。後方束化駆動を追加する場合は別途ADR候補。",
   "commit_type": "diagnostic",
-  "commit_hash": "f02f0b3",
+  "commit_hash": "84972cb",
   "push_status": "pushed",
   "next_actions": [
     "後方10度初期条件で hook_len_rel_err_max が伸びる原因を、hook長・hook曲げ・attach-first spring の局所診断から切り分ける。",
