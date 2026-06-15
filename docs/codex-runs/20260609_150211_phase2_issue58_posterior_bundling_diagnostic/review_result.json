@@ -2,19 +2,22 @@
   "status": "FAIL",
   "summary": "Issue #58 の後方10度初期条件を最新 main 派生ブランチへ実装し、n_flagella=3,6,9 で 0.5 s sweep を実施した。代表トルク 2.5e-20 N m では全条件が hook drift で早期 collapse し、2.5e-21 N m では一部条件が shape gate を通過したが no_bundle のままだったため、Phase 2.7 の完了条件は未達。",
   "blocking_issues": [
-    "motor.torque_Nm=2.5e-20, flagella.initial_tangent_vs_rear_deg=10, motor.local_*_scale=1.0 では n_flagella=3,6,9 が 0.5 s 前に hook gate で collapse する。",
+    "motor.torque_Nm=2.5e-20, flagella.initial_flagellum_axis_from_rear_deg=10, motor.local_*_scale=1.0 では n_flagella=3,6,9 が 0.5 s 前に hook gate で collapse する。",
     "torque を 2.5e-21 N m まで下げると n_flagella=3,9 は shape gate を通過するが、bundle_participation_ratio=0.0, flag_flag_close_pair_count=0 の no_bundle であり、後方束化条件ではない。",
     "現行の spring-spring repulsion は反発診断であり、べん毛同士を束へ近づける駆動が確認できていない。"
   ],
   "non_blocking_issues": [
     "flag-flag 距離指標は長時間 n=9 sweep のため厳密な segment-segment 距離ではなく bead-pair proxy として実装した。列名は flag_flag_bead_pair_dist_* として区別している。",
-    "stop_on_shape_fail は sweep 用診断オプションであり、通常の scripts.01_simulate_swimming 実行には影響しない。"
+    "stop_on_shape_fail は sweep 用診断オプションであり、通常の scripts.01_simulate_swimming 実行には影響しない。",
+    "PR #60 初期実装名 initial_tangent_vs_rear_deg は initial_flagellum_axis_from_rear_deg にrenameした。旧名は一時aliasとして読み取り、DeprecationWarning を出す。"
   ],
   "tests_reviewed": [
     "uv run ruff check src/sim_swim/sim/debug_summary.py src/sim_swim/sim/core.py src/sim_swim/model/builder.py src/sim_swim/sim/params.py scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py tests/test_params.py tests/test_model_builder.py tests/test_phase2_7_bundling_sweep.py tests/test_simulation.py",
     "uv run pytest tests/test_params.py tests/test_model_builder.py tests/test_phase2_7_bundling_sweep.py tests/test_simulation.py -q",
     "uv run ruff check .",
     "uv run pytest -q",
+    "uv run ruff check .",
+    "uv run pytest -q (176 passed)",
     "uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --n-flagella 3,6,9 --torques 2.5e-20 --duration-s 0.5 --dt-star 1.0e-4 --tangent-angles-deg 10 --output-dir outputs/phase2_7_issue58_posterior_bundling_sweep_v3 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.save_frames_3d=false",
     "uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --n-flagella 3,6,9 --torques 0.5e-20,1.0e-20,1.5e-20,2.0e-20 --duration-s 0.5 --dt-star 1.0e-4 --tangent-angles-deg 10 --output-dir outputs/phase2_7_issue58_posterior_bundling_low_torque_v1 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.save_frames_3d=false",
     "uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --n-flagella 3,6,9 --torques 2.5e-21 --duration-s 0.5 --dt-star 1.0e-4 --tangent-angles-deg 10 --output-dir outputs/phase2_7_issue58_posterior_bundling_very_low_torque_v1 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.save_frames_3d=false"

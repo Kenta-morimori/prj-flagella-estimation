@@ -17,7 +17,7 @@ flagella:
   placement_mode: "uniform"   # 終端層の断面ビーズへ均等に付着
   init_mode: "paper_table1"   # 初期べん毛のsource-of-truth: bond/theta/phi/n_beads
   initial_orientation_mode: "side_attach"  # side_attach / posterior_aligned。通常は従来どおりside_attach
-  initial_tangent_vs_rear_deg: null         # [deg] 指定時は後方軸からの初期接線角。Issue #58代表候補は10deg
+  initial_flagellum_axis_from_rear_deg: null # [deg] 指定時は後方軸からの初期べん毛軸角。Issue #58代表候補は10deg
   n_beads_per_flagellum: 11    # [-] 各べん毛の初期ビーズ数（論文離散化準拠）
   discretization:
     ds_over_b: 0.58            # [-] 隣接間隔 ds/b（Table 1 の L=0.58b 相当）
@@ -26,7 +26,7 @@ flagella:
   helix_init:
     radius_over_b: 0.25        # [-] 初期ヘリックス半径（直径0.5b）
     pitch_over_b: 2.5          # [-] 初期ヘリックスピッチ
-  # NOTE: initial_tangent_vs_rear_deg は後方束化診断用。nullならinitial_orientation_modeを使う
+  # NOTE: initial_flagellum_axis_from_rear_deg は後方束化診断用。nullならinitial_orientation_modeを使う
 
 fluid:
   viscosity_Pa_s: 0.001        # [Pa*s] 水相当

@@ -76,7 +76,7 @@ def test_phase27_build_config_sets_initial_tangent_angle() -> None:
     cfg = phase27._build_config(
         raw_cfg,
         orientation_mode="side_attach",
-        initial_tangent_vs_rear_deg=10.0,
+        initial_flagellum_axis_from_rear_deg=10.0,
         n_flagella=3,
         torque_Nm=0.5e-20,
         duration_s=0.02,
@@ -85,6 +85,6 @@ def test_phase27_build_config_sets_initial_tangent_angle() -> None:
     )
 
     assert cfg.flagella.initial_orientation_mode == "side_attach"
-    assert cfg.flagella.initial_tangent_vs_rear_deg == 10.0
+    assert cfg.flagella.initial_flagellum_axis_from_rear_deg == 10.0
     assert cfg.flagella.n_flagella == 3
     assert cfg.motor.torque_Nm == 0.5e-20

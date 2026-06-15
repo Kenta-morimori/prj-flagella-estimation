@@ -358,7 +358,7 @@ def test_flagella_initial_orientation_mode_defaults_to_side_attach() -> None:
     sim_cfg = SimulationConfig.from_dict(cfg)
 
     assert sim_cfg.flagella.initial_orientation_mode == "side_attach"
-    assert sim_cfg.flagella.initial_tangent_vs_rear_deg is None
+    assert sim_cfg.flagella.initial_flagellum_axis_from_rear_deg is None
 
 
 def test_flagella_initial_orientation_mode_can_be_set_to_posterior_aligned() -> None:
@@ -375,10 +375,10 @@ def test_flagella_initial_orientation_mode_can_be_set_to_posterior_aligned() -> 
     assert sim_cfg.flagella.initial_orientation_mode == "posterior_aligned"
 
 
-def test_flagella_initial_tangent_vs_rear_deg_can_be_configured() -> None:
+def test_flagella_initial_flagellum_axis_from_rear_deg_can_be_configured() -> None:
     cfg = _base_cfg()
     cfg["flagella"] = {
-        "initial_tangent_vs_rear_deg": 10.0,
+        "initial_flagellum_axis_from_rear_deg": 10.0,
         "bond_L_over_b": 0.58,
         "length_over_b": 5.8,
     }
@@ -387,7 +387,38 @@ def test_flagella_initial_tangent_vs_rear_deg_can_be_configured() -> None:
     sim_cfg = SimulationConfig.from_dict(cfg)
 
     assert sim_cfg.flagella.initial_orientation_mode == "side_attach"
-    assert sim_cfg.flagella.initial_tangent_vs_rear_deg == pytest.approx(10.0)
+    assert sim_cfg.flagella.initial_flagellum_axis_from_rear_deg == pytest.approx(10.0)
+
+
+def test_flagella_initial_tangent_vs_rear_deg_alias_warns() -> None:
+    cfg = _base_cfg()
+    cfg["flagella"] = {
+        "initial_tangent_vs_rear_deg": 10.0,
+        "bond_L_over_b": 0.58,
+        "length_over_b": 5.8,
+    }
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    with pytest.warns(DeprecationWarning, match="initial_tangent_vs_rear_deg"):
+        sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella.initial_flagellum_axis_from_rear_deg == pytest.approx(10.0)
+
+
+def test_flagella_initial_axis_new_name_overrides_old_alias() -> None:
+    cfg = _base_cfg()
+    cfg["flagella"] = {
+        "initial_flagellum_axis_from_rear_deg": 30.0,
+        "initial_tangent_vs_rear_deg": 10.0,
+        "bond_L_over_b": 0.58,
+        "length_over_b": 5.8,
+    }
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    with pytest.warns(DeprecationWarning, match="initial_tangent_vs_rear_deg"):
+        sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella.initial_flagellum_axis_from_rear_deg == pytest.approx(30.0)
 
 
 def test_flagella_stub_mode_can_be_set_to_minimal_basal_stub() -> None:

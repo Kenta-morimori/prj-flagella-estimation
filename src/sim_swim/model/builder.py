@@ -370,12 +370,14 @@ class ModelBuilder:
             else:
                 radial_unit = radial / radial_norm
             initial_orientation_mode = str(cfg.flagella.initial_orientation_mode)
-            if cfg.flagella.initial_tangent_vs_rear_deg is not None:
-                target_angle_deg = float(cfg.flagella.initial_tangent_vs_rear_deg)
+            if cfg.flagella.initial_flagellum_axis_from_rear_deg is not None:
+                target_angle_deg = float(
+                    cfg.flagella.initial_flagellum_axis_from_rear_deg
+                )
                 if not (0.0 <= target_angle_deg <= 180.0):
                     raise ValueError(
-                        "flagella.initial_tangent_vs_rear_deg must be in [0, 180]:"
-                        f" {target_angle_deg}"
+                        "flagella.initial_flagellum_axis_from_rear_deg must be in"
+                        f" [0, 180]: {target_angle_deg}"
                     )
                 target_rad = math.radians(target_angle_deg)
                 side_component = (

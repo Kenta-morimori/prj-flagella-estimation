@@ -16,7 +16,7 @@ from sim_swim.sim.params import SimulationConfig, merge_overrides
 
 SUMMARY_FIELDS = [
     "orientation_mode",
-    "initial_tangent_vs_rear_deg",
+    "initial_flagellum_axis_from_rear_deg",
     "n_flagella",
     "torque_Nm",
     "duration_s",
@@ -59,7 +59,7 @@ STEP_SUMMARY_METRIC_FIELDS = [
     if key
     not in {
         "orientation_mode",
-        "initial_tangent_vs_rear_deg",
+        "initial_flagellum_axis_from_rear_deg",
         "n_flagella",
         "torque_Nm",
         "duration_s",
@@ -153,7 +153,7 @@ def _build_config(
     raw_cfg: dict[str, Any],
     *,
     orientation_mode: str,
-    initial_tangent_vs_rear_deg: float | None,
+    initial_flagellum_axis_from_rear_deg: float | None,
     n_flagella: int,
     torque_Nm: float,
     duration_s: float,
@@ -163,12 +163,12 @@ def _build_config(
     override_dict = merge_overrides({}, overrides)
     flagella_overrides = override_dict.setdefault("flagella", {})
     flagella_overrides["initial_orientation_mode"] = orientation_mode
-    if initial_tangent_vs_rear_deg is not None:
-        flagella_overrides["initial_tangent_vs_rear_deg"] = float(
-            initial_tangent_vs_rear_deg
+    if initial_flagellum_axis_from_rear_deg is not None:
+        flagella_overrides["initial_flagellum_axis_from_rear_deg"] = float(
+            initial_flagellum_axis_from_rear_deg
         )
     else:
-        flagella_overrides["initial_tangent_vs_rear_deg"] = None
+        flagella_overrides["initial_flagellum_axis_from_rear_deg"] = None
     flagella_overrides["n_flagella"] = int(n_flagella)
     override_dict.setdefault("motor", {})["torque_Nm"] = float(torque_Nm)
     override_dict.setdefault("time", {})["duration_s"] = float(duration_s)
@@ -190,7 +190,8 @@ def main() -> None:
         type=_parse_csv_floats,
         default=None,
         help=(
-            "Optional comma-separated flagella.initial_tangent_vs_rear_deg values. "
+            "Optional comma-separated flagella.initial_flagellum_axis_from_rear_deg "
+            "values. "
             "When set, angles override orientation mode and are swept once."
         ),
     )
@@ -250,7 +251,7 @@ def main() -> None:
                     cfg = _build_config(
                         raw_cfg,
                         orientation_mode=orientation_mode,
-                        initial_tangent_vs_rear_deg=tangent_angle_deg,
+                        initial_flagellum_axis_from_rear_deg=tangent_angle_deg,
                         n_flagella=int(n_flagella),
                         torque_Nm=float(torque),
                         duration_s=float(args.duration_s),
@@ -284,7 +285,7 @@ def main() -> None:
                     writer.writerow(
                         {
                             "orientation_mode": orientation_mode,
-                            "initial_tangent_vs_rear_deg": (
+                            "initial_flagellum_axis_from_rear_deg": (
                                 ""
                                 if tangent_angle_deg is None
                                 else float(tangent_angle_deg)
