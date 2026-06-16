@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "summary": "Phase 2.7 のべん毛軸角度時系列plotについて、上段の縦軸を0-90 degに固定し、後方/側方参照線と15 deg整列閾値のlegendを追加した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    "uv run ruff check scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py tests/test_phase2_7_bundling_sweep.py",
+    "uv run ruff format --check scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py tests/test_phase2_7_bundling_sweep.py",
+    "uv run pytest tests/test_phase2_7_bundling_sweep.py -q",
+    "uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --n-flagella 3 --torques 2.5e-20 --duration-s 0.5 --dt-star 1.0e-4 --helix-axis-angles-deg 0 --output-dir outputs/phase2_7_axis_alignment_v1 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.show_flagella_helix_axis_3d=true render.save_frames_3d=false"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [
+    "outputs/phase2_7_axis_alignment_v1/helix_axis_angle_0deg/n_3/torque_2.50e-20/flag_helix_axis_angles_timeseries.png"
+  ],
+  "user_review_points": [
+    "任意確認: 上段の0-90 deg固定範囲、rear/side参照線legend、下段のalignment threshold legendが読めるか。"
+  ],
+  "adr_required": false,
+  "adr_reason": "plotの可読性改善のみで、物理モデル・出力データ形式・依存関係の変更ではないためADRは不要。",
+  "commit_type": "complete",
+  "commit_hash": "",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/60",
+  "next_actions": [
+    "PR #60 の確認を継続する。"
+  ]
+}

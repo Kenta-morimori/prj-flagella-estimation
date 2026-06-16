@@ -407,15 +407,35 @@ def plot_flag_helix_axis_timeseries(
         ax.axvspan(stable_start, t1, color="0.9", alpha=0.5, zorder=-10)
         ax.grid(True, color="0.85", linewidth=0.8)
 
-    ax_rear.axhline(0.0, color="0.35", linestyle="--", linewidth=1.0)
-    ax_rear.axhline(90.0, color="0.35", linestyle=":", linewidth=1.0)
+    ax_rear.axhline(
+        0.0,
+        color="0.35",
+        linestyle="--",
+        linewidth=1.0,
+        label="rear axis (0 deg)",
+    )
+    ax_rear.axhline(
+        90.0,
+        color="0.35",
+        linestyle=":",
+        linewidth=1.0,
+        label="side axis (90 deg)",
+    )
+    ax_rear.set_ylim(0.0, 90.0)
     ax_rear.set_ylabel("angle vs rear [deg]")
     ax_rear.set_title("Flagellar helix-axis direction")
     ax_rear.legend(loc="best", fontsize=8)
 
-    ax_dev.axhline(float(threshold_deg), color="crimson", linestyle="--", linewidth=1.2)
+    ax_dev.axhline(
+        float(threshold_deg),
+        color="crimson",
+        linestyle="--",
+        linewidth=1.2,
+        label=f"alignment threshold ({threshold_deg:g} deg)",
+    )
     ax_dev.set_ylabel("deviation from mean axis [deg]")
     ax_dev.set_xlabel("time [s]")
+    ax_dev.legend(loc="best", fontsize=8)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=160)
