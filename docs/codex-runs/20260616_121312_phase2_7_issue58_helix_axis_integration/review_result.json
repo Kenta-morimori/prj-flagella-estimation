@@ -6,13 +6,17 @@
     "posterior_bundle または partial_bundle の成功条件はまだ確定していない。"
   ],
   "non_blocking_issues": [
-    "CLI smoke は未コミット変更を禁止する run_context のガードで一度停止した。commit後にclean worktreeで再実行する。",
+    "CLI smoke は未コミット変更を禁止する run_context のガードで一度停止したが、commit後のclean worktreeでは成功した。",
     "旧接線制御条件の診断結果は docs に履歴として残している。"
   ],
   "tests_reviewed": [
     "uv run ruff check conf scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py src/sim_swim/model/builder.py src/sim_swim/render/render3d.py src/sim_swim/sim/core.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/helix_axis.py src/sim_swim/sim/params.py tests/test_helix_axis.py tests/test_model_builder.py tests/test_params.py tests/test_phase2_7_bundling_sweep.py tests/test_render_state_and_projection.py tests/test_simulation.py",
     "uv run ruff format --check conf scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py src/sim_swim/model/builder.py src/sim_swim/render/render3d.py src/sim_swim/sim/core.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/helix_axis.py src/sim_swim/sim/params.py tests/test_helix_axis.py tests/test_model_builder.py tests/test_params.py tests/test_phase2_7_bundling_sweep.py tests/test_render_state_and_projection.py tests/test_simulation.py",
     "uv run pytest tests/test_helix_axis.py tests/test_model_builder.py tests/test_params.py tests/test_phase2_7_bundling_sweep.py tests/test_render_state_and_projection.py tests/test_simulation.py -q",
+    "commit hook: uv run ruff format --check .",
+    "commit hook: uv run ruff check .",
+    "commit hook: uv run pytest -q",
+    "uv run python -m scripts.01_simulate_swimming time.duration_s=0.001 time.dt_star=1.0e-4 flagella.n_flagella=3 flagella.initial_helix_axis_from_rear_deg=0 motor.torque_Nm=0 output.base_dir=outputs/phase2_7_helix_axis_integration_smoke output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=5 render.show_flagella_helix_axis_3d=true render.save_frames_3d=false render.save_frames_2d=false",
     "git diff --check"
   ],
   "user_review_required": true,
@@ -31,11 +35,10 @@
   "adr_required": false,
   "adr_reason": "既存の Phase 2.7 診断・出力拡張を PR #60 に統合する作業であり、新しい物理モデルや主要出力形式の決定は追加していないためADRは不要。",
   "commit_type": "diagnostic",
-  "commit_hash": "",
+  "commit_hash": "15f7a02804894254b95df977ffb7ac98e9222cd5",
   "push_status": "not_pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/60",
   "next_actions": [
-    "clean worktreeで短時間CLI smokeを再実行する。",
     "PR #60で後方螺旋中心軸条件の代表sweepを実行し、束化成功または失敗原因を確認する。",
     "PR #63 は #60 へ統合済みとしてcloseする。"
   ]

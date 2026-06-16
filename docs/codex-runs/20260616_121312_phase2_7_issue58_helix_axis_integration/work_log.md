@@ -12,7 +12,15 @@
 - `uv run ruff check ...`
 - `uv run ruff format --check ...`
 - `uv run pytest tests/test_helix_axis.py tests/test_model_builder.py tests/test_params.py tests/test_phase2_7_bundling_sweep.py tests/test_render_state_and_projection.py tests/test_simulation.py -q`
+- commit hook: `uv run ruff format --check .`, `uv run ruff check .`, `uv run pytest -q`
+- `uv run python -m scripts.01_simulate_swimming time.duration_s=0.001 time.dt_star=1.0e-4 flagella.n_flagella=3 flagella.initial_helix_axis_from_rear_deg=0 motor.torque_Nm=0 output.base_dir=outputs/phase2_7_helix_axis_integration_smoke output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=5 render.show_flagella_helix_axis_3d=true render.save_frames_3d=false render.save_frames_2d=false`
 - `git diff --check`
+
+CLI smoke output:
+
+- `outputs/phase2_7_helix_axis_integration_smoke/2026-06-16/121611/sim/step_summary.csv`
+- `outputs/phase2_7_helix_axis_integration_smoke/2026-06-16/121611/sim/flag_helix_axis_diagnostics.csv`
+- `outputs/phase2_7_helix_axis_integration_smoke/2026-06-16/121611/sim/initial_geometry_summary.json`
 
 ## 残課題
 
