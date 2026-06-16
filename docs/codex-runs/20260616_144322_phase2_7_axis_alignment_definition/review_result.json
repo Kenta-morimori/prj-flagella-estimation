@@ -49,7 +49,7 @@
   "adr_reason": "Phase 2.7 の診断定義と可視化の更新であり、新しい物理モデルや主要な出力形式の破壊的変更ではないためADRは不要。",
   "commit_type": "complete",
   "commit_hash": "44b86eff0b10dbbb914e3ab1fdf78d605bd34ac0",
-  "push_status": "not_pushed",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/60",
   "next_actions": [
     "必要に応じて n_flagella=6,9 と側方初期条件でも同じ軸整列分類を確認する。",
