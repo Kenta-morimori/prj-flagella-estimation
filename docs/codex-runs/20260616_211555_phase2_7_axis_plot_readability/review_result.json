@@ -20,8 +20,8 @@
   "adr_required": false,
   "adr_reason": "plotの可読性改善のみで、物理モデル・出力データ形式・依存関係の変更ではないためADRは不要。",
   "commit_type": "complete",
-  "commit_hash": "",
-  "push_status": "not_pushed",
+  "commit_hash": "c210ff315eb3c7da62ddee37cd4b770ca27606ea",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/60",
   "next_actions": [
     "PR #60 の確認を継続する。"
