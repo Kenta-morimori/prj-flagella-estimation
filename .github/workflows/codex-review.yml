@@ -106,7 +106,7 @@ jobs:
                   "items": {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": ["path", "line", "severity", "message"],
+                    "required": ["path", "line", "severity", "message", "suggested_code"],
                     "properties": {
                       "path": {
                         "type": "string"
@@ -151,6 +151,8 @@ jobs:
             Pull request body:
             ----
             ${{ steps.pr.outputs.body }}
+
+            For every inline_comments item, include suggested_code. Use an empty string when there is no concrete GitHub suggestion block to post.
 
             Return JSON only, matching the provided output schema. Do not wrap the JSON in Markdown fences.
 

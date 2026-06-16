@@ -23,6 +23,7 @@ Codex PRレビューは以下の構成で導入する。
 - GitHubへの投稿はCodexに任せず、workflow内の固定 `actions/github-script` で検証してから `pulls.createReview` を呼ぶ。
 - `path` と `line` がPR diff上の変更行に対応できる指摘だけinline review commentとして投稿する。
 - `suggested_code` がある場合だけGitHub Markdownの `suggestion` blockへ変換する。
+- OpenAI structured outputのschema制約に合わせ、`inline_comments` の各要素では `suggested_code` を必須キーとする。具体的な提案コードがない場合は空文字 `""` を使う。
 - inline化できない指摘はReview本文のfallback notesへ回す。
 - レビュー本文は日本語、見出しと `PASS` / `FAIL` は固定形式にする。
 
