@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR 0006: Codex Cloud Connector PR Review](0006_codex_cloud_connector_pr_review.md)
 
 ## Context
 
@@ -36,3 +36,8 @@ Codex PRレビューは以下の構成で導入する。
 そのため、ファイル全体の設計指摘、テスト不足、複数行・複数ファイルの修正提案はinline suggestionではなくReview本文に集約する。
 
 このPRレビューActionの `PASS` / `FAIL` はPR補助レビューの判定であり、リポジトリ作業完了の正本である `docs/codex-runs/<run-id>/review_result.json` とは別物として扱う。
+
+## Supersession note
+
+2026-06-17時点で、`openai/codex-action@v1` を使うGitHub Actions方式はOpenAI API keyのquota / billing設定に依存し、ChatGPT/Codex Cloud connectorによるPR reviewと二重運用になることが分かった。
+以後のPR review運用はADR 0006に従い、Cloud connectorへ一本化する。
