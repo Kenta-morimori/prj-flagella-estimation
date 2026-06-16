@@ -24,8 +24,8 @@
   "adr_reason": "AGENTS.md の ADR policy では Codex workflow の変更が重要判断に含まれるため、PRコメント起動、read-only Codex、inline suggestion fallback方式を ADR 0005 に記録した。",
   "commit_type": "complete",
   "commit_hash": "9857c95",
-  "push_status": "not_pushed",
-  "pull_request_url": "",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/66",
   "next_actions": [
     "GitHub Actions Secrets に OPENAI_API_KEY を登録する。",
     "このブランチのPRで `@codex review` を投稿し、Action起動、inline suggestion投稿、fallback本文、Final verdict の PASS/FAIL 表示を確認する。",
