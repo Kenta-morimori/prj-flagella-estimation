@@ -351,6 +351,10 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
         "flag_helix_axis_rearward_projection_min",
         "flag_helix_axis_fit_r2_min",
         "flag_helix_axis_degenerate_count",
+        "flag_helix_axis_pair_angle_deg_mean",
+        "flag_helix_axis_pair_angle_deg_max",
+        "flag_helix_axis_mean_deviation_deg_max",
+        "flag_helix_axis_alignment_order",
         "flag_flag_helix_bead_dist_min_um",
         "flag_flag_helix_close_pair_count",
         "flag_helix_bundle_radius_mean_um",
@@ -475,6 +479,9 @@ def test_initial_helix_axis_summary_reports_rearward_axis(
     first = rows[0]
 
     assert float(first["flag_helix_axis_vs_rear_angle_deg_max"]) <= 1.0
+    assert float(first["flag_helix_axis_pair_angle_deg_max"]) <= 1.0
+    assert float(first["flag_helix_axis_mean_deviation_deg_max"]) <= 1.0
+    assert float(first["flag_helix_axis_alignment_order"]) >= 0.99
     assert float(first["flag_helix_axis_rearward_projection_min"]) >= 0.99
     assert int(first["flag_helix_axis_degenerate_count"]) == 0
 
@@ -515,6 +522,10 @@ def test_phase27_step_summary_includes_bundle_and_swimming_metrics(
         "flag_helix_axis_rearward_projection_min",
         "flag_helix_axis_fit_r2_min",
         "flag_helix_axis_degenerate_count",
+        "flag_helix_axis_pair_angle_deg_mean",
+        "flag_helix_axis_pair_angle_deg_max",
+        "flag_helix_axis_mean_deviation_deg_max",
+        "flag_helix_axis_alignment_order",
         "flag_flag_helix_bead_dist_min_um",
         "flag_flag_helix_close_pair_count",
         "flag_helix_bundle_radius_mean_um",

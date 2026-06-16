@@ -251,33 +251,33 @@
 - source proposal: `docs/planning/phase2_task_proposals.md#proposal-p2-7-006-phase-27`
 - supersedes: `P2-8-007`
 - branch: `feature/phase2-58-posterior-bundling-swim`
-- goal: `n_flagella=3..9` で、螺旋形状・hook・bodyが崩壊せず、かつ後方束化する条件帯を把握する。特にトルク、hook初期角度、べん毛本数の関係を整理する。
+- goal: `n_flagella=3..9` で、螺旋形状・hook・bodyが崩壊せず、かつ複数べん毛の螺旋中心軸方向が安定的に揃う条件帯を把握する。特にトルク、初期螺旋軸角度、べん毛本数の関係を整理する。
 - background:
   - Phase 2.6 では `material_twist_local_couple` により、単一べん毛の螺旋形状維持とnet回転を確認した。
-  - 次に必要なのは、複数べん毛で collapse/fly-away せず、後方へ束化する条件を探索することである。
-  - 旧P2-7の「非崩壊性」と旧P2-8の「後方束化判定」は分離すると同じ実験を二度行うため、本タスクで統合する。
+  - 次に必要なのは、複数べん毛で collapse/fly-away せず、複数べん毛軸が安定的に揃う条件を探索することである。
+  - 旧P2-7の「非崩壊性」と旧P2-8の「後方束化判定」は分離すると同じ実験を二度行うため、本タスクで統合する。ただし本PRでは「束化」を近接ではなく軸方向の安定整列として定義する。
   - 短時間で後方束化候補を観察するには、第1ビーズを菌体長軸に対して垂直外向きに保ちつつ、初期べん毛軸を菌体後方へ向けた代表条件を作るのが有効である。hook角度は目的指標ではなく、破綻してはいけない制約として扱う。
-  - 束化は完全な二値判定が難しい。1本だけ独立し、残りが束化する部分束化もあり得るため、定量指標と目視レビューを併用する。
+  - 近接束化は完全な二値判定が難しいため、本PRでは複数べん毛の螺旋中心軸方向が後半80%で平均軸から `15 deg` 以内に揃うことを主判定にする。1本だけ軸方向が外れる場合は、時系列plot上でも外れとして確認する。
   - Issue #54 / PR #59 で、単一べん毛の代表条件として `motor.torque_Nm=2.5e-20`, `time.dt_star=1.0e-4`, `local_*_scale=1.0` を多べん毛評価へ渡すことにした。
   - PR #55 は診断用WIPであり、最新 `main` から派生した本ブランチに必要な実装だけを移植する。
 - tasks:
   - [ ] `motor.force_distribution=material_twist_local_couple`, `time.dt_star=1.0e-4`, `motor.torque_Nm=2.5e-20` を基本条件とした `n_flagella=3` representative を作る。
   - [ ] `distributed_flagellum` は診断用比較条件として残し、必要に応じて同じ `n_flagella` / torque で比較する。
   - [ ] `flagella.initial_helix_axis_from_rear_deg=0` を主条件として、第2ビーズ以降の螺旋中心軸を同一の菌体後方方向へ揃えた診断条件を作る。
-  - [ ] `motor.torque_Nm` をsweepし、崩壊しないが束化しない条件、束化する条件、崩壊する条件を分類する。
+  - [ ] `motor.torque_Nm` をsweepし、軸整列する条件、軸整列しない条件、hook巻き付き候補、崩壊する条件を分類する。
   - [ ] `n_flagella=3,6,9` を段階評価し、body/hook/flag の first-fail 分布を整理する。
-  - [ ] 束化候補指標を実装・記録する。候補は、束中心軸への距離、束参加率、独立べん毛数、束軸と菌体軸の角度、flagella間距離である。
+  - [ ] 軸整列候補指標を実装・記録する。候補は、べん毛軸同士のpair angle、平均軸からの偏差、alignment order、後方角である。
   - [ ] 第1ビーズ外向き維持の診断指標として、`local_attach_first_vs_body_axis_angle_deg` と `local_attach_first_vs_body_axis_err_deg` を記録する。
   - [ ] 各べん毛の第2ビーズ以降から螺旋中心軸を推定し、`flag_helix_axis_vs_rear_angle_deg` として後方向きかを記録する。
   - [ ] hook length drift は自動判定だけで採否を決めず、3D螺旋軸overlayと併せて定性評価する。
-  - [ ] 1本のみ独立する部分束化をFAILではなく別カテゴリとして記録する。
+  - [ ] 1本のみ軸方向が外れるケースを、`axis_not_aligned` として時系列plot上でも確認できるようにする。
   - [ ] collapse/fly-away が出る条件を再現可能な diagnostic output として保存する。
   - [ ] 代表PASS/FAIL/PARTIAL条件について、定量結果と目視レビュー対象動画を記録する。
 - acceptance criteria:
   - [ ] `n_flagella=3` で、0.5 s以上、shape gate PASS の代表条件が1つ以上ある。
-  - [ ] `n_flagella` と torque ごとの collapse / no bundle / partial bundle / posterior bundle の分類表がある。
-  - [ ] 後方束化の定量指標が `step_summary.csv` または別CSVへ記録される。
-  - [ ] 代表条件で菌体推進量、速度、body axis角度変化を報告できる。
+  - [ ] `n_flagella` と torque ごとの collapse / axis_not_aligned / hook_wrapped_axis_aligned / axis_aligned_stable の分類表がある。
+  - [ ] 軸整列の定量指標が `step_summary.csv` または別CSVへ記録される。
+  - [ ] 代表条件でべん毛軸角度の時系列plotを報告できる。
   - [ ] 目視レビューが必要な条件では、対象動画・確認観点・自動判定の限界をreview_resultに記録する。
 - current diagnostic notes:
   - 2026-06-09時点では、旧 `initial_flagellum_axis_from_rear_deg=10`, `local_*_scale=1.0`, `duration_s=0.5` の条件で、`motor.torque_Nm=2.5e-20` は `n_flagella=3,6,9` すべて `collapse / hook` となった。この旧条件はhook近傍の接線制御であり、以後の主条件にはしない。
@@ -290,6 +290,8 @@
   - `torque=5.0e-21` では0.5秒まで hook長relaxedで `no_bundle` を維持したが、`bundle_participation_ratio=0.0`, `flag_flag_close_pair_count=0` であり、束化駆動は確認できていない。
   - 2026-06-16時点では、`initial_helix_axis_from_rear_deg=0`, `duration_s=0.5`, `time.dt_star=1.0e-4` により、初期螺旋中心軸を菌体後方へ揃える診断条件を追加した。`n_flagella=3` では束化候補なし、`n_flagella=6`, `motor.torque_Nm=5.0e-21` では `shape_pass_nonbody=True` のまま close pair が出た。
   - `n_flagella=6`, `motor.torque_Nm=1.0e-20` と `2.5e-20` では hook fail 後も close pair が残るため、fail条件でも3D動画で束化候補として確認する。
+  - 2026-06-16のユーザー目視評価により、明示的な近接束ではなくても、複数べん毛軸が揃い菌体軸の揺れが小さい条件は成功候補とみなせることを確認した。本PRでは菌体軸の揺れ・移動距離は扱わず、軸整列の定量定義へ更新する。
+  - 新定義では、`n_flagella=3`, `motor.torque_Nm=2.5e-20`, `duration_s=0.5`, `time.dt_star=1.0e-4`, `initial_helix_axis_from_rear_deg=0` が `hook_wrapped_axis_aligned` になった。hook長failは残るが、平均軸からの最大偏差は `11.8841 deg` で `15 deg` 閾値を満たす。
   - 今後は、hook drift の原因解明、束化駆動の有無評価、多本数拡張、遊泳挙動評価、2D/ML用データ妥当性評価を目的別に分ける。
   - 詳細は `docs/phase2/phase2_7_bundling_stability_plan.md` に記録する。
 - docs:

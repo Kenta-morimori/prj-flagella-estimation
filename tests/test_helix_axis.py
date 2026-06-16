@@ -5,6 +5,7 @@ import numpy as np
 from sim_swim.sim.helix_axis import (
     angle_deg_between,
     estimate_flag_helix_axis,
+    helix_axis_alignment_metrics,
 )
 
 
@@ -36,3 +37,31 @@ def test_helix_axis_reports_degenerate_when_only_one_helix_bead_exists() -> None
     assert estimate.degenerate
     assert np.isnan(estimate.fit_r2)
     assert np.isnan(estimate.axis).all()
+
+
+def test_helix_axis_alignment_metrics_detects_aligned_axes() -> None:
+    metrics = helix_axis_alignment_metrics(
+        [
+            np.array([1.0, 0.0, 0.0]),
+            np.array([0.99, 0.05, 0.0]),
+            np.array([0.98, -0.05, 0.0]),
+        ]
+    )
+
+    assert metrics.pair_angle_deg_max < 10.0
+    assert metrics.mean_deviation_deg_max < 5.0
+    assert metrics.alignment_order > 0.99
+
+
+def test_helix_axis_alignment_metrics_detects_one_outlier() -> None:
+    metrics = helix_axis_alignment_metrics(
+        [
+            np.array([1.0, 0.0, 0.0]),
+            np.array([0.99, 0.05, 0.0]),
+            np.array([0.0, 1.0, 0.0]),
+        ]
+    )
+
+    assert metrics.pair_angle_deg_max > 80.0
+    assert metrics.mean_deviation_deg_max > 40.0
+    assert metrics.alignment_order < 0.9

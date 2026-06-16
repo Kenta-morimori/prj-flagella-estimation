@@ -15,6 +15,7 @@ from sim_swim.sim.helix_axis import (
     angle_deg_between,
     estimate_body_axis,
     estimate_flag_helix_axis,
+    helix_axis_alignment_metrics,
 )
 from sim_swim.sim.params import SimulationConfig
 
@@ -81,6 +82,10 @@ STEP_SUMMARY_COLUMNS = [
     "flag_helix_axis_rearward_projection_min",
     "flag_helix_axis_fit_r2_min",
     "flag_helix_axis_degenerate_count",
+    "flag_helix_axis_pair_angle_deg_mean",
+    "flag_helix_axis_pair_angle_deg_max",
+    "flag_helix_axis_mean_deviation_deg_max",
+    "flag_helix_axis_alignment_order",
     "flag_flag_helix_bead_dist_min_um",
     "flag_flag_helix_close_pair_count",
     "flag_helix_bundle_radius_mean_um",
@@ -1412,6 +1417,7 @@ class StepSummaryRecorder:
         helix_axis_angles: list[float] = []
         helix_axis_rearward_projections: list[float] = []
         helix_axis_fit_r2_values: list[float] = []
+        helix_axes: list[np.ndarray] = []
         helix_axis_degenerate_count = 0
         for flag_id, flag_indices in enumerate(self.model.flagella_indices):
             estimate = estimate_flag_helix_axis(pos_after, flag_indices, flag_id)
@@ -1425,6 +1431,8 @@ class StepSummaryRecorder:
                 helix_axis_rearward_projections.append(float(rearward_projection))
             if np.isfinite(estimate.fit_r2):
                 helix_axis_fit_r2_values.append(float(estimate.fit_r2))
+            if not estimate.degenerate and np.isfinite(estimate.axis).all():
+                helix_axes.append(estimate.axis)
 
             if self._axis_writer is None:
                 raise RuntimeError(
@@ -1468,6 +1476,7 @@ class StepSummaryRecorder:
             if helix_axis_fit_r2_values
             else float("nan")
         )
+        helix_axis_alignment = helix_axis_alignment_metrics(helix_axes)
         (
             flag_flag_helix_bead_dist_min_um,
             flag_flag_helix_close_pair_count,
@@ -1852,6 +1861,16 @@ class StepSummaryRecorder:
             ),
             "flag_helix_axis_fit_r2_min": flag_helix_axis_fit_r2_min,
             "flag_helix_axis_degenerate_count": int(helix_axis_degenerate_count),
+            "flag_helix_axis_pair_angle_deg_mean": (
+                helix_axis_alignment.pair_angle_deg_mean
+            ),
+            "flag_helix_axis_pair_angle_deg_max": (
+                helix_axis_alignment.pair_angle_deg_max
+            ),
+            "flag_helix_axis_mean_deviation_deg_max": (
+                helix_axis_alignment.mean_deviation_deg_max
+            ),
+            "flag_helix_axis_alignment_order": helix_axis_alignment.alignment_order,
             "flag_flag_helix_bead_dist_min_um": flag_flag_helix_bead_dist_min_um,
             "flag_flag_helix_close_pair_count": int(flag_flag_helix_close_pair_count),
             "flag_helix_bundle_radius_mean_um": flag_helix_bundle_radius_mean_um,

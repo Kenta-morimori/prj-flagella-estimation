@@ -28,6 +28,16 @@ class HelixAxisEstimate:
     degenerate: bool
 
 
+@dataclass(frozen=True)
+class HelixAxisAlignmentMetrics:
+    """Aggregate alignment metrics across multiple flagellar helix axes."""
+
+    pair_angle_deg_mean: float
+    pair_angle_deg_max: float
+    mean_deviation_deg_max: float
+    alignment_order: float
+
+
 def estimate_body_axis(
     positions: np.ndarray,
     body_layer_indices: list[np.ndarray],
@@ -124,3 +134,54 @@ def angle_deg_between(a: np.ndarray, b: np.ndarray) -> float:
         return float("nan")
     cos_angle = float(np.clip(np.dot(a, b) / (norm_a * norm_b), -1.0, 1.0))
     return float(np.rad2deg(np.arccos(cos_angle)))
+
+
+def helix_axis_alignment_metrics(axes: list[np.ndarray]) -> HelixAxisAlignmentMetrics:
+    """Return pairwise and mean-axis alignment metrics for oriented axes."""
+
+    unit_axes: list[np.ndarray] = []
+    for axis_raw in axes:
+        axis = np.asarray(axis_raw, dtype=float)
+        norm = float(np.linalg.norm(axis))
+        if norm <= 1.0e-18 or not np.isfinite(axis).all():
+            continue
+        unit_axes.append(axis / norm)
+
+    if not unit_axes:
+        return HelixAxisAlignmentMetrics(
+            pair_angle_deg_mean=float("nan"),
+            pair_angle_deg_max=float("nan"),
+            mean_deviation_deg_max=float("nan"),
+            alignment_order=float("nan"),
+        )
+    if len(unit_axes) == 1:
+        return HelixAxisAlignmentMetrics(
+            pair_angle_deg_mean=0.0,
+            pair_angle_deg_max=0.0,
+            mean_deviation_deg_max=0.0,
+            alignment_order=1.0,
+        )
+
+    pair_angles: list[float] = []
+    for i, axis_i in enumerate(unit_axes):
+        for axis_j in unit_axes[i + 1 :]:
+            pair_angles.append(angle_deg_between(axis_i, axis_j))
+
+    mean_vec = np.mean(np.asarray(unit_axes, dtype=float), axis=0)
+    alignment_order = float(np.linalg.norm(mean_vec))
+    mean_norm = float(np.linalg.norm(mean_vec))
+    if mean_norm <= 1.0e-18:
+        mean_deviation_max = 180.0
+    else:
+        mean_axis = mean_vec / mean_norm
+        mean_deviation_max = float(
+            np.max([angle_deg_between(axis, mean_axis) for axis in unit_axes])
+        )
+
+    pair_arr = np.asarray(pair_angles, dtype=float)
+    return HelixAxisAlignmentMetrics(
+        pair_angle_deg_mean=float(np.nanmean(pair_arr)),
+        pair_angle_deg_max=float(np.nanmax(pair_arr)),
+        mean_deviation_deg_max=mean_deviation_max,
+        alignment_order=alignment_order,
+    )
