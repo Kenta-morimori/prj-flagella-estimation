@@ -1,0 +1,34 @@
+{
+  "status": "PASS",
+  "summary": "Issue #64 に対応し、PRコメントの `@codex review` で Codex GitHub Action を起動し、可能な指摘を inline suggestion として投稿する workflow を追加した。Codex は read-only sandbox で構造化JSONを生成し、GitHubへの投稿は固定の github-script でdiff行検証後に行う。AGENTS.md にPRレビュー方針を追記し、Codex workflow変更として ADR 0005 を作成した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "ローカル環境に actionlint が無かったため、GitHub Actions専用の静的検査は未実行。代替としてRuby YAML parse、git diff --check、ruff、pytest、secret pattern検索を実行した。",
+    "実際の `@codex review` 起動、inline suggestion投稿、fallback動作は、GitHub Actions Secrets の `OPENAI_API_KEY` 登録後にテストPR上で確認する必要がある。"
+  ],
+  "tests_reviewed": [
+    "git diff --check",
+    "ruby -e 'require \"yaml\"; YAML.load_file(\".github/workflows/codex-review.yml\"); puts \"yaml ok\"'",
+    "command -v actionlint (not installed; actionlint not run locally)",
+    "uv run ruff format --check . (61 files already formatted)",
+    "uv run ruff check . (All checks passed)",
+    "uv run pytest -q (159 passed)",
+    "commit hook: uv run ruff format --check .; uv run ruff check .; uv run pytest -q (159 passed)",
+    "rg -n \"OPENAI_API_KEY\\\\s*[:=]|sk-[A-Za-z0-9]|github_pat_|ghp_\" .github AGENTS.md docs/adr/0005_codex_pr_review_action.md (no secret values; one false-positive match in AGENTS run-id example)"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": true,
+  "adr_reason": "AGENTS.md の ADR policy では Codex workflow の変更が重要判断に含まれるため、PRコメント起動、read-only Codex、inline suggestion fallback方式を ADR 0005 に記録した。",
+  "commit_type": "complete",
+  "commit_hash": "9857c95",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/66",
+  "next_actions": [
+    "GitHub Actions Secrets に OPENAI_API_KEY を登録する。",
+    "このブランチのPRで `@codex review` を投稿し、Action起動、inline suggestion投稿、fallback本文、Final verdict の PASS/FAIL 表示を確認する。",
+    "必要に応じて actionlint を導入またはローカル実行環境へ追加し、workflow構文検査を自動化する。"
+  ]
+}
