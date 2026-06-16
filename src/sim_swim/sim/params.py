@@ -6,7 +6,6 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum
 import math
 from typing import Any
-import warnings
 
 K_B = 1.380649e-23
 DT_STAR_TARGET = 1.0e-3
@@ -171,8 +170,6 @@ class FlagellumParams:
     n_flagella: int = 3
     placement_mode: str = "uniform"
     init_mode: str = "legacy_radius_pitch"
-    initial_orientation_mode: str = "side_attach"
-    initial_flagellum_axis_from_rear_deg: float | None = None
     stub_mode: str = (
         "full_flagella"  # minimal_basal_stub | extended_basal_stub_5 |
         # full_flagella
@@ -190,6 +187,7 @@ class FlagellumParams:
     bond_L_over_b: float = 0.58
     length_over_b: float = 5.8
     helix_init: FlagellaHelixInitParams = field(default_factory=FlagellaHelixInitParams)
+    initial_helix_axis_from_rear_deg: float | None = None
 
 
 @dataclass(frozen=True)
@@ -343,6 +341,7 @@ class RenderParams:
     timestamp_3d: bool = True
     timestamp_fmt: str = "t = {t:.3f} s"
     label_flagella: bool = True
+    show_flagella_helix_axis_3d: bool = False
 
     follow_camera_2d: bool = False
     center_body_in_2d: bool = True
@@ -674,32 +673,10 @@ class SimulationConfig:
                 else 2.5
             )
 
-        new_axis_angle = flag_raw.get("initial_flagellum_axis_from_rear_deg")
-        old_axis_angle = flag_raw.get("initial_tangent_vs_rear_deg")
-        if old_axis_angle not in (None, ""):
-            warnings.warn(
-                (
-                    "flagella.initial_tangent_vs_rear_deg is deprecated; use "
-                    "flagella.initial_flagellum_axis_from_rear_deg instead."
-                ),
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        if new_axis_angle not in (None, ""):
-            initial_axis_angle = float(new_axis_angle)
-        elif old_axis_angle not in (None, ""):
-            initial_axis_angle = float(old_axis_angle)
-        else:
-            initial_axis_angle = None
-
         flagella = FlagellumParams(
             n_flagella=int(_get(flag_raw, "n_flagella", 3)),
             placement_mode=str(_get(flag_raw, "placement_mode", "uniform")),
             init_mode=str(_get(flag_raw, "init_mode", "legacy_radius_pitch")),
-            initial_orientation_mode=str(
-                _get(flag_raw, "initial_orientation_mode", "side_attach")
-            ),
-            initial_flagellum_axis_from_rear_deg=initial_axis_angle,
             stub_mode=str(_get(flag_raw, "stub_mode", "full_flagella")),
             discretization=FlagellaDiscretizationParams(ds_over_b=float(ds_over_b)),
             n_beads_per_flagellum=max(2, int(n_beads_per_flagellum)),
@@ -708,6 +685,11 @@ class SimulationConfig:
             helix_init=FlagellaHelixInitParams(
                 radius_over_b=float(radius_over_b_h),
                 pitch_over_b=float(pitch_over_b_h),
+            ),
+            initial_helix_axis_from_rear_deg=(
+                float(flag_raw["initial_helix_axis_from_rear_deg"])
+                if flag_raw.get("initial_helix_axis_from_rear_deg") not in (None, "")
+                else None
             ),
         )
 
@@ -893,6 +875,9 @@ class SimulationConfig:
             timestamp_3d=bool(_get(render_raw, "timestamp_3d", True)),
             timestamp_fmt=str(_get(render_raw, "timestamp_fmt", "t = {t:.3f} s")),
             label_flagella=bool(_get(render_raw, "label_flagella", True)),
+            show_flagella_helix_axis_3d=bool(
+                _get(render_raw, "show_flagella_helix_axis_3d", False)
+            ),
             follow_camera_2d=bool(_get(render_raw, "follow_camera_2d", False)),
             center_body_in_2d=bool(_get(render_raw, "center_body_in_2d", True)),
             save_frames_2d=bool(_get(render_raw, "save_frames_2d", True)),

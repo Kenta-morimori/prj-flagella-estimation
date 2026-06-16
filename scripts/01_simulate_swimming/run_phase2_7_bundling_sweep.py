@@ -15,8 +15,7 @@ from sim_swim.sim.params import SimulationConfig, merge_overrides
 
 
 SUMMARY_FIELDS = [
-    "orientation_mode",
-    "initial_flagellum_axis_from_rear_deg",
+    "initial_helix_axis_from_rear_deg",
     "n_flagella",
     "torque_Nm",
     "duration_s",
@@ -38,6 +37,16 @@ SUMMARY_FIELDS = [
     "hook_angle_err_max_deg",
     "local_attach_first_vs_body_axis_angle_deg",
     "local_attach_first_vs_body_axis_err_deg",
+    "flag_helix_axis_vs_rear_angle_deg_min",
+    "flag_helix_axis_vs_rear_angle_deg_mean",
+    "flag_helix_axis_vs_rear_angle_deg_max",
+    "flag_helix_axis_rearward_projection_min",
+    "flag_helix_axis_fit_r2_min",
+    "flag_helix_axis_degenerate_count",
+    "flag_flag_helix_bead_dist_min_um",
+    "flag_flag_helix_close_pair_count",
+    "flag_helix_bundle_radius_mean_um",
+    "flag_helix_bundle_radius_max_um",
     "flag_bond_rel_err_max",
     "flag_bend_err_max_deg",
     "flag_torsion_err_max_deg",
@@ -67,8 +76,7 @@ STEP_SUMMARY_METRIC_FIELDS = [
     for key in SUMMARY_FIELDS
     if key
     not in {
-        "orientation_mode",
-        "initial_flagellum_axis_from_rear_deg",
+        "initial_helix_axis_from_rear_deg",
         "n_flagella",
         "torque_Nm",
         "duration_s",
@@ -90,13 +98,6 @@ def _parse_csv_floats(text: str) -> list[float]:
 
 def _parse_csv_ints(text: str) -> list[int]:
     values = [int(part.strip()) for part in text.split(",") if part.strip()]
-    if not values:
-        raise argparse.ArgumentTypeError("at least one value is required")
-    return values
-
-
-def _parse_csv_strs(text: str) -> list[str]:
-    values = [part.strip() for part in text.split(",") if part.strip()]
     if not values:
         raise argparse.ArgumentTypeError("at least one value is required")
     return values
@@ -172,8 +173,7 @@ def _net_abs_helix_spin_revolutions(rows: list[dict[str, str]]) -> float:
 def _build_config(
     raw_cfg: dict[str, Any],
     *,
-    orientation_mode: str,
-    initial_flagellum_axis_from_rear_deg: float | None,
+    initial_helix_axis_from_rear_deg: float,
     n_flagella: int,
     torque_Nm: float,
     duration_s: float,
@@ -182,13 +182,9 @@ def _build_config(
 ) -> SimulationConfig:
     override_dict = merge_overrides({}, overrides)
     flagella_overrides = override_dict.setdefault("flagella", {})
-    flagella_overrides["initial_orientation_mode"] = orientation_mode
-    if initial_flagellum_axis_from_rear_deg is not None:
-        flagella_overrides["initial_flagellum_axis_from_rear_deg"] = float(
-            initial_flagellum_axis_from_rear_deg
-        )
-    else:
-        flagella_overrides["initial_flagellum_axis_from_rear_deg"] = None
+    flagella_overrides["initial_helix_axis_from_rear_deg"] = float(
+        initial_helix_axis_from_rear_deg
+    )
     flagella_overrides["n_flagella"] = int(n_flagella)
     override_dict.setdefault("motor", {})["torque_Nm"] = float(torque_Nm)
     override_dict.setdefault("time", {})["duration_s"] = float(duration_s)
@@ -200,19 +196,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=Path("conf/sim_swim.yaml"))
     parser.add_argument(
-        "--orientation-modes",
-        type=_parse_csv_strs,
-        default=["side_attach", "posterior_aligned"],
-        help="Comma-separated initial orientation modes.",
-    )
-    parser.add_argument(
-        "--tangent-angles-deg",
+        "--helix-axis-angles-deg",
         type=_parse_csv_floats,
-        default=None,
+        default=[0.0],
         help=(
-            "Optional comma-separated flagella.initial_flagellum_axis_from_rear_deg "
-            "values. "
-            "When set, angles override orientation mode and are swept once."
+            "Comma-separated flagella.initial_helix_axis_from_rear_deg values. "
+            "0 aligns the helix center axis estimated from bead 2 onward to the "
+            "body rear direction."
         ),
     )
     parser.add_argument(
@@ -255,38 +245,22 @@ def main() -> None:
         writer = csv.DictWriter(handle, fieldnames=SUMMARY_FIELDS)
         writer.writeheader()
 
-        orientation_angle_pairs: list[tuple[str, float | None]]
-        if args.tangent_angles_deg is None:
-            orientation_angle_pairs = [
-                (str(mode), None) for mode in args.orientation_modes
-            ]
-        else:
-            orientation_angle_pairs = [
-                ("side_attach", float(angle)) for angle in args.tangent_angles_deg
-            ]
-
-        for orientation_mode, tangent_angle_deg in orientation_angle_pairs:
+        for helix_axis_angle_deg in args.helix_axis_angles_deg:
             for n_flagella in args.n_flagella:
                 for torque in args.torques:
                     cfg = _build_config(
                         raw_cfg,
-                        orientation_mode=orientation_mode,
-                        initial_flagellum_axis_from_rear_deg=tangent_angle_deg,
+                        initial_helix_axis_from_rear_deg=float(helix_axis_angle_deg),
                         n_flagella=int(n_flagella),
                         torque_Nm=float(torque),
                         duration_s=float(args.duration_s),
                         dt_star=float(args.dt_star),
                         overrides=args.overrides,
                     )
-                    angle_label = (
-                        "default"
-                        if tangent_angle_deg is None
-                        else f"{float(tangent_angle_deg):g}deg"
-                    )
+                    angle_label = f"{float(helix_axis_angle_deg):g}deg"
                     run_dir = (
                         out_dir
-                        / f"orientation_{orientation_mode}"
-                        / f"angle_{angle_label}"
+                        / f"helix_axis_angle_{angle_label}"
                         / f"n_{int(n_flagella)}"
                         / f"torque_{float(torque):.2e}"
                     )
@@ -310,11 +284,8 @@ def main() -> None:
 
                     writer.writerow(
                         {
-                            "orientation_mode": orientation_mode,
-                            "initial_flagellum_axis_from_rear_deg": (
-                                ""
-                                if tangent_angle_deg is None
-                                else float(tangent_angle_deg)
+                            "initial_helix_axis_from_rear_deg": float(
+                                helix_axis_angle_deg
                             ),
                             "n_flagella": int(n_flagella),
                             "torque_Nm": float(torque),

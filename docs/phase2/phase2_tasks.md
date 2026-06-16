@@ -263,11 +263,13 @@
 - tasks:
   - [ ] `motor.force_distribution=material_twist_local_couple`, `time.dt_star=1.0e-4`, `motor.torque_Nm=2.5e-20` を基本条件とした `n_flagella=3` representative を作る。
   - [ ] `distributed_flagellum` は診断用比較条件として残し、必要に応じて同じ `n_flagella` / torque で比較する。
-  - [ ] `flagella.initial_flagellum_axis_from_rear_deg=10` を主条件として、短時間で全べん毛が菌体後方へ向かう初期条件を作る。
-  - [ ] 必要に応じて `motor.torque_Nm` を追加sweepし、崩壊しないが束化しない条件、束化する条件、崩壊する条件を分類する。
+  - [ ] `flagella.initial_helix_axis_from_rear_deg=0` を主条件として、第2ビーズ以降の螺旋中心軸を同一の菌体後方方向へ揃えた診断条件を作る。
+  - [ ] `motor.torque_Nm` をsweepし、崩壊しないが束化しない条件、束化する条件、崩壊する条件を分類する。
   - [ ] `n_flagella=3,6,9` を段階評価し、body/hook/flag の first-fail 分布を整理する。
   - [ ] 束化候補指標を実装・記録する。候補は、束中心軸への距離、束参加率、独立べん毛数、束軸と菌体軸の角度、flagella間距離である。
   - [ ] 第1ビーズ外向き維持の診断指標として、`local_attach_first_vs_body_axis_angle_deg` と `local_attach_first_vs_body_axis_err_deg` を記録する。
+  - [ ] 各べん毛の第2ビーズ以降から螺旋中心軸を推定し、`flag_helix_axis_vs_rear_angle_deg` として後方向きかを記録する。
+  - [ ] hook length drift は自動判定だけで採否を決めず、3D螺旋軸overlayと併せて定性評価する。
   - [ ] 1本のみ独立する部分束化をFAILではなく別カテゴリとして記録する。
   - [ ] collapse/fly-away が出る条件を再現可能な diagnostic output として保存する。
   - [ ] 代表PASS/FAIL/PARTIAL条件について、定量結果と目視レビュー対象動画を記録する。
@@ -278,7 +280,7 @@
   - [ ] 代表条件で菌体推進量、速度、body axis角度変化を報告できる。
   - [ ] 目視レビューが必要な条件では、対象動画・確認観点・自動判定の限界をreview_resultに記録する。
 - current diagnostic notes:
-  - 2026-06-09時点では、`initial_flagellum_axis_from_rear_deg=10`, `local_*_scale=1.0`, `duration_s=0.5` の条件で、`motor.torque_Nm=2.5e-20` は `n_flagella=3,6,9` すべて `collapse / hook` となった。
+  - 2026-06-09時点では、旧 `initial_flagellum_axis_from_rear_deg=10`, `local_*_scale=1.0`, `duration_s=0.5` の条件で、`motor.torque_Nm=2.5e-20` は `n_flagella=3,6,9` すべて `collapse / hook` となった。この旧条件はhook近傍の接線制御であり、以後の主条件にはしない。
   - `0.5e-20..2.0e-20` へ下げても、全条件で `collapse / hook` となり、`bundle_participation_ratio=0.0`, `flag_flag_close_pair_count=0` だった。
   - `2.5e-21` まで下げると `n_flagella=3,9` は0.5秒のshape gateを通過したが、どちらも `no_bundle` であり、束化・接触・反発は確認されなかった。
   - 現時点の未達理由は、代表トルク帯では `hook_drift` が先に出ること、形状を保てる低トルクでは `no_bundle_drive` になることである。
@@ -286,8 +288,13 @@
   - hook巻き付きは実在挙動として許容し得るため、既存strict判定は残しつつ、hook長のみ `2.0` まで許容する `shape_pass_nonbody_hook_len_relaxed` と `phase27_class_hook_len_relaxed` を併記する。
   - hook長relaxed判定では、`n_flagella=3`, `torque=2.5e-20`, `time.dt_star=1.0e-4` のstrict停止時点は `no_bundle` として扱えるが、0.5秒まで継続すると `hook_len_rel_err_max=2.3783` まで伸びて relaxed 判定でも `collapse / hook` になる。
   - `torque=5.0e-21` では0.5秒まで hook長relaxedで `no_bundle` を維持したが、`bundle_participation_ratio=0.0`, `flag_flag_close_pair_count=0` であり、束化駆動は確認できていない。
+  - 2026-06-16時点では、`initial_helix_axis_from_rear_deg=0`, `duration_s=0.5`, `time.dt_star=1.0e-4` により、初期螺旋中心軸を菌体後方へ揃える診断条件を追加した。`n_flagella=3` では束化候補なし、`n_flagella=6`, `motor.torque_Nm=5.0e-21` では `shape_pass_nonbody=True` のまま close pair が出た。
+  - `n_flagella=6`, `motor.torque_Nm=1.0e-20` と `2.5e-20` では hook fail 後も close pair が残るため、fail条件でも3D動画で束化候補として確認する。
   - 今後は、hook drift の原因解明、束化駆動の有無評価、多本数拡張、遊泳挙動評価、2D/ML用データ妥当性評価を目的別に分ける。
   - 詳細は `docs/phase2/phase2_7_bundling_stability_plan.md` に記録する。
+- docs:
+  - `docs/phase2/phase2_7_bundling_stability_plan.md`
+  - `docs/phase2/phase2_7_flag_helix_axis_diagnostics.md`
 
 ## Phase 2.8: 遊泳挙動の運動指標検証
 

@@ -1,0 +1,42 @@
+{
+  "status": "FAIL",
+  "summary": "PR #63 の螺旋軸診断実装を PR #60 ブランチへ統合し、Phase 2.7 の主条件を第2ビーズ以降から推定した螺旋中心軸制御 initial_helix_axis_from_rear_deg に整理した。旧 initial_flagellum_axis_from_rear_deg / posterior_aligned 系は未merge互換aliasを残さず、履歴docsでは旧条件として明示した。",
+  "blocking_issues": [
+    "後方螺旋中心軸条件で、duration_s=0.5 の代表sweepとユーザー目視レビューが未完了である。",
+    "posterior_bundle または partial_bundle の成功条件はまだ確定していない。"
+  ],
+  "non_blocking_issues": [
+    "CLI smoke は未コミット変更を禁止する run_context のガードで一度停止した。commit後にclean worktreeで再実行する。",
+    "旧接線制御条件の診断結果は docs に履歴として残している。"
+  ],
+  "tests_reviewed": [
+    "uv run ruff check conf scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py src/sim_swim/model/builder.py src/sim_swim/render/render3d.py src/sim_swim/sim/core.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/helix_axis.py src/sim_swim/sim/params.py tests/test_helix_axis.py tests/test_model_builder.py tests/test_params.py tests/test_phase2_7_bundling_sweep.py tests/test_render_state_and_projection.py tests/test_simulation.py",
+    "uv run ruff format --check conf scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py src/sim_swim/model/builder.py src/sim_swim/render/render3d.py src/sim_swim/sim/core.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/helix_axis.py src/sim_swim/sim/params.py tests/test_helix_axis.py tests/test_model_builder.py tests/test_params.py tests/test_phase2_7_bundling_sweep.py tests/test_render_state_and_projection.py tests/test_simulation.py",
+    "uv run pytest tests/test_helix_axis.py tests/test_model_builder.py tests/test_params.py tests/test_phase2_7_bundling_sweep.py tests/test_render_state_and_projection.py tests/test_simulation.py -q",
+    "git diff --check"
+  ],
+  "user_review_required": true,
+  "user_review_command": "uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --n-flagella 3,6,9 --torques 2.5e-20 --duration-s 0.5 --dt-star 1.0e-4 --helix-axis-angles-deg 0 --output-dir outputs/phase2_7_issue58_helix_axis_bundling_v1 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.show_flagella_helix_axis_3d=true render.save_frames_3d=false",
+  "user_review_outputs": [
+    "outputs/phase2_7_issue58_helix_axis_bundling_v1/**/render/swim3d.mp4",
+    "outputs/phase2_7_issue58_helix_axis_bundling_v1/phase2_7_bundling_sweep_summary.csv",
+    "各runのsim/step_summary.csv",
+    "各runのsim/flag_helix_axis_diagnostics.csv"
+  ],
+  "user_review_points": [
+    "第2ビーズ以降から推定した螺旋中心軸が菌体後方へ重なって表示されるか。",
+    "fail判定時でも、後方側で束化または部分束化らしい接近が起きているか。",
+    "hookの菌体巻き付きが許容できる範囲か、非物理的な伸長か。"
+  ],
+  "adr_required": false,
+  "adr_reason": "既存の Phase 2.7 診断・出力拡張を PR #60 に統合する作業であり、新しい物理モデルや主要出力形式の決定は追加していないためADRは不要。",
+  "commit_type": "diagnostic",
+  "commit_hash": "",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/60",
+  "next_actions": [
+    "clean worktreeで短時間CLI smokeを再実行する。",
+    "PR #60で後方螺旋中心軸条件の代表sweepを実行し、束化成功または失敗原因を確認する。",
+    "PR #63 は #60 へ統合済みとしてcloseする。"
+  ]
+}

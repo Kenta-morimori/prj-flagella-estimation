@@ -85,15 +85,14 @@ def test_phase27_net_abs_helix_spin_revolutions_uses_phase_delta() -> None:
     assert phase27._net_abs_helix_spin_revolutions(rows) == 1.0
 
 
-def test_phase27_build_config_sets_initial_tangent_angle() -> None:
+def test_phase27_build_config_sets_initial_helix_axis_angle() -> None:
     raw_cfg = phase27._load_yaml(
         Path(__file__).resolve().parents[1] / "conf/sim_swim.yaml"
     )
 
     cfg = phase27._build_config(
         raw_cfg,
-        orientation_mode="side_attach",
-        initial_flagellum_axis_from_rear_deg=10.0,
+        initial_helix_axis_from_rear_deg=0.0,
         n_flagella=3,
         torque_Nm=0.5e-20,
         duration_s=0.02,
@@ -101,7 +100,6 @@ def test_phase27_build_config_sets_initial_tangent_angle() -> None:
         overrides=[],
     )
 
-    assert cfg.flagella.initial_orientation_mode == "side_attach"
-    assert cfg.flagella.initial_flagellum_axis_from_rear_deg == 10.0
+    assert cfg.flagella.initial_helix_axis_from_rear_deg == 0.0
     assert cfg.flagella.n_flagella == 3
     assert cfg.motor.torque_Nm == 0.5e-20

@@ -345,6 +345,16 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
         "hook_len_mean_over_b",
         "flag_bond_len_mean_over_b",
         "flag_bond_rel_err_max",
+        "flag_helix_axis_vs_rear_angle_deg_min",
+        "flag_helix_axis_vs_rear_angle_deg_mean",
+        "flag_helix_axis_vs_rear_angle_deg_max",
+        "flag_helix_axis_rearward_projection_min",
+        "flag_helix_axis_fit_r2_min",
+        "flag_helix_axis_degenerate_count",
+        "flag_flag_helix_bead_dist_min_um",
+        "flag_flag_helix_close_pair_count",
+        "flag_helix_bundle_radius_mean_um",
+        "flag_helix_bundle_radius_max_um",
         "local_attach_first_rel_err",
         "local_first_second_rel_err",
         "local_second_third_rel_err",
@@ -355,6 +365,19 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
         "local_F_repulsion_basal_region",
     ]:
         assert key in first
+
+    axis_csv_path = tmp_path / "sim" / "flag_helix_axis_diagnostics.csv"
+    assert axis_csv_path.is_file()
+    with axis_csv_path.open("r", encoding="utf-8", newline="") as f:
+        axis_rows = list(csv.DictReader(f))
+    assert len(axis_rows) == len(rows) * cfg.flagella.n_flagella
+    first_axis = axis_rows[0]
+    assert first_axis["flag_id"] == "0"
+    assert "flag_helix_axis_vs_rear_angle_deg" in first_axis
+    assert "axis_origin_x_um" in first_axis
+    assert np.isfinite(float(first["flag_helix_axis_vs_rear_angle_deg_mean"]))
+    assert np.isfinite(float(first_axis["flag_helix_axis_fit_r2"]))
+    assert int(first["flag_flag_helix_close_pair_count"]) >= 0
 
 
 def test_run_writes_initial_geometry_summary_json(tmp_path: Path) -> None:
@@ -433,7 +456,7 @@ def test_phase2_initial_geometry_summary_contract_matches_step0(
     assert float(step0["flag_torsion_err_max_deg"]) <= 1.0e-2
 
 
-def test_posterior_aligned_initial_geometry_summary_uses_rearward_tangent_contract(
+def test_initial_helix_axis_summary_reports_rearward_axis(
     tmp_path: Path,
 ) -> None:
     cfg = _make_cfg(
@@ -442,31 +465,18 @@ def test_posterior_aligned_initial_geometry_summary_uses_rearward_tangent_contra
         n_flagella=3,
         stub_mode="full_flagella",
         duration_s=0.001,
-    ).with_overrides({"flagella": {"initial_orientation_mode": "posterior_aligned"}})
+    ).with_overrides({"flagella": {"initial_helix_axis_from_rear_deg": 0.0}})
     sim = Simulator(cfg)
-    sim.run(cfg.time.duration_s, step_summary_dir=tmp_path / "posterior_initial")
-
-    data = json.loads(
-        (tmp_path / "posterior_initial" / "initial_geometry_summary.json").read_text(
-            encoding="utf-8"
-        )
+    rows = _run_and_load_step_summary(
+        sim,
+        cfg.time.duration_s,
+        tmp_path / "posterior_initial",
     )
+    first = rows[0]
 
-    assert data["flagella"]["initial_orientation_mode"] == "posterior_aligned"
-    assert data["flagella"]["geometry_contract"]["tolerances"][
-        "tangent_vs_rear_target_deg"
-    ] == pytest.approx(0.0)
-    assert [f["initial_geometry_pass"] for f in data["per_flagellum"]] == [
-        True,
-        True,
-        True,
-    ]
-    assert [
-        f["initial_tangent_vs_rear_direction_angle_deg"] for f in data["per_flagellum"]
-    ] == pytest.approx([0.0, 0.0, 0.0], abs=1.0e-6)
-    assert [
-        f["attach_first_vs_body_axis_angle_deg"] for f in data["per_flagellum"]
-    ] == pytest.approx([90.0, 90.0, 90.0], abs=1.0e-6)
+    assert float(first["flag_helix_axis_vs_rear_angle_deg_max"]) <= 1.0
+    assert float(first["flag_helix_axis_rearward_projection_min"]) >= 0.99
+    assert int(first["flag_helix_axis_degenerate_count"]) == 0
 
 
 def test_phase27_step_summary_includes_bundle_and_swimming_metrics(
@@ -478,7 +488,7 @@ def test_phase27_step_summary_includes_bundle_and_swimming_metrics(
         n_flagella=3,
         stub_mode="full_flagella",
         duration_s=0.001,
-    ).with_overrides({"flagella": {"initial_orientation_mode": "posterior_aligned"}})
+    ).with_overrides({"flagella": {"initial_helix_axis_from_rear_deg": 0.0}})
     sim = Simulator(cfg)
     rows = _run_and_load_step_summary(
         sim,
@@ -499,6 +509,16 @@ def test_phase27_step_summary_includes_bundle_and_swimming_metrics(
         "first_fail_category_nonbody_hook_len_relaxed",
         "hook_len_strict_limit",
         "hook_len_relaxed_limit",
+        "flag_helix_axis_vs_rear_angle_deg_min",
+        "flag_helix_axis_vs_rear_angle_deg_mean",
+        "flag_helix_axis_vs_rear_angle_deg_max",
+        "flag_helix_axis_rearward_projection_min",
+        "flag_helix_axis_fit_r2_min",
+        "flag_helix_axis_degenerate_count",
+        "flag_flag_helix_bead_dist_min_um",
+        "flag_flag_helix_close_pair_count",
+        "flag_helix_bundle_radius_mean_um",
+        "flag_helix_bundle_radius_max_um",
         "bundle_axis_vs_body_axis_angle_deg",
         "bundle_axis_vs_rear_angle_deg",
         "bundle_rearward_projection",

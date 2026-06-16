@@ -11,6 +11,11 @@ import numpy as np
 
 from sim_swim.dynamics.engine import StepDiagnostics
 from sim_swim.model.types import PolymorphState, SimModel
+from sim_swim.sim.helix_axis import (
+    angle_deg_between,
+    estimate_body_axis,
+    estimate_flag_helix_axis,
+)
 from sim_swim.sim.params import SimulationConfig
 
 M_TO_UM = 1.0e6
@@ -70,6 +75,16 @@ STEP_SUMMARY_COLUMNS = [
     "flag_bond_len_max_over_b",
     "flag_bond_rel_err_mean",
     "flag_bond_rel_err_max",
+    "flag_helix_axis_vs_rear_angle_deg_min",
+    "flag_helix_axis_vs_rear_angle_deg_mean",
+    "flag_helix_axis_vs_rear_angle_deg_max",
+    "flag_helix_axis_rearward_projection_min",
+    "flag_helix_axis_fit_r2_min",
+    "flag_helix_axis_degenerate_count",
+    "flag_flag_helix_bead_dist_min_um",
+    "flag_flag_helix_close_pair_count",
+    "flag_helix_bundle_radius_mean_um",
+    "flag_helix_bundle_radius_max_um",
     "body_displacement_um",
     "body_speed_um_s",
     "body_axis_step_angle_deg",
@@ -207,6 +222,21 @@ BODY_CONSTRAINT_LOCAL_DIAGNOSTICS_COLUMNS = [
     "layer_idx",
     "face_idx",
     "triangle_area",
+]
+
+FLAG_HELIX_AXIS_DIAGNOSTICS_COLUMNS = [
+    "step",
+    "t_s",
+    "flag_id",
+    "flag_helix_axis_vs_rear_angle_deg",
+    "flag_helix_axis_rearward_projection",
+    "flag_helix_axis_fit_r2",
+    "axis_origin_x_um",
+    "axis_origin_y_um",
+    "axis_origin_z_um",
+    "axis_dir_x",
+    "axis_dir_y",
+    "axis_dir_z",
 ]
 
 RAD_TO_DEG = 180.0 / np.pi
@@ -724,6 +754,56 @@ def _point_to_line_distance(
     return np.linalg.norm(points - proj, axis=1)
 
 
+def _flag_flag_helix_distance_stats_um(
+    positions_m: np.ndarray,
+    flagella_indices: list[np.ndarray],
+    close_threshold_um: float,
+) -> tuple[float, int]:
+    min_dist_um = float("nan")
+    close_count = 0
+    for i, idx_i in enumerate(flagella_indices):
+        pts_i = positions_m[np.asarray(idx_i, dtype=int)[1:]]
+        if pts_i.size == 0:
+            continue
+        for idx_j in flagella_indices[i + 1 :]:
+            pts_j = positions_m[np.asarray(idx_j, dtype=int)[1:]]
+            if pts_j.size == 0:
+                continue
+            diff = pts_i[:, None, :] - pts_j[None, :, :]
+            dist_um = np.linalg.norm(diff, axis=2) * M_TO_UM
+            pair_min = float(np.min(dist_um))
+            min_dist_um = (
+                pair_min if not np.isfinite(min_dist_um) else min(min_dist_um, pair_min)
+            )
+            close_count += int(np.count_nonzero(dist_um <= close_threshold_um))
+    return min_dist_um, close_count
+
+
+def _flag_helix_bundle_radius_stats_um(
+    positions_m: np.ndarray,
+    flagella_indices: list[np.ndarray],
+) -> tuple[float, float]:
+    helix_points = [
+        positions_m[np.asarray(idx, dtype=int)[1:]]
+        for idx in flagella_indices
+        if np.asarray(idx, dtype=int).size > 1
+    ]
+    if not helix_points:
+        return float("nan"), float("nan")
+    points = np.vstack(helix_points)
+    if points.shape[0] < 2:
+        return float("nan"), float("nan")
+    origin = np.mean(points, axis=0)
+    centered = points - origin
+    _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    axis = vh[0]
+    axis = axis / max(float(np.linalg.norm(axis)), 1.0e-18)
+    projections = centered @ axis
+    closest = origin + projections[:, None] * axis[None, :]
+    dist_um = np.linalg.norm(points - closest, axis=1) * M_TO_UM
+    return float(np.mean(dist_um)), float(np.max(dist_um))
+
+
 @dataclass
 class BodyConstraintDiagnosticsRecorder:
     """body-only安定性評価用の診断CSVを保存する。"""
@@ -1008,6 +1088,8 @@ class StepSummaryRecorder:
     out_dir: Path
     _csv_fp: TextIO | None = field(init=False, default=None, repr=False)
     _writer: csv.DictWriter | None = field(init=False, default=None, repr=False)
+    _axis_csv_fp: TextIO | None = field(init=False, default=None, repr=False)
+    _axis_writer: csv.DictWriter | None = field(init=False, default=None, repr=False)
 
     def __post_init__(self) -> None:
         self.out_dir.mkdir(parents=True, exist_ok=True)
@@ -1015,6 +1097,20 @@ class StepSummaryRecorder:
         self._csv_fp = self.step_summary_path.open("w", encoding="utf-8", newline="")
         self._writer = csv.DictWriter(self._csv_fp, fieldnames=STEP_SUMMARY_COLUMNS)
         self._writer.writeheader()
+
+        self.flag_helix_axis_diag_path = (
+            self.out_dir / "flag_helix_axis_diagnostics.csv"
+        )
+        self._axis_csv_fp = self.flag_helix_axis_diag_path.open(
+            "w",
+            encoding="utf-8",
+            newline="",
+        )
+        self._axis_writer = csv.DictWriter(
+            self._axis_csv_fp,
+            fieldnames=FLAG_HELIX_AXIS_DIAGNOSTICS_COLUMNS,
+        )
+        self._axis_writer.writeheader()
 
         self.body_mask = self.model.bead_is_body.astype(bool)
         self.flag_mask = ~self.body_mask
@@ -1217,6 +1313,7 @@ class StepSummaryRecorder:
 
     def record(self, step: int, t_star: float, diag: StepDiagnostics) -> None:
         pos_after = diag.positions_after_m
+        t_s = float(t_star * self.cfg.tau_s)
         disp_um = np.linalg.norm(pos_after - diag.positions_before_m, axis=1) * M_TO_UM
         any_nan = bool(np.isnan(pos_after).any())
         any_inf = bool(np.isinf(pos_after).any())
@@ -1307,6 +1404,82 @@ class StepSummaryRecorder:
             self.spring_rests_m,
             self.flag_intra_rows,
         )
+        body_axis = estimate_body_axis(
+            pos_after,
+            self.model.body_layer_indices,
+            self.model.body_indices,
+        )
+        helix_axis_angles: list[float] = []
+        helix_axis_rearward_projections: list[float] = []
+        helix_axis_fit_r2_values: list[float] = []
+        helix_axis_degenerate_count = 0
+        for flag_id, flag_indices in enumerate(self.model.flagella_indices):
+            estimate = estimate_flag_helix_axis(pos_after, flag_indices, flag_id)
+            angle_deg = angle_deg_between(estimate.axis, body_axis.rear_direction)
+            rearward_projection = float(np.dot(estimate.axis, body_axis.rear_direction))
+            if estimate.degenerate:
+                helix_axis_degenerate_count += 1
+            if np.isfinite(angle_deg):
+                helix_axis_angles.append(float(angle_deg))
+            if np.isfinite(rearward_projection):
+                helix_axis_rearward_projections.append(float(rearward_projection))
+            if np.isfinite(estimate.fit_r2):
+                helix_axis_fit_r2_values.append(float(estimate.fit_r2))
+
+            if self._axis_writer is None:
+                raise RuntimeError(
+                    "flag helix axis diagnostics writer is not initialized"
+                )
+            self._axis_writer.writerow(
+                {
+                    "step": int(step),
+                    "t_s": t_s,
+                    "flag_id": int(flag_id),
+                    "flag_helix_axis_vs_rear_angle_deg": angle_deg,
+                    "flag_helix_axis_rearward_projection": rearward_projection,
+                    "flag_helix_axis_fit_r2": estimate.fit_r2,
+                    "axis_origin_x_um": float(estimate.origin[0] * M_TO_UM),
+                    "axis_origin_y_um": float(estimate.origin[1] * M_TO_UM),
+                    "axis_origin_z_um": float(estimate.origin[2] * M_TO_UM),
+                    "axis_dir_x": float(estimate.axis[0]),
+                    "axis_dir_y": float(estimate.axis[1]),
+                    "axis_dir_z": float(estimate.axis[2]),
+                }
+            )
+        if self._axis_csv_fp is not None:
+            self._axis_csv_fp.flush()
+
+        flag_helix_axis_vs_rear_angle_deg_min = (
+            float(np.min(helix_axis_angles)) if helix_axis_angles else float("nan")
+        )
+        flag_helix_axis_vs_rear_angle_deg_mean = (
+            float(np.mean(helix_axis_angles)) if helix_axis_angles else float("nan")
+        )
+        flag_helix_axis_vs_rear_angle_deg_max = (
+            float(np.max(helix_axis_angles)) if helix_axis_angles else float("nan")
+        )
+        flag_helix_axis_rearward_projection_min = (
+            float(np.min(helix_axis_rearward_projections))
+            if helix_axis_rearward_projections
+            else float("nan")
+        )
+        flag_helix_axis_fit_r2_min = (
+            float(np.min(helix_axis_fit_r2_values))
+            if helix_axis_fit_r2_values
+            else float("nan")
+        )
+        (
+            flag_flag_helix_bead_dist_min_um,
+            flag_flag_helix_close_pair_count,
+        ) = _flag_flag_helix_distance_stats_um(
+            pos_after,
+            self.model.flagella_indices,
+            close_threshold_um=0.3,
+        )
+        (
+            flag_helix_bundle_radius_mean_um,
+            flag_helix_bundle_radius_max_um,
+        ) = _flag_helix_bundle_radius_stats_um(pos_after, self.model.flagella_indices)
         flag_bend_err_mean_deg = float("nan")
         flag_bend_err_max_deg = float("nan")
         if self.flag_bending_rows.size > 0:
@@ -1611,7 +1784,7 @@ class StepSummaryRecorder:
             "step": int(step),
             "t_star": float(t_star),
             "dt_star": float(diag.dt_star),
-            "t_s": float(t_star * self.cfg.tau_s),
+            "t_s": t_s,
             "dt_s": float(diag.dt_s),
             "tau_s": float(self.cfg.tau_s),
             "dt_internal_s": float(self.cfg.dt_s),
@@ -1665,6 +1838,24 @@ class StepSummaryRecorder:
             "flag_bond_len_max_over_b": flag_bond_len_max_over_b,
             "flag_bond_rel_err_mean": flag_bond_rel_err_mean,
             "flag_bond_rel_err_max": flag_bond_rel_err_max,
+            "flag_helix_axis_vs_rear_angle_deg_min": (
+                flag_helix_axis_vs_rear_angle_deg_min
+            ),
+            "flag_helix_axis_vs_rear_angle_deg_mean": (
+                flag_helix_axis_vs_rear_angle_deg_mean
+            ),
+            "flag_helix_axis_vs_rear_angle_deg_max": (
+                flag_helix_axis_vs_rear_angle_deg_max
+            ),
+            "flag_helix_axis_rearward_projection_min": (
+                flag_helix_axis_rearward_projection_min
+            ),
+            "flag_helix_axis_fit_r2_min": flag_helix_axis_fit_r2_min,
+            "flag_helix_axis_degenerate_count": int(helix_axis_degenerate_count),
+            "flag_flag_helix_bead_dist_min_um": flag_flag_helix_bead_dist_min_um,
+            "flag_flag_helix_close_pair_count": int(flag_flag_helix_close_pair_count),
+            "flag_helix_bundle_radius_mean_um": flag_helix_bundle_radius_mean_um,
+            "flag_helix_bundle_radius_max_um": flag_helix_bundle_radius_max_um,
             "body_displacement_um": body_displacement_um,
             "body_speed_um_s": body_speed_um_s,
             "body_axis_step_angle_deg": body_axis_step_angle_deg,
@@ -1795,6 +1986,10 @@ class StepSummaryRecorder:
         self.prev_body_t_s = t_s
 
     def write_csv(self) -> Path:
+        if self._axis_csv_fp is not None:
+            self._axis_csv_fp.close()
+            self._axis_csv_fp = None
+            self._axis_writer = None
         if self._csv_fp is not None:
             self._csv_fp.close()
             self._csv_fp = None
