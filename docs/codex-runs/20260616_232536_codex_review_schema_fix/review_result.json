@@ -15,9 +15,9 @@
   "adr_required": false,
   "adr_reason": "既存ADR 0005の決定内容を補足する小修正であり、新規ADRは不要。",
   "commit_type": "complete",
-  "commit_hash": "",
-  "push_status": "not_pushed",
-  "pull_request_url": "",
+  "commit_hash": "4f83ed970afd53dbe4e34b5a8f397bad5af30308",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/67",
   "next_actions": [
     "修正PRをmainへmerge後、対象PRで @codex review を再コメントする。"
   ]
