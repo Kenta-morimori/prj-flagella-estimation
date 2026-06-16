@@ -1,0 +1,27 @@
+{
+  "status": "PASS",
+  "summary": "Codex PR reviewをGitHub Actions方式からChatGPT/Codex Cloud connector方式へ移行し、自作workflowと専用promptを削除した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    "rg -n \"codex-action|OPENAI_API_KEY|codex-review.yml|GitHub Action PR review|GitHub Actions方式|\\\\.github/codex/prompts/review\\\\.md\" .github AGENTS.md docs/adr docs/codex-runs docs/planning docs/PROJECT_PLAN.md",
+    "find .github -maxdepth 3 -type f -print | sort",
+    "git diff --check",
+    "uv run ruff check .",
+    "uv run pytest -q (159 passed)"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": true,
+  "adr_reason": "PR review方式をGitHub ActionsからCloud connectorへ切り替える運用上の重要判断であるため、ADR 0006を作成した。",
+  "commit_type": "complete",
+  "commit_hash": "0aa65b790996fc05d9c223334f407b0861b840ff",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/68",
+  "next_actions": [
+    "このPRをmainへmerge後、PR #60で @codex review を再コメントしてCloud connector側のレビューを確認する。",
+    "GitHub Actions Secretsの OPENAI_API_KEY がPR review専用で不要なら、GitHub settings側で削除を検討する。"
+  ]
+}
