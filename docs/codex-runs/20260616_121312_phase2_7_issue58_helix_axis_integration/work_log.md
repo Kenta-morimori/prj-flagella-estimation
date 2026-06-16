@@ -26,3 +26,5 @@ CLI smoke output:
 
 - `duration_s=0.5`, `time.dt_star=1.0e-4`, `flagella.initial_helix_axis_from_rear_deg=0` の代表sweepと目視レビューは未完了。
 - Phase 2.7 全体はまだ `FAIL / diagnostic` 状態で、後方束化成功条件または失敗原因の確定が必要。
+- branch `feature/phase2-58-posterior-bundling-swim` はpush済み。
+- PR #60 のdescriptionを現行内容へ更新し、重複PR #63 はclose済み。

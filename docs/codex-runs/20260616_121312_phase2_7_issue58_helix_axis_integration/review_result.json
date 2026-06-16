@@ -35,11 +35,10 @@
   "adr_required": false,
   "adr_reason": "既存の Phase 2.7 診断・出力拡張を PR #60 に統合する作業であり、新しい物理モデルや主要出力形式の決定は追加していないためADRは不要。",
   "commit_type": "diagnostic",
-  "commit_hash": "15f7a02804894254b95df977ffb7ac98e9222cd5",
-  "push_status": "not_pushed",
+  "commit_hash": "5d0233ed16b05acacb8907d6d5f8be66f09c3885",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/60",
   "next_actions": [
-    "PR #60で後方螺旋中心軸条件の代表sweepを実行し、束化成功または失敗原因を確認する。",
-    "PR #63 は #60 へ統合済みとしてcloseする。"
+    "PR #60で後方螺旋中心軸条件の代表sweepを行い、束化成功または失敗原因を確認する。"
   ]
 }
