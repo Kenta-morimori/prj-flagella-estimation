@@ -33,12 +33,14 @@
 
 読む文書:
 
-- `docs/PROJECT_PLAN.md`
+- `docs/phase2/phase2_current.md`
 - `docs/TASK_MAP.md`
+- 必要な場合のみ `docs/PROJECT_PLAN.md`
 
 読み方:
 
-- 該当 phase の status と直近の progress だけ読む。
+- まず `phase2_current.md` の現在地と参照先だけ読む。
+- `PROJECT_PLAN.md` は全体地図や phase-level context が必要な場合だけ、該当 phase の status と直近の progress に絞って読む。
 - 全履歴を毎回読み直さない。
 
 ## Accepted Tasks
@@ -74,22 +76,13 @@
 - issue が Phase 2.7 なら Phase 2.7 doc を優先し、Phase 2.6 docs は代表条件や前提が必要な範囲だけ読む。
 - 過去の失敗条件を探すときは `outputs/` ではなく、まず docs と `docs/codex-runs/*/review_result.json` を読む。
 
-## Legacy Prompts
+## Removed Legacy Context
 
-読む条件:
+現行リポジトリでは `prompts/` を source of truth として扱わない。
 
-- `AGENTS.md` / `docs/PROJECT_PLAN.md` へ移行中の内容が必要。
-- 古い acceptance criteria や original prompt の根拠が必要。
+古い acceptance criteria や original prompt の根拠が必要な場合は、Git履歴、issue/PR履歴、`docs/codex-runs/*/review_result.json` を先に確認する。
 
-読む文書:
-
-- `prompts/00_project_context.md`
-- `prompts/01_repo_rules.md`
-- relevant `prompts/phase*/`
-
-注意:
-
-- 現在の正本は `AGENTS.md` と `docs/PROJECT_PLAN.md`。legacy prompt は補助として扱う。
+`prompts/` を再導入しない。
 
 ## Codex Run Logs
 
@@ -106,3 +99,4 @@
 
 - まず `review_result.json` を読む。
 - 詳細な reasoning が必要な場合だけ同じ run の `work_log.md` を読む。
+- `work_log.md`、長い logs、CSV、生成物はデフォルトで全文表示しない。

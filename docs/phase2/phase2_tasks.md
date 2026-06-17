@@ -208,7 +208,7 @@
 
 ### P2-6-009: トルク伝搬機構を修正した拡張モデルの詳細評価
 
-- status: in_progress
+- status: complete
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/54`
 - parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/53`
 - branch: `feature/phase2-54-torque-transmission-eval`
@@ -245,7 +245,7 @@
 
 ### P2-7-006: 複数べん毛で崩壊せず後方束化する条件を探索する
 
-- status: in_progress
+- status: complete
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/58`
 - parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/53`
 - source proposal: `docs/planning/phase2_task_proposals.md#proposal-p2-7-006-phase-27`
@@ -261,24 +261,24 @@
   - Issue #54 / PR #59 で、単一べん毛の代表条件として `motor.torque_Nm=2.5e-20`, `time.dt_star=1.0e-4`, `local_*_scale=1.0` を多べん毛評価へ渡すことにした。
   - PR #55 は診断用WIPであり、最新 `main` から派生した本ブランチに必要な実装だけを移植する。
 - tasks:
-  - [ ] `motor.force_distribution=material_twist_local_couple`, `time.dt_star=1.0e-4`, `motor.torque_Nm=2.5e-20` を基本条件とした `n_flagella=3` representative を作る。
-  - [ ] `distributed_flagellum` は診断用比較条件として残し、必要に応じて同じ `n_flagella` / torque で比較する。
-  - [ ] `flagella.initial_helix_axis_from_rear_deg=0` を主条件として、第2ビーズ以降の螺旋中心軸を同一の菌体後方方向へ揃えた診断条件を作る。
-  - [ ] `motor.torque_Nm` をsweepし、軸整列する条件、軸整列しない条件、hook巻き付き候補、崩壊する条件を分類する。
-  - [ ] `n_flagella=3,6,9` を段階評価し、body/hook/flag の first-fail 分布を整理する。
-  - [ ] 軸整列候補指標を実装・記録する。候補は、べん毛軸同士のpair angle、平均軸からの偏差、alignment order、後方角である。
-  - [ ] 第1ビーズ外向き維持の診断指標として、`local_attach_first_vs_body_axis_angle_deg` と `local_attach_first_vs_body_axis_err_deg` を記録する。
-  - [ ] 各べん毛の第2ビーズ以降から螺旋中心軸を推定し、`flag_helix_axis_vs_rear_angle_deg` として後方向きかを記録する。
-  - [ ] hook length drift は自動判定だけで採否を決めず、3D螺旋軸overlayと併せて定性評価する。
-  - [ ] 1本のみ軸方向が外れるケースを、`axis_not_aligned` として時系列plot上でも確認できるようにする。
-  - [ ] collapse/fly-away が出る条件を再現可能な diagnostic output として保存する。
-  - [ ] 代表PASS/FAIL/PARTIAL条件について、定量結果と目視レビュー対象動画を記録する。
+  - [x] `motor.force_distribution=material_twist_local_couple`, `time.dt_star=1.0e-4`, `motor.torque_Nm=2.5e-20` を基本条件とした `n_flagella=3` representative を作る。
+  - [x] `distributed_flagellum` は診断用比較条件として残し、必要に応じて同じ `n_flagella` / torque で比較する。
+  - [x] `flagella.initial_helix_axis_from_rear_deg=0` を主条件として、第2ビーズ以降の螺旋中心軸を同一の菌体後方方向へ揃えた診断条件を作る。
+  - [x] `motor.torque_Nm` をsweepし、軸整列する条件、軸整列しない条件、hook巻き付き候補、崩壊する条件を分類する。
+  - [x] `n_flagella=3,6,9` を段階評価し、body/hook/flag の first-fail 分布を整理する。
+  - [x] 軸整列候補指標を実装・記録する。候補は、べん毛軸同士のpair angle、平均軸からの偏差、alignment order、後方角である。
+  - [x] 第1ビーズ外向き維持の診断指標として、`local_attach_first_vs_body_axis_angle_deg` と `local_attach_first_vs_body_axis_err_deg` を記録する。
+  - [x] 各べん毛の第2ビーズ以降から螺旋中心軸を推定し、`flag_helix_axis_vs_rear_angle_deg` として後方向きかを記録する。
+  - [x] hook length drift は自動判定だけで採否を決めず、3D螺旋軸overlayと併せて定性評価する。
+  - [x] 1本のみ軸方向が外れるケースを、`axis_not_aligned` として時系列plot上でも確認できるようにする。
+  - [x] collapse/fly-away が出る条件を再現可能な diagnostic output として保存する。
+  - [x] 代表条件について、定量結果と任意確認対象plotを記録する。
 - acceptance criteria:
-  - [ ] `n_flagella=3` で、0.5 s以上、shape gate PASS の代表条件が1つ以上ある。
-  - [ ] `n_flagella` と torque ごとの collapse / axis_not_aligned / hook_wrapped_axis_aligned / axis_aligned_stable の分類表がある。
-  - [ ] 軸整列の定量指標が `step_summary.csv` または別CSVへ記録される。
-  - [ ] 代表条件でべん毛軸角度の時系列plotを報告できる。
-  - [ ] 目視レビューが必要な条件では、対象動画・確認観点・自動判定の限界をreview_resultに記録する。
+  - [x] `n_flagella=3` で、0.5 s以上、`hook_wrapped_axis_aligned` の代表条件が1つ以上ある。
+  - [x] `n_flagella` と torque ごとの collapse / axis_not_aligned / hook_wrapped_axis_aligned / axis_aligned_stable の分類表がある。
+  - [x] 軸整列の定量指標が `step_summary.csv` または別CSVへ記録される。
+  - [x] 代表条件でべん毛軸角度の時系列plotを報告できる。
+  - [x] 目視レビューは必須ではなく任意確認とし、対象plot・確認観点・自動判定の限界をreview_resultに記録する。
 - current diagnostic notes:
   - 2026-06-09時点では、旧 `initial_flagellum_axis_from_rear_deg=10`, `local_*_scale=1.0`, `duration_s=0.5` の条件で、`motor.torque_Nm=2.5e-20` は `n_flagella=3,6,9` すべて `collapse / hook` となった。この旧条件はhook近傍の接線制御であり、以後の主条件にはしない。
   - `0.5e-20..2.0e-20` へ下げても、全条件で `collapse / hook` となり、`bundle_participation_ratio=0.0`, `flag_flag_close_pair_count=0` だった。
@@ -298,45 +298,86 @@
   - `docs/phase2/phase2_7_bundling_stability_plan.md`
   - `docs/phase2/phase2_7_flag_helix_axis_diagnostics.md`
 
-## Phase 2.8: 遊泳挙動の運動指標検証
+## Phase 2.8: RUN状態のべん毛本数差による菌体挙動検証
 
-### P2-8-008: 束化条件で菌体の推進・姿勢変化を定量化する
+### P2-8-008: RUN状態のべん毛数による菌体挙動の変化を検証する
 
 - status: accepted
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/65`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/10`
 - source proposal: `docs/planning/phase2_task_proposals.md#proposal-p2-9-008-phase-29`
 - renumbered from proposal: `P2-9-008`
-- branch: `feature/phase2-8-swimming-motion-metrics`
-- goal: 複数べん毛が回転する条件で、菌体がどの程度推進し、どの程度姿勢を変えるかを定量化する。
+- branch: `feature/phase2-65-run-flagella-count-motion`
+- goal: RUN固定条件で、べん毛本数が菌体の推進、姿勢安定性、螺旋軸整列、揺れに与える影響を定量評価する。
 - background:
-  - べん毛が回転し束化しても、遊泳らしい推進や姿勢安定性が出るとは限らない。
-  - べん毛束軸と菌体軸がずれると、菌体が揺れる・首振りする・角度を変える可能性がある。
-  - 本数差により、推進速度、姿勢揺らぎ、角度変化が変わる可能性がある。
+  - P2-7 / Issue #58 では、近接束ではなく複数べん毛螺旋中心軸が安定的に揃うことを束化成功定義として検証した。
+  - 代表条件は `hook_wrapped_axis_aligned` であり、hook length fail は残るが、螺旋軸は後半80%で `15 deg` 閾値内に揃った。
+  - ユーザー目視では、明示的な近接束でなくても、複数べん毛軸が揃うことで菌体軸の揺れが小さくなる可能性が確認された。
+  - 次に必要なのは、RUN固定状態でべん毛本数を変えたときに推進量、姿勢安定性、揺れがどう変わるかを定量比較することである。
+- default conditions:
+  - `motor.enable_switching=false`
+  - `motor.force_distribution=material_twist_local_couple`
+  - `time.dt_star=1.0e-4`
+  - `flagella.initial_helix_axis_from_rear_deg=0`
+  - `output_sampling.out_all_steps_3d=false`
+  - `output_sampling.fps_out_3d=25`
 - tasks:
+  - [ ] `n_flagella=1,3,6,9` のRUN固定代表条件を定義する。
   - [ ] body重心trajectory、body axis、body angular velocityを時系列出力・集計する。
-  - [ ] べん毛束軸を定義し、bundle axis と body axis の角度を出力する。
+  - [ ] べん毛螺旋軸の平均軸を使い、flag helix axis と body axis の角度を出力する。
   - [ ] 遊泳速度、直進性、姿勢角の累積変化、姿勢揺らぎRMS、角速度RMSを指標化する。
-  - [ ] `n_flagella=1,3,6,9` で、推進量と姿勢安定性の差を比較する。
-  - [ ] fly-awayや異常回転を運動指標で検出する。
+  - [ ] 本数ごとの推進量、姿勢安定性、軸整列、hook_wrapped発生を比較する。
+  - [ ] fly-away、異常回転、hook drift を運動指標と shape gate の両方で検出する。
+  - [ ] 代表動画またはplotを用意し、目視レビューが必要かをreview_resultに記録する。
 - acceptance criteria:
-  - [ ] 遊泳指標CSVが再現可能に出力される。
-  - [ ] 少なくとも1条件で、推進速度・body axis角度変化・bundle-body軸角度を報告できる。
-  - [ ] 本数差による挙動比較の最小表がある。
+  - [ ] `n_flagella=1,3,6,9` の本数差比較表がある。
+  - [ ] 遊泳指標CSVまたはsummary CSVが再現可能に出力される。
+  - [ ] 少なくとも1条件で、推進速度、body axis角度変化、flag helix axis/body axis角度を報告できる。
+  - [ ] `hook_wrapped_axis_aligned` 条件をRUN評価で許容するか、除外するかの扱いが明記されている。
+  - [ ] 代表条件の自動判定限界と、ユーザー目視レビュー要否がreview_resultに記録される。
 
-## Phase 2.9: 動画出力・サンプリング整備
+## Completed support task: 動画出力・サンプリング整備
 
 ### P2-9-009: 3D/2D動画出力のレビュー向けサンプリングを整備する
 
-- status: accepted
+- status: complete
 - branch: `feature/phase2-9-output-sampling`
 - background:
   - `dt_star=1.0e-4` では内部step数が多く、3D出力を全step保存するとファイル数・動画生成時間が大きくなる。
   - 2D側には `fps_out_2d` があるが、3D側にも同様の `fps_out_3d` が必要である。
 - tasks:
-  - [ ] `output_sampling.fps_out_3d` を追加する。
-  - [ ] 3D render / frame保存 / manifest に `fps_out_3d` を反映する。
-  - [ ] 既存の `output_sampling.out_all_steps_3d` との優先順位を定義する。
-  - [ ] CLI overrideで `output_sampling.fps_out_3d=100` のように指定できることを確認する。
+  - [x] `output_sampling.fps_out_3d` を追加する。
+  - [x] 3D render / frame保存 / manifest に `fps_out_3d` を反映する。
+  - [x] 既存の `output_sampling.out_all_steps_3d` との優先順位を定義する。
+  - [x] CLI overrideで `output_sampling.fps_out_3d=100` のように指定できることを確認する。
 - acceptance criteria:
-  - [ ] `dt_star=1.0e-4`, `duration_s>=0.5` でも3D動画フレーム数を制御できる。
-  - [ ] manifestに3D出力サンプリング条件が記録される。
-  - [ ] 既存の全step保存挙動を必要時に維持できる。
+  - [x] `dt_star=1.0e-4`, `duration_s>=0.5` でも3D動画フレーム数を制御できる。
+  - [x] manifestに3D出力サンプリング条件が記録される。
+  - [x] 既存の全step保存挙動を必要時に維持できる。
+- docs:
+  - `docs/codex-runs/20260609_014607_phase2_fps_out_3d_sampling/review_result.json`
+
+## Phase 2.9: Tumble状態の段階実装
+
+### P2-9-010: Tumble状態を段階実装する
+
+- status: accepted
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/69`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/10`
+- branch: `feature/phase2-69-tumble-state`
+- goal: 現行のRUN固定モデルを前提に、Tumble状態を設計・診断・motor reversal・polymorph切替・run-and-tumble評価へ段階分割して実装する。
+- background:
+  - 参照論文では、tumble時にモーター回転反転と normal / semicoiled / curly1 などのpolymorph切替が関係する。
+  - 現行MVPでは `motor.enable_switching=false` によりRUN固定を基本にしている。
+  - #65 でRUN固定条件の本数差と姿勢安定性を評価した後、Tumbleを導入することで方向転換やrun-and-tumble挙動を扱えるようにする。
+- stages:
+  - [ ] Stage 1: 現行run固定実装と論文tumble要素の差分を整理し、必要なstate, config, diagnostics, testsを設計する。
+  - [ ] Stage 2: motor reversal の最小実装を追加し、短時間で形状・トルク伝搬・ログが壊れないことを検証する。
+  - [ ] Stage 3: normal / semicoiled / curly1 のpolymorph state切替を導入し、平衡 bending / torsion 値と state transition log を検証する。
+  - [ ] Stage 4: run-and-tumble挙動として、姿勢変化、方向転換、動画自然さを評価する。
+- acceptance criteria:
+  - [ ] 各stageでreview_resultを分け、Tumble全体の完了を一括で主張しない。
+  - [ ] `motor.enable_switching=false` のRUN固定挙動を壊さない。
+  - [ ] motor reversal とpolymorph切替の状態遷移が `step_summary.csv` または別CSVに記録される。
+  - [ ] normal / semicoiled / curly1 の平衡角と論文モデルとの差分が文書化される。
+  - [ ] 代表run-and-tumble条件について、姿勢変化または方向転換指標と目視レビュー要否が記録される。

@@ -15,7 +15,7 @@
 
 限界:
 
-- Skill は自動で source of truth を更新しない。`AGENTS.md`、`docs/PROJECT_PLAN.md`、`docs/phase2/*` が肥大化し続けると効果は下がる。
+- Skill は自動で source of truth を更新しない。`AGENTS.md`、`docs/PROJECT_PLAN.md`、`docs/phase2/*`、`docs/codex/*` が肥大化し続けると効果は下がる。
 - 実際に効果を出すには、issue 本文に task type、対象 phase、期待する完了範囲を書く必要がある。
 
 ## Lightweight vs Heavyweight Work
@@ -77,8 +77,9 @@
 
 ## Other Reduction Ideas
 
-1. `docs/codex-notes/phase2_current_index.md` を作る。
-   - Phase 2 の current representative、最新 issue、最新 PR、読むべき doc を1ページにまとめる。
+1. `docs/phase2/phase2_current.md` を保守する。
+   - Phase 2 の current representative、最新 issue、最新 PR、読むべき doc を短くまとめる。
+   - 原則 100〜150 行以内に抑え、詳細履歴は参照先へ逃がす。
    - 長い `docs/PROJECT_PLAN.md` と `docs/phase2/phase2_tasks.md` を毎回読む頻度を下げる。
 
 2. `docs/codex-runs/RUN_INDEX.md` を作る。

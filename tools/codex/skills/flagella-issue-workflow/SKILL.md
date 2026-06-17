@@ -30,14 +30,16 @@ description: Use for issue-driven Codex work in this repository when handling Gi
 常に全部読まず、作業タイプで読む文書を絞る。
 
 - どの文書を読むか迷う場合は `references/context-routing.md` を読む。
-- review_result、commit、push、PR 完了条件が必要な場合は `references/completion-policy.md` を読む。
+- review_result、commit、push、PR 完了条件が必要な場合は `docs/codex/codex_workflow.md` を読む。
 - リソース削減方針、軽量/重量タスクの分け方、今後の issue 化候補が必要な場合は `references/resource-reduction.md` を読む。
 
 基本ルール:
 
 - `AGENTS.md` は repo policy の正本として扱う。
-- `docs/PROJECT_PLAN.md` は phase 全体の現在地を確認するときだけ読む。
+- Phase 2 work はまず `docs/phase2/phase2_current.md` を読む。
 - `docs/phase2/phase2_tasks.md` は採択済み Phase 2 task の status / acceptance criteria を確認するときだけ読む。
+- `docs/PROJECT_PLAN.md` は全体地図や phase-level context が必要なときだけ読む。
+- Codex workflow の詳細は必要時だけ `docs/codex/codex_workflow.md` を読む。
 - 個別 task の詳細は、該当する `docs/phase*/phase*_*.md` だけ読む。
 - 過去 run log は、該当 issue / branch / phase に直接関係するものだけ読む。
 
@@ -73,4 +75,6 @@ description: Use for issue-driven Codex work in this repository when handling Gi
 - 1回の issue で「方針検討」と「実装・実行」を混ぜすぎない。必要なら PR を分ける。
 - full test / long simulation / video render は、acceptance criteria に必要な場合だけ実行する。
 - 既存 docs の探索は `rg` で候補を絞ってから読む。
+- 長い Markdown、logs、CSV、`work_log.md` はデフォルトで全文表示しない。
+- 過去 run は `review_result.json` を先に読み、必要時だけ `work_log.md` を読む。
 - 最終報告では、読んだもの、変えたもの、走らせたもの、走らせなかったものを短く明示する。
