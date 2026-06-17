@@ -33,12 +33,14 @@
 
 読む文書:
 
-- `docs/PROJECT_PLAN.md`
+- `docs/phase2/phase2_current.md`
 - `docs/TASK_MAP.md`
+- 必要な場合のみ `docs/PROJECT_PLAN.md`
 
 読み方:
 
-- 該当 phase の status と直近の progress だけ読む。
+- まず `phase2_current.md` の現在地と参照先だけ読む。
+- `PROJECT_PLAN.md` は全体地図や phase-level context が必要な場合だけ、該当 phase の status と直近の progress に絞って読む。
 - 全履歴を毎回読み直さない。
 
 ## Accepted Tasks
@@ -78,7 +80,7 @@
 
 読む条件:
 
-- `AGENTS.md` / `docs/PROJECT_PLAN.md` へ移行中の内容が必要。
+- `AGENTS.md` / `docs/` へ移行済みか確認する必要がある。
 - 古い acceptance criteria や original prompt の根拠が必要。
 
 読む文書:
@@ -89,7 +91,7 @@
 
 注意:
 
-- 現在の正本は `AGENTS.md` と `docs/PROJECT_PLAN.md`。legacy prompt は補助として扱う。
+- Historical prompts are not source of truth. 現在の正本は `AGENTS.md` と `docs/`。legacy prompt は履歴・移行確認の補助として扱う。
 
 ## Codex Run Logs
 
@@ -106,3 +108,4 @@
 
 - まず `review_result.json` を読む。
 - 詳細な reasoning が必要な場合だけ同じ run の `work_log.md` を読む。
+- `work_log.md`、長い logs、CSV、生成物はデフォルトで全文表示しない。

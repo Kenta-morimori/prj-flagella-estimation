@@ -16,12 +16,21 @@ The overall pipeline is:
 
 The current main development focus is **Phase 2: physical simulation and 2D projection**.
 
-Before phase-level work, always read:
+Default context entrypoints:
 
-* `docs/PROJECT_PLAN.md`
-* relevant files under `docs/phase*/` if they exist
-* relevant task prompts under `prompts/phase*/` if they exist
-* `prompts/00_project_context.md` and `prompts/01_repo_rules.md` while migration to `AGENTS.md` / `docs/PROJECT_PLAN.md` is still in progress
+* Always start from this `AGENTS.md`, the user's latest request, and the target GitHub issue or PR when one is provided.
+* For Phase 2 work, read `docs/phase2/phase2_current.md` first as the short current-state entry point.
+* Read `docs/phase2/phase2_tasks.md` only when accepted task status, acceptance criteria, or checkbox updates are relevant.
+* Read `docs/PROJECT_PLAN.md` only when the overall project map or phase-level context is needed.
+* Read detailed `docs/phase*/phase*_*.md`, ADRs, and `docs/codex-runs/*/review_result.json` only when they are directly relevant to the task.
+* Historical files under `prompts/` are not sources of truth. Read them only for migration checks or historical context that is not available from `AGENTS.md` or `docs/`.
+
+Context reading policy:
+
+* Prefer targeted `rg -n` searches before opening long Markdown files, logs, CSVs, or JSONL-like outputs.
+* Read only the relevant sections of long documents by default.
+* Do not `cat` full Markdown files, large logs, CSVs, or `work_log.md` by default.
+* For prior Codex runs, read `review_result.json` before `work_log.md`.
 
 ## Language policy
 
@@ -109,7 +118,7 @@ If user visual review is required but not completed, the task must not be marked
 
 ## Planning and issue policy
 
-Codex may propose task decomposition based on `docs/PROJECT_PLAN.md`.
+Codex may propose task decomposition based on `docs/phase2/phase2_current.md`, `docs/phase2/phase2_tasks.md`, and `docs/PROJECT_PLAN.md` as needed.
 
 Task proposals must be recorded under:
 
@@ -320,11 +329,13 @@ Codex notes are summaries and indexes, not sources of truth.
 If a Codex note conflicts with any of the following, the source document takes precedence:
 
 * `AGENTS.md`
+* `docs/phase2/phase2_current.md`
+* `docs/phase*/phase*_tasks.md`
 * `docs/PROJECT_PLAN.md`
 * `docs/adr/`
-* `docs/phase*/phase*_tasks.md`
 * accepted GitHub issues
-* task prompts under `prompts/phase*/`
+
+Historical prompts under `prompts/` are not sources of truth. Use them only when checking migration history or original task context.
 
 Codex notes may contain:
 

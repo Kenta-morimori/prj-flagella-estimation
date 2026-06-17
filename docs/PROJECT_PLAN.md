@@ -6,7 +6,17 @@
 
 また，Codex CLIがタスク分解・実装・レビューを行う際に参照する，プロジェクト全体の地図として扱う。
 
-個別タスクの詳細，Codex実行ログ，ADRは別ファイルで管理する。
+ただし，Codex CLIの通常の入口ではない。Phase 2の現在地はまず `docs/phase2/phase2_current.md` を読み，このファイルは全体地図や phase-level context が必要な場合に参照する。
+
+個別タスクの詳細，Codex実行ログ，ADR，詳細な実験履歴は別ファイルで管理する。
+
+主な正本の優先順位は以下である。
+
+* Repository-wide rules: `AGENTS.md`
+* Current Phase 2 entry point: `docs/phase2/phase2_current.md`
+* Accepted task status: `docs/phase2/phase2_tasks.md`
+* Overall project map: `docs/PROJECT_PLAN.md`
+* Historical prompts: source of truth ではない
 
 ---
 
@@ -753,15 +763,16 @@ Codex用メモは正本ではなく，索引・要約・作業補助のための
 
 本ブランチでは，`docs/00_overview.md` の内容を本ファイルへ移行し，`docs/00_overview.md` は削除する。
 
-一方で，`prompts/00_project_context.md` と `prompts/01_repo_rules.md` は，Phase 2の詳細要件や既存運用が多く含まれているため，ただちに削除しない。
+一方で，`prompts/00_project_context.md` と `prompts/01_repo_rules.md` は，履歴確認や移行漏れ確認に使う可能性があるため，ただちに削除しない。ただし，これらは現在の正本ではない。
 
 今後，内容を以下へ段階的に移行する。
 
 * 恒久ルール: `AGENTS.md`
+* Phase 2の現在地と入口: `docs/phase2/phase2_current.md`
 * 全体方針・フェーズ・重要論点: `docs/PROJECT_PLAN.md`
 * フェーズ詳細: `docs/phase*/`
   * `docs/phase*/` 配下のファイル名は，対象フェーズが分かるように `phase2_6_...md` のような Phase 接頭辞で始める。
-* 個別タスク指示: `prompts/phase*/`
+* 旧個別タスク指示: `prompts/phase*/` は履歴として扱い，通常参照しない。
 
 ---
 

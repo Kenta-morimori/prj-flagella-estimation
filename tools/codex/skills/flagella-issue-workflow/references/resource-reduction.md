@@ -77,8 +77,9 @@
 
 ## Other Reduction Ideas
 
-1. `docs/codex-notes/phase2_current_index.md` を作る。
-   - Phase 2 の current representative、最新 issue、最新 PR、読むべき doc を1ページにまとめる。
+1. `docs/phase2/phase2_current.md` を保守する。
+   - Phase 2 の current representative、最新 issue、最新 PR、読むべき doc を短くまとめる。
+   - 原則 100〜150 行以内に抑え、詳細履歴は参照先へ逃がす。
    - 長い `docs/PROJECT_PLAN.md` と `docs/phase2/phase2_tasks.md` を毎回読む頻度を下げる。
 
 2. `docs/codex-runs/RUN_INDEX.md` を作る。
