@@ -90,6 +90,48 @@ def _principal_axis(points: np.ndarray) -> np.ndarray:
     return axis / norm
 
 
+def _axis_basis(axis: np.ndarray, phase_hint: np.ndarray) -> np.ndarray:
+    axis = axis / max(float(np.linalg.norm(axis)), 1e-12)
+    v = phase_hint - float(np.dot(phase_hint, axis)) * axis
+    v_norm = float(np.linalg.norm(v))
+    if v_norm <= 1e-12:
+        candidates = (
+            np.array([1.0, 0.0, 0.0], dtype=float),
+            np.array([0.0, 1.0, 0.0], dtype=float),
+            np.array([0.0, 0.0, 1.0], dtype=float),
+        )
+        for candidate in candidates:
+            v = candidate - float(np.dot(candidate, axis)) * axis
+            v_norm = float(np.linalg.norm(v))
+            if v_norm > 1e-12:
+                break
+    v = v / max(v_norm, 1e-12)
+    w = np.cross(axis, v)
+    w = w / max(float(np.linalg.norm(w)), 1e-12)
+    return np.column_stack([axis, v, w])
+
+
+def _direction_from_rear_angle(
+    rear_dir: np.ndarray,
+    radial_unit: np.ndarray,
+    angle_deg: float,
+) -> np.ndarray:
+    rear = rear_dir / max(float(np.linalg.norm(rear_dir)), 1e-12)
+    radial = radial_unit / max(float(np.linalg.norm(radial_unit)), 1e-12)
+    lateral = radial - float(np.dot(radial, rear)) * rear
+    lateral_norm = float(np.linalg.norm(lateral))
+    if lateral_norm <= 1e-12:
+        lateral = np.cross(rear, np.array([0.0, 0.0, 1.0], dtype=float))
+        lateral_norm = float(np.linalg.norm(lateral))
+        if lateral_norm <= 1e-12:
+            lateral = np.cross(rear, np.array([0.0, 1.0, 0.0], dtype=float))
+            lateral_norm = float(np.linalg.norm(lateral))
+    lateral = lateral / max(lateral_norm, 1e-12)
+    angle = math.radians(float(angle_deg))
+    direction = math.cos(angle) * rear + math.sin(angle) * lateral
+    return direction / max(float(np.linalg.norm(direction)), 1e-12)
+
+
 def _segment_pairs_without_neighbors(spring_pairs: np.ndarray) -> np.ndarray:
     pairs: list[tuple[int, int]] = []
     m = spring_pairs.shape[0]
@@ -369,34 +411,63 @@ class ModelBuilder:
                 radial_unit = rear_dir
             else:
                 radial_unit = radial / radial_norm
-            axis_u = radial_unit
             hook_offset_um = hook_length_um * radial_unit
+            initial_helix_axis_from_rear_deg = (
+                cfg.flagella.initial_helix_axis_from_rear_deg
+            )
+            if initial_helix_axis_from_rear_deg is None:
+                axis_u = radial_unit
 
-            ref = np.array([1.0, 0.0, 0.0], dtype=float)
-            if abs(float(np.dot(axis_u, ref))) > 0.9:
-                ref = np.array([0.0, 0.0, 1.0], dtype=float)
-            axis_v = np.cross(axis_u, ref)
-            axis_v_norm = float(np.linalg.norm(axis_v))
-            if axis_v_norm <= 1e-12:
-                ref = np.array([0.0, 1.0, 0.0], dtype=float)
+                ref = np.array([1.0, 0.0, 0.0], dtype=float)
+                if abs(float(np.dot(axis_u, ref))) > 0.9:
+                    ref = np.array([0.0, 0.0, 1.0], dtype=float)
                 axis_v = np.cross(axis_u, ref)
                 axis_v_norm = float(np.linalg.norm(axis_v))
-            axis_v /= max(axis_v_norm, 1e-12)
-            axis_w = np.cross(axis_u, axis_v)
+                if axis_v_norm <= 1e-12:
+                    ref = np.array([0.0, 1.0, 0.0], dtype=float)
+                    axis_v = np.cross(axis_u, ref)
+                    axis_v_norm = float(np.linalg.norm(axis_v))
+                axis_v /= max(axis_v_norm, 1e-12)
+                axis_w = np.cross(axis_u, axis_v)
 
-            local_tangent0 = local_points[1] - local_points[0]
-            local_tangent_norm = max(float(np.linalg.norm(local_tangent0)), 1e-12)
-            local_u = local_tangent0 / local_tangent_norm
-            local_ref = np.array([0.0, 0.0, 1.0], dtype=float)
-            if abs(float(np.dot(local_u, local_ref))) > 0.9:
-                local_ref = np.array([0.0, 1.0, 0.0], dtype=float)
-            local_v = np.cross(local_ref, local_u)
-            local_v /= max(float(np.linalg.norm(local_v)), 1e-12)
-            local_w = np.cross(local_u, local_v)
+                local_tangent0 = local_points[1] - local_points[0]
+                local_tangent_norm = max(float(np.linalg.norm(local_tangent0)), 1e-12)
+                local_u = local_tangent0 / local_tangent_norm
+                local_ref = np.array([0.0, 0.0, 1.0], dtype=float)
+                if abs(float(np.dot(local_u, local_ref))) > 0.9:
+                    local_ref = np.array([0.0, 1.0, 0.0], dtype=float)
+                local_v = np.cross(local_ref, local_u)
+                local_v /= max(float(np.linalg.norm(local_v)), 1e-12)
+                local_w = np.cross(local_u, local_v)
 
-            local_rot = np.column_stack([local_u, local_v, local_w])
-            world_rot = np.column_stack([axis_u, axis_v, axis_w])
-            rot = world_rot @ local_rot.T
+                local_rot = np.column_stack([local_u, local_v, local_w])
+                world_rot = np.column_stack([axis_u, axis_v, axis_w])
+                rot = world_rot @ local_rot.T
+            else:
+                local_helix_points = local_points[1:]
+                local_axis = _principal_axis(local_helix_points)
+                if (
+                    float(
+                        np.dot(
+                            local_axis,
+                            local_helix_points[-1] - local_helix_points[0],
+                        )
+                    )
+                    < 0.0
+                ):
+                    local_axis = -local_axis
+                local_phase_hint = local_helix_points[0] - np.mean(
+                    local_helix_points,
+                    axis=0,
+                )
+                target_axis = _direction_from_rear_angle(
+                    rear_dir,
+                    radial_unit,
+                    initial_helix_axis_from_rear_deg,
+                )
+                local_rot = _axis_basis(local_axis, local_phase_hint)
+                world_rot = _axis_basis(target_axis, radial_unit)
+                rot = world_rot @ local_rot.T
 
             flag_points = attach_point + hook_offset_um + local_points @ rot.T
             tangent0 = flag_points[1] - flag_points[0]
@@ -405,7 +476,10 @@ class ModelBuilder:
                 math.acos(float(np.clip(np.dot(tangent0, rear_dir), -1.0, 1.0)))
             )
             target_angle_deg = 90.0
-            if abs(angle_deg - target_angle_deg) > 10.0 + 1e-8:
+            if (
+                initial_helix_axis_from_rear_deg is None
+                and abs(angle_deg - target_angle_deg) > 10.0 + 1e-8
+            ):
                 raise ValueError(
                     "Flagellum base tangent is not aligned to expected direction:"
                     f" angle_deg={angle_deg:.6f}, target_angle_deg={target_angle_deg:.6f}"

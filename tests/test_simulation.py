@@ -345,6 +345,20 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
         "hook_len_mean_over_b",
         "flag_bond_len_mean_over_b",
         "flag_bond_rel_err_max",
+        "flag_helix_axis_vs_rear_angle_deg_min",
+        "flag_helix_axis_vs_rear_angle_deg_mean",
+        "flag_helix_axis_vs_rear_angle_deg_max",
+        "flag_helix_axis_rearward_projection_min",
+        "flag_helix_axis_fit_r2_min",
+        "flag_helix_axis_degenerate_count",
+        "flag_helix_axis_pair_angle_deg_mean",
+        "flag_helix_axis_pair_angle_deg_max",
+        "flag_helix_axis_mean_deviation_deg_max",
+        "flag_helix_axis_alignment_order",
+        "flag_flag_helix_bead_dist_min_um",
+        "flag_flag_helix_close_pair_count",
+        "flag_helix_bundle_radius_mean_um",
+        "flag_helix_bundle_radius_max_um",
         "local_attach_first_rel_err",
         "local_first_second_rel_err",
         "local_second_third_rel_err",
@@ -355,6 +369,19 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
         "local_F_repulsion_basal_region",
     ]:
         assert key in first
+
+    axis_csv_path = tmp_path / "sim" / "flag_helix_axis_diagnostics.csv"
+    assert axis_csv_path.is_file()
+    with axis_csv_path.open("r", encoding="utf-8", newline="") as f:
+        axis_rows = list(csv.DictReader(f))
+    assert len(axis_rows) == len(rows) * cfg.flagella.n_flagella
+    first_axis = axis_rows[0]
+    assert first_axis["flag_id"] == "0"
+    assert "flag_helix_axis_vs_rear_angle_deg" in first_axis
+    assert "axis_origin_x_um" in first_axis
+    assert np.isfinite(float(first["flag_helix_axis_vs_rear_angle_deg_mean"]))
+    assert np.isfinite(float(first_axis["flag_helix_axis_fit_r2"]))
+    assert int(first["flag_flag_helix_close_pair_count"]) >= 0
 
 
 def test_run_writes_initial_geometry_summary_json(tmp_path: Path) -> None:
@@ -431,6 +458,117 @@ def test_phase2_initial_geometry_summary_contract_matches_step0(
     )
     assert float(step0["flag_bend_err_max_deg"]) <= 1.0e-2
     assert float(step0["flag_torsion_err_max_deg"]) <= 1.0e-2
+
+
+def test_initial_helix_axis_summary_reports_rearward_axis(
+    tmp_path: Path,
+) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0,
+        hook_enabled=True,
+        n_flagella=3,
+        stub_mode="full_flagella",
+        duration_s=0.001,
+    ).with_overrides({"flagella": {"initial_helix_axis_from_rear_deg": 0.0}})
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(
+        sim,
+        cfg.time.duration_s,
+        tmp_path / "posterior_initial",
+    )
+    first = rows[0]
+
+    assert float(first["flag_helix_axis_vs_rear_angle_deg_max"]) <= 1.0
+    assert float(first["flag_helix_axis_pair_angle_deg_max"]) <= 1.0
+    assert float(first["flag_helix_axis_mean_deviation_deg_max"]) <= 1.0
+    assert float(first["flag_helix_axis_alignment_order"]) >= 0.99
+    assert float(first["flag_helix_axis_rearward_projection_min"]) >= 0.99
+    assert int(first["flag_helix_axis_degenerate_count"]) == 0
+
+
+def test_phase27_step_summary_includes_bundle_and_swimming_metrics(
+    tmp_path: Path,
+) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=0.0,
+        hook_enabled=True,
+        n_flagella=3,
+        stub_mode="full_flagella",
+        duration_s=0.001,
+    ).with_overrides({"flagella": {"initial_helix_axis_from_rear_deg": 0.0}})
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(
+        sim,
+        cfg.time.duration_s,
+        tmp_path / "phase27_metrics",
+    )
+    first = rows[0]
+
+    for key in [
+        "body_displacement_um",
+        "body_speed_um_s",
+        "body_axis_cumulative_angle_deg",
+        "body_axis_wobble_rms_deg",
+        "body_angular_velocity_rms_rad_s",
+        "shape_pass_nonbody_strict",
+        "first_fail_category_nonbody_strict",
+        "shape_pass_nonbody_hook_len_relaxed",
+        "first_fail_category_nonbody_hook_len_relaxed",
+        "hook_len_strict_limit",
+        "hook_len_relaxed_limit",
+        "flag_helix_axis_vs_rear_angle_deg_min",
+        "flag_helix_axis_vs_rear_angle_deg_mean",
+        "flag_helix_axis_vs_rear_angle_deg_max",
+        "flag_helix_axis_rearward_projection_min",
+        "flag_helix_axis_fit_r2_min",
+        "flag_helix_axis_degenerate_count",
+        "flag_helix_axis_pair_angle_deg_mean",
+        "flag_helix_axis_pair_angle_deg_max",
+        "flag_helix_axis_mean_deviation_deg_max",
+        "flag_helix_axis_alignment_order",
+        "flag_flag_helix_bead_dist_min_um",
+        "flag_flag_helix_close_pair_count",
+        "flag_helix_bundle_radius_mean_um",
+        "flag_helix_bundle_radius_max_um",
+        "bundle_axis_vs_body_axis_angle_deg",
+        "bundle_axis_vs_rear_angle_deg",
+        "bundle_rearward_projection",
+        "local_attach_first_vs_body_axis_angle_deg",
+        "local_attach_first_vs_body_axis_err_deg",
+        "bundle_tip_axis_dist_mean_um",
+        "bundle_participation_ratio",
+        "bundle_independent_flagella_count",
+        "flag_tip_pair_dist_mean_um",
+        "flag_flag_bead_pair_dist_min_um",
+        "flag_flag_bead_pair_dist_mean_um",
+        "flag_flag_close_pair_count",
+        "flag_flag_repulsion_force_mean_N",
+        "flag_flag_repulsion_force_max_N",
+        "flag_flag_basal_repulsion_force_mean_N",
+        "flag_flag_basal_repulsion_force_max_N",
+    ]:
+        assert key in first
+
+    assert float(first["bundle_axis_vs_rear_angle_deg"]) == pytest.approx(
+        0.0,
+        abs=1.0e-5,
+    )
+    assert float(first["bundle_rearward_projection"]) == pytest.approx(1.0)
+    assert first["shape_pass_nonbody_strict"] in {"True", "true", "1"}
+    assert first["shape_pass_nonbody_hook_len_relaxed"] in {"True", "true", "1"}
+    assert float(first["hook_len_strict_limit"]) == pytest.approx(1.0)
+    assert float(first["hook_len_relaxed_limit"]) == pytest.approx(2.0)
+    assert float(first["local_attach_first_vs_body_axis_angle_deg"]) == pytest.approx(
+        90.0,
+        abs=1.0e-5,
+    )
+    assert float(first["local_attach_first_vs_body_axis_err_deg"]) == pytest.approx(
+        0.0,
+        abs=1.0e-5,
+    )
+    assert float(first["bundle_participation_ratio"]) >= 0.0
+    assert float(first["flag_flag_bead_pair_dist_min_um"]) > 0.0
+    assert int(first["flag_flag_close_pair_count"]) >= 0
 
 
 def test_phase1_body_static_stability(tmp_path: Path) -> None:

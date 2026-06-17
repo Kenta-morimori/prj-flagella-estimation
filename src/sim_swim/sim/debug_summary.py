@@ -11,6 +11,12 @@ import numpy as np
 
 from sim_swim.dynamics.engine import StepDiagnostics
 from sim_swim.model.types import PolymorphState, SimModel
+from sim_swim.sim.helix_axis import (
+    angle_deg_between,
+    estimate_body_axis,
+    estimate_flag_helix_axis,
+    helix_axis_alignment_metrics,
+)
 from sim_swim.sim.params import SimulationConfig
 
 M_TO_UM = 1.0e6
@@ -29,6 +35,12 @@ STEP_SUMMARY_COLUMNS = [
     "finite_pass",
     "shape_pass_nonbody",
     "first_fail_category_nonbody",
+    "shape_pass_nonbody_strict",
+    "first_fail_category_nonbody_strict",
+    "shape_pass_nonbody_hook_len_relaxed",
+    "first_fail_category_nonbody_hook_len_relaxed",
+    "hook_len_strict_limit",
+    "hook_len_relaxed_limit",
     "mean_disp_um",
     "max_disp_um",
     "bond_count_body_body",
@@ -53,6 +65,8 @@ STEP_SUMMARY_COLUMNS = [
     "hook_angle_max_deg",
     "hook_angle_err_mean_deg",
     "hook_angle_err_max_deg",
+    "local_attach_first_vs_body_axis_angle_deg",
+    "local_attach_first_vs_body_axis_err_deg",
     "flag_bend_err_mean_deg",
     "flag_bend_err_max_deg",
     "flag_torsion_err_mean_deg",
@@ -62,6 +76,43 @@ STEP_SUMMARY_COLUMNS = [
     "flag_bond_len_max_over_b",
     "flag_bond_rel_err_mean",
     "flag_bond_rel_err_max",
+    "flag_helix_axis_vs_rear_angle_deg_min",
+    "flag_helix_axis_vs_rear_angle_deg_mean",
+    "flag_helix_axis_vs_rear_angle_deg_max",
+    "flag_helix_axis_rearward_projection_min",
+    "flag_helix_axis_fit_r2_min",
+    "flag_helix_axis_degenerate_count",
+    "flag_helix_axis_pair_angle_deg_mean",
+    "flag_helix_axis_pair_angle_deg_max",
+    "flag_helix_axis_mean_deviation_deg_max",
+    "flag_helix_axis_alignment_order",
+    "flag_flag_helix_bead_dist_min_um",
+    "flag_flag_helix_close_pair_count",
+    "flag_helix_bundle_radius_mean_um",
+    "flag_helix_bundle_radius_max_um",
+    "body_displacement_um",
+    "body_speed_um_s",
+    "body_axis_step_angle_deg",
+    "body_axis_cumulative_angle_deg",
+    "body_axis_wobble_rms_deg",
+    "body_angular_velocity_rms_rad_s",
+    "bundle_axis_vs_body_axis_angle_deg",
+    "bundle_axis_vs_rear_angle_deg",
+    "bundle_rearward_projection",
+    "bundle_tip_axis_dist_mean_um",
+    "bundle_tip_axis_dist_max_um",
+    "bundle_participation_ratio",
+    "bundle_independent_flagella_count",
+    "flag_tip_pair_dist_mean_um",
+    "flag_tip_pair_dist_min_um",
+    "flag_tip_pair_dist_max_um",
+    "flag_flag_bead_pair_dist_min_um",
+    "flag_flag_bead_pair_dist_mean_um",
+    "flag_flag_close_pair_count",
+    "flag_flag_repulsion_force_mean_N",
+    "flag_flag_repulsion_force_max_N",
+    "flag_flag_basal_repulsion_force_mean_N",
+    "flag_flag_basal_repulsion_force_max_N",
     "F_total_mean_body",
     "F_total_mean_flag",
     "F_total_mean_all",
@@ -178,9 +229,25 @@ BODY_CONSTRAINT_LOCAL_DIAGNOSTICS_COLUMNS = [
     "triangle_area",
 ]
 
+FLAG_HELIX_AXIS_DIAGNOSTICS_COLUMNS = [
+    "step",
+    "t_s",
+    "flag_id",
+    "flag_helix_axis_vs_rear_angle_deg",
+    "flag_helix_axis_rearward_projection",
+    "flag_helix_axis_fit_r2",
+    "axis_origin_x_um",
+    "axis_origin_y_um",
+    "axis_origin_z_um",
+    "axis_dir_x",
+    "axis_dir_y",
+    "axis_dir_z",
+]
+
 RAD_TO_DEG = 180.0 / np.pi
 
 NONBODY_HOOK_REL_ERR_MAX_LIMIT = 1.0
+NONBODY_HOOK_REL_ERR_RELAXED_MAX_LIMIT = 2.0
 NONBODY_HOOK_ANGLE_ERR_MAX_DEG_LIMIT = 30.0
 NONBODY_FLAG_BOND_REL_ERR_MAX_LIMIT = 1.0
 NONBODY_FLAG_BEND_ERR_MAX_DEG_LIMIT = 60.0
@@ -289,6 +356,7 @@ def _check_nonbody_shape_pass(
     has_flag_torsion: bool,
     local_attach_first_rel_err: float,
     hook_len_rel_err_max: float,
+    hook_len_rel_err_limit: float,
     hook_angle_err_max_deg: float,
     flag_bond_rel_err_max: float,
     flag_bend_err_max_deg: float,
@@ -304,9 +372,9 @@ def _check_nonbody_shape_pass(
         hook_metrics.append(hook_angle_err_max_deg)
     if any(not _is_finite_number(v) for v in hook_metrics):
         return False, "hook_nonfinite"
-    if has_hook_pair and local_attach_first_rel_err > NONBODY_HOOK_REL_ERR_MAX_LIMIT:
+    if has_hook_pair and local_attach_first_rel_err > hook_len_rel_err_limit:
         return False, "hook"
-    if has_hook_pair and hook_len_rel_err_max > NONBODY_HOOK_REL_ERR_MAX_LIMIT:
+    if has_hook_pair and hook_len_rel_err_max > hook_len_rel_err_limit:
         return False, "hook"
     if has_hook_angle and hook_angle_err_max_deg > NONBODY_HOOK_ANGLE_ERR_MAX_DEG_LIMIT:
         return False, "hook"
@@ -431,6 +499,250 @@ def _pair_rel_error_stats(
     return float(np.mean(rel)), float(np.max(rel))
 
 
+def _unit_vector(vec: np.ndarray) -> np.ndarray:
+    norm = float(np.linalg.norm(vec))
+    if norm <= 1e-18:
+        return np.zeros(3, dtype=float)
+    return vec / norm
+
+
+def _angle_between_deg(a: np.ndarray, b: np.ndarray) -> float:
+    a_u = _unit_vector(a)
+    b_u = _unit_vector(b)
+    if float(np.linalg.norm(a_u)) <= 1e-18 or float(np.linalg.norm(b_u)) <= 1e-18:
+        return float("nan")
+    return float(np.rad2deg(np.arccos(float(np.clip(np.dot(a_u, b_u), -1.0, 1.0)))))
+
+
+def _body_center_axis_rear(
+    positions_m: np.ndarray, model: SimModel
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    body_idx = model.body_indices.astype(int, copy=False)
+    center = np.mean(positions_m[body_idx], axis=0)
+    if len(model.body_layer_indices) >= 2:
+        first = model.body_layer_indices[0].astype(int, copy=False)
+        last = model.body_layer_indices[-1].astype(int, copy=False)
+        c_first = np.mean(positions_m[first], axis=0)
+        c_last = np.mean(positions_m[last], axis=0)
+        axis = _unit_vector(c_last - c_first)
+    else:
+        axis = np.array([1.0, 0.0, 0.0], dtype=float)
+    if float(np.linalg.norm(axis)) <= 1e-18:
+        axis = np.array([1.0, 0.0, 0.0], dtype=float)
+    rear = -axis
+    return center, axis, rear
+
+
+def _flag_tip_pair_stats_um(tips_m: np.ndarray) -> tuple[float, float, float]:
+    if tips_m.shape[0] < 2:
+        return float("nan"), float("nan"), float("nan")
+    dists: list[float] = []
+    for i in range(tips_m.shape[0]):
+        for j in range(i + 1, tips_m.shape[0]):
+            dists.append(float(np.linalg.norm(tips_m[i] - tips_m[j]) * M_TO_UM))
+    arr = np.asarray(dists, dtype=float)
+    return float(np.mean(arr)), float(np.min(arr)), float(np.max(arr))
+
+
+def _attach_first_body_axis_metrics(
+    positions_m: np.ndarray,
+    hook_triplets: np.ndarray,
+    body_axis: np.ndarray,
+) -> dict[str, float]:
+    if hook_triplets.size == 0:
+        return {
+            "local_attach_first_vs_body_axis_angle_deg": float("nan"),
+            "local_attach_first_vs_body_axis_err_deg": float("nan"),
+        }
+
+    angles: list[float] = []
+    for attach_raw, first_raw, _second_raw in hook_triplets.astype(int, copy=False):
+        attach = int(attach_raw)
+        first = int(first_raw)
+        attach_first = positions_m[first] - positions_m[attach]
+        angle = _angle_between_deg(attach_first, body_axis)
+        if np.isfinite(angle):
+            angles.append(float(angle))
+
+    if not angles:
+        return {
+            "local_attach_first_vs_body_axis_angle_deg": float("nan"),
+            "local_attach_first_vs_body_axis_err_deg": float("nan"),
+        }
+    arr = np.asarray(angles, dtype=float)
+    return {
+        "local_attach_first_vs_body_axis_angle_deg": float(np.mean(arr)),
+        "local_attach_first_vs_body_axis_err_deg": float(np.max(np.abs(arr - 90.0))),
+    }
+
+
+def _bundle_metrics(
+    positions_m: np.ndarray,
+    model: SimModel,
+    cfg: SimulationConfig,
+    body_axis: np.ndarray,
+    rear_dir: np.ndarray,
+) -> dict[str, float | int]:
+    n_flagella = len(model.flagella_indices)
+    if n_flagella <= 0:
+        return {
+            "bundle_axis_vs_body_axis_angle_deg": float("nan"),
+            "bundle_axis_vs_rear_angle_deg": float("nan"),
+            "bundle_rearward_projection": float("nan"),
+            "bundle_tip_axis_dist_mean_um": float("nan"),
+            "bundle_tip_axis_dist_max_um": float("nan"),
+            "bundle_participation_ratio": float("nan"),
+            "bundle_independent_flagella_count": 0,
+            "flag_tip_pair_dist_mean_um": float("nan"),
+            "flag_tip_pair_dist_min_um": float("nan"),
+            "flag_tip_pair_dist_max_um": float("nan"),
+        }
+
+    roots = np.asarray(
+        [positions_m[int(idx[0])] for idx in model.flagella_indices],
+        dtype=float,
+    )
+    tips = np.asarray(
+        [positions_m[int(idx[-1])] for idx in model.flagella_indices],
+        dtype=float,
+    )
+    root_center = np.mean(roots, axis=0)
+    tip_center = np.mean(tips, axis=0)
+    bundle_axis = _unit_vector(tip_center - root_center)
+    if float(np.linalg.norm(bundle_axis)) <= 1e-18:
+        bundle_axis_body_angle = float("nan")
+        bundle_axis_rear_angle = float("nan")
+        rearward_projection = float("nan")
+        tip_axis_dist_um = np.full((n_flagella,), float("nan"), dtype=float)
+    else:
+        angle_forward = _angle_between_deg(bundle_axis, body_axis)
+        angle_rear = _angle_between_deg(bundle_axis, -body_axis)
+        bundle_axis_body_angle = float(np.nanmin([angle_forward, angle_rear]))
+        bundle_axis_rear_angle = _angle_between_deg(bundle_axis, rear_dir)
+        rearward_projection = float(np.dot(bundle_axis, rear_dir))
+        p1 = root_center + bundle_axis
+        tip_axis_dist_um = _point_to_line_distance(tips, root_center, p1) * M_TO_UM
+
+    threshold_um = max(0.75 * float(cfg.scale.b_um), 1e-12)
+    if np.isfinite(tip_axis_dist_um).all():
+        participants = tip_axis_dist_um <= threshold_um
+        participation_ratio = float(np.mean(participants))
+        independent_count = int(np.sum(~participants))
+        tip_axis_dist_mean_um = float(np.mean(tip_axis_dist_um))
+        tip_axis_dist_max_um = float(np.max(tip_axis_dist_um))
+    else:
+        participation_ratio = float("nan")
+        independent_count = n_flagella
+        tip_axis_dist_mean_um = float("nan")
+        tip_axis_dist_max_um = float("nan")
+
+    pair_mean, pair_min, pair_max = _flag_tip_pair_stats_um(tips)
+    return {
+        "bundle_axis_vs_body_axis_angle_deg": bundle_axis_body_angle,
+        "bundle_axis_vs_rear_angle_deg": bundle_axis_rear_angle,
+        "bundle_rearward_projection": rearward_projection,
+        "bundle_tip_axis_dist_mean_um": tip_axis_dist_mean_um,
+        "bundle_tip_axis_dist_max_um": tip_axis_dist_max_um,
+        "bundle_participation_ratio": participation_ratio,
+        "bundle_independent_flagella_count": independent_count,
+        "flag_tip_pair_dist_mean_um": pair_mean,
+        "flag_tip_pair_dist_min_um": pair_min,
+        "flag_tip_pair_dist_max_um": pair_max,
+    }
+
+
+def _flag_flag_repulsion_metrics(
+    positions_m: np.ndarray,
+    flag_bead_indices: np.ndarray,
+    flag_bead_ids: np.ndarray,
+    basal_flag_bead_indices: np.ndarray,
+    cfg: SimulationConfig,
+) -> dict[str, float | int]:
+    if flag_bead_indices.size < 2:
+        return {
+            "flag_flag_bead_pair_dist_min_um": float("nan"),
+            "flag_flag_bead_pair_dist_mean_um": float("nan"),
+            "flag_flag_close_pair_count": 0,
+            "flag_flag_repulsion_force_mean_N": 0.0,
+            "flag_flag_repulsion_force_max_N": 0.0,
+            "flag_flag_basal_repulsion_force_mean_N": 0.0,
+            "flag_flag_basal_repulsion_force_max_N": 0.0,
+        }
+
+    cutoff_m = (
+        float(cfg.potentials.spring_spring_repulsion.cutoff_over_b)
+        * max(float(cfg.scale.b_um), 1e-12)
+        * 1.0e-6
+    )
+    a_length_m = (
+        float(cfg.potentials.spring_spring_repulsion.a_ss_over_b)
+        * max(float(cfg.scale.b_um), 1e-12)
+        * 1.0e-6
+    )
+    a_ss = float(cfg.potentials.spring_spring_repulsion.A_ss_over_T) * float(
+        cfg.torque_for_forces_Nm
+    )
+    cutoff_eff = max(cutoff_m, 0.0)
+    a_eff = max(a_length_m, 1e-12)
+
+    beads = flag_bead_indices.astype(int, copy=False)
+    flag_ids = flag_bead_ids.astype(int, copy=False)
+    pts = positions_m[beads]
+    diffs = pts[:, None, :] - pts[None, :, :]
+    distances_full = np.linalg.norm(diffs, axis=2)
+    different_flag = flag_ids[:, None] != flag_ids[None, :]
+    upper = np.triu(np.ones(distances_full.shape, dtype=bool), k=1)
+    mask = upper & different_flag
+    distances = distances_full[mask]
+    if distances.size == 0:
+        return {
+            "flag_flag_bead_pair_dist_min_um": float("nan"),
+            "flag_flag_bead_pair_dist_mean_um": float("nan"),
+            "flag_flag_close_pair_count": 0,
+            "flag_flag_repulsion_force_mean_N": 0.0,
+            "flag_flag_repulsion_force_max_N": 0.0,
+            "flag_flag_basal_repulsion_force_mean_N": 0.0,
+            "flag_flag_basal_repulsion_force_max_N": 0.0,
+        }
+
+    active_distances = distances[distances < cutoff_eff]
+    active = (
+        (a_ss / a_eff) * np.exp(-active_distances / a_eff)
+        if active_distances.size > 0
+        else np.zeros((0,), dtype=float)
+    )
+    basal = basal_flag_bead_indices.astype(int, copy=False)
+    if basal.size > 0:
+        basal_local = np.isin(beads, basal)
+        basal_pair_mask = mask & (basal_local[:, None] | basal_local[None, :])
+        basal_distances = distances_full[basal_pair_mask]
+        active_basal_distances = basal_distances[basal_distances < cutoff_eff]
+        if active_basal_distances.size > 0:
+            basal_active = (a_ss / a_eff) * np.exp(-active_basal_distances / a_eff)
+            basal_mean = float(np.mean(np.abs(basal_active)))
+            basal_max = float(np.max(np.abs(basal_active)))
+        else:
+            basal_mean = 0.0
+            basal_max = 0.0
+    else:
+        basal_mean = float("nan")
+        basal_max = float("nan")
+
+    return {
+        "flag_flag_bead_pair_dist_min_um": float(np.min(distances) * M_TO_UM),
+        "flag_flag_bead_pair_dist_mean_um": float(np.mean(distances) * M_TO_UM),
+        "flag_flag_close_pair_count": int(active.size),
+        "flag_flag_repulsion_force_mean_N": (
+            float(np.mean(np.abs(active))) if active.size > 0 else 0.0
+        ),
+        "flag_flag_repulsion_force_max_N": (
+            float(np.max(np.abs(active))) if active.size > 0 else 0.0
+        ),
+        "flag_flag_basal_repulsion_force_mean_N": basal_mean,
+        "flag_flag_basal_repulsion_force_max_N": basal_max,
+    }
+
+
 def _triangle_area(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> float:
     return 0.5 * float(np.linalg.norm(np.cross(b - a, c - a)))
 
@@ -445,6 +757,56 @@ def _point_to_line_distance(
     u = d / d_norm
     proj = p0[None, :] + ((points - p0[None, :]) @ u)[:, None] * u[None, :]
     return np.linalg.norm(points - proj, axis=1)
+
+
+def _flag_flag_helix_distance_stats_um(
+    positions_m: np.ndarray,
+    flagella_indices: list[np.ndarray],
+    close_threshold_um: float,
+) -> tuple[float, int]:
+    min_dist_um = float("nan")
+    close_count = 0
+    for i, idx_i in enumerate(flagella_indices):
+        pts_i = positions_m[np.asarray(idx_i, dtype=int)[1:]]
+        if pts_i.size == 0:
+            continue
+        for idx_j in flagella_indices[i + 1 :]:
+            pts_j = positions_m[np.asarray(idx_j, dtype=int)[1:]]
+            if pts_j.size == 0:
+                continue
+            diff = pts_i[:, None, :] - pts_j[None, :, :]
+            dist_um = np.linalg.norm(diff, axis=2) * M_TO_UM
+            pair_min = float(np.min(dist_um))
+            min_dist_um = (
+                pair_min if not np.isfinite(min_dist_um) else min(min_dist_um, pair_min)
+            )
+            close_count += int(np.count_nonzero(dist_um <= close_threshold_um))
+    return min_dist_um, close_count
+
+
+def _flag_helix_bundle_radius_stats_um(
+    positions_m: np.ndarray,
+    flagella_indices: list[np.ndarray],
+) -> tuple[float, float]:
+    helix_points = [
+        positions_m[np.asarray(idx, dtype=int)[1:]]
+        for idx in flagella_indices
+        if np.asarray(idx, dtype=int).size > 1
+    ]
+    if not helix_points:
+        return float("nan"), float("nan")
+    points = np.vstack(helix_points)
+    if points.shape[0] < 2:
+        return float("nan"), float("nan")
+    origin = np.mean(points, axis=0)
+    centered = points - origin
+    _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    axis = vh[0]
+    axis = axis / max(float(np.linalg.norm(axis)), 1.0e-18)
+    projections = centered @ axis
+    closest = origin + projections[:, None] * axis[None, :]
+    dist_um = np.linalg.norm(points - closest, axis=1) * M_TO_UM
+    return float(np.mean(dist_um)), float(np.max(dist_um))
 
 
 @dataclass
@@ -731,6 +1093,8 @@ class StepSummaryRecorder:
     out_dir: Path
     _csv_fp: TextIO | None = field(init=False, default=None, repr=False)
     _writer: csv.DictWriter | None = field(init=False, default=None, repr=False)
+    _axis_csv_fp: TextIO | None = field(init=False, default=None, repr=False)
+    _axis_writer: csv.DictWriter | None = field(init=False, default=None, repr=False)
 
     def __post_init__(self) -> None:
         self.out_dir.mkdir(parents=True, exist_ok=True)
@@ -738,6 +1102,20 @@ class StepSummaryRecorder:
         self._csv_fp = self.step_summary_path.open("w", encoding="utf-8", newline="")
         self._writer = csv.DictWriter(self._csv_fp, fieldnames=STEP_SUMMARY_COLUMNS)
         self._writer.writeheader()
+
+        self.flag_helix_axis_diag_path = (
+            self.out_dir / "flag_helix_axis_diagnostics.csv"
+        )
+        self._axis_csv_fp = self.flag_helix_axis_diag_path.open(
+            "w",
+            encoding="utf-8",
+            newline="",
+        )
+        self._axis_writer = csv.DictWriter(
+            self._axis_csv_fp,
+            fieldnames=FLAG_HELIX_AXIS_DIAGNOSTICS_COLUMNS,
+        )
+        self._axis_writer.writeheader()
 
         self.body_mask = self.model.bead_is_body.astype(bool)
         self.flag_mask = ~self.body_mask
@@ -773,6 +1151,21 @@ class StepSummaryRecorder:
         self.prev_flag_helix_spin_offset_deg: float | None = None
         self.prev_flag_helix_spin_phase_deg: float | None = None
         self.prev_flag_helix_spin_t_s: float | None = None
+        initial_center, initial_axis, _ = _body_center_axis_rear(
+            self.model.positions_m,
+            self.model,
+        )
+        self.initial_body_center_m = initial_center
+        self.initial_body_axis = initial_axis
+        self.prev_body_center_m: np.ndarray | None = None
+        self.prev_body_axis: np.ndarray | None = None
+        self.prev_body_t_s: float | None = None
+        self.body_axis_cumulative_angle_deg = 0.0
+        self.body_axis_wobble_square_sum = 0.0
+        self.body_axis_wobble_count = 0
+        self.body_omega_square_sum = 0.0
+        self.body_omega_count = 0
+        self.last_row: dict[str, float | int | bool] | None = None
 
         pair_rows = _pair_row_lookup(self.spring_pairs)
 
@@ -841,6 +1234,9 @@ class StepSummaryRecorder:
             self.body_body_rows = np.zeros((0,), dtype=int)
             self.flag_intra_rows = np.zeros((0,), dtype=int)
             self.body_flag_rows = np.zeros((0,), dtype=int)
+            self.basal_flag_bead_indices = np.zeros((0,), dtype=int)
+            self.flag_bead_indices = np.zeros((0,), dtype=int)
+            self.flag_bead_ids = np.zeros((0,), dtype=int)
             return
 
         i = self.spring_pairs[:, 0]
@@ -853,6 +1249,18 @@ class StepSummaryRecorder:
         self.body_body_rows = np.where(bi & bj)[0]
         self.body_flag_rows = np.where(np.logical_xor(bi, bj))[0]
         self.flag_intra_rows = np.where((~bi) & (~bj) & (fi == fj) & (fi >= 0))[0]
+
+        basal_beads: list[int] = []
+        flag_beads: list[int] = []
+        flag_ids: list[int] = []
+        for flag_id, flag_indices in enumerate(self.model.flagella_indices):
+            chain = flag_indices.astype(int, copy=False)
+            basal_beads.extend(chain[: min(2, chain.size)].tolist())
+            flag_beads.extend(chain.tolist())
+            flag_ids.extend([int(flag_id)] * int(chain.size))
+        self.basal_flag_bead_indices = np.asarray(basal_beads, dtype=int)
+        self.flag_bead_indices = np.asarray(flag_beads, dtype=int)
+        self.flag_bead_ids = np.asarray(flag_ids, dtype=int)
 
     def _phase_reference_frame(
         self, positions_m: np.ndarray
@@ -910,6 +1318,7 @@ class StepSummaryRecorder:
 
     def record(self, step: int, t_star: float, diag: StepDiagnostics) -> None:
         pos_after = diag.positions_after_m
+        t_s = float(t_star * self.cfg.tau_s)
         disp_um = np.linalg.norm(pos_after - diag.positions_before_m, axis=1) * M_TO_UM
         any_nan = bool(np.isnan(pos_after).any())
         any_inf = bool(np.isinf(pos_after).any())
@@ -1000,6 +1409,86 @@ class StepSummaryRecorder:
             self.spring_rests_m,
             self.flag_intra_rows,
         )
+        body_axis = estimate_body_axis(
+            pos_after,
+            self.model.body_layer_indices,
+            self.model.body_indices,
+        )
+        helix_axis_angles: list[float] = []
+        helix_axis_rearward_projections: list[float] = []
+        helix_axis_fit_r2_values: list[float] = []
+        helix_axes: list[np.ndarray] = []
+        helix_axis_degenerate_count = 0
+        for flag_id, flag_indices in enumerate(self.model.flagella_indices):
+            estimate = estimate_flag_helix_axis(pos_after, flag_indices, flag_id)
+            angle_deg = angle_deg_between(estimate.axis, body_axis.rear_direction)
+            rearward_projection = float(np.dot(estimate.axis, body_axis.rear_direction))
+            if estimate.degenerate:
+                helix_axis_degenerate_count += 1
+            if np.isfinite(angle_deg):
+                helix_axis_angles.append(float(angle_deg))
+            if np.isfinite(rearward_projection):
+                helix_axis_rearward_projections.append(float(rearward_projection))
+            if np.isfinite(estimate.fit_r2):
+                helix_axis_fit_r2_values.append(float(estimate.fit_r2))
+            if not estimate.degenerate and np.isfinite(estimate.axis).all():
+                helix_axes.append(estimate.axis)
+
+            if self._axis_writer is None:
+                raise RuntimeError(
+                    "flag helix axis diagnostics writer is not initialized"
+                )
+            self._axis_writer.writerow(
+                {
+                    "step": int(step),
+                    "t_s": t_s,
+                    "flag_id": int(flag_id),
+                    "flag_helix_axis_vs_rear_angle_deg": angle_deg,
+                    "flag_helix_axis_rearward_projection": rearward_projection,
+                    "flag_helix_axis_fit_r2": estimate.fit_r2,
+                    "axis_origin_x_um": float(estimate.origin[0] * M_TO_UM),
+                    "axis_origin_y_um": float(estimate.origin[1] * M_TO_UM),
+                    "axis_origin_z_um": float(estimate.origin[2] * M_TO_UM),
+                    "axis_dir_x": float(estimate.axis[0]),
+                    "axis_dir_y": float(estimate.axis[1]),
+                    "axis_dir_z": float(estimate.axis[2]),
+                }
+            )
+        if self._axis_csv_fp is not None:
+            self._axis_csv_fp.flush()
+
+        flag_helix_axis_vs_rear_angle_deg_min = (
+            float(np.min(helix_axis_angles)) if helix_axis_angles else float("nan")
+        )
+        flag_helix_axis_vs_rear_angle_deg_mean = (
+            float(np.mean(helix_axis_angles)) if helix_axis_angles else float("nan")
+        )
+        flag_helix_axis_vs_rear_angle_deg_max = (
+            float(np.max(helix_axis_angles)) if helix_axis_angles else float("nan")
+        )
+        flag_helix_axis_rearward_projection_min = (
+            float(np.min(helix_axis_rearward_projections))
+            if helix_axis_rearward_projections
+            else float("nan")
+        )
+        flag_helix_axis_fit_r2_min = (
+            float(np.min(helix_axis_fit_r2_values))
+            if helix_axis_fit_r2_values
+            else float("nan")
+        )
+        helix_axis_alignment = helix_axis_alignment_metrics(helix_axes)
+        (
+            flag_flag_helix_bead_dist_min_um,
+            flag_flag_helix_close_pair_count,
+        ) = _flag_flag_helix_distance_stats_um(
+            pos_after,
+            self.model.flagella_indices,
+            close_threshold_um=0.3,
+        )
+        (
+            flag_helix_bundle_radius_mean_um,
+            flag_helix_bundle_radius_max_um,
+        ) = _flag_helix_bundle_radius_stats_um(pos_after, self.model.flagella_indices)
         flag_bend_err_mean_deg = float("nan")
         flag_bend_err_max_deg = float("nan")
         if self.flag_bending_rows.size > 0:
@@ -1211,17 +1700,100 @@ class StepSummaryRecorder:
             has_flag_torsion=self.flag_torsion_rows.size > 0,
             local_attach_first_rel_err=local_attach_first_rel_err,
             hook_len_rel_err_max=hook_len_rel_err_max,
+            hook_len_rel_err_limit=NONBODY_HOOK_REL_ERR_MAX_LIMIT,
             hook_angle_err_max_deg=hook_angle_err_max_deg,
             flag_bond_rel_err_max=flag_bond_rel_err_max,
             flag_bend_err_max_deg=flag_bend_err_max_deg,
             flag_torsion_err_max_deg=flag_torsion_err_max_deg,
+        )
+        (
+            shape_pass_nonbody_hook_len_relaxed,
+            first_fail_category_nonbody_hook_len_relaxed,
+        ) = _check_nonbody_shape_pass(
+            finite_pass=finite_pass,
+            has_hook_pair=hook_count > 0,
+            has_hook_angle=self.model.hook_triplets.size > 0,
+            has_flag_bond=flag_intra_count > 0,
+            has_flag_bend=self.flag_bending_rows.size > 0,
+            has_flag_torsion=self.flag_torsion_rows.size > 0,
+            local_attach_first_rel_err=local_attach_first_rel_err,
+            hook_len_rel_err_max=hook_len_rel_err_max,
+            hook_len_rel_err_limit=NONBODY_HOOK_REL_ERR_RELAXED_MAX_LIMIT,
+            hook_angle_err_max_deg=hook_angle_err_max_deg,
+            flag_bond_rel_err_max=flag_bond_rel_err_max,
+            flag_bend_err_max_deg=flag_bend_err_max_deg,
+            flag_torsion_err_max_deg=flag_torsion_err_max_deg,
+        )
+        body_center_m, body_axis, rear_dir = _body_center_axis_rear(
+            pos_after,
+            self.model,
+        )
+        t_s = float(t_star * self.cfg.tau_s)
+        body_displacement_um = float(
+            np.linalg.norm(body_center_m - self.initial_body_center_m) * M_TO_UM
+        )
+        body_speed_um_s = float("nan")
+        body_axis_step_angle_deg = 0.0
+        if self.prev_body_center_m is not None and self.prev_body_t_s is not None:
+            body_dt_s = max(t_s - self.prev_body_t_s, 1e-30)
+            body_speed_um_s = float(
+                np.linalg.norm(body_center_m - self.prev_body_center_m)
+                * M_TO_UM
+                / body_dt_s
+            )
+            body_axis_step_angle_deg = _angle_between_deg(
+                self.prev_body_axis,
+                body_axis,
+            )
+            if np.isfinite(body_axis_step_angle_deg):
+                self.body_axis_cumulative_angle_deg += float(body_axis_step_angle_deg)
+                omega_rad_s = np.deg2rad(float(body_axis_step_angle_deg)) / body_dt_s
+                self.body_omega_square_sum += float(omega_rad_s * omega_rad_s)
+                self.body_omega_count += 1
+        body_wobble_deg = _angle_between_deg(self.initial_body_axis, body_axis)
+        if np.isfinite(body_wobble_deg):
+            self.body_axis_wobble_square_sum += float(body_wobble_deg**2)
+            self.body_axis_wobble_count += 1
+        body_axis_wobble_rms_deg = (
+            float(
+                np.sqrt(
+                    self.body_axis_wobble_square_sum
+                    / max(self.body_axis_wobble_count, 1)
+                )
+            )
+            if self.body_axis_wobble_count > 0
+            else float("nan")
+        )
+        body_angular_velocity_rms_rad_s = (
+            float(np.sqrt(self.body_omega_square_sum / max(self.body_omega_count, 1)))
+            if self.body_omega_count > 0
+            else float("nan")
+        )
+        bundle_metrics = _bundle_metrics(
+            pos_after,
+            self.model,
+            self.cfg,
+            body_axis,
+            rear_dir,
+        )
+        flag_flag_repulsion_metrics = _flag_flag_repulsion_metrics(
+            pos_after,
+            self.flag_bead_indices,
+            self.flag_bead_ids,
+            self.basal_flag_bead_indices,
+            self.cfg,
+        )
+        attach_first_body_axis_metrics = _attach_first_body_axis_metrics(
+            pos_after,
+            self.model.hook_triplets,
+            body_axis,
         )
 
         row: dict[str, float | int | bool] = {
             "step": int(step),
             "t_star": float(t_star),
             "dt_star": float(diag.dt_star),
-            "t_s": float(t_star * self.cfg.tau_s),
+            "t_s": t_s,
             "dt_s": float(diag.dt_s),
             "tau_s": float(self.cfg.tau_s),
             "dt_internal_s": float(self.cfg.dt_s),
@@ -1231,6 +1803,16 @@ class StepSummaryRecorder:
             "finite_pass": finite_pass,
             "shape_pass_nonbody": shape_pass_nonbody,
             "first_fail_category_nonbody": first_fail_category_nonbody,
+            "shape_pass_nonbody_strict": shape_pass_nonbody,
+            "first_fail_category_nonbody_strict": first_fail_category_nonbody,
+            "shape_pass_nonbody_hook_len_relaxed": (
+                shape_pass_nonbody_hook_len_relaxed
+            ),
+            "first_fail_category_nonbody_hook_len_relaxed": (
+                first_fail_category_nonbody_hook_len_relaxed
+            ),
+            "hook_len_strict_limit": NONBODY_HOOK_REL_ERR_MAX_LIMIT,
+            "hook_len_relaxed_limit": NONBODY_HOOK_REL_ERR_RELAXED_MAX_LIMIT,
             "mean_disp_um": float(np.mean(disp_um)),
             "max_disp_um": float(np.max(disp_um)),
             "bond_count_body_body": bond_count_body_body,
@@ -1255,6 +1837,7 @@ class StepSummaryRecorder:
             "hook_angle_max_deg": hook_angle_max_deg,
             "hook_angle_err_mean_deg": hook_angle_err_mean_deg,
             "hook_angle_err_max_deg": hook_angle_err_max_deg,
+            **attach_first_body_axis_metrics,
             "flag_bend_err_mean_deg": flag_bend_err_mean_deg,
             "flag_bend_err_max_deg": flag_bend_err_max_deg,
             "flag_torsion_err_mean_deg": flag_torsion_err_mean_deg,
@@ -1264,6 +1847,42 @@ class StepSummaryRecorder:
             "flag_bond_len_max_over_b": flag_bond_len_max_over_b,
             "flag_bond_rel_err_mean": flag_bond_rel_err_mean,
             "flag_bond_rel_err_max": flag_bond_rel_err_max,
+            "flag_helix_axis_vs_rear_angle_deg_min": (
+                flag_helix_axis_vs_rear_angle_deg_min
+            ),
+            "flag_helix_axis_vs_rear_angle_deg_mean": (
+                flag_helix_axis_vs_rear_angle_deg_mean
+            ),
+            "flag_helix_axis_vs_rear_angle_deg_max": (
+                flag_helix_axis_vs_rear_angle_deg_max
+            ),
+            "flag_helix_axis_rearward_projection_min": (
+                flag_helix_axis_rearward_projection_min
+            ),
+            "flag_helix_axis_fit_r2_min": flag_helix_axis_fit_r2_min,
+            "flag_helix_axis_degenerate_count": int(helix_axis_degenerate_count),
+            "flag_helix_axis_pair_angle_deg_mean": (
+                helix_axis_alignment.pair_angle_deg_mean
+            ),
+            "flag_helix_axis_pair_angle_deg_max": (
+                helix_axis_alignment.pair_angle_deg_max
+            ),
+            "flag_helix_axis_mean_deviation_deg_max": (
+                helix_axis_alignment.mean_deviation_deg_max
+            ),
+            "flag_helix_axis_alignment_order": helix_axis_alignment.alignment_order,
+            "flag_flag_helix_bead_dist_min_um": flag_flag_helix_bead_dist_min_um,
+            "flag_flag_helix_close_pair_count": int(flag_flag_helix_close_pair_count),
+            "flag_helix_bundle_radius_mean_um": flag_helix_bundle_radius_mean_um,
+            "flag_helix_bundle_radius_max_um": flag_helix_bundle_radius_max_um,
+            "body_displacement_um": body_displacement_um,
+            "body_speed_um_s": body_speed_um_s,
+            "body_axis_step_angle_deg": body_axis_step_angle_deg,
+            "body_axis_cumulative_angle_deg": self.body_axis_cumulative_angle_deg,
+            "body_axis_wobble_rms_deg": body_axis_wobble_rms_deg,
+            "body_angular_velocity_rms_rad_s": body_angular_velocity_rms_rad_s,
+            **bundle_metrics,
+            **flag_flag_repulsion_metrics,
             "F_total_mean_body": _mean_norm(diag.total_forces, self.body_mask),
             "F_total_mean_flag": _mean_norm(diag.total_forces, self.flag_mask),
             "F_total_mean_all": float(
@@ -1379,9 +1998,17 @@ class StepSummaryRecorder:
             raise RuntimeError("step summary writer is not initialized")
         self._writer.writerow(row)
         self._csv_fp.flush()
+        self.last_row = row
         self.prev_flag_states = self.model.flag_states.copy()
+        self.prev_body_center_m = body_center_m.copy()
+        self.prev_body_axis = body_axis.copy()
+        self.prev_body_t_s = t_s
 
     def write_csv(self) -> Path:
+        if self._axis_csv_fp is not None:
+            self._axis_csv_fp.close()
+            self._axis_csv_fp = None
+            self._axis_writer = None
         if self._csv_fp is not None:
             self._csv_fp.close()
             self._csv_fp = None

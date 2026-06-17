@@ -13,6 +13,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from sim_swim.model.types import PolymorphState
 from sim_swim.sim.core import SimulationState
 from sim_swim.sim.flagella_geometry import FlagellaRig
+from sim_swim.sim.helix_axis import estimate_flag_helix_axis
 from sim_swim.sim.params import SimulationConfig
 
 
@@ -113,6 +114,27 @@ def _resolve_view_range_um(cfg: SimulationConfig, rig: FlagellaRig) -> float:
 
     default_view_range = 3.0 if len(rig.flagella_indices) == 0 else 5.0
     return max(default_view_range, 1e-6)
+
+
+def _plot_flagella_helix_axis_3d(
+    ax: plt.Axes,
+    beads_um: np.ndarray,
+    flag_indices: np.ndarray,
+    flag_id: int,
+    color: tuple[float, float, float],
+) -> None:
+    axis = estimate_flag_helix_axis(beads_um, flag_indices, flag_id)
+    if axis.degenerate or not np.isfinite(axis.line_start).all():
+        return
+    ax.plot(
+        [axis.line_start[0], axis.line_end[0]],
+        [axis.line_start[1], axis.line_end[1]],
+        [axis.line_start[2], axis.line_end[2]],
+        color=color,
+        linewidth=1.1,
+        linestyle="--",
+        alpha=0.85,
+    )
 
 
 def save_swim_movie(
@@ -216,6 +238,8 @@ def save_swim_movie(
                         color=color,
                         fontsize=8,
                     )
+                if cfg.render.show_flagella_helix_axis_3d:
+                    _plot_flagella_helix_axis_3d(ax, beads, idxs, f_id, color)
 
         if rig.hook_triplets.size > 0:
             hook_edges = _hook_edges(rig.hook_triplets)

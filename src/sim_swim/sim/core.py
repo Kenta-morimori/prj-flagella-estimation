@@ -127,6 +127,13 @@ def _triplet_angle_deg(positions_m: np.ndarray, triplet: np.ndarray) -> float:
     return float(np.rad2deg(np.arccos(c)))
 
 
+def _vector_angle_deg(a: np.ndarray, b: np.ndarray) -> float:
+    na = max(float(np.linalg.norm(a)), 1e-18)
+    nb = max(float(np.linalg.norm(b)), 1e-18)
+    c = float(np.clip(np.dot(a, b) / (na * nb), -1.0, 1.0))
+    return float(np.rad2deg(np.arccos(c)))
+
+
 def _dihedral_angle_deg(positions_m: np.ndarray, quad: np.ndarray) -> float:
     a_i, b_i, c_i, d_i = (int(quad[0]), int(quad[1]), int(quad[2]), int(quad[3]))
     a = positions_m[a_i]
@@ -249,6 +256,11 @@ class Simulator:
         summary: dict[str, Any] = {
             "flagella": {
                 "init_mode": str(self.config.flagella.init_mode),
+                "initial_helix_axis_from_rear_deg": (
+                    float(self.config.flagella.initial_helix_axis_from_rear_deg)
+                    if self.config.flagella.initial_helix_axis_from_rear_deg is not None
+                    else None
+                ),
                 "stub_mode": str(self.config.flagella.stub_mode),
                 "n_flagella": int(self.config.flagella.n_flagella),
                 "n_beads_per_flagellum": int(
@@ -287,6 +299,13 @@ class Simulator:
             },
             "per_flagellum": [],
         }
+        tangent_target_deg = INITIAL_GEOMETRY_CONTRACT["tangent_vs_rear_target_deg"]
+        enforce_base_tangent = (
+            self.config.flagella.initial_helix_axis_from_rear_deg is None
+        )
+        summary["flagella"]["geometry_contract"]["enforce_base_tangent"] = (
+            enforce_base_tangent
+        )
 
         for f_id, idxs in enumerate(self.model.flagella_indices):
             idx = idxs.astype(int, copy=False)
@@ -307,13 +326,17 @@ class Simulator:
 
             attach_first_len_um = float("nan")
             hook_angle_deg = float("nan")
+            attach_first_vs_body_axis_angle_deg = float("nan")
             for triplet in self.model.hook_triplets:
                 a, first, second = (int(triplet[0]), int(triplet[1]), int(triplet[2]))
                 if first == int(idx[0]) and second == int(idx[1]):
-                    attach_first_len_um = float(
-                        np.linalg.norm(pos[first] - pos[a]) * M_TO_UM
-                    )
+                    attach_first = pos[first] - pos[a]
+                    attach_first_len_um = float(np.linalg.norm(attach_first) * M_TO_UM)
                     hook_angle_deg = _triplet_angle_deg(pos, triplet)
+                    attach_first_vs_body_axis_angle_deg = _vector_angle_deg(
+                        attach_first,
+                        body_axis,
+                    )
                     break
 
             bend_rows = np.where(self.model.bending_flag_ids == f_id)[0]
@@ -389,7 +412,8 @@ class Simulator:
             if float(np.max(torsion_err)) > tol["torsion_err_max_deg"]:
                 failures.append("torsion_angle")
             if (
-                abs(tangent_vs_rear_deg - tol["tangent_vs_rear_target_deg"])
+                enforce_base_tangent
+                and abs(tangent_vs_rear_deg - tangent_target_deg)
                 > tol["tangent_vs_rear_abs_tol_deg"]
             ):
                 failures.append("base_tangent")
@@ -401,6 +425,9 @@ class Simulator:
                     "contour_length_um": contour_len_um,
                     "end_to_end_length_um": end_to_end_len_um,
                     "attach_first_length_um": attach_first_len_um,
+                    "attach_first_vs_body_axis_angle_deg": (
+                        attach_first_vs_body_axis_angle_deg
+                    ),
                     "bond_length_mean_um": bond_mean_um,
                     "bond_length_min_um": bond_min_um,
                     "bond_length_max_um": bond_max_um,
@@ -481,6 +508,7 @@ class Simulator:
         logger: logging.Logger | None = None,
         progress_interval: int | None = None,
         step_summary_dir: Path | None = None,
+        stop_on_shape_fail: bool = False,
     ) -> List[SimulationState]:
         """与えた時間だけシミュレーションして状態列を返す。
 
@@ -488,6 +516,9 @@ class Simulator:
             duration_s: シミュレーション時間 [s]。
             logger: 進捗を出力するロガー（任意）。
             progress_interval: 進捗ログのステップ間隔。None なら自動設定。
+            stop_on_shape_fail: True の場合、`shape_pass_nonbody` が False
+                になった時点で早期停止する。sweep用の診断補助で、通常実行では
+                False のままにする。
         """
 
         tau_s = self.config.tau_s
@@ -550,6 +581,24 @@ class Simulator:
 
             if debug_recorder is not None:
                 debug_recorder.record(step=step, t_star=t_star_before, diag=step_diag)
+                if (
+                    stop_on_shape_fail
+                    and debug_recorder.last_row is not None
+                    and not bool(
+                        debug_recorder.last_row.get("shape_pass_nonbody", True)
+                    )
+                ):
+                    if logger is not None:
+                        logger.info(
+                            (
+                                "Simulation stopped on shape fail: step=%d/%d, "
+                                "t_s=%.6f s"
+                            ),
+                            step + 1,
+                            total_steps,
+                            t_star_before * tau_s,
+                        )
+                    break
             if body_diag_recorder is not None:
                 body_diag_recorder.record(
                     step=step,

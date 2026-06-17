@@ -1,0 +1,58 @@
+{
+  "status": "PASS",
+  "summary": "Phase 2.7 の束化定義を、近接束ではなく複数べん毛の螺旋中心軸方向が安定的に揃うことへ更新した。平均軸からの最大偏差15 deg以内を後半80%で維持する分類を追加し、各runにべん毛軸角度の時系列plotを自動生成するようにした。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "代表条件は hook_wrapped_axis_aligned であり、hook長failは残る。菌体への巻き付きとして許容するかは、必要に応じて3D動画とplotで継続確認する。",
+    "菌体軸の揺れ、移動距離、推進速度は本PRの成功条件から外し、別PRで評価する。"
+  ],
+  "tests_reviewed": [
+    "uv run ruff check scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/helix_axis.py tests/test_helix_axis.py tests/test_phase2_7_bundling_sweep.py tests/test_simulation.py",
+    "uv run ruff format --check scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/helix_axis.py tests/test_helix_axis.py tests/test_phase2_7_bundling_sweep.py tests/test_simulation.py",
+    "uv run pytest tests/test_helix_axis.py tests/test_phase2_7_bundling_sweep.py tests/test_simulation.py -q",
+    "uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --n-flagella 3 --torques 0 --duration-s 0.002 --dt-star 1.0e-4 --helix-axis-angles-deg 0 --output-dir /private/tmp/phase2_7_axis_alignment_smoke output_sampling.out_all_steps_3d=false render.show_flagella_helix_axis_3d=true render.save_frames_3d=false",
+    "uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --n-flagella 3 --torques 2.5e-20 --duration-s 0.5 --dt-star 1.0e-4 --helix-axis-angles-deg 0 --output-dir outputs/phase2_7_axis_alignment_v1 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.show_flagella_helix_axis_3d=true render.save_frames_3d=false",
+    "git diff --check"
+  ],
+  "representative_result": {
+    "n_flagella": 3,
+    "torque_Nm": 2.5e-20,
+    "duration_s": 0.5,
+    "dt_star": 0.0001,
+    "initial_helix_axis_from_rear_deg": 0.0,
+    "phase27_class": "hook_wrapped_axis_aligned",
+    "phase27_axis_alignment_stable": true,
+    "phase27_axis_alignment_stable_fraction": 1.0,
+    "shape_pass_nonbody": false,
+    "first_fail_category_nonbody": "hook",
+    "hook_len_rel_err_max": 2.6762730551846663,
+    "flag_bond_rel_err_max": 0.18693895328967003,
+    "flag_bend_err_max_deg": 3.7965070890611265,
+    "flag_torsion_err_max_deg": 9.936775199614349,
+    "flag_helix_axis_mean_deviation_deg_max": 11.88414851768222,
+    "flag_helix_axis_pair_angle_deg_max": 20.54030213929109,
+    "flag_helix_axis_vs_rear_angle_deg_max": 11.921589176383197,
+    "summary_csv": "outputs/phase2_7_axis_alignment_v1/phase2_7_bundling_sweep_summary.csv",
+    "timeseries_plot": "outputs/phase2_7_axis_alignment_v1/helix_axis_angle_0deg/n_3/torque_2.50e-20/flag_helix_axis_angles_timeseries.png"
+  },
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [
+    "outputs/phase2_7_axis_alignment_v1/helix_axis_angle_0deg/n_3/torque_2.50e-20/flag_helix_axis_angles_timeseries.png",
+    "outputs/phase2_7_axis_alignment_v1/phase2_7_bundling_sweep_summary.csv"
+  ],
+  "user_review_points": [
+    "任意確認: 上段で後方/側方の角度推移、下段で1本外れがないかを確認する。",
+    "任意確認: hook巻き付きが許容できる範囲かを3D動画と併せて確認する。"
+  ],
+  "adr_required": false,
+  "adr_reason": "Phase 2.7 の診断定義と可視化の更新であり、新しい物理モデルや主要な出力形式の破壊的変更ではないためADRは不要。",
+  "commit_type": "complete",
+  "commit_hash": "44b86eff0b10dbbb914e3ab1fdf78d605bd34ac0",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/60",
+  "next_actions": [
+    "必要に応じて n_flagella=6,9 と側方初期条件でも同じ軸整列分類を確認する。",
+    "菌体軸の揺れ、移動距離、推進速度は別PRで評価する。"
+  ]
+}

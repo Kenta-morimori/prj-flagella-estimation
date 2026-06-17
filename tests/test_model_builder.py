@@ -5,6 +5,11 @@ import pytest
 
 from sim_swim.model.builder import ModelBuilder
 from sim_swim.model.types import SimModel
+from sim_swim.sim.helix_axis import (
+    angle_deg_between,
+    estimate_body_axis,
+    estimate_flag_helix_axis,
+)
 from sim_swim.sim.params import SimulationConfig
 
 
@@ -20,6 +25,7 @@ def _make_cfg(
     init_mode: str = "legacy_radius_pitch",
     stub_mode: str = "full_flagella",
     n_beads_per_flagellum: int | None = None,
+    initial_helix_axis_from_rear_deg: float | None = None,
     seed: int = 0,
 ) -> SimulationConfig:
     flagella_cfg: dict[str, object] = {
@@ -34,6 +40,10 @@ def _make_cfg(
     }
     if n_beads_per_flagellum is not None:
         flagella_cfg["n_beads_per_flagellum"] = int(n_beads_per_flagellum)
+    if initial_helix_axis_from_rear_deg is not None:
+        flagella_cfg["initial_helix_axis_from_rear_deg"] = float(
+            initial_helix_axis_from_rear_deg
+        )
 
     return SimulationConfig.from_dict(
         {
@@ -519,6 +529,28 @@ def test_flagella_base_tangent_is_perpendicular_to_rear(n_flagella: int) -> None
             np.arccos(float(np.clip(np.dot(tangent0, rear_dir), -1.0, 1.0)))
         )
         assert abs(angle_deg - 90.0) <= 10.0
+
+
+def test_initial_helix_axis_can_be_aligned_to_rear_direction() -> None:
+    cfg = _make_cfg(
+        n_flagella=3,
+        init_mode="paper_table1",
+        n_beads_per_flagellum=11,
+        initial_helix_axis_from_rear_deg=0.0,
+    )
+    model = ModelBuilder(cfg).build()
+    body_axis = estimate_body_axis(
+        model.positions_m,
+        model.body_layer_indices,
+        model.body_indices,
+    )
+
+    angles = []
+    for flag_id, idx in enumerate(model.flagella_indices):
+        axis = estimate_flag_helix_axis(model.positions_m, idx, flag_id)
+        angles.append(angle_deg_between(axis.axis, body_axis.rear_direction))
+
+    assert max(angles) <= 1.0
 
 
 def test_body_has_no_torsion_quads() -> None:

@@ -40,6 +40,7 @@
 
 - 軽量 task では、まず `git diff --check`、JSON/YAML validation、該当 docs の整合だけでよいか判断する。
 - 重量 task では、短時間 representative、targeted tests、sweep、full tests の順で段階実行する。
+- 既存PRで継続すべき Phase 2 diagnostic は、原則として同じPRブランチへ統合する。誤って別branchに進んだ場合は、差分を本来のPRブランチへ移し、重複PRは閉じる方針にする。
 
 ## Issue Template Suggestions
 

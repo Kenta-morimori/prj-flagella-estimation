@@ -187,6 +187,7 @@ class FlagellumParams:
     bond_L_over_b: float = 0.58
     length_over_b: float = 5.8
     helix_init: FlagellaHelixInitParams = field(default_factory=FlagellaHelixInitParams)
+    initial_helix_axis_from_rear_deg: float | None = None
 
 
 @dataclass(frozen=True)
@@ -340,6 +341,7 @@ class RenderParams:
     timestamp_3d: bool = True
     timestamp_fmt: str = "t = {t:.3f} s"
     label_flagella: bool = True
+    show_flagella_helix_axis_3d: bool = False
 
     follow_camera_2d: bool = False
     center_body_in_2d: bool = True
@@ -684,6 +686,11 @@ class SimulationConfig:
                 radius_over_b=float(radius_over_b_h),
                 pitch_over_b=float(pitch_over_b_h),
             ),
+            initial_helix_axis_from_rear_deg=(
+                float(flag_raw["initial_helix_axis_from_rear_deg"])
+                if flag_raw.get("initial_helix_axis_from_rear_deg") not in (None, "")
+                else None
+            ),
         )
 
         fluid_raw = raw.get("fluid", {}) or {}
@@ -868,6 +875,9 @@ class SimulationConfig:
             timestamp_3d=bool(_get(render_raw, "timestamp_3d", True)),
             timestamp_fmt=str(_get(render_raw, "timestamp_fmt", "t = {t:.3f} s")),
             label_flagella=bool(_get(render_raw, "label_flagella", True)),
+            show_flagella_helix_axis_3d=bool(
+                _get(render_raw, "show_flagella_helix_axis_3d", False)
+            ),
             follow_camera_2d=bool(_get(render_raw, "follow_camera_2d", False)),
             center_body_in_2d=bool(_get(render_raw, "center_body_in_2d", True)),
             save_frames_2d=bool(_get(render_raw, "save_frames_2d", True)),
