@@ -1,17 +1,21 @@
 {
   "status": "PASS",
-  "summary": "Issue #31 の範囲で、Codex CLI の既定読み込みを AGENTS.md + issue/PR + docs/phase2/phase2_current.md 起点へ軽量化した。旧 prompts は削除せず、source of truth ではない履歴参照として扱う方針に整理した。PROJECT_PLAN は全体地図として残し、大規模な履歴移動は行っていない。",
+  "summary": "Issue #31 の範囲で、Codex CLI の既定読み込みを AGENTS.md + issue/PR + docs/phase2/phase2_current.md 起点へ軽量化した。Follow-up で AGENTS.md を最小入口化し、review / completion / PR / ADR 詳細を docs/codex/codex_workflow.md へ分離した。旧 prompts 配下は current source of truth ではないため削除した。PROJECT_PLAN は全体地図として残し、大規模な履歴移動は行っていない。",
   "blocking_issues": [],
   "non_blocking_issues": [
-    "review_result.json は PR 作成後に追加したため、main docs 変更コミットとは別の completion record コミットとして保存する。",
-    "今後 Phase 2 が進むたびに docs/phase2/phase2_current.md を短く保守する必要がある。"
+    "今後 Phase 2 が進むたびに docs/phase2/phase2_current.md を短く保守する必要がある。",
+    "旧 prompts の詳細を確認する必要がある場合は Git history または accepted issue/PR history を参照する。"
   ],
   "tests_reviewed": [
     "git diff --check",
     "rg -n \"Before phase-level work|relevant task prompts|prompts/00_project_context|prompts/01_repo_rules|phase2_current|review_result.json|work_log.md\" AGENTS.md docs/PROJECT_PLAN.md docs/phase2/phase2_current.md tools/codex/skills/flagella-issue-workflow",
+    "rg -n \"prompts/|task prompts|development_agent|review_agent|adr_agent|docs/development/codex_workflow|Historical prompts|Legacy Prompts|source of truth\" AGENTS.md docs/PROJECT_PLAN.md docs/phase2 docs/planning tools/codex .codex",
+    "find prompts -type f -maxdepth 3 -print",
+    "wc -l AGENTS.md docs/codex/codex_workflow.md docs/phase2/phase2_current.md",
     "commit hook: uv run ruff format --check .",
     "commit hook: uv run ruff check .",
-    "commit hook: uv run pytest -q (179 passed)",
+    "commit hook: uv run pytest -q (179 passed; first docs commit)",
+    "commit hook: uv run pytest -q (179 passed; review record commit)",
     "python -m json.tool docs/codex-runs/20260617_100953_codex_issue31_resource_reduction/review_result.json"
   ],
   "user_review_required": false,
@@ -28,6 +32,6 @@
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/70",
   "next_actions": [
     "Phase 2 の各タスク完了時に docs/phase2/phase2_current.md を100〜150行以内で更新する。",
-    "旧 prompts 配下の削除または詳細移行は、必要になった時点で別タスクとして扱う。"
+    "Codex workflow 詳細が増える場合は AGENTS.md へ戻さず docs/codex/codex_workflow.md へ追加する。"
   ]
 }

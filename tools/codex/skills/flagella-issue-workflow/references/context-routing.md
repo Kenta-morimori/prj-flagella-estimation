@@ -76,22 +76,13 @@
 - issue が Phase 2.7 なら Phase 2.7 doc を優先し、Phase 2.6 docs は代表条件や前提が必要な範囲だけ読む。
 - 過去の失敗条件を探すときは `outputs/` ではなく、まず docs と `docs/codex-runs/*/review_result.json` を読む。
 
-## Legacy Prompts
+## Removed Legacy Context
 
-読む条件:
+現行リポジトリでは `prompts/` を source of truth として扱わない。
 
-- `AGENTS.md` / `docs/` へ移行済みか確認する必要がある。
-- 古い acceptance criteria や original prompt の根拠が必要。
+古い acceptance criteria や original prompt の根拠が必要な場合は、Git履歴、issue/PR履歴、`docs/codex-runs/*/review_result.json` を先に確認する。
 
-読む文書:
-
-- `prompts/00_project_context.md`
-- `prompts/01_repo_rules.md`
-- relevant `prompts/phase*/`
-
-注意:
-
-- Historical prompts are not source of truth. 現在の正本は `AGENTS.md` と `docs/`。legacy prompt は履歴・移行確認の補助として扱う。
+`prompts/` を再導入しない。
 
 ## Codex Run Logs
 

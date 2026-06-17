@@ -10,7 +10,7 @@
 * Current Phase 2 entry point: `docs/phase2/phase2_current.md`
 * Accepted task status: `docs/phase2/phase2_tasks.md`
 * Overall project map: `docs/PROJECT_PLAN.md`
-* Historical prompts: source of truth ではない
+* Historical context: Git history, issue/PR history, and Codex run records
 
 ## Context reading policy
 
@@ -73,7 +73,6 @@ Phase 2 task の開始時は，次の順で必要な範囲だけ読む。
 
 ## Usually do not read first
 
-* `prompts/`: historical prompt files, not source of truth.
 * `work_log.md`: read only after the matching `review_result.json` is insufficient.
 * Large CSVs and generated outputs under `outputs/`: inspect only when summary docs cannot answer the question.
 
@@ -86,5 +85,6 @@ Phase 2 task completion should update only the documents needed by the result:
 * When accepted task status changes: `docs/phase2/phase2_tasks.md`
 * When project-level phase status changes: `docs/PROJECT_PLAN.md`
 * When a modeling or workflow decision is significant: `docs/adr/`
+* When Codex workflow details change: `docs/codex/codex_workflow.md`
 
 Do not mark a task complete unless the relevant review result is `PASS`.

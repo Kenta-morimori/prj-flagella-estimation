@@ -15,7 +15,7 @@
 
 限界:
 
-- Skill は自動で source of truth を更新しない。`AGENTS.md`、`docs/PROJECT_PLAN.md`、`docs/phase2/*` が肥大化し続けると効果は下がる。
+- Skill は自動で source of truth を更新しない。`AGENTS.md`、`docs/PROJECT_PLAN.md`、`docs/phase2/*`、`docs/codex/*` が肥大化し続けると効果は下がる。
 - 実際に効果を出すには、issue 本文に task type、対象 phase、期待する完了範囲を書く必要がある。
 
 ## Lightweight vs Heavyweight Work
