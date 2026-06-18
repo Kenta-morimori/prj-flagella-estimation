@@ -18,9 +18,9 @@
   "adr_required": false,
   "adr_reason": "今回の変更はRUN分析の特徴量カテゴリと出力方針の文書化であり、新しい物理モデルや重要な数値近似の導入ではないためADRは不要。",
   "commit_type": "complete",
-  "commit_hash": "pending",
-  "push_status": "not_pushed",
-  "pull_request_url": "",
+  "commit_hash": "0f2dc049a903d8d0b4d9b026685684a50833a9f9",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/74",
   "next_actions": [
     "#71 配下で、n_flagella=1,2,3,6 と seed 3種類程度の複数run実行スクリプトを追加する。",
     "raw output から summary.csv と timeseries/<sample_id>.csv を生成するdataset構築スクリプトを追加する。",
