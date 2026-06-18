@@ -22,7 +22,7 @@
   "adr_required": false,
   "adr_reason": "今回の変更はRUN分析の特徴量カテゴリと出力方針の文書化であり、新しい物理モデルや重要な数値近似の導入ではないためADRは不要。",
   "commit_type": "complete",
-  "commit_hash": "83568cf569da54f231841e1033bddbbd731589d6",
+  "commit_hash": "0bb564bf2f66f9001b0981997334f1175088c7ae",
   "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/74",
   "next_actions": [
