@@ -44,7 +44,7 @@
   "adr_required": false,
   "adr_reason": "既存Feature Registryと既存step_summary.csvに基づくanalysis orchestration追加であり、物理モデルや出力形式の方針変更ではないためADRは作成しない。",
   "commit_type": "complete",
-  "commit_hash": "",
+  "commit_hash": "60f341db8c7a57b84022c099279a59a6cb278794",
   "push_status": "not_pushed",
   "pull_request_url": "",
   "next_actions": [
