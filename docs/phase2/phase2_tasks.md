@@ -339,6 +339,51 @@
   - #71 配下で、複数条件実行、raw output保存、`summary.csv` / `timeseries/<sample_id>.csv` 生成、べん毛数ごとの分布可視化を小タスクに分けて進める。
   - 後続の初期datasetでは `n_flagella=1,2,3,6` と seed 3種類程度を基本にする。
 
+### P2-8-009: 複数条件の実行スクリプトとdataset構築を追加する
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/72`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
+- branch: `feature/phase2-72-flagella-count-dataset`
+- goal: RUN固定のべん毛本数差分析に向けて、`n_flagella = 1, 2, 3, 6` と seed 3種類の条件をまとめて実行し、`summary.csv` と sample別 `timeseries` を持つdatasetへ変換できるようにする。
+- default conditions:
+  - `n_flagella = 1, 2, 3, 6`
+  - `seed = 0, 1, 2`
+  - `duration_s = 0.5`
+  - `time.dt_star = 1.0e-4`
+  - `motor.torque_Nm = 2.5e-20`
+  - `motor.enable_switching = false`
+  - `motor.force_distribution = material_twist_local_couple`
+  - `flagella.initial_helix_axis_from_rear_deg = 0`
+- tasks:
+  - [x] analysis用dataset config `conf/analysis/flagella_count_behavior_dataset.yaml` を追加する。
+  - [x] `scripts/analysis/run_flagella_count_behavior_sweep.py` で条件表、sample config、sample raw output、`run_manifest.json` を生成する。
+  - [x] `scripts/analysis/build_flagella_count_behavior_dataset.py` で `run_manifest.json` から `summary.csv`、`qc_summary.csv`、`timeseries/<sample_id>.csv`、`dataset_manifest.json`、`feature_schema_used.yaml` を生成する。
+  - [x] 既存 sample はデフォルトで上書きせず、`--overwrite` 指定時のみ再実行・再生成する。
+  - [x] plot、動画出力、ML分類は対象外のまま維持する。
+- acceptance criteria:
+  - [x] analysis用configが追加されている。
+  - [x] `n_flagella = 1, 2, 3, 6`、seed 3種類の条件表を生成できる。
+  - [x] 各sampleに一意な `sample_id` が付与される。
+  - [x] 各シミュレーション結果が `runs/<run_batch_id>/samples/<sample_id>/raw/` に保存される。
+  - [x] `run_manifest.json` が作成される。
+  - [x] dataset builder が `run_manifest.json` を入力として dataset を作成できる。
+  - [x] `summary.csv` が `datasets/<dataset_id>/summary.csv` に出力される。
+  - [x] `timeseries/<sample_id>.csv` が sampleごとに出力される。
+  - [x] `dataset_manifest.json` が作成される。
+  - [x] `feature_schema_used.yaml` が dataset directory に保存される。
+  - [x] `NaN`、fail、relaxed sample を壊さず処理できる。
+  - [x] plot、動画出力、ML分類は本Issueの対象外として維持されている。
+- tests/checks:
+  - `uv run pytest tests/test_flagella_count_behavior_dataset.py tests/test_phase2_7_bundling_sweep.py`
+  - `uv run ruff check scripts/analysis tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff format --check scripts/analysis tests/test_flagella_count_behavior_dataset.py`
+  - `uv run python scripts/analysis/run_flagella_count_behavior_sweep.py --sample-limit 1 --overwrite --progress-interval 5000`
+  - `uv run python scripts/analysis/build_flagella_count_behavior_dataset.py --overwrite`
+- docs:
+  - `conf/analysis/flagella_count_behavior_dataset.yaml`
+  - `docs/codex-runs/20260618_173743_phase2_72_flagella_count_dataset/review_result.json`
+
 ## Completed support task: 動画出力・サンプリング整備
 
 ### P2-9-009: 3D/2D動画出力のレビュー向けサンプリングを整備する

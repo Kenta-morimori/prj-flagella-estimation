@@ -126,7 +126,7 @@ Phase 2.6では，従来の `flag_phase_rate_hz` と `median(abs(flag_helix_spin
 
 Phase 2.7では，旧P2-7（複数べん毛の非崩壊検証）と旧P2-8（後方束化判定）を統合し，後方螺旋中心軸の安定整列を束化成功定義として検証した。代表条件 `n_flagella=3`, `motor.torque_Nm=2.5e-20`, `duration_s=0.5`, `time.dt_star=1.0e-4`, `flagella.initial_helix_axis_from_rear_deg=0` は `hook_wrapped_axis_aligned` となり，平均軸からの最大偏差は `15 deg` 閾値内だった。hook length fail は残るが，flag bond / bend / torsion は大きく破綻しないため，次段階ではRUN状態の本数差評価の前提リスクとして扱う。
 
-Phase 2.8では，RUN固定状態でべん毛本数による菌体挙動の違いをdatasetとして評価する。親Issue #71 では，初期条件を `n_flagella=1,2,3,6`，seed 3種類程度，RUN固定条件とし，body displacement，speed，body axis angle change，angular velocity，wobble RMS，flag helix axis alignment，cell/flagella axis relation を比較する。Issue #65 では，この分析に先立つ特徴量カテゴリ，代表変数，NaN方針，分析用特徴量とML候補特徴量の分離方針を定義済みである。後続では複数条件実行，`summary.csv` / sample別 `timeseries` 生成，分布可視化を小タスクに分けて進める。
+Phase 2.8では，RUN固定状態でべん毛本数による菌体挙動の違いをdatasetとして評価する。親Issue #71 では，初期条件を `n_flagella=1,2,3,6`，seed 3種類程度，RUN固定条件とし，body displacement，speed，body axis angle change，angular velocity，wobble RMS，flag helix axis alignment，cell/flagella axis relation を比較する。Issue #65 では，この分析に先立つ特徴量カテゴリ，代表変数，NaN方針，分析用特徴量とML候補特徴量の分離方針を定義済みである。Issue #72 では，複数条件実行スクリプト，batch manifest，`summary.csv` / sample別 `timeseries` を生成するdataset builderを追加済みである。後続では分布可視化と結果解釈を小タスクに分けて進める。
 
 Phase 2.9では，Tumble状態を段階実装する。まず現行run固定モデルと論文tumble要素の差分を整理し，次に motor reversal，normal / semicoiled / curly1 のpolymorph切替，最後にrun-and-tumble挙動評価へ進む。このタスクは Issue #69 に対応し，各stageで個別にreview_resultを残す。
 
