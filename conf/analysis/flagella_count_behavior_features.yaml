@@ -1,0 +1,76 @@
+feature_categories:
+  metadata:
+    target: sample_and_simulation_settings
+    ml_candidate: false
+    variables:
+      - sample_id
+      - dataset_id
+      - n_flagella
+      - seed
+      - duration_s
+      - dt_star
+      - torque_Nm
+      - force_distribution
+      - condition_tag
+
+  quality:
+    target: qc
+    ml_candidate: false
+    variables:
+      - quality_class
+      - shape_pass
+      - relaxed_pass
+      - use_for_analysis
+      - use_for_ml_candidate
+      - review_required
+      - valid_duration_s
+
+  cell_translation:
+    target: cell
+    ml_candidate: true
+    variables:
+      - cell_displacement
+      - cell_path_length
+      - cell_mean_speed
+      - cell_speed_std
+      - cell_speed_cv
+      - cell_straightness
+
+  cell_orientation:
+    target: cell
+    ml_candidate: true
+    variables:
+      - cell_axis_angle_change
+      - cell_axis_angle_std
+      - cell_angular_velocity_mean
+      - cell_angular_velocity_std
+      - cell_angular_velocity_rms
+      - cell_wobble
+
+  flagella_axis:
+    target: flagella
+    ml_candidate: true
+    variables:
+      - flagella_axis_alignment
+      - flagella_axis_spread
+      - flagella_axis_pair_angle_mean
+      - flagella_axis_pair_angle_max
+      - flagella_axis_rear_alignment
+
+  cell_flagella_relation:
+    target: relation
+    ml_candidate: true
+    variables:
+      - cell_flagella_axis_angle
+      - cell_flagella_axis_angle_std
+      - cell_flagella_axis_stability
+
+  diagnostics:
+    target: qc
+    ml_candidate: false
+    variables:
+      - hook_drift
+      - hook_wrapped
+      - flyaway
+      - abnormal_rotation
+      - first_fail_category

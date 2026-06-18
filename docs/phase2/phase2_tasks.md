@@ -320,6 +320,7 @@
   - `duration_s=0.5`
 - tasks:
   - [x] 特徴量カテゴリ `metadata`, `quality`, `cell_translation`, `cell_orientation`, `flagella_axis`, `cell_flagella_relation`, `diagnostics` を定義する。
+  - [x] Feature Registry の正本YAML `conf/analysis/flagella_count_behavior_features.yaml` を作成し、カテゴリごとの代表変数名を記録する。
   - [x] 各カテゴリが cell / flagella / relation / QC のどれを対象にするか明記する。
   - [x] 定義不能な特徴量を `NaN` として扱い、plot / summary で除外数を記録する方針を明記する。
   - [x] 分析用特徴量とML候補特徴量を分け、`quality` と `diagnostics` を原則ML入力候補に含めない方針を明記する。
@@ -332,6 +333,7 @@
   - [x] 分析用特徴量と ML 候補特徴量を分ける方針が明記されている。
   - [x] 後続のデータセット構築・分布可視化Issueの入力仕様として利用できる。
 - docs:
+  - `conf/analysis/flagella_count_behavior_features.yaml`
   - `docs/phase2/phase2_8_flagella_count_feature_definitions.md`
 - follow-up:
   - #71 配下で、複数条件実行、raw output保存、`summary.csv` / `timeseries/<sample_id>.csv` 生成、べん毛数ごとの分布可視化を小タスクに分けて進める。

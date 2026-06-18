@@ -20,86 +20,22 @@
 
 ## Feature Registry
 
-以下の YAML は，特徴量カテゴリと代表変数名を示す簡易 registry である。厳密な算出式，単位，追加派生特徴量は，後続のdataset構築タスクで定義する。
+Feature Registry の正本は `conf/analysis/flagella_count_behavior_features.yaml` とする。
+
+この YAML は，特徴量カテゴリ，対象領域，ML入力候補フラグ，代表変数名を定義する。厳密な算出式，単位，追加派生特徴量，`summary.csv` / `timeseries` の完全schemaは，後続のdataset構築タスクで定義する。
+
+正本YAMLでは，各カテゴリを以下の形式で記録する。
 
 ```yaml
 feature_categories:
-  metadata:
-    target: sample_and_simulation_settings
-    ml_candidate: false
+  category_name:
+    target: cell | flagella | relation | qc | sample_and_simulation_settings
+    ml_candidate: true | false
     variables:
-      - sample_id
-      - dataset_id
-      - n_flagella
-      - seed
-      - duration_s
-      - dt_star
-      - torque_Nm
-      - force_distribution
-      - condition_tag
-
-  quality:
-    target: qc
-    ml_candidate: false
-    variables:
-      - quality_class
-      - shape_pass
-      - relaxed_pass
-      - use_for_analysis
-      - use_for_ml_candidate
-      - review_required
-      - valid_duration_s
-
-  cell_translation:
-    target: cell
-    ml_candidate: true
-    variables:
-      - cell_displacement
-      - cell_path_length
-      - cell_mean_speed
-      - cell_speed_std
-      - cell_speed_cv
-      - cell_straightness
-
-  cell_orientation:
-    target: cell
-    ml_candidate: true
-    variables:
-      - cell_axis_angle_change
-      - cell_axis_angle_std
-      - cell_angular_velocity_mean
-      - cell_angular_velocity_std
-      - cell_angular_velocity_rms
-      - cell_wobble
-
-  flagella_axis:
-    target: flagella
-    ml_candidate: true
-    variables:
-      - flagella_axis_alignment
-      - flagella_axis_spread
-      - flagella_axis_pair_angle_mean
-      - flagella_axis_pair_angle_max
-      - flagella_axis_rear_alignment
-
-  cell_flagella_relation:
-    target: relation
-    ml_candidate: true
-    variables:
-      - cell_flagella_axis_angle
-      - cell_flagella_axis_angle_std
-      - cell_flagella_axis_stability
-
-  diagnostics:
-    target: qc
-    ml_candidate: false
-    variables:
-      - hook_drift
-      - hook_wrapped
-      - flyaway
-      - abnormal_rotation
-      - first_fail_category
+      - representative_variable_name
 ```
+
+現在のカテゴリは，`metadata`, `quality`, `cell_translation`, `cell_orientation`, `flagella_axis`, `cell_flagella_relation`, `diagnostics` である。各カテゴリの代表変数名は，`conf/analysis/flagella_count_behavior_features.yaml` を参照する。
 
 ## 利用方針
 
@@ -122,4 +58,4 @@ outputs/analysis/flagella_count_behavior/datasets/<dataset_id>/timeseries/<sampl
 
 `summary.csv` は 1 sample = 1 row とし，`metadata`，`quality`，集計特徴量，診断特徴量を含める。`timeseries/<sample_id>.csv` は，sample単位の時系列を保持し，後続の特徴量再計算や外れ値確認に使う。
 
-後続の #71 実装では，複数条件実行，dataset構築，分布可視化をこの registry と出力仕様に従って追加する。
+後続の #71 実装では，複数条件実行，dataset構築，分布可視化を `conf/analysis/flagella_count_behavior_features.yaml` と出力仕様に従って追加する。
