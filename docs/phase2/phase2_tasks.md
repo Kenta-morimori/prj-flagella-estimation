@@ -298,43 +298,46 @@
   - `docs/phase2/phase2_7_bundling_stability_plan.md`
   - `docs/phase2/phase2_7_flag_helix_axis_diagnostics.md`
 
-## Phase 2.8: RUN状態のべん毛本数差による菌体挙動検証
+## Phase 2.8: べん毛数の違いによるRUN遊泳挙動分析
 
-### P2-8-008: RUN状態のべん毛数による菌体挙動の変化を検証する
+### P2-8-008: べん毛数分析用の特徴量を定義する
 
-- status: accepted
+- status: complete
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/65`
-- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/10`
-- source proposal: `docs/planning/phase2_task_proposals.md#proposal-p2-9-008-phase-29`
-- renumbered from proposal: `P2-9-008`
-- branch: `feature/phase2-65-run-flagella-count-motion`
-- goal: RUN固定条件で、べん毛本数が菌体の推進、姿勢安定性、螺旋軸整列、揺れに与える影響を定量評価する。
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
+- branch: `feature/phase2-65-feature-definitions`
+- goal: 親Issue #71 のRUN固定データセット分析に向けて、特徴量カテゴリ、代表変数、NaN方針、分析用特徴量とML候補特徴量の分離方針を定義する。
 - background:
-  - P2-7 / Issue #58 では、近接束ではなく複数べん毛螺旋中心軸が安定的に揃うことを束化成功定義として検証した。
-  - 代表条件は `hook_wrapped_axis_aligned` であり、hook length fail は残るが、螺旋軸は後半80%で `15 deg` 閾値内に揃った。
-  - ユーザー目視では、明示的な近接束でなくても、複数べん毛軸が揃うことで菌体軸の揺れが小さくなる可能性が確認された。
-  - 次に必要なのは、RUN固定状態でべん毛本数を変えたときに推進量、姿勢安定性、揺れがどう変わるかを定量比較することである。
+  - #71 は、RUN固定条件の3Dシミュレーション結果を使い、べん毛数差が推進、直進性、姿勢安定性、wobble、べん毛軸と菌体軸の関係に与える影響をデータセットとして評価する親Issueである。
+  - #65 はその小タスクとして、実行スクリプトやdataset構築の前に特徴量カテゴリと出力方針を固定する。
+  - RUN本数差評価は #71 に含まれる後続実装であり、本タスクでは特徴量定義までを完了範囲とする。
 - default conditions:
+  - `n_flagella = 1, 2, 3, 6`
   - `motor.enable_switching=false`
   - `motor.force_distribution=material_twist_local_couple`
   - `time.dt_star=1.0e-4`
   - `flagella.initial_helix_axis_from_rear_deg=0`
-  - `output_sampling.out_all_steps_3d=false`
-  - `output_sampling.fps_out_3d=25`
+  - `duration_s=0.5`
 - tasks:
-  - [ ] `n_flagella=1,3,6,9` のRUN固定代表条件を定義する。
-  - [ ] body重心trajectory、body axis、body angular velocityを時系列出力・集計する。
-  - [ ] べん毛螺旋軸の平均軸を使い、flag helix axis と body axis の角度を出力する。
-  - [ ] 遊泳速度、直進性、姿勢角の累積変化、姿勢揺らぎRMS、角速度RMSを指標化する。
-  - [ ] 本数ごとの推進量、姿勢安定性、軸整列、hook_wrapped発生を比較する。
-  - [ ] fly-away、異常回転、hook drift を運動指標と shape gate の両方で検出する。
-  - [ ] 代表動画またはplotを用意し、目視レビューが必要かをreview_resultに記録する。
+  - [x] 特徴量カテゴリ `metadata`, `quality`, `cell_translation`, `cell_orientation`, `flagella_axis`, `cell_flagella_relation`, `diagnostics` を定義する。
+  - [x] Feature Registry の正本YAML `conf/analysis/flagella_count_behavior_features.yaml` を作成し、カテゴリごとの代表変数名を記録する。
+  - [x] 各カテゴリが cell / flagella / relation / QC のどれを対象にするか明記する。
+  - [x] 定義不能な特徴量を `NaN` として扱い、plot / summary で除外数を記録する方針を明記する。
+  - [x] 分析用特徴量とML候補特徴量を分け、`quality` と `diagnostics` を原則ML入力候補に含めない方針を明記する。
+  - [x] `dataset_id` と `sample_id` を持つ出力成果物要件を定義する。
 - acceptance criteria:
-  - [ ] `n_flagella=1,3,6,9` の本数差比較表がある。
-  - [ ] 遊泳指標CSVまたはsummary CSVが再現可能に出力される。
-  - [ ] 少なくとも1条件で、推進速度、body axis角度変化、flag helix axis/body axis角度を報告できる。
-  - [ ] `hook_wrapped_axis_aligned` 条件をRUN評価で許容するか、除外するかの扱いが明記されている。
-  - [ ] 代表条件の自動判定限界と、ユーザー目視レビュー要否がreview_resultに記録される。
+  - [x] 特徴量カテゴリ名が定義されている。
+  - [x] 各カテゴリが cell / flagella / relation / QC のどれを対象とするか明確である。
+  - [x] 簡易 YAML 形式で、カテゴリと代表変数名が整理されている。
+  - [x] 定義不能な特徴量は `NaN` として扱う方針が明記されている。
+  - [x] 分析用特徴量と ML 候補特徴量を分ける方針が明記されている。
+  - [x] 後続のデータセット構築・分布可視化Issueの入力仕様として利用できる。
+- docs:
+  - `conf/analysis/flagella_count_behavior_features.yaml`
+  - `docs/phase2/phase2_8_flagella_count_feature_definitions.md`
+- follow-up:
+  - #71 配下で、複数条件実行、raw output保存、`summary.csv` / `timeseries/<sample_id>.csv` 生成、べん毛数ごとの分布可視化を小タスクに分けて進める。
+  - 後続の初期datasetでは `n_flagella=1,2,3,6` と seed 3種類程度を基本にする。
 
 ## Completed support task: 動画出力・サンプリング整備
 
