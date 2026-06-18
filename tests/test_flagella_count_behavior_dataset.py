@@ -6,7 +6,15 @@ import json
 import math
 from pathlib import Path
 
+import numpy as np
 import yaml
+
+from sim_swim.analysis.flagella_count_behavior import (
+    load_state_archive,
+    save_state_archive,
+)
+from sim_swim.sim.core import SimulationState
+from sim_swim.sim.params import SimulationConfig
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -29,6 +37,10 @@ run_sweep = _load_script(
 build_dataset = _load_script(
     "build_flagella_count_behavior_dataset",
     "scripts/analysis/build_flagella_count_behavior_dataset.py",
+)
+render_sample = _load_script(
+    "render_flagella_count_behavior_sample",
+    "scripts/analysis/render_flagella_count_behavior_sample.py",
 )
 
 
@@ -86,10 +98,15 @@ def test_flagella_count_dry_run_writes_manifest_and_configs(tmp_path: Path) -> N
         stop_on_shape_fail=False,
         sample_limit=None,
         progress_interval=None,
+        cli_overrides=["time.duration_s=0.25", "motor.torque_Nm=3.0e-20"],
     )
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["run_batch_id"] == "test_dataset"
+    assert manifest["cli_overrides"] == [
+        "time.duration_s=0.25",
+        "motor.torque_Nm=3.0e-20",
+    ]
     assert len(manifest["samples"]) == 2
     assert {sample["status"] for sample in manifest["samples"]} == {"planned"}
     sample_config = yaml.safe_load(
@@ -99,7 +116,85 @@ def test_flagella_count_dry_run_writes_manifest_and_configs(tmp_path: Path) -> N
     )
     assert sample_config["flagella"]["n_flagella"] == 2
     assert sample_config["seed"]["global_seed"] == 0
-    assert sample_config["time"]["dt_star"] == 1.0e-4
+    assert sample_config["time"]["duration_s"] == 0.25
+    assert sample_config["motor"]["torque_Nm"] == 3.0e-20
+
+
+def test_state_archive_round_trip(tmp_path: Path) -> None:
+    states = [
+        SimulationState(
+            t=0.0,
+            position_um=(0.0, 1.0, 2.0),
+            quaternion=(0.0, 0.0, 0.0, 1.0),
+            velocity_um_s=(1.0, 2.0, 3.0),
+            omega_rad_s=(0.1, 0.2, 0.3),
+            bead_positions_um=np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]),
+            flag_states=(0, 1),
+            reverse_flagella=(1,),
+        ),
+        SimulationState(
+            t=0.1,
+            position_um=(3.0, 4.0, 5.0),
+            quaternion=(0.1, 0.2, 0.3, 0.4),
+            velocity_um_s=(4.0, 5.0, 6.0),
+            omega_rad_s=(0.4, 0.5, 0.6),
+            bead_positions_um=np.array([[2.0, 2.0, 2.0], [3.0, 3.0, 3.0]]),
+            flag_states=(2, 3),
+            reverse_flagella=(1,),
+        ),
+    ]
+    archive_path = tmp_path / "state_archive.npz"
+
+    save_state_archive(archive_path, states)
+    loaded = load_state_archive(archive_path)
+
+    assert len(loaded) == 2
+    assert loaded[0].position_um == (0.0, 1.0, 2.0)
+    assert loaded[1].quaternion == (0.1, 0.2, 0.3, 0.4)
+    assert loaded[0].flag_states == (0, 1)
+    assert loaded[1].reverse_flagella == (1,)
+    assert loaded[1].bead_positions_um.shape == (2, 3)
+
+
+def test_render_sample_from_archive(tmp_path: Path) -> None:
+    raw_cfg = yaml.safe_load((ROOT / "conf/sim_swim.yaml").read_text(encoding="utf-8"))
+    raw_cfg["flagella"]["n_flagella"] = 1
+    raw_cfg["output_sampling"]["out_all_steps_3d"] = False
+    raw_cfg["output_sampling"]["fps_out_3d"] = 2.0
+    raw_cfg["output_sampling"]["fps_out_2d"] = 2.0
+    raw_cfg["render"]["save_frames_3d"] = False
+    raw_cfg["render"]["save_frames_2d"] = False
+    raw_cfg["render"]["render_flagella_2d"] = False
+    config_path = tmp_path / "configs/nf01_seed000.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(yaml.safe_dump(raw_cfg), encoding="utf-8")
+    cfg = SimulationConfig.from_dict(raw_cfg)
+    sim = render_sample.Simulator(cfg)
+    sample_dir = tmp_path / "runs/test_dataset/samples/nf01_seed000"
+    archive_path = sample_dir / "raw/state_archive.npz"
+    state = SimulationState(
+        t=0.0,
+        position_um=(0.0, 0.0, 0.0),
+        quaternion=(0.0, 0.0, 0.0, 1.0),
+        velocity_um_s=(0.0, 0.0, 0.0),
+        omega_rad_s=(0.0, 0.0, 0.0),
+        bead_positions_um=sim.model.positions_m.copy() * 1.0e6,
+        flag_states=(),
+        reverse_flagella=(),
+    )
+    save_state_archive(archive_path, [state])
+
+    out_dir = render_sample.render_sample(
+        sample_dir=sample_dir,
+        output_dir=tmp_path / "replays/nf01_seed000",
+        config_path=config_path,
+        archive_path=archive_path,
+    )
+
+    assert (out_dir / "manifest.json").is_file()
+    assert (out_dir / "trajectory.csv").is_file()
+    assert (out_dir / "render/swim3d.mp4").is_file()
+    assert (out_dir / "render2d/projection.mp4").is_file()
 
 
 def _write_step_summary(path: Path, rows: list[dict[str, object]]) -> None:

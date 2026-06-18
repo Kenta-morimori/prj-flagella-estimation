@@ -47,12 +47,22 @@ Phase 2.8 の RUN 固定べん毛数差分析用 batch / dataset 作成CLIです
   `n_flagella = 1, 2, 3, 6` × `seed = 0` の 4 samples をまとめて実行し、sample ごとの raw output と `run_manifest.json` を出力する CLI
 - `analysis/build_flagella_count_behavior_dataset.py`:
   `run_manifest.json` から `summary.csv`、`qc_summary.csv`、`timeseries/<sample_id>.csv`、`dataset_manifest.json` を作成する CLI
+- `analysis/render_flagella_count_behavior_sample.py`:
+  raw sample archive から 3D/2D render を後出し生成する CLI
 
 標準 4 samples の実行例:
 
 ```bash
 uv run python scripts/analysis/run_flagella_count_behavior_sweep.py
 uv run python scripts/analysis/build_flagella_count_behavior_dataset.py
+```
+
+raw sample からの再描画:
+
+```bash
+uv run python scripts/analysis/render_flagella_count_behavior_sample.py \
+  --sample-dir outputs/analysis/flagella_count_behavior/runs/fc_nf1_2_3_6_seed1_dur0p5/samples/nf01_seed000 \
+  --output-dir outputs/analysis/flagella_count_behavior/replays/nf01_seed000
 ```
 
 補助オプション:
@@ -64,12 +74,23 @@ uv run python scripts/analysis/run_flagella_count_behavior_sweep.py --dry-run --
 # 既存 sample / dataset を上書きして再生成する
 uv run python scripts/analysis/run_flagella_count_behavior_sweep.py --overwrite
 uv run python scripts/analysis/build_flagella_count_behavior_dataset.py --overwrite
+
+# sweep 実行時に simulation 設定を override する
+uv run python scripts/analysis/run_flagella_count_behavior_sweep.py \
+  time.duration_s=0.25 \
+  motor.torque_Nm=3.0e-20
 ```
+
+`run_flagella_count_behavior_sweep.py` の override は `KEY=VALUE` 形式で、`time.duration_s`、`time.dt_star`、`motor.torque_Nm`、`render.*` などの simulation 設定を直接変えられます。`n_flagella` と `seed` は標準の sweep 条件が優先されます。
+
+`runs/<run_batch_id>/samples/<sample_id>/raw/` には、`step_summary.csv` に加えて `trajectory.csv` と `state_archive.npz` を残します。`state_archive.npz` は後から 3D / 2D render を再生成するための状態保存です。
 
 デフォルト設定は `conf/analysis/flagella_count_behavior_dataset.yaml` を参照してください。標準出力先は以下です。
 
 - `outputs/analysis/flagella_count_behavior/runs/fc_nf1_2_3_6_seed1_dur0p5/`
 - `outputs/analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_seed1_dur0p5/`
+
+dataset 作成条件を変えるときは `conf/analysis/flagella_count_behavior_dataset.yaml` の `base_overrides` を編集します。`time.duration_s`、`time.dt_star`、`motor.torque_Nm` などはここで変更できます。`sweep.n_flagella` と `sweep.seeds` を変えると dataset の対象条件が変わるので、`dataset_id` と `run_batch_id`、output 先も合わせて更新してください。
 
 ## 02_detect_bac.py
 Phase3: 動画から菌体検出と個体クリップ生成を行うCLIの雛形です。

@@ -20,8 +20,12 @@ from tqdm.auto import tqdm
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
+from sim_swim.analysis.flagella_count_behavior import (
+    save_state_archive,
+    write_trajectory_csv,
+)
 from sim_swim.sim.core import Simulator
-from sim_swim.sim.params import SimulationConfig
+from sim_swim.sim.params import SimulationConfig, merge_overrides
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -110,10 +114,13 @@ def _build_sample_config(
     analysis_config: dict[str, Any],
     base_config: dict[str, Any],
     condition: dict[str, Any],
+    cli_overrides: list[str] | None,
 ) -> SimulationConfig:
     base_overrides = _nested_from_dotted(
         analysis_config.get("base_overrides", {}) or {}
     )
+    cli_base_overrides = merge_overrides({}, cli_overrides)
+    base_overrides = _merge_nested(base_overrides, cli_base_overrides)
     sample_overrides = {
         "flagella": {"n_flagella": int(condition["n_flagella"])},
         "seed": {"global_seed": int(condition["seed"])},
@@ -160,6 +167,10 @@ def _run_sample(
         step_summary_dir=raw_dir,
         stop_on_shape_fail=stop_on_shape_fail,
     )
+    archive_path = raw_dir / "state_archive.npz"
+    trajectory_path = raw_dir / "trajectory.csv"
+    save_state_archive(archive_path, states)
+    write_trajectory_csv(trajectory_path, states)
     logger.info("Sample end: %s states=%d", condition["sample_id"], len(states))
     return {
         "status": "completed",
@@ -173,6 +184,8 @@ def _run_sample(
             "initial_geometry_summary_json": str(
                 raw_dir / "initial_geometry_summary.json"
             ),
+            "trajectory_csv": str(trajectory_path),
+            "state_archive_npz": str(archive_path),
             "run_log": str(log_path),
         },
     }
@@ -186,6 +199,7 @@ def run_batch(
     stop_on_shape_fail: bool,
     sample_limit: int | None,
     progress_interval: int | None,
+    cli_overrides: list[str] | None = None,
 ) -> Path:
     analysis_config = _load_yaml(analysis_config_path)
     base_config_path = Path(analysis_config.get("base_config", "conf/sim_swim.yaml"))
@@ -207,6 +221,7 @@ def run_batch(
     samples_root.mkdir(parents=True, exist_ok=True)
 
     manifest_samples: list[dict[str, Any]] = []
+    cli_overrides = cli_overrides or []
     for condition in tqdm(conditions, desc="flagella sweep", unit="sample"):
         sample_id = str(condition["sample_id"])
         sample_dir = samples_root / sample_id
@@ -217,6 +232,7 @@ def run_batch(
             analysis_config=analysis_config,
             base_config=base_config,
             condition=condition,
+            cli_overrides=cli_overrides,
         )
         _write_yaml(sample_config_path, asdict(cfg))
 
@@ -232,6 +248,7 @@ def run_batch(
             "dt_star": float(cfg.dt_star),
             "torque_Nm": float(cfg.motor.torque_Nm),
             "force_distribution": cfg.motor.force_distribution,
+            "cli_overrides": list(cli_overrides),
         }
 
         if dry_run:
@@ -256,6 +273,8 @@ def run_batch(
                 "initial_geometry_summary_json": str(
                     raw_dir / "initial_geometry_summary.json"
                 ),
+                "trajectory_csv": str(raw_dir / "trajectory.csv"),
+                "state_archive_npz": str(raw_dir / "state_archive.npz"),
                 "run_log": str(log_path),
             }
             manifest_samples.append(sample_record)
@@ -291,6 +310,7 @@ def run_batch(
             )
         ),
         "base_overrides": analysis_config.get("base_overrides", {}) or {},
+        "cli_overrides": list(cli_overrides),
         "sweep": analysis_config.get("sweep", {}) or {},
         "output": {
             "run_batch_dir": str(run_batch_dir),
@@ -321,6 +341,11 @@ def main() -> None:
     parser.add_argument("--stop-on-shape-fail", action="store_true")
     parser.add_argument("--sample-limit", type=int, default=None)
     parser.add_argument("--progress-interval", type=int, default=None)
+    parser.add_argument(
+        "overrides",
+        nargs="*",
+        help="Optional simulation overrides as key=value (e.g. time.duration_s=0.25)",
+    )
     args = parser.parse_args()
 
     manifest_path = run_batch(
@@ -330,6 +355,7 @@ def main() -> None:
         stop_on_shape_fail=bool(args.stop_on_shape_fail),
         sample_limit=args.sample_limit,
         progress_interval=args.progress_interval,
+        cli_overrides=args.overrides,
     )
     print(manifest_path)
 
