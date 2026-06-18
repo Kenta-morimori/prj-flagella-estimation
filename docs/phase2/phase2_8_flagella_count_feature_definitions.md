@@ -22,7 +22,7 @@
 
 Feature Registry の正本は `conf/analysis/flagella_count_behavior_features.yaml` とする。
 
-この YAML は，特徴量カテゴリ，対象領域，ML入力候補フラグ，代表変数名を定義する。厳密な算出式，単位，追加派生特徴量，`summary.csv` / `timeseries` の完全schemaは，後続のdataset構築タスクで定義する。
+この YAML は，特徴量カテゴリ，対象領域，ML入力候補フラグ，代表変数名，短い説明コメントを定義する。厳密な算出式，単位，追加派生特徴量，`summary.csv` / `timeseries` の完全schemaは，後続のdataset構築タスクで定義する。
 
 正本YAMLでは，各カテゴリを以下の形式で記録する。
 
@@ -32,7 +32,7 @@ feature_categories:
     target: cell | flagella | relation | qc | sample_and_simulation_settings
     ml_candidate: true | false
     variables:
-      - representative_variable_name
+      - representative_variable_name  # 短い説明
 ```
 
 現在のカテゴリは，`metadata`, `quality`, `cell_translation`, `cell_orientation`, `flagella_axis`, `cell_flagella_relation`, `diagnostics` である。各カテゴリの代表変数名は，`conf/analysis/flagella_count_behavior_features.yaml` を参照する。

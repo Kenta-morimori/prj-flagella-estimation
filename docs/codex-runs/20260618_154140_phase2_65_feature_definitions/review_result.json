@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #65 を親Issue #71 の小タスクとして整理し、RUN固定べん毛数差分析に使う特徴量カテゴリ、代表変数、NaN方針、分析用特徴量とML候補特徴量の分離方針、dataset_id/sample_id を持つ出力先仕様を文書化した。Feature Registry の正本YAMLを conf/analysis/flagella_count_behavior_features.yaml に追加し、既存Phase 2 docsの #65 / #71 対応も更新した。RUN本数差評価は #71 配下の後続dataset分析として残した。",
+  "summary": "Issue #65 を親Issue #71 の小タスクとして整理し、RUN固定べん毛数差分析に使う特徴量カテゴリ、代表変数、NaN方針、分析用特徴量とML候補特徴量の分離方針、dataset_id/sample_id を持つ出力先仕様を文書化した。Feature Registry の正本YAMLを conf/analysis/flagella_count_behavior_features.yaml に追加し、各代表変数に短い説明コメントを付与した。RUN本数差評価は #71 配下の後続dataset分析として残した。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "#71 の実装タスクとして、複数条件実行、raw output保存、summary.csv / timeseries生成、分布可視化を別途進める必要がある。",
@@ -10,6 +10,7 @@
     "rg -n \"issues/65|issues/71|Phase 2.8|feature_categories|flagella_count_behavior\" docs/phase2 docs/PROJECT_PLAN.md",
     "python -c \"import yaml; yaml.safe_load(open('conf/analysis/flagella_count_behavior_features.yaml', encoding='utf-8'))\"",
     "rg -n \"flagella_count_behavior_features.yaml|feature_categories|variables\" conf/analysis docs/phase2 docs/codex-runs/20260618_154140_phase2_65_feature_definitions/review_result.json",
+    "rg -n \"sample_id.*#|cell_mean_speed.*#|first_fail_category.*#\" conf/analysis/flagella_count_behavior_features.yaml",
     "python -m json.tool docs/codex-runs/20260618_154140_phase2_65_feature_definitions/review_result.json",
     "git diff --check"
   ],
