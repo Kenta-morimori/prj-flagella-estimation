@@ -16,6 +16,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import yaml
+from tqdm.auto import tqdm
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
@@ -206,7 +207,7 @@ def run_batch(
     samples_root.mkdir(parents=True, exist_ok=True)
 
     manifest_samples: list[dict[str, Any]] = []
-    for condition in conditions:
+    for condition in tqdm(conditions, desc="flagella sweep", unit="sample"):
         sample_id = str(condition["sample_id"])
         sample_dir = samples_root / sample_id
         raw_dir = sample_dir / "raw"

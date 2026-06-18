@@ -337,7 +337,7 @@
   - `docs/phase2/phase2_8_flagella_count_feature_definitions.md`
 - follow-up:
   - #71 配下で、複数条件実行、raw output保存、`summary.csv` / `timeseries/<sample_id>.csv` 生成、べん毛数ごとの分布可視化を小タスクに分けて進める。
-  - 後続の初期datasetでは `n_flagella=1,2,3,6` と seed 3種類程度を基本にする。
+  - 後続の初期datasetでは `n_flagella=1,2,3,6` と seed 0固定を基本にする。
 
 ### P2-8-009: 複数条件の実行スクリプトとdataset構築を追加する
 
@@ -345,10 +345,10 @@
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/72`
 - parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
 - branch: `feature/phase2-72-flagella-count-dataset`
-- goal: RUN固定のべん毛本数差分析に向けて、`n_flagella = 1, 2, 3, 6` と seed 3種類の条件をまとめて実行し、`summary.csv` と sample別 `timeseries` を持つdatasetへ変換できるようにする。
+- goal: RUN固定のべん毛本数差分析に向けて、`n_flagella = 1, 2, 3, 6` を `seed=0` 固定でまとめて実行し、`summary.csv` と sample別 `timeseries` を持つdatasetへ変換できるようにする。
 - default conditions:
   - `n_flagella = 1, 2, 3, 6`
-  - `seed = 0, 1, 2`
+  - `seed = 0`
   - `duration_s = 0.5`
   - `time.dt_star = 1.0e-4`
   - `motor.torque_Nm = 2.5e-20`
@@ -363,7 +363,7 @@
   - [x] plot、動画出力、ML分類は対象外のまま維持する。
 - acceptance criteria:
   - [x] analysis用configが追加されている。
-  - [x] `n_flagella = 1, 2, 3, 6`、seed 3種類の条件表を生成できる。
+  - [x] `n_flagella = 1, 2, 3, 6`、seed 0固定の条件表を生成できる。
   - [x] 各sampleに一意な `sample_id` が付与される。
   - [x] 各シミュレーション結果が `runs/<run_batch_id>/samples/<sample_id>/raw/` に保存される。
   - [x] `run_manifest.json` が作成される。

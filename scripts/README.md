@@ -44,11 +44,11 @@ uv run python -m scripts.01_simulate_swimming \
 Phase 2.8 の RUN 固定べん毛数差分析用 batch / dataset 作成CLIです。
 
 - `analysis/run_flagella_count_behavior_sweep.py`:
-  `n_flagella = 1, 2, 3, 6` × `seed = 0, 1, 2` の 12 samples をまとめて実行し、sample ごとの raw output と `run_manifest.json` を出力する CLI
+  `n_flagella = 1, 2, 3, 6` × `seed = 0` の 4 samples をまとめて実行し、sample ごとの raw output と `run_manifest.json` を出力する CLI
 - `analysis/build_flagella_count_behavior_dataset.py`:
   `run_manifest.json` から `summary.csv`、`qc_summary.csv`、`timeseries/<sample_id>.csv`、`dataset_manifest.json` を作成する CLI
 
-標準 12 samples の実行例:
+標準 4 samples の実行例:
 
 ```bash
 uv run python scripts/analysis/run_flagella_count_behavior_sweep.py
@@ -68,8 +68,8 @@ uv run python scripts/analysis/build_flagella_count_behavior_dataset.py --overwr
 
 デフォルト設定は `conf/analysis/flagella_count_behavior_dataset.yaml` を参照してください。標準出力先は以下です。
 
-- `outputs/analysis/flagella_count_behavior/runs/fc_nf1_2_3_6_seed3_dur0p5/`
-- `outputs/analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_seed3_dur0p5/`
+- `outputs/analysis/flagella_count_behavior/runs/fc_nf1_2_3_6_seed1_dur0p5/`
+- `outputs/analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_seed1_dur0p5/`
 
 ## 02_detect_bac.py
 Phase3: 動画から菌体検出と個体クリップ生成を行うCLIの雛形です。

@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import importlib.util
 import json
+import math
 from pathlib import Path
 
 import yaml
@@ -35,20 +36,20 @@ def test_flagella_count_conditions_use_expected_sample_ids() -> None:
     config = {
         "sweep": {
             "n_flagella": [1, 2, 3, 6],
-            "seeds": [0, 1, 2],
+            "seeds": [0],
         }
     }
 
     conditions = run_sweep.build_conditions(config)
 
-    assert len(conditions) == 12
+    assert len(conditions) == 4
     assert conditions[0] == {
         "sample_id": "nf01_seed000",
         "condition_tag": "n_flagella=1,seed=0",
         "n_flagella": 1,
         "seed": 0,
     }
-    assert conditions[-1]["sample_id"] == "nf06_seed002"
+    assert conditions[-1]["sample_id"] == "nf06_seed000"
 
 
 def test_flagella_count_dry_run_writes_manifest_and_configs(tmp_path: Path) -> None:
@@ -59,7 +60,7 @@ def test_flagella_count_dry_run_writes_manifest_and_configs(tmp_path: Path) -> N
         "feature_schema": str(
             ROOT / "conf/analysis/flagella_count_behavior_features.yaml"
         ),
-        "sweep": {"n_flagella": [1, 2], "seeds": [0, 1]},
+        "sweep": {"n_flagella": [1, 2], "seeds": [0]},
         "base_overrides": {
             "time.duration_s": 0.5,
             "time.dt_star": 1.0e-4,
@@ -89,15 +90,15 @@ def test_flagella_count_dry_run_writes_manifest_and_configs(tmp_path: Path) -> N
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["run_batch_id"] == "test_dataset"
-    assert len(manifest["samples"]) == 4
+    assert len(manifest["samples"]) == 2
     assert {sample["status"] for sample in manifest["samples"]} == {"planned"}
     sample_config = yaml.safe_load(
-        (tmp_path / "runs/test_dataset/configs/nf02_seed001.yaml").read_text(
+        (tmp_path / "runs/test_dataset/configs/nf02_seed000.yaml").read_text(
             encoding="utf-8"
         )
     )
     assert sample_config["flagella"]["n_flagella"] == 2
-    assert sample_config["seed"]["global_seed"] == 1
+    assert sample_config["seed"]["global_seed"] == 0
     assert sample_config["time"]["dt_star"] == 1.0e-4
 
 
@@ -122,6 +123,7 @@ def _write_step_summary(path: Path, rows: list[dict[str, object]]) -> None:
         "flag_helix_axis_pair_angle_deg_max",
         "flag_helix_axis_rearward_projection_min",
         "bundle_axis_vs_body_axis_angle_deg",
+        "bundle_axis_vs_rear_angle_deg",
         "hook_len_rel_err_max",
     ]
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -160,6 +162,7 @@ def test_dataset_builder_outputs_summary_qc_and_timeseries(tmp_path: Path) -> No
                 "flag_helix_axis_pair_angle_deg_max": 0.0,
                 "flag_helix_axis_rearward_projection_min": 1.0,
                 "bundle_axis_vs_body_axis_angle_deg": 5.0,
+                "bundle_axis_vs_rear_angle_deg": 6.0,
                 "hook_len_rel_err_max": 0.1,
             },
             {
@@ -182,6 +185,7 @@ def test_dataset_builder_outputs_summary_qc_and_timeseries(tmp_path: Path) -> No
                 "flag_helix_axis_pair_angle_deg_max": 8.0,
                 "flag_helix_axis_rearward_projection_min": 0.98,
                 "bundle_axis_vs_body_axis_angle_deg": 6.0,
+                "bundle_axis_vs_rear_angle_deg": 7.0,
                 "hook_len_rel_err_max": 0.2,
             },
         ],
@@ -209,6 +213,7 @@ def test_dataset_builder_outputs_summary_qc_and_timeseries(tmp_path: Path) -> No
                 "flag_helix_axis_pair_angle_deg_max": 20.0,
                 "flag_helix_axis_rearward_projection_min": 0.9,
                 "bundle_axis_vs_body_axis_angle_deg": "",
+                "bundle_axis_vs_rear_angle_deg": "",
                 "hook_len_rel_err_max": 1.5,
             }
         ],
@@ -282,6 +287,9 @@ def test_dataset_builder_outputs_summary_qc_and_timeseries(tmp_path: Path) -> No
     assert rows[0]["quality_class"] == "strict_pass"
     assert float(rows[0]["cell_displacement"]) == 1.0
     assert float(rows[0]["cell_straightness"]) == 1.0
+    assert math.isnan(float(rows[0]["flagella_axis_alignment"]))
+    assert math.isnan(float(rows[0]["cell_flagella_axis_angle"]))
+    assert int(rows[0]["missing_value_count"]) >= 8
     assert rows[1]["quality_class"] == "relaxed_pass"
     assert rows[1]["hook_wrapped"] == "True"
     assert (dataset_dir / "qc_summary.csv").is_file()
@@ -291,3 +299,5 @@ def test_dataset_builder_outputs_summary_qc_and_timeseries(tmp_path: Path) -> No
         ts_rows = list(csv.DictReader(handle))
     assert len(ts_rows) == 2
     assert ts_rows[0]["dataset_id"] == "test_dataset"
+    assert math.isnan(float(ts_rows[-1]["flag_helix_axis_alignment_order"]))
+    assert math.isnan(float(ts_rows[-1]["bundle_axis_vs_body_axis_angle_deg"]))

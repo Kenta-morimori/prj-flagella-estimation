@@ -78,6 +78,30 @@ BOOKKEEPING_FIELDS = [
 
 SUMMARY_FIELDS = METADATA_FIELDS + QUALITY_FIELDS + FEATURE_FIELDS + BOOKKEEPING_FIELDS
 
+FLAGELLA_AXIS_FIELDS = [
+    "flagella_axis_alignment",
+    "flagella_axis_spread",
+    "flagella_axis_pair_angle_mean",
+    "flagella_axis_pair_angle_max",
+    "flagella_axis_rear_alignment",
+]
+
+FLAGELLA_RELATION_FIELDS = [
+    "cell_flagella_axis_angle",
+    "cell_flagella_axis_angle_std",
+    "cell_flagella_axis_stability",
+]
+
+FLAGELLA_TIMESERIES_FIELDS = [
+    "flag_helix_axis_alignment_order",
+    "flag_helix_axis_mean_deviation_deg_max",
+    "flag_helix_axis_pair_angle_deg_mean",
+    "flag_helix_axis_pair_angle_deg_max",
+    "flag_helix_axis_rearward_projection_min",
+    "bundle_axis_vs_body_axis_angle_deg",
+    "bundle_axis_vs_rear_angle_deg",
+]
+
 
 def _load_yaml(path: Path) -> dict[str, Any]:
     return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
@@ -317,6 +341,11 @@ def summarize_sample(
         ),
     }
 
+    n_flagella = int(_to_float(metadata["n_flagella"], default=0.0))
+    if n_flagella <= 1:
+        for key in FLAGELLA_AXIS_FIELDS + FLAGELLA_RELATION_FIELDS:
+            features[key] = float("nan")
+
     summary = {
         **metadata,
         **quality,
@@ -335,7 +364,12 @@ def summarize_sample(
 
     ts_rows: list[dict[str, Any]] = []
     for row in rows:
-        ts_rows.append({**metadata, **row})
+        processed = dict(row)
+        if n_flagella <= 1:
+            for key in FLAGELLA_TIMESERIES_FIELDS:
+                if key in processed:
+                    processed[key] = float("nan")
+        ts_rows.append({**metadata, **processed})
     fieldnames = list(metadata.keys()) + (list(rows[0].keys()) if rows else [])
     return summary, ts_rows, fieldnames
 
