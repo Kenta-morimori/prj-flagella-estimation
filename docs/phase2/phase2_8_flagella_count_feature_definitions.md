@@ -49,15 +49,14 @@ feature_categories:
 
 ## 出力仕様
 
-出力先は，repository-wide output contract に従い，JSTの timestamped run directory 配下へ保存する。同じrun directoryには `run.log` と `manifest.json` を置き，`manifest.json` に `dataset_id`，raw run paths，summary / timeseries paths，config paths，overrides，seed，Git commit情報を記録する。
+本Issueでは，dataset保存先の具体パスは決めない。複数runを束ねるdatasetの保存先，raw simulation runとの対応，`run.log` / `manifest.json` の配置は，親Issue #71 のdataset構築タスクで設計する。
 
-```text
-outputs/YYYY-MM-DD/HHMMSS/run.log
-outputs/YYYY-MM-DD/HHMMSS/manifest.json
-outputs/YYYY-MM-DD/HHMMSS/analysis/flagella_count_behavior/datasets/<dataset_id>/summary.csv
-outputs/YYYY-MM-DD/HHMMSS/analysis/flagella_count_behavior/datasets/<dataset_id>/timeseries/<sample_id>.csv
-```
+後続タスクでは，少なくとも以下を満たす必要がある。
 
-`summary.csv` は 1 sample = 1 row とし，`metadata`，`quality`，集計特徴量，診断特徴量を含める。`timeseries/<sample_id>.csv` は，sample単位の時系列を保持し，後続の特徴量再計算や外れ値確認に使う。`dataset_id` は timestamp とは別の論理IDとして残し，同一run directory内のdatasetを明示的に識別する。
+* `summary.csv` は 1 sample = 1 row とし，`metadata`，`quality`，集計特徴量，診断特徴量を含める。
+* `timeseries/<sample_id>.csv` は，sample単位の時系列を保持し，後続の特徴量再計算や外れ値確認に使う。
+* `dataset_id` は，timestampとは別の論理IDとして持つ。
+* `sample_id` は，1つの `n_flagella`，1つの `seed`，1つの simulation run の組を識別できる形にする。
+* dataset生成条件，raw run paths，config paths，overrides，seed，Git commit情報を再現性metadataとして記録する。
 
 後続の #71 実装では，複数条件実行，dataset構築，分布可視化を `conf/analysis/flagella_count_behavior_features.yaml` と出力仕様に従って追加する。

@@ -324,7 +324,7 @@
   - [x] 各カテゴリが cell / flagella / relation / QC のどれを対象にするか明記する。
   - [x] 定義不能な特徴量を `NaN` として扱い、plot / summary で除外数を記録する方針を明記する。
   - [x] 分析用特徴量とML候補特徴量を分け、`quality` と `diagnostics` を原則ML入力候補に含めない方針を明記する。
-  - [x] `dataset_id` と `sample_id` を持つ出力先仕様を定義する。
+  - [x] `dataset_id` と `sample_id` を持つ出力成果物要件を定義する。
 - acceptance criteria:
   - [x] 特徴量カテゴリ名が定義されている。
   - [x] 各カテゴリが cell / flagella / relation / QC のどれを対象とするか明確である。
