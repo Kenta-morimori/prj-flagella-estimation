@@ -46,7 +46,7 @@
   "commit_type": "complete",
   "commit_hash": "60f341db8c7a57b84022c099279a59a6cb278794",
   "push_status": "pushed",
-  "pull_request_url": "",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/75",
   "next_actions": [
     "必要に応じて標準12 samplesを `uv run python scripts/analysis/run_flagella_count_behavior_sweep.py --overwrite` で実行する。",
     "親Issue #71の次タスクとして、生成datasetの分布可視化と本数別比較を追加する。"
