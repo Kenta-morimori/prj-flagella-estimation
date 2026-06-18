@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "summary": "Issue #65 を親Issue #71 の小タスクとして整理し、RUN固定べん毛数差分析に使う特徴量カテゴリ、代表変数、NaN方針、分析用特徴量とML候補特徴量の分離方針、dataset_id/sample_id を持つ出力先仕様を文書化した。既存Phase 2 docsの #65 / #71 対応も更新し、RUN本数差評価は #71 配下の後続dataset分析として残した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "#71 の実装タスクとして、複数条件実行、raw output保存、summary.csv / timeseries生成、分布可視化を別途進める必要がある。",
+    "今回の成果物は文書のみであり、Python側のfeature registry定数やCSV schema実装は後続タスクに残す。"
+  ],
+  "tests_reviewed": [
+    "rg -n \"issues/65|issues/71|Phase 2.8|feature_categories|flagella_count_behavior\" docs/phase2 docs/PROJECT_PLAN.md",
+    "python -m json.tool docs/codex-runs/20260618_154140_phase2_65_feature_definitions/review_result.json",
+    "git diff --check"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "今回の変更はRUN分析の特徴量カテゴリと出力方針の文書化であり、新しい物理モデルや重要な数値近似の導入ではないためADRは不要。",
+  "commit_type": "complete",
+  "commit_hash": "pending",
+  "push_status": "not_pushed",
+  "pull_request_url": "",
+  "next_actions": [
+    "#71 配下で、n_flagella=1,2,3,6 と seed 3種類程度の複数run実行スクリプトを追加する。",
+    "raw output から summary.csv と timeseries/<sample_id>.csv を生成するdataset構築スクリプトを追加する。",
+    "べん毛数ごとの特徴量分布と代表/外れ値sampleを可視化する。"
+  ]
+}
