@@ -381,7 +381,7 @@ def _safe_name(value: str) -> str:
 
 
 def _feature_label(feature: str) -> str:
-    return feature.replace("_", "\n")
+    return feature.replace("_", " ")
 
 
 def _plot_category(
