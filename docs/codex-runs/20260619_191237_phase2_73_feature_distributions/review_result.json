@@ -1,0 +1,45 @@
+{
+  "status": "PASS",
+  "summary": "Issue #73 に対して、Phase 2.8 の flagella-count behavior dataset から本数別特徴量分布、QC集計、NaN集計、要約統計、簡易スクリーニングを生成する CLI を追加した。標準 dataset `fc_nf1_2_3_6_seed1_dur0p5` で analysis CSV 4件、category別 distribution plot 10件、QC plot 7件の生成を確認した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "標準 dataset は seed=0 固定で各 n_flagella 1 sample のため、feature_screening_summary.csv の within-group std は 0 になり、range_over_within_std は inf になり得る。これは後続の seed 数追加判断のための探索出力として扱う。",
+    "plot の視覚的な解釈と次に増やす条件の判断は、親Issue #71 の後続分析で行う。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "dataset builder / render helper 既存テストに加えて、Issue #73 の analysis CSV・PNG生成、NaN保持、use_for_analysis集計、overwrite guard を確認。"
+    },
+    {
+      "command": "uv run ruff check scripts/02_phase2_analysis tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "Phase 2 analysis CLI群と追加テストのlint確認。"
+    },
+    {
+      "command": "uv run ruff format --check scripts/02_phase2_analysis tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "対象ファイルはformat済み。"
+    },
+    {
+      "command": "uv run python scripts/02_phase2_analysis/plot_flagella_count_behavior_distributions.py --dataset-id fc_nf1_2_3_6_seed1_dur0p5 --overwrite",
+      "result": "PASS",
+      "notes": "標準 dataset から feature_summary_by_n_flagella.csv、nan_summary.csv、quality_summary.csv、feature_screening_summary.csv、distribution plots 10件、QC plots 7件を生成。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "既存の summary.csv と Feature Registry を使う分析CLI追加であり、物理モデル、特徴量定義、dataset schema の解釈を変更しないためADRは作成しない。",
+  "commit_type": "complete",
+  "commit_hash": "pending",
+  "push_status": "not_pushed",
+  "pull_request_url": "",
+  "next_actions": [
+    "#73 の plot と screening summary を読み、seed数を増やすべきか、評価時間を伸ばすべきか、3D特徴量の初期分離性評価へ進むかを判断する。",
+    "#76 で seed 依存の初期配置ばらつきを導入した後、同じ CLI で複数seed datasetを再評価する。"
+  ]
+}

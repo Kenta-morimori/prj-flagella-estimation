@@ -49,6 +49,8 @@ Phase 2.8 の RUN 固定べん毛数差分析用 batch / dataset 作成CLIです
   `run_manifest.json` から `summary.csv`、`qc_summary.csv`、`timeseries/<sample_id>.csv`、`dataset_manifest.json` を作成する CLI
 - `02_phase2_analysis/render_flagella_count_behavior_sample.py`:
   raw sample archive から 3D/2D render を後出し生成する CLI
+- `02_phase2_analysis/plot_flagella_count_behavior_distributions.py`:
+  dataset の `summary.csv` から本数別特徴量分布、QC集計、NaN集計、簡易スクリーニングを出力する CLI
 
 標準 4 samples の実行例:
 
@@ -66,6 +68,16 @@ uv run python scripts/02_phase2_analysis/render_flagella_count_behavior_sample.p
   --sample-dir outputs/phase2_analysis/flagella_count_behavior/runs/fc_nf1_2_3_6_seed1_dur0p5/samples/nf01_seed000 \
   --output-dir outputs/phase2_analysis/flagella_count_behavior/replays/nf01_seed000
 ```
+
+dataset からの特徴量分布可視化:
+
+```bash
+uv run python scripts/02_phase2_analysis/plot_flagella_count_behavior_distributions.py \
+  --dataset-id fc_nf1_2_3_6_seed1_dur0p5
+```
+
+出力は dataset directory 配下の `plots/distributions/`、`plots/qc/`、`analysis/` に保存されます。
+既存の分析出力を再生成する場合のみ `--overwrite` を指定してください。
 
 補助オプション:
 

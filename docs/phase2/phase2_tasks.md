@@ -384,6 +384,39 @@
   - `conf/phase2_analysis/flagella_count_behavior_dataset.yaml`
   - `docs/codex-runs/20260618_173743_phase2_72_flagella_count_dataset/review_result.json`
 
+### P2-8-010: 特徴量分布の可視化を追加する
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/73`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
+- branch: `feature/phase2-73-feature-distributions`
+- goal: #72 の `summary.csv` dataset から，べん毛本数ごとの特徴量分布，QC偏り，NaN，簡易スクリーニングを確認できる分析出力を生成する。
+- tasks:
+  - [x] `scripts/02_phase2_analysis/plot_flagella_count_behavior_distributions.py` を追加する。
+  - [x] `--dataset-dir` または `--dataset-id` で dataset directory を指定できるようにする。
+  - [x] category別の sample点付き分布図を `plots/distributions/` に出力する。
+  - [x] `quality_class` と `use_for_analysis` の違いを確認できる図を出力する。
+  - [x] `quality_summary.csv`，`nan_summary.csv`，`feature_summary_by_n_flagella.csv`，`feature_screening_summary.csv` を出力する。
+  - [x] 既存分析出力はデフォルトで上書きせず，`--overwrite` 指定時のみ再生成する。
+- acceptance criteria:
+  - [x] dataset directory を指定して `summary.csv` を読み込める。
+  - [x] `n_flagella` ごとの特徴量分布図が出力される。
+  - [x] sample ごとの値が図上で確認できる。
+  - [x] `quality_class` を区別した可視化ができる。
+  - [x] `use_for_analysis == true` のみの可視化ができる。
+  - [x] quality / diagnostics の本数別集計が出力される。
+  - [x] feature ごとの NaN 数が `nan_summary.csv` に出力される。
+  - [x] feature ごとの要約統計が `feature_summary_by_n_flagella.csv` に出力される。
+  - [x] 差がありそうな特徴量候補が `feature_screening_summary.csv` に出力される。
+- tests/checks:
+  - `uv run pytest tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff check scripts/02_phase2_analysis tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff format --check scripts/02_phase2_analysis tests/test_flagella_count_behavior_dataset.py`
+  - `uv run python scripts/02_phase2_analysis/plot_flagella_count_behavior_distributions.py --dataset-id fc_nf1_2_3_6_seed1_dur0p5 --overwrite`
+- docs:
+  - `scripts/README.md`
+  - `docs/codex-runs/20260619_191237_phase2_73_feature_distributions/review_result.json`
+
 ## Completed support task: 動画出力・サンプリング整備
 
 ### P2-9-009: 3D/2D動画出力のレビュー向けサンプリングを整備する
