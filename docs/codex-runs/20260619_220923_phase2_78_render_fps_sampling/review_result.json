@@ -1,0 +1,50 @@
+{
+  "status": "PASS",
+  "summary": "Issue #78 に対して、Phase 2.8 の raw sample replay render CLI で 3D/2D の fps を指定できるようにした。replay render はデフォルトで `out_all_steps_3d=false` とし、必要時のみ `--out-all-steps-3d` で全 archive state の3D描画へ戻せる。effective な render sampling 条件を `run.log` と `manifest.json` に記録し、標準 dataset config にも sampling 初期値を明記した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "既存の生成済み sample config が `out_all_steps_3d=true` の場合でも、replay CLI のデフォルトは軽量化のため `false` に上書きする。全step 3D描画が必要なレビューでは `--out-all-steps-3d` を明示する。",
+    "push と PR 作成はこのローカル作業では未実施。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "10件通過。replay render のデフォルト `out_all_steps_3d=false`、fps保持、manifest記録、CLI引数伝搬を追加テストで確認。"
+    },
+    {
+      "command": "uv run ruff check scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "対象 script と追加テストのlint確認。"
+    },
+    {
+      "command": "uv run ruff format --check scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "対象ファイルはformat済み。"
+    },
+    {
+      "command": "uv run python scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py --help",
+      "result": "PASS",
+      "notes": "`--out-all-steps-3d` / `--no-out-all-steps-3d` / `--fps-out-3d` / `--fps-out-2d` がhelpに表示されることを確認。"
+    },
+    {
+      "command": "commit hook: uv run ruff format --check . && uv run ruff check . && uv run pytest -q",
+      "result": "PASS",
+      "notes": "実装commit作成時のhookで全体確認。pytest は 189 passed。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "既存の `output_sampling` を raw sample replay CLI へ接続する出力制御変更であり、物理モデル、特徴量定義、dataset schema の解釈を変更しないためADRは作成しない。",
+  "commit_type": "complete",
+  "commit_hash": "2e6b5e4a6a2cb940bbfbbe12b32b91449d3dc54b",
+  "push_status": "not_pushed",
+  "pull_request_url": "",
+  "next_actions": [
+    "必要であれば branch `feature/phase2-78-render-fps-sampling` を push し、Issue #78 用のPRを作成する。",
+    "既存 raw sample の再描画では、レビュー目的に応じて `--fps-out-3d` / `--fps-out-2d` または `--out-all-steps-3d` を明示する。"
+  ]
+}
