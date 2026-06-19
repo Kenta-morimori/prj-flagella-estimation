@@ -11,6 +11,7 @@ import numpy as np
 from sim_swim.sim.core import SimulationState
 from sim_swim.sim.flagella_geometry import FlagellaRig
 from sim_swim.sim.params import SimulationConfig
+from sim_swim.render.video_writer import VideoRenderResult, open_mp4_writer
 
 
 def _flagella_colors(n: int) -> list[tuple[int, int, int]]:
@@ -54,12 +55,12 @@ def project_states(
     cfg: SimulationConfig,
     rig: FlagellaRig,
     out_dir: Path,
-) -> None:
+) -> VideoRenderResult | None:
     """固定カメラ2D投影を25Hzで出力する。"""
 
     states_list = list(states)
     if not states_list:
-        return
+        return None
 
     out_dir.mkdir(parents=True, exist_ok=True)
     frames_dir = out_dir / "frames"
@@ -77,12 +78,13 @@ def project_states(
     colors = _flagella_colors(len(rig.flagella_indices))
 
     video_path = out_dir / "projection.mp4"
-    writer = cv2.VideoWriter(
-        str(video_path),
-        cv2.VideoWriter_fourcc(*"mp4v"),
-        fps_2d,
-        (img_size, img_size),
+    writer_selection = open_mp4_writer(
+        video_path,
+        fps=fps_2d,
+        frame_size=(img_size, img_size),
     )
+    writer = writer_selection.writer
+    frame_count = 0
 
     for idx, st in enumerate(sampled):
         img = np.full((img_size, img_size, 3), 255, dtype=np.uint8)
@@ -126,5 +128,14 @@ def project_states(
         if cfg.render.save_frames_2d:
             cv2.imwrite(str(frames_dir / f"frame_{idx:06d}.png"), img)
         writer.write(img)
+        frame_count += 1
 
     writer.release()
+    return VideoRenderResult(
+        path=str(video_path),
+        selected_codec=writer_selection.selected_codec,
+        attempted_codecs=writer_selection.attempted_codecs,
+        fps=fps_2d,
+        frame_size=(img_size, img_size),
+        frame_count=frame_count,
+    )

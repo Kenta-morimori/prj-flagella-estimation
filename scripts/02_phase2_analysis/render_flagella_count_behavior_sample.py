@@ -78,12 +78,45 @@ def _infer_archive_path(sample_dir: Path) -> Path:
     return sample_dir / "raw" / "state_archive.npz"
 
 
+def _build_render_sampling_overrides(
+    *,
+    out_all_steps_3d: bool | None,
+    fps_out_3d: float | None,
+    fps_out_2d: float | None,
+) -> dict[str, Any]:
+    sampling: dict[str, Any] = {}
+    if out_all_steps_3d is not None:
+        sampling["out_all_steps_3d"] = bool(out_all_steps_3d)
+    if fps_out_3d is not None:
+        if fps_out_3d <= 0.0:
+            raise ValueError("--fps-out-3d must be positive")
+        sampling["fps_out_3d"] = float(fps_out_3d)
+    if fps_out_2d is not None:
+        if fps_out_2d <= 0.0:
+            raise ValueError("--fps-out-2d must be positive")
+        sampling["fps_out_2d"] = float(fps_out_2d)
+    if not sampling:
+        return {}
+    return {"output_sampling": sampling}
+
+
+def _render_sampling_summary(cfg: SimulationConfig) -> dict[str, Any]:
+    return {
+        "out_all_steps_3d": cfg.output_sampling.out_all_steps_3d,
+        "fps_out_3d": cfg.output_sampling.fps_out_3d,
+        "fps_out_2d": cfg.output_sampling.fps_out_2d,
+    }
+
+
 def render_sample(
     *,
     sample_dir: Path,
     output_dir: Path,
     config_path: Path | None,
     archive_path: Path | None,
+    out_all_steps_3d: bool | None = False,
+    fps_out_3d: float | None = None,
+    fps_out_2d: float | None = None,
 ) -> Path:
     sample_dir = sample_dir.resolve()
     config_path = (config_path or _infer_config_path(sample_dir)).resolve()
@@ -91,6 +124,13 @@ def render_sample(
 
     raw_cfg = _load_yaml(config_path)
     cfg = SimulationConfig.from_dict(raw_cfg)
+    render_sampling_overrides = _build_render_sampling_overrides(
+        out_all_steps_3d=out_all_steps_3d,
+        fps_out_3d=fps_out_3d,
+        fps_out_2d=fps_out_2d,
+    )
+    if render_sampling_overrides:
+        cfg = cfg.with_overrides(render_sampling_overrides)
     states = load_state_archive(archive_path)
 
     simulator = Simulator(cfg)
@@ -104,11 +144,26 @@ def render_sample(
     logger.info("config_path=%s", config_path)
     logger.info("archive_path=%s", archive_path)
     logger.info("state_count=%d", len(states))
+    logger.info("render_sampling=%s", _render_sampling_summary(cfg))
+    logger.info(
+        "render_sampling_overrides=%s",
+        render_sampling_overrides.get("output_sampling", {}),
+    )
 
     trajectory_path = output_dir / "trajectory.csv"
     write_trajectory_csv(trajectory_path, states)
-    save_swim_movie(states, cfg, simulator.rig, render_dir)
-    project_states(states, cfg, simulator.rig, render2d_dir)
+    render3d_video = save_swim_movie(states, cfg, simulator.rig, render_dir)
+    render2d_video = project_states(states, cfg, simulator.rig, render2d_dir)
+    if render3d_video is not None:
+        logger.info("render3d_video=%s", render3d_video.to_manifest())
+    if render2d_video is not None:
+        logger.info("render2d_video=%s", render2d_video.to_manifest())
+
+    render_video = {}
+    if render3d_video is not None:
+        render_video["render3d"] = render3d_video.to_manifest()
+    if render2d_video is not None:
+        render_video["render2d"] = render2d_video.to_manifest()
 
     manifest = {
         "git": _git_info(),
@@ -121,6 +176,11 @@ def render_sample(
             sample_id=sample_dir.name,
             config_path=str(config_path),
         ),
+        "render_sampling": _render_sampling_summary(cfg),
+        "render_sampling_overrides": render_sampling_overrides.get(
+            "output_sampling", {}
+        ),
+        "render_video": render_video,
         "outputs": {
             "root": str(output_dir),
             "trajectory_csv": str(trajectory_path),
@@ -143,6 +203,32 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument("--config", type=Path, default=None)
     parser.add_argument("--archive", type=Path, default=None)
+    sampling = parser.add_mutually_exclusive_group()
+    sampling.add_argument(
+        "--out-all-steps-3d",
+        dest="out_all_steps_3d",
+        action="store_true",
+        help="Render every archived 3D state instead of sampling by fps.",
+    )
+    sampling.add_argument(
+        "--no-out-all-steps-3d",
+        dest="out_all_steps_3d",
+        action="store_false",
+        help="Sample 3D replay frames by --fps-out-3d.",
+    )
+    parser.set_defaults(out_all_steps_3d=False)
+    parser.add_argument(
+        "--fps-out-3d",
+        type=float,
+        default=None,
+        help="3D replay frame rate when --no-out-all-steps-3d is active.",
+    )
+    parser.add_argument(
+        "--fps-out-2d",
+        type=float,
+        default=None,
+        help="2D replay frame rate.",
+    )
     args = parser.parse_args()
 
     sample_dir = args.sample_dir
@@ -152,6 +238,9 @@ def main() -> None:
         output_dir=output_dir,
         config_path=args.config,
         archive_path=args.archive,
+        out_all_steps_3d=args.out_all_steps_3d,
+        fps_out_3d=args.fps_out_3d,
+        fps_out_2d=args.fps_out_2d,
     )
     print(output_dir)
 

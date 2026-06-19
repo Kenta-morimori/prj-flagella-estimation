@@ -1,0 +1,74 @@
+{
+  "status": "PASS",
+  "summary": "Issue #78 に対して、Phase 2.8 の raw sample replay render CLI で 3D/2D の fps を指定できるようにした。replay render はデフォルトで `out_all_steps_3d=false` とし、必要時のみ `--out-all-steps-3d` で全 archive state の3D描画へ戻せる。さらに 3D/2D mp4 は H.264 (`avc1` / `H264`) を優先し、encoder がない環境では従来の `mp4v` にfallbackする。effective な render sampling 条件と実際に使われた動画codecを `run.log` と `manifest.json` に記録する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "既存の生成済み sample config が `out_all_steps_3d=true` の場合でも、replay CLI のデフォルトは軽量化のため `false` に上書きする。全step 3D描画が必要なレビューでは `--out-all-steps-3d` を明示する。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "10件通過。replay render のデフォルト `out_all_steps_3d=false`、fps保持、manifest記録、CLI引数伝搬を追加テストで確認。"
+    },
+    {
+      "command": "uv run pytest tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "21件通過。mp4 writer の `avc1` / `H264` / `mp4v` fallback、全codec失敗時エラー、3D/2D render metadata、replay manifest のcodec記録を確認。"
+    },
+    {
+      "command": "uv run ruff check scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "対象 script と追加テストのlint確認。"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/render scripts/01_simulate_swimming/01_simulate_swimming.py scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "3D/2D render、通常simulation CLI、replay CLI、関連テストのlint確認。"
+    },
+    {
+      "command": "uv run ruff format --check scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "対象ファイルはformat済み。"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/render scripts/01_simulate_swimming/01_simulate_swimming.py scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "codec fallback 追加対象ファイルはformat済み。"
+    },
+    {
+      "command": "uv run python scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py --help",
+      "result": "PASS",
+      "notes": "`--out-all-steps-3d` / `--no-out-all-steps-3d` / `--fps-out-3d` / `--fps-out-2d` がhelpに表示されることを確認。"
+    },
+    {
+      "command": "uv run python scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py --sample-dir outputs/phase2_analysis/flagella_count_behavior/runs/fc_nf1_2_3_6_seed1_dur0p5/samples/nf03_seed000 --output-dir /private/tmp/phase2_codec_probe_nf03 --fps-out-3d 25 --fps-out-2d 25",
+      "result": "PASS",
+      "notes": "nf03_seed000 replay を再生成し、3D/2D とも selected_codec が `avc1` になることを run.log で確認。"
+    },
+    {
+      "command": "ffprobe -hide_banner /private/tmp/phase2_codec_probe_nf03/render/swim3d.mp4 && ffprobe -hide_banner /private/tmp/phase2_codec_probe_nf03/render2d/projection.mp4",
+      "result": "PASS",
+      "notes": "3D/2D とも `Video: h264 ... (avc1 ...)` として生成されたことを確認。"
+    },
+    {
+      "command": "commit hook: uv run ruff format --check . && uv run ruff check . && uv run pytest -q",
+      "result": "PASS",
+      "notes": "H.264 fallback 実装commit作成時のhookで全体確認。pytest は 192 passed。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "既存の `output_sampling` と動画出力codec選択を raw sample replay / render 出力へ接続する出力制御変更であり、物理モデル、特徴量定義、dataset schema の解釈を変更しないためADRは作成しない。",
+  "commit_type": "complete",
+  "commit_hash": "fb326f38e0152c715c78833353fb635b0cbe94bf",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/79",
+  "next_actions": [
+    "PR #79 のCIとレビュー結果を確認する。",
+    "既存 raw sample の再描画では、レビュー目的に応じて `--fps-out-3d` / `--fps-out-2d` または `--out-all-steps-3d` を明示する。"
+  ]
+}

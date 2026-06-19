@@ -5,6 +5,7 @@ import importlib.util
 import json
 import math
 from pathlib import Path
+import sys
 
 import numpy as np
 import pytest
@@ -14,6 +15,7 @@ from sim_swim.analysis.flagella_count_behavior import (
     load_state_archive,
     save_state_archive,
 )
+from sim_swim.render.video_writer import VideoRenderResult
 from sim_swim.sim.core import SimulationState
 from sim_swim.sim.params import SimulationConfig
 
@@ -336,6 +338,122 @@ def test_render_sample_from_archive(tmp_path: Path) -> None:
     assert (out_dir / "trajectory.csv").is_file()
     assert (out_dir / "render/swim3d.mp4").is_file()
     assert (out_dir / "render2d/projection.mp4").is_file()
+
+
+def test_render_sample_defaults_to_lightweight_3d_replay(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    raw_cfg = yaml.safe_load((ROOT / "conf/sim_swim.yaml").read_text(encoding="utf-8"))
+    raw_cfg["flagella"]["n_flagella"] = 1
+    raw_cfg["output_sampling"]["out_all_steps_3d"] = True
+    raw_cfg["output_sampling"]["fps_out_3d"] = 99.0
+    raw_cfg["output_sampling"]["fps_out_2d"] = 88.0
+    config_path = tmp_path / "configs/nf01_seed000.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(yaml.safe_dump(raw_cfg), encoding="utf-8")
+    cfg = SimulationConfig.from_dict(raw_cfg)
+    sim = render_sample.Simulator(cfg)
+    sample_dir = tmp_path / "runs/test_dataset/samples/nf01_seed000"
+    archive_path = sample_dir / "raw/state_archive.npz"
+    save_state_archive(
+        archive_path,
+        [
+            SimulationState(
+                t=0.0,
+                position_um=(0.0, 0.0, 0.0),
+                quaternion=(0.0, 0.0, 0.0, 1.0),
+                velocity_um_s=(0.0, 0.0, 0.0),
+                omega_rad_s=(0.0, 0.0, 0.0),
+                bead_positions_um=sim.model.positions_m.copy() * 1.0e6,
+                flag_states=(),
+                reverse_flagella=(),
+            )
+        ],
+    )
+    captured: dict[str, SimulationConfig] = {}
+
+    def fake_save_swim_movie(states, cfg, rig, out_dir) -> VideoRenderResult:
+        captured["cfg_3d"] = cfg
+        out_dir.mkdir(parents=True, exist_ok=True)
+        return VideoRenderResult(
+            path=str(out_dir / "swim3d.mp4"),
+            selected_codec="avc1",
+            attempted_codecs=("avc1", "H264", "mp4v"),
+            fps=99.0,
+            frame_size=(1000, 1000),
+            frame_count=1,
+        )
+
+    def fake_project_states(states, cfg, rig, out_dir) -> VideoRenderResult:
+        captured["cfg_2d"] = cfg
+        out_dir.mkdir(parents=True, exist_ok=True)
+        return VideoRenderResult(
+            path=str(out_dir / "projection.mp4"),
+            selected_codec="mp4v",
+            attempted_codecs=("avc1", "H264", "mp4v"),
+            fps=88.0,
+            frame_size=(256, 256),
+            frame_count=1,
+        )
+
+    monkeypatch.setattr(render_sample, "save_swim_movie", fake_save_swim_movie)
+    monkeypatch.setattr(render_sample, "project_states", fake_project_states)
+
+    out_dir = render_sample.render_sample(
+        sample_dir=sample_dir,
+        output_dir=tmp_path / "replays/nf01_seed000",
+        config_path=config_path,
+        archive_path=archive_path,
+    )
+
+    assert captured["cfg_3d"].output_sampling.out_all_steps_3d is False
+    assert captured["cfg_3d"].output_sampling.fps_out_3d == pytest.approx(99.0)
+    assert captured["cfg_2d"].output_sampling.fps_out_2d == pytest.approx(88.0)
+    manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["render_sampling"] == {
+        "out_all_steps_3d": False,
+        "fps_out_3d": 99.0,
+        "fps_out_2d": 88.0,
+    }
+    assert manifest["render_sampling_overrides"] == {"out_all_steps_3d": False}
+    assert manifest["render_video"]["render3d"]["selected_codec"] == "avc1"
+    assert manifest["render_video"]["render2d"]["selected_codec"] == "mp4v"
+
+
+def test_render_sample_cli_passes_sampling_options(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    captured: dict[str, object] = {}
+    output_dir = tmp_path / "replay"
+
+    def fake_render_sample(**kwargs):
+        captured.update(kwargs)
+        return output_dir
+
+    monkeypatch.setattr(render_sample, "render_sample", fake_render_sample)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "render_flagella_count_behavior_sample.py",
+            "--sample-dir",
+            str(tmp_path / "sample"),
+            "--output-dir",
+            str(output_dir),
+            "--fps-out-3d",
+            "12.5",
+            "--fps-out-2d",
+            "8",
+            "--out-all-steps-3d",
+        ],
+    )
+
+    render_sample.main()
+
+    assert captured["output_dir"] == output_dir
+    assert captured["out_all_steps_3d"] is True
+    assert captured["fps_out_3d"] == pytest.approx(12.5)
+    assert captured["fps_out_2d"] == pytest.approx(8.0)
 
 
 def _write_step_summary(path: Path, rows: list[dict[str, object]]) -> None:

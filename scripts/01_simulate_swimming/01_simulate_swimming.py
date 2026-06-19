@@ -210,8 +210,8 @@ def main(
     logger.info("Saved trajectory to %s", traj_path)
 
     # レンダリング
-    save_swim_movie(states, cfg, simulator.rig, ctx.out.render_dir)
-    project_states(states, cfg, simulator.rig, ctx.out.render2d_dir)
+    render3d_video = save_swim_movie(states, cfg, simulator.rig, ctx.out.render_dir)
+    render2d_video = project_states(states, cfg, simulator.rig, ctx.out.render2d_dir)
 
     # manifest に出力一覧を追記
     manifest_path = ctx.out.root / "manifest.json"
@@ -238,6 +238,13 @@ def main(
     if body_local_diag_csv.is_file():
         outputs["body_constraint_local_diagnostics_csv"] = str(body_local_diag_csv)
     manifest["outputs"] = outputs
+    render_video = {}
+    if render3d_video is not None:
+        render_video["render3d"] = render3d_video.to_manifest()
+    if render2d_video is not None:
+        render_video["render2d"] = render2d_video.to_manifest()
+    if render_video:
+        manifest["render_video"] = render_video
     manifest["files"] = [
         str(traj_path.relative_to(ctx.out.root)),
         "sim/step_summary.csv",

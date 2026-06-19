@@ -15,6 +15,9 @@ base_overrides:
   motor.enable_switching: false
   motor.force_distribution: material_twist_local_couple
   flagella.initial_helix_axis_from_rear_deg: 0
+  output_sampling.out_all_steps_3d: false
+  output_sampling.fps_out_3d: 25.0
+  output_sampling.fps_out_2d: 25.0
 
 output:
   run_batch_dir: outputs/phase2_analysis/flagella_count_behavior/runs/fc_nf1_2_3_6_seed1_dur0p5

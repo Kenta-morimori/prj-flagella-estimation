@@ -438,6 +438,42 @@
 - docs:
   - `docs/codex-runs/20260609_014607_phase2_fps_out_3d_sampling/review_result.json`
 
+### P2-8-078: dataset raw sample replay render のfps指定を追加する
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/78`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
+- branch: `feature/phase2-78-render-fps-sampling`
+- background:
+  - `dt_star=1.0e-4`, `duration_s=0.5` 条件では archive state が約5000件になり，後出し3D描画を全stepで行うとファイル数と処理時間が大きくなる。
+  - 既存の `output_sampling.out_all_steps_3d` / `fps_out_3d` / `fps_out_2d` を raw sample replay CLI から指定できる必要がある。
+- tasks:
+  - [x] `render_flagella_count_behavior_sample.py` に `--fps-out-3d` / `--fps-out-2d` を追加する。
+  - [x] replay render のデフォルトを `out_all_steps_3d=false` とし，必要時のみ `--out-all-steps-3d` で全step描画できるようにする。
+  - [x] `manifest.json` と `run.log` に effective な render sampling 条件を記録する。
+  - [x] `conf/phase2_analysis/flagella_count_behavior_dataset.yaml` に標準 sampling 条件を明記する。
+  - [x] 3D/2D mp4 は H.264 (`avc1` / `H264`) を優先し，encoder がない環境では `mp4v` にfallbackする。
+- acceptance criteria:
+  - [x] 既存 raw archive を再シミュレーションせず，3D/2D replay fps を指定できる。
+  - [x] デフォルト実行で3D全step描画を避ける。
+  - [x] sampling 条件が manifest から追跡できる。
+  - [x] 実際に使われた動画codecが manifest から追跡できる。
+- tests/checks:
+  - `uv run pytest tests/test_flagella_count_behavior_dataset.py`
+  - `uv run pytest tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff check scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff check src/sim_swim/render scripts/01_simulate_swimming/01_simulate_swimming.py scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff format --check scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff format --check src/sim_swim/render scripts/01_simulate_swimming/01_simulate_swimming.py scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run python scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py --help`
+  - `uv run python scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py --sample-dir outputs/phase2_analysis/flagella_count_behavior/runs/fc_nf1_2_3_6_seed1_dur0p5/samples/nf03_seed000 --output-dir /private/tmp/phase2_codec_probe_nf03 --fps-out-3d 25 --fps-out-2d 25`
+  - `ffprobe -hide_banner /private/tmp/phase2_codec_probe_nf03/render/swim3d.mp4`
+  - `ffprobe -hide_banner /private/tmp/phase2_codec_probe_nf03/render2d/projection.mp4`
+- docs:
+  - `scripts/README.md`
+  - `docs/phase2/phase2_current.md`
+  - `docs/codex-runs/20260619_220923_phase2_78_render_fps_sampling/review_result.json`
+
 ## Phase 2.9: Tumble状態の段階実装
 
 ### P2-9-010: Tumble状態を段階実装する

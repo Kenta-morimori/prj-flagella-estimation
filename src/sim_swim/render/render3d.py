@@ -15,6 +15,11 @@ from sim_swim.sim.core import SimulationState
 from sim_swim.sim.flagella_geometry import FlagellaRig
 from sim_swim.sim.helix_axis import estimate_flag_helix_axis
 from sim_swim.sim.params import SimulationConfig
+from sim_swim.render.video_writer import (
+    VideoRenderResult,
+    VideoWriterSelection,
+    open_mp4_writer,
+)
 
 
 def _flagella_colors(n: int) -> list[tuple[float, float, float]]:
@@ -142,14 +147,14 @@ def save_swim_movie(
     cfg: SimulationConfig,
     rig: FlagellaRig,
     out_dir: Path,
-) -> None:
+) -> VideoRenderResult | None:
     """3Dの連結ビーズ可視化をPNG連番と動画で保存する。"""
 
     states_list = list(states)
     out_dir.mkdir(parents=True, exist_ok=True)
     if not states_list:
         (out_dir / "swim3d_final.png").write_text("no states", encoding="utf-8")
-        return
+        return None
 
     render_states = _select_frames(
         states_list,
@@ -166,7 +171,9 @@ def save_swim_movie(
 
     movie_path = out_dir / "swim3d.mp4"
     writer: cv2.VideoWriter | None = None
+    writer_selection: VideoWriterSelection | None = None
     last_frame: np.ndarray | None = None
+    frame_count = 0
 
     if cfg.output_sampling.out_all_steps_3d:
         fps_3d = min(60.0, max(1.0, 1.0 / max(cfg.output_dt_s, 1e-9)))
@@ -277,13 +284,14 @@ def save_swim_movie(
             cv2.imwrite(str(frames_dir / f"frame_{idx:06d}.png"), frame)
 
         if writer is None:
-            writer = cv2.VideoWriter(
-                str(movie_path),
-                getattr(cv2, "VideoWriter_fourcc")(*"mp4v"),
-                fps_3d,
-                (frame.shape[1], frame.shape[0]),
+            writer_selection = open_mp4_writer(
+                movie_path,
+                fps=fps_3d,
+                frame_size=(frame.shape[1], frame.shape[0]),
             )
+            writer = writer_selection.writer
         writer.write(frame)
+        frame_count += 1
         last_frame = frame
 
     if writer is not None:
@@ -291,3 +299,14 @@ def save_swim_movie(
 
     if last_frame is not None:
         cv2.imwrite(str(out_dir / "swim3d_final.png"), last_frame)
+
+    if writer_selection is None or last_frame is None:
+        return None
+    return VideoRenderResult(
+        path=str(movie_path),
+        selected_codec=writer_selection.selected_codec,
+        attempted_codecs=writer_selection.attempted_codecs,
+        fps=fps_3d,
+        frame_size=(last_frame.shape[1], last_frame.shape[0]),
+        frame_count=frame_count,
+    )
