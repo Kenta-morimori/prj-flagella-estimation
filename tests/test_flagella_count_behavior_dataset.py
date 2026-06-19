@@ -43,6 +43,10 @@ render_sample = _load_script(
     "render_flagella_count_behavior_sample",
     "scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py",
 )
+plot_distributions = _load_script(
+    "plot_flagella_count_behavior_distributions",
+    "scripts/02_phase2_analysis/plot_flagella_count_behavior_distributions.py",
+)
 
 
 def test_flagella_count_conditions_use_expected_sample_ids() -> None:
@@ -550,3 +554,178 @@ def test_dataset_builder_outputs_summary_qc_and_timeseries(tmp_path: Path) -> No
     assert ts_rows[0]["dataset_id"] == "cli_dataset"
     assert math.isnan(float(ts_rows[-1]["flag_helix_axis_alignment_order"]))
     assert math.isnan(float(ts_rows[-1]["bundle_axis_vs_body_axis_angle_deg"]))
+
+
+def test_plot_distributions_outputs_analysis_and_qc_artifacts(tmp_path: Path) -> None:
+    dataset_dir = tmp_path / "datasets/test_dataset"
+    dataset_dir.mkdir(parents=True)
+    feature_schema = {
+        "feature_categories": {
+            "metadata": {"variables": ["sample_id", "n_flagella"]},
+            "quality": {
+                "variables": ["quality_class", "use_for_analysis"],
+            },
+            "cell_translation": {
+                "ml_candidate": True,
+                "variables": ["cell_mean_speed", "cell_straightness"],
+            },
+            "flagella_axis": {
+                "ml_candidate": True,
+                "variables": [
+                    "flagella_axis_alignment",
+                    "flagella_axis_pair_angle_mean",
+                ],
+            },
+            "diagnostics": {
+                "ml_candidate": False,
+                "variables": ["hook_drift", "hook_wrapped", "first_fail_category"],
+            },
+        }
+    }
+    (dataset_dir / "feature_schema_used.yaml").write_text(
+        yaml.safe_dump(feature_schema, sort_keys=False),
+        encoding="utf-8",
+    )
+    (dataset_dir / "dataset_manifest.json").write_text(
+        json.dumps({"dataset_id": "test_dataset"}),
+        encoding="utf-8",
+    )
+    rows = [
+        {
+            "sample_id": "nf01_seed000",
+            "dataset_id": "test_dataset",
+            "n_flagella": 1,
+            "quality_class": "strict_pass",
+            "use_for_analysis": True,
+            "shape_pass": True,
+            "relaxed_pass": True,
+            "review_required": False,
+            "first_fail_category": "none",
+            "missing_value_count": 2,
+            "cell_mean_speed": 0.2,
+            "cell_straightness": 0.9,
+            "flagella_axis_alignment": "nan",
+            "flagella_axis_pair_angle_mean": "nan",
+            "hook_drift": 0.1,
+            "hook_wrapped": False,
+        },
+        {
+            "sample_id": "nf02_seed000",
+            "dataset_id": "test_dataset",
+            "n_flagella": 2,
+            "quality_class": "relaxed_pass",
+            "use_for_analysis": True,
+            "shape_pass": False,
+            "relaxed_pass": True,
+            "review_required": True,
+            "first_fail_category": "hook",
+            "missing_value_count": 0,
+            "cell_mean_speed": 0.4,
+            "cell_straightness": 0.8,
+            "flagella_axis_alignment": 0.95,
+            "flagella_axis_pair_angle_mean": 10.0,
+            "hook_drift": 1.0,
+            "hook_wrapped": True,
+        },
+        {
+            "sample_id": "nf03_seed000",
+            "dataset_id": "test_dataset",
+            "n_flagella": 3,
+            "quality_class": "fail",
+            "use_for_analysis": False,
+            "shape_pass": False,
+            "relaxed_pass": False,
+            "review_required": True,
+            "first_fail_category": "hook",
+            "missing_value_count": 0,
+            "cell_mean_speed": 0.1,
+            "cell_straightness": 0.5,
+            "flagella_axis_alignment": 0.7,
+            "flagella_axis_pair_angle_mean": 30.0,
+            "hook_drift": 2.0,
+            "hook_wrapped": True,
+        },
+        {
+            "sample_id": "nf06_seed000",
+            "dataset_id": "test_dataset",
+            "n_flagella": 6,
+            "quality_class": "relaxed_pass",
+            "use_for_analysis": True,
+            "shape_pass": False,
+            "relaxed_pass": True,
+            "review_required": True,
+            "first_fail_category": "hook",
+            "missing_value_count": 0,
+            "cell_mean_speed": 0.5,
+            "cell_straightness": 0.7,
+            "flagella_axis_alignment": 0.99,
+            "flagella_axis_pair_angle_mean": 8.0,
+            "hook_drift": 1.5,
+            "hook_wrapped": True,
+        },
+    ]
+    with (dataset_dir / "summary.csv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(rows)
+
+    result = plot_distributions.analyze_dataset(
+        dataset_dir=dataset_dir,
+        overwrite=False,
+    )
+
+    assert len(result["analysis_csvs"]) == 4
+    assert all(path.is_file() for path in result["analysis_csvs"])
+    assert result["distribution_plots"]
+    assert result["qc_plots"]
+    assert (
+        dataset_dir / "plots/distributions/cell_translation_all_samples.png"
+    ).is_file()
+    assert (
+        dataset_dir / "plots/distributions/cell_translation_use_for_analysis_true.png"
+    ).is_file()
+    assert (dataset_dir / "plots/qc/quality_class_by_n_flagella.png").is_file()
+
+    nan_rows = list(
+        csv.DictReader(
+            (dataset_dir / "analysis/nan_summary.csv").open(
+                encoding="utf-8",
+                newline="",
+            )
+        )
+    )
+    target_nan = [
+        row
+        for row in nan_rows
+        if row["feature"] == "flagella_axis_pair_angle_mean"
+        and row["n_flagella"] != "all"
+        and float(row["n_flagella"]) == 1.0
+    ]
+    assert target_nan
+    assert int(target_nan[0]["nan_count"]) == 1
+
+    quality_rows = list(
+        csv.DictReader(
+            (dataset_dir / "analysis/quality_summary.csv").open(
+                encoding="utf-8",
+                newline="",
+            )
+        )
+    )
+    assert any(
+        row["metric"] == "use_for_analysis"
+        and float(row["n_flagella"]) == 3.0
+        and row["category"] == "False"
+        and row["count"] == "1"
+        for row in quality_rows
+    )
+
+    with pytest.raises(FileExistsError, match="--overwrite"):
+        plot_distributions.analyze_dataset(
+            dataset_dir=dataset_dir,
+            overwrite=False,
+        )
+
+    plot_distributions.analyze_dataset(dataset_dir=dataset_dir, overwrite=True)
