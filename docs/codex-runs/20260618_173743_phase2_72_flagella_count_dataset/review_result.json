@@ -1,0 +1,49 @@
+{
+  "status": "PASS",
+  "summary": "Issue #72 に対して、RUN固定べん毛本数差分析用の analysis config、複数条件実行スクリプト、dataset builder、単体テストを追加した。標準 dataset は seed=0 固定の 4 samples に整理し、n=1 の flagella_axis 系は NaN に統一した。dry-run による条件表・manifest生成、4 sample の実シミュレーション、実 raw からの dataset 生成まで確認済み。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "標準 batch は 4 samples に縮小した。seed 差を出す機構は別 PR で追加する前提のため、現行 dataset は deterministic である。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_flagella_count_behavior_dataset.py tests/test_phase2_7_bundling_sweep.py",
+      "result": "PASS",
+      "notes": "追加dataset tests 3件と既存Phase 2.7分類・plot tests 8件が通過。"
+    },
+    {
+      "command": "uv run ruff check scripts/analysis tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "analysis scripts と追加testのlint確認。"
+    },
+    {
+      "command": "uv run ruff format --check scripts/analysis tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "対象ファイルはformat済み。"
+    },
+    {
+      "command": "uv run python scripts/analysis/run_flagella_count_behavior_sweep.py --overwrite --progress-interval 5000",
+      "result": "PASS",
+      "notes": "seed=0 固定の 4 samples を実行し、run_manifest.json を生成。"
+    },
+    {
+      "command": "uv run python scripts/analysis/build_flagella_count_behavior_dataset.py --overwrite",
+      "result": "PASS",
+      "notes": "実 raw から summary.csv、qc_summary.csv、timeseries/nf01_seed000.csv、dataset_manifest.json、feature_schema_used.yaml を生成。n=1 の flagella_axis 系は NaN 化を確認。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "既存Feature Registryと既存step_summary.csvに基づくanalysis orchestration追加であり、物理モデルや出力形式の方針変更ではないためADRは作成しない。",
+  "commit_type": "complete",
+  "commit_hash": "d24377a5185986cb43416fe24fce611315349184",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/75",
+  "next_actions": [
+    "必要に応じて seed 差を生む機構を別 PR で導入する。",
+    "親Issue #71の次タスクとして、生成datasetの分布可視化と本数別比較を追加する。"
+  ]
+}

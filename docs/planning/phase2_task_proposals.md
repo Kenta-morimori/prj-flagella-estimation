@@ -283,7 +283,7 @@
 - 既存実装で確認すべき点:
   - `manifest.json` の現行項目
   - `sim/step_summary.csv` / `trajectory.csv` の再利用可能性
-  - `scripts/03_train_evaluate.py` との接続前提
+  - Phase4 training / evaluation CLI との接続前提
 - suggested acceptance criteria:
   1. ラベル/metadata必須キーが定義される
   2. 1 run 単位で Phase4入力に必要情報が欠損しない

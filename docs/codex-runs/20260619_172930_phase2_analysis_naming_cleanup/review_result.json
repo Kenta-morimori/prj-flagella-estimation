@@ -1,0 +1,69 @@
+{
+  "status": "PASS",
+  "summary": "Phase2 の RUN 固定べん毛本数差分析用 CLI/config を汎用的な analysis 命名から Phase2 専用の命名へ整理した。未実装の Phase3/4/5 stub script と未使用の legacy config を削除し、scripts/README.md と Phase2 関連 docs の参照を更新した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "既存の generated outputs under outputs/analysis/flagella_count_behavior は移動していない。今後の default output は outputs/phase2_analysis/flagella_count_behavior を使う。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --help",
+      "result": "PASS",
+      "notes": "新パスで sweep CLI の argparse help を確認。"
+    },
+    {
+      "command": "uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.py --help",
+      "result": "PASS",
+      "notes": "新パスで dataset builder CLI の argparse help を確認。"
+    },
+    {
+      "command": "uv run python scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py --help",
+      "result": "PASS",
+      "notes": "新パスで raw sample replay CLI の argparse help を確認。"
+    },
+    {
+      "command": "uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --dry-run --sample-limit 1 --overwrite",
+      "result": "PASS",
+      "notes": "新しい default config と outputs/phase2_analysis/flagella_count_behavior 配下の default run path を確認。"
+    },
+    {
+      "command": "uv run pytest tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "flagella-count behavior dataset tests 5件が通過。"
+    },
+    {
+      "command": "uv run ruff check scripts/02_phase2_analysis tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "移動後の Phase2 analysis scripts と関連 test の lint 確認。"
+    },
+    {
+      "command": "uv run ruff format --check scripts/02_phase2_analysis tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "対象ファイルは format 済み。"
+    },
+    {
+      "command": "rg -n \"scripts/analysis|conf/analysis|outputs/analysis/flagella_count_behavior|02_detect_bac|03_train_evaluate|10_overlay_flagella|conf/config.yaml\" scripts docs tests conf -g '!docs/codex-runs/**'",
+      "result": "PASS",
+      "notes": "active docs/code/tests/conf から旧パス・削除対象名の参照が消えていることを確認。"
+    },
+    {
+      "command": "commit hook: uv run ruff format --check . && uv run ruff check . && uv run pytest -q",
+      "result": "PASS",
+      "notes": "実装 commit 作成時の hook で全体確認。pytest は 184 passed。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "Phase2 analysis CLI/config の命名整理と未使用 stub/config 削除であり、物理モデル・データ形式・再現性方針を変更しないためADRは作成しない。",
+  "commit_type": "complete",
+  "commit_hash": "33d88a1d624a139b5077d0c538e9b21b28c03fc1",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/75",
+  "next_actions": [
+    "必要なら既存の outputs/analysis/flagella_count_behavior を手動で参照し、新規 run からは outputs/phase2_analysis/flagella_count_behavior を使う。",
+    "Phase3/4/5 の CLI は各フェーズ実装時に実体のある entrypoint として追加する。"
+  ]
+}

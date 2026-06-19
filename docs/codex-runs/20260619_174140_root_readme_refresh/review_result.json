@@ -1,0 +1,52 @@
+{
+  "status": "PASS",
+  "summary": "root README.md をプロジェクト入口として再整理し、古い PhaseB1 / Issue #37 の詳細手順を削除した。現在の主対象である Phase2、Phase2.8 dataset 作成、主要ディレクトリ、出力方針、詳細ドキュメントへの導線を追加した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    {
+      "command": "rg -n \"scripts/analysis|conf/analysis|outputs/analysis/flagella_count_behavior|PhaseB1|Issue #37|02_detect_bac|03_train_evaluate|10_overlay_flagella|conf/config.yaml\" README.md",
+      "result": "PASS",
+      "notes": "root README から旧 analysis path、削除済み stub、古い PhaseB1 / Issue #37 記述が消えていることを確認。"
+    },
+    {
+      "command": "uv run python -m scripts.01_simulate_swimming --help",
+      "result": "PASS",
+      "notes": "README に記載した単発 simulation entrypoint の help を確認。"
+    },
+    {
+      "command": "uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --help",
+      "result": "PASS",
+      "notes": "README に記載した Phase2 analysis sweep CLI の help を確認。"
+    },
+    {
+      "command": "uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.py --help",
+      "result": "PASS",
+      "notes": "README に記載した Phase2 analysis dataset builder CLI の help を確認。"
+    },
+    {
+      "command": "uv run pytest tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "Phase2 analysis 周辺の focused tests 5件が通過。"
+    },
+    {
+      "command": "commit hook: uv run ruff format --check . && uv run ruff check . && uv run pytest -q",
+      "result": "PASS",
+      "notes": "README commit 作成時の hook で全体確認。pytest は 184 passed。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "root README の案内構成整理であり、モデル・出力仕様・運用方針の意思決定変更ではないためADRは作成しない。",
+  "commit_type": "complete",
+  "commit_hash": "298611b454ac05ba655cf66d11db16caa41f8d1a",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/75",
+  "next_actions": [
+    "README の詳細 CLI 例は引き続き scripts/README.md に集約する。",
+    "Phase2 の現在地が変わった場合は docs/phase2/phase2_current.md を先に更新し、README は入口として必要な範囲だけ追従する。"
+  ]
+}

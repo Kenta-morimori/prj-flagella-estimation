@@ -20,7 +20,7 @@
 
 ## Feature Registry
 
-Feature Registry の正本は `conf/analysis/flagella_count_behavior_features.yaml` とする。
+Feature Registry の正本は `conf/phase2_analysis/flagella_count_behavior_features.yaml` とする。
 
 この YAML は，特徴量カテゴリ，対象領域，ML入力候補フラグ，代表変数名，短い説明コメントを定義する。厳密な算出式，単位，追加派生特徴量，`summary.csv` / `timeseries` の完全schemaは，後続のdataset構築タスクで定義する。
 
@@ -35,7 +35,7 @@ feature_categories:
       - representative_variable_name  # 短い説明
 ```
 
-現在のカテゴリは，`metadata`, `quality`, `cell_translation`, `cell_orientation`, `flagella_axis`, `cell_flagella_relation`, `diagnostics` である。各カテゴリの代表変数名は，`conf/analysis/flagella_count_behavior_features.yaml` を参照する。
+現在のカテゴリは，`metadata`, `quality`, `cell_translation`, `cell_orientation`, `flagella_axis`, `cell_flagella_relation`, `diagnostics` である。各カテゴリの代表変数名は，`conf/phase2_analysis/flagella_count_behavior_features.yaml` を参照する。
 
 ## 利用方針
 
@@ -59,4 +59,4 @@ feature_categories:
 * `sample_id` は，1つの `n_flagella`，1つの `seed`，1つの simulation run の組を識別できる形にする。
 * dataset生成条件，raw run paths，config paths，overrides，seed，Git commit情報を再現性metadataとして記録する。
 
-後続の #71 実装では，複数条件実行，dataset構築，分布可視化を `conf/analysis/flagella_count_behavior_features.yaml` と出力仕様に従って追加する。
+後続の #71 実装では，複数条件実行，dataset構築，分布可視化を `conf/phase2_analysis/flagella_count_behavior_features.yaml` と出力仕様に従って追加する。
