@@ -69,6 +69,8 @@ uv run python scripts/02_phase2_analysis/render_flagella_count_behavior_sample.p
   --output-dir outputs/phase2_analysis/flagella_count_behavior/replays/nf01_seed000
 ```
 
+replay render の3D出力はデフォルトで `output_sampling.out_all_steps_3d=false` として扱い、`--fps-out-3d` で間引きfpsを指定します。全archive stateを3D描画したい場合のみ `--out-all-steps-3d` を指定してください。2D側は `--fps-out-2d` で指定できます。
+
 dataset からの特徴量分布可視化:
 
 ```bash
