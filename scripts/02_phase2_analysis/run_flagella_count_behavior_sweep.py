@@ -129,22 +129,51 @@ def _sample_id(n_flagella: int, seed: int) -> str:
     return f"nf{int(n_flagella):02d}_seed{int(seed):03d}"
 
 
+def _sample_id_split(n_flagella: int, attach_seed: int, phase_seed: int) -> str:
+    return f"nf{int(n_flagella):02d}_as{int(attach_seed):03d}_ps{int(phase_seed):03d}"
+
+
 def build_conditions(config: dict[str, Any]) -> list[dict[str, Any]]:
     sweep = config.get("sweep", {}) or {}
     n_flagella_values = [int(v) for v in sweep.get("n_flagella", [])]
-    seeds = [int(v) for v in sweep.get("seeds", [])]
     conditions: list[dict[str, Any]] = []
-    for n_flagella in n_flagella_values:
-        for seed in seeds:
-            sample_id = _sample_id(n_flagella, seed)
-            conditions.append(
-                {
-                    "sample_id": sample_id,
-                    "condition_tag": f"n_flagella={n_flagella},seed={seed}",
-                    "n_flagella": n_flagella,
-                    "seed": seed,
-                }
-            )
+    if "attach_seeds" in sweep or "phase_seeds" in sweep:
+        fallback_seeds = [int(v) for v in sweep.get("seeds", [0])]
+        attach_seeds = [int(v) for v in sweep.get("attach_seeds", fallback_seeds)]
+        phase_seeds = [int(v) for v in sweep.get("phase_seeds", fallback_seeds)]
+        for n_flagella in n_flagella_values:
+            for attach_seed in attach_seeds:
+                for phase_seed in phase_seeds:
+                    sample_id = _sample_id_split(n_flagella, attach_seed, phase_seed)
+                    conditions.append(
+                        {
+                            "sample_id": sample_id,
+                            "condition_tag": (
+                                f"n_flagella={n_flagella},"
+                                f"attach_seed={attach_seed},"
+                                f"phase_seed={phase_seed}"
+                            ),
+                            "n_flagella": n_flagella,
+                            "seed": attach_seed,
+                            "attach_seed": attach_seed,
+                            "phase_seed": phase_seed,
+                        }
+                    )
+    else:
+        seeds = [int(v) for v in sweep.get("seeds", [])]
+        for n_flagella in n_flagella_values:
+            for seed in seeds:
+                sample_id = _sample_id(n_flagella, seed)
+                conditions.append(
+                    {
+                        "sample_id": sample_id,
+                        "condition_tag": f"n_flagella={n_flagella},seed={seed}",
+                        "n_flagella": n_flagella,
+                        "seed": seed,
+                        "attach_seed": seed,
+                        "phase_seed": seed,
+                    }
+                )
     return conditions
 
 
@@ -159,7 +188,11 @@ def _build_sample_config(
     )
     sample_overrides = {
         "flagella": {"n_flagella": int(condition["n_flagella"])},
-        "seed": {"global_seed": int(condition["seed"])},
+        "seed": {
+            "global_seed": int(condition["seed"]),
+            "attach_seed": int(condition["attach_seed"]),
+            "phase_seed": int(condition["phase_seed"]),
+        },
     }
     overrides = _merge_nested(base_overrides, sample_overrides)
     return SimulationConfig.from_dict(base_config).with_overrides(overrides)
@@ -292,6 +325,16 @@ def run_batch(
             "dt_star": float(cfg.dt_star),
             "torque_Nm": float(cfg.motor.torque_Nm),
             "force_distribution": cfg.motor.force_distribution,
+            "attach_seed": (
+                int(cfg.seed.attach_seed)
+                if cfg.seed.attach_seed is not None
+                else int(cfg.seed.global_seed)
+            ),
+            "phase_seed": (
+                int(cfg.seed.phase_seed)
+                if cfg.seed.phase_seed is not None
+                else int(cfg.seed.global_seed)
+            ),
             "cli_overrides": list(cli_overrides),
         }
 

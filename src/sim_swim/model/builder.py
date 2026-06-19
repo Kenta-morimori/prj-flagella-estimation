@@ -171,6 +171,17 @@ class ModelBuilder:
     def __init__(self, cfg: SimulationConfig):
         self.cfg = cfg
         self.rng = np.random.default_rng(cfg.seed.global_seed)
+        self.attach_seed = int(
+            cfg.seed.attach_seed
+            if cfg.seed.attach_seed is not None
+            else cfg.seed.global_seed
+        )
+        phase_seed = (
+            cfg.seed.phase_seed
+            if cfg.seed.phase_seed is not None
+            else cfg.seed.global_seed
+        )
+        self.phase_rng = np.random.default_rng(int(phase_seed))
 
     def _body_prism_um(
         self,
@@ -247,6 +258,24 @@ class ModelBuilder:
                 candidates.extend(int(i) for i in body_layers[layer_idx])
         return np.asarray(candidates, dtype=int)
 
+    def _seeded_attach_indices(
+        self,
+        unique_candidates: np.ndarray,
+        n_flagella: int,
+    ) -> np.ndarray:
+        if n_flagella <= 0:
+            return np.zeros((0,), dtype=int)
+        slots = np.floor(
+            np.linspace(
+                0.0,
+                float(unique_candidates.shape[0]),
+                num=n_flagella,
+                endpoint=False,
+            )
+        ).astype(int)
+        picks = (slots + self.attach_seed) % int(unique_candidates.shape[0])
+        return unique_candidates[picks]
+
     def build(self) -> SimModel:
         """シミュレーションモデルを構築して返す。"""
 
@@ -282,10 +311,11 @@ class ModelBuilder:
         elif cfg.flagella.stub_mode == "extended_basal_stub_5":
             n_flag = 5
 
+        placement_mode = str(cfg.flagella.placement_mode)
         center_layer = body_layers[len(body_layers) // 2]
-        if n_flagella <= 3:
+        if placement_mode == "uniform" and n_flagella <= 3:
             attach_ids = self._flag_attach_indices(center_layer, n_flagella)
-        else:
+        elif placement_mode in ("uniform", "seeded_surface"):
             candidates = self._collect_attach_candidates(body_layers)
             unique_candidates = np.unique(candidates)
             if unique_candidates.shape[0] < n_flagella:
@@ -295,10 +325,41 @@ class ModelBuilder:
                     f" requested={n_flagella}, "
                     f"available={unique_candidates.shape[0]}"
                 )
-            attach_ids = self.rng.choice(
-                unique_candidates,
+            if placement_mode == "uniform":
+                attach_ids = self.rng.choice(
+                    unique_candidates,
+                    size=n_flagella,
+                    replace=False,
+                )
+            else:
+                attach_ids = self._seeded_attach_indices(
+                    unique_candidates,
+                    n_flagella,
+                )
+        else:
+            raise ValueError(
+                "Unsupported flagella.placement_mode:"
+                f" {placement_mode}. Use 'uniform' or 'seeded_surface'."
+            )
+        initial_phase_mode = str(cfg.flagella.initial_phase_mode)
+        if initial_phase_mode == "uniform":
+            initial_phases = np.asarray(
+                [
+                    2.0 * math.pi * (f_id / max(n_flagella, 1))
+                    for f_id in range(n_flagella)
+                ],
+                dtype=float,
+            )
+        elif initial_phase_mode == "seeded":
+            initial_phases = self.phase_rng.uniform(
+                0.0,
+                2.0 * math.pi,
                 size=n_flagella,
-                replace=False,
+            )
+        else:
+            raise ValueError(
+                "Unsupported flagella.initial_phase_mode:"
+                f" {initial_phase_mode}. Use 'uniform' or 'seeded'."
             )
         hook_length_um = 0.25 * b_um
         body_axis = _principal_axis(body_um)
@@ -354,7 +415,7 @@ class ModelBuilder:
         # Flagella
         start_index = n_body
         for f_id, attach_idx in enumerate(attach_ids):
-            phase = 2.0 * math.pi * (f_id / max(n_flagella, 1))
+            phase = float(initial_phases[f_id])
             init_mode = str(cfg.flagella.init_mode)
             if init_mode == "legacy_radius_pitch":
                 pitch_um = max(cfg.flagella.helix_init.pitch_over_b * b_um, 1e-6)
@@ -547,6 +608,8 @@ class ModelBuilder:
             body_ring_edges=ring_edges,
             body_vertical_edges=vertical_edges,
             flagella_indices=flagella_indices,
+            flagella_attach_body_indices=np.asarray(attach_ids, dtype=int),
+            flagella_initial_phases_rad=np.asarray(initial_phases, dtype=float),
             spring_pairs=spring_pairs_arr,
             spring_rest_lengths_m=spring_rest_arr,
             bending_triplets=bending_triplets_arr,

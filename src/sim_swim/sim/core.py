@@ -256,6 +256,8 @@ class Simulator:
         summary: dict[str, Any] = {
             "flagella": {
                 "init_mode": str(self.config.flagella.init_mode),
+                "placement_mode": str(self.config.flagella.placement_mode),
+                "initial_phase_mode": str(self.config.flagella.initial_phase_mode),
                 "initial_helix_axis_from_rear_deg": (
                     float(self.config.flagella.initial_helix_axis_from_rear_deg)
                     if self.config.flagella.initial_helix_axis_from_rear_deg is not None
@@ -295,6 +297,19 @@ class Simulator:
                         "length_over_b",
                         "n_flagella",
                     ]
+                ),
+            },
+            "seed": {
+                "global_seed": int(self.config.seed.global_seed),
+                "attach_seed": (
+                    int(self.config.seed.attach_seed)
+                    if self.config.seed.attach_seed is not None
+                    else int(self.config.seed.global_seed)
+                ),
+                "phase_seed": (
+                    int(self.config.seed.phase_seed)
+                    if self.config.seed.phase_seed is not None
+                    else int(self.config.seed.global_seed)
                 ),
             },
             "per_flagellum": [],
@@ -421,6 +436,12 @@ class Simulator:
             summary["per_flagellum"].append(
                 {
                     "flag_id": int(f_id),
+                    "attach_body_bead_index": int(
+                        self.model.flagella_attach_body_indices[f_id]
+                    ),
+                    "initial_phase_deg": float(
+                        np.rad2deg(self.model.flagella_initial_phases_rad[f_id]) % 360.0
+                    ),
                     "bead_count": int(idx.size),
                     "contour_length_um": contour_len_um,
                     "end_to_end_length_um": end_to_end_len_um,

@@ -6,7 +6,9 @@ feature_categories:
       - sample_id  # sample単位の識別ID
       - dataset_id  # dataset単位の識別ID
       - n_flagella  # べん毛本数
-      - seed  # simulation seed
+      - seed  # 互換用simulation seed
+      - attach_seed  # 付着点選択seed
+      - phase_seed  # 初期helix phase seed
       - duration_s  # 評価時間
       - dt_star  # 無次元時間刻み
       - torque_Nm  # motor torque
