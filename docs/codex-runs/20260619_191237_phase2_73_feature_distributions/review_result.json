@@ -35,7 +35,7 @@
   "adr_required": false,
   "adr_reason": "既存の summary.csv と Feature Registry を使う分析CLI追加であり、物理モデル、特徴量定義、dataset schema の解釈を変更しないためADRは作成しない。",
   "commit_type": "complete",
-  "commit_hash": "pending",
+  "commit_hash": "838d255b9e2c16286ec365ba8cf1973e03c03796",
   "push_status": "not_pushed",
   "pull_request_url": "",
   "next_actions": [
