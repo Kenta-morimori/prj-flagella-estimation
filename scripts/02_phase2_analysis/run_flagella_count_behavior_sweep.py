@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import asdict
 from datetime import datetime
+import hashlib
 import json
 import logging
 from pathlib import Path
@@ -37,6 +38,56 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 def _write_yaml(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+
+def _canonical_data(data: dict[str, Any]) -> dict[str, Any]:
+    dumped = yaml.safe_dump(data, sort_keys=True)
+    return yaml.safe_load(dumped) or {}
+
+
+def _config_fingerprint(data: dict[str, Any]) -> str:
+    canonical = json.dumps(
+        _canonical_data(data),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _existing_sample_config_path(
+    *,
+    sample_config_used_path: Path,
+    batch_config_path: Path,
+) -> Path | None:
+    if sample_config_used_path.is_file():
+        return sample_config_used_path
+    if batch_config_path.is_file():
+        return batch_config_path
+    return None
+
+
+def _ensure_existing_config_matches(
+    *,
+    existing_config_path: Path | None,
+    expected_config: dict[str, Any],
+    sample_id: str,
+    step_summary: Path,
+) -> None:
+    if existing_config_path is None:
+        raise RuntimeError(
+            f"Existing raw output for {sample_id} cannot be reused because "
+            f"{step_summary} exists but no previous sample config was found. "
+            "Use --overwrite or choose a new run_batch_id/output.run_batch_dir."
+        )
+
+    existing_config = _load_yaml(existing_config_path)
+    if _config_fingerprint(existing_config) != _config_fingerprint(expected_config):
+        raise RuntimeError(
+            f"Existing raw output for {sample_id} was created with a different "
+            f"sample config ({existing_config_path}). Use --overwrite or choose "
+            "a new run_batch_id/output.run_batch_dir."
+        )
 
 
 def _merge_nested(dst: dict[str, Any], src: dict[str, Any]) -> dict[str, Any]:
@@ -210,7 +261,6 @@ def run_batch(
     configs_dir.mkdir(parents=True, exist_ok=True)
     samples_root.mkdir(parents=True, exist_ok=True)
     effective_analysis_config_path = run_batch_dir / "analysis_config_used.yaml"
-    _write_yaml(effective_analysis_config_path, analysis_config)
 
     manifest_samples: list[dict[str, Any]] = []
     for condition in tqdm(conditions, desc="flagella sweep", unit="sample"):
@@ -219,18 +269,22 @@ def run_batch(
         raw_dir = sample_dir / "raw"
         log_path = sample_dir / "run.log"
         sample_config_path = configs_dir / f"{sample_id}.yaml"
+        sample_config_used_path = sample_dir / "sample_config_used.yaml"
         cfg = _build_sample_config(
             analysis_config=analysis_config,
             base_config=base_config,
             condition=condition,
         )
-        _write_yaml(sample_config_path, asdict(cfg))
+        sample_config = asdict(cfg)
+        sample_config_fingerprint = _config_fingerprint(sample_config)
 
         sample_record: dict[str, Any] = {
             **condition,
             "dataset_id": dataset_id,
             "run_batch_id": run_batch_id,
             "config_path": str(sample_config_path),
+            "sample_config_used_path": str(sample_config_used_path),
+            "sample_config_fingerprint": sample_config_fingerprint,
             "sample_dir": str(sample_dir),
             "raw_dir": str(raw_dir),
             "run_log": str(log_path),
@@ -242,6 +296,22 @@ def run_batch(
         }
 
         if dry_run:
+            step_summary = raw_dir / "step_summary.csv"
+            if step_summary.exists() and not overwrite:
+                existing_config_path = _existing_sample_config_path(
+                    sample_config_used_path=sample_config_used_path,
+                    batch_config_path=sample_config_path,
+                )
+                _ensure_existing_config_matches(
+                    existing_config_path=existing_config_path,
+                    expected_config=sample_config,
+                    sample_id=sample_id,
+                    step_summary=step_summary,
+                )
+                if not sample_config_path.is_file():
+                    _write_yaml(sample_config_path, sample_config)
+            else:
+                _write_yaml(sample_config_path, sample_config)
             sample_record["status"] = "planned"
             manifest_samples.append(sample_record)
             continue
@@ -253,9 +323,24 @@ def run_batch(
 
         step_summary = raw_dir / "step_summary.csv"
         if step_summary.exists() and not overwrite:
+            existing_config_path = _existing_sample_config_path(
+                sample_config_used_path=sample_config_used_path,
+                batch_config_path=sample_config_path,
+            )
+            _ensure_existing_config_matches(
+                existing_config_path=existing_config_path,
+                expected_config=sample_config,
+                sample_id=sample_id,
+                step_summary=step_summary,
+            )
+            if not sample_config_path.is_file():
+                _write_yaml(sample_config_path, sample_config)
+            if not sample_config_used_path.is_file():
+                _write_yaml(sample_config_used_path, sample_config)
             sample_record["status"] = "skipped_existing"
             sample_record["outputs"] = {
                 "raw_dir": str(raw_dir),
+                "sample_config_used_yaml": str(sample_config_used_path),
                 "step_summary_csv": str(step_summary),
                 "flag_helix_axis_diagnostics_csv": str(
                     raw_dir / "flag_helix_axis_diagnostics.csv"
@@ -270,6 +355,8 @@ def run_batch(
             manifest_samples.append(sample_record)
             continue
 
+        _write_yaml(sample_config_path, sample_config)
+        _write_yaml(sample_config_used_path, sample_config)
         try:
             sample_record.update(
                 _run_sample(
@@ -287,6 +374,7 @@ def run_batch(
             sample_record["error"] = repr(exc)
         manifest_samples.append(sample_record)
 
+    _write_yaml(effective_analysis_config_path, analysis_config)
     manifest = {
         "run_batch_id": run_batch_id,
         "dataset_id": dataset_id,

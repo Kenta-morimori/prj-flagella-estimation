@@ -57,6 +57,8 @@ uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py
 uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.py
 ```
 
+標準条件では override 指定は不要です。`KEY=VALUE` override は、YAMLを複製せずに `duration_s` などを一時的に変えたい場合の補助機能です。
+
 raw sample からの再描画:
 
 ```bash
@@ -75,7 +77,7 @@ uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --
 uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --overwrite
 uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.py --overwrite
 
-# sweep 実行時に analysis 設定と simulation 設定を override する
+# 条件を変える場合は dataset_id / run_batch_id / output path も変える
 uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py \
   dataset_id=fc_nf1_2_3_6_seed1_dur1p0 \
   run_batch_id=fc_nf1_2_3_6_seed1_dur1p0 \
@@ -90,6 +92,8 @@ uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.p
 ```
 
 `02_phase2_analysis` の override は `KEY=VALUE` 形式です。`dataset_id`、`run_batch_id`、`output.run_batch_dir`、`output.dataset_dir` は Phase2 analysis 側の設定として扱います。`time.duration_s`、`time.dt_star`、`motor.torque_Nm`、`render.*` などは simulation 設定の省略形として扱い、各 sample の `base_overrides` に反映します。simulation 側の `output.base_dir` を変えたい場合は `base_overrides.output.base_dir=...` と明示してください。
+
+既存の `run_batch_dir` / `sample_id` に `step_summary.csv` がある場合、runner は保存済み sample config と今回の effective sample config が一致するときだけ既存rawを再利用します。条件が異なる場合は、古いrawと新しいmanifest metadataの混在を避けるため停止します。同じ出力先で条件を変えて再生成する場合は `--overwrite` を指定してください。
 
 `runs/<run_batch_id>/samples/<sample_id>/raw/` には、`step_summary.csv` に加えて `trajectory.csv` と `state_archive.npz` を残します。`state_archive.npz` は後から 3D / 2D render を再生成するための状態保存です。
 

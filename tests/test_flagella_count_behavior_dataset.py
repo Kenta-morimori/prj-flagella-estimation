@@ -7,6 +7,7 @@ import math
 from pathlib import Path
 
 import numpy as np
+import pytest
 import yaml
 
 from sim_swim.analysis.flagella_count_behavior import (
@@ -62,6 +63,32 @@ def test_flagella_count_conditions_use_expected_sample_ids() -> None:
         "seed": 0,
     }
     assert conditions[-1]["sample_id"] == "nf06_seed000"
+
+
+def _minimal_analysis_config(tmp_path: Path) -> dict[str, object]:
+    return {
+        "dataset_id": "test_dataset",
+        "run_batch_id": "test_dataset",
+        "base_config": str(ROOT / "conf/sim_swim.yaml"),
+        "feature_schema": str(
+            ROOT / "conf/phase2_analysis/flagella_count_behavior_features.yaml"
+        ),
+        "sweep": {"n_flagella": [1], "seeds": [0]},
+        "base_overrides": {
+            "time.duration_s": 0.5,
+            "time.dt_star": 1.0e-4,
+            "motor.torque_Nm": 2.5e-20,
+            "motor.enable_switching": False,
+            "motor.force_distribution": "material_twist_local_couple",
+            "flagella.initial_helix_axis_from_rear_deg": 0,
+        },
+        "output": {
+            "run_batch_dir": str(tmp_path / "runs/test_dataset"),
+            "dataset_dir": str(tmp_path / "datasets/test_dataset"),
+            "save_numeric_timeseries": True,
+            "timeseries_sampling": "all_steps",
+        },
+    }
 
 
 def test_flagella_count_dry_run_writes_manifest_and_configs(tmp_path: Path) -> None:
@@ -137,6 +164,97 @@ def test_flagella_count_dry_run_writes_manifest_and_configs(tmp_path: Path) -> N
     assert sample_config["seed"]["global_seed"] == 0
     assert sample_config["time"]["duration_s"] == 0.25
     assert sample_config["motor"]["torque_Nm"] == 3.0e-20
+
+
+def test_existing_raw_is_skipped_only_when_config_matches(tmp_path: Path) -> None:
+    analysis_config = _minimal_analysis_config(tmp_path)
+    config_path = tmp_path / "analysis.yaml"
+    config_path.write_text(yaml.safe_dump(analysis_config), encoding="utf-8")
+    run_sweep.run_batch(
+        analysis_config_path=config_path,
+        dry_run=True,
+        overwrite=False,
+        stop_on_shape_fail=False,
+        sample_limit=None,
+        progress_interval=None,
+    )
+    raw_dir = tmp_path / "runs/test_dataset/samples/nf01_seed000/raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    (raw_dir / "step_summary.csv").write_text("step,t_s\n0,0.0\n", encoding="utf-8")
+
+    manifest_path = run_sweep.run_batch(
+        analysis_config_path=config_path,
+        dry_run=False,
+        overwrite=False,
+        stop_on_shape_fail=False,
+        sample_limit=None,
+        progress_interval=None,
+    )
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["samples"][0]["status"] == "skipped_existing"
+    assert (
+        tmp_path / "runs/test_dataset/samples/nf01_seed000/sample_config_used.yaml"
+    ).is_file()
+    assert manifest["samples"][0]["sample_config_fingerprint"]
+
+
+def test_existing_raw_with_different_config_requires_overwrite_or_new_output(
+    tmp_path: Path,
+) -> None:
+    analysis_config = _minimal_analysis_config(tmp_path)
+    config_path = tmp_path / "analysis.yaml"
+    config_path.write_text(yaml.safe_dump(analysis_config), encoding="utf-8")
+    run_sweep.run_batch(
+        analysis_config_path=config_path,
+        dry_run=True,
+        overwrite=False,
+        stop_on_shape_fail=False,
+        sample_limit=None,
+        progress_interval=None,
+    )
+    raw_dir = tmp_path / "runs/test_dataset/samples/nf01_seed000/raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    (raw_dir / "step_summary.csv").write_text("step,t_s\n0,0.0\n", encoding="utf-8")
+    batch_config_path = tmp_path / "runs/test_dataset/configs/nf01_seed000.yaml"
+    previous_batch_config = batch_config_path.read_text(encoding="utf-8")
+    analysis_config_used_path = tmp_path / "runs/test_dataset/analysis_config_used.yaml"
+    previous_analysis_config_used = analysis_config_used_path.read_text(
+        encoding="utf-8"
+    )
+
+    with pytest.raises(RuntimeError, match="different sample config"):
+        run_sweep.run_batch(
+            analysis_config_path=config_path,
+            dry_run=True,
+            overwrite=False,
+            stop_on_shape_fail=False,
+            sample_limit=None,
+            progress_interval=None,
+            cli_overrides=["time.duration_s=0.25"],
+        )
+    assert batch_config_path.read_text(encoding="utf-8") == previous_batch_config
+    assert (
+        analysis_config_used_path.read_text(encoding="utf-8")
+        == previous_analysis_config_used
+    )
+
+    with pytest.raises(RuntimeError, match="different sample config"):
+        run_sweep.run_batch(
+            analysis_config_path=config_path,
+            dry_run=False,
+            overwrite=False,
+            stop_on_shape_fail=False,
+            sample_limit=None,
+            progress_interval=None,
+            cli_overrides=["time.duration_s=0.25"],
+        )
+
+    assert batch_config_path.read_text(encoding="utf-8") == previous_batch_config
+    assert (
+        analysis_config_used_path.read_text(encoding="utf-8")
+        == previous_analysis_config_used
+    )
 
 
 def test_state_archive_round_trip(tmp_path: Path) -> None:
