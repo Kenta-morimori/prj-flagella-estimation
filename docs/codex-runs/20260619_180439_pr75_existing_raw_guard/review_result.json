@@ -1,0 +1,47 @@
+{
+  "status": "PASS",
+  "summary": "PR #75 の chatgpt-codex-connector 指摘に対応し、既存 raw sample を再利用する前に保存済み sample config と今回の effective sample config が一致することを検証する guard を追加した。条件不一致時は dry-run / 実行とも停止し、古い raw data と新しい manifest metadata の混在を防ぐ。override 機能は補助機能として維持し、scripts/README.md に標準実行では不要であることと出力先変更/--overwrite 方針を追記した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "既存 raw の同一config skip、不一致config拒否、dataset builder、render archive 周辺を含む 7 tests が通過。"
+    },
+    {
+      "command": "uv run ruff check scripts/02_phase2_analysis tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "変更した runner と tests の lint 確認。"
+    },
+    {
+      "command": "uv run ruff format --check scripts/02_phase2_analysis tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS",
+      "notes": "対象ファイルは format 済み。"
+    },
+    {
+      "command": "uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --help",
+      "result": "PASS",
+      "notes": "CLI entrypoint が新実装後も起動することを確認。"
+    },
+    {
+      "command": "commit hook: uv run ruff format --check . && uv run ruff check . && uv run pytest -q",
+      "result": "PASS",
+      "notes": "実装 commit 作成時の hook で全体確認。pytest は 186 passed。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "既存 raw 再利用時の安全性 guard と README の運用説明追加であり、物理モデルや出力schema方針の変更ではないためADRは作成しない。",
+  "commit_type": "complete",
+  "commit_hash": "317b748a6d2e94d6e26ff73f7d2e8571f6ed6522",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/75",
+  "next_actions": [
+    "PR review thread に対して、既存 raw reuse guard を追加した旨を必要に応じて返信する。",
+    "条件変更時は dataset_id / run_batch_id / output path を変えるか --overwrite を使う運用を維持する。"
+  ]
+}
