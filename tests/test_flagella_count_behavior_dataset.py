@@ -98,19 +98,38 @@ def test_flagella_count_dry_run_writes_manifest_and_configs(tmp_path: Path) -> N
         stop_on_shape_fail=False,
         sample_limit=None,
         progress_interval=None,
-        cli_overrides=["time.duration_s=0.25", "motor.torque_Nm=3.0e-20"],
+        cli_overrides=[
+            "dataset_id=cli_dataset",
+            "run_batch_id=cli_dataset",
+            f"output.run_batch_dir={tmp_path / 'runs/cli_dataset'}",
+            f"output.dataset_dir={tmp_path / 'datasets/cli_dataset'}",
+            "time.duration_s=0.25",
+            "motor.torque_Nm=3.0e-20",
+        ],
     )
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert manifest["run_batch_id"] == "test_dataset"
+    assert manifest_path == tmp_path / "runs/cli_dataset/run_manifest.json"
+    assert manifest["run_batch_id"] == "cli_dataset"
+    assert manifest["dataset_id"] == "cli_dataset"
     assert manifest["cli_overrides"] == [
+        "dataset_id=cli_dataset",
+        "run_batch_id=cli_dataset",
+        f"output.run_batch_dir={tmp_path / 'runs/cli_dataset'}",
+        f"output.dataset_dir={tmp_path / 'datasets/cli_dataset'}",
         "time.duration_s=0.25",
         "motor.torque_Nm=3.0e-20",
     ]
+    assert manifest["effective_analysis_config"]["dataset_id"] == "cli_dataset"
+    assert manifest["effective_analysis_config"]["output"]["run_batch_dir"] == str(
+        tmp_path / "runs/cli_dataset"
+    )
+    assert manifest["output"]["dataset_dir"] == str(tmp_path / "datasets/cli_dataset")
+    assert (tmp_path / "runs/cli_dataset/analysis_config_used.yaml").is_file()
     assert len(manifest["samples"]) == 2
     assert {sample["status"] for sample in manifest["samples"]} == {"planned"}
     sample_config = yaml.safe_load(
-        (tmp_path / "runs/test_dataset/configs/nf02_seed000.yaml").read_text(
+        (tmp_path / "runs/cli_dataset/configs/nf02_seed000.yaml").read_text(
             encoding="utf-8"
         )
     )
@@ -369,10 +388,27 @@ def test_dataset_builder_outputs_summary_qc_and_timeseries(tmp_path: Path) -> No
         analysis_config_path=analysis_config_path,
         run_manifest_path=run_manifest_path,
         overwrite=True,
+        cli_overrides=[
+            "dataset_id=cli_dataset",
+            f"output.dataset_dir={tmp_path / 'datasets/cli_dataset'}",
+        ],
     )
 
+    dataset_dir = tmp_path / "datasets/cli_dataset"
     assert out_dir == dataset_dir
     assert (dataset_dir / "dataset_manifest.json").is_file()
+    dataset_manifest = json.loads(
+        (dataset_dir / "dataset_manifest.json").read_text(encoding="utf-8")
+    )
+    assert dataset_manifest["dataset_id"] == "cli_dataset"
+    assert dataset_manifest["cli_overrides"] == [
+        "dataset_id=cli_dataset",
+        f"output.dataset_dir={tmp_path / 'datasets/cli_dataset'}",
+    ]
+    assert dataset_manifest["effective_analysis_config"]["output"][
+        "dataset_dir"
+    ] == str(dataset_dir)
+    assert (dataset_dir / "analysis_config_used.yaml").is_file()
     assert (dataset_dir / "feature_schema_used.yaml").read_text(
         encoding="utf-8"
     ) == "feature_categories: {}\n"
@@ -393,6 +429,6 @@ def test_dataset_builder_outputs_summary_qc_and_timeseries(tmp_path: Path) -> No
     ) as handle:
         ts_rows = list(csv.DictReader(handle))
     assert len(ts_rows) == 2
-    assert ts_rows[0]["dataset_id"] == "test_dataset"
+    assert ts_rows[0]["dataset_id"] == "cli_dataset"
     assert math.isnan(float(ts_rows[-1]["flag_helix_axis_alignment_order"]))
     assert math.isnan(float(ts_rows[-1]["bundle_axis_vs_body_axis_angle_deg"]))

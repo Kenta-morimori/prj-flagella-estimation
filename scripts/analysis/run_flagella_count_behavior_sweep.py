@@ -21,11 +21,13 @@ from tqdm.auto import tqdm
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 from sim_swim.analysis.flagella_count_behavior import (
+    apply_analysis_cli_overrides,
+    normalize_base_overrides,
     save_state_archive,
     write_trajectory_csv,
 )
 from sim_swim.sim.core import Simulator
-from sim_swim.sim.params import SimulationConfig, merge_overrides
+from sim_swim.sim.params import SimulationConfig
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -35,20 +37,6 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 def _write_yaml(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
-
-
-def _nested_from_dotted(flat: dict[str, Any]) -> dict[str, Any]:
-    nested: dict[str, Any] = {}
-    for key, value in flat.items():
-        parts = str(key).split(".")
-        node = nested
-        for part in parts[:-1]:
-            child = node.setdefault(part, {})
-            if not isinstance(child, dict):
-                raise ValueError(f"Override path conflict: {key}")
-            node = child
-        node[parts[-1]] = value
-    return nested
 
 
 def _merge_nested(dst: dict[str, Any], src: dict[str, Any]) -> dict[str, Any]:
@@ -114,13 +102,10 @@ def _build_sample_config(
     analysis_config: dict[str, Any],
     base_config: dict[str, Any],
     condition: dict[str, Any],
-    cli_overrides: list[str] | None,
 ) -> SimulationConfig:
-    base_overrides = _nested_from_dotted(
+    base_overrides = normalize_base_overrides(
         analysis_config.get("base_overrides", {}) or {}
     )
-    cli_base_overrides = merge_overrides({}, cli_overrides)
-    base_overrides = _merge_nested(base_overrides, cli_base_overrides)
     sample_overrides = {
         "flagella": {"n_flagella": int(condition["n_flagella"])},
         "seed": {"global_seed": int(condition["seed"])},
@@ -201,7 +186,12 @@ def run_batch(
     progress_interval: int | None,
     cli_overrides: list[str] | None = None,
 ) -> Path:
-    analysis_config = _load_yaml(analysis_config_path)
+    raw_analysis_config = _load_yaml(analysis_config_path)
+    cli_overrides = cli_overrides or []
+    analysis_config = apply_analysis_cli_overrides(
+        raw_analysis_config,
+        cli_overrides,
+    )
     base_config_path = Path(analysis_config.get("base_config", "conf/sim_swim.yaml"))
     base_config = _load_yaml(base_config_path)
 
@@ -219,9 +209,10 @@ def run_batch(
     run_batch_dir.mkdir(parents=True, exist_ok=True)
     configs_dir.mkdir(parents=True, exist_ok=True)
     samples_root.mkdir(parents=True, exist_ok=True)
+    effective_analysis_config_path = run_batch_dir / "analysis_config_used.yaml"
+    _write_yaml(effective_analysis_config_path, analysis_config)
 
     manifest_samples: list[dict[str, Any]] = []
-    cli_overrides = cli_overrides or []
     for condition in tqdm(conditions, desc="flagella sweep", unit="sample"):
         sample_id = str(condition["sample_id"])
         sample_dir = samples_root / sample_id
@@ -232,7 +223,6 @@ def run_batch(
             analysis_config=analysis_config,
             base_config=base_config,
             condition=condition,
-            cli_overrides=cli_overrides,
         )
         _write_yaml(sample_config_path, asdict(cfg))
 
@@ -302,6 +292,8 @@ def run_batch(
         "dataset_id": dataset_id,
         "created_at": _now_jst(),
         "analysis_config": str(analysis_config_path),
+        "effective_analysis_config": analysis_config,
+        "effective_analysis_config_yaml": str(effective_analysis_config_path),
         "base_config": str(base_config_path),
         "feature_schema": str(
             analysis_config.get(
@@ -314,6 +306,7 @@ def run_batch(
         "sweep": analysis_config.get("sweep", {}) or {},
         "output": {
             "run_batch_dir": str(run_batch_dir),
+            "dataset_dir": str(output_cfg.get("dataset_dir", "")),
             "configs_dir": str(configs_dir),
             "samples_dir": str(samples_root),
         },
@@ -344,7 +337,10 @@ def main() -> None:
     parser.add_argument(
         "overrides",
         nargs="*",
-        help="Optional simulation overrides as key=value (e.g. time.duration_s=0.25)",
+        help=(
+            "Optional analysis/simulation overrides as key=value "
+            "(e.g. dataset_id=my_dataset time.duration_s=0.25)"
+        ),
     )
     args = parser.parse_args()
 

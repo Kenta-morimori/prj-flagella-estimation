@@ -11,10 +11,15 @@ import math
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 from typing import Any
 from zoneinfo import ZoneInfo
 
 import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+
+from sim_swim.analysis.flagella_count_behavior import apply_analysis_cli_overrides
 
 
 METADATA_FIELDS = [
@@ -105,6 +110,11 @@ FLAGELLA_TIMESERIES_FIELDS = [
 
 def _load_yaml(path: Path) -> dict[str, Any]:
     return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+
+
+def _write_yaml(path: Path, data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
@@ -404,14 +414,22 @@ def build_dataset(
     analysis_config_path: Path,
     run_manifest_path: Path | None,
     overwrite: bool,
+    cli_overrides: list[str] | None = None,
 ) -> Path:
-    analysis_config = _load_yaml(analysis_config_path)
+    raw_analysis_config = _load_yaml(analysis_config_path)
+    cli_overrides = cli_overrides or []
+    analysis_config = apply_analysis_cli_overrides(
+        raw_analysis_config,
+        cli_overrides,
+    )
     dataset_id = str(analysis_config["dataset_id"])
     output_cfg = analysis_config.get("output", {}) or {}
     dataset_dir = Path(output_cfg["dataset_dir"])
     if dataset_dir.exists() and overwrite:
         shutil.rmtree(dataset_dir)
     dataset_dir.mkdir(parents=True, exist_ok=True)
+    effective_analysis_config_path = dataset_dir / "analysis_config_used.yaml"
+    _write_yaml(effective_analysis_config_path, analysis_config)
 
     if run_manifest_path is None:
         run_batch_dir = Path(output_cfg["run_batch_dir"])
@@ -480,6 +498,9 @@ def build_dataset(
         "run_batch_id": run_manifest.get("run_batch_id", ""),
         "created_at": _now_jst(),
         "analysis_config": str(analysis_config_path),
+        "effective_analysis_config": analysis_config,
+        "effective_analysis_config_yaml": str(effective_analysis_config_path),
+        "cli_overrides": list(cli_overrides),
         "run_manifest": str(run_manifest_path),
         "feature_schema_source": str(feature_schema_path),
         "outputs": {
@@ -514,12 +535,18 @@ def main() -> None:
     )
     parser.add_argument("--run-manifest", type=Path, default=None)
     parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument(
+        "overrides",
+        nargs="*",
+        help="Optional analysis overrides as key=value (e.g. dataset_id=my_dataset)",
+    )
     args = parser.parse_args()
 
     dataset_dir = build_dataset(
         analysis_config_path=args.config,
         run_manifest_path=args.run_manifest,
         overwrite=bool(args.overwrite),
+        cli_overrides=args.overrides,
     )
     print(dataset_dir)
 

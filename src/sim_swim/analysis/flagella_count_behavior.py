@@ -9,9 +9,153 @@ from typing import Any
 import numpy as np
 
 from sim_swim.sim.core import SimulationState
+from sim_swim.sim.params import merge_overrides
 
 ARCHIVE_FORMAT = "sim_swim.flagella_count_behavior_state_archive"
 ARCHIVE_VERSION = 1
+
+ANALYSIS_OVERRIDE_ROOTS = {
+    "dataset_id",
+    "run_batch_id",
+    "base_config",
+    "feature_schema",
+    "sweep",
+    "base_overrides",
+    "output",
+}
+
+SIMULATION_OVERRIDE_ROOTS = {
+    "scale",
+    "body",
+    "flagella",
+    "fluid",
+    "motor",
+    "potentials",
+    "hook",
+    "body_equiv_load",
+    "run_tumble",
+    "time",
+    "output_sampling",
+    "brownian",
+    "render",
+    "seed",
+    "stiffness_scales",
+}
+
+
+def _merge_nested(dst: dict[str, Any], src: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(dst)
+    for key, value in src.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _merge_nested(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _dotted_to_nested(key: str, value: Any) -> dict[str, Any]:
+    nested: dict[str, Any] = {}
+    node = nested
+    parts = key.split(".")
+    for part in parts[:-1]:
+        child = node.setdefault(part, {})
+        if not isinstance(child, dict):
+            raise ValueError(f"Override path conflict: {key}")
+        node = child
+    node[parts[-1]] = value
+    return nested
+
+
+def normalize_base_overrides(raw: dict[str, Any] | None) -> dict[str, Any]:
+    """Normalize flat or nested analysis base_overrides to a nested dict."""
+
+    normalized: dict[str, Any] = {}
+    for key, value in (raw or {}).items():
+        if "." in str(key):
+            normalized = _merge_nested(normalized, _dotted_to_nested(str(key), value))
+        elif isinstance(value, dict) and isinstance(normalized.get(key), dict):
+            normalized[key] = _merge_nested(normalized[key], value)
+        else:
+            normalized[str(key)] = value
+    return normalized
+
+
+def _coerce_int_list(value: Any) -> list[int]:
+    if isinstance(value, str):
+        if value.strip() == "":
+            return []
+        return [int(part.strip()) for part in value.split(",")]
+    if isinstance(value, (list, tuple)):
+        return [int(part) for part in value]
+    return [int(value)]
+
+
+def _normalize_sweep(raw: dict[str, Any] | None) -> dict[str, Any]:
+    sweep = dict(raw or {})
+    if "n_flagella" in sweep:
+        sweep["n_flagella"] = _coerce_int_list(sweep["n_flagella"])
+    if "seeds" in sweep:
+        sweep["seeds"] = _coerce_int_list(sweep["seeds"])
+    return sweep
+
+
+def apply_analysis_cli_overrides(
+    analysis_config: dict[str, Any],
+    cli_overrides: list[str] | None,
+) -> dict[str, Any]:
+    """Apply KEY=VALUE CLI overrides to an analysis config.
+
+    In scripts.analysis, output.* targets the analysis output paths.
+    Simulation shorthand such as time.* and motor.* is routed to base_overrides.
+    """
+
+    if not cli_overrides:
+        effective = dict(analysis_config)
+        effective["base_overrides"] = normalize_base_overrides(
+            effective.get("base_overrides", {}) or {}
+        )
+        effective["sweep"] = _normalize_sweep(effective.get("sweep", {}) or {})
+        return effective
+
+    analysis_items: list[str] = []
+    simulation_items: list[str] = []
+    for raw in cli_overrides:
+        if "=" not in raw:
+            raise ValueError(f"Invalid override; expected KEY=VALUE: {raw}")
+        key = raw.split("=", 1)[0].strip()
+        root = key.split(".", 1)[0]
+        if root in ANALYSIS_OVERRIDE_ROOTS:
+            analysis_items.append(raw)
+        elif root in SIMULATION_OVERRIDE_ROOTS:
+            simulation_items.append(raw)
+        else:
+            raise ValueError(f"Unknown analysis override root: {root}")
+
+    effective = dict(analysis_config)
+    effective["base_overrides"] = normalize_base_overrides(
+        effective.get("base_overrides", {}) or {}
+    )
+
+    analysis_nested = merge_overrides({}, analysis_items)
+    explicit_base_overrides = normalize_base_overrides(
+        analysis_nested.pop("base_overrides", {}) or {}
+    )
+    effective = _merge_nested(effective, analysis_nested)
+    if explicit_base_overrides:
+        effective["base_overrides"] = _merge_nested(
+            normalize_base_overrides(effective.get("base_overrides", {}) or {}),
+            explicit_base_overrides,
+        )
+
+    simulation_nested = merge_overrides({}, simulation_items)
+    if simulation_nested:
+        effective["base_overrides"] = _merge_nested(
+            normalize_base_overrides(effective.get("base_overrides", {}) or {}),
+            simulation_nested,
+        )
+    effective["sweep"] = _normalize_sweep(effective.get("sweep", {}) or {})
+
+    return effective
 
 
 def _stack_vectors(
