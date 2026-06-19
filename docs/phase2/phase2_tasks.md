@@ -452,15 +452,23 @@
   - [x] replay render のデフォルトを `out_all_steps_3d=false` とし，必要時のみ `--out-all-steps-3d` で全step描画できるようにする。
   - [x] `manifest.json` と `run.log` に effective な render sampling 条件を記録する。
   - [x] `conf/phase2_analysis/flagella_count_behavior_dataset.yaml` に標準 sampling 条件を明記する。
+  - [x] 3D/2D mp4 は H.264 (`avc1` / `H264`) を優先し，encoder がない環境では `mp4v` にfallbackする。
 - acceptance criteria:
   - [x] 既存 raw archive を再シミュレーションせず，3D/2D replay fps を指定できる。
   - [x] デフォルト実行で3D全step描画を避ける。
   - [x] sampling 条件が manifest から追跡できる。
+  - [x] 実際に使われた動画codecが manifest から追跡できる。
 - tests/checks:
   - `uv run pytest tests/test_flagella_count_behavior_dataset.py`
+  - `uv run pytest tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
   - `uv run ruff check scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff check src/sim_swim/render scripts/01_simulate_swimming/01_simulate_swimming.py scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
   - `uv run ruff format --check scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff format --check src/sim_swim/render scripts/01_simulate_swimming/01_simulate_swimming.py scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
   - `uv run python scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py --help`
+  - `uv run python scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py --sample-dir outputs/phase2_analysis/flagella_count_behavior/runs/fc_nf1_2_3_6_seed1_dur0p5/samples/nf03_seed000 --output-dir /private/tmp/phase2_codec_probe_nf03 --fps-out-3d 25 --fps-out-2d 25`
+  - `ffprobe -hide_banner /private/tmp/phase2_codec_probe_nf03/render/swim3d.mp4`
+  - `ffprobe -hide_banner /private/tmp/phase2_codec_probe_nf03/render2d/projection.mp4`
 - docs:
   - `scripts/README.md`
   - `docs/phase2/phase2_current.md`

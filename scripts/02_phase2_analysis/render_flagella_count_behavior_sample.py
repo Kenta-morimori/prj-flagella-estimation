@@ -152,8 +152,18 @@ def render_sample(
 
     trajectory_path = output_dir / "trajectory.csv"
     write_trajectory_csv(trajectory_path, states)
-    save_swim_movie(states, cfg, simulator.rig, render_dir)
-    project_states(states, cfg, simulator.rig, render2d_dir)
+    render3d_video = save_swim_movie(states, cfg, simulator.rig, render_dir)
+    render2d_video = project_states(states, cfg, simulator.rig, render2d_dir)
+    if render3d_video is not None:
+        logger.info("render3d_video=%s", render3d_video.to_manifest())
+    if render2d_video is not None:
+        logger.info("render2d_video=%s", render2d_video.to_manifest())
+
+    render_video = {}
+    if render3d_video is not None:
+        render_video["render3d"] = render3d_video.to_manifest()
+    if render2d_video is not None:
+        render_video["render2d"] = render2d_video.to_manifest()
 
     manifest = {
         "git": _git_info(),
@@ -170,6 +180,7 @@ def render_sample(
         "render_sampling_overrides": render_sampling_overrides.get(
             "output_sampling", {}
         ),
+        "render_video": render_video,
         "outputs": {
             "root": str(output_dir),
             "trajectory_csv": str(trajectory_path),

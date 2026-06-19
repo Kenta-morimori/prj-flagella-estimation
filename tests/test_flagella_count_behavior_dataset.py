@@ -15,6 +15,7 @@ from sim_swim.analysis.flagella_count_behavior import (
     load_state_archive,
     save_state_archive,
 )
+from sim_swim.render.video_writer import VideoRenderResult
 from sim_swim.sim.core import SimulationState
 from sim_swim.sim.params import SimulationConfig
 
@@ -371,13 +372,29 @@ def test_render_sample_defaults_to_lightweight_3d_replay(
     )
     captured: dict[str, SimulationConfig] = {}
 
-    def fake_save_swim_movie(states, cfg, rig, out_dir) -> None:
+    def fake_save_swim_movie(states, cfg, rig, out_dir) -> VideoRenderResult:
         captured["cfg_3d"] = cfg
         out_dir.mkdir(parents=True, exist_ok=True)
+        return VideoRenderResult(
+            path=str(out_dir / "swim3d.mp4"),
+            selected_codec="avc1",
+            attempted_codecs=("avc1", "H264", "mp4v"),
+            fps=99.0,
+            frame_size=(1000, 1000),
+            frame_count=1,
+        )
 
-    def fake_project_states(states, cfg, rig, out_dir) -> None:
+    def fake_project_states(states, cfg, rig, out_dir) -> VideoRenderResult:
         captured["cfg_2d"] = cfg
         out_dir.mkdir(parents=True, exist_ok=True)
+        return VideoRenderResult(
+            path=str(out_dir / "projection.mp4"),
+            selected_codec="mp4v",
+            attempted_codecs=("avc1", "H264", "mp4v"),
+            fps=88.0,
+            frame_size=(256, 256),
+            frame_count=1,
+        )
 
     monkeypatch.setattr(render_sample, "save_swim_movie", fake_save_swim_movie)
     monkeypatch.setattr(render_sample, "project_states", fake_project_states)
@@ -399,6 +416,8 @@ def test_render_sample_defaults_to_lightweight_3d_replay(
         "fps_out_2d": 88.0,
     }
     assert manifest["render_sampling_overrides"] == {"out_all_steps_3d": False}
+    assert manifest["render_video"]["render3d"]["selected_codec"] == "avc1"
+    assert manifest["render_video"]["render2d"]["selected_codec"] == "mp4v"
 
 
 def test_render_sample_cli_passes_sampling_options(

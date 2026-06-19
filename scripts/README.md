@@ -70,6 +70,7 @@ uv run python scripts/02_phase2_analysis/render_flagella_count_behavior_sample.p
 ```
 
 replay render の3D出力はデフォルトで `output_sampling.out_all_steps_3d=false` として扱い、`--fps-out-3d` で間引きfpsを指定します。全archive stateを3D描画したい場合のみ `--out-all-steps-3d` を指定してください。2D側は `--fps-out-2d` で指定できます。
+3D/2Dのmp4はVSCodeなどで再生しやすいH.264 (`avc1` / `H264`) を優先し、環境にencoderがない場合は従来の `mp4v` にfallbackします。実際に使われたcodecは `manifest.json` の `render_video` に記録されます。
 
 dataset からの特徴量分布可視化:
 

@@ -3,8 +3,9 @@ from __future__ import annotations
 from dataclasses import replace
 
 import numpy as np
+import pytest
 
-from sim_swim.render.project2d import _camera_center_2d
+from sim_swim.render.project2d import _camera_center_2d, project_states
 from sim_swim.render.render3d import (
     _hook_edges,
     _resolve_view_range_um,
@@ -12,6 +13,7 @@ from sim_swim.render.render3d import (
     _select_frames,
     save_swim_movie,
 )
+from sim_swim.render.video_writer import open_mp4_writer
 from sim_swim.sim.flagella_geometry import FlagellaRig
 from sim_swim.sim.core import SimulationState
 from sim_swim.sim.params import SimulationConfig
@@ -147,6 +149,63 @@ def test_select_frames_uses_3d_fps_when_not_saving_all_steps() -> None:
     assert [state.t for state in selected] == [0.0, 0.5, 1.0]
 
 
+def test_mp4_writer_falls_back_to_mp4v(tmp_path, monkeypatch) -> None:
+    class DummyWriter:
+        def __init__(self, opened: bool) -> None:
+            self.opened = opened
+            self.released = False
+
+        def isOpened(self) -> bool:
+            return self.opened
+
+        def release(self) -> None:
+            self.released = True
+
+    writer_calls: list[tuple[str, DummyWriter]] = []
+
+    def fake_fourcc(*chars) -> str:
+        return "".join(chars)
+
+    def fake_writer(path, codec, fps, frame_size) -> DummyWriter:
+        writer = DummyWriter(opened=codec == "mp4v")
+        writer_calls.append((codec, writer))
+        return writer
+
+    monkeypatch.setattr(
+        "sim_swim.render.video_writer.cv2.VideoWriter_fourcc",
+        fake_fourcc,
+    )
+    monkeypatch.setattr("sim_swim.render.video_writer.cv2.VideoWriter", fake_writer)
+
+    selection = open_mp4_writer(tmp_path / "movie.mp4", fps=25.0, frame_size=(10, 10))
+
+    assert selection.selected_codec == "mp4v"
+    assert [codec for codec, _ in writer_calls] == ["avc1", "H264", "mp4v"]
+    assert writer_calls[0][1].released is True
+    assert writer_calls[1][1].released is True
+
+
+def test_mp4_writer_raises_when_all_codecs_fail(tmp_path, monkeypatch) -> None:
+    class DummyWriter:
+        def isOpened(self) -> bool:
+            return False
+
+        def release(self) -> None:
+            pass
+
+    monkeypatch.setattr(
+        "sim_swim.render.video_writer.cv2.VideoWriter_fourcc",
+        lambda *chars: "".join(chars),
+    )
+    monkeypatch.setattr(
+        "sim_swim.render.video_writer.cv2.VideoWriter",
+        lambda *args, **kwargs: DummyWriter(),
+    )
+
+    with pytest.raises(RuntimeError, match="Failed to open MP4 writer"):
+        open_mp4_writer(tmp_path / "movie.mp4", fps=25.0, frame_size=(10, 10))
+
+
 def test_save_swim_movie_emits_render_outputs(tmp_path, monkeypatch) -> None:
     cfg = _make_cfg(
         center_body_in_2d=True,
@@ -190,6 +249,9 @@ def test_save_swim_movie_emits_render_outputs(tmp_path, monkeypatch) -> None:
             self.write_calls = 0
             self.released = False
 
+        def isOpened(self) -> bool:
+            return True
+
         def write(self, frame) -> None:
             self.frame_shape = frame.shape
             self.write_calls += 1
@@ -205,16 +267,19 @@ def test_save_swim_movie_emits_render_outputs(tmp_path, monkeypatch) -> None:
         return writer
 
     monkeypatch.setattr(
-        "sim_swim.render.render3d.cv2.VideoWriter",
+        "sim_swim.render.video_writer.cv2.VideoWriter",
         make_writer,
     )
 
-    save_swim_movie([state], cfg, rig, tmp_path)
+    result = save_swim_movie([state], cfg, rig, tmp_path)
 
     assert (tmp_path / "swim3d_final.png").exists()
     assert (tmp_path / "frames_3d" / "frame_000000.png").exists()
     assert len(writer_calls) == 1
     assert writer_calls[0].write_calls > 0
+    assert result is not None
+    assert result.selected_codec == "avc1"
+    assert result.frame_count == 1
 
 
 def test_save_swim_movie_can_overlay_flagella_helix_axes(
@@ -263,6 +328,9 @@ def test_save_swim_movie_can_overlay_flagella_helix_axes(
     )
 
     class DummyWriter:
+        def isOpened(self) -> bool:
+            return True
+
         def write(self, frame) -> None:
             self.frame_shape = frame.shape
 
@@ -270,10 +338,72 @@ def test_save_swim_movie_can_overlay_flagella_helix_axes(
             self.released = True
 
     monkeypatch.setattr(
-        "sim_swim.render.render3d.cv2.VideoWriter",
+        "sim_swim.render.video_writer.cv2.VideoWriter",
         lambda *args, **kwargs: DummyWriter(),
     )
 
     save_swim_movie([state], cfg, rig, tmp_path)
 
     assert (tmp_path / "swim3d_final.png").exists()
+
+
+def test_project_states_reports_selected_video_codec(tmp_path, monkeypatch) -> None:
+    cfg = _make_cfg(
+        center_body_in_2d=True,
+        follow_camera_2d=False,
+        enable_switching=False,
+    )
+    beads = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [3.0, 0.0, 0.0],
+            [3.0, 1.0, 0.0],
+            [3.0, 2.0, 0.0],
+        ],
+        dtype=float,
+    )
+    state = SimulationState(
+        t=0.0,
+        position_um=(0.0, 0.0, 0.0),
+        quaternion=(0.0, 0.0, 0.0, 1.0),
+        velocity_um_s=(0.0, 0.0, 0.0),
+        omega_rad_s=(0.0, 0.0, 0.0),
+        bead_positions_um=beads,
+        flag_states=(0,),
+        reverse_flagella=(0,),
+    )
+    rig = FlagellaRig(
+        body_layer_indices=[np.array([0, 1, 2, 3], dtype=int)],
+        body_ring_edges=np.array([[0, 1], [1, 2]], dtype=int),
+        body_vertical_edges=np.array([[2, 3]], dtype=int),
+        body_spring_edges=np.array([[0, 1], [1, 2], [2, 3]], dtype=int),
+        flagella_indices=[np.array([3, 4, 5], dtype=int)],
+        hook_triplets=np.array([[1, 4, 5]], dtype=int),
+    )
+
+    class DummyWriter:
+        def __init__(self) -> None:
+            self.write_calls = 0
+
+        def isOpened(self) -> bool:
+            return True
+
+        def write(self, frame) -> None:
+            self.write_calls += 1
+
+        def release(self) -> None:
+            pass
+
+    monkeypatch.setattr(
+        "sim_swim.render.video_writer.cv2.VideoWriter",
+        lambda *args, **kwargs: DummyWriter(),
+    )
+
+    result = project_states([state], cfg, rig, tmp_path)
+
+    assert result is not None
+    assert result.selected_codec == "avc1"
+    assert result.frame_count == 1
+    assert result.frame_size == (256, 256)
