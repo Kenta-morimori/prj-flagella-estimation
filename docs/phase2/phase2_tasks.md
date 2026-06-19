@@ -320,7 +320,7 @@
   - `duration_s=0.5`
 - tasks:
   - [x] 特徴量カテゴリ `metadata`, `quality`, `cell_translation`, `cell_orientation`, `flagella_axis`, `cell_flagella_relation`, `diagnostics` を定義する。
-  - [x] Feature Registry の正本YAML `conf/analysis/flagella_count_behavior_features.yaml` を作成し、カテゴリごとの代表変数名を記録する。
+  - [x] Feature Registry の正本YAML `conf/phase2_analysis/flagella_count_behavior_features.yaml` を作成し、カテゴリごとの代表変数名を記録する。
   - [x] 各カテゴリが cell / flagella / relation / QC のどれを対象にするか明記する。
   - [x] 定義不能な特徴量を `NaN` として扱い、plot / summary で除外数を記録する方針を明記する。
   - [x] 分析用特徴量とML候補特徴量を分け、`quality` と `diagnostics` を原則ML入力候補に含めない方針を明記する。
@@ -333,7 +333,7 @@
   - [x] 分析用特徴量と ML 候補特徴量を分ける方針が明記されている。
   - [x] 後続のデータセット構築・分布可視化Issueの入力仕様として利用できる。
 - docs:
-  - `conf/analysis/flagella_count_behavior_features.yaml`
+  - `conf/phase2_analysis/flagella_count_behavior_features.yaml`
   - `docs/phase2/phase2_8_flagella_count_feature_definitions.md`
 - follow-up:
   - #71 配下で、複数条件実行、raw output保存、`summary.csv` / `timeseries/<sample_id>.csv` 生成、べん毛数ごとの分布可視化を小タスクに分けて進める。
@@ -356,9 +356,9 @@
   - `motor.force_distribution = material_twist_local_couple`
   - `flagella.initial_helix_axis_from_rear_deg = 0`
 - tasks:
-  - [x] analysis用dataset config `conf/analysis/flagella_count_behavior_dataset.yaml` を追加する。
-  - [x] `scripts/analysis/run_flagella_count_behavior_sweep.py` で条件表、sample config、sample raw output、`run_manifest.json` を生成する。
-  - [x] `scripts/analysis/build_flagella_count_behavior_dataset.py` で `run_manifest.json` から `summary.csv`、`qc_summary.csv`、`timeseries/<sample_id>.csv`、`dataset_manifest.json`、`feature_schema_used.yaml` を生成する。
+  - [x] Phase2 analysis用dataset config `conf/phase2_analysis/flagella_count_behavior_dataset.yaml` を追加する。
+  - [x] `scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py` で条件表、sample config、sample raw output、`run_manifest.json` を生成する。
+  - [x] `scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.py` で `run_manifest.json` から `summary.csv`、`qc_summary.csv`、`timeseries/<sample_id>.csv`、`dataset_manifest.json`、`feature_schema_used.yaml` を生成する。
   - [x] 既存 sample はデフォルトで上書きせず、`--overwrite` 指定時のみ再実行・再生成する。
   - [x] plot、動画出力、ML分類は対象外のまま維持する。
 - acceptance criteria:
@@ -376,12 +376,12 @@
   - [x] plot、動画出力、ML分類は本Issueの対象外として維持されている。
 - tests/checks:
   - `uv run pytest tests/test_flagella_count_behavior_dataset.py tests/test_phase2_7_bundling_sweep.py`
-  - `uv run ruff check scripts/analysis tests/test_flagella_count_behavior_dataset.py`
-  - `uv run ruff format --check scripts/analysis tests/test_flagella_count_behavior_dataset.py`
-  - `uv run python scripts/analysis/run_flagella_count_behavior_sweep.py --sample-limit 1 --overwrite --progress-interval 5000`
-  - `uv run python scripts/analysis/build_flagella_count_behavior_dataset.py --overwrite`
+  - `uv run ruff check scripts/02_phase2_analysis tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff format --check scripts/02_phase2_analysis tests/test_flagella_count_behavior_dataset.py`
+  - `uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --sample-limit 1 --overwrite --progress-interval 5000`
+  - `uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.py --overwrite`
 - docs:
-  - `conf/analysis/flagella_count_behavior_dataset.yaml`
+  - `conf/phase2_analysis/flagella_count_behavior_dataset.yaml`
   - `docs/codex-runs/20260618_173743_phase2_72_flagella_count_dataset/review_result.json`
 
 ## Completed support task: 動画出力・サンプリング整備

@@ -298,7 +298,7 @@ def run_batch(
         "feature_schema": str(
             analysis_config.get(
                 "feature_schema",
-                "conf/analysis/flagella_count_behavior_features.yaml",
+                "conf/phase2_analysis/flagella_count_behavior_features.yaml",
             )
         ),
         "base_overrides": analysis_config.get("base_overrides", {}) or {},
@@ -327,7 +327,7 @@ def main() -> None:
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("conf/analysis/flagella_count_behavior_dataset.yaml"),
+        default=Path("conf/phase2_analysis/flagella_count_behavior_dataset.yaml"),
     )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--overwrite", action="store_true")

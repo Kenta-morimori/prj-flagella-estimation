@@ -438,7 +438,8 @@ def build_dataset(
     feature_schema_path = Path(
         run_manifest.get("feature_schema")
         or analysis_config.get(
-            "feature_schema", "conf/analysis/flagella_count_behavior_features.yaml"
+            "feature_schema",
+            "conf/phase2_analysis/flagella_count_behavior_features.yaml",
         )
     )
     shutil.copyfile(feature_schema_path, dataset_dir / "feature_schema_used.yaml")
@@ -531,7 +532,7 @@ def main() -> None:
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("conf/analysis/flagella_count_behavior_dataset.yaml"),
+        default=Path("conf/phase2_analysis/flagella_count_behavior_dataset.yaml"),
     )
     parser.add_argument("--run-manifest", type=Path, default=None)
     parser.add_argument("--overwrite", action="store_true")

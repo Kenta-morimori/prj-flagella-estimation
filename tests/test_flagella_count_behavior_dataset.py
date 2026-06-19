@@ -32,15 +32,15 @@ def _load_script(name: str, rel_path: str):
 
 run_sweep = _load_script(
     "run_flagella_count_behavior_sweep",
-    "scripts/analysis/run_flagella_count_behavior_sweep.py",
+    "scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py",
 )
 build_dataset = _load_script(
     "build_flagella_count_behavior_dataset",
-    "scripts/analysis/build_flagella_count_behavior_dataset.py",
+    "scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.py",
 )
 render_sample = _load_script(
     "render_flagella_count_behavior_sample",
-    "scripts/analysis/render_flagella_count_behavior_sample.py",
+    "scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py",
 )
 
 
@@ -70,7 +70,7 @@ def test_flagella_count_dry_run_writes_manifest_and_configs(tmp_path: Path) -> N
         "run_batch_id": "test_dataset",
         "base_config": str(ROOT / "conf/sim_swim.yaml"),
         "feature_schema": str(
-            ROOT / "conf/analysis/flagella_count_behavior_features.yaml"
+            ROOT / "conf/phase2_analysis/flagella_count_behavior_features.yaml"
         ),
         "sweep": {"n_flagella": [1, 2], "seeds": [0]},
         "base_overrides": {

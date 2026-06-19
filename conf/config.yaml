@@ -1,8 +1,0 @@
-data:
-  video_path: "data/20250716data2.avi"
-  fps: 0
-  bac_short_axis_length_um: 1.0
-  um_per_px: 0.203
-
-output:
-  base_dir: "outputs"
