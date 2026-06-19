@@ -36,8 +36,8 @@
   "adr_reason": "既存の summary.csv と Feature Registry を使う分析CLI追加であり、物理モデル、特徴量定義、dataset schema の解釈を変更しないためADRは作成しない。",
   "commit_type": "complete",
   "commit_hash": "838d255b9e2c16286ec365ba8cf1973e03c03796",
-  "push_status": "not_pushed",
-  "pull_request_url": "",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/77",
   "next_actions": [
     "#73 の plot と screening summary を読み、seed数を増やすべきか、評価時間を伸ばすべきか、3D特徴量の初期分離性評価へ進むかを判断する。",
     "#76 で seed 依存の初期配置ばらつきを導入した後、同じ CLI で複数seed datasetを再評価する。"
