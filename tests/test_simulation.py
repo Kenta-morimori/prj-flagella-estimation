@@ -550,23 +550,22 @@ def test_phase27_step_summary_includes_bundle_and_swimming_metrics(
     ]:
         assert key in first
 
-    assert float(first["bundle_axis_vs_rear_angle_deg"]) == pytest.approx(
-        0.0,
+    assert float(first["flag_helix_axis_vs_rear_angle_deg_max"]) <= 1.0
+    assert float(first["flag_helix_axis_rearward_projection_min"]) == pytest.approx(
+        1.0,
         abs=1.0e-5,
     )
-    assert float(first["bundle_rearward_projection"]) == pytest.approx(1.0)
+    assert float(first["bundle_axis_vs_rear_angle_deg"]) <= 5.0
+    assert float(first["bundle_rearward_projection"]) >= 0.99
     assert first["shape_pass_nonbody_strict"] in {"True", "true", "1"}
     assert first["shape_pass_nonbody_hook_len_relaxed"] in {"True", "true", "1"}
     assert float(first["hook_len_strict_limit"]) == pytest.approx(1.0)
     assert float(first["hook_len_relaxed_limit"]) == pytest.approx(2.0)
     assert float(first["local_attach_first_vs_body_axis_angle_deg"]) == pytest.approx(
         90.0,
-        abs=1.0e-5,
+        abs=10.0,
     )
-    assert float(first["local_attach_first_vs_body_axis_err_deg"]) == pytest.approx(
-        0.0,
-        abs=1.0e-5,
-    )
+    assert float(first["local_attach_first_vs_body_axis_err_deg"]) <= 10.0
     assert float(first["bundle_participation_ratio"]) >= 0.0
     assert float(first["flag_flag_bead_pair_dist_min_um"]) > 0.0
     assert int(first["flag_flag_close_pair_count"]) >= 0

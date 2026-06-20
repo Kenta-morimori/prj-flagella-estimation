@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "summary": "PR #80 の review comment に対応し，posterior axis alignment 使用時にも phase_seed が初期 flagella geometry に反映されるようにした。軸合わせ用の局所basisは未位相の形状から作り，seeded phase は target_axis 周りの world-space 回転として軸合わせ後に適用する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "phase_seed の効果は初期条件の deterministic variation であり，長時間挙動の十分な多様性は別途 sweep 結果で確認する必要がある。"
+  ],
+  "tests_reviewed": [
+    "uv run pytest tests/test_model_builder.py",
+    "uv run pytest tests/test_model_builder.py tests/test_flagella_count_behavior_dataset.py",
+    "uv run pytest tests/test_simulation.py::test_phase27_step_summary_includes_bundle_and_swimming_metrics",
+    "uv run pytest tests/test_model_builder.py tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py::test_phase27_step_summary_includes_bundle_and_swimming_metrics",
+    "uv run ruff check src/sim_swim/model/builder.py scripts/02_phase2_analysis/plot_flagella_count_behavior_distributions.py tests/test_model_builder.py tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py",
+    "uv run ruff format --check src/sim_swim/model/builder.py scripts/02_phase2_analysis/plot_flagella_count_behavior_distributions.py tests/test_model_builder.py tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "既存の seeded initial condition の意図に沿う bug fix であり，新しい物理モデル選択や解析指標変更ではないため ADR は不要。",
+  "commit_type": "none",
+  "commit_hash": "",
+  "push_status": "not_applicable",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/80",
+  "next_actions": [
+    "必要に応じて PR #80 の review comment に，修正内容と追加テストを返信する。"
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "status": "PASS",
+  "summary": "Phase 2.8 feature distribution plot の横方向 jitter を廃止し，n_flagella を整数カテゴリ軸として描画するようにした。点は実際の n_flagella 位置に固定し，x軸 tick label も整数表示にした。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "同一 n_flagella かつ近い値の sample は重なって見える場合がある。これは横軸誤読回避を優先した意図的な制約である。"
+  ],
+  "tests_reviewed": [
+    "uv run pytest tests/test_flagella_count_behavior_dataset.py",
+    "uv run ruff check scripts/02_phase2_analysis/plot_flagella_count_behavior_distributions.py tests/test_flagella_count_behavior_dataset.py",
+    "uv run ruff format --check scripts/02_phase2_analysis/plot_flagella_count_behavior_distributions.py tests/test_flagella_count_behavior_dataset.py",
+    "uv run python scripts/02_phase2_analysis/plot_flagella_count_behavior_distributions.py --dataset-id fc_nf1_2_3_6_as3_ps3_dur1p0 --overwrite",
+    "manual visual check of outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_as3_ps3_dur1p0/plots/distributions/cell_orientation_use_for_analysis_true.png"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [
+    "outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_as3_ps3_dur1p0/plots/distributions/cell_orientation_use_for_analysis_true.png"
+  ],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "可視化の読みやすさ改善のみで，物理モデル・dataset schema・解析指標の意味を変更しないため ADR は不要。",
+  "commit_type": "none",
+  "commit_hash": "",
+  "push_status": "not_applicable",
+  "pull_request_url": "",
+  "next_actions": [
+    "必要に応じて既存datasetの分布plotを --overwrite で再生成する。",
+    "重なった点の件数をplot上でも見せたい場合は，次段階で n= 件数ラベルまたは集計overlayを追加する。"
+  ]
+}

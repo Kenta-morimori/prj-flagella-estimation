@@ -370,6 +370,58 @@ def test_seeded_phase_seed_changes_phase_without_changing_attach(
     assert not np.allclose(model_a.positions_m, model_b.positions_m)
 
 
+def test_seeded_phase_seed_changes_posterior_aligned_initial_positions() -> None:
+    cfg_a = _make_cfg(
+        n_flagella=2,
+        init_mode="paper_table1",
+        n_beads_per_flagellum=11,
+        initial_helix_axis_from_rear_deg=0.0,
+        seed=999,
+        attach_seed=3,
+        phase_seed=1,
+        placement_mode="seeded_surface",
+        initial_phase_mode="seeded",
+    )
+    cfg_b = _make_cfg(
+        n_flagella=2,
+        init_mode="paper_table1",
+        n_beads_per_flagellum=11,
+        initial_helix_axis_from_rear_deg=0.0,
+        seed=999,
+        attach_seed=3,
+        phase_seed=2,
+        placement_mode="seeded_surface",
+        initial_phase_mode="seeded",
+    )
+    model_a = ModelBuilder(cfg_a).build()
+    model_b = ModelBuilder(cfg_b).build()
+
+    assert np.array_equal(
+        model_a.flagella_attach_body_indices,
+        model_b.flagella_attach_body_indices,
+    )
+    assert not np.array_equal(
+        model_a.flagella_initial_phases_rad,
+        model_b.flagella_initial_phases_rad,
+    )
+    assert np.max(np.abs(model_a.positions_m - model_b.positions_m)) > 1.0e-9
+
+    for model in (model_a, model_b):
+        body_axis = estimate_body_axis(
+            model.positions_m,
+            model.body_layer_indices,
+            model.body_indices,
+        )
+        angles = [
+            angle_deg_between(
+                estimate_flag_helix_axis(model.positions_m, idx, flag_id).axis,
+                body_axis.rear_direction,
+            )
+            for flag_id, idx in enumerate(model.flagella_indices)
+        ]
+        assert max(angles) <= 1.0
+
+
 def test_seeded_initial_conditions_are_reproducible_with_same_split_seeds() -> None:
     cfg_a = _make_cfg(
         n_flagella=6,

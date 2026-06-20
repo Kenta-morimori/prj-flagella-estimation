@@ -51,6 +51,19 @@ plot_distributions = _load_script(
 )
 
 
+def test_distribution_plot_uses_integer_n_flagella_ticks() -> None:
+    base = plot_distributions.pd.DataFrame(
+        {
+            "n_flagella": [1, 2, 2, 3, 6],
+        }
+    )
+
+    ticks = plot_distributions._n_flagella_ticks(base)
+
+    assert ticks == [1.0, 2.0, 3.0, 6.0]
+    assert plot_distributions._n_flagella_tick_labels(ticks) == ["1", "2", "3", "6"]
+
+
 def test_flagella_count_conditions_use_expected_sample_ids() -> None:
     config = {
         "sweep": {

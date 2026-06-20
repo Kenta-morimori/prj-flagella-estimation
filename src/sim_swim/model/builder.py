@@ -132,6 +132,22 @@ def _direction_from_rear_angle(
     return direction / max(float(np.linalg.norm(direction)), 1e-12)
 
 
+def _rotation_about_axis(axis: np.ndarray, angle_rad: float) -> np.ndarray:
+    axis = axis / max(float(np.linalg.norm(axis)), 1e-12)
+    x, y, z = axis
+    c = math.cos(float(angle_rad))
+    s = math.sin(float(angle_rad))
+    one_c = 1.0 - c
+    return np.array(
+        [
+            [c + x * x * one_c, x * y * one_c - z * s, x * z * one_c + y * s],
+            [y * x * one_c + z * s, c + y * y * one_c, y * z * one_c - x * s],
+            [z * x * one_c - y * s, z * y * one_c + x * s, c + z * z * one_c],
+        ],
+        dtype=float,
+    )
+
+
 def _segment_pairs_without_neighbors(spring_pairs: np.ndarray) -> np.ndarray:
     pairs: list[tuple[int, int]] = []
     m = spring_pairs.shape[0]
@@ -416,6 +432,13 @@ class ModelBuilder:
         start_index = n_body
         for f_id, attach_idx in enumerate(attach_ids):
             phase = float(initial_phases[f_id])
+            initial_helix_axis_from_rear_deg = (
+                cfg.flagella.initial_helix_axis_from_rear_deg
+            )
+            # Posterior axis alignment derives a local-to-world basis from the
+            # unphased shape, then applies phase in world space to avoid
+            # canceling the seeded phase during alignment.
+            shape_phase = 0.0 if initial_helix_axis_from_rear_deg is not None else phase
             init_mode = str(cfg.flagella.init_mode)
             if init_mode == "legacy_radius_pitch":
                 pitch_um = max(cfg.flagella.helix_init.pitch_over_b * b_um, 1e-6)
@@ -426,11 +449,11 @@ class ModelBuilder:
                     bond_len_um=bond_len_um,
                 )
                 s = dx_um * np.arange(n_flag, dtype=float)
-                theta = 2.0 * math.pi * s / pitch_um + phase
+                theta = 2.0 * math.pi * s / pitch_um + shape_phase
 
                 x = s
-                y = r_um * np.cos(theta) - r_um * math.cos(phase)
-                z = -r_um * np.sin(theta) + r_um * math.sin(phase)
+                y = r_um * np.cos(theta) - r_um * math.cos(shape_phase)
+                z = -r_um * np.sin(theta) + r_um * math.sin(shape_phase)
                 local_points = np.column_stack([x, y, z])
             elif init_mode == "paper_table1":
                 theta0_normal = float(cfg.potentials.bend.theta0_deg["normal"])
@@ -442,8 +465,8 @@ class ModelBuilder:
                     phi_deg=phi0_normal,
                 )
                 # 複数本で初期形状が完全一致しないよう、軸回り位相だけ回す。
-                c = math.cos(phase)
-                s = math.sin(phase)
+                c = math.cos(shape_phase)
+                s = math.sin(shape_phase)
                 rot = np.array(
                     [
                         [1.0, 0.0, 0.0],
@@ -473,9 +496,6 @@ class ModelBuilder:
             else:
                 radial_unit = radial / radial_norm
             hook_offset_um = hook_length_um * radial_unit
-            initial_helix_axis_from_rear_deg = (
-                cfg.flagella.initial_helix_axis_from_rear_deg
-            )
             if initial_helix_axis_from_rear_deg is None:
                 axis_u = radial_unit
 
@@ -530,7 +550,11 @@ class ModelBuilder:
                 world_rot = _axis_basis(target_axis, radial_unit)
                 rot = world_rot @ local_rot.T
 
-            flag_points = attach_point + hook_offset_um + local_points @ rot.T
+            aligned_local_points = local_points @ rot.T
+            if initial_helix_axis_from_rear_deg is not None:
+                phase_rot = _rotation_about_axis(target_axis, phase)
+                aligned_local_points = aligned_local_points @ phase_rot.T
+            flag_points = attach_point + hook_offset_um + aligned_local_points
             tangent0 = flag_points[1] - flag_points[0]
             tangent0 /= max(float(np.linalg.norm(tangent0)), 1e-12)
             angle_deg = math.degrees(

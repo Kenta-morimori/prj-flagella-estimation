@@ -384,6 +384,26 @@ def _feature_label(feature: str) -> str:
     return feature.replace("_", " ")
 
 
+def _n_flagella_ticks(base: pd.DataFrame) -> list[float]:
+    values = pd.to_numeric(base["n_flagella"], errors="coerce")
+    return sorted(float(value) for value in values.dropna().unique())
+
+
+def _n_flagella_tick_labels(ticks: list[float]) -> list[str]:
+    labels: list[str] = []
+    for tick in ticks:
+        labels.append(str(int(tick)) if float(tick).is_integer() else f"{tick:g}")
+    return labels
+
+
+def _apply_n_flagella_axis(ax: Any, ticks: list[float]) -> None:
+    if not ticks:
+        return
+    ax.set_xticks(ticks)
+    ax.set_xticklabels(_n_flagella_tick_labels(ticks))
+    ax.set_xlim(min(ticks) - 0.5, max(ticks) + 0.5)
+
+
 def _plot_category(
     *,
     summary: pd.DataFrame,
@@ -409,28 +429,30 @@ def _plot_category(
         constrained_layout=True,
     )
     handles: dict[str, Any] = {}
+    n_flagella_ticks = _n_flagella_ticks(base)
     for ax, feature in zip(axes.flat, features, strict=False):
         values = numeric_df.loc[base.index, feature]
-        for offset_idx, (row_idx, row) in enumerate(base.iterrows()):
+        for row_idx, row in base.iterrows():
             value = values.loc[row_idx]
-            if pd.isna(value):
+            n_flagella = row["n_flagella"]
+            if pd.isna(value) or pd.isna(n_flagella):
                 continue
             quality = str(row["quality_class"])
             color = QUALITY_COLORS.get(quality, "#111827")
             marker = "o" if bool(row["use_for_analysis_bool"]) else "x"
-            x_value = float(row["n_flagella"]) + ((offset_idx % 7) - 3) * 0.025
             plotted = ax.scatter(
-                x_value,
+                float(n_flagella),
                 float(value),
                 color=color,
                 marker=marker,
                 s=42,
-                alpha=0.9,
+                alpha=0.55,
                 label=quality,
             )
             handles.setdefault(quality, plotted)
         ax.set_title(_feature_label(feature), fontsize=9)
         ax.set_xlabel("n_flagella")
+        _apply_n_flagella_axis(ax, n_flagella_ticks)
         ax.grid(True, axis="y", alpha=0.25)
         ax.tick_params(axis="x", labelsize=8)
         ax.tick_params(axis="y", labelsize=8)
