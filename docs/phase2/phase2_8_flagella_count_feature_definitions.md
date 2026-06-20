@@ -16,7 +16,7 @@
 * `flagella.initial_helix_axis_from_rear_deg=0`
 * 初期評価時間は `duration_s=0.5` を基本にする
 
-1 sample は，1つの `n_flagella`，1つの `seed`，1つの simulation run の組として定義する。
+1 sample は，1つの `n_flagella`，1つの `attach_seed`，1つの `phase_seed`，1つの simulation run の組として定義する。旧 `seed` 形式は互換metadataとして残し，付着点選択seedと初期helix phase seedを分けて記録する。
 
 ## Feature Registry
 
@@ -56,7 +56,7 @@ feature_categories:
 * `summary.csv` は 1 sample = 1 row とし，`metadata`，`quality`，集計特徴量，診断特徴量を含める。
 * `timeseries/<sample_id>.csv` は，sample単位の時系列を保持し，後続の特徴量再計算や外れ値確認に使う。
 * `dataset_id` は，timestampとは別の論理IDとして持つ。
-* `sample_id` は，1つの `n_flagella`，1つの `seed`，1つの simulation run の組を識別できる形にする。
-* dataset生成条件，raw run paths，config paths，overrides，seed，Git commit情報を再現性metadataとして記録する。
+* `sample_id` は，1つの `n_flagella`，1つの `attach_seed`，1つの `phase_seed`，1つの simulation run の組を識別できる形にする。
+* dataset生成条件，raw run paths，config paths，overrides，`global_seed` / `attach_seed` / `phase_seed`，Git commit情報を再現性metadataとして記録する。
 
 後続の #71 実装では，複数条件実行，dataset構築，分布可視化を `conf/phase2_analysis/flagella_count_behavior_features.yaml` と出力仕様に従って追加する。

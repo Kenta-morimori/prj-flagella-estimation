@@ -51,24 +51,57 @@ plot_distributions = _load_script(
 )
 
 
+def test_distribution_plot_uses_integer_n_flagella_ticks() -> None:
+    base = plot_distributions.pd.DataFrame(
+        {
+            "n_flagella": [1, 2, 2, 3, 6],
+        }
+    )
+
+    ticks = plot_distributions._n_flagella_ticks(base)
+
+    assert ticks == [1.0, 2.0, 3.0, 6.0]
+    assert plot_distributions._n_flagella_tick_labels(ticks) == ["1", "2", "3", "6"]
+
+
 def test_flagella_count_conditions_use_expected_sample_ids() -> None:
     config = {
         "sweep": {
-            "n_flagella": [1, 2, 3, 6],
-            "seeds": [0],
+            "n_flagella": [1, 2],
+            "attach_seeds": [0, 1],
+            "phase_seeds": [0, 1, 2],
         }
     }
 
     conditions = run_sweep.build_conditions(config)
 
-    assert len(conditions) == 4
+    assert len(conditions) == 12
     assert conditions[0] == {
-        "sample_id": "nf01_seed000",
-        "condition_tag": "n_flagella=1,seed=0",
+        "sample_id": "nf01_as000_ps000",
+        "condition_tag": "n_flagella=1,attach_seed=0,phase_seed=0",
         "n_flagella": 1,
         "seed": 0,
+        "attach_seed": 0,
+        "phase_seed": 0,
     }
-    assert conditions[-1]["sample_id"] == "nf06_seed000"
+    assert conditions[-1]["sample_id"] == "nf02_as001_ps002"
+
+
+def test_flagella_count_legacy_seed_conditions_set_split_seeds() -> None:
+    config = {"sweep": {"n_flagella": [1], "seeds": [2]}}
+
+    conditions = run_sweep.build_conditions(config)
+
+    assert conditions == [
+        {
+            "sample_id": "nf01_seed002",
+            "condition_tag": "n_flagella=1,seed=2",
+            "n_flagella": 1,
+            "seed": 2,
+            "attach_seed": 2,
+            "phase_seed": 2,
+        }
+    ]
 
 
 def _minimal_analysis_config(tmp_path: Path) -> dict[str, object]:
@@ -168,6 +201,8 @@ def test_flagella_count_dry_run_writes_manifest_and_configs(tmp_path: Path) -> N
     )
     assert sample_config["flagella"]["n_flagella"] == 2
     assert sample_config["seed"]["global_seed"] == 0
+    assert sample_config["seed"]["attach_seed"] == 0
+    assert sample_config["seed"]["phase_seed"] == 0
     assert sample_config["time"]["duration_s"] == 0.25
     assert sample_config["motor"]["torque_Nm"] == 3.0e-20
 

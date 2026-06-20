@@ -38,6 +38,7 @@ def _make_cfg(
             "flagella": {
                 "n_flagella": 1,
                 "placement_mode": "uniform",
+                "initial_phase_mode": "uniform",
                 "init_mode": "paper_table1",
                 "stub_mode": "full_flagella",
                 "n_beads_per_flagellum": 11,

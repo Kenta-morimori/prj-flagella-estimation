@@ -27,10 +27,15 @@ def _make_cfg(
     n_beads_per_flagellum: int | None = None,
     initial_helix_axis_from_rear_deg: float | None = None,
     seed: int = 0,
+    attach_seed: int | None = None,
+    phase_seed: int | None = None,
+    placement_mode: str = "uniform",
+    initial_phase_mode: str = "uniform",
 ) -> SimulationConfig:
     flagella_cfg: dict[str, object] = {
         "n_flagella": n_flagella,
-        "placement_mode": "uniform",
+        "placement_mode": placement_mode,
+        "initial_phase_mode": initial_phase_mode,
         "init_mode": init_mode,
         "stub_mode": stub_mode,
         "discretization": {"ds_over_b": ds_over_b},
@@ -60,7 +65,11 @@ def _make_cfg(
             "flagella": flagella_cfg,
             "time": {"duration_s": 0.02, "dt_s": 1.0e-3},
             "brownian": {"enabled": False},
-            "seed": {"global_seed": seed},
+            "seed": {
+                "global_seed": seed,
+                "attach_seed": attach_seed,
+                "phase_seed": phase_seed,
+            },
         }
     )
 
@@ -292,6 +301,173 @@ def test_attach_positions_are_reproducible_with_same_seed() -> None:
     attach_a = sorted(body_idx for body_idx, _ in _body_flag_pairs(model_a))
     attach_b = sorted(body_idx for body_idx, _ in _body_flag_pairs(model_b))
     assert attach_a == attach_b
+
+
+@pytest.mark.parametrize("n_flagella", [1, 2, 3, 6])
+def test_seeded_surface_attach_seed_changes_initial_positions(
+    n_flagella: int,
+) -> None:
+    cfg_a = _make_cfg(
+        n_flagella=n_flagella,
+        seed=999,
+        attach_seed=1,
+        phase_seed=7,
+        placement_mode="seeded_surface",
+        initial_phase_mode="seeded",
+    )
+    cfg_b = _make_cfg(
+        n_flagella=n_flagella,
+        seed=999,
+        attach_seed=2,
+        phase_seed=7,
+        placement_mode="seeded_surface",
+        initial_phase_mode="seeded",
+    )
+    model_a = ModelBuilder(cfg_a).build()
+    model_b = ModelBuilder(cfg_b).build()
+
+    assert np.array_equal(
+        model_a.flagella_initial_phases_rad, model_b.flagella_initial_phases_rad
+    )
+    assert not np.array_equal(
+        model_a.flagella_attach_body_indices,
+        model_b.flagella_attach_body_indices,
+    )
+    assert not np.allclose(model_a.positions_m, model_b.positions_m)
+
+
+@pytest.mark.parametrize("n_flagella", [1, 2, 3, 6])
+def test_seeded_phase_seed_changes_phase_without_changing_attach(
+    n_flagella: int,
+) -> None:
+    cfg_a = _make_cfg(
+        n_flagella=n_flagella,
+        seed=999,
+        attach_seed=3,
+        phase_seed=1,
+        placement_mode="seeded_surface",
+        initial_phase_mode="seeded",
+    )
+    cfg_b = _make_cfg(
+        n_flagella=n_flagella,
+        seed=999,
+        attach_seed=3,
+        phase_seed=2,
+        placement_mode="seeded_surface",
+        initial_phase_mode="seeded",
+    )
+    model_a = ModelBuilder(cfg_a).build()
+    model_b = ModelBuilder(cfg_b).build()
+
+    assert np.array_equal(
+        model_a.flagella_attach_body_indices,
+        model_b.flagella_attach_body_indices,
+    )
+    assert not np.array_equal(
+        model_a.flagella_initial_phases_rad,
+        model_b.flagella_initial_phases_rad,
+    )
+    assert not np.allclose(model_a.positions_m, model_b.positions_m)
+
+
+def test_seeded_phase_seed_changes_posterior_aligned_initial_positions() -> None:
+    cfg_a = _make_cfg(
+        n_flagella=2,
+        init_mode="paper_table1",
+        n_beads_per_flagellum=11,
+        initial_helix_axis_from_rear_deg=0.0,
+        seed=999,
+        attach_seed=3,
+        phase_seed=1,
+        placement_mode="seeded_surface",
+        initial_phase_mode="seeded",
+    )
+    cfg_b = _make_cfg(
+        n_flagella=2,
+        init_mode="paper_table1",
+        n_beads_per_flagellum=11,
+        initial_helix_axis_from_rear_deg=0.0,
+        seed=999,
+        attach_seed=3,
+        phase_seed=2,
+        placement_mode="seeded_surface",
+        initial_phase_mode="seeded",
+    )
+    model_a = ModelBuilder(cfg_a).build()
+    model_b = ModelBuilder(cfg_b).build()
+
+    assert np.array_equal(
+        model_a.flagella_attach_body_indices,
+        model_b.flagella_attach_body_indices,
+    )
+    assert not np.array_equal(
+        model_a.flagella_initial_phases_rad,
+        model_b.flagella_initial_phases_rad,
+    )
+    assert np.max(np.abs(model_a.positions_m - model_b.positions_m)) > 1.0e-9
+
+    for model in (model_a, model_b):
+        body_axis = estimate_body_axis(
+            model.positions_m,
+            model.body_layer_indices,
+            model.body_indices,
+        )
+        angles = [
+            angle_deg_between(
+                estimate_flag_helix_axis(model.positions_m, idx, flag_id).axis,
+                body_axis.rear_direction,
+            )
+            for flag_id, idx in enumerate(model.flagella_indices)
+        ]
+        assert max(angles) <= 1.0
+
+
+def test_seeded_initial_conditions_are_reproducible_with_same_split_seeds() -> None:
+    cfg_a = _make_cfg(
+        n_flagella=6,
+        seed=999,
+        attach_seed=4,
+        phase_seed=5,
+        placement_mode="seeded_surface",
+        initial_phase_mode="seeded",
+    )
+    cfg_b = _make_cfg(
+        n_flagella=6,
+        seed=999,
+        attach_seed=4,
+        phase_seed=5,
+        placement_mode="seeded_surface",
+        initial_phase_mode="seeded",
+    )
+    model_a = ModelBuilder(cfg_a).build()
+    model_b = ModelBuilder(cfg_b).build()
+
+    assert np.array_equal(
+        model_a.flagella_attach_body_indices,
+        model_b.flagella_attach_body_indices,
+    )
+    assert np.array_equal(
+        model_a.flagella_initial_phases_rad,
+        model_b.flagella_initial_phases_rad,
+    )
+    assert np.allclose(model_a.positions_m, model_b.positions_m)
+
+
+@pytest.mark.parametrize(
+    ("override", "message"),
+    [
+        ({"placement_mode": "bad"}, "Unsupported flagella.placement_mode"),
+        ({"initial_phase_mode": "bad"}, "Unsupported flagella.initial_phase_mode"),
+    ],
+)
+def test_invalid_seeded_initial_condition_modes_raise(
+    override: dict[str, str],
+    message: str,
+) -> None:
+    cfg = _make_cfg(n_flagella=1, **override)
+
+    with pytest.raises(ValueError, match=message):
+        ModelBuilder(cfg).build()
 
 
 def test_body_flag_hook_length_is_initialized_to_0p25b() -> None:

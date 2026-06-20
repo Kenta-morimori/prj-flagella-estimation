@@ -28,6 +28,8 @@ class SimModel:
     body_vertical_edges: np.ndarray
 
     flagella_indices: list[np.ndarray]
+    flagella_attach_body_indices: np.ndarray
+    flagella_initial_phases_rad: np.ndarray
 
     spring_pairs: np.ndarray
     spring_rest_lengths_m: np.ndarray

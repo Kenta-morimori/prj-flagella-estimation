@@ -168,7 +168,8 @@ class FlagellumParams:
     """
 
     n_flagella: int = 3
-    placement_mode: str = "uniform"
+    placement_mode: str = "seeded_surface"
+    initial_phase_mode: str = "seeded"
     init_mode: str = "legacy_radius_pitch"
     stub_mode: str = (
         "full_flagella"  # minimal_basal_stub | extended_basal_stub_5 |
@@ -353,6 +354,8 @@ class SeedParams:
     """乱数seed設定。"""
 
     global_seed: int = 0
+    attach_seed: int | None = None
+    phase_seed: int | None = None
 
 
 @dataclass(frozen=True)
@@ -675,7 +678,8 @@ class SimulationConfig:
 
         flagella = FlagellumParams(
             n_flagella=int(_get(flag_raw, "n_flagella", 3)),
-            placement_mode=str(_get(flag_raw, "placement_mode", "uniform")),
+            placement_mode=str(_get(flag_raw, "placement_mode", "seeded_surface")),
+            initial_phase_mode=str(_get(flag_raw, "initial_phase_mode", "seeded")),
             init_mode=str(_get(flag_raw, "init_mode", "legacy_radius_pitch")),
             stub_mode=str(_get(flag_raw, "stub_mode", "full_flagella")),
             discretization=FlagellaDiscretizationParams(ds_over_b=float(ds_over_b)),
@@ -884,7 +888,19 @@ class SimulationConfig:
         )
 
         seed_raw = raw.get("seed", {}) or {}
-        seed = SeedParams(global_seed=int(_get(seed_raw, "global_seed", 0)))
+        seed = SeedParams(
+            global_seed=int(_get(seed_raw, "global_seed", 0)),
+            attach_seed=(
+                int(seed_raw["attach_seed"])
+                if seed_raw.get("attach_seed") not in (None, "")
+                else None
+            ),
+            phase_seed=(
+                int(seed_raw["phase_seed"])
+                if seed_raw.get("phase_seed") not in (None, "")
+                else None
+            ),
+        )
 
         output_raw = raw.get("output", {}) or {}
         output = OutputParams(base_dir=str(_get(output_raw, "base_dir", "outputs")))

@@ -96,6 +96,10 @@ def _normalize_sweep(raw: dict[str, Any] | None) -> dict[str, Any]:
         sweep["n_flagella"] = _coerce_int_list(sweep["n_flagella"])
     if "seeds" in sweep:
         sweep["seeds"] = _coerce_int_list(sweep["seeds"])
+    if "attach_seeds" in sweep:
+        sweep["attach_seeds"] = _coerce_int_list(sweep["attach_seeds"])
+    if "phase_seeds" in sweep:
+        sweep["phase_seeds"] = _coerce_int_list(sweep["phase_seeds"])
     return sweep
 
 

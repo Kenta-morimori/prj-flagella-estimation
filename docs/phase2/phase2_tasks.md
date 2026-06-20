@@ -337,7 +337,7 @@
   - `docs/phase2/phase2_8_flagella_count_feature_definitions.md`
 - follow-up:
   - #71 配下で、複数条件実行、raw output保存、`summary.csv` / `timeseries/<sample_id>.csv` 生成、べん毛数ごとの分布可視化を小タスクに分けて進める。
-  - 後続の初期datasetでは `n_flagella=1,2,3,6` と seed 0固定を基本にする。
+  - 後続の初期datasetでは `n_flagella=1,2,3,6` と seed 0固定を基本にする。Issue #76 で付着点seedとphase seedの直積条件へ拡張済み。
 
 ### P2-8-009: 複数条件の実行スクリプトとdataset構築を追加する
 
@@ -378,6 +378,34 @@
   - `uv run pytest tests/test_flagella_count_behavior_dataset.py tests/test_phase2_7_bundling_sweep.py`
   - `uv run ruff check scripts/02_phase2_analysis tests/test_flagella_count_behavior_dataset.py`
   - `uv run ruff format --check scripts/02_phase2_analysis tests/test_flagella_count_behavior_dataset.py`
+
+### P2-8-012: seed依存の初期配置ばらつきを導入する
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/76`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/10`
+- branch: `feature/phase2-76-seeded-initial-conditions`
+- goal: dataset増強に向けて，seed値により別サンプルと見なせる初期条件ばらつきを導入する。
+- default conditions:
+  - `flagella.placement_mode = seeded_surface`
+  - `flagella.initial_phase_mode = seeded`
+  - `seed.attach_seed` はべん毛付着点選択に使う。
+  - `seed.phase_seed` は初期helix phase選択に使う。
+  - 未指定時はどちらも `seed.global_seed` にfallbackする。
+- tasks:
+  - [x] `n_flagella=1,2,3,6` の全条件で，seedにより初期付着点またはphaseが変わるようにする。
+  - [x] 旧互換の `uniform` 配置と等間隔phaseを明示modeとして残す。
+  - [x] Phase 2.8 sweepで `attach_seeds` と `phase_seeds` の直積条件を生成できるようにする。
+  - [x] manifest，dataset summary，initial geometry summaryに分離seedを記録する。
+- acceptance criteria:
+  - [x] 同じ `attach_seed` / `phase_seed` では初期条件が再現する。
+  - [x] `attach_seed` だけを変えると付着点が変わる。
+  - [x] `phase_seed` だけを変えると付着点は同じで初期helix phaseが変わる。
+  - [x] 旧 `sweep.seeds` 形式は `attach_seed=seed`, `phase_seed=seed` として互換動作する。
+- tests/checks:
+  - `uv run pytest tests/test_params.py tests/test_model_builder.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff check src/sim_swim/model src/sim_swim/sim src/sim_swim/analysis scripts/02_phase2_analysis tests/test_model_builder.py tests/test_params.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff format --check src/sim_swim/model/builder.py src/sim_swim/model/types.py src/sim_swim/sim/params.py src/sim_swim/sim/core.py src/sim_swim/analysis/flagella_count_behavior.py scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.py tests/test_model_builder.py tests/test_params.py tests/test_flagella_count_behavior_dataset.py`
   - `uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --sample-limit 1 --overwrite --progress-interval 5000`
   - `uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.py --overwrite`
 - docs:

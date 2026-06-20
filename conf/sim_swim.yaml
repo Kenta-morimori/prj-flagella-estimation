@@ -14,7 +14,8 @@ body:
 
 flagella:
   n_flagella: 3                # [-] べん毛本数（論文条件）
-  placement_mode: "uniform"   # 終端層の断面ビーズへ均等に付着
+  placement_mode: "seeded_surface"   # seeded_surface: seed依存で中心+前後層へ付着, uniform: 旧互換
+  initial_phase_mode: "seeded"        # seeded: phase_seed依存, uniform: 旧互換の等間隔phase
   init_mode: "paper_table1"   # 初期べん毛のsource-of-truth: bond/theta/phi/n_beads
   n_beads_per_flagellum: 11    # [-] 各べん毛の初期ビーズ数（論文離散化準拠）
   discretization:
@@ -124,6 +125,8 @@ render:
 
 seed:
   global_seed: 0
+  attach_seed: null
+  phase_seed: null
 
 output:
   base_dir: outputs

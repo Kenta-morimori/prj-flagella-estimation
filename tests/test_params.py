@@ -443,6 +443,26 @@ def test_initial_helix_axis_from_rear_deg_defaults_to_none() -> None:
     assert sim_cfg.flagella.initial_helix_axis_from_rear_deg is None
 
 
+def test_seeded_initial_condition_modes_are_defaults() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.flagella.placement_mode == "seeded_surface"
+    assert sim_cfg.flagella.initial_phase_mode == "seeded"
+
+
+def test_split_initial_condition_seeds_can_be_set() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["seed"] = {"global_seed": 10, "attach_seed": 20, "phase_seed": 30}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.seed.global_seed == 10
+    assert sim_cfg.seed.attach_seed == 20
+    assert sim_cfg.seed.phase_seed == 30
+
+
 def test_initial_helix_axis_from_rear_deg_can_be_set() -> None:
     cfg = _base_cfg()
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
