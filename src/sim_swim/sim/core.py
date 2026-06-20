@@ -530,6 +530,9 @@ class Simulator:
         progress_interval: int | None = None,
         step_summary_dir: Path | None = None,
         stop_on_shape_fail: bool = False,
+        step_summary_stride: int = 1,
+        state_stride: int = 1,
+        flush_interval_steps: int = 1,
     ) -> List[SimulationState]:
         """与えた時間だけシミュレーションして状態列を返す。
 
@@ -540,12 +543,20 @@ class Simulator:
             stop_on_shape_fail: True の場合、`shape_pass_nonbody` が False
                 になった時点で早期停止する。sweep用の診断補助で、通常実行では
                 False のままにする。
+            step_summary_stride: step summary diagnostics を記録する間隔。
+                1 なら全 step を記録する。最終 step は常に記録する。
+            state_stride: 返す SimulationState を観測する間隔。
+                1 なら全 step を返す。初期 state と最終 step は常に返す。
+            flush_interval_steps: CSV flush の記録 row 間隔。
         """
 
         tau_s = self.config.tau_s
         dt_star = max(self.config.dt_star, 1e-12)
         duration_star = max(float(duration_s), 0.0) / max(tau_s, 1e-30)
         total_steps = max(1, int(math.ceil(duration_star / dt_star)))
+        step_summary_stride = max(1, int(step_summary_stride))
+        state_stride = max(1, int(state_stride))
+        flush_interval_steps = max(1, int(flush_interval_steps))
 
         states: List[SimulationState] = []
         wall_start = time.perf_counter()
@@ -558,19 +569,27 @@ class Simulator:
             logger.info(
                 (
                     "Simulation loop start: total_steps=%d, dt_star=%.6e, "
-                    "dt_s=%.6e s, duration_star=%.6e, progress_interval=%d"
+                    "dt_s=%.6e s, duration_star=%.6e, progress_interval=%d, "
+                    "step_summary_stride=%d, state_stride=%d"
                 ),
                 total_steps,
                 dt_star,
                 self.config.dt_s,
                 duration_star,
                 progress_interval,
+                step_summary_stride,
+                state_stride,
             )
 
         prev = None
         states.append(self._observe(0.0, prev))
         debug_recorder = (
-            StepSummaryRecorder(self.model, self.config, step_summary_dir)
+            StepSummaryRecorder(
+                self.model,
+                self.config,
+                step_summary_dir,
+                flush_interval_steps=flush_interval_steps,
+            )
             if step_summary_dir is not None
             else None
         )
@@ -599,8 +618,12 @@ class Simulator:
         for step in range(total_steps):
             t_star_before = self.engine.t_star
             step_diag = self.engine.step(dt_star)
+            completed = step + 1
+            should_record_summary = (
+                step % step_summary_stride == 0 or completed == total_steps
+            )
 
-            if debug_recorder is not None:
+            if debug_recorder is not None and should_record_summary:
                 debug_recorder.record(step=step, t_star=t_star_before, diag=step_diag)
                 if (
                     stop_on_shape_fail
@@ -633,11 +656,14 @@ class Simulator:
                     pos_after=step_diag.positions_after_m,
                 )
 
-            t_now = self.engine.t_star * tau_s
-            prev = states[-1]
-            states.append(self._observe(t_now, prev))
+            should_observe_state = (
+                completed % state_stride == 0 or completed == total_steps
+            )
+            if should_observe_state:
+                t_now = self.engine.t_star * tau_s
+                prev = states[-1]
+                states.append(self._observe(t_now, prev))
 
-            completed = step + 1
             if logger is not None and (
                 completed % progress_interval == 0 or completed == total_steps
             ):

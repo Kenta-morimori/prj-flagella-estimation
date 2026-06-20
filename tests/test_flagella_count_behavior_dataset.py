@@ -104,6 +104,30 @@ def test_flagella_count_legacy_seed_conditions_set_split_seeds() -> None:
     ]
 
 
+def test_flagella_count_conditions_can_interleave_n_flagella() -> None:
+    config = {
+        "sweep": {
+            "n_flagella": [1, 2, 3, 6],
+            "attach_seeds": [0, 1],
+            "phase_seeds": [0, 1],
+        }
+    }
+    conditions = run_sweep.build_conditions(config)
+
+    ordered = run_sweep.order_conditions(
+        conditions,
+        sample_order="interleave_n_flagella",
+    )
+
+    assert [condition["sample_id"] for condition in ordered[:4]] == [
+        "nf01_as000_ps000",
+        "nf02_as000_ps000",
+        "nf03_as000_ps000",
+        "nf06_as000_ps000",
+    ]
+    assert ordered[4]["sample_id"] == "nf01_as000_ps001"
+
+
 def _minimal_analysis_config(tmp_path: Path) -> dict[str, object]:
     return {
         "dataset_id": "test_dataset",
@@ -205,6 +229,59 @@ def test_flagella_count_dry_run_writes_manifest_and_configs(tmp_path: Path) -> N
     assert sample_config["seed"]["phase_seed"] == 0
     assert sample_config["time"]["duration_s"] == 0.25
     assert sample_config["motor"]["torque_Nm"] == 3.0e-20
+
+
+def test_flagella_count_runner_overrides_are_passed_to_sample_runner(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    analysis_config = _minimal_analysis_config(tmp_path)
+    config_path = tmp_path / "analysis.yaml"
+    config_path.write_text(yaml.safe_dump(analysis_config), encoding="utf-8")
+    captured: dict[str, object] = {}
+
+    def fake_run_sample(**kwargs):
+        captured.update(kwargs)
+        return {
+            "status": "completed",
+            "state_count": 2,
+            "timing": {
+                "simulation_elapsed_s": 0.0,
+                "archive_elapsed_s": 0.0,
+                "trajectory_elapsed_s": 0.0,
+            },
+            "outputs": {},
+        }
+
+    monkeypatch.setattr(run_sweep, "_run_sample", fake_run_sample)
+
+    manifest_path = run_sweep.run_batch(
+        analysis_config_path=config_path,
+        dry_run=False,
+        overwrite=False,
+        stop_on_shape_fail=False,
+        sample_limit=None,
+        progress_interval=None,
+        cli_overrides=[
+            "runner.step_summary_stride=10",
+            "runner.state_stride=5",
+            "runner.flush_interval_steps=20",
+            "runner.sample_order=interleave_n_flagella",
+        ],
+    )
+
+    assert captured["step_summary_stride"] == 10
+    assert captured["state_stride"] == 5
+    assert captured["flush_interval_steps"] == 20
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["runner"] == {
+        "step_summary_stride": 10,
+        "state_stride": 5,
+        "flush_interval_steps": 20,
+        "sample_order": "interleave_n_flagella",
+    }
+    assert manifest["samples"][0]["elapsed_s"] >= 0.0
+    assert manifest["samples"][0]["started_at"]
+    assert manifest["samples"][0]["ended_at"]
 
 
 def test_existing_raw_is_skipped_only_when_config_matches(tmp_path: Path) -> None:

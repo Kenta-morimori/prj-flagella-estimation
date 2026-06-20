@@ -22,6 +22,7 @@ ANALYSIS_OVERRIDE_ROOTS = {
     "sweep",
     "base_overrides",
     "output",
+    "runner",
 }
 
 SIMULATION_OVERRIDE_ROOTS = {

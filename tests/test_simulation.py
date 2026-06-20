@@ -209,6 +209,38 @@ def _run_and_load_body_diag(
     return rows
 
 
+def test_simulator_run_can_stride_states_and_step_summary(tmp_path: Path) -> None:
+    cfg = _make_phase0a_cfg(duration_s=1.0).with_overrides({"time": {"dt_star": 0.25}})
+    sim = Simulator(cfg)
+    total_steps = max(
+        1,
+        int(np.ceil((cfg.time.duration_s / max(cfg.tau_s, 1.0e-30)) / cfg.dt_star)),
+    )
+
+    states = sim.run(
+        cfg.time.duration_s,
+        step_summary_dir=tmp_path / "sim",
+        step_summary_stride=2,
+        state_stride=2,
+        flush_interval_steps=3,
+    )
+
+    with (tmp_path / "sim/step_summary.csv").open(
+        "r",
+        encoding="utf-8",
+        newline="",
+    ) as handle:
+        rows = list(csv.DictReader(handle))
+
+    recorded_steps = [int(row["step"]) for row in rows]
+    assert recorded_steps[0] == 0
+    assert recorded_steps[-1] == total_steps - 1
+    assert all(step % 2 == 0 or step == total_steps - 1 for step in recorded_steps)
+    assert states[0].t == 0.0
+    assert states[-1].t == pytest.approx(total_steps * cfg.dt_star * cfg.tau_s)
+    assert len(states) < total_steps + 1
+
+
 def _run_and_summarize_body_shape(
     cfg: SimulationConfig, summary_dir: Path
 ) -> dict[str, float | bool | str]:
