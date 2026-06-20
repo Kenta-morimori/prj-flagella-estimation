@@ -241,6 +241,21 @@ def test_simulator_run_can_stride_states_and_step_summary(tmp_path: Path) -> Non
     assert len(states) < total_steps + 1
 
 
+def test_simulator_rejects_shape_fail_stop_with_strided_summary(
+    tmp_path: Path,
+) -> None:
+    cfg = _make_phase0a_cfg(duration_s=1.0).with_overrides({"time": {"dt_star": 0.25}})
+    sim = Simulator(cfg)
+
+    with pytest.raises(ValueError, match="step_summary_stride=1"):
+        sim.run(
+            cfg.time.duration_s,
+            step_summary_dir=tmp_path / "sim",
+            stop_on_shape_fail=True,
+            step_summary_stride=2,
+        )
+
+
 def _run_and_summarize_body_shape(
     cfg: SimulationConfig, summary_dir: Path
 ) -> dict[str, float | bool | str]:

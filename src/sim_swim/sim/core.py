@@ -557,6 +557,11 @@ class Simulator:
         step_summary_stride = max(1, int(step_summary_stride))
         state_stride = max(1, int(state_stride))
         flush_interval_steps = max(1, int(flush_interval_steps))
+        if stop_on_shape_fail and step_summary_stride > 1:
+            raise ValueError(
+                "stop_on_shape_fail requires step_summary_stride=1 because "
+                "shape-fail checks are based on step summary diagnostics."
+            )
 
         states: List[SimulationState] = []
         wall_start = time.perf_counter()

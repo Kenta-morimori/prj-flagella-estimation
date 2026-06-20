@@ -513,14 +513,18 @@
   - `runner.step_summary_stride` で `step_summary.csv` / `flag_helix_axis_diagnostics.csv` の診断記録を間引けるようにした。
   - `runner.state_stride` で `state_archive.npz` / `trajectory.csv` 用の state 保存を間引けるようにした。
   - `runner.sample_order=interleave_n_flagella` で seed 条件ごとに `n_flagella` を混ぜて実行できるようにした。
+  - 既存raw再利用時に sample config だけでなく runner stride も照合し，manifest と raw の stride 不一致を防ぐようにした。
+  - `--stop-on-shape-fail` と `runner.step_summary_stride>1` の併用は拒否し，早期停止判定が間引かれないようにした。
   - `conf/phase2_analysis/flagella_count_behavior_dataset_fast.yaml` を追加し，標準configは従来どおり全step保存のまま維持した。
 - acceptance criteria:
   - [x] 既定挙動は既存 runner / dataset builder と互換である。
   - [x] fast config で診断・archive state の間引きを指定できる。
   - [x] manifest に runner 設定と sample timing が記録される。
   - [x] `interleave_n_flagella` で sample 順序を制御できる。
+  - [x] 既存raw再利用時に runner stride の不一致を検出できる。
+  - [x] `--stop-on-shape-fail` は全step summary条件でのみ使える。
 - verification:
-  - `uv run pytest tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py -k 'flagella_count or stride' -q`
+  - `uv run pytest tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py -k 'flagella_count or stride or stop_on_shape_fail' -q`
   - `uv run ruff check scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py src/sim_swim/sim/core.py src/sim_swim/sim/debug_summary.py src/sim_swim/analysis/flagella_count_behavior.py tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py`
   - `uv run ruff format --check scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py src/sim_swim/sim/core.py src/sim_swim/sim/debug_summary.py src/sim_swim/analysis/flagella_count_behavior.py tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py`
   - `uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --dry-run --config conf/phase2_analysis/flagella_count_behavior_dataset_fast.yaml --sample-limit 4`
