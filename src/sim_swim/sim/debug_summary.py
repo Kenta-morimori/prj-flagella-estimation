@@ -1091,12 +1091,15 @@ class StepSummaryRecorder:
     model: SimModel
     cfg: SimulationConfig
     out_dir: Path
+    flush_interval_steps: int = 1
     _csv_fp: TextIO | None = field(init=False, default=None, repr=False)
     _writer: csv.DictWriter | None = field(init=False, default=None, repr=False)
     _axis_csv_fp: TextIO | None = field(init=False, default=None, repr=False)
     _axis_writer: csv.DictWriter | None = field(init=False, default=None, repr=False)
+    _rows_since_flush: int = field(init=False, default=0, repr=False)
 
     def __post_init__(self) -> None:
+        self.flush_interval_steps = max(1, int(self.flush_interval_steps))
         self.out_dir.mkdir(parents=True, exist_ok=True)
         self.step_summary_path = self.out_dir / "step_summary.csv"
         self._csv_fp = self.step_summary_path.open("w", encoding="utf-8", newline="")
@@ -1454,8 +1457,6 @@ class StepSummaryRecorder:
                     "axis_dir_z": float(estimate.axis[2]),
                 }
             )
-        if self._axis_csv_fp is not None:
-            self._axis_csv_fp.flush()
 
         flag_helix_axis_vs_rear_angle_deg_min = (
             float(np.min(helix_axis_angles)) if helix_axis_angles else float("nan")
@@ -1997,7 +1998,12 @@ class StepSummaryRecorder:
         if self._writer is None or self._csv_fp is None:
             raise RuntimeError("step summary writer is not initialized")
         self._writer.writerow(row)
-        self._csv_fp.flush()
+        self._rows_since_flush += 1
+        if self._rows_since_flush >= self.flush_interval_steps:
+            self._csv_fp.flush()
+            if self._axis_csv_fp is not None:
+                self._axis_csv_fp.flush()
+            self._rows_since_flush = 0
         self.last_row = row
         self.prev_flag_states = self.model.flag_states.copy()
         self.prev_body_center_m = body_center_m.copy()
@@ -2005,6 +2011,10 @@ class StepSummaryRecorder:
         self.prev_body_t_s = t_s
 
     def write_csv(self) -> Path:
+        if self._axis_csv_fp is not None:
+            self._axis_csv_fp.flush()
+        if self._csv_fp is not None:
+            self._csv_fp.flush()
         if self._axis_csv_fp is not None:
             self._axis_csv_fp.close()
             self._axis_csv_fp = None

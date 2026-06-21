@@ -13,6 +13,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import time
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -87,6 +88,39 @@ def _ensure_existing_config_matches(
             f"Existing raw output for {sample_id} was created with a different "
             f"sample config ({existing_config_path}). Use --overwrite or choose "
             "a new run_batch_id/output.run_batch_dir."
+        )
+
+
+def _raw_reuse_runner_config(runner_cfg: dict[str, Any]) -> dict[str, int]:
+    return {
+        "step_summary_stride": int(runner_cfg.get("step_summary_stride", 1)),
+        "state_stride": int(runner_cfg.get("state_stride", 1)),
+    }
+
+
+def _ensure_existing_runner_matches(
+    *,
+    runner_config_used_path: Path,
+    expected_runner_config: dict[str, Any],
+    sample_id: str,
+    step_summary: Path,
+) -> None:
+    expected = _raw_reuse_runner_config(expected_runner_config)
+    if not runner_config_used_path.is_file():
+        if expected == {"step_summary_stride": 1, "state_stride": 1}:
+            return
+        raise RuntimeError(
+            f"Existing raw output for {sample_id} cannot be reused because "
+            f"{step_summary} exists but no previous runner config was found. "
+            "Use --overwrite or choose a new run_batch_id/output.run_batch_dir."
+        )
+
+    existing = _raw_reuse_runner_config(_load_yaml(runner_config_used_path))
+    if existing != expected:
+        raise RuntimeError(
+            f"Existing raw output for {sample_id} was created with different "
+            f"runner stride settings ({runner_config_used_path}). Use --overwrite "
+            "or choose a new run_batch_id/output.run_batch_dir."
         )
 
 
@@ -177,6 +211,45 @@ def build_conditions(config: dict[str, Any]) -> list[dict[str, Any]]:
     return conditions
 
 
+def _runner_config(config: dict[str, Any]) -> dict[str, Any]:
+    raw = dict(config.get("runner", {}) or {})
+    step_summary_stride = max(1, int(raw.get("step_summary_stride", 1)))
+    state_stride = max(1, int(raw.get("state_stride", 1)))
+    flush_interval_steps = max(1, int(raw.get("flush_interval_steps", 100)))
+    sample_order = str(raw.get("sample_order", "grouped"))
+    if sample_order not in {"grouped", "interleave_n_flagella"}:
+        raise ValueError(
+            "runner.sample_order must be 'grouped' or 'interleave_n_flagella'"
+        )
+    return {
+        "step_summary_stride": step_summary_stride,
+        "state_stride": state_stride,
+        "flush_interval_steps": flush_interval_steps,
+        "sample_order": sample_order,
+    }
+
+
+def order_conditions(
+    conditions: list[dict[str, Any]],
+    *,
+    sample_order: str,
+) -> list[dict[str, Any]]:
+    if sample_order == "grouped":
+        return list(conditions)
+    if sample_order != "interleave_n_flagella":
+        raise ValueError(
+            "runner.sample_order must be 'grouped' or 'interleave_n_flagella'"
+        )
+    return sorted(
+        conditions,
+        key=lambda condition: (
+            int(condition["attach_seed"]),
+            int(condition["phase_seed"]),
+            int(condition["n_flagella"]),
+        ),
+    )
+
+
 def _build_sample_config(
     *,
     analysis_config: dict[str, Any],
@@ -223,27 +296,53 @@ def _run_sample(
     log_path: Path,
     stop_on_shape_fail: bool,
     progress_interval: int | None,
+    step_summary_stride: int,
+    state_stride: int,
+    flush_interval_steps: int,
 ) -> dict[str, Any]:
     logger = _setup_sample_logger(log_path)
     logger.info("Sample start: %s", condition["sample_id"])
     logger.info("condition=%s", condition)
     logger.info("effective_config=%s", cfg)
+    logger.info(
+        (
+            "runner_options=step_summary_stride:%d,state_stride:%d,"
+            "flush_interval_steps:%d"
+        ),
+        step_summary_stride,
+        state_stride,
+        flush_interval_steps,
+    )
     sim = Simulator(cfg)
+    simulation_start = time.perf_counter()
     states = sim.run(
         cfg.time.duration_s,
         logger=logger,
         progress_interval=progress_interval,
         step_summary_dir=raw_dir,
         stop_on_shape_fail=stop_on_shape_fail,
+        step_summary_stride=step_summary_stride,
+        state_stride=state_stride,
+        flush_interval_steps=flush_interval_steps,
     )
+    simulation_elapsed_s = time.perf_counter() - simulation_start
     archive_path = raw_dir / "state_archive.npz"
     trajectory_path = raw_dir / "trajectory.csv"
+    archive_start = time.perf_counter()
     save_state_archive(archive_path, states)
+    archive_elapsed_s = time.perf_counter() - archive_start
+    trajectory_start = time.perf_counter()
     write_trajectory_csv(trajectory_path, states)
+    trajectory_elapsed_s = time.perf_counter() - trajectory_start
     logger.info("Sample end: %s states=%d", condition["sample_id"], len(states))
     return {
         "status": "completed",
         "state_count": len(states),
+        "timing": {
+            "simulation_elapsed_s": simulation_elapsed_s,
+            "archive_elapsed_s": archive_elapsed_s,
+            "trajectory_elapsed_s": trajectory_elapsed_s,
+        },
         "outputs": {
             "raw_dir": str(raw_dir),
             "step_summary_csv": str(raw_dir / "step_summary.csv"),
@@ -278,6 +377,12 @@ def run_batch(
     )
     base_config_path = Path(analysis_config.get("base_config", "conf/sim_swim.yaml"))
     base_config = _load_yaml(base_config_path)
+    runner_cfg = _runner_config(analysis_config)
+    if stop_on_shape_fail and int(runner_cfg["step_summary_stride"]) > 1:
+        raise ValueError(
+            "--stop-on-shape-fail requires runner.step_summary_stride=1 because "
+            "shape-fail checks are based on step summary diagnostics."
+        )
 
     dataset_id = str(analysis_config["dataset_id"])
     run_batch_id = str(analysis_config.get("run_batch_id", dataset_id))
@@ -287,6 +392,10 @@ def run_batch(
     samples_root = run_batch_dir / "samples"
 
     conditions = build_conditions(analysis_config)
+    conditions = order_conditions(
+        conditions,
+        sample_order=str(runner_cfg["sample_order"]),
+    )
     if sample_limit is not None:
         conditions = conditions[: int(sample_limit)]
 
@@ -303,6 +412,7 @@ def run_batch(
         log_path = sample_dir / "run.log"
         sample_config_path = configs_dir / f"{sample_id}.yaml"
         sample_config_used_path = sample_dir / "sample_config_used.yaml"
+        runner_config_used_path = sample_dir / "sample_runner_config_used.yaml"
         cfg = _build_sample_config(
             analysis_config=analysis_config,
             base_config=base_config,
@@ -310,6 +420,7 @@ def run_batch(
         )
         sample_config = asdict(cfg)
         sample_config_fingerprint = _config_fingerprint(sample_config)
+        runner_config_fingerprint = _config_fingerprint(runner_cfg)
 
         sample_record: dict[str, Any] = {
             **condition,
@@ -318,6 +429,8 @@ def run_batch(
             "config_path": str(sample_config_path),
             "sample_config_used_path": str(sample_config_used_path),
             "sample_config_fingerprint": sample_config_fingerprint,
+            "runner_config_used_path": str(runner_config_used_path),
+            "runner_config_fingerprint": runner_config_fingerprint,
             "sample_dir": str(sample_dir),
             "raw_dir": str(raw_dir),
             "run_log": str(log_path),
@@ -351,10 +464,19 @@ def run_batch(
                     sample_id=sample_id,
                     step_summary=step_summary,
                 )
+                _ensure_existing_runner_matches(
+                    runner_config_used_path=runner_config_used_path,
+                    expected_runner_config=runner_cfg,
+                    sample_id=sample_id,
+                    step_summary=step_summary,
+                )
                 if not sample_config_path.is_file():
                     _write_yaml(sample_config_path, sample_config)
+                if not runner_config_used_path.is_file():
+                    _write_yaml(runner_config_used_path, runner_cfg)
             else:
                 _write_yaml(sample_config_path, sample_config)
+                _write_yaml(runner_config_used_path, runner_cfg)
             sample_record["status"] = "planned"
             manifest_samples.append(sample_record)
             continue
@@ -376,14 +498,23 @@ def run_batch(
                 sample_id=sample_id,
                 step_summary=step_summary,
             )
+            _ensure_existing_runner_matches(
+                runner_config_used_path=runner_config_used_path,
+                expected_runner_config=runner_cfg,
+                sample_id=sample_id,
+                step_summary=step_summary,
+            )
             if not sample_config_path.is_file():
                 _write_yaml(sample_config_path, sample_config)
             if not sample_config_used_path.is_file():
                 _write_yaml(sample_config_used_path, sample_config)
+            if not runner_config_used_path.is_file():
+                _write_yaml(runner_config_used_path, runner_cfg)
             sample_record["status"] = "skipped_existing"
             sample_record["outputs"] = {
                 "raw_dir": str(raw_dir),
                 "sample_config_used_yaml": str(sample_config_used_path),
+                "sample_runner_config_used_yaml": str(runner_config_used_path),
                 "step_summary_csv": str(step_summary),
                 "flag_helix_axis_diagnostics_csv": str(
                     raw_dir / "flag_helix_axis_diagnostics.csv"
@@ -400,7 +531,10 @@ def run_batch(
 
         _write_yaml(sample_config_path, sample_config)
         _write_yaml(sample_config_used_path, sample_config)
+        _write_yaml(runner_config_used_path, runner_cfg)
         try:
+            sample_record["started_at"] = _now_jst()
+            sample_start = time.perf_counter()
             sample_record.update(
                 _run_sample(
                     cfg=cfg,
@@ -410,11 +544,18 @@ def run_batch(
                     log_path=log_path,
                     stop_on_shape_fail=stop_on_shape_fail,
                     progress_interval=progress_interval,
+                    step_summary_stride=int(runner_cfg["step_summary_stride"]),
+                    state_stride=int(runner_cfg["state_stride"]),
+                    flush_interval_steps=int(runner_cfg["flush_interval_steps"]),
                 )
             )
         except Exception as exc:
             sample_record["status"] = "failed"
             sample_record["error"] = repr(exc)
+        finally:
+            if "started_at" in sample_record:
+                sample_record["ended_at"] = _now_jst()
+                sample_record["elapsed_s"] = time.perf_counter() - sample_start
         manifest_samples.append(sample_record)
 
     _write_yaml(effective_analysis_config_path, analysis_config)
@@ -435,6 +576,7 @@ def run_batch(
         "base_overrides": analysis_config.get("base_overrides", {}) or {},
         "cli_overrides": list(cli_overrides),
         "sweep": analysis_config.get("sweep", {}) or {},
+        "runner": runner_cfg,
         "output": {
             "run_batch_dir": str(run_batch_dir),
             "dataset_dir": str(output_cfg.get("dataset_dir", "")),

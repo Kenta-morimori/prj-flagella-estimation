@@ -61,6 +61,16 @@ uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.p
 
 標準条件では override 指定は不要です。`KEY=VALUE` override は、YAMLを複製せずに `duration_s` などを一時的に変えたい場合の補助機能です。
 
+軽量 sweep を試す場合は、診断と archive state を間引く fast config を使います。
+
+```bash
+uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py \
+  --config conf/phase2_analysis/flagella_count_behavior_dataset_fast.yaml
+```
+
+`runner.step_summary_stride` は `step_summary.csv` と `flag_helix_axis_diagnostics.csv` の記録間隔、`runner.state_stride` は `trajectory.csv` と `state_archive.npz` の保存間隔です。標準 config はどちらも実質 `1` で、従来通り全 step を保存します。
+`--stop-on-shape-fail` は shape fail を全記録stepで確認する前提のため、`runner.step_summary_stride=1` のときだけ使用できます。
+
 raw sample からの再描画:
 
 ```bash
@@ -107,8 +117,9 @@ uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.p
 ```
 
 `02_phase2_analysis` の override は `KEY=VALUE` 形式です。`dataset_id`、`run_batch_id`、`output.run_batch_dir`、`output.dataset_dir` は Phase2 analysis 側の設定として扱います。`time.duration_s`、`time.dt_star`、`motor.torque_Nm`、`render.*` などは simulation 設定の省略形として扱い、各 sample の `base_overrides` に反映します。simulation 側の `output.base_dir` を変えたい場合は `base_overrides.output.base_dir=...` と明示してください。
+`runner.step_summary_stride`、`runner.state_stride`、`runner.flush_interval_steps`、`runner.sample_order` は Phase2 analysis runner 側の設定です。`runner.sample_order=interleave_n_flagella` を指定すると、seed 条件ごとに `n_flagella` を混ぜて実行します。
 
-既存の `run_batch_dir` / `sample_id` に `step_summary.csv` がある場合、runner は保存済み sample config と今回の effective sample config が一致するときだけ既存rawを再利用します。条件が異なる場合は、古いrawと新しいmanifest metadataの混在を避けるため停止します。同じ出力先で条件を変えて再生成する場合は `--overwrite` を指定してください。
+既存の `run_batch_dir` / `sample_id` に `step_summary.csv` がある場合、runner は保存済み sample config と、raw内容に影響する runner stride (`runner.step_summary_stride` / `runner.state_stride`) が今回の設定と一致するときだけ既存rawを再利用します。条件が異なる場合は、古いrawと新しいmanifest metadataの混在を避けるため停止します。同じ出力先で条件を変えて再生成する場合は `--overwrite` を指定してください。
 
 `runs/<run_batch_id>/samples/<sample_id>/raw/` には、`step_summary.csv` に加えて `trajectory.csv` と `state_archive.npz` を残します。`state_archive.npz` は後から 3D / 2D render を再生成するための状態保存です。
 

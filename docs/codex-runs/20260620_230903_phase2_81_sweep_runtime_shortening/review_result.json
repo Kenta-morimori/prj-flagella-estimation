@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "summary": "Issue #81 の sweep 実行時間短縮として，Phase 2.8 runner に step summary / state archive の間引き設定，sample 順序制御，sample timing manifest 記録を追加した。PR review を受け，既存raw再利用時の runner stride 照合と，--stop-on-shape-fail と strided summary の併用拒否も追加した。標準configは従来どおり全step保存を維持し，軽量実行用に fast config を追加した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "fast config の summary / timeseries は間引き済み step_summary.csv に基づくため，全step診断と完全一致する用途には標準configを使う必要がある。",
+    "今回の対応では sample 並列実行は入れていない。CPU/メモリ制御を含む並列化は別タスクで扱う。"
+  ],
+  "tests_reviewed": [
+    "uv run pytest tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py -k 'flagella_count or stride or stop_on_shape_fail' -q",
+    "uv run ruff check scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py src/sim_swim/sim/core.py src/sim_swim/sim/debug_summary.py src/sim_swim/analysis/flagella_count_behavior.py tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py",
+    "uv run ruff format --check scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py src/sim_swim/sim/core.py src/sim_swim/sim/debug_summary.py src/sim_swim/analysis/flagella_count_behavior.py tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py",
+    "uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --dry-run --config conf/phase2_analysis/flagella_count_behavior_dataset_fast.yaml --sample-limit 4",
+    "PR #83 review: runner stride mismatch raw reuse and stop-on-shape-fail stride guard were addressed with tests"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "出力頻度・runner順序・manifest timing の実行制御変更であり，物理モデル・特徴量定義・dataset schema の意味を変更しないため ADR は不要。",
+  "commit_type": "none",
+  "commit_hash": "",
+  "push_status": "not_applicable",
+  "pull_request_url": "",
+  "next_actions": [
+    "実運用で fast config の wall time と標準configの wall timeを比較し，stride値の妥当性を確認する。",
+    "総 wall time をさらに短縮する場合は，sample 並列実行を CPU/メモリ上限付きで別タスク化する。"
+  ]
+}
