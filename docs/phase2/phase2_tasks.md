@@ -510,28 +510,22 @@
 - goal: `run_flagella_count_behavior_sweep.py` の後半 sample ほど実行時間が長く見える問題に対し，標準互換を維持しつつ軽量実行手段を追加する。
 - result:
   - 実測ログでは `n_flagella` 増加に伴い 1 sample の計算時間が増え，標準順序が `1,2,3,6` のため後半ほど遅く見えていた。
-  - `runner.step_summary_stride` で `step_summary.csv` / `flag_helix_axis_diagnostics.csv` の診断記録を間引けるようにした。
-  - `runner.state_stride` で `state_archive.npz` / `trajectory.csv` 用の state 保存を間引けるようにした。
   - `runner.sample_order=interleave_n_flagella` で seed 条件ごとに `n_flagella` を混ぜて実行できるようにした。
-  - 既存raw再利用時に sample config だけでなく runner stride も照合し，manifest と raw の stride 不一致を防ぐようにした。
-  - `--stop-on-shape-fail` と `runner.step_summary_stride>1` の併用は拒否し，早期停止判定が間引かれないようにした。
-  - `conf/phase2_analysis/flagella_count_behavior_dataset_fast.yaml` を追加し，標準configは従来どおり全step保存のまま維持した。
+  - 2026-06-22後続判断により，保存段階で情報を消す `runner.step_summary_stride` / `runner.state_stride` と `conf/phase2_analysis/flagella_count_behavior_dataset_fast.yaml` は廃止した。Phase 2.8 raw sample は全step保存し，軽量化は可視化側samplingで行う。
 - acceptance criteria:
   - [x] 既定挙動は既存 runner / dataset builder と互換である。
-  - [x] fast config で診断・archive state の間引きを指定できる。
   - [x] manifest に runner 設定と sample timing が記録される。
   - [x] `interleave_n_flagella` で sample 順序を制御できる。
-  - [x] 既存raw再利用時に runner stride の不一致を検出できる。
-  - [x] `--stop-on-shape-fail` は全step summary条件でのみ使える。
+  - [x] `runner.step_summary_stride` / `runner.state_stride` は指定すると error になる。
 - verification:
-  - `uv run pytest tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py -k 'flagella_count or stride or stop_on_shape_fail' -q`
-  - `uv run ruff check scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py src/sim_swim/sim/core.py src/sim_swim/sim/debug_summary.py src/sim_swim/analysis/flagella_count_behavior.py tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py`
-  - `uv run ruff format --check scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py src/sim_swim/sim/core.py src/sim_swim/sim/debug_summary.py src/sim_swim/analysis/flagella_count_behavior.py tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py`
-  - `uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --dry-run --config conf/phase2_analysis/flagella_count_behavior_dataset_fast.yaml --sample-limit 4`
+  - `uv run pytest tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py tests/test_model_builder.py`
+  - `uv run ruff check scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py src/sim_swim/sim/core.py tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py`
+  - `uv run ruff format --check scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py src/sim_swim/sim/core.py tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py`
 - docs:
   - `scripts/README.md`
   - `docs/phase2/phase2_current.md`
   - `docs/codex-runs/20260620_230903_phase2_81_sweep_runtime_shortening/review_result.json`
+  - `docs/codex-runs/20260622_183135_phase2_remove_raw_stride_sampling/review_result.json`
 
 ### P2-8-084: 実験簡略化のための設定・再描画導線整理
 
@@ -583,7 +577,7 @@
   - `uv run pytest tests/test_model_builder.py tests/test_params.py tests/test_flagella_count_behavior_dataset.py`
   - `uv run ruff check src/sim_swim/model/builder.py tests/test_model_builder.py`
   - `uv run ruff format --check src/sim_swim/model/builder.py tests/test_model_builder.py`
-  - `uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --dry-run --config conf/phase2_analysis/flagella_count_behavior_dataset_fast.yaml --sample-limit 4`
+  - `uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --dry-run --config conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml --sample-limit 6`
 - docs:
   - `docs/phase2/phase2_current.md`
   - `docs/phase2/phase2_tasks.md`

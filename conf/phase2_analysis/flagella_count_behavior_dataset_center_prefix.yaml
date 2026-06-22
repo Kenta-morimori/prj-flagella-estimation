@@ -23,8 +23,6 @@ base_overrides:
   output_sampling.fps_out_2d: 25.0
 
 runner:
-  step_summary_stride: 10
-  state_stride: 10
   flush_interval_steps: 100
   sample_order: interleave_n_flagella
 

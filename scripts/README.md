@@ -66,18 +66,9 @@ uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.p
 | config | 主目的 | attach seed | phase seed | samples | 備考 |
 | --- | --- | --- | --- | ---: | --- |
 | `conf/phase2_analysis/flagella_count_behavior_dataset.yaml` | 標準dataset | `[0,1,2]` | `[0,1,2]` | 36 | 全step保存 |
-| `conf/phase2_analysis/flagella_count_behavior_dataset_fast.yaml` | 軽量実行 | `[0,1,2]` | `[0,1,2]` | 36 | `step_summary_stride=10`, `state_stride=10` |
-| `conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml` | center-priority前半seedのみ | `attach_seed_mode=center_priority_prefix` | `[0]` | 27 | 付着点配置比較用 |
+| `conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml` | center-priority前半seedのみ | `attach_seed_mode=center_priority_prefix` | `[0]` | 27 | 全step保存・付着点配置比較用 |
 
-軽量 sweep を試す場合は、診断と archive state を間引く fast config を使います。条件数は標準datasetと同じ36 samplesで、各 `n_flagella` に9 samplesあります。
-
-```bash
-uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py \
-  --config conf/phase2_analysis/flagella_count_behavior_dataset_fast.yaml
-```
-
-`runner.step_summary_stride` は `step_summary.csv` と `flag_helix_axis_diagnostics.csv` の記録間隔、`runner.state_stride` は `trajectory.csv` と `state_archive.npz` の保存間隔です。標準 config はどちらも実質 `1` で、従来通り全 step を保存します。
-`--stop-on-shape-fail` は shape fail を全記録stepで確認する前提のため、`runner.step_summary_stride=1` のときだけ使用できます。
+Phase 2.8 の raw sample は `step_summary.csv`、`trajectory.csv`、`state_archive.npz` を全step保存します。保存段階では間引かず、軽量化が必要な場合は replay render の `--fps-out-3d` / `--fps-out-2d` や `output_sampling.*` で可視化側を間引きます。
 
 center-priority 前半seedのみの dataset を作る場合は、専用configを使います。`n_flagella=[1,2,3,6]` に対し、前半 `attach_seed` を `0..2`, `0..2`, `0`, `0..19` として展開し、`phase_seed=0` のみで合計27 samplesを実行します。
 
@@ -162,9 +153,9 @@ uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.p
 ```
 
 `02_phase2_analysis` の override は `KEY=VALUE` 形式です。`dataset_id`、`run_batch_id`、`output.run_batch_dir`、`output.dataset_dir` は Phase2 analysis 側の設定として扱います。`time.duration_s`、`time.dt_star`、`motor.torque_Nm`、`render.*` などは simulation 設定の省略形として扱い、各 sample の `base_overrides` に反映します。simulation 側の `output.base_dir` を変えたい場合は `base_overrides.output.base_dir=...` と明示してください。
-`runner.step_summary_stride`、`runner.state_stride`、`runner.flush_interval_steps`、`runner.sample_order` は Phase2 analysis runner 側の設定です。`runner.sample_order=interleave_n_flagella` を指定すると、seed 条件ごとに `n_flagella` を混ぜて実行します。
+`runner.flush_interval_steps`、`runner.sample_order` は Phase2 analysis runner 側の設定です。`runner.sample_order=interleave_n_flagella` を指定すると、seed 条件ごとに `n_flagella` を混ぜて実行します。`runner.step_summary_stride` / `runner.state_stride` は廃止済みで、指定するとエラーになります。
 
-既存の `run_batch_dir` / `sample_id` に `step_summary.csv` がある場合、runner は保存済み sample config と、raw内容に影響する runner stride (`runner.step_summary_stride` / `runner.state_stride`) が今回の設定と一致するときだけ既存rawを再利用します。条件が異なる場合は、古いrawと新しいmanifest metadataの混在を避けるため停止します。同じ出力先で条件を変えて再生成する場合は `--overwrite` を指定してください。
+既存の `run_batch_dir` / `sample_id` に `step_summary.csv` がある場合、runner は保存済み sample config が今回の設定と一致するときだけ既存rawを再利用します。条件が異なる場合は、古いrawと新しいmanifest metadataの混在を避けるため停止します。同じ出力先で条件を変えて再生成する場合は `--overwrite` を指定してください。
 
 `runs/<run_batch_id>/samples/<sample_id>/raw/` には、`step_summary.csv` に加えて `trajectory.csv` と `state_archive.npz` を残します。`state_archive.npz` は後から 3D / 2D render を再生成するための状態保存です。
 
