@@ -38,6 +38,16 @@ def test_default_motor_force_distribution_is_material_twist_local_couple() -> No
     assert sim_cfg.motor.force_distribution == "material_twist_local_couple"
 
 
+def test_missing_motor_torque_defaults_to_issue84_literal_value() -> None:
+    cfg = _base_cfg()
+    cfg["motor"].pop("torque_Nm")
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor.torque_Nm == pytest.approx(1.0e-4)
+    assert sim_cfg.motor_torque_Nm == pytest.approx(1.0e-4)
+
+
 def test_default_motor_local_scales_are_paper_aligned_one() -> None:
     cfg = _base_cfg()
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
@@ -424,6 +434,15 @@ def test_render_flagella_helix_axis_3d_default_is_off() -> None:
     sim_cfg = SimulationConfig.from_dict(cfg)
 
     assert sim_cfg.render.show_flagella_helix_axis_3d is False
+
+
+def test_render_frame_png_defaults_are_off() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.render.save_frames_3d is False
+    assert sim_cfg.render.save_frames_2d is False
 
 
 def test_render_flagella_helix_axis_3d_can_be_enabled() -> None:

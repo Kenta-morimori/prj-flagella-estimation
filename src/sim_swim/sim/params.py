@@ -336,7 +336,7 @@ class RenderParams:
     render_flagella: bool = True
     render_flagella_2d: bool = False
 
-    save_frames_3d: bool = True
+    save_frames_3d: bool = False
     follow_camera_3d: bool = True
     view_range_um: float = 5.0
     timestamp_3d: bool = True
@@ -346,7 +346,7 @@ class RenderParams:
 
     follow_camera_2d: bool = False
     center_body_in_2d: bool = True
-    save_frames_2d: bool = True
+    save_frames_2d: bool = False
 
 
 @dataclass(frozen=True)
@@ -704,7 +704,7 @@ class SimulationConfig:
 
         motor_raw = raw.get("motor", {}) or {}
         motor = MotorParams(
-            torque_Nm=float(_get(motor_raw, "torque_Nm", 4e-18)),
+            torque_Nm=float(_get(motor_raw, "torque_Nm", 1.0e-4)),
             force_distribution=str(
                 _get(
                     motor_raw,
@@ -873,7 +873,7 @@ class SimulationConfig:
             flagella_linewidth_px=float(_get(render_raw, "flagella_linewidth_px", 2.0)),
             render_flagella=bool(_get(render_raw, "render_flagella", True)),
             render_flagella_2d=bool(_get(render_raw, "render_flagella_2d", False)),
-            save_frames_3d=bool(_get(render_raw, "save_frames_3d", True)),
+            save_frames_3d=bool(_get(render_raw, "save_frames_3d", False)),
             follow_camera_3d=bool(_get(render_raw, "follow_camera_3d", True)),
             view_range_um=float(_get(render_raw, "view_range_um", 5.0)),
             timestamp_3d=bool(_get(render_raw, "timestamp_3d", True)),
@@ -884,7 +884,7 @@ class SimulationConfig:
             ),
             follow_camera_2d=bool(_get(render_raw, "follow_camera_2d", False)),
             center_body_in_2d=bool(_get(render_raw, "center_body_in_2d", True)),
-            save_frames_2d=bool(_get(render_raw, "save_frames_2d", True)),
+            save_frames_2d=bool(_get(render_raw, "save_frames_2d", False)),
         )
 
         seed_raw = raw.get("seed", {}) or {}

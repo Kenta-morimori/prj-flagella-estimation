@@ -533,6 +533,35 @@
   - `docs/phase2/phase2_current.md`
   - `docs/codex-runs/20260620_230903_phase2_81_sweep_runtime_shortening/review_result.json`
 
+### P2-8-084: 実験簡略化のための設定・再描画導線整理
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/84`
+- branch: `feature/phase2-84-experiment-simplification`
+- goal: 実験時の設定編集と動画確認を簡略化するため，標準config default，3D render表示，dataset一括再描画CLIを整理する。
+- result:
+  - `conf/sim_swim.yaml` の `motor.torque_Nm` default を `1.0e-4` に変更し，`-1` sentinel の意味はコメントに残した。
+  - `flagella.placement_mode` と `flagella.initial_phase_mode` の取りうる値をconfigコメントへ明記した。
+  - `render.save_frames_3d` / `render.save_frames_2d` の default を `false` にし，mp4 と final image は維持した。
+  - 3D render に RUN/TUMBLE，時刻，実効トルク，`follow_camera_3d` を併記するようにした。
+  - `render_flagella_count_behavior_sample.py --dataset-dir` で dataset 内の全raw sampleを `replays/<sample_id>/` へ一括再描画できるようにした。
+- acceptance criteria:
+  - [x] `conf/sim_swim.yaml` と parser fallback default が一致する。
+  - [x] `-1` sentinel と明示的な `motor.torque_Nm` override は維持される。
+  - [x] 3D render の表示内容を単体テストで確認できる。
+  - [x] dataset directory から `dataset_manifest.json` / `run_manifest.json` を辿って全sampleを再描画できる。
+  - [x] dataset一括再描画は既存 `replays/<sample_id>/` を置き換える。
+- verification:
+  - `uv run pytest tests/test_params.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run python -c "import yaml; yaml.safe_load(open('conf/sim_swim.yaml', encoding='utf-8'))"`
+  - `uv run ruff check src/sim_swim/sim/params.py src/sim_swim/render/render3d.py scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_params.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff format --check src/sim_swim/sim/params.py src/sim_swim/render/render3d.py scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_params.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run python -m scripts.01_simulate_swimming time.duration_s=0.001 time.dt_star=1.0e-4 motor.torque_Nm=0 output.base_dir=/private/tmp/phase2_issue84_smoke`
+- docs:
+  - `scripts/README.md`
+  - `docs/phase2/phase2_current.md`
+  - `docs/codex-runs/20260622_124330_phase2_84_experiment_simplification/review_result.json`
+
 ## Phase 2.9: Tumble状態の段階実装
 
 ### P2-9-010: Tumble状態を段階実装する

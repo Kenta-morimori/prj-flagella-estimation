@@ -14,8 +14,8 @@ body:
 
 flagella:
   n_flagella: 3                # [-] べん毛本数（論文条件）
-  placement_mode: "seeded_surface"   # seeded_surface: seed依存で中心+前後層へ付着, uniform: 旧互換
-  initial_phase_mode: "seeded"        # seeded: phase_seed依存, uniform: 旧互換の等間隔phase
+  placement_mode: "seeded_surface"   # values: seeded_surface（seed依存で中心+前後層へ付着）, uniform（旧互換）
+  initial_phase_mode: "seeded"        # values: seeded（phase_seed依存）, uniform（旧互換の等間隔phase）
   init_mode: "paper_table1"   # 初期べん毛のsource-of-truth: bond/theta/phi/n_beads
   n_beads_per_flagellum: 11    # [-] 各べん毛の初期ビーズ数（論文離散化準拠）
   discretization:
@@ -32,7 +32,7 @@ fluid:
   viscosity_Pa_s: 0.001        # [Pa*s] 水相当
 
 motor:
-  torque_Nm: -1           # [N*m] モーターのトルク(Torque, T)．-1のときはτ=1になるよう「η * b^3」と定義する．
+  torque_Nm: 1.0e-4       # [N*m] モーターのトルク(Torque, T)．-1のときはτ=1になるよう「η * b^3」と定義する．
   # motor torque をbead forceへ変換する方式。
   # - material_twist_local_couple: 既定値。segment軸まわりのorientation activityを隣接bead対の局所force coupleへ変換する。
   #   P2-6-008で単一べん毛の螺旋形状維持とnet回転を確認したmode。
@@ -111,7 +111,7 @@ render:
   render_flagella: true         # 3D描画でべん毛を描画
   render_flagella_2d: false     # 2D描画でべん毛を描画（デフォルトOFF）
 
-  save_frames_3d: true
+  save_frames_3d: false
   follow_camera_3d: true       # true: 3D追従カメラ
   view_range_um: 5.0           # [um] 3D表示範囲（中心±R）
   timestamp_3d: true
@@ -121,7 +121,7 @@ render:
 
   follow_camera_2d: false      # false: 2D固定カメラ
   center_body_in_2d: true      # true: 2D投影では菌体重心を画像中心へ固定
-  save_frames_2d: true
+  save_frames_2d: false
 
 seed:
   global_seed: 0

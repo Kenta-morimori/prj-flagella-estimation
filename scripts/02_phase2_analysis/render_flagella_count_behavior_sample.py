@@ -7,6 +7,7 @@ import argparse
 import json
 import logging
 from pathlib import Path
+import shutil
 import subprocess
 from typing import Any
 
@@ -29,6 +30,10 @@ from sim_swim.sim.params import SimulationConfig
 
 def _load_yaml(path: Path) -> dict[str, Any]:
     return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+
+
+def _load_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _git_info() -> dict[str, Any]:
@@ -76,6 +81,50 @@ def _infer_config_path(sample_dir: Path) -> Path:
 
 def _infer_archive_path(sample_dir: Path) -> Path:
     return sample_dir / "raw" / "state_archive.npz"
+
+
+def _sample_dir_from_manifest(sample: dict[str, Any]) -> Path:
+    sample_dir = sample.get("sample_dir")
+    if sample_dir:
+        return Path(str(sample_dir))
+    raw_dir = sample.get("raw_dir") or (sample.get("outputs", {}) or {}).get("raw_dir")
+    if raw_dir:
+        return Path(str(raw_dir)).parent
+    raise ValueError(f"sample_dir is missing for sample: {sample.get('sample_id', '')}")
+
+
+def _config_path_from_manifest(sample: dict[str, Any]) -> Path | None:
+    config_path = sample.get("config_path") or sample.get("sample_config_used_path")
+    return Path(str(config_path)) if config_path else None
+
+
+def _archive_path_from_manifest(sample: dict[str, Any]) -> Path | None:
+    outputs = sample.get("outputs", {}) or {}
+    archive_path = outputs.get("state_archive_npz")
+    if archive_path:
+        return Path(str(archive_path))
+    raw_dir = sample.get("raw_dir") or outputs.get("raw_dir")
+    return Path(str(raw_dir)) / "state_archive.npz" if raw_dir else None
+
+
+def _resolve_sample_output_dir(replay_root: Path, sample_id: str) -> Path:
+    replay_root = replay_root.resolve()
+    if sample_id in {"", ".", ".."}:
+        raise ValueError("sample_id must be a plain directory name")
+    sample_id_path = Path(sample_id)
+    if sample_id_path.is_absolute() or sample_id_path.name != sample_id:
+        raise ValueError(f"sample_id must be a plain directory name: {sample_id!r}")
+    if "\\" in sample_id:
+        raise ValueError(f"sample_id must be a plain directory name: {sample_id!r}")
+
+    output_dir = (replay_root / sample_id).resolve()
+    try:
+        output_dir.relative_to(replay_root)
+    except ValueError as exc:
+        raise ValueError(
+            f"sample output directory escapes replay root: {sample_id!r}"
+        ) from exc
+    return output_dir
 
 
 def _build_render_sampling_overrides(
@@ -197,9 +246,77 @@ def render_sample(
     return output_dir
 
 
+def render_dataset(
+    *,
+    dataset_dir: Path,
+    output_dir: Path | None,
+    out_all_steps_3d: bool | None = False,
+    fps_out_3d: float | None = None,
+    fps_out_2d: float | None = None,
+) -> Path:
+    dataset_dir = dataset_dir.resolve()
+    dataset_manifest_path = dataset_dir / "dataset_manifest.json"
+    dataset_manifest = _load_json(dataset_manifest_path)
+    run_manifest_path = Path(str(dataset_manifest["run_manifest"])).resolve()
+    run_manifest = _load_json(run_manifest_path)
+
+    replay_root = (output_dir or (dataset_dir / "replays")).resolve()
+    replay_root.mkdir(parents=True, exist_ok=True)
+
+    samples_out: list[dict[str, Any]] = []
+    for sample in run_manifest.get("samples", []):
+        sample_id = str(sample.get("sample_id", ""))
+        sample_output_dir = _resolve_sample_output_dir(replay_root, sample_id)
+        if sample_output_dir.exists():
+            shutil.rmtree(sample_output_dir)
+        rendered_dir = render_sample(
+            sample_dir=_sample_dir_from_manifest(sample),
+            output_dir=sample_output_dir,
+            config_path=_config_path_from_manifest(sample),
+            archive_path=_archive_path_from_manifest(sample),
+            out_all_steps_3d=out_all_steps_3d,
+            fps_out_3d=fps_out_3d,
+            fps_out_2d=fps_out_2d,
+        )
+        samples_out.append(
+            {
+                "sample_id": sample_id,
+                "sample_dir": str(_sample_dir_from_manifest(sample)),
+                "output_dir": str(rendered_dir),
+                "manifest": str(rendered_dir / "manifest.json"),
+            }
+        )
+
+    batch_manifest = {
+        "git": _git_info(),
+        "input": {
+            "dataset_dir": str(dataset_dir),
+            "dataset_manifest": str(dataset_manifest_path),
+            "run_manifest": str(run_manifest_path),
+        },
+        "dataset_id": dataset_manifest.get("dataset_id", ""),
+        "run_batch_id": dataset_manifest.get("run_batch_id", ""),
+        "render_sampling_overrides": _build_render_sampling_overrides(
+            out_all_steps_3d=out_all_steps_3d,
+            fps_out_3d=fps_out_3d,
+            fps_out_2d=fps_out_2d,
+        ).get("output_sampling", {}),
+        "sample_count": len(samples_out),
+        "samples": samples_out,
+        "outputs": {"root": str(replay_root)},
+    }
+    (replay_root / "manifest.json").write_text(
+        json.dumps(batch_manifest, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return replay_root
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--sample-dir", type=Path, required=True)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--sample-dir", type=Path)
+    source.add_argument("--dataset-dir", type=Path)
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument("--config", type=Path, default=None)
     parser.add_argument("--archive", type=Path, default=None)
@@ -231,17 +348,28 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    sample_dir = args.sample_dir
-    output_dir = args.output_dir or (sample_dir / "replay")
-    render_sample(
-        sample_dir=sample_dir,
-        output_dir=output_dir,
-        config_path=args.config,
-        archive_path=args.archive,
-        out_all_steps_3d=args.out_all_steps_3d,
-        fps_out_3d=args.fps_out_3d,
-        fps_out_2d=args.fps_out_2d,
-    )
+    if args.dataset_dir is not None:
+        if args.config is not None or args.archive is not None:
+            parser.error("--config/--archive can only be used with --sample-dir")
+        output_dir = render_dataset(
+            dataset_dir=args.dataset_dir,
+            output_dir=args.output_dir,
+            out_all_steps_3d=args.out_all_steps_3d,
+            fps_out_3d=args.fps_out_3d,
+            fps_out_2d=args.fps_out_2d,
+        )
+    else:
+        sample_dir = args.sample_dir
+        output_dir = args.output_dir or (sample_dir / "replay")
+        render_sample(
+            sample_dir=sample_dir,
+            output_dir=output_dir,
+            config_path=args.config,
+            archive_path=args.archive,
+            out_all_steps_3d=args.out_all_steps_3d,
+            fps_out_3d=args.fps_out_3d,
+            fps_out_2d=args.fps_out_2d,
+        )
     print(output_dir)
 
 
