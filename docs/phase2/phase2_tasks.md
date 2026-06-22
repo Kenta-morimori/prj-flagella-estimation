@@ -589,6 +589,33 @@
   - `docs/phase2/phase2_tasks.md`
   - `docs/codex-runs/20260622_142503_phase2_84_seeded_attach_placement/review_result.json`
 
+### P2-8-084c: center-priority前半seedのみdataset option
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/84#issuecomment-4764990562`
+- branch: `feature/phase2-84-seeded-attach-placement`
+- goal: `n_flagella` ごとに異なる center-priority 前半 `attach_seed` だけを使うdatasetを，手動列挙なしで生成できるようにする。
+- result:
+  - `sweep.attach_seed_mode=center_priority_prefix` を追加し，`build_conditions()` で `n_flagella` ごとの前半seedを自動展開する。
+  - `attach_seed_mode` と `attach_seeds` の同時指定は曖昧なため error にする。
+  - 専用config `conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml` を追加した。`n_flagella=[1,2,3,6]`, `phase_seeds=[0]` で27 sampleを生成する。
+  - 既存の明示 `attach_seeds` / `phase_seeds` と legacy `seeds` は互換維持する。
+- acceptance criteria:
+  - [x] `n_flagella=[1,2,3,6]` で前半 `attach_seed` が `0..2`, `0..2`, `0`, `0..19` に展開される。
+  - [x] 専用configから27 sampleが生成され，sample idは既存 split seed 形式を使う。
+  - [x] `phase_seed` は専用configでは `0` のみにできる。
+  - [x] `attach_seed_mode` と `attach_seeds` の同時指定は error になる。
+- verification:
+  - `uv run pytest tests/test_flagella_count_behavior_dataset.py tests/test_model_builder.py`
+  - `uv run ruff check scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py src/sim_swim/analysis/flagella_count_behavior.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff format --check scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py src/sim_swim/analysis/flagella_count_behavior.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --dry-run --config conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml --sample-limit 6`
+- docs:
+  - `conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml`
+  - `docs/phase2/phase2_current.md`
+  - `docs/phase2/phase2_tasks.md`
+  - `docs/codex-runs/20260622_175854_phase2_84_center_prefix_dataset/review_result.json`
+
 ## Phase 2.9: Tumble状態の段階実装
 
 ### P2-9-010: Tumble状態を段階実装する

@@ -32,6 +32,9 @@ from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import SimulationConfig
 
 
+CENTER_PRIORITY_ATTACH_SEED_COUNTS = (1, 3, 3, 1, 6, 15, 20, 15, 6, 1)
+
+
 def _load_yaml(path: Path) -> dict[str, Any]:
     return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
@@ -167,15 +170,46 @@ def _sample_id_split(n_flagella: int, attach_seed: int, phase_seed: int) -> str:
     return f"nf{int(n_flagella):02d}_as{int(attach_seed):03d}_ps{int(phase_seed):03d}"
 
 
+def _center_priority_attach_seed_count(n_flagella: int) -> int:
+    if not (0 <= int(n_flagella) < len(CENTER_PRIORITY_ATTACH_SEED_COUNTS)):
+        raise ValueError(
+            "sweep.attach_seed_mode=center_priority_prefix supports "
+            "n_flagella in [0,9]:"
+            f" n_flagella={int(n_flagella)}"
+        )
+    return int(CENTER_PRIORITY_ATTACH_SEED_COUNTS[int(n_flagella)])
+
+
+def _attach_seeds_for_n_flagella(
+    sweep: dict[str, Any],
+    n_flagella: int,
+) -> list[int]:
+    mode = str(sweep.get("attach_seed_mode", "")).strip()
+    if mode:
+        if mode != "center_priority_prefix":
+            raise ValueError(
+                "sweep.attach_seed_mode must be 'center_priority_prefix' "
+                f"when set: {mode}"
+            )
+        if "attach_seeds" in sweep:
+            raise ValueError(
+                "sweep.attach_seed_mode cannot be used together with sweep.attach_seeds"
+            )
+        return list(range(_center_priority_attach_seed_count(n_flagella)))
+
+    fallback_seeds = [int(v) for v in sweep.get("seeds", [0])]
+    return [int(v) for v in sweep.get("attach_seeds", fallback_seeds)]
+
+
 def build_conditions(config: dict[str, Any]) -> list[dict[str, Any]]:
     sweep = config.get("sweep", {}) or {}
     n_flagella_values = [int(v) for v in sweep.get("n_flagella", [])]
     conditions: list[dict[str, Any]] = []
-    if "attach_seeds" in sweep or "phase_seeds" in sweep:
+    if "attach_seeds" in sweep or "phase_seeds" in sweep or "attach_seed_mode" in sweep:
         fallback_seeds = [int(v) for v in sweep.get("seeds", [0])]
-        attach_seeds = [int(v) for v in sweep.get("attach_seeds", fallback_seeds)]
         phase_seeds = [int(v) for v in sweep.get("phase_seeds", fallback_seeds)]
         for n_flagella in n_flagella_values:
+            attach_seeds = _attach_seeds_for_n_flagella(sweep, n_flagella)
             for attach_seed in attach_seeds:
                 for phase_seed in phase_seeds:
                     sample_id = _sample_id_split(n_flagella, attach_seed, phase_seed)

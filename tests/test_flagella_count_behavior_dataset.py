@@ -87,6 +87,72 @@ def test_flagella_count_conditions_use_expected_sample_ids() -> None:
     assert conditions[-1]["sample_id"] == "nf02_as001_ps002"
 
 
+def test_flagella_count_conditions_can_use_center_priority_attach_seed_prefix() -> None:
+    config = {
+        "sweep": {
+            "n_flagella": [1, 2, 3, 6],
+            "attach_seed_mode": "center_priority_prefix",
+            "phase_seeds": [0],
+        }
+    }
+
+    conditions = run_sweep.build_conditions(config)
+
+    assert len(conditions) == 27
+    assert [condition["sample_id"] for condition in conditions[:3]] == [
+        "nf01_as000_ps000",
+        "nf01_as001_ps000",
+        "nf01_as002_ps000",
+    ]
+    assert conditions[6]["sample_id"] == "nf03_as000_ps000"
+    assert conditions[-1]["sample_id"] == "nf06_as019_ps000"
+    assert {
+        int(condition["attach_seed"])
+        for condition in conditions
+        if int(condition["n_flagella"]) == 6
+    } == set(range(20))
+
+
+def test_center_priority_dataset_config_generates_expected_conditions() -> None:
+    config_path = (
+        ROOT / "conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml"
+    )
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+
+    conditions = run_sweep.build_conditions(config)
+
+    assert len(conditions) == 27
+    assert {int(condition["phase_seed"]) for condition in conditions} == {0}
+    assert conditions[-1]["sample_id"] == "nf06_as019_ps000"
+
+
+def test_center_priority_attach_seed_mode_rejects_explicit_attach_seeds() -> None:
+    config = {
+        "sweep": {
+            "n_flagella": [1],
+            "attach_seed_mode": "center_priority_prefix",
+            "attach_seeds": [0],
+            "phase_seeds": [0],
+        }
+    }
+
+    with pytest.raises(ValueError, match="attach_seed_mode cannot be used"):
+        run_sweep.build_conditions(config)
+
+
+def test_center_priority_attach_seed_mode_rejects_unsupported_n_flagella() -> None:
+    config = {
+        "sweep": {
+            "n_flagella": [10],
+            "attach_seed_mode": "center_priority_prefix",
+            "phase_seeds": [0],
+        }
+    }
+
+    with pytest.raises(ValueError, match="n_flagella in \\[0,9\\]"):
+        run_sweep.build_conditions(config)
+
+
 def test_flagella_count_legacy_seed_conditions_set_split_seeds() -> None:
     config = {"sweep": {"n_flagella": [1], "seeds": [2]}}
 
