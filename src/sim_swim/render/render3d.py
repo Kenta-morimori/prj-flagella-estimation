@@ -83,6 +83,15 @@ def _run_tumble_label(st: SimulationState, cfg: SimulationConfig) -> str:
     return "TUMBLE" if bool(is_tumble) else "RUN"
 
 
+def _frame_status_lines(st: SimulationState, cfg: SimulationConfig) -> list[str]:
+    lines = [_run_tumble_label(st, cfg)]
+    if cfg.render.timestamp_3d:
+        lines.append(cfg.render.timestamp_fmt.format(t=st.t))
+    lines.append(f"motor_torque_Nm = {cfg.motor_torque_Nm:.3e}")
+    lines.append(f"follow_camera_3d = {cfg.render.follow_camera_3d}")
+    return lines
+
+
 def _plot_segments_3d(
     ax: plt.Axes,
     beads: np.ndarray,
@@ -266,12 +275,13 @@ def save_swim_movie(
                 fontsize=8,
             )
 
-        if cfg.render.timestamp_3d:
-            label = cfg.render.timestamp_fmt.format(t=st.t)
-            ax.text2D(0.02, 0.90, label, transform=ax.transAxes)
-
-        state_label = _run_tumble_label(st, cfg)
-        ax.text2D(0.02, 0.96, state_label, transform=ax.transAxes)
+        ax.text2D(
+            0.02,
+            0.96,
+            "\n".join(_frame_status_lines(st, cfg)),
+            transform=ax.transAxes,
+            va="top",
+        )
 
         fig.tight_layout()
         canvas = FigureCanvasAgg(fig)

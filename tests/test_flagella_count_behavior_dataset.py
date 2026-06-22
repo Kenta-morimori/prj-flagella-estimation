@@ -685,6 +685,119 @@ def test_render_sample_cli_passes_sampling_options(
     assert captured["fps_out_2d"] == pytest.approx(8.0)
 
 
+def test_render_dataset_renders_all_samples_into_dataset_replays(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dataset_dir = tmp_path / "dataset"
+    run_dir = tmp_path / "runs/test_dataset"
+    run_manifest_path = run_dir / "run_manifest.json"
+    samples = [
+        {
+            "sample_id": "nf01_seed000",
+            "sample_dir": str(run_dir / "samples/nf01_seed000"),
+            "config_path": str(run_dir / "configs/nf01_seed000.yaml"),
+            "outputs": {
+                "state_archive_npz": str(
+                    run_dir / "samples/nf01_seed000/raw/state_archive.npz"
+                )
+            },
+        },
+        {
+            "sample_id": "nf02_seed000",
+            "sample_dir": str(run_dir / "samples/nf02_seed000"),
+            "config_path": str(run_dir / "configs/nf02_seed000.yaml"),
+            "outputs": {
+                "state_archive_npz": str(
+                    run_dir / "samples/nf02_seed000/raw/state_archive.npz"
+                )
+            },
+        },
+    ]
+    run_manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    run_manifest_path.write_text(json.dumps({"samples": samples}), encoding="utf-8")
+    dataset_dir.mkdir(parents=True, exist_ok=True)
+    (dataset_dir / "dataset_manifest.json").write_text(
+        json.dumps(
+            {
+                "dataset_id": "test_dataset",
+                "run_batch_id": "test_dataset",
+                "run_manifest": str(run_manifest_path),
+            }
+        ),
+        encoding="utf-8",
+    )
+    stale = dataset_dir / "replays/nf01_seed000/stale.txt"
+    stale.parent.mkdir(parents=True, exist_ok=True)
+    stale.write_text("old", encoding="utf-8")
+    captured: list[dict[str, object]] = []
+
+    def fake_render_sample(**kwargs):
+        assert not (kwargs["output_dir"] / "stale.txt").exists()
+        captured.append(kwargs)
+        kwargs["output_dir"].mkdir(parents=True, exist_ok=True)
+        (kwargs["output_dir"] / "manifest.json").write_text("{}", encoding="utf-8")
+        return kwargs["output_dir"]
+
+    monkeypatch.setattr(render_sample, "render_sample", fake_render_sample)
+
+    replay_root = render_sample.render_dataset(
+        dataset_dir=dataset_dir,
+        output_dir=None,
+        out_all_steps_3d=False,
+        fps_out_3d=12.5,
+        fps_out_2d=8.0,
+    )
+
+    assert replay_root == (dataset_dir / "replays").resolve()
+    assert [
+        item["sample_id"]
+        for item in json.loads(
+            (replay_root / "manifest.json").read_text(encoding="utf-8")
+        )["samples"]
+    ] == ["nf01_seed000", "nf02_seed000"]
+    assert len(captured) == 2
+    assert captured[0]["output_dir"] == replay_root / "nf01_seed000"
+    assert captured[0]["fps_out_3d"] == pytest.approx(12.5)
+    assert captured[0]["fps_out_2d"] == pytest.approx(8.0)
+
+
+def test_render_sample_cli_passes_dataset_dir_options(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    captured: dict[str, object] = {}
+    output_dir = tmp_path / "replays"
+
+    def fake_render_dataset(**kwargs):
+        captured.update(kwargs)
+        return output_dir
+
+    monkeypatch.setattr(render_sample, "render_dataset", fake_render_dataset)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "render_flagella_count_behavior_sample.py",
+            "--dataset-dir",
+            str(tmp_path / "dataset"),
+            "--output-dir",
+            str(output_dir),
+            "--fps-out-3d",
+            "12.5",
+            "--fps-out-2d",
+            "8",
+            "--out-all-steps-3d",
+        ],
+    )
+
+    render_sample.main()
+
+    assert captured["dataset_dir"] == tmp_path / "dataset"
+    assert captured["output_dir"] == output_dir
+    assert captured["out_all_steps_3d"] is True
+    assert captured["fps_out_3d"] == pytest.approx(12.5)
+    assert captured["fps_out_2d"] == pytest.approx(8.0)
+
+
 def _write_step_summary(path: Path, rows: list[dict[str, object]]) -> None:
     fieldnames = [
         "step",

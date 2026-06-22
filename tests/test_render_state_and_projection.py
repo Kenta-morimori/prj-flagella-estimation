@@ -7,6 +7,7 @@ import pytest
 
 from sim_swim.render.project2d import _camera_center_2d, project_states
 from sim_swim.render.render3d import (
+    _frame_status_lines,
     _hook_edges,
     _resolve_view_range_um,
     _run_tumble_label,
@@ -112,6 +113,21 @@ def test_run_tumble_label_is_always_run_when_switching_disabled() -> None:
     assert _run_tumble_label(_state(), cfg) == "RUN"
 
 
+def test_frame_status_lines_include_time_torque_and_camera_mode() -> None:
+    cfg = _make_cfg(
+        center_body_in_2d=True,
+        follow_camera_2d=False,
+        enable_switching=False,
+    )
+
+    lines = _frame_status_lines(_state(), cfg)
+
+    assert lines[0] == "RUN"
+    assert "t = 0.000 s" in lines
+    assert "motor_torque_Nm = 1.000e-18" in lines
+    assert "follow_camera_3d = True" in lines
+
+
 def test_hook_edges_expand_triplets_into_two_segments() -> None:
     triplets = np.array([[1, 4, 5], [2, 6, 7]], dtype=int)
 
@@ -212,6 +228,7 @@ def test_save_swim_movie_emits_render_outputs(tmp_path, monkeypatch) -> None:
         follow_camera_2d=False,
         enable_switching=False,
     )
+    cfg = replace(cfg, render=replace(cfg.render, save_frames_3d=True))
 
     beads = np.array(
         [
