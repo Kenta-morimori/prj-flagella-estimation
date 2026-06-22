@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "summary": "Issue #84 の残タスクとして，seeded_surface の attach_seed を付着点組合せ列の index として扱い，各 n_flagella の前半 seed に center-triangle priority 配置を割り当てた。n_flagella=0..9 の center-priority seed 数を 1,3,3,1,6,15,20,15,6,1 とし，prefix 範囲内・範囲直後・代表三角形配置を pytest で固定した。",
+  "assumptions": [
+    "center-priority は n_flagella<=3 では center layer から必要数を選び，n_flagella>=4 では center layer 3点を必ず含む配置とした。",
+    "center-priority prefix 後の attach_seed は，9候補全体から center-priority と重複しない制約なし配置へ進み，候補列全体を modulo で循環する。",
+    "変更対象は初期付着点選択のみで，物理モデル，phase_seed，dataset schema，render 出力は変更していない。"
+  ],
+  "tests": [
+    "uv run pytest tests/test_model_builder.py tests/test_params.py tests/test_flagella_count_behavior_dataset.py",
+    "uv run ruff check src/sim_swim/model/builder.py tests/test_model_builder.py",
+    "uv run ruff format --check src/sim_swim/model/builder.py tests/test_model_builder.py",
+    "uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --dry-run --config conf/phase2_analysis/flagella_count_behavior_dataset_fast.yaml --sample-limit 4"
+  ],
+  "visual_review": {
+    "required": false,
+    "reason": "初期付着点の deterministic selection 変更であり，center-priority 範囲と付着 layer/slot は単体テストで確認できるため。"
+  },
+  "adr": {
+    "created": false,
+    "reason": "物理モデルや出力schemaの新規決定ではなく，既存 seeded_surface の初期配置順序修正に留まるため。"
+  },
+  "changed_files": [
+    "src/sim_swim/model/builder.py",
+    "tests/test_model_builder.py",
+    "docs/phase2/phase2_current.md",
+    "docs/phase2/phase2_tasks.md",
+    "docs/codex-runs/20260622_142503_phase2_84_seeded_attach_placement/review_result.json"
+  ],
+  "remaining_issues": [
+    "この変更後の実 dataset 全件再生成と本数別特徴量分布の再評価は未実施。必要に応じて Issue #71 の分析作業で行う。"
+  ]
+}

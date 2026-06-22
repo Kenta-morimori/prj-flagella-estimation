@@ -563,6 +563,32 @@
   - `docs/phase2/phase2_current.md`
   - `docs/codex-runs/20260622_124330_phase2_84_experiment_simplification/review_result.json`
 
+### P2-8-084b: seed値によるべん毛初期配置のcenter-priority化
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/84#issuecomment-4764990562`
+- branch: `feature/phase2-84-seeded-attach-placement`
+- goal: `seeded_surface` の小さい `attach_seed` で付着点が1辺へ寄る問題を解消し，`n_flagella` ごとに中心三角形を優先的に埋める seed 範囲を明文化する。
+- result:
+  - `placement_mode=seeded_surface` では，`attach_seed` を付着点組合せ列のindexとして扱う。
+  - 各 `n_flagella` の前半 seed は center layer の三角形を優先する。`n_flagella<=3` は center から必要数を選び，`n_flagella>=4` は center 3点を必ず含めて残りを前後隣接層から選ぶ。
+  - center-priority seed 数は `n_flagella=0..9` で `1,3,3,1,6,15,20,15,6,1` とする。つまり `n_flagella=1..9` の center-priority `attach_seed` 範囲は `0..2`, `0..2`, `0`, `0..5`, `0..14`, `0..19`, `0..14`, `0..5`, `0` である。
+  - center-priority 範囲を超えた `attach_seed` は，9候補全体から center-priority と重複しない制約なし配置へ進み，候補列全体を modulo で循環する。
+- acceptance criteria:
+  - [x] `n_flagella=0..9` の center-priority seed 数がテストで固定される。
+  - [x] center-priority 範囲内では，`n_flagella<=3` はcenter layerのみ，`n_flagella>=4` はcenter三角形3点を必ず含む。
+  - [x] center-priority 範囲の直後ではcenter優先制約が外れる。
+  - [x] `phase_seed` だけを変えると付着点は変わらない既存保証を維持する。
+- verification:
+  - `uv run pytest tests/test_model_builder.py tests/test_params.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff check src/sim_swim/model/builder.py tests/test_model_builder.py`
+  - `uv run ruff format --check src/sim_swim/model/builder.py tests/test_model_builder.py`
+  - `uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --dry-run --config conf/phase2_analysis/flagella_count_behavior_dataset_fast.yaml --sample-limit 4`
+- docs:
+  - `docs/phase2/phase2_current.md`
+  - `docs/phase2/phase2_tasks.md`
+  - `docs/codex-runs/20260622_142503_phase2_84_seeded_attach_placement/review_result.json`
+
 ## Phase 2.9: Tumble状態の段階実装
 
 ### P2-9-010: Tumble状態を段階実装する

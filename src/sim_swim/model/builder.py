@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from itertools import combinations
 import math
 
 import numpy as np
@@ -276,21 +277,162 @@ class ModelBuilder:
 
     def _seeded_attach_indices(
         self,
-        unique_candidates: np.ndarray,
+        body_layers: list[np.ndarray],
         n_flagella: int,
     ) -> np.ndarray:
         if n_flagella <= 0:
             return np.zeros((0,), dtype=int)
-        slots = np.floor(
-            np.linspace(
-                0.0,
-                float(unique_candidates.shape[0]),
-                num=n_flagella,
-                endpoint=False,
+        sequences = self._seeded_attach_sequences(body_layers, n_flagella)
+        if not sequences:
+            raise ValueError(
+                "Not enough unique attach candidates for requested "
+                "flagella count:"
+                f" requested={n_flagella}, available=0"
             )
-        ).astype(int)
-        picks = (slots + self.attach_seed) % int(unique_candidates.shape[0])
-        return unique_candidates[picks]
+        return np.asarray(
+            sequences[self.attach_seed % len(sequences)],
+            dtype=int,
+        )
+
+    def _seeded_attach_sequences(
+        self,
+        body_layers: list[np.ndarray],
+        n_flagella: int,
+    ) -> list[tuple[int, ...]]:
+        candidates = self._layered_attach_candidates(body_layers)
+        if len(candidates) < n_flagella:
+            raise ValueError(
+                "Not enough unique attach candidates for requested "
+                "flagella count:"
+                f" requested={n_flagella}, available={len(candidates)}"
+            )
+
+        prefix = self._center_priority_attach_sequences(body_layers, n_flagella)
+        prefix_keys = {tuple(sorted(seq)) for seq in prefix}
+        unrestricted = [
+            tuple(int(i) for i in seq)
+            for seq in combinations(candidates, n_flagella)
+            if tuple(sorted(int(i) for i in seq)) not in prefix_keys
+        ]
+        return prefix + unrestricted
+
+    def _layered_attach_candidates(
+        self,
+        body_layers: list[np.ndarray],
+    ) -> list[int]:
+        if not body_layers:
+            return []
+
+        center_idx = len(body_layers) // 2
+        layer_order = [center_idx, center_idx - 1, center_idx + 1]
+        candidates: list[int] = []
+        seen: set[int] = set()
+        for layer_idx in layer_order:
+            if not (0 <= layer_idx < len(body_layers)):
+                continue
+            for bead_idx in body_layers[layer_idx].astype(int, copy=False).tolist():
+                if int(bead_idx) in seen:
+                    continue
+                candidates.append(int(bead_idx))
+                seen.add(int(bead_idx))
+        return candidates
+
+    def _center_priority_attach_sequences(
+        self,
+        body_layers: list[np.ndarray],
+        n_flagella: int,
+    ) -> list[tuple[int, ...]]:
+        if n_flagella <= 0:
+            return [()]
+        if not body_layers:
+            return []
+
+        center_idx = len(body_layers) // 2
+        center = [
+            int(i) for i in body_layers[center_idx].astype(int, copy=False).tolist()
+        ]
+        if n_flagella <= len(center):
+            return self._rotating_prefix_sequences(center, n_flagella)
+
+        outer = self._outer_attach_candidates_for_center_priority(body_layers)
+        n_outer = n_flagella - len(center)
+        if n_outer > len(outer):
+            return []
+        ordered_outer = self._rank_outer_attach_combinations(outer, n_outer)
+        center_tuple = tuple(center)
+        return [
+            center_tuple + tuple(candidate["bead_idx"] for candidate in combo)
+            for combo in ordered_outer
+        ]
+
+    def _rotating_prefix_sequences(
+        self,
+        beads: list[int],
+        n_pick: int,
+    ) -> list[tuple[int, ...]]:
+        if n_pick <= 0:
+            return [()]
+        if n_pick == len(beads):
+            return [tuple(beads)]
+        return [
+            tuple(beads[(start + offset) % len(beads)] for offset in range(n_pick))
+            for start in range(len(beads))
+        ]
+
+    def _outer_attach_candidates_for_center_priority(
+        self,
+        body_layers: list[np.ndarray],
+    ) -> list[dict[str, int]]:
+        center_idx = len(body_layers) // 2
+        out: list[dict[str, int]] = []
+        # Body layers are generated from rear to front along the x-axis.
+        for layer_priority, layer_idx in enumerate((center_idx - 1, center_idx + 1)):
+            if not (0 <= layer_idx < len(body_layers)):
+                continue
+            for slot_idx, bead_idx in enumerate(
+                body_layers[layer_idx].astype(int, copy=False).tolist()
+            ):
+                out.append(
+                    {
+                        "bead_idx": int(bead_idx),
+                        "layer_priority": int(layer_priority),
+                        "slot_idx": int(slot_idx),
+                    }
+                )
+        return out
+
+    def _rank_outer_attach_combinations(
+        self,
+        outer: list[dict[str, int]],
+        n_pick: int,
+    ) -> list[tuple[dict[str, int], ...]]:
+        combos = list(combinations(outer, n_pick))
+
+        def sort_key(combo: tuple[dict[str, int], ...]) -> tuple[object, ...]:
+            slot_counts = {int(candidate["slot_idx"]) for candidate in combo}
+            max_per_slot = max(
+                sum(1 for candidate in combo if int(candidate["slot_idx"]) == slot_idx)
+                for slot_idx in range(3)
+            )
+            rear_count = sum(
+                1 for candidate in combo if int(candidate["layer_priority"]) == 0
+            )
+            layer_slot_order = tuple(
+                (
+                    int(candidate["layer_priority"]),
+                    int(candidate["slot_idx"]),
+                    int(candidate["bead_idx"]),
+                )
+                for candidate in combo
+            )
+            return (
+                -len(slot_counts),
+                max_per_slot,
+                -rear_count,
+                layer_slot_order,
+            )
+
+        return sorted(combos, key=sort_key)
 
     def build(self) -> SimModel:
         """シミュレーションモデルを構築して返す。"""
@@ -349,7 +491,7 @@ class ModelBuilder:
                 )
             else:
                 attach_ids = self._seeded_attach_indices(
-                    unique_candidates,
+                    body_layers,
                     n_flagella,
                 )
         else:
