@@ -761,6 +761,67 @@ def test_render_dataset_renders_all_samples_into_dataset_replays(
     assert captured[0]["fps_out_2d"] == pytest.approx(8.0)
 
 
+def test_render_dataset_rejects_sample_id_that_escapes_replay_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dataset_dir = tmp_path / "dataset"
+    run_dir = tmp_path / "runs/test_dataset"
+    run_manifest_path = run_dir / "run_manifest.json"
+    outside_dir = tmp_path / "outside"
+    sentinel = outside_dir / "sentinel.txt"
+    outside_dir.mkdir(parents=True)
+    sentinel.write_text("keep", encoding="utf-8")
+    sample_dir = run_dir / "samples/bad"
+    run_manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    run_manifest_path.write_text(
+        json.dumps(
+            {
+                "samples": [
+                    {
+                        "sample_id": "../outside",
+                        "sample_dir": str(sample_dir),
+                        "config_path": str(run_dir / "configs/bad.yaml"),
+                        "outputs": {
+                            "state_archive_npz": str(
+                                sample_dir / "raw/state_archive.npz"
+                            )
+                        },
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    dataset_dir.mkdir(parents=True, exist_ok=True)
+    (dataset_dir / "dataset_manifest.json").write_text(
+        json.dumps({"run_manifest": str(run_manifest_path)}),
+        encoding="utf-8",
+    )
+
+    def fail_render_sample(**kwargs):
+        raise AssertionError("render_sample must not be called for unsafe sample_id")
+
+    monkeypatch.setattr(render_sample, "render_sample", fail_render_sample)
+
+    with pytest.raises(ValueError, match="plain directory name"):
+        render_sample.render_dataset(
+            dataset_dir=dataset_dir,
+            output_dir=tmp_path / "replays",
+        )
+
+    assert sentinel.read_text(encoding="utf-8") == "keep"
+
+
+def test_render_dataset_rejects_absolute_sample_id(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="plain directory name"):
+        render_sample._resolve_sample_output_dir(tmp_path / "replays", "/tmp/bad")
+
+
+def test_render_dataset_rejects_backslash_sample_id(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="plain directory name"):
+        render_sample._resolve_sample_output_dir(tmp_path / "replays", "bad\\name")
+
+
 def test_render_sample_cli_passes_dataset_dir_options(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

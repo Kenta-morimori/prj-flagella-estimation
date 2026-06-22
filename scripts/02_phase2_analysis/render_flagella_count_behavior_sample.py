@@ -107,6 +107,26 @@ def _archive_path_from_manifest(sample: dict[str, Any]) -> Path | None:
     return Path(str(raw_dir)) / "state_archive.npz" if raw_dir else None
 
 
+def _resolve_sample_output_dir(replay_root: Path, sample_id: str) -> Path:
+    replay_root = replay_root.resolve()
+    if sample_id in {"", ".", ".."}:
+        raise ValueError("sample_id must be a plain directory name")
+    sample_id_path = Path(sample_id)
+    if sample_id_path.is_absolute() or sample_id_path.name != sample_id:
+        raise ValueError(f"sample_id must be a plain directory name: {sample_id!r}")
+    if "\\" in sample_id:
+        raise ValueError(f"sample_id must be a plain directory name: {sample_id!r}")
+
+    output_dir = (replay_root / sample_id).resolve()
+    try:
+        output_dir.relative_to(replay_root)
+    except ValueError as exc:
+        raise ValueError(
+            f"sample output directory escapes replay root: {sample_id!r}"
+        ) from exc
+    return output_dir
+
+
 def _build_render_sampling_overrides(
     *,
     out_all_steps_3d: bool | None,
@@ -246,9 +266,7 @@ def render_dataset(
     samples_out: list[dict[str, Any]] = []
     for sample in run_manifest.get("samples", []):
         sample_id = str(sample.get("sample_id", ""))
-        if not sample_id:
-            raise ValueError("run_manifest contains a sample without sample_id")
-        sample_output_dir = replay_root / sample_id
+        sample_output_dir = _resolve_sample_output_dir(replay_root, sample_id)
         if sample_output_dir.exists():
             shutil.rmtree(sample_output_dir)
         rendered_dir = render_sample(

@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #84 に対して，実験簡略化用の config default 更新，3D render の状態・時刻・実効トルク・follow_camera_3d 表示，dataset directory 指定による全raw sample一括再描画CLIを追加した。`save_frames_3d` / `save_frames_2d` は default OFF とし，mp4 と final image 生成は維持した。",
+  "summary": "Issue #84 に対して，実験簡略化用の config default 更新，3D render の状態・時刻・実効トルク・follow_camera_3d 表示，dataset directory 指定による全raw sample一括再描画CLIを追加した。`save_frames_3d` / `save_frames_2d` は default OFF とし，mp4 と final image 生成は維持した。PR #85 の Codex review 指摘を受け，dataset replay の既存出力削除前に `sample_id` と出力pathを検証する guard を追加した。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "`motor.torque_Nm=1.0e-4` は issue 指定どおり literal な [N*m] default として扱った。既存 Phase 2.7/2.8 代表条件は各 analysis config の明示 override により維持される。"
@@ -12,7 +12,11 @@
     "uv run ruff format --check src/sim_swim/sim/params.py src/sim_swim/render/render3d.py scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_params.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py",
     "uv run python -m scripts.01_simulate_swimming time.duration_s=0.001 time.dt_star=1.0e-4 motor.torque_Nm=0 output.base_dir=/private/tmp/phase2_issue84_smoke",
     "test -f /private/tmp/phase2_issue84_smoke/2026-06-22/124628/render/swim3d_final.png && test -f /private/tmp/phase2_issue84_smoke/2026-06-22/124628/render/swim3d.mp4 && test -f /private/tmp/phase2_issue84_smoke/2026-06-22/124628/render2d/projection.mp4",
-    "find /private/tmp/phase2_issue84_smoke/2026-06-22/124628 -maxdepth 3 -type d -name 'frames*' -print"
+    "find /private/tmp/phase2_issue84_smoke/2026-06-22/124628 -maxdepth 3 -type d -name 'frames*' -print",
+    "uv run pytest tests/test_flagella_count_behavior_dataset.py -k 'render_dataset or render_sample_cli'",
+    "uv run pytest tests/test_flagella_count_behavior_dataset.py tests/test_render_state_and_projection.py tests/test_params.py",
+    "uv run ruff check scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_flagella_count_behavior_dataset.py",
+    "uv run ruff format --check scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_flagella_count_behavior_dataset.py"
   ],
   "user_review_required": false,
   "user_review_command": "",
@@ -21,7 +25,7 @@
   "adr_required": false,
   "adr_reason": "config default，render annotation，既存state archiveの再描画導線の追加であり，物理モデル・dataset schema・重要な数値近似の変更ではないためADRは不要。",
   "commit_type": "complete",
-  "commit_hash": "",
+  "commit_hash": "0fe38f2bb0ab03718735c8edce5321d1dfeab404",
   "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/85",
   "next_actions": [
