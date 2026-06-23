@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "summary": "PR #86 を PR #87 merge 後の `origin/main` へ rebase し，`docs/phase2/phase2_current.md` の conflict を解消した。`motor.torque_Nm=2.5e-20` default の記述と，PR #86 の center-priority seed / center-prefix dataset / raw全step保存方針を両立させた。chatgpt-codex-connector の指摘に対応し，旧 `sample_runner_config_used.yaml` に非1の `step_summary_stride` または `state_stride` が残る raw sample は再利用せず，`--overwrite` または新しい出力先を要求する guard とテストを追加した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    "uv run pytest tests/test_flagella_count_behavior_dataset.py -q",
+    "uv run ruff check scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py tests/test_flagella_count_behavior_dataset.py",
+    "uv run ruff format --check scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py tests/test_flagella_count_behavior_dataset.py",
+    "uv run pytest tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py tests/test_model_builder.py",
+    "uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --dry-run --config conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml --sample-limit 6 output.run_batch_dir=/private/tmp/phase2_center_prefix_dryrun/run output.dataset_dir=/private/tmp/phase2_center_prefix_dryrun/dataset run_batch_id=phase2_center_prefix_dryrun dataset_id=phase2_center_prefix_dryrun",
+    "rg -n \"motor.torque_Nm.*1\\.0e-4|flagella_count_behavior_dataset_fast|sample_runner_config|runner_config_fingerprint|<<<<<<<|=======|>>>>>>>\" docs/phase2 scripts src tests conf -S",
+    "commit hook: uv run ruff format --check .",
+    "commit hook: uv run ruff check .",
+    "commit hook: uv run pytest -q (259 passed)"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "旧 raw metadata の再利用 guard と rebase conflict 解消であり，物理モデル・出力schema・主要な数値近似の変更ではないため ADR は不要。",
+  "commit_type": "complete",
+  "commit_hash": "dbdc1e7e7f031c1c2a154b99b50bd0e1ef70bb21",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/86",
+  "next_actions": [
+    "PR #86 を更新後，必要なら chatgpt-codex-connector review thread に対応済みコメントを返す。"
+  ]
+}
