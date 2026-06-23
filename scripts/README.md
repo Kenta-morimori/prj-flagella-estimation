@@ -44,7 +44,7 @@ uv run python -m scripts.01_simulate_swimming \
 Phase 2.8 の RUN 固定べん毛数差分析用 batch / dataset 作成CLIです。
 
 - `02_phase2_analysis/run_flagella_count_behavior_sweep.py`:
-  `n_flagella = 1, 2, 3, 6` × `seed = 0` の 4 samples をまとめて実行し、sample ごとの raw output と `run_manifest.json` を出力する CLI
+  Phase 2.8 の条件表を作り、sample ごとの raw output と `run_manifest.json` を出力する CLI
 - `02_phase2_analysis/build_flagella_count_behavior_dataset.py`:
   `run_manifest.json` から `summary.csv`、`qc_summary.csv`、`timeseries/<sample_id>.csv`、`dataset_manifest.json` を作成する CLI
 - `02_phase2_analysis/render_flagella_count_behavior_sample.py`:
@@ -52,7 +52,7 @@ Phase 2.8 の RUN 固定べん毛数差分析用 batch / dataset 作成CLIです
 - `02_phase2_analysis/plot_flagella_count_behavior_distributions.py`:
   dataset の `summary.csv` から本数別特徴量分布、QC集計、NaN集計、簡易スクリーニングを出力する CLI
 
-標準 4 samples の実行例:
+標準datasetの実行例:
 
 ```bash
 uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py
@@ -61,22 +61,49 @@ uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.p
 
 標準条件では override 指定は不要です。`KEY=VALUE` override は、YAMLを複製せずに `duration_s` などを一時的に変えたい場合の補助機能です。
 
-軽量 sweep を試す場合は、診断と archive state を間引く fast config を使います。
+主な dataset config は次の通りです。
+
+| config | 主目的 | attach seed | phase seed | samples | 備考 |
+| --- | --- | --- | --- | ---: | --- |
+| `conf/phase2_analysis/flagella_count_behavior_dataset.yaml` | 標準dataset | `[0,1,2]` | `[0,1,2]` | 36 | 全step保存 |
+| `conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml` | center-priority前半seedのみ | `attach_seed_mode=center_priority_prefix` | `[0]` | 27 | 全step保存・付着点配置比較用 |
+
+Phase 2.8 の raw sample は `step_summary.csv`、`trajectory.csv`、`state_archive.npz` を全step保存します。保存段階では間引かず、軽量化が必要な場合は replay render の `--fps-out-3d` / `--fps-out-2d` や `output_sampling.*` で可視化側を間引きます。
+
+center-priority 前半seedのみの dataset を作る場合は、専用configを使います。`n_flagella=[1,2,3,6]` に対し、前半 `attach_seed` を `0..2`, `0..2`, `0`, `0..19` として展開し、`phase_seed=0` のみで合計27 samplesを実行します。
 
 ```bash
+# 条件表だけ確認する
 uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py \
-  --config conf/phase2_analysis/flagella_count_behavior_dataset_fast.yaml
+  --dry-run \
+  --config conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml \
+  --sample-limit 6
+
+# raw sampleを実行する
+uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py \
+  --config conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml
+
+# raw sampleからdatasetを作る
+uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.py \
+  --config conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml
 ```
 
-`runner.step_summary_stride` は `step_summary.csv` と `flag_helix_axis_diagnostics.csv` の記録間隔、`runner.state_stride` は `trajectory.csv` と `state_archive.npz` の保存間隔です。標準 config はどちらも実質 `1` で、従来通り全 step を保存します。
-`--stop-on-shape-fail` は shape fail を全記録stepで確認する前提のため、`runner.step_summary_stride=1` のときだけ使用できます。
+center-priority config の sample 配分は次の通りです。
+
+| `n_flagella` | `attach_seed` | samples |
+| ---: | --- | ---: |
+| 1 | `0..2` | 3 |
+| 2 | `0..2` | 3 |
+| 3 | `0` | 1 |
+| 6 | `0..19` | 20 |
+| total |  | 27 |
 
 raw sample からの再描画:
 
 ```bash
 uv run python scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py \
-  --sample-dir outputs/phase2_analysis/flagella_count_behavior/runs/fc_nf1_2_3_6_seed1_dur0p5/samples/nf01_seed000 \
-  --output-dir outputs/phase2_analysis/flagella_count_behavior/replays/nf01_seed000
+  --sample-dir outputs/phase2_analysis/flagella_count_behavior/runs/fc_nf1_2_3_6_as3_ps3_dur0p5/samples/nf01_as000_ps000 \
+  --output-dir outputs/phase2_analysis/flagella_count_behavior/replays/nf01_as000_ps000
 ```
 
 replay render の3D出力はデフォルトで `output_sampling.out_all_steps_3d=false` として扱い、`--fps-out-3d` で間引きfpsを指定します。全archive stateを3D描画したい場合のみ `--out-all-steps-3d` を指定してください。2D側は `--fps-out-2d` で指定できます。
@@ -86,7 +113,7 @@ dataset 内 raw sample の一括再描画:
 
 ```bash
 uv run python scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py \
-  --dataset-dir outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_seed1_dur0p5
+  --dataset-dir outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_as3_ps3_dur0p5
 ```
 
 出力はデフォルトで dataset directory 配下の `replays/<sample_id>/` に保存されます。既存の sample replay 出力がある場合は置き換えます。
@@ -95,7 +122,7 @@ dataset からの特徴量分布可視化:
 
 ```bash
 uv run python scripts/02_phase2_analysis/plot_flagella_count_behavior_distributions.py \
-  --dataset-id fc_nf1_2_3_6_seed1_dur0p5
+  --dataset-id fc_nf1_2_3_6_as3_ps3_dur0p5
 ```
 
 出力は dataset directory 配下の `plots/distributions/`、`plots/qc/`、`analysis/` に保存されます。
@@ -126,15 +153,15 @@ uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.p
 ```
 
 `02_phase2_analysis` の override は `KEY=VALUE` 形式です。`dataset_id`、`run_batch_id`、`output.run_batch_dir`、`output.dataset_dir` は Phase2 analysis 側の設定として扱います。`time.duration_s`、`time.dt_star`、`motor.torque_Nm`、`render.*` などは simulation 設定の省略形として扱い、各 sample の `base_overrides` に反映します。simulation 側の `output.base_dir` を変えたい場合は `base_overrides.output.base_dir=...` と明示してください。
-`runner.step_summary_stride`、`runner.state_stride`、`runner.flush_interval_steps`、`runner.sample_order` は Phase2 analysis runner 側の設定です。`runner.sample_order=interleave_n_flagella` を指定すると、seed 条件ごとに `n_flagella` を混ぜて実行します。
+`runner.flush_interval_steps`、`runner.sample_order` は Phase2 analysis runner 側の設定です。`runner.sample_order=interleave_n_flagella` を指定すると、seed 条件ごとに `n_flagella` を混ぜて実行します。`runner.step_summary_stride` / `runner.state_stride` は廃止済みで、指定するとエラーになります。
 
-既存の `run_batch_dir` / `sample_id` に `step_summary.csv` がある場合、runner は保存済み sample config と、raw内容に影響する runner stride (`runner.step_summary_stride` / `runner.state_stride`) が今回の設定と一致するときだけ既存rawを再利用します。条件が異なる場合は、古いrawと新しいmanifest metadataの混在を避けるため停止します。同じ出力先で条件を変えて再生成する場合は `--overwrite` を指定してください。
+既存の `run_batch_dir` / `sample_id` に `step_summary.csv` がある場合、runner は保存済み sample config が今回の設定と一致するときだけ既存rawを再利用します。条件が異なる場合は、古いrawと新しいmanifest metadataの混在を避けるため停止します。同じ出力先で条件を変えて再生成する場合は `--overwrite` を指定してください。
 
 `runs/<run_batch_id>/samples/<sample_id>/raw/` には、`step_summary.csv` に加えて `trajectory.csv` と `state_archive.npz` を残します。`state_archive.npz` は後から 3D / 2D render を再生成するための状態保存です。
 
 デフォルト設定は `conf/phase2_analysis/flagella_count_behavior_dataset.yaml` を参照してください。標準出力先は以下です。
 
-- `outputs/phase2_analysis/flagella_count_behavior/runs/fc_nf1_2_3_6_seed1_dur0p5/`
-- `outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_seed1_dur0p5/`
+- `outputs/phase2_analysis/flagella_count_behavior/runs/fc_nf1_2_3_6_as3_ps3_dur0p5/`
+- `outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_as3_ps3_dur0p5/`
 
 実行時に使われた analysis 設定は `analysis_config_used.yaml` と各 manifest の `effective_analysis_config` に記録されます。

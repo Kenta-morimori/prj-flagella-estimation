@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from math import comb
+
 import numpy as np
 import pytest
 
@@ -117,6 +119,33 @@ def _body_bead_layer_and_slot(model: SimModel) -> dict[int, tuple[int, int]]:
         for slot_idx, bead_idx in enumerate(layer_int.tolist()):
             out[int(bead_idx)] = (int(layer_idx), int(slot_idx))
     return out
+
+
+def _seeded_surface_cfg(n_flagella: int, attach_seed: int) -> SimulationConfig:
+    return _make_cfg(
+        n_flagella=n_flagella,
+        seed=999,
+        attach_seed=attach_seed,
+        phase_seed=7,
+        placement_mode="seeded_surface",
+        initial_phase_mode="seeded",
+    )
+
+
+def _center_priority_seed_count(n_flagella: int) -> int:
+    if n_flagella <= 3:
+        return comb(3, n_flagella)
+    return comb(6, n_flagella - 3)
+
+
+def _attach_set(model: SimModel) -> set[int]:
+    return {
+        int(bead_idx)
+        for bead_idx in model.flagella_attach_body_indices.astype(
+            int,
+            copy=False,
+        ).tolist()
+    }
 
 
 def _triplet_angle_rad(positions_m: np.ndarray, triplet: np.ndarray) -> float:
@@ -301,6 +330,90 @@ def test_attach_positions_are_reproducible_with_same_seed() -> None:
     attach_a = sorted(body_idx for body_idx, _ in _body_flag_pairs(model_a))
     attach_b = sorted(body_idx for body_idx, _ in _body_flag_pairs(model_b))
     assert attach_a == attach_b
+
+
+@pytest.mark.parametrize(
+    ("n_flagella", "expected_seed_count"),
+    [
+        (0, 1),
+        (1, 3),
+        (2, 3),
+        (3, 1),
+        (4, 6),
+        (5, 15),
+        (6, 20),
+        (7, 15),
+        (8, 6),
+        (9, 1),
+    ],
+)
+def test_center_priority_seed_count_is_explicit(
+    n_flagella: int,
+    expected_seed_count: int,
+) -> None:
+    assert _center_priority_seed_count(n_flagella) == expected_seed_count
+
+
+@pytest.mark.parametrize("n_flagella", range(10))
+def test_seeded_surface_front_loads_center_priority_attach_seeds(
+    n_flagella: int,
+) -> None:
+    prefix_count = _center_priority_seed_count(n_flagella)
+    for attach_seed in range(prefix_count):
+        model = ModelBuilder(_seeded_surface_cfg(n_flagella, attach_seed)).build()
+        center_idx = len(model.body_layer_indices) // 2
+        center_set = {
+            int(i)
+            for i in model.body_layer_indices[center_idx]
+            .astype(int, copy=False)
+            .tolist()
+        }
+        attach_set = _attach_set(model)
+
+        assert len(attach_set) == n_flagella
+        if n_flagella <= 3:
+            assert attach_set.issubset(center_set)
+        else:
+            assert center_set.issubset(attach_set)
+
+
+@pytest.mark.parametrize("n_flagella", range(1, 9))
+def test_seeded_surface_after_center_priority_prefix_relaxes_center_constraint(
+    n_flagella: int,
+) -> None:
+    attach_seed = _center_priority_seed_count(n_flagella)
+    model = ModelBuilder(_seeded_surface_cfg(n_flagella, attach_seed)).build()
+    center_idx = len(model.body_layer_indices) // 2
+    center_set = {
+        int(i)
+        for i in model.body_layer_indices[center_idx].astype(int, copy=False).tolist()
+    }
+    attach_set = _attach_set(model)
+
+    if n_flagella <= 3:
+        assert not attach_set.issubset(center_set)
+    else:
+        assert not center_set.issubset(attach_set)
+
+
+@pytest.mark.parametrize("n_flagella", [3, 6, 9])
+def test_seeded_surface_representative_prefix_fills_triangle_layers(
+    n_flagella: int,
+) -> None:
+    model = ModelBuilder(_seeded_surface_cfg(n_flagella, attach_seed=0)).build()
+    bead_to_layer_slot = _body_bead_layer_and_slot(model)
+    attached = [
+        bead_to_layer_slot[int(bead_idx)]
+        for bead_idx in model.flagella_attach_body_indices.tolist()
+    ]
+    center_idx = len(model.body_layer_indices) // 2
+    expected = [(center_idx, slot_idx) for slot_idx in range(3)]
+    if n_flagella >= 6:
+        expected.extend((center_idx - 1, slot_idx) for slot_idx in range(3))
+    if n_flagella >= 9:
+        expected.extend((center_idx + 1, slot_idx) for slot_idx in range(3))
+
+    assert attached == expected
 
 
 @pytest.mark.parametrize("n_flagella", [1, 2, 3, 6])

@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "summary": "Phase 2.8 raw sample の保存段階で情報を消さない方針に合わせ，runner.step_summary_stride / runner.state_stride と fast config を削除した。Simulator.run() は step_summary.csv と返却 state を常に全step記録し，Phase 2 analysis runner では同キー指定時に ValueError を出す。軽量化は replay render / visualization 側 sampling で行う方針へ docs を更新した。",
+  "assumptions": [
+    "削除対象は保存段階で情報を消す step_summary_stride / state_stride と conf/phase2_analysis/flagella_count_behavior_dataset_fast.yaml に限定した。",
+    "runner.sample_order=interleave_n_flagella は情報を消さない実行順制御のため維持した。",
+    "既存 raw output の互換移行は行わず，必要な場合は新しい run_batch_id / output path で再生成する。"
+  ],
+  "tests": [
+    "uv run pytest tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py tests/test_model_builder.py",
+    "uv run ruff check scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py src/sim_swim/sim/core.py tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py",
+    "uv run ruff format --check scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py src/sim_swim/sim/core.py tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py",
+    "uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --dry-run --config conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml --sample-limit 6"
+  ],
+  "visual_review": {
+    "required": false,
+    "reason": "保存方針とrunner optionの変更であり，renderや物理モデルの見た目は変更していないため。"
+  },
+  "adr": {
+    "created": false,
+    "reason": "既存のanalysis runner保存方針の修正であり，新しい物理モデルや出力schema決定ではないため。"
+  },
+  "changed_files": [
+    "conf/phase2_analysis/flagella_count_behavior_dataset_fast.yaml",
+    "conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml",
+    "scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py",
+    "src/sim_swim/sim/core.py",
+    "tests/test_flagella_count_behavior_dataset.py",
+    "tests/test_simulation.py",
+    "scripts/README.md",
+    "docs/phase2/phase2_current.md",
+    "docs/phase2/phase2_tasks.md",
+    "docs/codex-runs/20260622_183135_phase2_remove_raw_stride_sampling/review_result.json"
+  ],
+  "remaining_issues": [
+    "過去の docs/codex-runs には fast config 導入時点の履歴が残る。現行source-of-truthでは廃止済みとして扱う。"
+  ]
+}

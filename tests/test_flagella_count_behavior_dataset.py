@@ -87,6 +87,72 @@ def test_flagella_count_conditions_use_expected_sample_ids() -> None:
     assert conditions[-1]["sample_id"] == "nf02_as001_ps002"
 
 
+def test_flagella_count_conditions_can_use_center_priority_attach_seed_prefix() -> None:
+    config = {
+        "sweep": {
+            "n_flagella": [1, 2, 3, 6],
+            "attach_seed_mode": "center_priority_prefix",
+            "phase_seeds": [0],
+        }
+    }
+
+    conditions = run_sweep.build_conditions(config)
+
+    assert len(conditions) == 27
+    assert [condition["sample_id"] for condition in conditions[:3]] == [
+        "nf01_as000_ps000",
+        "nf01_as001_ps000",
+        "nf01_as002_ps000",
+    ]
+    assert conditions[6]["sample_id"] == "nf03_as000_ps000"
+    assert conditions[-1]["sample_id"] == "nf06_as019_ps000"
+    assert {
+        int(condition["attach_seed"])
+        for condition in conditions
+        if int(condition["n_flagella"]) == 6
+    } == set(range(20))
+
+
+def test_center_priority_dataset_config_generates_expected_conditions() -> None:
+    config_path = (
+        ROOT / "conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml"
+    )
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+
+    conditions = run_sweep.build_conditions(config)
+
+    assert len(conditions) == 27
+    assert {int(condition["phase_seed"]) for condition in conditions} == {0}
+    assert conditions[-1]["sample_id"] == "nf06_as019_ps000"
+
+
+def test_center_priority_attach_seed_mode_rejects_explicit_attach_seeds() -> None:
+    config = {
+        "sweep": {
+            "n_flagella": [1],
+            "attach_seed_mode": "center_priority_prefix",
+            "attach_seeds": [0],
+            "phase_seeds": [0],
+        }
+    }
+
+    with pytest.raises(ValueError, match="attach_seed_mode cannot be used"):
+        run_sweep.build_conditions(config)
+
+
+def test_center_priority_attach_seed_mode_rejects_unsupported_n_flagella() -> None:
+    config = {
+        "sweep": {
+            "n_flagella": [10],
+            "attach_seed_mode": "center_priority_prefix",
+            "phase_seeds": [0],
+        }
+    }
+
+    with pytest.raises(ValueError, match="n_flagella in \\[0,9\\]"):
+        run_sweep.build_conditions(config)
+
+
 def test_flagella_count_legacy_seed_conditions_set_split_seeds() -> None:
     config = {"sweep": {"n_flagella": [1], "seeds": [2]}}
 
@@ -262,34 +328,41 @@ def test_flagella_count_runner_overrides_are_passed_to_sample_runner(
         sample_limit=None,
         progress_interval=None,
         cli_overrides=[
-            "runner.step_summary_stride=10",
-            "runner.state_stride=5",
             "runner.flush_interval_steps=20",
             "runner.sample_order=interleave_n_flagella",
         ],
     )
 
-    assert captured["step_summary_stride"] == 10
-    assert captured["state_stride"] == 5
     assert captured["flush_interval_steps"] == 20
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["runner"] == {
-        "step_summary_stride": 10,
-        "state_stride": 5,
         "flush_interval_steps": 20,
         "sample_order": "interleave_n_flagella",
     }
     assert manifest["samples"][0]["elapsed_s"] >= 0.0
     assert manifest["samples"][0]["started_at"]
     assert manifest["samples"][0]["ended_at"]
-    runner_config_path = Path(manifest["samples"][0]["runner_config_used_path"])
-    assert runner_config_path.is_file()
-    assert (
-        yaml.safe_load(runner_config_path.read_text(encoding="utf-8"))[
-            "step_summary_stride"
-        ]
-        == 10
-    )
+
+
+@pytest.mark.parametrize("runner_key", ["step_summary_stride", "state_stride"])
+def test_runner_stride_overrides_are_rejected(
+    tmp_path: Path,
+    runner_key: str,
+) -> None:
+    analysis_config = _minimal_analysis_config(tmp_path)
+    config_path = tmp_path / "analysis.yaml"
+    config_path.write_text(yaml.safe_dump(analysis_config), encoding="utf-8")
+
+    with pytest.raises(ValueError, match=f"runner.{runner_key}"):
+        run_sweep.run_batch(
+            analysis_config_path=config_path,
+            dry_run=True,
+            overwrite=False,
+            stop_on_shape_fail=False,
+            sample_limit=None,
+            progress_interval=None,
+            cli_overrides=[f"runner.{runner_key}=10"],
+        )
 
 
 def test_existing_raw_is_skipped_only_when_config_matches(tmp_path: Path) -> None:
@@ -322,16 +395,13 @@ def test_existing_raw_is_skipped_only_when_config_matches(tmp_path: Path) -> Non
     assert (
         tmp_path / "runs/test_dataset/samples/nf01_seed000/sample_config_used.yaml"
     ).is_file()
-    assert (
-        tmp_path
-        / "runs/test_dataset/samples/nf01_seed000/sample_runner_config_used.yaml"
-    ).is_file()
     assert manifest["samples"][0]["sample_config_fingerprint"]
-    assert manifest["samples"][0]["runner_config_fingerprint"]
 
 
-def test_existing_raw_with_different_runner_stride_requires_overwrite_or_new_output(
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_existing_raw_with_removed_runner_stride_requires_overwrite(
     tmp_path: Path,
+    dry_run: bool,
 ) -> None:
     analysis_config = _minimal_analysis_config(tmp_path)
     config_path = tmp_path / "analysis.yaml"
@@ -344,34 +414,27 @@ def test_existing_raw_with_different_runner_stride_requires_overwrite_or_new_out
         sample_limit=None,
         progress_interval=None,
     )
-    raw_dir = tmp_path / "runs/test_dataset/samples/nf01_seed000/raw"
+    sample_dir = tmp_path / "runs/test_dataset/samples/nf01_seed000"
+    raw_dir = sample_dir / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
     (raw_dir / "step_summary.csv").write_text("step,t_s\n0,0.0\n", encoding="utf-8")
+    (sample_dir / "sample_runner_config_used.yaml").write_text(
+        yaml.safe_dump({"step_summary_stride": 10, "state_stride": 1}),
+        encoding="utf-8",
+    )
 
-    with pytest.raises(RuntimeError, match="different runner stride settings"):
+    with pytest.raises(RuntimeError, match="removed runner stride settings"):
         run_sweep.run_batch(
             analysis_config_path=config_path,
-            dry_run=False,
+            dry_run=dry_run,
             overwrite=False,
             stop_on_shape_fail=False,
             sample_limit=None,
             progress_interval=None,
-            cli_overrides=["runner.step_summary_stride=10"],
-        )
-
-    with pytest.raises(RuntimeError, match="different runner stride settings"):
-        run_sweep.run_batch(
-            analysis_config_path=config_path,
-            dry_run=True,
-            overwrite=False,
-            stop_on_shape_fail=False,
-            sample_limit=None,
-            progress_interval=None,
-            cli_overrides=["runner.state_stride=10"],
         )
 
 
-def test_legacy_existing_raw_without_runner_config_rejects_strided_reuse(
+def test_existing_raw_with_legacy_unstrided_runner_config_can_be_reused(
     tmp_path: Path,
 ) -> None:
     analysis_config = _minimal_analysis_config(tmp_path)
@@ -389,7 +452,10 @@ def test_legacy_existing_raw_without_runner_config_rejects_strided_reuse(
     raw_dir = sample_dir / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
     (raw_dir / "step_summary.csv").write_text("step,t_s\n0,0.0\n", encoding="utf-8")
-    (sample_dir / "sample_runner_config_used.yaml").unlink()
+    (sample_dir / "sample_runner_config_used.yaml").write_text(
+        yaml.safe_dump({"step_summary_stride": 1, "state_stride": 1}),
+        encoding="utf-8",
+    )
 
     manifest_path = run_sweep.run_batch(
         analysis_config_path=config_path,
@@ -402,36 +468,6 @@ def test_legacy_existing_raw_without_runner_config_rejects_strided_reuse(
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["samples"][0]["status"] == "skipped_existing"
-    assert (sample_dir / "sample_runner_config_used.yaml").is_file()
-
-    (sample_dir / "sample_runner_config_used.yaml").unlink()
-    with pytest.raises(RuntimeError, match="no previous runner config"):
-        run_sweep.run_batch(
-            analysis_config_path=config_path,
-            dry_run=False,
-            overwrite=False,
-            stop_on_shape_fail=False,
-            sample_limit=None,
-            progress_interval=None,
-            cli_overrides=["runner.step_summary_stride=10"],
-        )
-
-
-def test_stop_on_shape_fail_rejects_strided_step_summary(tmp_path: Path) -> None:
-    analysis_config = _minimal_analysis_config(tmp_path)
-    config_path = tmp_path / "analysis.yaml"
-    config_path.write_text(yaml.safe_dump(analysis_config), encoding="utf-8")
-
-    with pytest.raises(ValueError, match="runner.step_summary_stride=1"):
-        run_sweep.run_batch(
-            analysis_config_path=config_path,
-            dry_run=True,
-            overwrite=False,
-            stop_on_shape_fail=True,
-            sample_limit=None,
-            progress_interval=None,
-            cli_overrides=["runner.step_summary_stride=10"],
-        )
 
 
 def test_existing_raw_with_different_config_requires_overwrite_or_new_output(

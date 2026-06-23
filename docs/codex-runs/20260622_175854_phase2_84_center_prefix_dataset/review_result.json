@@ -1,0 +1,34 @@
+{
+  "status": "PASS",
+  "summary": "Issue #84 の follow-up として，Phase 2.8 dataset sweep に sweep.attach_seed_mode=center_priority_prefix を追加し，n_flagella ごとの center-priority 前半 attach_seed だけを自動展開できるようにした。専用config conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml は n_flagella=[1,2,3,6], phase_seeds=[0] で27 sampleを生成する。",
+  "assumptions": [
+    "既存標準dataset configは互換維持し，前半seedのみdatasetは専用configで明示的に実行する。",
+    "専用configでは phase_seeds=[0] とし，付着点配置の比較に集中する。",
+    "attach_seed_mode と attach_seeds の同時指定は曖昧なので error にする。"
+  ],
+  "tests": [
+    "uv run pytest tests/test_flagella_count_behavior_dataset.py tests/test_model_builder.py",
+    "uv run ruff check scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py src/sim_swim/analysis/flagella_count_behavior.py tests/test_flagella_count_behavior_dataset.py",
+    "uv run ruff format --check scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py src/sim_swim/analysis/flagella_count_behavior.py tests/test_flagella_count_behavior_dataset.py",
+    "uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --dry-run --config conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml --sample-limit 6"
+  ],
+  "visual_review": {
+    "required": false,
+    "reason": "dataset condition生成optionの追加であり，実際の付着点配置は既存のcenter-priority実装と単体テストに依存するため。"
+  },
+  "adr": {
+    "created": false,
+    "reason": "物理モデルや出力schemaではなく，analysis sweep configの条件展開option追加に留まるため。"
+  },
+  "changed_files": [
+    "conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml",
+    "scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py",
+    "tests/test_flagella_count_behavior_dataset.py",
+    "docs/phase2/phase2_current.md",
+    "docs/phase2/phase2_tasks.md",
+    "docs/codex-runs/20260622_175854_phase2_84_center_prefix_dataset/review_result.json"
+  ],
+  "remaining_issues": [
+    "前半seed専用datasetの実シミュレーション全件実行と特徴量分布評価は未実施。必要に応じて Issue #71 の分析作業で実行する。"
+  ]
+}

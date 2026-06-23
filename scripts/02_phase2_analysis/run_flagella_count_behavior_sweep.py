@@ -32,6 +32,9 @@ from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import SimulationConfig
 
 
+CENTER_PRIORITY_ATTACH_SEED_COUNTS = (1, 3, 3, 1, 6, 15, 20, 15, 6, 1)
+
+
 def _load_yaml(path: Path) -> dict[str, Any]:
     return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
@@ -91,37 +94,28 @@ def _ensure_existing_config_matches(
         )
 
 
-def _raw_reuse_runner_config(runner_cfg: dict[str, Any]) -> dict[str, int]:
-    return {
-        "step_summary_stride": int(runner_cfg.get("step_summary_stride", 1)),
-        "state_stride": int(runner_cfg.get("state_stride", 1)),
-    }
-
-
-def _ensure_existing_runner_matches(
+def _ensure_existing_raw_not_strided(
     *,
     runner_config_used_path: Path,
-    expected_runner_config: dict[str, Any],
     sample_id: str,
     step_summary: Path,
 ) -> None:
-    expected = _raw_reuse_runner_config(expected_runner_config)
     if not runner_config_used_path.is_file():
-        if expected == {"step_summary_stride": 1, "state_stride": 1}:
-            return
-        raise RuntimeError(
-            f"Existing raw output for {sample_id} cannot be reused because "
-            f"{step_summary} exists but no previous runner config was found. "
-            "Use --overwrite or choose a new run_batch_id/output.run_batch_dir."
-        )
+        return
 
-    existing = _raw_reuse_runner_config(_load_yaml(runner_config_used_path))
-    if existing != expected:
-        raise RuntimeError(
-            f"Existing raw output for {sample_id} was created with different "
-            f"runner stride settings ({runner_config_used_path}). Use --overwrite "
-            "or choose a new run_batch_id/output.run_batch_dir."
-        )
+    runner_config = _load_yaml(runner_config_used_path)
+    step_summary_stride = int(runner_config.get("step_summary_stride", 1))
+    state_stride = int(runner_config.get("state_stride", 1))
+    if step_summary_stride == 1 and state_stride == 1:
+        return
+
+    raise RuntimeError(
+        f"Existing raw output for {sample_id} cannot be reused because "
+        f"{step_summary} was created with removed runner stride settings "
+        f"({runner_config_used_path}: step_summary_stride={step_summary_stride}, "
+        f"state_stride={state_stride}). Use --overwrite or choose a new "
+        "run_batch_id/output.run_batch_dir."
+    )
 
 
 def _merge_nested(dst: dict[str, Any], src: dict[str, Any]) -> dict[str, Any]:
@@ -167,15 +161,46 @@ def _sample_id_split(n_flagella: int, attach_seed: int, phase_seed: int) -> str:
     return f"nf{int(n_flagella):02d}_as{int(attach_seed):03d}_ps{int(phase_seed):03d}"
 
 
+def _center_priority_attach_seed_count(n_flagella: int) -> int:
+    if not (0 <= int(n_flagella) < len(CENTER_PRIORITY_ATTACH_SEED_COUNTS)):
+        raise ValueError(
+            "sweep.attach_seed_mode=center_priority_prefix supports "
+            "n_flagella in [0,9]:"
+            f" n_flagella={int(n_flagella)}"
+        )
+    return int(CENTER_PRIORITY_ATTACH_SEED_COUNTS[int(n_flagella)])
+
+
+def _attach_seeds_for_n_flagella(
+    sweep: dict[str, Any],
+    n_flagella: int,
+) -> list[int]:
+    mode = str(sweep.get("attach_seed_mode", "")).strip()
+    if mode:
+        if mode != "center_priority_prefix":
+            raise ValueError(
+                "sweep.attach_seed_mode must be 'center_priority_prefix' "
+                f"when set: {mode}"
+            )
+        if "attach_seeds" in sweep:
+            raise ValueError(
+                "sweep.attach_seed_mode cannot be used together with sweep.attach_seeds"
+            )
+        return list(range(_center_priority_attach_seed_count(n_flagella)))
+
+    fallback_seeds = [int(v) for v in sweep.get("seeds", [0])]
+    return [int(v) for v in sweep.get("attach_seeds", fallback_seeds)]
+
+
 def build_conditions(config: dict[str, Any]) -> list[dict[str, Any]]:
     sweep = config.get("sweep", {}) or {}
     n_flagella_values = [int(v) for v in sweep.get("n_flagella", [])]
     conditions: list[dict[str, Any]] = []
-    if "attach_seeds" in sweep or "phase_seeds" in sweep:
+    if "attach_seeds" in sweep or "phase_seeds" in sweep or "attach_seed_mode" in sweep:
         fallback_seeds = [int(v) for v in sweep.get("seeds", [0])]
-        attach_seeds = [int(v) for v in sweep.get("attach_seeds", fallback_seeds)]
         phase_seeds = [int(v) for v in sweep.get("phase_seeds", fallback_seeds)]
         for n_flagella in n_flagella_values:
+            attach_seeds = _attach_seeds_for_n_flagella(sweep, n_flagella)
             for attach_seed in attach_seeds:
                 for phase_seed in phase_seeds:
                     sample_id = _sample_id_split(n_flagella, attach_seed, phase_seed)
@@ -213,8 +238,13 @@ def build_conditions(config: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _runner_config(config: dict[str, Any]) -> dict[str, Any]:
     raw = dict(config.get("runner", {}) or {})
-    step_summary_stride = max(1, int(raw.get("step_summary_stride", 1)))
-    state_stride = max(1, int(raw.get("state_stride", 1)))
+    unsupported = sorted({"step_summary_stride", "state_stride"} & set(raw))
+    if unsupported:
+        keys = ", ".join(f"runner.{key}" for key in unsupported)
+        raise ValueError(
+            f"{keys} were removed because Phase 2 raw outputs must preserve "
+            "all steps. Use render/output sampling for lightweight visualization."
+        )
     flush_interval_steps = max(1, int(raw.get("flush_interval_steps", 100)))
     sample_order = str(raw.get("sample_order", "grouped"))
     if sample_order not in {"grouped", "interleave_n_flagella"}:
@@ -222,8 +252,6 @@ def _runner_config(config: dict[str, Any]) -> dict[str, Any]:
             "runner.sample_order must be 'grouped' or 'interleave_n_flagella'"
         )
     return {
-        "step_summary_stride": step_summary_stride,
-        "state_stride": state_stride,
         "flush_interval_steps": flush_interval_steps,
         "sample_order": sample_order,
     }
@@ -296,23 +324,13 @@ def _run_sample(
     log_path: Path,
     stop_on_shape_fail: bool,
     progress_interval: int | None,
-    step_summary_stride: int,
-    state_stride: int,
     flush_interval_steps: int,
 ) -> dict[str, Any]:
     logger = _setup_sample_logger(log_path)
     logger.info("Sample start: %s", condition["sample_id"])
     logger.info("condition=%s", condition)
     logger.info("effective_config=%s", cfg)
-    logger.info(
-        (
-            "runner_options=step_summary_stride:%d,state_stride:%d,"
-            "flush_interval_steps:%d"
-        ),
-        step_summary_stride,
-        state_stride,
-        flush_interval_steps,
-    )
+    logger.info("runner_options=flush_interval_steps:%d", flush_interval_steps)
     sim = Simulator(cfg)
     simulation_start = time.perf_counter()
     states = sim.run(
@@ -321,8 +339,6 @@ def _run_sample(
         progress_interval=progress_interval,
         step_summary_dir=raw_dir,
         stop_on_shape_fail=stop_on_shape_fail,
-        step_summary_stride=step_summary_stride,
-        state_stride=state_stride,
         flush_interval_steps=flush_interval_steps,
     )
     simulation_elapsed_s = time.perf_counter() - simulation_start
@@ -378,11 +394,6 @@ def run_batch(
     base_config_path = Path(analysis_config.get("base_config", "conf/sim_swim.yaml"))
     base_config = _load_yaml(base_config_path)
     runner_cfg = _runner_config(analysis_config)
-    if stop_on_shape_fail and int(runner_cfg["step_summary_stride"]) > 1:
-        raise ValueError(
-            "--stop-on-shape-fail requires runner.step_summary_stride=1 because "
-            "shape-fail checks are based on step summary diagnostics."
-        )
 
     dataset_id = str(analysis_config["dataset_id"])
     run_batch_id = str(analysis_config.get("run_batch_id", dataset_id))
@@ -420,7 +431,6 @@ def run_batch(
         )
         sample_config = asdict(cfg)
         sample_config_fingerprint = _config_fingerprint(sample_config)
-        runner_config_fingerprint = _config_fingerprint(runner_cfg)
 
         sample_record: dict[str, Any] = {
             **condition,
@@ -429,8 +439,6 @@ def run_batch(
             "config_path": str(sample_config_path),
             "sample_config_used_path": str(sample_config_used_path),
             "sample_config_fingerprint": sample_config_fingerprint,
-            "runner_config_used_path": str(runner_config_used_path),
-            "runner_config_fingerprint": runner_config_fingerprint,
             "sample_dir": str(sample_dir),
             "raw_dir": str(raw_dir),
             "run_log": str(log_path),
@@ -464,19 +472,15 @@ def run_batch(
                     sample_id=sample_id,
                     step_summary=step_summary,
                 )
-                _ensure_existing_runner_matches(
+                _ensure_existing_raw_not_strided(
                     runner_config_used_path=runner_config_used_path,
-                    expected_runner_config=runner_cfg,
                     sample_id=sample_id,
                     step_summary=step_summary,
                 )
                 if not sample_config_path.is_file():
                     _write_yaml(sample_config_path, sample_config)
-                if not runner_config_used_path.is_file():
-                    _write_yaml(runner_config_used_path, runner_cfg)
             else:
                 _write_yaml(sample_config_path, sample_config)
-                _write_yaml(runner_config_used_path, runner_cfg)
             sample_record["status"] = "planned"
             manifest_samples.append(sample_record)
             continue
@@ -498,9 +502,8 @@ def run_batch(
                 sample_id=sample_id,
                 step_summary=step_summary,
             )
-            _ensure_existing_runner_matches(
+            _ensure_existing_raw_not_strided(
                 runner_config_used_path=runner_config_used_path,
-                expected_runner_config=runner_cfg,
                 sample_id=sample_id,
                 step_summary=step_summary,
             )
@@ -508,13 +511,10 @@ def run_batch(
                 _write_yaml(sample_config_path, sample_config)
             if not sample_config_used_path.is_file():
                 _write_yaml(sample_config_used_path, sample_config)
-            if not runner_config_used_path.is_file():
-                _write_yaml(runner_config_used_path, runner_cfg)
             sample_record["status"] = "skipped_existing"
             sample_record["outputs"] = {
                 "raw_dir": str(raw_dir),
                 "sample_config_used_yaml": str(sample_config_used_path),
-                "sample_runner_config_used_yaml": str(runner_config_used_path),
                 "step_summary_csv": str(step_summary),
                 "flag_helix_axis_diagnostics_csv": str(
                     raw_dir / "flag_helix_axis_diagnostics.csv"
@@ -531,7 +531,6 @@ def run_batch(
 
         _write_yaml(sample_config_path, sample_config)
         _write_yaml(sample_config_used_path, sample_config)
-        _write_yaml(runner_config_used_path, runner_cfg)
         try:
             sample_record["started_at"] = _now_jst()
             sample_start = time.perf_counter()
@@ -544,8 +543,6 @@ def run_batch(
                     log_path=log_path,
                     stop_on_shape_fail=stop_on_shape_fail,
                     progress_interval=progress_interval,
-                    step_summary_stride=int(runner_cfg["step_summary_stride"]),
-                    state_stride=int(runner_cfg["state_stride"]),
                     flush_interval_steps=int(runner_cfg["flush_interval_steps"]),
                 )
             )
