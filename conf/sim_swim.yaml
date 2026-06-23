@@ -32,7 +32,7 @@ fluid:
   viscosity_Pa_s: 0.001        # [Pa*s] 水相当
 
 motor:
-  torque_Nm: 1.0e-4       # [N*m] モーターのトルク(Torque, T)．-1のときはτ=1になるよう「η * b^3」と定義する．
+  torque_Nm: 2.5e-20      # [N*m] Phase 2代表条件のモータートルク(Torque, T)．-1のときはτ=1になるよう「η * b^3」と定義する．
   # motor torque をbead forceへ変換する方式。
   # - material_twist_local_couple: 既定値。segment軸まわりのorientation activityを隣接bead対の局所force coupleへ変換する。
   #   P2-6-008で単一べん毛の螺旋形状維持とnet回転を確認したmode。

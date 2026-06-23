@@ -704,7 +704,7 @@ class SimulationConfig:
 
         motor_raw = raw.get("motor", {}) or {}
         motor = MotorParams(
-            torque_Nm=float(_get(motor_raw, "torque_Nm", 1.0e-4)),
+            torque_Nm=float(_get(motor_raw, "torque_Nm", 2.5e-20)),
             force_distribution=str(
                 _get(
                     motor_raw,

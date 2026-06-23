@@ -38,14 +38,14 @@ def test_default_motor_force_distribution_is_material_twist_local_couple() -> No
     assert sim_cfg.motor.force_distribution == "material_twist_local_couple"
 
 
-def test_missing_motor_torque_defaults_to_issue84_literal_value() -> None:
+def test_missing_motor_torque_defaults_to_phase2_representative_value() -> None:
     cfg = _base_cfg()
     cfg["motor"].pop("torque_Nm")
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
     sim_cfg = SimulationConfig.from_dict(cfg)
 
-    assert sim_cfg.motor.torque_Nm == pytest.approx(1.0e-4)
-    assert sim_cfg.motor_torque_Nm == pytest.approx(1.0e-4)
+    assert sim_cfg.motor.torque_Nm == pytest.approx(2.5e-20)
+    assert sim_cfg.motor_torque_Nm == pytest.approx(2.5e-20)
 
 
 def test_default_motor_local_scales_are_paper_aligned_one() -> None:
