@@ -540,7 +540,8 @@
 - branch: `feature/phase2-84-experiment-simplification`
 - goal: 実験時の設定編集と動画確認を簡略化するため，標準config default，3D render表示，dataset一括再描画CLIを整理する。
 - result:
-  - `conf/sim_swim.yaml` の `motor.torque_Nm` default を `1.0e-4` に変更し，`-1` sentinel の意味はコメントに残した。
+  - `conf/sim_swim.yaml` の `motor.torque_Nm` default は，Phase 2.6 torque評価の第一候補，Phase 2.7代表条件，Phase 2.8 dataset条件と揃え，`2.5e-20` とした。`-1` sentinel の意味はコメントに残した。
+  - `1.0e-4` は `time.dt_star` の実行時overrideとして使う値であり，モータートルクdefaultにはしない。
   - `flagella.placement_mode` と `flagella.initial_phase_mode` の取りうる値をconfigコメントへ明記した。
   - `render.save_frames_3d` / `render.save_frames_2d` の default を `false` にし，mp4 と final image は維持した。
   - 3D render に RUN/TUMBLE，時刻，実効トルク，`follow_camera_3d` を併記するようにした。
