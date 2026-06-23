@@ -398,6 +398,78 @@ def test_existing_raw_is_skipped_only_when_config_matches(tmp_path: Path) -> Non
     assert manifest["samples"][0]["sample_config_fingerprint"]
 
 
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_existing_raw_with_removed_runner_stride_requires_overwrite(
+    tmp_path: Path,
+    dry_run: bool,
+) -> None:
+    analysis_config = _minimal_analysis_config(tmp_path)
+    config_path = tmp_path / "analysis.yaml"
+    config_path.write_text(yaml.safe_dump(analysis_config), encoding="utf-8")
+    run_sweep.run_batch(
+        analysis_config_path=config_path,
+        dry_run=True,
+        overwrite=False,
+        stop_on_shape_fail=False,
+        sample_limit=None,
+        progress_interval=None,
+    )
+    sample_dir = tmp_path / "runs/test_dataset/samples/nf01_seed000"
+    raw_dir = sample_dir / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    (raw_dir / "step_summary.csv").write_text("step,t_s\n0,0.0\n", encoding="utf-8")
+    (sample_dir / "sample_runner_config_used.yaml").write_text(
+        yaml.safe_dump({"step_summary_stride": 10, "state_stride": 1}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="removed runner stride settings"):
+        run_sweep.run_batch(
+            analysis_config_path=config_path,
+            dry_run=dry_run,
+            overwrite=False,
+            stop_on_shape_fail=False,
+            sample_limit=None,
+            progress_interval=None,
+        )
+
+
+def test_existing_raw_with_legacy_unstrided_runner_config_can_be_reused(
+    tmp_path: Path,
+) -> None:
+    analysis_config = _minimal_analysis_config(tmp_path)
+    config_path = tmp_path / "analysis.yaml"
+    config_path.write_text(yaml.safe_dump(analysis_config), encoding="utf-8")
+    run_sweep.run_batch(
+        analysis_config_path=config_path,
+        dry_run=True,
+        overwrite=False,
+        stop_on_shape_fail=False,
+        sample_limit=None,
+        progress_interval=None,
+    )
+    sample_dir = tmp_path / "runs/test_dataset/samples/nf01_seed000"
+    raw_dir = sample_dir / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    (raw_dir / "step_summary.csv").write_text("step,t_s\n0,0.0\n", encoding="utf-8")
+    (sample_dir / "sample_runner_config_used.yaml").write_text(
+        yaml.safe_dump({"step_summary_stride": 1, "state_stride": 1}),
+        encoding="utf-8",
+    )
+
+    manifest_path = run_sweep.run_batch(
+        analysis_config_path=config_path,
+        dry_run=False,
+        overwrite=False,
+        stop_on_shape_fail=False,
+        sample_limit=None,
+        progress_interval=None,
+    )
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["samples"][0]["status"] == "skipped_existing"
+
+
 def test_existing_raw_with_different_config_requires_overwrite_or_new_output(
     tmp_path: Path,
 ) -> None:

@@ -94,6 +94,30 @@ def _ensure_existing_config_matches(
         )
 
 
+def _ensure_existing_raw_not_strided(
+    *,
+    runner_config_used_path: Path,
+    sample_id: str,
+    step_summary: Path,
+) -> None:
+    if not runner_config_used_path.is_file():
+        return
+
+    runner_config = _load_yaml(runner_config_used_path)
+    step_summary_stride = int(runner_config.get("step_summary_stride", 1))
+    state_stride = int(runner_config.get("state_stride", 1))
+    if step_summary_stride == 1 and state_stride == 1:
+        return
+
+    raise RuntimeError(
+        f"Existing raw output for {sample_id} cannot be reused because "
+        f"{step_summary} was created with removed runner stride settings "
+        f"({runner_config_used_path}: step_summary_stride={step_summary_stride}, "
+        f"state_stride={state_stride}). Use --overwrite or choose a new "
+        "run_batch_id/output.run_batch_dir."
+    )
+
+
 def _merge_nested(dst: dict[str, Any], src: dict[str, Any]) -> dict[str, Any]:
     merged = dict(dst)
     for key, value in src.items():
@@ -399,6 +423,7 @@ def run_batch(
         log_path = sample_dir / "run.log"
         sample_config_path = configs_dir / f"{sample_id}.yaml"
         sample_config_used_path = sample_dir / "sample_config_used.yaml"
+        runner_config_used_path = sample_dir / "sample_runner_config_used.yaml"
         cfg = _build_sample_config(
             analysis_config=analysis_config,
             base_config=base_config,
@@ -447,6 +472,11 @@ def run_batch(
                     sample_id=sample_id,
                     step_summary=step_summary,
                 )
+                _ensure_existing_raw_not_strided(
+                    runner_config_used_path=runner_config_used_path,
+                    sample_id=sample_id,
+                    step_summary=step_summary,
+                )
                 if not sample_config_path.is_file():
                     _write_yaml(sample_config_path, sample_config)
             else:
@@ -469,6 +499,11 @@ def run_batch(
             _ensure_existing_config_matches(
                 existing_config_path=existing_config_path,
                 expected_config=sample_config,
+                sample_id=sample_id,
+                step_summary=step_summary,
+            )
+            _ensure_existing_raw_not_strided(
+                runner_config_used_path=runner_config_used_path,
                 sample_id=sample_id,
                 step_summary=step_summary,
             )
