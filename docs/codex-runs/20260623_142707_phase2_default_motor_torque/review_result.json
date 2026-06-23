@@ -1,0 +1,31 @@
+{
+  "status": "PASS",
+  "summary": "`conf/sim_swim.yaml` の `motor.torque_Nm` default を `1.0e-4` から Phase 2 代表条件の `2.5e-20` へ変更した。parser fallback と `tests/test_params.py` の期待値も同じ値へ揃え，Phase 2 docs には `1.0e-4` が `time.dt_star` の実行時 override 値であり，モータートルク default ではないことを明記した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    "uv run python -c \"import yaml; yaml.safe_load(open('conf/sim_swim.yaml', encoding='utf-8'))\"",
+    "uv run pytest tests/test_params.py tests/test_simulation.py tests/test_model_builder.py",
+    "uv run ruff check src/sim_swim/sim/params.py tests/test_params.py",
+    "uv run ruff format --check src/sim_swim/sim/params.py tests/test_params.py",
+    "commit hook: uv run ruff format --check .",
+    "commit hook: uv run ruff check .",
+    "commit hook: uv run pytest -q (223 passed)",
+    "uv run python -m scripts.01_simulate_swimming time.duration_s=0.001 time.dt_star=1.0e-4 output.base_dir=/private/tmp/phase2_torque_default_smoke",
+    "find /private/tmp/phase2_torque_default_smoke/2026-06-23/142651 -maxdepth 2 -type f | sort",
+    "rg -n \"torque_Nm|2\\.5e-20|2\\.500000e-20\" /private/tmp/phase2_torque_default_smoke/2026-06-23/142651"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "既存 Phase 2.6 torque評価で第一候補とされた `2.5e-20` に config default と fallback を揃える補正であり，物理モデル・出力形式・新しい数値近似の変更ではないため ADR は不要。",
+  "commit_type": "complete",
+  "commit_hash": "414c3339346c9bee30ff25af91c73664e26d7039",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/87",
+  "next_actions": [
+    "PR #87 を確認し，問題なければ merge する。"
+  ]
+}
