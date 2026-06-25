@@ -3,8 +3,10 @@ from __future__ import annotations
 import math
 
 import numpy as np
+import pytest
 
 from sim_swim.dynamics.forces import (
+    compute_attach_first_body_axis_angle_forces,
     compute_motor_forces,
     compute_root_torque_axis_projection_forces,
     compute_root_torque_segment_couples_forces,
@@ -239,3 +241,47 @@ def test_root_torque_segment_couples_reacts_to_applied_flag_torque() -> None:
 
     assert abs(flag_torque) < torque
     assert np.isclose(flag_torque + body_torque, 0.0, atol=1e-28)
+
+
+def test_attach_first_body_axis_angle_force_penalizes_body_axis_component() -> None:
+    positions = np.array(
+        [
+            [0.0, 0.0, 0.0],  # body attach
+            [0.1, 0.25, 0.0],  # first bead: has body-axis component
+            [0.1, 0.25, 0.58],  # second bead: not used by this force
+        ],
+        dtype=float,
+    )
+    forces = compute_attach_first_body_axis_angle_forces(
+        positions_m=positions,
+        hook_triplets=np.array([[0, 1, 2]], dtype=int),
+        attach_first_rest_lengths_m=np.array([0.25], dtype=float),
+        body_axis_unit=np.array([1.0, 0.0, 0.0], dtype=float),
+        k_angle=2.0,
+    )
+
+    assert np.allclose(forces.sum(axis=0), np.zeros(3), atol=1e-12)
+    assert forces[1, 0] < 0.0
+    assert forces[0, 0] > 0.0
+    assert forces[1, 1] == pytest.approx(0.0)
+    assert forces[1, 2] == pytest.approx(0.0)
+
+
+def test_attach_first_body_axis_angle_force_is_zero_when_perpendicular() -> None:
+    positions = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [0.0, 0.25, 0.0],
+            [0.0, 0.25, 0.58],
+        ],
+        dtype=float,
+    )
+    forces = compute_attach_first_body_axis_angle_forces(
+        positions_m=positions,
+        hook_triplets=np.array([[0, 1, 2]], dtype=int),
+        attach_first_rest_lengths_m=np.array([0.25], dtype=float),
+        body_axis_unit=np.array([1.0, 0.0, 0.0], dtype=float),
+        k_angle=2.0,
+    )
+
+    assert np.allclose(forces, np.zeros_like(forces), atol=1e-12)

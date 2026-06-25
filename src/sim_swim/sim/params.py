@@ -26,6 +26,9 @@ MOTOR_FORCE_DISTRIBUTION_ALIASES = {
 MOTOR_LOCAL_SCALE_KEYS = (
     "local_hook_scale",
     "local_spring_scale",
+    "local_attach_first_spring_scale",
+    "local_attach_first_body_axis_angle_scale",
+    "local_first_second_spring_scale",
     "local_bend_scale",
     "local_torsion_scale",
 )
@@ -247,6 +250,9 @@ class MotorParams:
     torque_for_forces_override_Nm: float = 0.0
     local_hook_scale: float = 1.0
     local_spring_scale: float = 1.0
+    local_attach_first_spring_scale: float = 1.0
+    local_attach_first_body_axis_angle_scale: float = 1.0
+    local_first_second_spring_scale: float = 1.0
     local_bend_scale: float = 1.0
     local_torsion_scale: float = 1.0
 
@@ -762,6 +768,27 @@ class SimulationConfig:
             ),
             local_spring_scale=float(
                 _get(motor_raw, "local_spring_scale", MOTOR_LOCAL_SCALE_DEFAULT)
+            ),
+            local_attach_first_spring_scale=float(
+                _get(
+                    motor_raw,
+                    "local_attach_first_spring_scale",
+                    MOTOR_LOCAL_SCALE_DEFAULT,
+                )
+            ),
+            local_attach_first_body_axis_angle_scale=float(
+                _get(
+                    motor_raw,
+                    "local_attach_first_body_axis_angle_scale",
+                    MOTOR_LOCAL_SCALE_DEFAULT,
+                )
+            ),
+            local_first_second_spring_scale=float(
+                _get(
+                    motor_raw,
+                    "local_first_second_spring_scale",
+                    MOTOR_LOCAL_SCALE_DEFAULT,
+                )
             ),
             local_bend_scale=float(
                 _get(motor_raw, "local_bend_scale", MOTOR_LOCAL_SCALE_DEFAULT)

@@ -208,6 +208,42 @@ def compute_hook_forces(
     return forces
 
 
+def compute_attach_first_body_axis_angle_forces(
+    positions_m: np.ndarray,
+    hook_triplets: np.ndarray,
+    attach_first_rest_lengths_m: np.ndarray,
+    body_axis_unit: np.ndarray,
+    k_angle: float,
+) -> np.ndarray:
+    """Keep attach->first approximately perpendicular to the body long axis."""
+
+    forces = np.zeros_like(positions_m)
+    if hook_triplets.size == 0 or k_angle <= 0.0:
+        return forces
+
+    axis_norm = float(np.linalg.norm(body_axis_unit))
+    if axis_norm <= 1e-18:
+        return forces
+    axis = body_axis_unit / axis_norm
+
+    for row, (attach_raw, first_raw, _second_raw) in enumerate(hook_triplets):
+        attach = int(attach_raw)
+        first = int(first_raw)
+        rest_len = (
+            float(attach_first_rest_lengths_m[row])
+            if row < attach_first_rest_lengths_m.shape[0]
+            else 0.0
+        )
+        rest_len = max(rest_len, 1e-18)
+        attach_first = positions_m[first] - positions_m[attach]
+        axial_offset = float(np.dot(attach_first, axis))
+        force = -(k_angle / (rest_len * rest_len)) * axial_offset * axis
+        forces[first] += force
+        forces[attach] -= force
+
+    return forces
+
+
 def _closest_points_on_segments(
     p1: np.ndarray,
     q1: np.ndarray,

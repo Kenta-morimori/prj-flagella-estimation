@@ -1,0 +1,49 @@
+{
+  "status": "PASS",
+  "summary": "Issue #82 として hook過伸長対策の局所補強候補を実装した。body attach bead とべん毛第1ビーズの距離補強，attach->first とbody長軸の90度補強，べん毛第1-第2ビーズ距離補強を個別scaleとして追加した。body長軸90度補強は既存 hook_triplets=(attach, first, second) の三点角度拘束とは別物として実装・テストした。Issue #82 用 sweep CLI は hook距離，body軸角度，螺旋回転summaryを集約できる。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "n_flagella=3, duration_s=0.5 のフル代表 sweep は既存 segment repulsion 計算が重く，ローカル実行を中断した。軽量代表として n_flagella=1, duration_s=0.02 の全候補 sweep を実行した。",
+    "強い combined scale 4.0 は hook fail したため，新scaleは標準defaultへ昇格せず，診断用 extension として扱う。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_params.py tests/test_motor_forces.py tests/test_simulation.py -q",
+      "result": "PASS: 99 passed in 6.07s"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/dynamics src/sim_swim/sim scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_params.py tests/test_motor_forces.py tests/test_simulation.py",
+      "result": "PASS: All checks passed"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/dynamics src/sim_swim/sim scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_params.py tests/test_motor_forces.py tests/test_simulation.py",
+      "result": "PASS: 18 files already formatted"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --dry-run --sample-limit 3",
+      "result": "PASS: baseline, attach_first_spring_2, body_axis_angle_2 を出力"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --duration-s 0.02 --n-flagella 1 --overwrite --progress-interval 5000",
+      "result": "PASS: outputs/2026-06-25/205604/phase2_82_hook_overstretch/phase2_82_hook_scale_sweep_summary.csv を生成。body_axis_angle_2 は axis error 28.8650 deg -> 0.4656 deg, hook_len_rel_err_max 0.4676 -> 0.2210 に改善。"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --overwrite --progress-interval 5000",
+      "result": "INTERRUPTED: n_flagella=3, duration_s=0.5 の既定代表 sweep は既存 segment repulsion 計算が重く中断。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "標準default物理モデルを変更せず，非default時のみ有効な診断用局所補強scaleと比較CLIを追加したため。今後，補強条件をPhase 2代表defaultへ昇格する場合はADRを検討する。",
+  "commit_type": "not_committed",
+  "commit_hash": "",
+  "push_status": "not_pushed",
+  "pull_request_url": "",
+  "next_actions": [
+    "必要に応じて n_flagella=3, duration_s=0.5 の代表 sweep を実行できるよう，segment repulsion 計算の軽量化または条件数削減を検討する。",
+    "Phase 2.8 dataset条件へ新scaleを入れる場合は，default昇格ではなく明示overrideとして別タスクで評価する。"
+  ]
+}

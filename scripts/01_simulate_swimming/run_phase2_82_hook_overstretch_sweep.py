@@ -1,0 +1,243 @@
+#!/usr/bin/env python3
+"""Run Issue #82 hook-overstretch mitigation diagnostics."""
+
+from __future__ import annotations
+
+import argparse
+import csv
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+import sys
+from typing import Any
+from zoneinfo import ZoneInfo
+
+import yaml
+
+sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
+
+from sim_swim.sim.core import Simulator
+from sim_swim.sim.helix_retention_gate import summarize_single_flagellum_helix_retention
+from sim_swim.sim.params import SimulationConfig
+
+SUMMARY_FIELDS = (
+    "condition_id",
+    "description",
+    "output_dir",
+    "duration_s",
+    "dt_star",
+    "torque_Nm",
+    "n_flagella",
+    "local_attach_first_spring_scale",
+    "local_attach_first_body_axis_angle_scale",
+    "local_first_second_spring_scale",
+    "final_t_s",
+    "final_shape_pass_nonbody",
+    "final_first_fail_category_nonbody",
+    "hook_len_rel_err_max",
+    "local_attach_first_rel_err",
+    "local_first_second_rel_err",
+    "local_attach_first_vs_body_axis_angle_deg",
+    "local_attach_first_vs_body_axis_err_deg",
+    "flag_bond_rel_err_max",
+    "flag_bend_err_max_deg",
+    "flag_torsion_err_max_deg",
+    "net_abs_flag_helix_spin_revolutions",
+    "flag_helix_spin_direction_consistency",
+)
+
+
+@dataclass(frozen=True)
+class Condition:
+    condition_id: str
+    description: str
+    scales: dict[str, float]
+
+
+CONDITIONS = (
+    Condition("baseline", "no extra local mitigation", {}),
+    Condition(
+        "attach_first_spring_2",
+        "strengthen body attach to first bead distance",
+        {"local_attach_first_spring_scale": 2.0},
+    ),
+    Condition(
+        "body_axis_angle_2",
+        "keep attach-first perpendicular to body long axis",
+        {"local_attach_first_body_axis_angle_scale": 2.0},
+    ),
+    Condition(
+        "first_second_spring_2",
+        "strengthen first to second bead distance",
+        {"local_first_second_spring_scale": 2.0},
+    ),
+    Condition(
+        "attach_angle_2",
+        "combine attach-first distance and body-axis 90 degree mitigation",
+        {
+            "local_attach_first_spring_scale": 2.0,
+            "local_attach_first_body_axis_angle_scale": 2.0,
+        },
+    ),
+    Condition(
+        "attach_angle_first_second_2",
+        "combine all Issue #82 local mitigations",
+        {
+            "local_attach_first_spring_scale": 2.0,
+            "local_attach_first_body_axis_angle_scale": 2.0,
+            "local_first_second_spring_scale": 2.0,
+        },
+    ),
+    Condition(
+        "attach_angle_first_second_4",
+        "strong combined local mitigation",
+        {
+            "local_attach_first_spring_scale": 4.0,
+            "local_attach_first_body_axis_angle_scale": 4.0,
+            "local_first_second_spring_scale": 4.0,
+        },
+    ),
+)
+
+
+def _default_output_dir() -> Path:
+    now = datetime.now(ZoneInfo("Asia/Tokyo"))
+    return (
+        Path("outputs")
+        / now.strftime("%Y-%m-%d")
+        / now.strftime("%H%M%S")
+        / "phase2_82_hook_overstretch"
+    )
+
+
+def _load_yaml(path: Path) -> dict[str, Any]:
+    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+
+
+def _read_step_rows(path: Path) -> list[dict[str, str]]:
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
+def _overrides_for_condition(
+    args: argparse.Namespace, condition: Condition
+) -> dict[str, Any]:
+    motor_overrides = {
+        "torque_Nm": args.torque_nm,
+        "enable_switching": False,
+        "force_distribution": "root_torque_segment_couples",
+    }
+    motor_overrides.update(condition.scales)
+    return {
+        "flagella": {
+            "n_flagella": args.n_flagella,
+            "placement_mode": "seeded_surface",
+            "initial_phase_mode": "seeded",
+            "initial_helix_axis_from_rear_deg": 0.0,
+        },
+        "motor": motor_overrides,
+        "seed": {"attach_seed": args.attach_seed, "phase_seed": args.phase_seed},
+        "time": {"duration_s": args.duration_s, "dt_star": args.dt_star},
+        "output_sampling": {"out_all_steps_3d": False},
+        "render": {"save_frames_3d": False, "save_frames_2d": False},
+    }
+
+
+def _summary_row(
+    cfg: SimulationConfig,
+    condition: Condition,
+    output_dir: Path,
+    last: dict[str, str],
+    helix_summary: dict[str, bool | int | float | str],
+) -> dict[str, str | float]:
+    row: dict[str, str | float] = {
+        "condition_id": condition.condition_id,
+        "description": condition.description,
+        "output_dir": str(output_dir),
+        "duration_s": cfg.time.duration_s,
+        "dt_star": cfg.dt_star,
+        "torque_Nm": cfg.motor_torque_Nm,
+        "n_flagella": cfg.flagella.n_flagella,
+        "local_attach_first_spring_scale": cfg.motor.local_attach_first_spring_scale,
+        "local_attach_first_body_axis_angle_scale": (
+            cfg.motor.local_attach_first_body_axis_angle_scale
+        ),
+        "local_first_second_spring_scale": cfg.motor.local_first_second_spring_scale,
+    }
+    for field in SUMMARY_FIELDS:
+        if field in row:
+            continue
+        source_key = field.removeprefix("final_")
+        row[field] = helix_summary.get(field, last.get(source_key, last.get(field, "")))
+    return row
+
+
+def _run_condition(
+    base_cfg: dict[str, Any],
+    args: argparse.Namespace,
+    condition: Condition,
+) -> dict[str, str | float]:
+    cfg = SimulationConfig.from_dict(base_cfg).with_overrides(
+        _overrides_for_condition(args, condition)
+    )
+    condition_dir = args.output_dir / condition.condition_id
+    condition_dir.mkdir(parents=True, exist_ok=args.overwrite)
+    simulator = Simulator(cfg)
+    simulator.run(
+        cfg.time.duration_s,
+        step_summary_dir=condition_dir,
+        stop_on_shape_fail=False,
+        progress_interval=args.progress_interval,
+    )
+    step_summary_path = condition_dir / "step_summary.csv"
+    rows = _read_step_rows(step_summary_path)
+    helix_summary = summarize_single_flagellum_helix_retention(
+        rows,
+        min_steps=min(50, max(len(rows) - 1, 1)),
+        min_net_abs_spin_revolutions=0.0,
+    )
+    if not rows:
+        raise RuntimeError(f"No rows found in {step_summary_path}")
+    last = rows[-1]
+    return _summary_row(cfg, condition, condition_dir, last, helix_summary)
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config", type=Path, default=Path("conf/sim_swim.yaml"))
+    parser.add_argument("--output-dir", type=Path, default=_default_output_dir())
+    parser.add_argument("--duration-s", type=float, default=0.5)
+    parser.add_argument("--dt-star", type=float, default=1.0e-4)
+    parser.add_argument("--torque-nm", type=float, default=2.5e-20)
+    parser.add_argument("--n-flagella", type=int, default=3)
+    parser.add_argument("--attach-seed", type=int, default=0)
+    parser.add_argument("--phase-seed", type=int, default=0)
+    parser.add_argument("--sample-limit", type=int, default=None)
+    parser.add_argument("--progress-interval", type=int, default=1000)
+    parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument("--dry-run", action="store_true")
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = _parse_args()
+    base_cfg = _load_yaml(args.config)
+    conditions = CONDITIONS[: args.sample_limit] if args.sample_limit else CONDITIONS
+    args.output_dir.mkdir(parents=True, exist_ok=args.overwrite)
+
+    if args.dry_run:
+        for condition in conditions:
+            print(condition.condition_id)
+        return
+
+    rows = [_run_condition(base_cfg, args, condition) for condition in conditions]
+    summary_path = args.output_dir / "phase2_82_hook_scale_sweep_summary.csv"
+    with summary_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=SUMMARY_FIELDS)
+        writer.writeheader()
+        writer.writerows(rows)
+    print(summary_path)
+
+
+if __name__ == "__main__":
+    main()

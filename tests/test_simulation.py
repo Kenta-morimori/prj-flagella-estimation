@@ -138,6 +138,32 @@ def _make_phase0b_cfg(duration_s: float = 1.0e-2) -> SimulationConfig:
     )
 
 
+def test_phase2_hook_overstretch_scales_are_engine_localized() -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=2.5e-20,
+        n_flagella=1,
+        stub_mode="full_flagella",
+    ).with_overrides(
+        {
+            "motor": {
+                "local_attach_first_spring_scale": 1.5,
+                "local_attach_first_body_axis_angle_scale": 2.0,
+                "local_first_second_spring_scale": 1.75,
+            }
+        }
+    )
+    simulator = Simulator(cfg)
+    engine = simulator.engine
+
+    assert engine.motor_local_attach_first_spring_scale == pytest.approx(1.5)
+    assert engine.motor_local_attach_first_body_axis_angle_scale == pytest.approx(2.0)
+    assert engine.motor_local_first_second_spring_scale == pytest.approx(1.75)
+    assert engine.hook_spring_rows.size == 1
+    assert engine.flag_local_spring_rows.size == 1
+    assert engine.hook_attach_first_rest_lengths_m.shape == (1,)
+    assert engine.hook_attach_first_rest_lengths_m[0] > 0.0
+
+
 def _make_phase1_cfg(
     surrogate_torque_Nm: float = 1.0e-20, duration_s: float = 1.0e-2
 ) -> SimulationConfig:

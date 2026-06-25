@@ -11,6 +11,7 @@ import numpy as np
 from sim_swim.dynamics.brownian import sample_brownian_displacement
 from sim_swim.dynamics.forces import (
     MotorForceDiagnostics,
+    compute_attach_first_body_axis_angle_forces,
     compute_bending_forces,
     compute_hook_forces,
     compute_motor_forces,
@@ -238,8 +239,18 @@ class DynamicsEngine:
         self.bead_is_body = self.model.bead_is_body.astype(bool, copy=False)
         self.motor_local_hook_scale = float(cfg.motor.local_hook_scale)
         self.motor_local_spring_scale = float(cfg.motor.local_spring_scale)
+        self.motor_local_attach_first_spring_scale = float(
+            cfg.motor.local_attach_first_spring_scale
+        )
+        self.motor_local_attach_first_body_axis_angle_scale = float(
+            cfg.motor.local_attach_first_body_axis_angle_scale
+        )
+        self.motor_local_first_second_spring_scale = float(
+            cfg.motor.local_first_second_spring_scale
+        )
         self.motor_local_bend_scale = float(cfg.motor.local_bend_scale)
         self.motor_local_torsion_scale = float(cfg.motor.local_torsion_scale)
+        self.hook_attach_first_rest_lengths_m = self._hook_attach_first_rest_lengths_m()
         self.local_twist_orientations = [
             np.zeros((max(int(idxs.size) - 1, 1),), dtype=float)
             for idxs in self.model.flagella_indices
@@ -251,6 +262,24 @@ class DynamicsEngine:
             "abs_max_deg": float("nan"),
             "tip_activity_ratio": float("nan"),
         }
+
+    def _hook_attach_first_rest_lengths_m(self) -> np.ndarray:
+        pair_to_rest: dict[tuple[int, int], float] = {}
+        for row, pair in enumerate(self.model.spring_pairs.astype(int, copy=False)):
+            a = int(pair[0])
+            b = int(pair[1])
+            key = (a, b) if a < b else (b, a)
+            pair_to_rest[key] = float(self.model.spring_rest_lengths_m[row])
+
+        rests: list[float] = []
+        for attach_raw, first_raw, _second_raw in self.model.hook_triplets.astype(
+            int, copy=False
+        ):
+            attach = int(attach_raw)
+            first = int(first_raw)
+            key = (attach, first) if attach < first else (first, attach)
+            rests.append(float(pair_to_rest.get(key, 0.0)))
+        return np.asarray(rests, dtype=float)
 
     def set_external_force_callback(
         self,
@@ -612,18 +641,21 @@ class DynamicsEngine:
                 clamp_eps=1e-3,
             )
         if self.hook_spring_rows.size > 0:
+            hook_spring_scale = self.motor_local_spring_scale
+            hook_spring_scale *= self.motor_local_attach_first_spring_scale
             spring_forces += compute_spring_forces(
                 positions_m=pos,
                 spring_pairs=self.model.spring_pairs[self.hook_spring_rows],
                 spring_rest_lengths_m=self.model.spring_rest_lengths_m[
                     self.hook_spring_rows
                 ],
-                h_const=self.spring_h
-                * (self.motor_local_spring_scale if motor_on else 1.0),
+                h_const=self.spring_h * (hook_spring_scale if motor_on else 1.0),
                 s_limit_m=self.spring_s_m,
                 clamp_eps=1e-3,
             )
         if self.flag_local_spring_rows.size > 0:
+            first_second_spring_scale = self.motor_local_spring_scale
+            first_second_spring_scale *= self.motor_local_first_second_spring_scale
             spring_forces += compute_spring_forces(
                 positions_m=pos,
                 spring_pairs=self.model.spring_pairs[self.flag_local_spring_rows],
@@ -631,7 +663,7 @@ class DynamicsEngine:
                     self.flag_local_spring_rows
                 ],
                 h_const=self.spring_h
-                * (self.motor_local_spring_scale if motor_on else 1.0),
+                * (first_second_spring_scale if motor_on else 1.0),
                 s_limit_m=self.spring_s_m,
                 clamp_eps=1e-3,
             )
@@ -700,6 +732,20 @@ class DynamicsEngine:
             )
             if motor_on:
                 hook_forces *= self.motor_local_hook_scale
+                body_axis_angle_extra_scale = max(
+                    self.motor_local_attach_first_body_axis_angle_scale - 1.0,
+                    0.0,
+                )
+                if body_axis_angle_extra_scale > 0.0:
+                    hook_forces += compute_attach_first_body_axis_angle_forces(
+                        positions_m=pos,
+                        hook_triplets=self.model.hook_triplets,
+                        attach_first_rest_lengths_m=(
+                            self.hook_attach_first_rest_lengths_m
+                        ),
+                        body_axis_unit=self._body_axis_unit(pos),
+                        k_angle=self.k_hook * body_axis_angle_extra_scale,
+                    )
 
         repulsion_forces = compute_segment_repulsion_forces(
             positions_m=pos,

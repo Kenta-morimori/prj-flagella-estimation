@@ -631,6 +631,39 @@
   - `docs/phase2/phase2_tasks.md`
   - `docs/codex-runs/20260622_175854_phase2_84_center_prefix_dataset/review_result.json`
 
+### P2-8-082: hook過伸長対策の局所補強候補を比較する
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/82`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/10`
+- branch: `feature/phase2-82-hook-overstretch`
+- goal: `root_torque_segment_couples` 条件で body とべん毛根元が離れる hook過伸長に対し，論文モデルdefaultを変えずに局所補強候補を比較できるようにする。
+- implementation notes:
+  - `motor.local_attach_first_spring_scale` は body attach bead とべん毛第1ビーズの距離補強である。
+  - `motor.local_attach_first_body_axis_angle_scale` は，`attach -> first` ベクトルが body長軸に対して90度を保つための補強である。これは `hook_triplets=(attach, first, second)` のなす角ではない。
+  - `motor.local_first_second_spring_scale` はべん毛第1ビーズと第2ビーズの距離補強である。
+  - 3つの新scaleはいずれもdefault `1.0` とし，標準configの挙動は変えない。非defaultは診断用の paper model extension として扱う。
+- result:
+  - `n_flagella=1`, `duration_s=0.02`, `time.dt_star=1.0e-4` の軽量代表 sweep で，body軸90度補強は `local_attach_first_vs_body_axis_err_deg` を baseline の `28.8650 deg` から `0.4656 deg` へ改善した。
+  - 同条件で `hook_len_rel_err_max` は baseline の `0.4676` から `0.2210` へ下がり，`shape_pass_nonbody=True` を維持した。
+  - 強い combined scale `4.0` は hook fail したため，補強scaleは標準defaultへ昇格せず，診断用 extension として残す。
+  - `n_flagella=3`, `duration_s=0.5` のフル代表 sweep は既存 segment repulsion 計算が重く，ローカル実行では中断した。
+- acceptance criteria:
+  - [x] 3つの新scaleが config override で個別に指定できる。
+  - [x] body長軸90度補強が既存 hook三点角度拘束と混同されない形で実装・テストされる。
+  - [x] Issue #82 用 sweep CLI が baseline と局所補強候補を比較し，`step_summary.csv` の hook距離・body軸角度・螺旋回転指標を summary に集約できる。
+  - [x] 短時間代表条件で hook過伸長の改善有無を記録する。
+- verification:
+  - `uv run pytest tests/test_params.py tests/test_motor_forces.py tests/test_simulation.py`
+  - `uv run ruff check src/sim_swim/dynamics src/sim_swim/sim scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_params.py tests/test_motor_forces.py tests/test_simulation.py`
+  - `uv run ruff format --check src/sim_swim/dynamics src/sim_swim/sim scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_params.py tests/test_motor_forces.py tests/test_simulation.py`
+  - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --dry-run --sample-limit 3`
+  - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --duration-s 0.02 --n-flagella 1 --overwrite --progress-interval 5000`
+- docs:
+  - `docs/phase2/phase2_current.md`
+  - `docs/phase2/phase2_tasks.md`
+  - `docs/codex-runs/20260625_205543_phase2_82_hook_overstretch/review_result.json`
+
 ## Phase 2.9: Tumble状態の段階実装
 
 ### P2-9-010: Tumble状態を段階実装する

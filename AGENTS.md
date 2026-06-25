@@ -128,6 +128,8 @@ For Phase 2 simulation runs, do not change the default config just to set the in
 
 ## Final Response
 
+Final response should be sent only after the task state has been committed and pushed when remote access is available.
+
 After each task, report:
 
 * summary,
