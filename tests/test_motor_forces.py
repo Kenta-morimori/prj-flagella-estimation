@@ -5,11 +5,9 @@ import math
 import numpy as np
 
 from sim_swim.dynamics.forces import (
-    compute_axial_torque_flux_probe_forces,
-    compute_distributed_flagellar_motor_forces,
-    compute_local_twist_transmission_probe_forces,
-    compute_material_twist_local_couple_forces,
     compute_motor_forces,
+    compute_root_torque_axis_projection_forces,
+    compute_root_torque_segment_couples_forces,
 )
 
 
@@ -92,7 +90,7 @@ def test_motor_force_split_limits_short_basal_link_force() -> None:
     assert attach_force_norm <= 10.0 * expected_scale
 
 
-def test_distributed_flagellar_motor_force_applies_balanced_torque() -> None:
+def test_root_torque_axis_projection_applies_balanced_torque() -> None:
     body = np.array(
         [
             [0.0, -1.0, -1.0],
@@ -115,7 +113,7 @@ def test_distributed_flagellar_motor_force_applies_balanced_torque() -> None:
     flag_indices = [np.arange(body.shape[0], positions.shape[0], dtype=int)]
     torque = 2.0e-20
 
-    forces, diag = compute_distributed_flagellar_motor_forces(
+    forces, diag = compute_root_torque_axis_projection_forces(
         positions_m=positions,
         flagella_indices=flag_indices,
         body_indices=body_indices,
@@ -139,56 +137,7 @@ def test_distributed_flagellar_motor_force_applies_balanced_torque() -> None:
     assert np.isclose(float((flag_torque + body_torque) @ axis), 0.0, atol=1e-28)
 
 
-def test_axial_torque_flux_probe_applies_balanced_root_axis_torque() -> None:
-    body = np.array(
-        [
-            [0.0, -1.0, -1.0],
-            [0.0, 1.0, -1.0],
-            [0.0, 1.0, 1.0],
-            [0.0, -1.0, 1.0],
-        ],
-        dtype=float,
-    )
-    theta = np.linspace(0.0, 2.0 * math.pi, 8, endpoint=False)
-    flag = np.column_stack(
-        [
-            np.linspace(0.0, 3.0, theta.size),
-            0.25 * np.cos(theta),
-            0.25 * np.sin(theta),
-        ]
-    )
-    positions = np.vstack([body, flag])
-    body_indices = np.arange(body.shape[0], dtype=int)
-    flag_indices = [np.arange(body.shape[0], positions.shape[0], dtype=int)]
-    torque = 2.0e-20
-
-    forces, diag = compute_axial_torque_flux_probe_forces(
-        positions_m=positions,
-        flagella_indices=flag_indices,
-        body_indices=body_indices,
-        torque_per_flag=np.array([torque], dtype=float),
-    )
-
-    assert diag.degenerate_axis_count == 0
-    assert np.allclose(forces.sum(axis=0), np.zeros(3), atol=1e-30)
-
-    flag_forces = forces[flag_indices[0]]
-    body_forces = forces[body_indices]
-    origin = flag[0]
-    centered = flag - np.mean(flag, axis=0)
-    _, _, vh = np.linalg.svd(centered, full_matrices=False)
-    axis = vh[0]
-    if float(np.dot(axis, flag[-1] - flag[0])) < 0.0:
-        axis = -axis
-    flag_torque = np.sum(np.cross(flag - origin, flag_forces), axis=0)
-    body_torque = np.sum(np.cross(body - origin, body_forces), axis=0)
-
-    assert np.isclose(abs(float(flag_torque @ axis)), torque, rtol=1.0e-8)
-    assert np.isclose(abs(float(body_torque @ axis)), torque, rtol=1.0e-8)
-    assert np.isclose(float((flag_torque + body_torque) @ axis), 0.0, atol=1e-28)
-
-
-def test_local_twist_transmission_probe_applies_balanced_torque() -> None:
+def test_root_torque_segment_couples_applies_local_balanced_torque() -> None:
     body = np.array(
         [
             [0.0, -1.0, -1.0],
@@ -212,7 +161,7 @@ def test_local_twist_transmission_probe_applies_balanced_torque() -> None:
     torque = 2.0e-20
     segment_weights = [np.linspace(1.0, 0.2, flag.shape[0] - 1)]
 
-    forces, diag = compute_local_twist_transmission_probe_forces(
+    forces, diag = compute_root_torque_segment_couples_forces(
         positions_m=positions,
         flagella_indices=flag_indices,
         body_indices=body_indices,
@@ -239,58 +188,7 @@ def test_local_twist_transmission_probe_applies_balanced_torque() -> None:
     assert np.isclose(float((flag_torque + body_torque) @ axis), 0.0, atol=1e-28)
 
 
-def test_material_twist_local_couple_applies_local_balanced_torque() -> None:
-    body = np.array(
-        [
-            [0.0, -1.0, -1.0],
-            [0.0, 1.0, -1.0],
-            [0.0, 1.0, 1.0],
-            [0.0, -1.0, 1.0],
-        ],
-        dtype=float,
-    )
-    theta = np.linspace(0.0, 2.0 * math.pi, 8, endpoint=False)
-    flag = np.column_stack(
-        [
-            np.linspace(0.0, 3.0, theta.size),
-            0.25 * np.cos(theta),
-            0.25 * np.sin(theta),
-        ]
-    )
-    positions = np.vstack([body, flag])
-    body_indices = np.arange(body.shape[0], dtype=int)
-    flag_indices = [np.arange(body.shape[0], positions.shape[0], dtype=int)]
-    torque = 2.0e-20
-    segment_weights = [np.linspace(1.0, 0.2, flag.shape[0] - 1)]
-
-    forces, diag = compute_material_twist_local_couple_forces(
-        positions_m=positions,
-        flagella_indices=flag_indices,
-        body_indices=body_indices,
-        torque_per_flag=np.array([torque], dtype=float),
-        segment_weights=segment_weights,
-    )
-
-    assert diag.degenerate_axis_count == 0
-    assert np.allclose(forces.sum(axis=0), np.zeros(3), atol=1e-30)
-
-    flag_forces = forces[flag_indices[0]]
-    body_forces = forces[body_indices]
-    origin = flag[0]
-    centered = flag - np.mean(flag, axis=0)
-    _, _, vh = np.linalg.svd(centered, full_matrices=False)
-    axis = vh[0]
-    if float(np.dot(axis, flag[-1] - flag[0])) < 0.0:
-        axis = -axis
-    flag_torque = np.sum(np.cross(flag - origin, flag_forces), axis=0)
-    body_torque = np.sum(np.cross(body - origin, body_forces), axis=0)
-
-    assert np.isclose(abs(float(flag_torque @ axis)), torque, rtol=1.0e-8)
-    assert np.isclose(abs(float(body_torque @ axis)), torque, rtol=1.0e-8)
-    assert np.isclose(float((flag_torque + body_torque) @ axis), 0.0, atol=1e-28)
-
-
-def test_material_twist_local_couple_reacts_to_applied_flag_torque() -> None:
+def test_root_torque_segment_couples_reacts_to_applied_flag_torque() -> None:
     body = np.array(
         [
             [0.0, -1.0, -1.0],
@@ -317,7 +215,7 @@ def test_material_twist_local_couple_reacts_to_applied_flag_torque() -> None:
     torque = 2.0e-20
     segment_weights = [np.ones(flag.shape[0] - 1, dtype=float)]
 
-    forces, diag = compute_material_twist_local_couple_forces(
+    forces, diag = compute_root_torque_segment_couples_forces(
         positions_m=positions,
         flagella_indices=flag_indices,
         body_indices=body_indices,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evaluate Phase 2.6 material-twist torque transmission conditions."""
+"""Evaluate Phase 2.6 root-torque segment-couple conditions."""
 
 from __future__ import annotations
 
@@ -181,7 +181,7 @@ def _base_overrides(
 ) -> dict[str, Any]:
     motor = {
         "torque_Nm": float(torque_Nm),
-        "force_distribution": "material_twist_local_couple",
+        "force_distribution": "root_torque_segment_couples",
         "local_hook_scale": float(local_scales["local_hook_scale"]),
         "local_spring_scale": float(local_scales["local_spring_scale"]),
         "local_bend_scale": float(local_scales["local_bend_scale"]),

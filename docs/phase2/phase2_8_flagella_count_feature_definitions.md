@@ -11,7 +11,7 @@
 * `n_flagella = 1, 2, 3, 6`
 * RUN固定条件
 * `motor.enable_switching=false`
-* `motor.force_distribution=material_twist_local_couple`
+* `motor.force_distribution=root_torque_segment_couples`
 * `time.dt_star=1.0e-4`
 * `flagella.initial_helix_axis_from_rear_deg=0`
 * 初期評価時間は `duration_s=0.5` を基本にする

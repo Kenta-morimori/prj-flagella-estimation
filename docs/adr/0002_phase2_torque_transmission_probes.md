@@ -4,6 +4,10 @@
 - date: 2026-06-02
 - scope: Phase 2.6 P2-6-007
 
+## Naming Update
+
+Issue #88 で `axial_torque_flux_probe` / `local_twist_transmission_probe` はコードから削除した。このADR内の probe 名は、P2-6-007当時の診断履歴として読む。旧 `distributed_flagellum` は現行コードでは `root_torque_axis_projection` の deprecated alias である。
+
 ## Context
 
 Phase 2.6 では、`triplet + hook spring fix` が root 方位の net 回転を作っても、螺旋全体の net 回転へ十分に伝わらないことを確認した。

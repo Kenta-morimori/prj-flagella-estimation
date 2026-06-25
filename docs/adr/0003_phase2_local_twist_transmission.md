@@ -7,6 +7,10 @@
   - `docs/adr/0002_phase2_torque_transmission_probes.md`
   - `docs/adr/0004_phase2_material_frame_twist_transmission.md`
 
+## Naming Update
+
+Issue #88 で `local_twist_transmission_probe` はコードから削除した。このADRは superseded な履歴記録であり、probe 名は当時の実装名として読む。
+
 ## Context
 
 このADRは当初、`local_twist_transmission_probe` の設計と material frame / segment twist による完全物理実装方針を同時に記録していた。

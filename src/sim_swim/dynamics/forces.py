@@ -502,17 +502,16 @@ def _zero_net_force_torque_drive(
     return forces, 0, torque_norm, force_norm
 
 
-def compute_distributed_flagellar_motor_forces(
+def compute_root_torque_axis_projection_forces(
     positions_m: np.ndarray,
     flagella_indices: list[np.ndarray],
     body_indices: np.ndarray,
     torque_per_flag: np.ndarray,
 ) -> tuple[np.ndarray, MotorForceDiagnostics]:
-    """螺旋全体に分布トルクを与える診断用 motor force。
+    """root torque を flagellum 軸まわりの接線力場として分配する。
 
-    既定の triplet motor では root 近傍の局所変形にトルクが消える場合がある。
-    この force は flagellum 点群の主軸回りにゼロ合力の接線力を分布させ、
-    同じ軸回りの反作用トルクを body 側へ与える。
+    flagellum 点群の主軸回りにゼロ合力の接線力を分布させ、同じ軸回りの
+    反作用トルクを body 側へ与える。
     """
 
     forces = np.zeros_like(positions_m)
@@ -591,246 +590,14 @@ def compute_distributed_flagellar_motor_forces(
     )
 
 
-def compute_axial_torque_flux_probe_forces(
-    positions_m: np.ndarray,
-    flagella_indices: list[np.ndarray],
-    body_indices: np.ndarray,
-    torque_per_flag: np.ndarray,
-) -> tuple[np.ndarray, MotorForceDiagnostics]:
-    """軸方向 torque flux を近似する実験用 motor force。
-
-    `distributed_flagellum` は flagellum 全体の主軸・重心まわりに torque を
-    直接入れる。こちらは root bead を原点、root-to-tip 主軸を伝搬軸とし、
-    root から先端へ弱く減衰する接線力を分布させる。material frame を持たない
-    現行モデルで、軸方向 torque flux 近似が有効かを見るための probe である。
-    """
-
-    forces = np.zeros_like(positions_m)
-    if len(flagella_indices) == 0:
-        return forces, MotorForceDiagnostics()
-
-    degenerate_count = 0
-    valid_count = 0
-    flag_torque_sum = 0.0
-    body_torque_sum = 0.0
-    flag_force_sum = 0.0
-    body_force_sum = 0.0
-    body_idx = body_indices.astype(int, copy=False)
-
-    for f_id, flag_idx_raw in enumerate(flagella_indices):
-        if f_id >= torque_per_flag.shape[0]:
-            break
-        tau = float(torque_per_flag[f_id])
-        if abs(tau) <= 0.0:
-            continue
-
-        flag_idx = flag_idx_raw.astype(int, copy=False)
-        if flag_idx.size < 5 or body_idx.size < 3:
-            degenerate_count += 1
-            continue
-
-        flag_pts = positions_m[flag_idx]
-        origin = flag_pts[0]
-        centered = flag_pts - np.mean(flag_pts, axis=0)
-        _, _, vh = np.linalg.svd(centered, full_matrices=False)
-        axis = vh[0]
-        axis_norm = float(np.linalg.norm(axis))
-        if axis_norm <= 1e-18:
-            degenerate_count += 1
-            continue
-        axis = axis / axis_norm
-        if float(np.dot(axis, flag_pts[-1] - flag_pts[0])) < 0.0:
-            axis = -axis
-
-        rel = flag_pts - origin
-        radial = rel - np.outer(rel @ axis, axis)
-        drive = np.cross(axis, radial)
-        drive_norm = np.linalg.norm(drive, axis=1)
-        if float(np.max(drive_norm)) <= 1e-30:
-            degenerate_count += 1
-            continue
-
-        # Root motor 由来の flux 近似として、root から先端へ緩やかに減衰させる。
-        # 完全な material-frame 伝搬ではないが、全点一様駆動より root 由来に近い。
-        s = rel @ axis
-        s = s - float(np.min(s))
-        span = max(float(np.max(s)), 1e-18)
-        weights = 0.35 + 0.65 * np.exp(-s / max(0.5 * span, 1e-18))
-        weighted_drive = drive * weights[:, None]
-        weighted_drive -= np.mean(weighted_drive, axis=0, keepdims=True)
-
-        torque_unit = float(np.sum(np.cross(radial, weighted_drive) @ axis))
-        if abs(torque_unit) <= 1e-30:
-            degenerate_count += 1
-            continue
-        coeff = tau / torque_unit
-        local_flag_forces = coeff * weighted_drive
-        flag_forces = np.zeros_like(positions_m)
-        flag_forces[flag_idx] += local_flag_forces
-        flag_torque = abs(float(np.sum(np.cross(radial, local_flag_forces) @ axis)))
-        flag_force = float(np.mean(np.linalg.norm(local_flag_forces, axis=1)))
-
-        body_forces, body_degenerate, body_torque, body_force = (
-            _zero_net_force_torque_drive(
-                positions_m=positions_m,
-                indices=body_idx,
-                origin=origin,
-                axis=axis,
-                target_torque_Nm=-tau,
-            )
-        )
-        if body_degenerate:
-            degenerate_count += body_degenerate
-            continue
-
-        forces += flag_forces + body_forces
-        valid_count += 1
-        flag_torque_sum += flag_torque
-        body_torque_sum += body_torque
-        flag_force_sum += flag_force
-        body_force_sum += body_force
-
-    inv = 1.0 / max(valid_count, 1)
-    return forces, MotorForceDiagnostics(
-        degenerate_axis_count=degenerate_count,
-        Ta_norm_mean=(flag_torque_sum * inv if valid_count > 0 else float("nan")),
-        Tb_norm_mean=(body_torque_sum * inv if valid_count > 0 else float("nan")),
-        Fa_norm_mean=(flag_force_sum * inv if valid_count > 0 else float("nan")),
-        Fb_norm_mean=(body_force_sum * inv if valid_count > 0 else float("nan")),
-    )
-
-
-def compute_local_twist_transmission_probe_forces(
+def compute_root_torque_segment_couples_forces(
     positions_m: np.ndarray,
     flagella_indices: list[np.ndarray],
     body_indices: np.ndarray,
     torque_per_flag: np.ndarray,
     segment_weights: list[np.ndarray],
 ) -> tuple[np.ndarray, MotorForceDiagnostics]:
-    """local twist state に基づいて軸方向 torque 伝搬を近似する実験用 force。"""
-
-    forces = np.zeros_like(positions_m)
-    if len(flagella_indices) == 0:
-        return forces, MotorForceDiagnostics()
-
-    degenerate_count = 0
-    valid_count = 0
-    flag_torque_sum = 0.0
-    body_torque_sum = 0.0
-    flag_force_sum = 0.0
-    body_force_sum = 0.0
-    body_idx = body_indices.astype(int, copy=False)
-
-    for f_id, flag_idx_raw in enumerate(flagella_indices):
-        if f_id >= torque_per_flag.shape[0]:
-            break
-        tau = float(torque_per_flag[f_id])
-        if abs(tau) <= 0.0:
-            continue
-
-        flag_idx = flag_idx_raw.astype(int, copy=False)
-        if flag_idx.size < 5 or body_idx.size < 3:
-            degenerate_count += 1
-            continue
-
-        flag_pts = positions_m[flag_idx]
-        origin = flag_pts[0]
-        centered = flag_pts - np.mean(flag_pts, axis=0)
-        _, _, vh = np.linalg.svd(centered, full_matrices=False)
-        axis = vh[0]
-        axis_norm = float(np.linalg.norm(axis))
-        if axis_norm <= 1e-18:
-            degenerate_count += 1
-            continue
-        axis = axis / axis_norm
-        if float(np.dot(axis, flag_pts[-1] - flag_pts[0])) < 0.0:
-            axis = -axis
-
-        rel = flag_pts - origin
-        radial = rel - np.outer(rel @ axis, axis)
-        drive = np.cross(axis, radial)
-        drive_norm = np.linalg.norm(drive, axis=1)
-        if float(np.max(drive_norm)) <= 1e-30:
-            degenerate_count += 1
-            continue
-
-        seg_count = max(flag_idx.size - 1, 1)
-        if f_id < len(segment_weights):
-            seg_w = np.asarray(segment_weights[f_id], dtype=float)
-        else:
-            seg_w = np.ones((seg_count,), dtype=float)
-        if seg_w.shape[0] != seg_count:
-            seg_w = np.resize(seg_w, (seg_count,))
-        seg_w = np.maximum(seg_w, 0.0)
-        if float(np.max(seg_w)) <= 1e-12:
-            seg_w = np.ones((seg_count,), dtype=float)
-        seg_w = seg_w / max(float(np.max(seg_w)), 1e-12)
-
-        bead_w = np.zeros((flag_idx.size,), dtype=float)
-        bead_w[0] = seg_w[0]
-        bead_w[-1] = seg_w[-1]
-        if bead_w.size > 2:
-            bead_w[1:-1] = 0.5 * (seg_w[:-1] + seg_w[1:])
-        # Keep a small floor so partially reached regions still participate weakly.
-        bead_w = 0.10 + 0.90 * bead_w
-
-        weighted_drive = drive * bead_w[:, None]
-        weighted_drive -= np.mean(weighted_drive, axis=0, keepdims=True)
-
-        torque_unit = float(np.sum(np.cross(radial, weighted_drive) @ axis))
-        if abs(torque_unit) <= 1e-30:
-            degenerate_count += 1
-            continue
-        coeff = tau / torque_unit
-        local_flag_forces = coeff * weighted_drive
-        flag_forces = np.zeros_like(positions_m)
-        flag_forces[flag_idx] += local_flag_forces
-        flag_torque = abs(float(np.sum(np.cross(radial, local_flag_forces) @ axis)))
-        flag_force = float(np.mean(np.linalg.norm(local_flag_forces, axis=1)))
-
-        body_forces, body_degenerate, body_torque, body_force = (
-            _zero_net_force_torque_drive(
-                positions_m=positions_m,
-                indices=body_idx,
-                origin=origin,
-                axis=axis,
-                target_torque_Nm=-tau,
-            )
-        )
-        if body_degenerate:
-            degenerate_count += body_degenerate
-            continue
-
-        forces += flag_forces + body_forces
-        valid_count += 1
-        flag_torque_sum += flag_torque
-        body_torque_sum += body_torque
-        flag_force_sum += flag_force
-        body_force_sum += body_force
-
-    inv = 1.0 / max(valid_count, 1)
-    return forces, MotorForceDiagnostics(
-        degenerate_axis_count=degenerate_count,
-        Ta_norm_mean=(flag_torque_sum * inv if valid_count > 0 else float("nan")),
-        Tb_norm_mean=(body_torque_sum * inv if valid_count > 0 else float("nan")),
-        Fa_norm_mean=(flag_force_sum * inv if valid_count > 0 else float("nan")),
-        Fb_norm_mean=(body_force_sum * inv if valid_count > 0 else float("nan")),
-    )
-
-
-def compute_material_twist_local_couple_forces(
-    positions_m: np.ndarray,
-    flagella_indices: list[np.ndarray],
-    body_indices: np.ndarray,
-    torque_per_flag: np.ndarray,
-    segment_weights: list[np.ndarray],
-) -> tuple[np.ndarray, MotorForceDiagnostics]:
-    """segment twist state を隣接bead対の局所force coupleへ変換する。
-
-    `local_twist_transmission_probe` は activity をflagellum beads全体の接線force
-    重みとして使う。こちらは各segmentの隣接bead対に作用反作用のforce couple
-    を置き、離れたbeadへ一括でforceを入れない。
-    """
+    """root torque を segment ごとの local force couple として分配する。"""
 
     forces = np.zeros_like(positions_m)
     if len(flagella_indices) == 0:

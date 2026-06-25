@@ -1,0 +1,41 @@
+{
+  "status": "PASS",
+  "summary": "Issue #88 として motor.force_distribution の正式名を triplet / root_torque_segment_couples / root_torque_axis_projection に整理した。旧 material_twist_local_couple / distributed_flagellum は deprecated alias として新名へ正規化し、axial_torque_flux_probe / local_twist_transmission_probe は実行 mode から削除した。設定、代表条件スクリプト、テスト、主要 Phase 2 docs に新命名を反映した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "過去の実験履歴やADR本文には旧名・probe名が履歴として残る。現行コードでの読み替えは docs/phase2/phase2_current.md と関連ADRの Naming Update に記録した。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run ruff format scripts/01_simulate_swimming/run_phase2_6_torque_model_evaluation.py src/sim_swim/dynamics/engine.py src/sim_swim/dynamics/forces.py src/sim_swim/sim/params.py tests/test_flagella_count_behavior_dataset.py tests/test_motor_forces.py tests/test_params.py tests/test_phase2_6_torque_model_evaluation.py tests/test_run_state_fixed.py",
+      "result": "PASS: 9 files left unchanged"
+    },
+    {
+      "command": "uv run pytest tests/test_params.py tests/test_motor_forces.py tests/test_run_state_fixed.py tests/test_phase2_6_torque_model_evaluation.py tests/test_flagella_count_behavior_dataset.py -q",
+      "result": "PASS: 92 passed in 74.71s"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS: 71 files already formatted"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS: All checks passed"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS: 259 passed in 98.84s"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "新しい motor force model や出力形式を追加せず、既存モデルの命名整理と probe mode 削除を行ったため。既存ADRには Naming Update を追記した。",
+  "commit_type": "complete",
+  "commit_hash": "034219e",
+  "push_status": "not_pushed",
+  "pull_request_url": "",
+  "next_actions": []
+}

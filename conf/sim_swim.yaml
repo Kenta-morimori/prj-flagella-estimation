@@ -34,13 +34,14 @@ fluid:
 motor:
   torque_Nm: 2.5e-20      # [N*m] Phase 2代表条件のモータートルク(Torque, T)．-1のときはτ=1になるよう「η * b^3」と定義する．
   # motor torque をbead forceへ変換する方式。
-  # - material_twist_local_couple: 既定値。segment軸まわりのorientation activityを隣接bead対の局所force coupleへ変換する。
+  # - root_torque_segment_couples: 既定値。root torqueをsegmentごとのlocal force coupleとして分配する。
+  #   旧名 material_twist_local_couple は deprecated alias。
   #   P2-6-008で単一べん毛の螺旋形状維持とnet回転を確認したmode。
   # - triplet: 従来方式。attach-first-second の局所3点へ力カップルを入れる。root近傍の診断baselineとして残す。
-  # - distributed_flagellum: 診断用。flagellum全体へ主軸まわりdriveを分布し、torqueが届いた場合のupper-boundを見る。
-  # - axial_torque_flux_probe: 診断用。root起点の主軸まわり接線forceをroot側強め・先端側弱めに分布する。
-  # - local_twist_transmission_probe: 診断用。orientation activityをflagellum beads全体の接線force重みに使う。
-  force_distribution: "material_twist_local_couple"
+  # - root_torque_axis_projection: root torqueをflagellum軸まわりのzero-net-force接線力場として分配する。
+  #   旧名 distributed_flagellum は deprecated alias。
+  # 削除済み probe mode: axial_torque_flux_probe, local_twist_transmission_probe。
+  force_distribution: "root_torque_segment_couples"
   reverse_n_flagella: 1        # [-] tumble で反転するべん毛本数
   enable_switching: false      # false: run固定（多形切替なし）
   local_hook_scale: 1.0        # [-] 1.0が論文モデル相当。変更時は診断条件としてwarningを出す
