@@ -1,10 +1,11 @@
 {
   "status": "PASS",
-  "summary": "Issue #82 として hook過伸長対策の局所補強候補を実装した。body attach bead とべん毛第1ビーズの距離補強，attach->first とbody長軸の90度補強，べん毛第1-第2ビーズ距離補強を個別scaleとして追加した。body長軸90度補強は既存 hook_triplets=(attach, first, second) の三点角度拘束とは別物として実装・テストした。追加検証用に body-first 距離・body軸90度補正の grid sweep と，第1-第2ビーズ距離補正追加 sweep，heatmap出力CLIを追加した。",
+  "summary": "Issue #82 として hook過伸長対策の局所補強候補を実装した。body attach bead とべん毛第1ビーズの距離補強，attach->first とbody長軸の90度補強，べん毛第1-第2ビーズ距離補強を個別scaleとして追加した。body長軸90度補強は既存 hook_triplets=(attach, first, second) の三点角度拘束とは別物として実装・テストした。追加検証用に body-first 距離・body軸90度補正の grid sweep と，第1-第2ビーズ距離補正追加 sweep，heatmap出力CLIを追加した。2026-06-26 に Stage 2 結果 `outputs/phase2_82/first_second_grid_af3_axis1p25` を分析し，heatmap入力CSV欠損時のエラー表示と docs の Stage 2 コマンドを修正した。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "n_flagella=3, duration_s=0.5 のフル代表 sweep は既存 segment repulsion 計算が重く，ローカル実行を中断した。軽量代表として n_flagella=1, duration_s=0.02 の全候補 sweep を実行した。",
-    "強い combined scale 4.0 は hook fail したため，新scaleは標準defaultへ昇格せず，診断用 extension として扱う。"
+    "強い combined scale 4.0 は hook fail したため，新scaleは標準defaultへ昇格せず，診断用 extension として扱う。",
+    "`af=3, axis=1.25` 固定の Stage 2 では `first_second_spring_scale=1.25` 以上で初回破綻時刻が約 0.227 s へ延びたが，全5条件は `hook` fail のままで，pass 条件は得られていない。"
   ],
   "tests_reviewed": [
     {
@@ -50,6 +51,30 @@
     {
       "command": "uv run python scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py --summary-csv /private/tmp/phase2_82_body_first_smoke/phase2_82_hook_scale_sweep_summary.csv --mode body-first-grid --output-dir /private/tmp/phase2_82_body_first_smoke/plots",
       "result": "PASS: normalized CSV と heatmap PNG を生成"
+    },
+    {
+      "command": "uv run pytest tests/test_phase2_82_hook_overstretch_heatmap.py tests/test_phase2_82_hook_overstretch_sweep.py -q",
+      "result": "PASS: 5 passed in 1.88s"
+    },
+    {
+      "command": "uv run ruff check scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py tests/test_phase2_82_hook_overstretch_heatmap.py",
+      "result": "PASS: All checks passed"
+    },
+    {
+      "command": "uv run ruff format --check scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py tests/test_phase2_82_hook_overstretch_heatmap.py",
+      "result": "PASS: 2 files already formatted"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py --summary-csv outputs/phase2_82/first_second_grid/phase2_82_hook_scale_sweep_summary.csv --mode first-second-grid --output-dir /private/tmp/phase2_82_missing_plots",
+      "result": "PASS: missing summary CSV を traceback ではなく候補CSV付きの SystemExit message として表示"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py --summary-csv outputs/phase2_82/first_second_grid_af3_axis1p25/phase2_82_hook_scale_sweep_summary.csv --mode first-second-grid --output-dir outputs/phase2_82/first_second_grid_af3_axis1p25/plots",
+      "result": "PASS: normalized CSV と heatmap PNG を生成"
+    },
+    {
+      "command": "git commit -m \"Improve phase2 hook heatmap diagnostics\"",
+      "result": "PASS: pre-commit hooks passed; uv run ruff format --check .; uv run ruff check .; uv run pytest -q -> 267 passed in 82.40s"
     }
   ],
   "user_review_required": false,
@@ -59,11 +84,12 @@
   "adr_required": false,
   "adr_reason": "標準default物理モデルを変更せず，非default時のみ有効な診断用局所補強scaleと比較CLIを追加したため。今後，補強条件をPhase 2代表defaultへ昇格する場合はADRを検討する。",
   "commit_type": "complete",
-  "commit_hash": "b3880c5",
+  "commit_hash": "955070f",
   "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/90",
   "next_actions": [
     "必要に応じて n_flagella=3, duration_s=0.5 の代表 sweep を実行できるよう，segment repulsion 計算の軽量化または条件数削減を検討する。",
-    "Phase 2.8 dataset条件へ新scaleを入れる場合は，default昇格ではなく明示overrideとして別タスクで評価する。"
+    "Phase 2.8 dataset条件へ新scaleを入れる場合は，default昇格ではなく明示overrideとして別タスクで評価する。",
+    "Stage 2 でも hook pass は得られないため，hook gate，attach geometry，または局所補強以外の force 設計を別タスクで再検討する。"
   ]
 }
