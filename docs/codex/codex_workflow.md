@@ -88,7 +88,7 @@ Rules:
 * Send the final user report only after the final task state has been committed and pushed when remote access is available.
 * Create a PR after pushing a feature branch when GitHub remote access is available.
 * Link the PR to the original source issue in the PR body. Use `Closes #<issue>` / `Fixes #<issue>` only when the PR is intended to complete that issue.
-* Target the branch specified by the task or issue. If a requested target branch such as `development` is absent on the remote, target the repository default branch and record that reason in the PR or review result.
+* Target the branch specified by the task or issue. If no target branch is specified, target the repository default branch.
 * Do not merge PRs.
 * Do not create GitHub issues unless explicitly requested.
 

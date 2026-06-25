@@ -648,17 +648,31 @@
   - 同条件で `hook_len_rel_err_max` は baseline の `0.4676` から `0.2210` へ下がり，`shape_pass_nonbody=True` を維持した。
   - 強い combined scale `4.0` は hook fail したため，補強scaleは標準defaultへ昇格せず，診断用 extension として残す。
   - `n_flagella=3`, `duration_s=0.5` のフル代表 sweep は既存 segment repulsion 計算が重く，ローカル実行では中断した。
+  - 2026-06-25追補として，実行条件を `body-first-grid` と `first-second-grid` に分け，body-first 距離・body軸90度補正を先に評価し，必要な場合だけ第1-第2ビーズ距離補正を追加評価できるようにした。
+  - `plot_phase2_82_hook_overstretch_heatmap.py` を追加し，破綻カテゴリ，shape pass/fail，hook距離誤差，body-first距離誤差，body軸90度誤差，第1-第2ビーズ距離誤差を heatmap 化できるようにした。
 - acceptance criteria:
   - [x] 3つの新scaleが config override で個別に指定できる。
   - [x] body長軸90度補強が既存 hook三点角度拘束と混同されない形で実装・テストされる。
   - [x] Issue #82 用 sweep CLI が baseline と局所補強候補を比較し，`step_summary.csv` の hook距離・body軸角度・螺旋回転指標を summary に集約できる。
   - [x] 短時間代表条件で hook過伸長の改善有無を記録する。
+  - [x] body-first 距離・body軸90度補正の grid sweep と heatmap 出力ができる。
+  - [x] 第1-第2ビーズ距離補正追加時の sweep と heatmap 出力ができる。
 - verification:
   - `uv run pytest tests/test_params.py tests/test_motor_forces.py tests/test_simulation.py`
   - `uv run ruff check src/sim_swim/dynamics src/sim_swim/sim scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_params.py tests/test_motor_forces.py tests/test_simulation.py`
   - `uv run ruff format --check src/sim_swim/dynamics src/sim_swim/sim scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_params.py tests/test_motor_forces.py tests/test_simulation.py`
   - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --dry-run --sample-limit 3`
   - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --duration-s 0.02 --n-flagella 1 --overwrite --progress-interval 5000`
+  - `uv run pytest tests/test_phase2_82_hook_overstretch_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py`
+- user-run commands:
+  - Stage 1 body-first grid:
+    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode body-first-grid --duration-s 0.5 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --attach-first-spring-scales 1,1.25,1.5,2,3 --body-axis-angle-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_82/body_first_grid --overwrite --progress-interval 5000`
+  - Stage 1 heatmap:
+    `uv run python scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py --summary-csv outputs/phase2_82/body_first_grid/phase2_82_hook_scale_sweep_summary.csv --mode body-first-grid --output-dir outputs/phase2_82/body_first_grid/plots`
+  - Stage 2 first-second grid:
+    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.5 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 2 --fixed-body-axis-angle-scale 2 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_82/first_second_grid --overwrite --progress-interval 5000`
+  - Stage 2 heatmap:
+    `uv run python scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py --summary-csv outputs/phase2_82/first_second_grid/phase2_82_hook_scale_sweep_summary.csv --mode first-second-grid --output-dir outputs/phase2_82/first_second_grid/plots`
 - docs:
   - `docs/phase2/phase2_current.md`
   - `docs/phase2/phase2_tasks.md`

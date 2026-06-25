@@ -22,6 +22,7 @@ from sim_swim.sim.params import SimulationConfig
 
 SUMMARY_FIELDS = (
     "condition_id",
+    "mode",
     "description",
     "output_dir",
     "duration_s",
@@ -50,29 +51,34 @@ SUMMARY_FIELDS = (
 @dataclass(frozen=True)
 class Condition:
     condition_id: str
+    mode: str
     description: str
     scales: dict[str, float]
 
 
 CONDITIONS = (
-    Condition("baseline", "no extra local mitigation", {}),
+    Condition("baseline", "preset", "no extra local mitigation", {}),
     Condition(
         "attach_first_spring_2",
+        "preset",
         "strengthen body attach to first bead distance",
         {"local_attach_first_spring_scale": 2.0},
     ),
     Condition(
         "body_axis_angle_2",
+        "preset",
         "keep attach-first perpendicular to body long axis",
         {"local_attach_first_body_axis_angle_scale": 2.0},
     ),
     Condition(
         "first_second_spring_2",
+        "preset",
         "strengthen first to second bead distance",
         {"local_first_second_spring_scale": 2.0},
     ),
     Condition(
         "attach_angle_2",
+        "preset",
         "combine attach-first distance and body-axis 90 degree mitigation",
         {
             "local_attach_first_spring_scale": 2.0,
@@ -81,6 +87,7 @@ CONDITIONS = (
     ),
     Condition(
         "attach_angle_first_second_2",
+        "preset",
         "combine all Issue #82 local mitigations",
         {
             "local_attach_first_spring_scale": 2.0,
@@ -90,6 +97,7 @@ CONDITIONS = (
     ),
     Condition(
         "attach_angle_first_second_4",
+        "preset",
         "strong combined local mitigation",
         {
             "local_attach_first_spring_scale": 4.0,
@@ -117,6 +125,75 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 def _read_step_rows(path: Path) -> list[dict[str, str]]:
     with path.open("r", encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def _parse_float_values(text: str) -> list[float]:
+    values = [float(item.strip()) for item in text.split(",") if item.strip()]
+    if not values:
+        raise argparse.ArgumentTypeError("at least one float value is required")
+    return values
+
+
+def _format_scale(value: float) -> str:
+    return f"{value:g}".replace(".", "p").replace("-", "m")
+
+
+def build_conditions(args: argparse.Namespace) -> tuple[Condition, ...]:
+    if args.mode == "preset":
+        return CONDITIONS
+
+    conditions: list[Condition] = []
+    if args.mode == "body-first-grid":
+        first_second_scale = float(args.fixed_first_second_spring_scale)
+        for attach_scale in args.attach_first_spring_scales:
+            for angle_scale in args.body_axis_angle_scales:
+                condition_id = (
+                    f"af{_format_scale(attach_scale)}"
+                    f"_axis{_format_scale(angle_scale)}"
+                    f"_fs{_format_scale(first_second_scale)}"
+                )
+                conditions.append(
+                    Condition(
+                        condition_id=condition_id,
+                        mode=args.mode,
+                        description=(
+                            "body-first distance and body-axis 90 degree grid"
+                        ),
+                        scales={
+                            "local_attach_first_spring_scale": float(attach_scale),
+                            "local_attach_first_body_axis_angle_scale": float(
+                                angle_scale
+                            ),
+                            "local_first_second_spring_scale": first_second_scale,
+                        },
+                    )
+                )
+        return tuple(conditions)
+
+    if args.mode == "first-second-grid":
+        attach_scale = float(args.fixed_attach_first_spring_scale)
+        angle_scale = float(args.fixed_body_axis_angle_scale)
+        for first_second_scale in args.first_second_spring_scales:
+            condition_id = (
+                f"af{_format_scale(attach_scale)}"
+                f"_axis{_format_scale(angle_scale)}"
+                f"_fs{_format_scale(first_second_scale)}"
+            )
+            conditions.append(
+                Condition(
+                    condition_id=condition_id,
+                    mode=args.mode,
+                    description="first-second distance grid after body-first fix",
+                    scales={
+                        "local_attach_first_spring_scale": attach_scale,
+                        "local_attach_first_body_axis_angle_scale": angle_scale,
+                        "local_first_second_spring_scale": float(first_second_scale),
+                    },
+                )
+            )
+        return tuple(conditions)
+
+    raise ValueError(f"Unsupported mode: {args.mode}")
 
 
 def _overrides_for_condition(
@@ -152,6 +229,7 @@ def _summary_row(
 ) -> dict[str, str | float]:
     row: dict[str, str | float] = {
         "condition_id": condition.condition_id,
+        "mode": condition.mode,
         "description": condition.description,
         "output_dir": str(output_dir),
         "duration_s": cfg.time.duration_s,
@@ -204,6 +282,12 @@ def _run_condition(
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--mode",
+        choices=("preset", "body-first-grid", "first-second-grid"),
+        default="preset",
+        help="Condition generation mode.",
+    )
     parser.add_argument("--config", type=Path, default=Path("conf/sim_swim.yaml"))
     parser.add_argument("--output-dir", type=Path, default=_default_output_dir())
     parser.add_argument("--duration-s", type=float, default=0.5)
@@ -212,6 +296,27 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--n-flagella", type=int, default=3)
     parser.add_argument("--attach-seed", type=int, default=0)
     parser.add_argument("--phase-seed", type=int, default=0)
+    parser.add_argument(
+        "--attach-first-spring-scales",
+        type=_parse_float_values,
+        default=_parse_float_values("1,1.25,1.5,2,3"),
+        help="Comma-separated scale values for --mode body-first-grid.",
+    )
+    parser.add_argument(
+        "--body-axis-angle-scales",
+        type=_parse_float_values,
+        default=_parse_float_values("1,1.25,1.5,2,3"),
+        help="Comma-separated scale values for --mode body-first-grid.",
+    )
+    parser.add_argument(
+        "--first-second-spring-scales",
+        type=_parse_float_values,
+        default=_parse_float_values("1,1.25,1.5,2,3"),
+        help="Comma-separated scale values for --mode first-second-grid.",
+    )
+    parser.add_argument("--fixed-attach-first-spring-scale", type=float, default=2.0)
+    parser.add_argument("--fixed-body-axis-angle-scale", type=float, default=2.0)
+    parser.add_argument("--fixed-first-second-spring-scale", type=float, default=1.0)
     parser.add_argument("--sample-limit", type=int, default=None)
     parser.add_argument("--progress-interval", type=int, default=1000)
     parser.add_argument("--overwrite", action="store_true")
@@ -222,14 +327,17 @@ def _parse_args() -> argparse.Namespace:
 def main() -> None:
     args = _parse_args()
     base_cfg = _load_yaml(args.config)
-    conditions = CONDITIONS[: args.sample_limit] if args.sample_limit else CONDITIONS
-    args.output_dir.mkdir(parents=True, exist_ok=args.overwrite)
+    all_conditions = build_conditions(args)
+    conditions = (
+        all_conditions[: args.sample_limit] if args.sample_limit else all_conditions
+    )
 
     if args.dry_run:
         for condition in conditions:
             print(condition.condition_id)
         return
 
+    args.output_dir.mkdir(parents=True, exist_ok=args.overwrite)
     rows = [_run_condition(base_cfg, args, condition) for condition in conditions]
     summary_path = args.output_dir / "phase2_82_hook_scale_sweep_summary.csv"
     with summary_path.open("w", encoding="utf-8", newline="") as handle:

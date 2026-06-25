@@ -1,11 +1,10 @@
 {
   "status": "PASS",
-  "summary": "Issue #82 として hook過伸長対策の局所補強候補を実装した。body attach bead とべん毛第1ビーズの距離補強，attach->first とbody長軸の90度補強，べん毛第1-第2ビーズ距離補強を個別scaleとして追加した。body長軸90度補強は既存 hook_triplets=(attach, first, second) の三点角度拘束とは別物として実装・テストした。Issue #82 用 sweep CLI は hook距離，body軸角度，螺旋回転summaryを集約できる。",
+  "summary": "Issue #82 として hook過伸長対策の局所補強候補を実装した。body attach bead とべん毛第1ビーズの距離補強，attach->first とbody長軸の90度補強，べん毛第1-第2ビーズ距離補強を個別scaleとして追加した。body長軸90度補強は既存 hook_triplets=(attach, first, second) の三点角度拘束とは別物として実装・テストした。追加検証用に body-first 距離・body軸90度補正の grid sweep と，第1-第2ビーズ距離補正追加 sweep，heatmap出力CLIを追加した。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "n_flagella=3, duration_s=0.5 のフル代表 sweep は既存 segment repulsion 計算が重く，ローカル実行を中断した。軽量代表として n_flagella=1, duration_s=0.02 の全候補 sweep を実行した。",
-    "強い combined scale 4.0 は hook fail したため，新scaleは標準defaultへ昇格せず，診断用 extension として扱う。",
-    "ユーザー指定のPR target branch `development` は remote に存在しないため，PR #90 は repository default branch `main` をbaseとして作成した。"
+    "強い combined scale 4.0 は hook fail したため，新scaleは標準defaultへ昇格せず，診断用 extension として扱う。"
   ],
   "tests_reviewed": [
     {
@@ -31,6 +30,26 @@
     {
       "command": "uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --overwrite --progress-interval 5000",
       "result": "INTERRUPTED: n_flagella=3, duration_s=0.5 の既定代表 sweep は既存 segment repulsion 計算が重く中断。"
+    },
+    {
+      "command": "uv run pytest tests/test_phase2_82_hook_overstretch_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py -q",
+      "result": "PASS: 4 passed"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode body-first-grid --dry-run --sample-limit 4",
+      "result": "PASS: body-first grid condition ids を出力"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --dry-run --sample-limit 3",
+      "result": "PASS: first-second grid condition ids を出力"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode body-first-grid --duration-s 0.002 --n-flagella 1 --sample-limit 4 --output-dir /private/tmp/phase2_82_body_first_smoke --overwrite --progress-interval 5000",
+      "result": "PASS: /private/tmp/phase2_82_body_first_smoke/phase2_82_hook_scale_sweep_summary.csv を生成"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py --summary-csv /private/tmp/phase2_82_body_first_smoke/phase2_82_hook_scale_sweep_summary.csv --mode body-first-grid --output-dir /private/tmp/phase2_82_body_first_smoke/plots",
+      "result": "PASS: normalized CSV と heatmap PNG を生成"
     }
   ],
   "user_review_required": false,

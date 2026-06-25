@@ -60,7 +60,7 @@ There is no `prompts/` source of truth in the current repository. Do not recreat
 * Do not create GitHub issues unless explicitly requested.
 * Do not merge pull requests.
 * When creating a PR for an issue, link the original source issue in the PR body using an issue-closing keyword when the PR is intended to complete it.
-* Target the branch specified by the task or issue. If a requested target branch such as `development` does not exist, target the repository default branch and record the reason.
+* Target the branch specified by the task or issue. If no target branch is specified, target the repository default branch.
 * Do not mark a task complete without a local `review_result.json` with `"status": "PASS"`.
 
 ## Directory Responsibilities
