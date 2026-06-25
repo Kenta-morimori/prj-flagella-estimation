@@ -420,6 +420,15 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
         "flag_helix_bundle_radius_max_um",
         "local_attach_first_rel_err",
         "local_first_second_rel_err",
+        "hook_len_rel_err_max_flag_id",
+        "hook_len_rel_err_max_attach_body_bead_index",
+        "hook_len_rel_err_max_flag_first_bead_index",
+        "hook_len_rel_err_max_len_over_b",
+        "hook_len_rel_err_per_flag",
+        "local_attach_first_rel_err_per_flag",
+        "local_first_second_rel_err_per_flag",
+        "local_attach_first_vs_body_axis_angle_deg_per_flag",
+        "local_attach_first_vs_body_axis_err_deg_per_flag",
         "local_second_third_rel_err",
         "local_basal_bend_err_deg",
         "local_first_torsion_err_deg",
@@ -441,6 +450,12 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
     assert np.isfinite(float(first["flag_helix_axis_vs_rear_angle_deg_mean"]))
     assert np.isfinite(float(first_axis["flag_helix_axis_fit_r2"]))
     assert int(first["flag_flag_helix_close_pair_count"]) >= 0
+    assert len(first["hook_len_rel_err_per_flag"].split("|")) == cfg.flagella.n_flagella
+    assert (
+        len(first["local_first_second_rel_err_per_flag"].split("|"))
+        == cfg.flagella.n_flagella
+    )
+    assert int(first["hook_len_rel_err_max_flag_id"]) in range(cfg.flagella.n_flagella)
 
 
 def test_run_writes_initial_geometry_summary_json(tmp_path: Path) -> None:

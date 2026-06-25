@@ -7,6 +7,7 @@ import argparse
 import csv
 from dataclasses import dataclass
 from datetime import datetime
+import math
 from pathlib import Path
 import sys
 from typing import Any
@@ -40,6 +41,25 @@ SUMMARY_FIELDS = (
     "local_first_second_rel_err",
     "local_attach_first_vs_body_axis_angle_deg",
     "local_attach_first_vs_body_axis_err_deg",
+    "hook_len_rel_err_max_flag_id",
+    "hook_len_rel_err_max_attach_body_bead_index",
+    "hook_len_rel_err_max_flag_first_bead_index",
+    "hook_len_rel_err_max_len_over_b",
+    "hook_len_rel_err_per_flag",
+    "local_attach_first_rel_err_per_flag",
+    "local_first_second_rel_err_per_flag",
+    "local_attach_first_vs_body_axis_err_deg_per_flag",
+    "first_fail_t_s",
+    "first_fail_hook_len_rel_err_max",
+    "first_fail_hook_len_rel_err_max_flag_id",
+    "first_fail_local_attach_first_rel_err",
+    "first_fail_local_first_second_rel_err",
+    "max_hook_len_rel_err_t_s",
+    "max_hook_len_rel_err",
+    "max_hook_len_rel_err_flag_id",
+    "max_hook_len_rel_err_attach_body_bead_index",
+    "max_hook_len_rel_err_flag_first_bead_index",
+    "max_hook_len_rel_err_len_over_b",
     "flag_bond_rel_err_max",
     "flag_bend_err_max_deg",
     "flag_torsion_err_max_deg",
@@ -125,6 +145,39 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 def _read_step_rows(path: Path) -> list[dict[str, str]]:
     with path.open("r", encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def _parse_bool(value: str | bool | None) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _parse_float(value: str | float | None) -> float:
+    try:
+        return float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return float("nan")
+
+
+def _first_fail_row(rows: list[dict[str, str]]) -> dict[str, str] | None:
+    for row in rows[1:]:
+        if not _parse_bool(row.get("shape_pass_nonbody")):
+            return row
+    return None
+
+
+def _max_hook_row(rows: list[dict[str, str]]) -> dict[str, str] | None:
+    finite_rows = [
+        row
+        for row in rows
+        if math.isfinite(_parse_float(row.get("hook_len_rel_err_max")))
+    ]
+    if not finite_rows:
+        return None
+    return max(
+        finite_rows, key=lambda row: _parse_float(row.get("hook_len_rel_err_max"))
+    )
 
 
 def _parse_float_values(text: str) -> list[float]:
@@ -225,8 +278,11 @@ def _summary_row(
     condition: Condition,
     output_dir: Path,
     last: dict[str, str],
+    rows: list[dict[str, str]],
     helix_summary: dict[str, bool | int | float | str],
 ) -> dict[str, str | float]:
+    first_fail = _first_fail_row(rows)
+    max_hook = _max_hook_row(rows)
     row: dict[str, str | float] = {
         "condition_id": condition.condition_id,
         "mode": condition.mode,
@@ -241,6 +297,47 @@ def _summary_row(
             cfg.motor.local_attach_first_body_axis_angle_scale
         ),
         "local_first_second_spring_scale": cfg.motor.local_first_second_spring_scale,
+        "first_fail_t_s": "" if first_fail is None else first_fail.get("t_s", ""),
+        "first_fail_hook_len_rel_err_max": (
+            "" if first_fail is None else first_fail.get("hook_len_rel_err_max", "")
+        ),
+        "first_fail_hook_len_rel_err_max_flag_id": (
+            ""
+            if first_fail is None
+            else first_fail.get("hook_len_rel_err_max_flag_id", "")
+        ),
+        "first_fail_local_attach_first_rel_err": (
+            ""
+            if first_fail is None
+            else first_fail.get("local_attach_first_rel_err", "")
+        ),
+        "first_fail_local_first_second_rel_err": (
+            ""
+            if first_fail is None
+            else first_fail.get("local_first_second_rel_err", "")
+        ),
+        "max_hook_len_rel_err_t_s": "" if max_hook is None else max_hook.get("t_s", ""),
+        "max_hook_len_rel_err": (
+            "" if max_hook is None else max_hook.get("hook_len_rel_err_max", "")
+        ),
+        "max_hook_len_rel_err_flag_id": (
+            "" if max_hook is None else max_hook.get("hook_len_rel_err_max_flag_id", "")
+        ),
+        "max_hook_len_rel_err_attach_body_bead_index": (
+            ""
+            if max_hook is None
+            else max_hook.get("hook_len_rel_err_max_attach_body_bead_index", "")
+        ),
+        "max_hook_len_rel_err_flag_first_bead_index": (
+            ""
+            if max_hook is None
+            else max_hook.get("hook_len_rel_err_max_flag_first_bead_index", "")
+        ),
+        "max_hook_len_rel_err_len_over_b": (
+            ""
+            if max_hook is None
+            else max_hook.get("hook_len_rel_err_max_len_over_b", "")
+        ),
     }
     for field in SUMMARY_FIELDS:
         if field in row:
@@ -277,7 +374,7 @@ def _run_condition(
     if not rows:
         raise RuntimeError(f"No rows found in {step_summary_path}")
     last = rows[-1]
-    return _summary_row(cfg, condition, condition_dir, last, helix_summary)
+    return _summary_row(cfg, condition, condition_dir, last, rows, helix_summary)
 
 
 def _parse_args() -> argparse.Namespace:

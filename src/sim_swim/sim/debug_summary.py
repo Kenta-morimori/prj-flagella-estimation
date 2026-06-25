@@ -60,6 +60,15 @@ STEP_SUMMARY_COLUMNS = [
     "hook_len_max_over_b",
     "hook_len_rel_err_mean",
     "hook_len_rel_err_max",
+    "hook_len_rel_err_max_flag_id",
+    "hook_len_rel_err_max_attach_body_bead_index",
+    "hook_len_rel_err_max_flag_first_bead_index",
+    "hook_len_rel_err_max_len_over_b",
+    "hook_len_rel_err_per_flag",
+    "local_attach_first_rel_err_per_flag",
+    "local_first_second_rel_err_per_flag",
+    "local_attach_first_vs_body_axis_angle_deg_per_flag",
+    "local_attach_first_vs_body_axis_err_deg_per_flag",
     "hook_angle_mean_deg",
     "hook_angle_min_deg",
     "hook_angle_max_deg",
@@ -574,6 +583,100 @@ def _attach_first_body_axis_metrics(
         "local_attach_first_vs_body_axis_angle_deg": float(np.mean(arr)),
         "local_attach_first_vs_body_axis_err_deg": float(np.max(np.abs(arr - 90.0))),
     }
+
+
+def _format_flag_metric(values: list[tuple[int, float]]) -> str:
+    return "|".join(f"{int(flag_id)}:{float(value):.12g}" for flag_id, value in values)
+
+
+def _hook_link_diagnostics(
+    positions_m: np.ndarray,
+    model: SimModel,
+    spring_pairs: np.ndarray,
+    spring_rests_m: np.ndarray,
+    pair_rows: dict[tuple[int, int], int],
+    body_axis: np.ndarray,
+    b_m: float,
+) -> dict[str, float | int | str]:
+    default: dict[str, float | int | str] = {
+        "hook_len_rel_err_max_flag_id": -1,
+        "hook_len_rel_err_max_attach_body_bead_index": -1,
+        "hook_len_rel_err_max_flag_first_bead_index": -1,
+        "hook_len_rel_err_max_len_over_b": float("nan"),
+        "hook_len_rel_err_per_flag": "",
+        "local_attach_first_rel_err_per_flag": "",
+        "local_first_second_rel_err_per_flag": "",
+        "local_attach_first_vs_body_axis_angle_deg_per_flag": "",
+        "local_attach_first_vs_body_axis_err_deg_per_flag": "",
+    }
+    if model.hook_triplets.size == 0:
+        return default
+
+    hook_rel_by_flag: list[tuple[int, float]] = []
+    attach_first_rel_by_flag: list[tuple[int, float]] = []
+    first_second_rel_by_flag: list[tuple[int, float]] = []
+    axis_angle_by_flag: list[tuple[int, float]] = []
+    axis_err_by_flag: list[tuple[int, float]] = []
+    max_rel = -float("inf")
+
+    def _pair_row(a: int, b: int) -> int:
+        key = (a, b) if a < b else (b, a)
+        return int(pair_rows.get(key, -1))
+
+    def _pair_metrics(row_idx: int) -> tuple[float, float]:
+        if row_idx < 0:
+            return float("nan"), float("nan")
+        i = int(spring_pairs[row_idx, 0])
+        j = int(spring_pairs[row_idx, 1])
+        rest = max(float(spring_rests_m[row_idx]), 1e-30)
+        dist = float(np.linalg.norm(positions_m[j] - positions_m[i]))
+        return (
+            float(dist / max(b_m, 1e-30)),
+            float(abs(dist - rest) / rest),
+        )
+
+    for attach_raw, first_raw, second_raw in model.hook_triplets.astype(
+        int, copy=False
+    ):
+        attach = int(attach_raw)
+        first = int(first_raw)
+        second = int(second_raw)
+        flag_id = int(model.bead_flag_ids[first])
+        attach_first_len_over_b, attach_first_rel = _pair_metrics(
+            _pair_row(attach, first)
+        )
+        _first_second_len_over_b, first_second_rel = _pair_metrics(
+            _pair_row(first, second)
+        )
+        angle = _angle_between_deg(positions_m[first] - positions_m[attach], body_axis)
+        axis_err = float(abs(angle - 90.0)) if np.isfinite(angle) else float("nan")
+
+        hook_rel_by_flag.append((flag_id, attach_first_rel))
+        attach_first_rel_by_flag.append((flag_id, attach_first_rel))
+        first_second_rel_by_flag.append((flag_id, first_second_rel))
+        axis_angle_by_flag.append((flag_id, angle))
+        axis_err_by_flag.append((flag_id, axis_err))
+        if np.isfinite(attach_first_rel) and attach_first_rel > max_rel:
+            max_rel = attach_first_rel
+            default["hook_len_rel_err_max_flag_id"] = flag_id
+            default["hook_len_rel_err_max_attach_body_bead_index"] = attach
+            default["hook_len_rel_err_max_flag_first_bead_index"] = first
+            default["hook_len_rel_err_max_len_over_b"] = attach_first_len_over_b
+
+    default["hook_len_rel_err_per_flag"] = _format_flag_metric(hook_rel_by_flag)
+    default["local_attach_first_rel_err_per_flag"] = _format_flag_metric(
+        attach_first_rel_by_flag
+    )
+    default["local_first_second_rel_err_per_flag"] = _format_flag_metric(
+        first_second_rel_by_flag
+    )
+    default["local_attach_first_vs_body_axis_angle_deg_per_flag"] = _format_flag_metric(
+        axis_angle_by_flag
+    )
+    default["local_attach_first_vs_body_axis_err_deg_per_flag"] = _format_flag_metric(
+        axis_err_by_flag
+    )
+    return default
 
 
 def _bundle_metrics(
@@ -1171,6 +1274,7 @@ class StepSummaryRecorder:
         self.last_row: dict[str, float | int | bool] | None = None
 
         pair_rows = _pair_row_lookup(self.spring_pairs)
+        self.pair_rows = pair_rows
 
         def _find_pair_row(a: int, b: int) -> int:
             key = (a, b) if a < b else (b, a)
@@ -1789,6 +1893,15 @@ class StepSummaryRecorder:
             self.model.hook_triplets,
             body_axis,
         )
+        hook_link_diagnostics = _hook_link_diagnostics(
+            pos_after,
+            self.model,
+            self.spring_pairs,
+            self.spring_rests_m,
+            self.pair_rows,
+            body_axis,
+            self.cfg.b_m,
+        )
 
         row: dict[str, float | int | bool] = {
             "step": int(step),
@@ -1833,6 +1946,7 @@ class StepSummaryRecorder:
             "hook_len_max_over_b": hook_len_max_over_b,
             "hook_len_rel_err_mean": hook_len_rel_err_mean,
             "hook_len_rel_err_max": hook_len_rel_err_max,
+            **hook_link_diagnostics,
             "hook_angle_mean_deg": hook_angle_mean_deg,
             "hook_angle_min_deg": hook_angle_min_deg,
             "hook_angle_max_deg": hook_angle_max_deg,
