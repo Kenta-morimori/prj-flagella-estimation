@@ -38,9 +38,9 @@
   "user_review_points": [],
   "adr_required": false,
   "adr_reason": "標準default物理モデルを変更せず，非default時のみ有効な診断用局所補強scaleと比較CLIを追加したため。今後，補強条件をPhase 2代表defaultへ昇格する場合はADRを検討する。",
-  "commit_type": "not_committed",
-  "commit_hash": "",
-  "push_status": "not_pushed",
+  "commit_type": "complete",
+  "commit_hash": "d33b56c",
+  "push_status": "pushed",
   "pull_request_url": "",
   "next_actions": [
     "必要に応じて n_flagella=3, duration_s=0.5 の代表 sweep を実行できるよう，segment repulsion 計算の軽量化または条件数削減を検討する。",
