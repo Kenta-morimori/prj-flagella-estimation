@@ -71,12 +71,33 @@ def _category_rank(row: dict[str, str]) -> int:
 
 
 def _load_rows(summary_csv: Path, mode: str) -> list[dict[str, str]]:
+    if not summary_csv.is_file():
+        raise FileNotFoundError(summary_csv)
     with summary_csv.open("r", encoding="utf-8", newline="") as handle:
         rows = [dict(row) for row in csv.DictReader(handle)]
     rows = [row for row in rows if row.get("mode", mode) == mode]
     if not rows:
         raise ValueError(f"No rows found for mode={mode!r} in {summary_csv}")
     return rows
+
+
+def _summary_csv_candidates(summary_csv: Path) -> list[Path]:
+    candidates: list[Path] = []
+    for root in (summary_csv.parent, summary_csv.parent.parent):
+        if not root.is_dir():
+            continue
+        candidates.extend(root.glob("phase2_82_hook_scale_sweep_summary.csv"))
+        candidates.extend(root.glob("*/phase2_82_hook_scale_sweep_summary.csv"))
+    return sorted(set(candidates))
+
+
+def _missing_summary_message(summary_csv: Path) -> str:
+    message = f"Summary CSV not found: {summary_csv}"
+    candidates = _summary_csv_candidates(summary_csv)
+    if candidates:
+        candidate_lines = "\n".join(f"  - {path}" for path in candidates)
+        message = f"{message}\nCandidate summary CSV files:\n{candidate_lines}"
+    return message
 
 
 def _axes_for_rows(
@@ -257,8 +278,12 @@ def _write_normalized_csv(rows: list[dict[str, str]], out_path: Path) -> None:
 
 def main() -> None:
     args = _parse_args()
+    try:
+        rows = _load_rows(args.summary_csv, args.mode)
+    except FileNotFoundError as exc:
+        raise SystemExit(_missing_summary_message(args.summary_csv)) from exc
+
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    rows = _load_rows(args.summary_csv, args.mode)
 
     normalized_csv = args.output_dir / "phase2_82_hook_overstretch_heatmap.csv"
     _write_normalized_csv(rows, normalized_csv)

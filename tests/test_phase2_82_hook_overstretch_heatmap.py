@@ -5,6 +5,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import pytest
+
 
 def _load_plot_script():
     script_path = (
@@ -191,3 +193,42 @@ def test_phase2_82_first_second_heatmap_outputs_files(
     assert (output_dir / "phase2_82_hook_overstretch_heatmap.csv").is_file()
     assert (output_dir / "phase2_82_first_fail_category_heatmap.png").is_file()
     assert (output_dir / "phase2_82_local_first_second_rel_err_heatmap.png").is_file()
+
+
+def test_phase2_82_heatmap_missing_summary_lists_candidates(
+    tmp_path: Path, monkeypatch
+) -> None:
+    script = _load_plot_script()
+    phase2_dir = tmp_path / "outputs" / "phase2_82"
+    candidate_dir = phase2_dir / "first_second_grid_af3_axis1p25"
+    candidate_dir.mkdir(parents=True)
+    candidate_csv = candidate_dir / "phase2_82_hook_scale_sweep_summary.csv"
+    candidate_csv.write_text(
+        "condition_id,mode,final_shape_pass_nonbody\n",
+        encoding="utf-8",
+    )
+    output_dir = phase2_dir / "first_second_grid" / "plots"
+    missing_csv = (
+        phase2_dir / "first_second_grid" / "phase2_82_hook_scale_sweep_summary.csv"
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "plot_phase2_82_hook_overstretch_heatmap",
+            "--summary-csv",
+            str(missing_csv),
+            "--mode",
+            "first-second-grid",
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+
+    with pytest.raises(SystemExit) as excinfo:
+        script.main()
+
+    message = str(excinfo.value)
+    assert f"Summary CSV not found: {missing_csv}" in message
+    assert str(candidate_csv) in message
+    assert not output_dir.exists()
