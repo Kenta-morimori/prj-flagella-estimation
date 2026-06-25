@@ -6,10 +6,23 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum
 import math
 from typing import Any
+import warnings
 
 K_B = 1.380649e-23
 DT_STAR_TARGET = 1.0e-3
 MOTOR_LOCAL_SCALE_DEFAULT = 1.0
+MOTOR_FORCE_DISTRIBUTION_DEFAULT = "root_torque_segment_couples"
+MOTOR_FORCE_DISTRIBUTIONS = frozenset(
+    {
+        "triplet",
+        "root_torque_segment_couples",
+        "root_torque_axis_projection",
+    }
+)
+MOTOR_FORCE_DISTRIBUTION_ALIASES = {
+    "material_twist_local_couple": "root_torque_segment_couples",
+    "distributed_flagellum": "root_torque_axis_projection",
+}
 MOTOR_LOCAL_SCALE_KEYS = (
     "local_hook_scale",
     "local_spring_scale",
@@ -39,6 +52,29 @@ def _isclose(
     a: float, b: float, rel_tol: float = 1.0e-12, abs_tol: float = 1.0e-12
 ) -> bool:
     return math.isclose(float(a), float(b), rel_tol=rel_tol, abs_tol=abs_tol)
+
+
+def normalize_motor_force_distribution(value: Any) -> str:
+    """motor.force_distribution の旧名 alias を正式名へ正規化する。"""
+    mode = str(value)
+    if mode in MOTOR_FORCE_DISTRIBUTION_ALIASES:
+        normalized = MOTOR_FORCE_DISTRIBUTION_ALIASES[mode]
+        warnings.warn(
+            "motor.force_distribution="
+            f"{mode!r} is deprecated; use {normalized!r} instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        return normalized
+    if mode not in MOTOR_FORCE_DISTRIBUTIONS:
+        supported = ", ".join(sorted(MOTOR_FORCE_DISTRIBUTIONS))
+        aliases = ", ".join(sorted(MOTOR_FORCE_DISTRIBUTION_ALIASES))
+        raise ValueError(
+            "Unsupported motor.force_distribution: "
+            f"{mode!r}. Use one of: {supported}. "
+            f"Deprecated aliases accepted: {aliases}."
+        )
+    return mode
 
 
 class DynamicsMode(Enum):
@@ -203,7 +239,7 @@ class MotorParams:
     """モータ設定。"""
 
     torque_Nm: float = 4.0e-18
-    force_distribution: str = "material_twist_local_couple"
+    force_distribution: str = MOTOR_FORCE_DISTRIBUTION_DEFAULT
     reverse_n_flagella: int = 1
     enable_switching: bool = False
     torque_ramp_enabled: bool = False
@@ -705,11 +741,11 @@ class SimulationConfig:
         motor_raw = raw.get("motor", {}) or {}
         motor = MotorParams(
             torque_Nm=float(_get(motor_raw, "torque_Nm", 2.5e-20)),
-            force_distribution=str(
+            force_distribution=normalize_motor_force_distribution(
                 _get(
                     motor_raw,
                     "force_distribution",
-                    "material_twist_local_couple",
+                    MOTOR_FORCE_DISTRIBUTION_DEFAULT,
                 )
             ),
             reverse_n_flagella=int(_get(motor_raw, "reverse_n_flagella", 1)),

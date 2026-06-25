@@ -134,7 +134,7 @@ def test_phase2_6_eval_smoke_writes_summary(tmp_path: Path, monkeypatch) -> None
 
     assert len(rows) == 1
     row = rows[0]
-    assert row["force_distribution"] == "material_twist_local_couple"
+    assert row["force_distribution"] == "root_torque_segment_couples"
     assert row["n_flagella"] == "1"
     assert row["stub_mode"] == "full_flagella"
     assert row["local_hook_scale"] == "1.0"

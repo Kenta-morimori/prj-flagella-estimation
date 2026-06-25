@@ -30,12 +30,45 @@ def test_dt_over_tau_input_is_rejected() -> None:
         SimulationConfig.from_dict(cfg)
 
 
-def test_default_motor_force_distribution_is_material_twist_local_couple() -> None:
+def test_default_motor_force_distribution_is_root_torque_segment_couples() -> None:
     cfg = _base_cfg()
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
     sim_cfg = SimulationConfig.from_dict(cfg)
 
-    assert sim_cfg.motor.force_distribution == "material_twist_local_couple"
+    assert sim_cfg.motor.force_distribution == "root_torque_segment_couples"
+
+
+@pytest.mark.parametrize(
+    ("alias", "expected"),
+    [
+        ("material_twist_local_couple", "root_torque_segment_couples"),
+        ("distributed_flagellum", "root_torque_axis_projection"),
+    ],
+)
+def test_deprecated_motor_force_distribution_aliases_are_normalized(
+    alias: str, expected: str
+) -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["force_distribution"] = alias
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    with pytest.warns(FutureWarning, match="deprecated"):
+        sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor.force_distribution == expected
+
+
+@pytest.mark.parametrize(
+    "probe_mode",
+    ["axial_torque_flux_probe", "local_twist_transmission_probe"],
+)
+def test_probe_motor_force_distribution_modes_are_rejected(probe_mode: str) -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["force_distribution"] = probe_mode
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    with pytest.raises(ValueError, match="Unsupported motor.force_distribution"):
+        SimulationConfig.from_dict(cfg)
 
 
 def test_missing_motor_torque_defaults_to_phase2_representative_value() -> None:

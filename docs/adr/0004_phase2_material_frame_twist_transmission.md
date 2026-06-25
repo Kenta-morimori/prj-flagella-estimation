@@ -4,6 +4,12 @@
 - date: 2026-06-03
 - scope: Phase 2.6 follow-up
 
+## Naming Update
+
+Issue #88 で `motor.force_distribution` の正式名を整理した。P2-6-008で採用した旧 `material_twist_local_couple` は、現行コードでは `root_torque_segment_couples` が正式名であり、旧名は deprecated alias として新名へ正規化される。旧 `distributed_flagellum` は `root_torque_axis_projection` の deprecated alias である。
+
+診断用 probe mode `axial_torque_flux_probe` / `local_twist_transmission_probe` は Issue #88 でコードから削除した。このADR内の probe 名は、P2-6-007当時の歴史的比較対象として読む。
+
 ## Context
 
 P2-6-007では、`axial_torque_flux_probe` と `local_twist_transmission_probe` により、root torque が螺旋全体へ届くと単一べん毛が螺旋形状を保ちつつnet回転できることを確認した。

@@ -188,13 +188,13 @@
   - [x] `time.dt_star=1.0e-4`, `duration_s>=0.5` で net 1回転以上、shape gate PASS を確認する。
   - [x] 物理モデル拡張の結果を ADR 0004 に記録する。
 - decision:
-  - `motor.force_distribution=material_twist_local_couple` を追加し、P2-6-008の主実装とする。
+  - `motor.force_distribution=root_torque_segment_couples` を追加し、P2-6-008の主実装とする。旧名 `material_twist_local_couple` は Issue #88 以降 deprecated alias として扱う。
   - 代表条件では `duration_s=0.5`, `time.dt_star=1.0e-4`, `motor.torque_Nm=2.0e-20`, `local_spring_scale=1.2` で `net_abs_flag_helix_spin_revolutions=1.11698` と shape gate PASS を確認した。
   - torsion force OFF + 新手法 ON では shape gate が fail したため、現時点では既存 torsion force を置き換えない。
   - 既存 torsion force は螺旋形状維持、新手法は root torque の保存・伝搬として役割分担する。
 - acceptance criteria:
   - paper-compatible geometry 契約を壊さない。
-  - P2-6-008後のdefault `motor.force_distribution` は `material_twist_local_couple` とし、`triplet` は比較・診断用modeとして明示指定で残す。
+  - P2-6-008後のdefault `motor.force_distribution` は `root_torque_segment_couples` とし、`triplet` は比較・診断用modeとして明示指定で残す。
   - 新しい material-frame系挙動は明示的なmodeまたは設定で有効化する。
   - `net_abs_flag_helix_spin_revolutions >= 1.0`
   - `flag_helix_spin_direction_consistency >= 0.5`
@@ -212,7 +212,7 @@
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/54`
 - parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/53`
 - branch: `feature/phase2-54-torque-transmission-eval`
-- goal: `material_twist_local_couple` 導入後の単一べん毛モデルについて、高トルク条件での形状安定性と local stiffness scaling の必要性を定量評価する。
+- goal: `root_torque_segment_couples` 導入後の単一べん毛モデルについて、高トルク条件での形状安定性と local stiffness scaling の必要性を定量評価する。
 - result:
   - `local_*_scale=1.0`, `duration_s=0.5`, `time.dt_star=1.0e-4` で、`2.0e-20` から `3.0e-20 N m` は PASS、`3.5e-20 N m` 以上は flag 破綻、`1.0e-19 N m` も FAIL。
   - `3.5e-20 N m` で local spring / bend / torsion / hook を個別に `2.0` へ上げても PASS しないため、local scaling は高トルク安定化の主手段として採用しない。
@@ -241,6 +241,27 @@
 - docs:
   - `docs/phase2/phase2_6_torque_transmission_model_evaluation.md`
 
+### P2-6-010: `motor.force_distribution` の正式名を整理する
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/88`
+- branch: `feature/phase2-88-force-distribution-naming`
+- goal: root torque を flagellum 全体へ分配する方式を一貫した命名で扱い、正式運用modeと過去の診断probeを分離する。
+- result:
+  - 正式名を `triplet`, `root_torque_segment_couples`, `root_torque_axis_projection` に整理した。
+  - 旧 `material_twist_local_couple` は `root_torque_segment_couples`、旧 `distributed_flagellum` は `root_torque_axis_projection` の deprecated alias として正規化する。
+  - `axial_torque_flux_probe` と `local_twist_transmission_probe` はコード・設定上の実行modeから削除した。
+  - `conf/sim_swim.yaml` と Phase 2.8 dataset config は新名 `root_torque_segment_couples` を使う。
+- acceptance criteria:
+  - [x] 新名指定で既存代表条件が動作する。
+  - [x] 旧名 alias は warning 付きで新名へ正規化される。
+  - [x] 削除済み probe mode は設定読み込み時に拒否される。
+  - [x] 関連ドキュメントに旧名と新名の対応が残っている。
+- docs:
+  - `docs/phase2/phase2_current.md`
+  - `docs/phase2/phase2_6_helix_retention_gate.md`
+  - `docs/adr/0004_phase2_material_frame_twist_transmission.md`
+
 ## Phase 2.7: multi flagella 後方束化・非崩壊条件探索
 
 ### P2-7-006: 複数べん毛で崩壊せず後方束化する条件を探索する
@@ -253,7 +274,7 @@
 - branch: `feature/phase2-58-posterior-bundling-swim`
 - goal: `n_flagella=3..9` で、螺旋形状・hook・bodyが崩壊せず、かつ複数べん毛の螺旋中心軸方向が安定的に揃う条件帯を把握する。特にトルク、初期螺旋軸角度、べん毛本数の関係を整理する。
 - background:
-  - Phase 2.6 では `material_twist_local_couple` により、単一べん毛の螺旋形状維持とnet回転を確認した。
+  - Phase 2.6 では `root_torque_segment_couples` により、単一べん毛の螺旋形状維持とnet回転を確認した。
   - 次に必要なのは、複数べん毛で collapse/fly-away せず、複数べん毛軸が安定的に揃う条件を探索することである。
   - 旧P2-7の「非崩壊性」と旧P2-8の「後方束化判定」は分離すると同じ実験を二度行うため、本タスクで統合する。ただし本PRでは「束化」を近接ではなく軸方向の安定整列として定義する。
   - 短時間で後方束化候補を観察するには、第1ビーズを菌体長軸に対して垂直外向きに保ちつつ、初期べん毛軸を菌体後方へ向けた代表条件を作るのが有効である。hook角度は目的指標ではなく、破綻してはいけない制約として扱う。
@@ -261,8 +282,8 @@
   - Issue #54 / PR #59 で、単一べん毛の代表条件として `motor.torque_Nm=2.5e-20`, `time.dt_star=1.0e-4`, `local_*_scale=1.0` を多べん毛評価へ渡すことにした。
   - PR #55 は診断用WIPであり、最新 `main` から派生した本ブランチに必要な実装だけを移植する。
 - tasks:
-  - [x] `motor.force_distribution=material_twist_local_couple`, `time.dt_star=1.0e-4`, `motor.torque_Nm=2.5e-20` を基本条件とした `n_flagella=3` representative を作る。
-  - [x] `distributed_flagellum` は診断用比較条件として残し、必要に応じて同じ `n_flagella` / torque で比較する。
+  - [x] `motor.force_distribution=root_torque_segment_couples`, `time.dt_star=1.0e-4`, `motor.torque_Nm=2.5e-20` を基本条件とした `n_flagella=3` representative を作る。
+  - [x] `root_torque_axis_projection` は軸投影比較条件として残し、必要に応じて同じ `n_flagella` / torque で比較する。
   - [x] `flagella.initial_helix_axis_from_rear_deg=0` を主条件として、第2ビーズ以降の螺旋中心軸を同一の菌体後方方向へ揃えた診断条件を作る。
   - [x] `motor.torque_Nm` をsweepし、軸整列する条件、軸整列しない条件、hook巻き付き候補、崩壊する条件を分類する。
   - [x] `n_flagella=3,6,9` を段階評価し、body/hook/flag の first-fail 分布を整理する。

@@ -14,7 +14,7 @@ base_overrides:
   time.dt_star: 1.0e-4
   motor.torque_Nm: 2.5e-20
   motor.enable_switching: false
-  motor.force_distribution: material_twist_local_couple
+  motor.force_distribution: root_torque_segment_couples
   flagella.placement_mode: seeded_surface
   flagella.initial_phase_mode: seeded
   flagella.initial_helix_axis_from_rear_deg: 0

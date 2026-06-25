@@ -4,6 +4,10 @@
 
 Accepted for Phase 2 diagnostic use.
 
+## Naming Update
+
+Issue #88 で旧 `distributed_flagellum` は `root_torque_axis_projection` の deprecated alias になった。このADR内の `distributed_flagellum` は当時の実装名として読む。新規設定・コマンドでは `motor.force_distribution=root_torque_axis_projection` を使う。
+
 ## Context
 
 Phase 2.6 では、単一 full flagellum が螺旋形状を保ちつつ、べん毛全体として継続的に回転する条件を探している。
