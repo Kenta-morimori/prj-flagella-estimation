@@ -4,7 +4,8 @@
   "blocking_issues": [],
   "non_blocking_issues": [
     "n_flagella=3, duration_s=0.5 のフル代表 sweep は既存 segment repulsion 計算が重く，ローカル実行を中断した。軽量代表として n_flagella=1, duration_s=0.02 の全候補 sweep を実行した。",
-    "強い combined scale 4.0 は hook fail したため，新scaleは標準defaultへ昇格せず，診断用 extension として扱う。"
+    "強い combined scale 4.0 は hook fail したため，新scaleは標準defaultへ昇格せず，診断用 extension として扱う。",
+    "ユーザー指定のPR target branch `development` は remote に存在しないため，PR #90 は repository default branch `main` をbaseとして作成した。"
   ],
   "tests_reviewed": [
     {
@@ -39,9 +40,9 @@
   "adr_required": false,
   "adr_reason": "標準default物理モデルを変更せず，非default時のみ有効な診断用局所補強scaleと比較CLIを追加したため。今後，補強条件をPhase 2代表defaultへ昇格する場合はADRを検討する。",
   "commit_type": "complete",
-  "commit_hash": "d33b56c",
+  "commit_hash": "1db6a37",
   "push_status": "pushed",
-  "pull_request_url": "",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/90",
   "next_actions": [
     "必要に応じて n_flagella=3, duration_s=0.5 の代表 sweep を実行できるよう，segment repulsion 計算の軽量化または条件数削減を検討する。",
     "Phase 2.8 dataset条件へ新scaleを入れる場合は，default昇格ではなく明示overrideとして別タスクで評価する。"
