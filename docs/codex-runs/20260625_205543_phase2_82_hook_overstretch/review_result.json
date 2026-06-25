@@ -59,7 +59,7 @@
   "adr_required": false,
   "adr_reason": "標準default物理モデルを変更せず，非default時のみ有効な診断用局所補強scaleと比較CLIを追加したため。今後，補強条件をPhase 2代表defaultへ昇格する場合はADRを検討する。",
   "commit_type": "complete",
-  "commit_hash": "1db6a37",
+  "commit_hash": "b3880c5",
   "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/90",
   "next_actions": [
