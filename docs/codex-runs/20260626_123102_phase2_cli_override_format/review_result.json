@@ -53,8 +53,8 @@
   "adr_required": false,
   "adr_reason": "CLI help・manifest metadata・文書例の整理であり，物理モデル，数値解釈，下流MLデータ生成方針を変える意思決定ではないため。",
   "commit_type": "complete",
-  "commit_hash": "cf1127bf454cbcea8b21a2413c2e34ac9292f375",
+  "commit_hash": "834e2ef51d3ffed9adea5acf73516da5b3e3e3b8",
   "push_status": "pushed",
-  "pull_request_url": "",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/91",
   "next_actions": []
 }
