@@ -149,6 +149,8 @@ def test_phase2_hook_overstretch_scales_are_engine_localized() -> None:
                 "local_attach_first_spring_scale": 1.5,
                 "local_attach_first_body_axis_angle_scale": 2.0,
                 "local_first_second_spring_scale": 1.75,
+                "local_attach_frame_position_scale": 1.6,
+                "local_attach_frame_tangent_scale": 1.4,
             }
         }
     )
@@ -158,10 +160,14 @@ def test_phase2_hook_overstretch_scales_are_engine_localized() -> None:
     assert engine.motor_local_attach_first_spring_scale == pytest.approx(1.5)
     assert engine.motor_local_attach_first_body_axis_angle_scale == pytest.approx(2.0)
     assert engine.motor_local_first_second_spring_scale == pytest.approx(1.75)
+    assert engine.motor_local_attach_frame_position_scale == pytest.approx(1.6)
+    assert engine.motor_local_attach_frame_tangent_scale == pytest.approx(1.4)
     assert engine.hook_spring_rows.size == 1
     assert engine.flag_local_spring_rows.size == 1
     assert engine.hook_attach_first_rest_lengths_m.shape == (1,)
     assert engine.hook_attach_first_rest_lengths_m[0] > 0.0
+    assert engine.hook_first_second_rest_lengths_m.shape == (1,)
+    assert engine.hook_first_second_rest_lengths_m[0] > 0.0
 
 
 def _make_phase1_cfg(
@@ -429,6 +435,12 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
         "local_first_second_rel_err_per_flag",
         "local_attach_first_vs_body_axis_angle_deg_per_flag",
         "local_attach_first_vs_body_axis_err_deg_per_flag",
+        "local_attach_frame_position_rel_err",
+        "local_attach_frame_position_angle_err_deg",
+        "local_attach_frame_tangent_angle_err_deg",
+        "local_attach_frame_position_rel_err_per_flag",
+        "local_attach_frame_position_angle_err_deg_per_flag",
+        "local_attach_frame_tangent_angle_err_deg_per_flag",
         "local_second_third_rel_err",
         "local_basal_bend_err_deg",
         "local_first_torsion_err_deg",
@@ -453,6 +465,10 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
     assert len(first["hook_len_rel_err_per_flag"].split("|")) == cfg.flagella.n_flagella
     assert (
         len(first["local_first_second_rel_err_per_flag"].split("|"))
+        == cfg.flagella.n_flagella
+    )
+    assert (
+        len(first["local_attach_frame_position_rel_err_per_flag"].split("|"))
         == cfg.flagella.n_flagella
     )
     assert int(first["hook_len_rel_err_max_flag_id"]) in range(cfg.flagella.n_flagella)

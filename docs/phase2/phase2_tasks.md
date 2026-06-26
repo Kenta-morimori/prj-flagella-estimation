@@ -642,7 +642,9 @@
   - `motor.local_attach_first_spring_scale` は body attach bead とべん毛第1ビーズの距離補強である。
   - `motor.local_attach_first_body_axis_angle_scale` は，`attach -> first` ベクトルが body長軸に対して90度を保つための補強である。これは `hook_triplets=(attach, first, second)` のなす角ではない。
   - `motor.local_first_second_spring_scale` はべん毛第1ビーズと第2ビーズの距離補強である。
-  - 3つの新scaleはいずれもdefault `1.0` とし，標準configの挙動は変えない。非defaultは診断用の paper model extension として扱う。
+  - `motor.local_attach_frame_position_scale` は，body表面局所frameから見た `attach -> first` 相対位置を初期状態へ戻す補強である。
+  - `motor.local_attach_frame_tangent_scale` は，同じ局所frameから見た `first -> second` 根元接線ベクトルを初期状態へ戻す補強である。
+  - これらの局所補強scaleはいずれもdefault `1.0` とし，標準configの挙動は変えない。非defaultは診断用の paper model extension として扱う。
 - result:
   - `n_flagella=1`, `duration_s=0.02`, `time.dt_star=1.0e-4` の軽量代表 sweep で，body軸90度補強は `local_attach_first_vs_body_axis_err_deg` を baseline の `28.8650 deg` から `0.4656 deg` へ改善した。
   - 同条件で `hook_len_rel_err_max` は baseline の `0.4676` から `0.2210` へ下がり，`shape_pass_nonbody=True` を維持した。
@@ -652,6 +654,7 @@
   - `plot_phase2_82_hook_overstretch_heatmap.py` を追加し，破綻カテゴリ，shape pass/fail，hook距離誤差，body-first距離誤差，body軸90度誤差，第1-第2ビーズ距離誤差を heatmap 化できるようにした。
   - 2026-06-26追補として，`outputs/phase2_82/first_second_grid_af3_axis1p25` の Stage 2 結果を確認した。`first_second_spring_scale=1,1.25,1.5,2,3` の全5条件は `hook` fail のままだが，初回破綻時刻は `fs=1` の `0.1440 s` から `fs>=1.25` の約 `0.227 s` へ延びた。最小の `hook_len_rel_err_max` は `af3_axis1p25_fs1p25` の `1.4048` で，Stage 2 は破綻緩和に留まり pass 条件は得られていない。
   - 2026-06-26追補として，`local_first_second_spring_scale` を強めると第1-第2ビーズ距離誤差は下がる一方で `hook_len_rel_err_max` が増える理由を切り分けるため，`step_summary.csv` に per-flag hook 診断を追加した。`hook_len_rel_err_max_flag_id`，最大hook linkの attach/first bead index，per-flag の hook距離誤差・body-first距離誤差・第1-第2ビーズ距離誤差・body軸90度誤差を出力し，Issue #82 sweep summary には first fail 時点と全期間最大hook時点の event 指標を追加した。
+  - 2026-06-26追補として，既存3補強では拘束していなかった attach点まわりの局所frame自由度を切り分けるため，`local_attach_frame_position_scale` / `local_attach_frame_tangent_scale` と `attach-frame-grid` sweep を追加した。`step_summary.csv` と Issue #82 summary には frame position/tangent error と per-flag 指標を出力する。短時間 smoke run では列出力と heatmap 生成を確認したが，代表条件での有効性判断には Stage A/B/C sweep と定性評価が残る。
 - acceptance criteria:
   - [x] 3つの新scaleが config override で個別に指定できる。
   - [x] body長軸90度補強が既存 hook三点角度拘束と混同されない形で実装・テストされる。
@@ -659,6 +662,7 @@
   - [x] 短時間代表条件で hook過伸長の改善有無を記録する。
   - [x] body-first 距離・body軸90度補正の grid sweep と heatmap 出力ができる。
   - [x] 第1-第2ビーズ距離補正追加時の sweep と heatmap 出力ができる。
+  - [x] body表面局所frameに対する attach-first 位置・first-second 根元接線補正を非default診断用 extension として比較できる。
 - verification:
   - `uv run pytest tests/test_params.py tests/test_motor_forces.py tests/test_simulation.py`
   - `uv run ruff check src/sim_swim/dynamics src/sim_swim/sim scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_params.py tests/test_motor_forces.py tests/test_simulation.py`
@@ -679,6 +683,12 @@
     `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.5 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 3 --fixed-body-axis-angle-scale 1.25 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_82/first_second_grid_af3_axis1p25_diagnostics --overwrite --progress-interval 5000`
   - Stage 2 per-flag diagnostic heatmap:
     `uv run python scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py --summary-csv outputs/phase2_82/first_second_grid_af3_axis1p25_diagnostics/phase2_82_hook_scale_sweep_summary.csv --mode first-second-grid --output-dir outputs/phase2_82/first_second_grid_af3_axis1p25_diagnostics/plots`
+  - Stage A attach-frame grid:
+    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode attach-frame-grid --duration-s 0.5 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --attach-frame-position-scales 1,1.25,1.5,2,3 --attach-frame-tangent-scales 1,1.25,1.5,2 --output-dir outputs/phase2_82/attach_frame_grid_stage_a --overwrite --progress-interval 5000`
+  - Stage B attach-frame grid with best existing scales:
+    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode attach-frame-grid --duration-s 0.5 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 3 --fixed-body-axis-angle-scale 1.25 --fixed-first-second-spring-scale 1.25 --attach-frame-position-scales 1,1.25,1.5,2,3 --attach-frame-tangent-scales 1,1.25,1.5,2 --output-dir outputs/phase2_82/attach_frame_grid_stage_b --overwrite --progress-interval 5000`
+  - Stage A/B attach-frame heatmap:
+    `uv run python scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py --summary-csv <stage_output>/phase2_82_hook_scale_sweep_summary.csv --mode attach-frame-grid --output-dir <stage_output>/plots`
 - docs:
   - `docs/phase2/phase2_current.md`
   - `docs/phase2/phase2_tasks.md`

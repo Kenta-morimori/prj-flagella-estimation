@@ -25,6 +25,9 @@ NUMERIC_METRICS = (
     "local_attach_first_rel_err",
     "local_attach_first_vs_body_axis_err_deg",
     "local_first_second_rel_err",
+    "local_attach_frame_position_rel_err",
+    "local_attach_frame_position_angle_err_deg",
+    "local_attach_frame_tangent_angle_err_deg",
 )
 
 
@@ -39,7 +42,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--summary-csv", type=Path, required=True)
     parser.add_argument(
         "--mode",
-        choices=("body-first-grid", "first-second-grid"),
+        choices=("body-first-grid", "first-second-grid", "attach-frame-grid"),
         required=True,
     )
     parser.add_argument("--output-dir", type=Path, required=True)
@@ -120,6 +123,20 @@ def _axes_for_rows(
             "local_attach_first_body_axis_angle_scale",
         )
 
+    if mode == "attach-frame-grid":
+        x_values = sorted(
+            {_parse_float(row["local_attach_frame_position_scale"]) for row in rows}
+        )
+        y_values_float = sorted(
+            {_parse_float(row["local_attach_frame_tangent_scale"]) for row in rows}
+        )
+        return (
+            x_values,
+            [f"{value:g}" for value in y_values_float],
+            "local_attach_frame_position_scale",
+            "local_attach_frame_tangent_scale",
+        )
+
     x_values = sorted(
         {_parse_float(row["local_first_second_spring_scale"]) for row in rows}
     )
@@ -143,6 +160,8 @@ def _axes_for_rows(
 def _row_y_label(row: dict[str, str], mode: str) -> str:
     if mode == "body-first-grid":
         return f"{_parse_float(row['local_attach_first_body_axis_angle_scale']):g}"
+    if mode == "attach-frame-grid":
+        return f"{_parse_float(row['local_attach_frame_tangent_scale']):g}"
     return (
         f"af={_parse_float(row['local_attach_first_spring_scale']):g}, "
         f"axis={_parse_float(row['local_attach_first_body_axis_angle_scale']):g}"
@@ -162,6 +181,8 @@ def _build_matrix(
             row[
                 "local_attach_first_spring_scale"
                 if mode == "body-first-grid"
+                else "local_attach_frame_position_scale"
+                if mode == "attach-frame-grid"
                 else "local_first_second_spring_scale"
             ]
         )
@@ -265,6 +286,8 @@ def _write_normalized_csv(rows: list[dict[str, str]], out_path: Path) -> None:
         "local_attach_first_spring_scale",
         "local_attach_first_body_axis_angle_scale",
         "local_first_second_spring_scale",
+        "local_attach_frame_position_scale",
+        "local_attach_frame_tangent_scale",
         *NUMERIC_METRICS,
         "hook_len_rel_err_max_flag_id",
         "hook_len_rel_err_max_attach_body_bead_index",
@@ -274,17 +297,26 @@ def _write_normalized_csv(rows: list[dict[str, str]], out_path: Path) -> None:
         "local_attach_first_rel_err_per_flag",
         "local_first_second_rel_err_per_flag",
         "local_attach_first_vs_body_axis_err_deg_per_flag",
+        "local_attach_frame_position_rel_err_per_flag",
+        "local_attach_frame_position_angle_err_deg_per_flag",
+        "local_attach_frame_tangent_angle_err_deg_per_flag",
         "first_fail_t_s",
         "first_fail_hook_len_rel_err_max",
         "first_fail_hook_len_rel_err_max_flag_id",
         "first_fail_local_attach_first_rel_err",
         "first_fail_local_first_second_rel_err",
+        "first_fail_local_attach_frame_position_rel_err",
+        "first_fail_local_attach_frame_position_angle_err_deg",
+        "first_fail_local_attach_frame_tangent_angle_err_deg",
         "max_hook_len_rel_err_t_s",
         "max_hook_len_rel_err",
         "max_hook_len_rel_err_flag_id",
         "max_hook_len_rel_err_attach_body_bead_index",
         "max_hook_len_rel_err_flag_first_bead_index",
         "max_hook_len_rel_err_len_over_b",
+        "max_hook_local_attach_frame_position_rel_err",
+        "max_hook_local_attach_frame_position_angle_err_deg",
+        "max_hook_local_attach_frame_tangent_angle_err_deg",
         "net_abs_flag_helix_spin_revolutions",
         "flag_helix_spin_direction_consistency",
     ]

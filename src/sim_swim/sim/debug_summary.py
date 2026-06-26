@@ -17,6 +17,11 @@ from sim_swim.sim.helix_axis import (
     estimate_flag_helix_axis,
     helix_axis_alignment_metrics,
 )
+from sim_swim.sim.hook_frame import (
+    hook_attach_layer_indices,
+    hook_frame_local_vectors,
+    hook_frame_target_vectors,
+)
 from sim_swim.sim.params import SimulationConfig
 
 M_TO_UM = 1.0e6
@@ -69,6 +74,12 @@ STEP_SUMMARY_COLUMNS = [
     "local_first_second_rel_err_per_flag",
     "local_attach_first_vs_body_axis_angle_deg_per_flag",
     "local_attach_first_vs_body_axis_err_deg_per_flag",
+    "local_attach_frame_position_rel_err",
+    "local_attach_frame_position_angle_err_deg",
+    "local_attach_frame_tangent_angle_err_deg",
+    "local_attach_frame_position_rel_err_per_flag",
+    "local_attach_frame_position_angle_err_deg_per_flag",
+    "local_attach_frame_tangent_angle_err_deg_per_flag",
     "hook_angle_mean_deg",
     "hook_angle_min_deg",
     "hook_angle_max_deg",
@@ -597,6 +608,9 @@ def _hook_link_diagnostics(
     pair_rows: dict[tuple[int, int], int],
     body_axis: np.ndarray,
     b_m: float,
+    hook_attach_layer_rows: np.ndarray,
+    hook_attach_first_frame_local_m: np.ndarray,
+    hook_first_second_frame_local_m: np.ndarray,
 ) -> dict[str, float | int | str]:
     default: dict[str, float | int | str] = {
         "hook_len_rel_err_max_flag_id": -1,
@@ -608,15 +622,32 @@ def _hook_link_diagnostics(
         "local_first_second_rel_err_per_flag": "",
         "local_attach_first_vs_body_axis_angle_deg_per_flag": "",
         "local_attach_first_vs_body_axis_err_deg_per_flag": "",
+        "local_attach_frame_position_rel_err": float("nan"),
+        "local_attach_frame_position_angle_err_deg": float("nan"),
+        "local_attach_frame_tangent_angle_err_deg": float("nan"),
+        "local_attach_frame_position_rel_err_per_flag": "",
+        "local_attach_frame_position_angle_err_deg_per_flag": "",
+        "local_attach_frame_tangent_angle_err_deg_per_flag": "",
     }
     if model.hook_triplets.size == 0:
         return default
 
+    attach_first_targets, first_second_targets = hook_frame_target_vectors(
+        positions_m=positions_m,
+        model=model,
+        attach_layer_indices=hook_attach_layer_rows,
+        attach_first_local_m=hook_attach_first_frame_local_m,
+        first_second_local_m=hook_first_second_frame_local_m,
+        body_axis_unit=body_axis,
+    )
     hook_rel_by_flag: list[tuple[int, float]] = []
     attach_first_rel_by_flag: list[tuple[int, float]] = []
     first_second_rel_by_flag: list[tuple[int, float]] = []
     axis_angle_by_flag: list[tuple[int, float]] = []
     axis_err_by_flag: list[tuple[int, float]] = []
+    frame_position_rel_by_flag: list[tuple[int, float]] = []
+    frame_position_angle_by_flag: list[tuple[int, float]] = []
+    frame_tangent_angle_by_flag: list[tuple[int, float]] = []
     max_rel = -float("inf")
 
     def _pair_row(a: int, b: int) -> int:
@@ -635,8 +666,8 @@ def _hook_link_diagnostics(
             float(abs(dist - rest) / rest),
         )
 
-    for attach_raw, first_raw, second_raw in model.hook_triplets.astype(
-        int, copy=False
+    for row, (attach_raw, first_raw, second_raw) in enumerate(
+        model.hook_triplets.astype(int, copy=False)
     ):
         attach = int(attach_raw)
         first = int(first_raw)
@@ -650,12 +681,37 @@ def _hook_link_diagnostics(
         )
         angle = _angle_between_deg(positions_m[first] - positions_m[attach], body_axis)
         axis_err = float(abs(angle - 90.0)) if np.isfinite(angle) else float("nan")
+        attach_first_vec = positions_m[first] - positions_m[attach]
+        first_second_vec = positions_m[second] - positions_m[first]
+        attach_first_target = (
+            attach_first_targets[row]
+            if row < int(attach_first_targets.shape[0])
+            else np.full((3,), float("nan"), dtype=float)
+        )
+        first_second_target = (
+            first_second_targets[row]
+            if row < int(first_second_targets.shape[0])
+            else np.full((3,), float("nan"), dtype=float)
+        )
+        frame_position_rel = (
+            float(
+                np.linalg.norm(attach_first_vec - attach_first_target)
+                / max(float(np.linalg.norm(attach_first_target)), 1e-30)
+            )
+            if np.isfinite(attach_first_target).all()
+            else float("nan")
+        )
+        frame_position_angle = _angle_between_deg(attach_first_vec, attach_first_target)
+        frame_tangent_angle = _angle_between_deg(first_second_vec, first_second_target)
 
         hook_rel_by_flag.append((flag_id, attach_first_rel))
         attach_first_rel_by_flag.append((flag_id, attach_first_rel))
         first_second_rel_by_flag.append((flag_id, first_second_rel))
         axis_angle_by_flag.append((flag_id, angle))
         axis_err_by_flag.append((flag_id, axis_err))
+        frame_position_rel_by_flag.append((flag_id, frame_position_rel))
+        frame_position_angle_by_flag.append((flag_id, frame_position_angle))
+        frame_tangent_angle_by_flag.append((flag_id, frame_tangent_angle))
         if np.isfinite(attach_first_rel) and attach_first_rel > max_rel:
             max_rel = attach_first_rel
             default["hook_len_rel_err_max_flag_id"] = flag_id
@@ -675,6 +731,26 @@ def _hook_link_diagnostics(
     )
     default["local_attach_first_vs_body_axis_err_deg_per_flag"] = _format_flag_metric(
         axis_err_by_flag
+    )
+    for key, values in (
+        ("local_attach_frame_position_rel_err", frame_position_rel_by_flag),
+        (
+            "local_attach_frame_position_angle_err_deg",
+            frame_position_angle_by_flag,
+        ),
+        ("local_attach_frame_tangent_angle_err_deg", frame_tangent_angle_by_flag),
+    ):
+        arr = np.asarray([value for _flag_id, value in values], dtype=float)
+        finite = arr[np.isfinite(arr)]
+        default[key] = float(np.max(finite)) if finite.size > 0 else float("nan")
+    default["local_attach_frame_position_rel_err_per_flag"] = _format_flag_metric(
+        frame_position_rel_by_flag
+    )
+    default["local_attach_frame_position_angle_err_deg_per_flag"] = _format_flag_metric(
+        frame_position_angle_by_flag
+    )
+    default["local_attach_frame_tangent_angle_err_deg_per_flag"] = _format_flag_metric(
+        frame_tangent_angle_by_flag
     )
     return default
 
@@ -1263,6 +1339,16 @@ class StepSummaryRecorder:
         )
         self.initial_body_center_m = initial_center
         self.initial_body_axis = initial_axis
+        self.hook_attach_layer_rows = hook_attach_layer_indices(self.model)
+        (
+            self.hook_attach_first_frame_local_m,
+            self.hook_first_second_frame_local_m,
+        ) = hook_frame_local_vectors(
+            positions_m=self.model.positions_m,
+            model=self.model,
+            attach_layer_indices=self.hook_attach_layer_rows,
+            body_axis_unit=initial_axis,
+        )
         self.prev_body_center_m: np.ndarray | None = None
         self.prev_body_axis: np.ndarray | None = None
         self.prev_body_t_s: float | None = None
@@ -1901,6 +1987,9 @@ class StepSummaryRecorder:
             self.pair_rows,
             body_axis,
             self.cfg.b_m,
+            self.hook_attach_layer_rows,
+            self.hook_attach_first_frame_local_m,
+            self.hook_first_second_frame_local_m,
         )
 
         row: dict[str, float | int | bool] = {

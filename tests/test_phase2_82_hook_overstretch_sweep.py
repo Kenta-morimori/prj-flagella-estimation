@@ -71,6 +71,35 @@ def test_phase2_82_first_second_grid_conditions() -> None:
     }
 
 
+def test_phase2_82_attach_frame_grid_conditions() -> None:
+    script = _load_sweep_script()
+    args = SimpleNamespace(
+        mode="attach-frame-grid",
+        fixed_attach_first_spring_scale=3.0,
+        fixed_body_axis_angle_scale=1.25,
+        fixed_first_second_spring_scale=1.25,
+        attach_frame_position_scales=[1.0, 2.0],
+        attach_frame_tangent_scales=[1.0, 1.5],
+    )
+
+    conditions = script.build_conditions(args)
+
+    assert [condition.condition_id for condition in conditions] == [
+        "af3_axis1p25_fs1p25_fp1_ft1",
+        "af3_axis1p25_fs1p25_fp1_ft1p5",
+        "af3_axis1p25_fs1p25_fp2_ft1",
+        "af3_axis1p25_fs1p25_fp2_ft1p5",
+    ]
+    assert all(condition.mode == "attach-frame-grid" for condition in conditions)
+    assert conditions[-1].scales == {
+        "local_attach_first_spring_scale": 3.0,
+        "local_attach_first_body_axis_angle_scale": 1.25,
+        "local_first_second_spring_scale": 1.25,
+        "local_attach_frame_position_scale": 2.0,
+        "local_attach_frame_tangent_scale": 1.5,
+    }
+
+
 def test_phase2_82_summary_row_records_fail_and_max_hook_events(
     tmp_path: Path,
 ) -> None:
@@ -84,6 +113,8 @@ def test_phase2_82_summary_row_records_fail_and_max_hook_events(
             local_attach_first_spring_scale=3.0,
             local_attach_first_body_axis_angle_scale=1.25,
             local_first_second_spring_scale=1.25,
+            local_attach_frame_position_scale=2.0,
+            local_attach_frame_tangent_scale=1.5,
         ),
     )
     condition = script.Condition(
@@ -106,6 +137,9 @@ def test_phase2_82_summary_row_records_fail_and_max_hook_events(
             "hook_len_rel_err_max_flag_id": "1",
             "local_attach_first_rel_err": "0.9",
             "local_first_second_rel_err": "0.2",
+            "local_attach_frame_position_rel_err": "0.3",
+            "local_attach_frame_position_angle_err_deg": "4.0",
+            "local_attach_frame_tangent_angle_err_deg": "5.0",
         },
         {
             "t_s": "0.5",
@@ -115,6 +149,9 @@ def test_phase2_82_summary_row_records_fail_and_max_hook_events(
             "hook_len_rel_err_max_attach_body_bead_index": "8",
             "hook_len_rel_err_max_flag_first_bead_index": "25",
             "hook_len_rel_err_max_len_over_b": "0.6",
+            "local_attach_frame_position_rel_err": "0.7",
+            "local_attach_frame_position_angle_err_deg": "8.0",
+            "local_attach_frame_tangent_angle_err_deg": "9.0",
         },
     ]
 
@@ -130,8 +167,14 @@ def test_phase2_82_summary_row_records_fail_and_max_hook_events(
     assert row["first_fail_t_s"] == "0.2"
     assert row["first_fail_hook_len_rel_err_max"] == "1.01"
     assert row["first_fail_hook_len_rel_err_max_flag_id"] == "1"
+    assert row["first_fail_local_attach_frame_position_rel_err"] == "0.3"
+    assert row["first_fail_local_attach_frame_position_angle_err_deg"] == "4.0"
+    assert row["first_fail_local_attach_frame_tangent_angle_err_deg"] == "5.0"
     assert row["max_hook_len_rel_err_t_s"] == "0.5"
     assert row["max_hook_len_rel_err"] == "1.4"
     assert row["max_hook_len_rel_err_flag_id"] == "2"
     assert row["max_hook_len_rel_err_attach_body_bead_index"] == "8"
     assert row["max_hook_len_rel_err_flag_first_bead_index"] == "25"
+    assert row["max_hook_local_attach_frame_position_rel_err"] == "0.7"
+    assert row["max_hook_local_attach_frame_position_angle_err_deg"] == "8.0"
+    assert row["max_hook_local_attach_frame_tangent_angle_err_deg"] == "9.0"

@@ -244,6 +244,60 @@ def compute_attach_first_body_axis_angle_forces(
     return forces
 
 
+def compute_attach_frame_target_forces(
+    positions_m: np.ndarray,
+    hook_triplets: np.ndarray,
+    attach_first_target_vectors_m: np.ndarray,
+    first_second_target_vectors_m: np.ndarray,
+    attach_first_rest_lengths_m: np.ndarray,
+    first_second_rest_lengths_m: np.ndarray,
+    k_position: float,
+    k_tangent: float,
+) -> np.ndarray:
+    """Keep basal vectors close to targets expressed in the body attach frame."""
+
+    forces = np.zeros_like(positions_m)
+    if hook_triplets.size == 0 or (k_position <= 0.0 and k_tangent <= 0.0):
+        return forces
+
+    for row, (attach_raw, first_raw, second_raw) in enumerate(
+        hook_triplets.astype(int, copy=False)
+    ):
+        attach = int(attach_raw)
+        first = int(first_raw)
+        second = int(second_raw)
+
+        if k_position > 0.0 and row < int(attach_first_target_vectors_m.shape[0]):
+            rest = (
+                float(attach_first_rest_lengths_m[row])
+                if row < int(attach_first_rest_lengths_m.shape[0])
+                else 0.0
+            )
+            rest = max(rest, 1e-18)
+            target = np.asarray(attach_first_target_vectors_m[row], dtype=float)
+            if np.isfinite(target).all():
+                delta = (positions_m[first] - positions_m[attach]) - target
+                force = -(float(k_position) / (rest * rest)) * delta
+                forces[first] += force
+                forces[attach] -= force
+
+        if k_tangent > 0.0 and row < int(first_second_target_vectors_m.shape[0]):
+            rest = (
+                float(first_second_rest_lengths_m[row])
+                if row < int(first_second_rest_lengths_m.shape[0])
+                else 0.0
+            )
+            rest = max(rest, 1e-18)
+            target = np.asarray(first_second_target_vectors_m[row], dtype=float)
+            if np.isfinite(target).all():
+                delta = (positions_m[second] - positions_m[first]) - target
+                force = -(float(k_tangent) / (rest * rest)) * delta
+                forces[second] += force
+                forces[first] -= force
+
+    return forces
+
+
 def _closest_points_on_segments(
     p1: np.ndarray,
     q1: np.ndarray,

@@ -33,6 +33,8 @@ SUMMARY_FIELDS = (
     "local_attach_first_spring_scale",
     "local_attach_first_body_axis_angle_scale",
     "local_first_second_spring_scale",
+    "local_attach_frame_position_scale",
+    "local_attach_frame_tangent_scale",
     "final_t_s",
     "final_shape_pass_nonbody",
     "final_first_fail_category_nonbody",
@@ -41,6 +43,9 @@ SUMMARY_FIELDS = (
     "local_first_second_rel_err",
     "local_attach_first_vs_body_axis_angle_deg",
     "local_attach_first_vs_body_axis_err_deg",
+    "local_attach_frame_position_rel_err",
+    "local_attach_frame_position_angle_err_deg",
+    "local_attach_frame_tangent_angle_err_deg",
     "hook_len_rel_err_max_flag_id",
     "hook_len_rel_err_max_attach_body_bead_index",
     "hook_len_rel_err_max_flag_first_bead_index",
@@ -49,17 +54,26 @@ SUMMARY_FIELDS = (
     "local_attach_first_rel_err_per_flag",
     "local_first_second_rel_err_per_flag",
     "local_attach_first_vs_body_axis_err_deg_per_flag",
+    "local_attach_frame_position_rel_err_per_flag",
+    "local_attach_frame_position_angle_err_deg_per_flag",
+    "local_attach_frame_tangent_angle_err_deg_per_flag",
     "first_fail_t_s",
     "first_fail_hook_len_rel_err_max",
     "first_fail_hook_len_rel_err_max_flag_id",
     "first_fail_local_attach_first_rel_err",
     "first_fail_local_first_second_rel_err",
+    "first_fail_local_attach_frame_position_rel_err",
+    "first_fail_local_attach_frame_position_angle_err_deg",
+    "first_fail_local_attach_frame_tangent_angle_err_deg",
     "max_hook_len_rel_err_t_s",
     "max_hook_len_rel_err",
     "max_hook_len_rel_err_flag_id",
     "max_hook_len_rel_err_attach_body_bead_index",
     "max_hook_len_rel_err_flag_first_bead_index",
     "max_hook_len_rel_err_len_over_b",
+    "max_hook_local_attach_frame_position_rel_err",
+    "max_hook_local_attach_frame_position_angle_err_deg",
+    "max_hook_local_attach_frame_tangent_angle_err_deg",
     "flag_bond_rel_err_max",
     "flag_bend_err_max_deg",
     "flag_torsion_err_max_deg",
@@ -224,8 +238,8 @@ def build_conditions(args: argparse.Namespace) -> tuple[Condition, ...]:
         return tuple(conditions)
 
     if args.mode == "first-second-grid":
-        attach_scale = float(args.fixed_attach_first_spring_scale)
-        angle_scale = float(args.fixed_body_axis_angle_scale)
+        attach_scale = float(args.fixed_attach_first_spring_scale or 2.0)
+        angle_scale = float(args.fixed_body_axis_angle_scale or 2.0)
         for first_second_scale in args.first_second_spring_scales:
             condition_id = (
                 f"af{_format_scale(attach_scale)}"
@@ -244,6 +258,35 @@ def build_conditions(args: argparse.Namespace) -> tuple[Condition, ...]:
                     },
                 )
             )
+        return tuple(conditions)
+
+    if args.mode == "attach-frame-grid":
+        attach_scale = float(args.fixed_attach_first_spring_scale or 1.0)
+        angle_scale = float(args.fixed_body_axis_angle_scale or 1.0)
+        first_second_scale = float(args.fixed_first_second_spring_scale)
+        for position_scale in args.attach_frame_position_scales:
+            for tangent_scale in args.attach_frame_tangent_scales:
+                condition_id = (
+                    f"af{_format_scale(attach_scale)}"
+                    f"_axis{_format_scale(angle_scale)}"
+                    f"_fs{_format_scale(first_second_scale)}"
+                    f"_fp{_format_scale(position_scale)}"
+                    f"_ft{_format_scale(tangent_scale)}"
+                )
+                conditions.append(
+                    Condition(
+                        condition_id=condition_id,
+                        mode=args.mode,
+                        description="attach-frame position and tangent grid",
+                        scales={
+                            "local_attach_first_spring_scale": attach_scale,
+                            "local_attach_first_body_axis_angle_scale": angle_scale,
+                            "local_first_second_spring_scale": first_second_scale,
+                            "local_attach_frame_position_scale": float(position_scale),
+                            "local_attach_frame_tangent_scale": float(tangent_scale),
+                        },
+                    )
+                )
         return tuple(conditions)
 
     raise ValueError(f"Unsupported mode: {args.mode}")
@@ -297,6 +340,12 @@ def _summary_row(
             cfg.motor.local_attach_first_body_axis_angle_scale
         ),
         "local_first_second_spring_scale": cfg.motor.local_first_second_spring_scale,
+        "local_attach_frame_position_scale": (
+            cfg.motor.local_attach_frame_position_scale
+        ),
+        "local_attach_frame_tangent_scale": (
+            cfg.motor.local_attach_frame_tangent_scale
+        ),
         "first_fail_t_s": "" if first_fail is None else first_fail.get("t_s", ""),
         "first_fail_hook_len_rel_err_max": (
             "" if first_fail is None else first_fail.get("hook_len_rel_err_max", "")
@@ -315,6 +364,21 @@ def _summary_row(
             ""
             if first_fail is None
             else first_fail.get("local_first_second_rel_err", "")
+        ),
+        "first_fail_local_attach_frame_position_rel_err": (
+            ""
+            if first_fail is None
+            else first_fail.get("local_attach_frame_position_rel_err", "")
+        ),
+        "first_fail_local_attach_frame_position_angle_err_deg": (
+            ""
+            if first_fail is None
+            else first_fail.get("local_attach_frame_position_angle_err_deg", "")
+        ),
+        "first_fail_local_attach_frame_tangent_angle_err_deg": (
+            ""
+            if first_fail is None
+            else first_fail.get("local_attach_frame_tangent_angle_err_deg", "")
         ),
         "max_hook_len_rel_err_t_s": "" if max_hook is None else max_hook.get("t_s", ""),
         "max_hook_len_rel_err": (
@@ -337,6 +401,21 @@ def _summary_row(
             ""
             if max_hook is None
             else max_hook.get("hook_len_rel_err_max_len_over_b", "")
+        ),
+        "max_hook_local_attach_frame_position_rel_err": (
+            ""
+            if max_hook is None
+            else max_hook.get("local_attach_frame_position_rel_err", "")
+        ),
+        "max_hook_local_attach_frame_position_angle_err_deg": (
+            ""
+            if max_hook is None
+            else max_hook.get("local_attach_frame_position_angle_err_deg", "")
+        ),
+        "max_hook_local_attach_frame_tangent_angle_err_deg": (
+            ""
+            if max_hook is None
+            else max_hook.get("local_attach_frame_tangent_angle_err_deg", "")
         ),
     }
     for field in SUMMARY_FIELDS:
@@ -381,7 +460,12 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--mode",
-        choices=("preset", "body-first-grid", "first-second-grid"),
+        choices=(
+            "preset",
+            "body-first-grid",
+            "first-second-grid",
+            "attach-frame-grid",
+        ),
         default="preset",
         help="Condition generation mode.",
     )
@@ -411,8 +495,20 @@ def _parse_args() -> argparse.Namespace:
         default=_parse_float_values("1,1.25,1.5,2,3"),
         help="Comma-separated scale values for --mode first-second-grid.",
     )
-    parser.add_argument("--fixed-attach-first-spring-scale", type=float, default=2.0)
-    parser.add_argument("--fixed-body-axis-angle-scale", type=float, default=2.0)
+    parser.add_argument(
+        "--attach-frame-position-scales",
+        type=_parse_float_values,
+        default=_parse_float_values("1,1.25,1.5,2,3"),
+        help="Comma-separated position scale values for --mode attach-frame-grid.",
+    )
+    parser.add_argument(
+        "--attach-frame-tangent-scales",
+        type=_parse_float_values,
+        default=_parse_float_values("1,1.25,1.5,2"),
+        help="Comma-separated tangent scale values for --mode attach-frame-grid.",
+    )
+    parser.add_argument("--fixed-attach-first-spring-scale", type=float, default=None)
+    parser.add_argument("--fixed-body-axis-angle-scale", type=float, default=None)
     parser.add_argument("--fixed-first-second-spring-scale", type=float, default=1.0)
     parser.add_argument("--sample-limit", type=int, default=None)
     parser.add_argument("--progress-interval", type=int, default=1000)

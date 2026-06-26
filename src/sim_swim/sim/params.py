@@ -29,6 +29,8 @@ MOTOR_LOCAL_SCALE_KEYS = (
     "local_attach_first_spring_scale",
     "local_attach_first_body_axis_angle_scale",
     "local_first_second_spring_scale",
+    "local_attach_frame_position_scale",
+    "local_attach_frame_tangent_scale",
     "local_bend_scale",
     "local_torsion_scale",
 )
@@ -253,6 +255,8 @@ class MotorParams:
     local_attach_first_spring_scale: float = 1.0
     local_attach_first_body_axis_angle_scale: float = 1.0
     local_first_second_spring_scale: float = 1.0
+    local_attach_frame_position_scale: float = 1.0
+    local_attach_frame_tangent_scale: float = 1.0
     local_bend_scale: float = 1.0
     local_torsion_scale: float = 1.0
 
@@ -787,6 +791,20 @@ class SimulationConfig:
                 _get(
                     motor_raw,
                     "local_first_second_spring_scale",
+                    MOTOR_LOCAL_SCALE_DEFAULT,
+                )
+            ),
+            local_attach_frame_position_scale=float(
+                _get(
+                    motor_raw,
+                    "local_attach_frame_position_scale",
+                    MOTOR_LOCAL_SCALE_DEFAULT,
+                )
+            ),
+            local_attach_frame_tangent_scale=float(
+                _get(
+                    motor_raw,
+                    "local_attach_frame_tangent_scale",
                     MOTOR_LOCAL_SCALE_DEFAULT,
                 )
             ),
