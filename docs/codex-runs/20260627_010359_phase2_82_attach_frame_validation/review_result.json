@@ -1,0 +1,60 @@
+{
+  "status": "PASS",
+  "summary": "Issue #82 / PR #90 の attach-frame 補強について，Stage A，dt sweep，Stage B，後方条件0.5 s定性評価を整理した。`local_attach_frame_position_scale=3` と `local_attach_frame_tangent_scale=1.5` は baseline の hook過伸長を大きく抑えるが，破綻先は flag bond へ移る。`local_first_second_spring_scale` を追加しても flag bond 伸長は改善せず，`dt_star` を小さくしても破綻種別は解消しない。したがって本PRは hook過伸長の部分対応として扱い，長時間安定性と body-flagella 貫通検証は別タスクへ分離する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "後方条件のユーザー定性評価は duration_s=0.5 の範囲では問題なし。ただし長時間安定性は未確認であり，merge前に Issue へ根拠fig付きで長時間 sweep 結果を残す。",
+    "Stage A/B の自動指標では final_shape_pass_nonbody=False が残る。first fail は hook ではなく flag で，flag_bond_rel_err_max は約 1.19 まで伸びる。",
+    "body spring 間をべん毛が貫通している可能性は本PRでは扱わず，Issue #93 で body-flagella segment 最短距離・貫通らしさ指標として検証する。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run python - <<'PY' ... read outputs/phase2_82/attach_frame_validation/stage_a_frame_only/phase2_82_hook_scale_sweep_summary.csv ... PY",
+      "result": "PASS: baseline fp=1,ft=1 は first_fail_t_s=0.0374 s, first fail hook, hook_len_rel_err_max=3.2865。fp=3,ft=1.5 は first_fail_t_s=0.4363 s, first fail flag, hook_len_rel_err_max=0.0145, flag_bond_rel_err_max=1.1875。"
+    },
+    {
+      "command": "uv run python - <<'PY' ... read outputs/phase2_82/dt_sweep_attach_frame_stage_a/dt_sweep_summary.csv ... PY",
+      "result": "PASS: dt_star=1.0e-4, 5.0e-5, 2.5e-5 のいずれでも baseline は hook fail，attach-frame候補は flag fail。dt_star 低減だけでは本質的に解消しない。"
+    },
+    {
+      "command": "uv run python - <<'PY' ... read outputs/phase2_82/attach_frame_validation/stage_b_fs_after_frame_dt1e-4/stage_b_fs_after_frame_summary.csv ... PY",
+      "result": "PASS: fp=3,ft=1.5 で fs=1..3 を比較。flag_bond_rel_err_max は 1.1875..1.1961 で，first-second 補強による明確な改善なし。"
+    },
+    {
+      "command": "uv run python - <<'PY' ... read outputs/phase2_82/qualitative_posterior_attach_frame_review/*/*/*/sim/step_summary.csv ... PY",
+      "result": "PASS: posterior_fp3_ft1p5_fs1 と posterior_fp3_ft1p5_fs1p5 は 5000 step, final t=0.4999 s を確認。hook_len_rel_err_max は 0.0145 / 0.0132。ユーザー定性評価では 0.5 s 範囲の hook根元挙動は問題なし。"
+    },
+    {
+      "command": "uv run python -m json.tool docs/codex-runs/20260627_010359_phase2_82_attach_frame_validation/review_result.json",
+      "result": "PASS: JSON validation completed"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "後方条件0.5 s定性評価済み。長時間確認は merge前の Issue 記録用として `outputs/phase2_82/long_posterior_attach_frame_review_dur2p0` に別途実行する。",
+  "user_review_outputs": [
+    "outputs/phase2_82/qualitative_posterior_attach_frame_review/posterior_fp3_ft1p5_fs1/2026-06-27/003729/render/swim3d.mp4",
+    "outputs/phase2_82/qualitative_posterior_attach_frame_review/posterior_fp3_ft1p5_fs1p5/2026-06-27/004419/render/swim3d.mp4",
+    "outputs/phase2_82/attach_frame_validation/stage_a_frame_only/phase2_82_hook_scale_sweep_summary.csv",
+    "outputs/phase2_82/dt_sweep_attach_frame_stage_a/dt_sweep_summary.csv",
+    "outputs/phase2_82/attach_frame_validation/stage_b_fs_after_frame_dt1e-4/stage_b_fs_after_frame_summary.csv"
+  ],
+  "user_review_points": [
+    "hook根元距離が後方条件で伸び続けていないか",
+    "body回転時に first bead が body 表面局所位置へ追従しているか",
+    "first-second 補強が flag bond 破綻を悪化させていないか",
+    "長時間では hook 抑制が維持されるか",
+    "body-flagella 貫通らしさは別Issue #93で定量化する"
+  ],
+  "adr_required": false,
+  "adr_reason": "標準default物理モデルは変更せず，非default時のみ有効な診断用 extension と評価整理に留めたため。attach-frame補強を標準代表条件へ昇格する場合，または hard non-penetration / repulsion model を変更する場合は別途ADRを検討する。",
+  "commit_type": "complete",
+  "commit_hash": "pending_final_commit",
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/90",
+  "next_actions": [
+    "merge前に `outputs/phase2_82/long_posterior_attach_frame_review_dur2p0` の長時間 sweep を実行する。",
+    "長時間 sweep の summary と `long_posterior_metrics_torque_2.50e-20.png` を Issue #82 または PR #90 に根拠として貼る。",
+    "本PR本文では `Refs #82` / `Part of #82` とし，`Closes #82` は使わない。",
+    "body-flagella 貫通可能性は Issue #93 の別PRで扱う。"
+  ]
+}

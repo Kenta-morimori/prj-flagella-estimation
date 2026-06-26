@@ -655,6 +655,12 @@
   - 2026-06-26追補として，`outputs/phase2_82/first_second_grid_af3_axis1p25` の Stage 2 結果を確認した。`first_second_spring_scale=1,1.25,1.5,2,3` の全5条件は `hook` fail のままだが，初回破綻時刻は `fs=1` の `0.1440 s` から `fs>=1.25` の約 `0.227 s` へ延びた。最小の `hook_len_rel_err_max` は `af3_axis1p25_fs1p25` の `1.4048` で，Stage 2 は破綻緩和に留まり pass 条件は得られていない。
   - 2026-06-26追補として，`local_first_second_spring_scale` を強めると第1-第2ビーズ距離誤差は下がる一方で `hook_len_rel_err_max` が増える理由を切り分けるため，`step_summary.csv` に per-flag hook 診断を追加した。`hook_len_rel_err_max_flag_id`，最大hook linkの attach/first bead index，per-flag の hook距離誤差・body-first距離誤差・第1-第2ビーズ距離誤差・body軸90度誤差を出力し，Issue #82 sweep summary には first fail 時点と全期間最大hook時点の event 指標を追加した。
   - 2026-06-26追補として，既存3補強では拘束していなかった attach点まわりの局所frame自由度を切り分けるため，`local_attach_frame_position_scale` / `local_attach_frame_tangent_scale` と `attach-frame-grid` sweep を追加した。`step_summary.csv` と Issue #82 summary には frame position/tangent error と per-flag 指標を出力する。短時間 smoke run では列出力と heatmap 生成を確認したが，代表条件での有効性判断には Stage A/B/C sweep と定性評価が残る。
+  - 2026-06-27追補として，Stage A `outputs/phase2_82/attach_frame_validation/stage_a_frame_only` では，baseline `fp=1, ft=1` が `first_fail_t_s=0.0374 s`, `hook_len_rel_err_max=3.2865`, first fail `hook` だったのに対し，`fp=3, ft=1.5` は `first_fail_t_s=0.4363 s`, `hook_len_rel_err_max=0.0145` まで hook過伸長を抑えた。ただし first fail は `flag` へ移り，`flag_bond_rel_err_max=1.1875` が残った。
+  - dt sweep `outputs/phase2_82/dt_sweep_attach_frame_stage_a/dt_sweep_summary.csv` では，`dt_star=1.0e-4, 5.0e-5, 2.5e-5` のいずれでも baseline は early `hook` fail，attach-frame候補は `flag` fail となった。`dt_star` を小さくしても破綻種別は解消せず，今回の問題は時間刻み単独ではなく拘束・力の釣り合い不足として扱う。以後の比較は実行時間を考慮して `dt_star=1.0e-4` を継続採用する。
+  - Stage B `outputs/phase2_82/attach_frame_validation/stage_b_fs_after_frame_dt1e-4` では，`fp=3, ft=1.5` に `local_first_second_spring_scale=1..3` を追加しても `flag_bond_rel_err_max=1.1875..1.1961` で改善しなかった。`first-second` 補強は第1-第2ビーズ距離誤差をやや下げるが，破綻先の flag bond 伸長を解決する主因ではない。
+  - 0.5 s の後方条件定性評価 `outputs/phase2_82/qualitative_posterior_attach_frame_review` では，`flagella.initial_helix_axis_from_rear_deg=0` の条件で `posterior_fp3_ft1p5_fs1` と `posterior_fp3_ft1p5_fs1p5` を確認した。ユーザー定性評価では hook根元挙動は問題なし。ただし自動指標は両条件とも final `shape_pass_nonbody=False`, first fail `flag` であり，長時間安定性は未確認である。
+  - body spring 間をべん毛が貫通している可能性の検証，body-flagella segment 最短距離・貫通らしさ指標，repulsion / hard constraint の検討は本PRから分離し，Issue #93 側で扱う。
+  - 出力整理では，定量・定性評価の完了後も再現に必要な `step_summary.csv`，`trajectory.csv`，`state_archive.npz`，`manifest.json` は削除対象にしない。削除してよいのは，途中停止run，重複run，報告に使わない再生成可能な動画・frame出力に限定する。
 - acceptance criteria:
   - [x] 3つの新scaleが config override で個別に指定できる。
   - [x] body長軸90度補強が既存 hook三点角度拘束と混同されない形で実装・テストされる。
@@ -663,6 +669,7 @@
   - [x] body-first 距離・body軸90度補正の grid sweep と heatmap 出力ができる。
   - [x] 第1-第2ビーズ距離補正追加時の sweep と heatmap 出力ができる。
   - [x] body表面局所frameに対する attach-first 位置・first-second 根元接線補正を非default診断用 extension として比較できる。
+  - [x] 後方条件での 0.5 s 定性評価を実施し，長時間安定性・body貫通検証は別タスクとして分離する。
 - verification:
   - `uv run pytest tests/test_params.py tests/test_motor_forces.py tests/test_simulation.py`
   - `uv run ruff check src/sim_swim/dynamics src/sim_swim/sim scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_params.py tests/test_motor_forces.py tests/test_simulation.py`
@@ -689,10 +696,13 @@
     `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode attach-frame-grid --duration-s 0.5 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 3 --fixed-body-axis-angle-scale 1.25 --fixed-first-second-spring-scale 1.25 --attach-frame-position-scales 1,1.25,1.5,2,3 --attach-frame-tangent-scales 1,1.25,1.5,2 --output-dir outputs/phase2_82/attach_frame_grid_stage_b --overwrite --progress-interval 5000`
   - Stage A/B attach-frame heatmap:
     `uv run python scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py --summary-csv <stage_output>/phase2_82_hook_scale_sweep_summary.csv --mode attach-frame-grid --output-dir <stage_output>/plots`
+  - Merge前の長時間後方条件 sweep:
+    `uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --helix-axis-angles-deg 0 --n-flagella 3 --torques 1.0e-20,2.5e-20 --duration-s 2.0 --dt-star 1.0e-4 --output-dir outputs/phase2_82/long_posterior_attach_frame_review_dur2p0/<case> seed.attach_seed=0 seed.phase_seed=0 motor.local_attach_first_spring_scale=<af> motor.local_attach_first_body_axis_angle_scale=<axis> motor.local_first_second_spring_scale=<fs> motor.local_attach_frame_position_scale=<fp> motor.local_attach_frame_tangent_scale=<ft>`
 - docs:
   - `docs/phase2/phase2_current.md`
   - `docs/phase2/phase2_tasks.md`
   - `docs/codex-runs/20260625_205543_phase2_82_hook_overstretch/review_result.json`
+  - `docs/codex-runs/20260627_010359_phase2_82_attach_frame_validation/review_result.json`
 
 ## Phase 2.9: Tumble状態の段階実装
 
