@@ -1,0 +1,60 @@
+{
+  "status": "PASS",
+  "summary": "scripts.01_simulate_swimming の user-facing 指定形式を KEY=VALUE override へ統一し，legacy shorthand の help と manifest 記録を整理した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "run_phase2_7_bundling_sweep.py など sweep 専用 CLI の --duration-s / --dt-star は別 interface のため今回の対象外として残した。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run ruff format --check scripts/01_simulate_swimming/01_simulate_swimming.py tests/test_e2e_cli.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff check scripts/01_simulate_swimming/01_simulate_swimming.py tests/test_e2e_cli.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest tests/test_e2e_cli.py -q",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS",
+      "note": "commit hook"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS",
+      "note": "commit hook"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS",
+      "note": "commit hook; 259 passed"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/01_simulate_swimming.py --help",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/01_simulate_swimming.py -- time.duration_s=0.001 time.dt_star=1.0e-4 output.base_dir=/private/tmp/phase2_duration_override_smoke",
+      "result": "PASS",
+      "outputs": [
+        "/private/tmp/phase2_duration_override_smoke/2026-06-26/123037/manifest.json",
+        "/private/tmp/phase2_duration_override_smoke/2026-06-26/123037/run.log"
+      ]
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "CLI help・manifest metadata・文書例の整理であり，物理モデル，数値解釈，下流MLデータ生成方針を変える意思決定ではないため。",
+  "commit_type": "complete",
+  "commit_hash": "cf1127bf454cbcea8b21a2413c2e34ac9292f375",
+  "push_status": "pushed",
+  "pull_request_url": "",
+  "next_actions": []
+}
