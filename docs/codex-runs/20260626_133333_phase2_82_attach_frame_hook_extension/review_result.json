@@ -51,7 +51,7 @@
   "adr_required": false,
   "adr_reason": "標準default物理モデルを変更せず，非default時のみ有効な診断用 extension と比較CLIを追加したため。今後，局所frame補正をPhase 2代表defaultへ昇格する場合はADRを作成する。",
   "commit_type": "complete",
-  "commit_hash": "def9307299da7aa79527df902306b12b8c0840d8",
+  "commit_hash": "613c94b4f4a76ab3817559714dd51a5394e6a791",
   "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/90",
   "next_actions": [
