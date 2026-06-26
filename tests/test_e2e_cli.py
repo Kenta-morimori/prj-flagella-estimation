@@ -125,3 +125,19 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
     manifest = json.loads((latest / "manifest.json").read_text(encoding="utf-8"))
     outputs = manifest.get("outputs", {})
     assert "initial_geometry_summary_json" in outputs
+    assert manifest["input"]["cli_overrides"] == []
+    assert manifest["input"]["legacy_shorthand_overrides"] == [
+        "time.duration_s=5e-05",
+        "output_sampling.fps_out_2d=25.0",
+        "render.render_flagella=True",
+    ]
+    assert manifest["input"]["overrides"] == [
+        "time.duration_s=5e-05",
+        "output_sampling.fps_out_2d=25.0",
+        "render.render_flagella=True",
+    ]
+    assert manifest["input"]["effective_overrides"]["time"]["duration_s"] == 5.0e-5
+    assert (
+        manifest["input"]["effective_overrides"]["output_sampling"]["fps_out_2d"]
+        == 25.0
+    )

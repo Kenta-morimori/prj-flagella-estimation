@@ -105,7 +105,7 @@ When visual review is required, report the command, expected output directory, f
 
 Standard command pattern:
 
-`uv run python -m scripts.01_simulate_swimming ...`
+`uv run python -m scripts.01_simulate_swimming time.duration_s=0.5 time.dt_star=1.0e-4 ...`
 
 If visual review is required but not completed, the review result remains `FAIL`.
 

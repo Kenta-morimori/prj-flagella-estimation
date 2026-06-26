@@ -29,14 +29,26 @@ def _to_nested_overrides(items: Optional[List[str]]) -> Dict[str, Any]:
     return merge_overrides({}, items)
 
 
+def _is_typer_default(value: Any) -> bool:
+    return isinstance(value, (typer.models.OptionInfo, typer.models.ArgumentInfo))
+
+
 @app.command()
 def main(
     config: Path = typer.Option(Path("conf/sim_swim.yaml"), "--config", "-c"),
     duration_s: Optional[float] = typer.Option(
-        None, help="Override time.duration_s (seconds)"
+        None,
+        help=(
+            "Legacy shorthand for time.duration_s. Prefer key=value override: "
+            "time.duration_s=0.5"
+        ),
     ),
     fps_out: Optional[float] = typer.Option(
-        None, help="Override output_sampling.fps_out_2d (frames per second)"
+        None,
+        help=(
+            "Legacy shorthand for output_sampling.fps_out_2d. Prefer key=value "
+            "override: output_sampling.fps_out_2d=25"
+        ),
     ),
     render_flagella: Optional[bool] = typer.Option(
         None,
@@ -54,23 +66,47 @@ def main(
     """Phase2 用のシミュレーション＆投影エントリ。"""
 
     raw_cfg = _load_config(config)
+    if _is_typer_default(overrides):
+        overrides = []
+    if _is_typer_default(duration_s):
+        duration_s = None
+    if _is_typer_default(fps_out):
+        fps_out = None
+    if _is_typer_default(render_flagella):
+        render_flagella = None
+    if _is_typer_default(render_flagella_2d):
+        render_flagella_2d = None
+
+    cli_overrides = list(overrides or [])
+    shorthand_overrides: List[str] = []
     override_dict = _to_nested_overrides(overrides)
     if duration_s is not None:
         override_dict.setdefault("time", {})["duration_s"] = duration_s
+        shorthand_overrides.append(f"time.duration_s={duration_s}")
     if fps_out is not None:
         override_dict.setdefault("output_sampling", {})["fps_out_2d"] = fps_out
+        shorthand_overrides.append(f"output_sampling.fps_out_2d={fps_out}")
     if render_flagella is not None:
         override_dict.setdefault("render", {})["render_flagella"] = render_flagella
+        shorthand_overrides.append(f"render.render_flagella={render_flagella}")
     if render_flagella_2d is not None:
         override_dict.setdefault("render", {})["render_flagella_2d"] = (
             render_flagella_2d
         )
+        shorthand_overrides.append(f"render.render_flagella_2d={render_flagella_2d}")
+    effective_overrides = [*cli_overrides, *shorthand_overrides]
     cfg = SimulationConfig.from_dict(raw_cfg).with_overrides(override_dict)
 
     output_base = cfg.output.base_dir
     ctx = init_run(
         base_dir=output_base,
-        input_info={"config": str(config), "overrides": overrides or []},
+        input_info={
+            "config": str(config),
+            "overrides": effective_overrides,
+            "cli_overrides": cli_overrides,
+            "legacy_shorthand_overrides": shorthand_overrides,
+            "effective_overrides": override_dict,
+        },
     )
     logger = ctx.logger
     logger.info("Loaded simulation config (effective): %s", cfg)

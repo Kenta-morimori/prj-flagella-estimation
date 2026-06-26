@@ -22,6 +22,7 @@ Phase 2.6 の single flagellum 螺旋維持 gate では、`run_motor_scale_sweep
 ### `scripts.01_simulate_swimming` のCLI指定方法
 
 - `duration_s` やトルク、`dt_star` など設定キーは `KEY=VALUE` 形式の override で指定します。
+- `--duration-s` と `--fps-out` は既存互換用の legacy shorthand です。新規コマンド例や記録には `time.duration_s=...`、`output_sampling.fps_out_2d=...` を使います。
 
 例:
 ```bash

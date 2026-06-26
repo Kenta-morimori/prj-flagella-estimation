@@ -131,10 +131,10 @@ P2-6-008の完了判定は定量gateで行う。新modeは net回転と形状維
 ```bash
 uv run python -m scripts.01_simulate_swimming \
   --config conf/sim_swim.yaml \
-  --duration-s 0.5 \
-  --fps-out 100 \
   --render-flagella \
   --render-flagella-2d \
+  time.duration_s=0.5 \
+  output_sampling.fps_out_2d=100 \
   flagella.n_flagella=1 \
   flagella.stub_mode=full_flagella \
   motor.torque_Nm=2.0e-20 \
