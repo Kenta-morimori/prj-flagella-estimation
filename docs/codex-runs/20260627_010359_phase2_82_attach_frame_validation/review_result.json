@@ -1,10 +1,12 @@
 {
   "status": "PASS",
-  "summary": "Issue #82 / PR #90 の attach-frame 補強について，Stage A，dt sweep，Stage B，後方条件0.5 s定性評価を整理した。`local_attach_frame_position_scale=3` と `local_attach_frame_tangent_scale=1.5` は baseline の hook過伸長を大きく抑えるが，破綻先は flag bond へ移る。`local_first_second_spring_scale` を追加しても flag bond 伸長は改善せず，`dt_star` を小さくしても破綻種別は解消しない。したがって本PRは hook過伸長の部分対応として扱い，長時間安定性と body-flagella 貫通検証は別タスクへ分離する。",
+  "summary": "Issue #82 / PR #90 の attach-frame 補強について，Stage A，dt sweep，Stage B，後方条件0.5 s定性評価，2.0 s長時間3D定性評価を整理した。`local_attach_frame_position_scale=3` と `local_attach_frame_tangent_scale=1.5` は baseline の hook過伸長を大きく抑えるが，破綻先は flag bond へ移る。`frame_fp3_ft1p5_fs1p5` では first fail 時点 `hook_len_rel_err_max=0.0157` に対し `flag_bond_rel_err_max=1.0006`，final `flag_bond_rel_err_max=2.0500` となり，破綻は hook ではなく flagellum bond 過伸長である。反作用トルクは消しておらず body 側へ入っているが，attach-frame補強が body-root 間の相対運動を抑えるため一体回転に近く見える。したがって本PRは hook過伸長の部分対応として扱い，flag bond 長時間安定化と body-flagella 貫通検証は別タスクへ分離する。",
   "blocking_issues": [],
   "non_blocking_issues": [
-    "後方条件のユーザー定性評価は duration_s=0.5 の範囲では問題なし。ただし長時間安定性は未確認であり，merge前に Issue へ根拠fig付きで長時間 sweep 結果を残す。",
-    "Stage A/B の自動指標では final_shape_pass_nonbody=False が残る。first fail は hook ではなく flag で，flag_bond_rel_err_max は約 1.19 まで伸びる。",
+    "後方条件のユーザー定性評価は duration_s=0.5 の範囲では問題なし。2.0 s 長時間3D定性評価では hook は抑えられるが flag bond 過伸長が支配的になる。",
+    "Stage A/B と長時間3D定性評価の自動指標では final_shape_pass_nonbody=False が残る。first fail は hook ではなく flag で，`frame_fp3_ft1p5_fs1p5` の final `flag_bond_rel_err_max` は 2.0500 まで伸びる。",
+    "全 local scale default は 1.0 に据え置く。`fp=3, ft=1.5` は診断候補であり，長時間 flag bond 過伸長が解決するまでは標準defaultへ昇格しない。",
+    "flag bond 過伸長は Issue #82 の sub-issue として，発生 flag_id / bead pair の per-step 診断と長時間安定化を別PRで扱う。",
     "body spring 間をべん毛が貫通している可能性は本PRでは扱わず，Issue #93 で body-flagella segment 最短距離・貫通らしさ指標として検証する。"
   ],
   "tests_reviewed": [
@@ -25,6 +27,10 @@
       "result": "PASS: posterior_fp3_ft1p5_fs1 と posterior_fp3_ft1p5_fs1p5 は 5000 step, final t=0.4999 s を確認。hook_len_rel_err_max は 0.0145 / 0.0132。ユーザー定性評価では 0.5 s 範囲の hook根元挙動は問題なし。"
     },
     {
+      "command": "uv run python - <<'PY' ... read outputs/phase2_82/qualitative_long_flag_bond_review/frame_fp3_ft1p5_fs1p5/2026-06-27/134540/sim/step_summary.csv ... PY",
+      "result": "PASS: first fail t=0.4363 s, category=flag, hook_len_rel_err_max=0.0157, flag_bond_rel_err_max=1.0006。final t=1.9999 s では hook_len_rel_err_max=0.0229, flag_bond_rel_err_max=2.0500, flag_bond_len_max_over_b=1.7690。"
+    },
+    {
       "command": "uv run python -m json.tool docs/codex-runs/20260627_010359_phase2_82_attach_frame_validation/review_result.json",
       "result": "PASS: JSON validation completed"
     }
@@ -34,6 +40,7 @@
   "user_review_outputs": [
     "outputs/phase2_82/qualitative_posterior_attach_frame_review/posterior_fp3_ft1p5_fs1/2026-06-27/003729/render/swim3d.mp4",
     "outputs/phase2_82/qualitative_posterior_attach_frame_review/posterior_fp3_ft1p5_fs1p5/2026-06-27/004419/render/swim3d.mp4",
+    "outputs/phase2_82/qualitative_long_flag_bond_review/frame_fp3_ft1p5_fs1p5/2026-06-27/134540/render/swim3d.mp4",
     "outputs/phase2_82/attach_frame_validation/stage_a_frame_only/phase2_82_hook_scale_sweep_summary.csv",
     "outputs/phase2_82/dt_sweep_attach_frame_stage_a/dt_sweep_summary.csv",
     "outputs/phase2_82/attach_frame_validation/stage_b_fs_after_frame_dt1e-4/stage_b_fs_after_frame_summary.csv"
@@ -41,8 +48,9 @@
   "user_review_points": [
     "hook根元距離が後方条件で伸び続けていないか",
     "body回転時に first bead が body 表面局所位置へ追従しているか",
-    "first-second 補強が flag bond 破綻を悪化させていないか",
-    "長時間では hook 抑制が維持されるか",
+    "first-second 補強後の破綻が hook ではなく flagellum bond 過伸長であるか",
+    "長時間では hook 抑制が維持される一方で flag bond 側へ負荷が移るか",
+    "反作用トルクは消えておらず，attach-frame補強で body-root 相対運動が抑えられて一体回転に近く見えるという解釈が妥当か",
     "body-flagella 貫通らしさは別Issue #93で定量化する"
   ],
   "adr_required": false,
@@ -52,8 +60,8 @@
   "push_status": "pending",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/90",
   "next_actions": [
-    "merge前に `outputs/phase2_82/long_posterior_attach_frame_review_dur2p0` の長時間 sweep を実行する。",
-    "長時間 sweep の summary と `long_posterior_metrics_torque_2.50e-20.png` を Issue #82 または PR #90 に根拠として貼る。",
+    "Issue #82 の sub-issue 候補 `[Phase2] attach-frame補強後のflag bond過伸長を診断・安定化する` を作成し，flag_bond_rel_err_max の発生 flag_id / bead pair を per-step で特定する。",
+    "長時間 sweep の summary と `long_posterior_metrics_torque_2.50e-20.png`，および `frame_fp3_ft1p5_fs1p5` の3D定性評価結果を Issue #82 または PR #90 に根拠として残す。",
     "本PR本文では `Refs #82` / `Part of #82` とし，`Closes #82` は使わない。",
     "body-flagella 貫通可能性は Issue #93 の別PRで扱う。"
   ]

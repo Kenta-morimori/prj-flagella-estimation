@@ -659,6 +659,10 @@
   - dt sweep `outputs/phase2_82/dt_sweep_attach_frame_stage_a/dt_sweep_summary.csv` では，`dt_star=1.0e-4, 5.0e-5, 2.5e-5` のいずれでも baseline は early `hook` fail，attach-frame候補は `flag` fail となった。`dt_star` を小さくしても破綻種別は解消せず，今回の問題は時間刻み単独ではなく拘束・力の釣り合い不足として扱う。以後の比較は実行時間を考慮して `dt_star=1.0e-4` を継続採用する。
   - Stage B `outputs/phase2_82/attach_frame_validation/stage_b_fs_after_frame_dt1e-4` では，`fp=3, ft=1.5` に `local_first_second_spring_scale=1..3` を追加しても `flag_bond_rel_err_max=1.1875..1.1961` で改善しなかった。`first-second` 補強は第1-第2ビーズ距離誤差をやや下げるが，破綻先の flag bond 伸長を解決する主因ではない。
   - 0.5 s の後方条件定性評価 `outputs/phase2_82/qualitative_posterior_attach_frame_review` では，`flagella.initial_helix_axis_from_rear_deg=0` の条件で `posterior_fp3_ft1p5_fs1` と `posterior_fp3_ft1p5_fs1p5` を確認した。ユーザー定性評価では hook根元挙動は問題なし。ただし自動指標は両条件とも final `shape_pass_nonbody=False`, first fail `flag` であり，長時間安定性は未確認である。
+  - 2.0 s の長時間3D定性評価 `outputs/phase2_82/qualitative_long_flag_bond_review/frame_fp3_ft1p5_fs1p5` では，`local_attach_frame_position_scale=3`, `local_attach_frame_tangent_scale=1.5`, `local_first_second_spring_scale=1.5` 条件で first fail は `t=0.4363 s`, category `flag` だった。この時点で `hook_len_rel_err_max=0.0157` に留まる一方，`flag_bond_rel_err_max=1.0006` となり，最終時刻 `t=1.9999 s` では `flag_bond_rel_err_max=2.0500`, `flag_bond_len_max_over_b=1.7690` まで増加した。したがって `fs=1.5` 条件の破綻は hook ではなく flagellum bond 過伸長である。
+  - `root_torque_segment_couples` は反作用トルクを明示的に消していない。flagellum segment 側へ torque を入れた後，body 側へ `target_torque_Nm=-applied_flag_torque` の反対向き torque を入れる。attach-frame補強は body-root 間の相対運動を抑えるため，見た目は body と flagella root が一体回転に近くなるが，body への反作用トルク自体は残っている。
+  - 今後の default 値は全 local scale `1.0` を維持する。`fp=3, ft=1.5` は hook過伸長を抑える診断候補として残すが，長時間 flag bond 過伸長が残るため標準defaultへは昇格しない。
+  - Issue #82 の sub-issue 候補として `[Phase2] attach-frame補強後のflag bond過伸長を診断・安定化する` を切り出す。目的は `flag_bond_rel_err_max` が発生する `flag_id` と bead pair を stepごとに特定し，root近傍か下流helixかを判定した上で，hook抑制を維持したまま flag bond 過伸長を悪化させない補正候補を比較することである。
   - body spring 間をべん毛が貫通している可能性の検証，body-flagella segment 最短距離・貫通らしさ指標，repulsion / hard constraint の検討は本PRから分離し，Issue #93 側で扱う。
   - 出力整理では，定量・定性評価の完了後も再現に必要な `step_summary.csv`，`trajectory.csv`，`state_archive.npz`，`manifest.json` は削除対象にしない。削除してよいのは，途中停止run，重複run，報告に使わない再生成可能な動画・frame出力に限定する。
 - acceptance criteria:
@@ -670,6 +674,7 @@
   - [x] 第1-第2ビーズ距離補正追加時の sweep と heatmap 出力ができる。
   - [x] body表面局所frameに対する attach-first 位置・first-second 根元接線補正を非default診断用 extension として比較できる。
   - [x] 後方条件での 0.5 s 定性評価を実施し，長時間安定性・body貫通検証は別タスクとして分離する。
+  - [x] 長時間3D定性評価で `fs=1.5` 条件の破綻が hook ではなく flagellum bond 過伸長であることを記録する。
 - verification:
   - `uv run pytest tests/test_params.py tests/test_motor_forces.py tests/test_simulation.py`
   - `uv run ruff check src/sim_swim/dynamics src/sim_swim/sim scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_params.py tests/test_motor_forces.py tests/test_simulation.py`
@@ -698,6 +703,8 @@
     `uv run python scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py --summary-csv <stage_output>/phase2_82_hook_scale_sweep_summary.csv --mode attach-frame-grid --output-dir <stage_output>/plots`
   - Merge前の長時間後方条件 sweep:
     `uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --helix-axis-angles-deg 0 --n-flagella 3 --torques 1.0e-20,2.5e-20 --duration-s 2.0 --dt-star 1.0e-4 --output-dir outputs/phase2_82/long_posterior_attach_frame_review_dur2p0/<case> seed.attach_seed=0 seed.phase_seed=0 motor.local_attach_first_spring_scale=<af> motor.local_attach_first_body_axis_angle_scale=<axis> motor.local_first_second_spring_scale=<fs> motor.local_attach_frame_position_scale=<fp> motor.local_attach_frame_tangent_scale=<ft>`
+  - 長時間3D定性評価:
+    `uv run python -m scripts.01_simulate_swimming flagella.n_flagella=3 flagella.initial_helix_axis_from_rear_deg=0 seed.attach_seed=0 seed.phase_seed=0 time.duration_s=2.0 time.dt_star=1.0e-4 motor.torque_Nm=2.5e-20 motor.local_attach_first_spring_scale=1 motor.local_attach_first_body_axis_angle_scale=1 motor.local_first_second_spring_scale=1.5 motor.local_attach_frame_position_scale=3 motor.local_attach_frame_tangent_scale=1.5 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.render_flagella=true render.show_flagella_helix_axis_3d=true render.save_frames_3d=false output.base_dir=outputs/phase2_82/qualitative_long_flag_bond_review/frame_fp3_ft1p5_fs1p5`
 - docs:
   - `docs/phase2/phase2_current.md`
   - `docs/phase2/phase2_tasks.md`
