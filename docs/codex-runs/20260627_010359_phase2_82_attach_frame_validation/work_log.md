@@ -14,6 +14,7 @@ Issue #82 / PR #90 の hook過伸長対策について，実装後の Stage A，
 - `root_torque_segment_couples` は反作用トルクを消していない。body 側へ反対向き torque を入れているが，attach-frame補強が body-root 間の相対運動を抑えるため，一体回転に近く見える。
 - 全 local scale default は `1.0` に据え置く。`fp=3, ft=1.5` は hook過伸長を抑える診断候補だが，長時間 flag bond 過伸長が残るため標準defaultへ昇格しない。
 - body-flagella 貫通可能性は Issue #93 へ分離した。
+- chatgpt-codex-connector review の「category heatmap は final 行ではなく実際の first-fail 行を使うべき」という指摘は採用した。`stop_on_shape_fail=False` では途中破綻後に final 行が別状態になり得るため，Issue #82 summary に `first_fail_category_nonbody` を追加し，heatmap はこの列を優先して分類する。古い summary CSV は従来の `final_*` 列へフォールバックする。
 
 ## Output Policy
 

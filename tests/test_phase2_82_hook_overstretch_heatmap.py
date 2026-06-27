@@ -24,6 +24,60 @@ def _load_plot_script():
     return module
 
 
+def test_phase2_82_category_rank_uses_first_fail_category() -> None:
+    script = _load_plot_script()
+
+    assert script._category_rank(
+        {
+            "final_shape_pass_nonbody": "True",
+            "final_first_fail_category_nonbody": "none",
+            "first_fail_category_nonbody": "hook",
+            "first_fail_t_s": "0.12",
+        }
+    ) == script.CATEGORY_ORDER.index("hook")
+    assert script._category_rank(
+        {
+            "final_shape_pass_nonbody": "False",
+            "final_first_fail_category_nonbody": "hook",
+            "first_fail_category_nonbody": "flag",
+            "first_fail_t_s": "0.23",
+        }
+    ) == script.CATEGORY_ORDER.index("flag")
+
+
+def test_phase2_82_category_rank_keeps_legacy_summary_fallback() -> None:
+    script = _load_plot_script()
+
+    assert script._category_rank(
+        {
+            "final_shape_pass_nonbody": "True",
+            "final_first_fail_category_nonbody": "none",
+        }
+    ) == script.CATEGORY_ORDER.index("none")
+    assert script._category_rank(
+        {
+            "final_shape_pass_nonbody": "False",
+            "final_first_fail_category_nonbody": "hook",
+        }
+    ) == script.CATEGORY_ORDER.index("hook")
+    assert script._category_rank(
+        {
+            "final_shape_pass_nonbody": "True",
+            "final_first_fail_category_nonbody": "none",
+            "first_fail_category_nonbody": "none",
+            "first_fail_t_s": "",
+        }
+    ) == script.CATEGORY_ORDER.index("none")
+    assert script._category_rank(
+        {
+            "final_shape_pass_nonbody": "False",
+            "final_first_fail_category_nonbody": "none",
+            "first_fail_category_nonbody": "none",
+            "first_fail_t_s": "0.34",
+        }
+    ) == script.CATEGORY_ORDER.index("finite")
+
+
 def test_phase2_82_body_first_heatmap_outputs_files(
     tmp_path: Path, monkeypatch
 ) -> None:

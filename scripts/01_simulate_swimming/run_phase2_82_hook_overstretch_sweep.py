@@ -58,6 +58,7 @@ SUMMARY_FIELDS = (
     "local_attach_frame_position_angle_err_deg_per_flag",
     "local_attach_frame_tangent_angle_err_deg_per_flag",
     "first_fail_t_s",
+    "first_fail_category_nonbody",
     "first_fail_hook_len_rel_err_max",
     "first_fail_hook_len_rel_err_max_flag_id",
     "first_fail_local_attach_first_rel_err",
@@ -347,6 +348,11 @@ def _summary_row(
             cfg.motor.local_attach_frame_tangent_scale
         ),
         "first_fail_t_s": "" if first_fail is None else first_fail.get("t_s", ""),
+        "first_fail_category_nonbody": (
+            "none"
+            if first_fail is None
+            else first_fail.get("first_fail_category_nonbody", "")
+        ),
         "first_fail_hook_len_rel_err_max": (
             "" if first_fail is None else first_fail.get("hook_len_rel_err_max", "")
         ),

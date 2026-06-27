@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #82 / PR #90 の attach-frame 補強について，Stage A，dt sweep，Stage B，後方条件0.5 s定性評価，2.0 s長時間3D定性評価を整理した。`local_attach_frame_position_scale=3` と `local_attach_frame_tangent_scale=1.5` は baseline の hook過伸長を大きく抑えるが，破綻先は flag bond へ移る。`frame_fp3_ft1p5_fs1p5` では first fail 時点 `hook_len_rel_err_max=0.0157` に対し `flag_bond_rel_err_max=1.0006`，final `flag_bond_rel_err_max=2.0500` となり，破綻は hook ではなく flagellum bond 過伸長である。反作用トルクは消しておらず body 側へ入っているが，attach-frame補強が body-root 間の相対運動を抑えるため一体回転に近く見える。したがって本PRは hook過伸長の部分対応として扱い，flag bond 長時間安定化と body-flagella 貫通検証は別タスクへ分離する。",
+  "summary": "Issue #82 / PR #90 の attach-frame 補強について，Stage A，dt sweep，Stage B，後方条件0.5 s定性評価，2.0 s長時間3D定性評価を整理した。`local_attach_frame_position_scale=3` と `local_attach_frame_tangent_scale=1.5` は baseline の hook過伸長を大きく抑えるが，破綻先は flag bond へ移る。`frame_fp3_ft1p5_fs1p5` では first fail 時点 `hook_len_rel_err_max=0.0157` に対し `flag_bond_rel_err_max=1.0006`，final `flag_bond_rel_err_max=2.0500` となり，破綻は hook ではなく flagellum bond 過伸長である。反作用トルクは消しておらず body 側へ入っているが，attach-frame補強が body-root 間の相対運動を抑えるため一体回転に近く見える。chatgpt-codex-connector review は採用し，Issue #82 category heatmap は final 行ではなく summary の `first_fail_category_nonbody` を優先して分類するようにした。したがって本PRは hook過伸長の部分対応として扱い，flag bond 長時間安定化と body-flagella 貫通検証は別タスクへ分離する。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "後方条件のユーザー定性評価は duration_s=0.5 の範囲では問題なし。2.0 s 長時間3D定性評価では hook は抑えられるが flag bond 過伸長が支配的になる。",
@@ -33,6 +33,18 @@
     {
       "command": "uv run python -m json.tool docs/codex-runs/20260627_010359_phase2_82_attach_frame_validation/review_result.json",
       "result": "PASS: JSON validation completed"
+    },
+    {
+      "command": "uv run pytest tests/test_phase2_82_hook_overstretch_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py -q",
+      "result": "PASS: 10 passed。Issue #82 summary に `first_fail_category_nonbody` を保存し，heatmap が actual first-fail category を final 行より優先することを確認。"
+    },
+    {
+      "command": "uv run ruff check scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py",
+      "result": "PASS: All checks passed"
+    },
+    {
+      "command": "uv run ruff format --check scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py",
+      "result": "PASS: 4 files already formatted"
     }
   ],
   "user_review_required": false,

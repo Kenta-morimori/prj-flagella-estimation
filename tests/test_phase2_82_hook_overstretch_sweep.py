@@ -133,6 +133,7 @@ def test_phase2_82_summary_row_records_fail_and_max_hook_events(
         {
             "t_s": "0.2",
             "shape_pass_nonbody": "False",
+            "first_fail_category_nonbody": "flag",
             "hook_len_rel_err_max": "1.01",
             "hook_len_rel_err_max_flag_id": "1",
             "local_attach_first_rel_err": "0.9",
@@ -165,6 +166,7 @@ def test_phase2_82_summary_row_records_fail_and_max_hook_events(
     )
 
     assert row["first_fail_t_s"] == "0.2"
+    assert row["first_fail_category_nonbody"] == "flag"
     assert row["first_fail_hook_len_rel_err_max"] == "1.01"
     assert row["first_fail_hook_len_rel_err_max_flag_id"] == "1"
     assert row["first_fail_local_attach_frame_position_rel_err"] == "0.3"

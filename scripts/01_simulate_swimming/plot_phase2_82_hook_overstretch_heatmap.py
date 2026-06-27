@@ -62,11 +62,28 @@ def _parse_float(value: str | float | None) -> float:
         return float("nan")
 
 
-def _category_rank(row: dict[str, str]) -> int:
+def _legacy_category_rank(row: dict[str, str]) -> int:
     if _parse_bool(row.get("final_shape_pass_nonbody")):
         return CATEGORY_ORDER.index("none")
     category = str(row.get("final_first_fail_category_nonbody", "")).strip()
     if category == "none":
+        return CATEGORY_ORDER.index("finite")
+    if category in CATEGORY_ORDER:
+        return CATEGORY_ORDER.index(category)
+    return CATEGORY_ORDER.index("finite")
+
+
+def _category_rank(row: dict[str, str]) -> int:
+    first_fail_category = row.get("first_fail_category_nonbody")
+    if first_fail_category is None:
+        return _legacy_category_rank(row)
+
+    category = str(first_fail_category).strip()
+    first_fail_t = _parse_float(row.get("first_fail_t_s"))
+    has_first_fail = np.isfinite(first_fail_t)
+    if not has_first_fail and category in {"", "none"}:
+        return CATEGORY_ORDER.index("none")
+    if category in {"", "none"}:
         return CATEGORY_ORDER.index("finite")
     if category in CATEGORY_ORDER:
         return CATEGORY_ORDER.index(category)
@@ -283,6 +300,7 @@ def _write_normalized_csv(rows: list[dict[str, str]], out_path: Path) -> None:
         "mode",
         "final_shape_pass_nonbody",
         "final_first_fail_category_nonbody",
+        "first_fail_category_nonbody",
         "local_attach_first_spring_scale",
         "local_attach_first_body_axis_angle_scale",
         "local_first_second_spring_scale",
