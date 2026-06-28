@@ -1,0 +1,59 @@
+{
+  "status": "PASS",
+  "summary": "Issue #94 として，attach-frame 補強後に残る flagellum bond 過伸長の発生位置を CSV で追跡できるようにした。`step_summary.csv` に最大 flag bond 伸長の `flag_id`，bead pair，length over b，per-flag 最大値を追加し，Issue #82 sweep summary には first fail 時点と全期間最大時点の flag bond event を集約した。さらに `first-second-grid` で `fp/ft` を固定できるようにし，`fp=3, ft=1.5` 固定の `fs=1..3` 比較を直接実行できるようにした。短時間 smoke 比較では `fs` 増強による明確な `max_flag_bond_rel_err` 改善は見えず，default local scale は全て `1.0` のまま維持する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "2.0 s の #94 代表条件再実行は segment repulsion 計算が重く，ローカルでは途中中断した。今回追加した列により，再実行時には長時間の破綻 flag / bead pair を取得できる。",
+    "0.05 s の `fp=3, ft=1.5` 固定 `fs=1,1.25,1.5,2,3` 比較では first fail は発生せず，長時間安定化の結論は出していない。",
+    "3D render 上で破綻 bond を強調表示する機能は今回追加していない。CSV の時刻・flag_id・bead pair と既存動画の照合を前提とする。",
+    "default local scale は全て `1.0` のまま維持する。非default補強候補は診断用 extension として扱う。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_simulation.py::test_run_writes_step_summary_csv_without_projection_columns tests/test_phase2_82_hook_overstretch_sweep.py",
+      "result": "PASS: 6 passed。`step_summary.csv` の flag bond 位置診断列，#82 sweep summary の first/max flag bond event，および `first-second-grid` の fixed attach-frame scale 指定を確認。"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/sim/debug_summary.py scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py tests/test_phase2_82_hook_overstretch_sweep.py",
+      "result": "PASS: All checks passed"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.001 --dt-star 1.0e-4 --torque-nm 0 --n-flagella 3 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --first-second-spring-scales 1 --output-dir /private/tmp/phase2_issue94_smoke_sweep --overwrite --progress-interval 10000",
+      "result": "PASS: `step_summary.csv` と `phase2_82_hook_scale_sweep_summary.csv` の両方で flag bond event 列が出力された。smoke の最大 event は例として `flag_id=0`, bead pair `15-16`。"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.05 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --fixed-attach-frame-position-scale 3 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_94/fs_sweep_fp3_ft1p5_dur0p05 --overwrite --progress-interval 1000",
+      "result": "PASS: 全5条件 first_fail_category_nonbody=none。`hook_len_rel_err_max` は約 0.02327，`max_flag_bond_rel_err` は約 0.18223 でほぼ同等。最大 event は全条件で `flag_id=2`, bead pair `39-40`, `len_over_b=0.68569` 付近。"
+    },
+    {
+      "command": "uv run python -m scripts.01_simulate_swimming time.duration_s=0.001 time.dt_star=1.0e-4 motor.torque_Nm=0 output.base_dir=/private/tmp/phase2_issue94_smoke render.save_frames_3d=false render.save_frames_2d=false",
+      "result": "EXPECTED FAIL: 通常 CLI は manifest 作成前に clean git を要求するため，未コミット変更がある実装中状態では中止された。代替として clean gate のない #82 sweep script で smoke run を実施した。"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode attach-frame-grid --duration-s 2.0 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --fixed-first-second-spring-scale 1.5 --attach-frame-position-scales 3 --attach-frame-tangent-scales 1.5 --output-dir outputs/phase2_94/representative_fp3_ft1p5_fs1p5 --overwrite --progress-interval 5000",
+      "result": "NOT COMPLETED: segment repulsion 計算が重く，ローカル実行では数分後に中断した。長時間判定は今回追加した診断列で再実行時に取得する。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "今回の対応は CSV 診断と短時間補正比較であり，render 強調表示や新規3D動画の目視判定は要求しない。",
+  "user_review_outputs": [
+    "outputs/phase2_94/fs_sweep_fp3_ft1p5_dur0p05/phase2_82_hook_scale_sweep_summary.csv",
+    "/private/tmp/phase2_issue94_smoke_sweep/phase2_82_hook_scale_sweep_summary.csv"
+  ],
+  "user_review_points": [
+    "長時間代表条件を再実行した場合，first fail 時点と全期間最大時点の `flag_bond_rel_err_max_flag_id` / bead pair が root近傍か下流helixか",
+    "`fp=3, ft=1.5` 固定時に `local_first_second_spring_scale` を変えても flag bond 過伸長が改善しない可能性",
+    "3D動画と照合する場合は CSV の `t_s`, `flag_id`, bead pair を基準に見る"
+  ],
+  "adr_required": false,
+  "adr_reason": "標準default物理モデルは変更せず，診断CSV列と非default比較CLIの拡張に留めたため。flag bond 安定化のために力学モデルやdefault条件を変更する場合は別途ADRを検討する。",
+  "commit_type": "complete",
+  "commit_hash": "pending_final_commit",
+  "push_status": "pending",
+  "pull_request_url": "",
+  "next_actions": [
+    "clean git 状態で 2.0 s の #94 代表条件を再実行し，`flag_bond_rel_err_max` の first fail / max event が root近傍か下流helixかを記録する。",
+    "長時間で `flag_bond_rel_err_max` を下げる補正候補は，今回追加した event 列を使って別タスクで比較する。",
+    "破綻 bond の render 強調が必要になった場合は，CSV 診断とは別の可視化タスクとして扱う。"
+  ]
+}

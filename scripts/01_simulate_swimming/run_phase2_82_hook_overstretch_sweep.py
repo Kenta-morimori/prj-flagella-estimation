@@ -76,6 +76,22 @@ SUMMARY_FIELDS = (
     "max_hook_local_attach_frame_position_angle_err_deg",
     "max_hook_local_attach_frame_tangent_angle_err_deg",
     "flag_bond_rel_err_max",
+    "flag_bond_rel_err_max_flag_id",
+    "flag_bond_rel_err_max_bead_i",
+    "flag_bond_rel_err_max_bead_j",
+    "flag_bond_rel_err_max_len_over_b",
+    "flag_bond_rel_err_per_flag",
+    "first_fail_flag_bond_rel_err_max",
+    "first_fail_flag_bond_rel_err_max_flag_id",
+    "first_fail_flag_bond_rel_err_max_bead_i",
+    "first_fail_flag_bond_rel_err_max_bead_j",
+    "first_fail_flag_bond_rel_err_max_len_over_b",
+    "max_flag_bond_rel_err_t_s",
+    "max_flag_bond_rel_err",
+    "max_flag_bond_rel_err_flag_id",
+    "max_flag_bond_rel_err_bead_i",
+    "max_flag_bond_rel_err_bead_j",
+    "max_flag_bond_rel_err_len_over_b",
     "flag_bend_err_max_deg",
     "flag_torsion_err_max_deg",
     "net_abs_flag_helix_spin_revolutions",
@@ -195,6 +211,19 @@ def _max_hook_row(rows: list[dict[str, str]]) -> dict[str, str] | None:
     )
 
 
+def _max_flag_bond_row(rows: list[dict[str, str]]) -> dict[str, str] | None:
+    finite_rows = [
+        row
+        for row in rows
+        if math.isfinite(_parse_float(row.get("flag_bond_rel_err_max")))
+    ]
+    if not finite_rows:
+        return None
+    return max(
+        finite_rows, key=lambda row: _parse_float(row.get("flag_bond_rel_err_max"))
+    )
+
+
 def _parse_float_values(text: str) -> list[float]:
     values = [float(item.strip()) for item in text.split(",") if item.strip()]
     if not values:
@@ -241,22 +270,33 @@ def build_conditions(args: argparse.Namespace) -> tuple[Condition, ...]:
     if args.mode == "first-second-grid":
         attach_scale = float(args.fixed_attach_first_spring_scale or 2.0)
         angle_scale = float(args.fixed_body_axis_angle_scale or 2.0)
+        frame_position_scale = getattr(args, "fixed_attach_frame_position_scale", None)
+        frame_tangent_scale = getattr(args, "fixed_attach_frame_tangent_scale", None)
         for first_second_scale in args.first_second_spring_scales:
             condition_id = (
                 f"af{_format_scale(attach_scale)}"
                 f"_axis{_format_scale(angle_scale)}"
                 f"_fs{_format_scale(first_second_scale)}"
             )
+            scales = {
+                "local_attach_first_spring_scale": attach_scale,
+                "local_attach_first_body_axis_angle_scale": angle_scale,
+                "local_first_second_spring_scale": float(first_second_scale),
+            }
+            if frame_position_scale is not None:
+                position_scale = float(frame_position_scale)
+                scales["local_attach_frame_position_scale"] = position_scale
+                condition_id += f"_fp{_format_scale(position_scale)}"
+            if frame_tangent_scale is not None:
+                tangent_scale = float(frame_tangent_scale)
+                scales["local_attach_frame_tangent_scale"] = tangent_scale
+                condition_id += f"_ft{_format_scale(tangent_scale)}"
             conditions.append(
                 Condition(
                     condition_id=condition_id,
                     mode=args.mode,
                     description="first-second distance grid after body-first fix",
-                    scales={
-                        "local_attach_first_spring_scale": attach_scale,
-                        "local_attach_first_body_axis_angle_scale": angle_scale,
-                        "local_first_second_spring_scale": float(first_second_scale),
-                    },
+                    scales=scales,
                 )
             )
         return tuple(conditions)
@@ -327,6 +367,7 @@ def _summary_row(
 ) -> dict[str, str | float]:
     first_fail = _first_fail_row(rows)
     max_hook = _max_hook_row(rows)
+    max_flag_bond = _max_flag_bond_row(rows)
     row: dict[str, str | float] = {
         "condition_id": condition.condition_id,
         "mode": condition.mode,
@@ -386,6 +427,29 @@ def _summary_row(
             if first_fail is None
             else first_fail.get("local_attach_frame_tangent_angle_err_deg", "")
         ),
+        "first_fail_flag_bond_rel_err_max": (
+            "" if first_fail is None else first_fail.get("flag_bond_rel_err_max", "")
+        ),
+        "first_fail_flag_bond_rel_err_max_flag_id": (
+            ""
+            if first_fail is None
+            else first_fail.get("flag_bond_rel_err_max_flag_id", "")
+        ),
+        "first_fail_flag_bond_rel_err_max_bead_i": (
+            ""
+            if first_fail is None
+            else first_fail.get("flag_bond_rel_err_max_bead_i", "")
+        ),
+        "first_fail_flag_bond_rel_err_max_bead_j": (
+            ""
+            if first_fail is None
+            else first_fail.get("flag_bond_rel_err_max_bead_j", "")
+        ),
+        "first_fail_flag_bond_rel_err_max_len_over_b": (
+            ""
+            if first_fail is None
+            else first_fail.get("flag_bond_rel_err_max_len_over_b", "")
+        ),
         "max_hook_len_rel_err_t_s": "" if max_hook is None else max_hook.get("t_s", ""),
         "max_hook_len_rel_err": (
             "" if max_hook is None else max_hook.get("hook_len_rel_err_max", "")
@@ -422,6 +486,34 @@ def _summary_row(
             ""
             if max_hook is None
             else max_hook.get("local_attach_frame_tangent_angle_err_deg", "")
+        ),
+        "max_flag_bond_rel_err_t_s": (
+            "" if max_flag_bond is None else max_flag_bond.get("t_s", "")
+        ),
+        "max_flag_bond_rel_err": (
+            ""
+            if max_flag_bond is None
+            else max_flag_bond.get("flag_bond_rel_err_max", "")
+        ),
+        "max_flag_bond_rel_err_flag_id": (
+            ""
+            if max_flag_bond is None
+            else max_flag_bond.get("flag_bond_rel_err_max_flag_id", "")
+        ),
+        "max_flag_bond_rel_err_bead_i": (
+            ""
+            if max_flag_bond is None
+            else max_flag_bond.get("flag_bond_rel_err_max_bead_i", "")
+        ),
+        "max_flag_bond_rel_err_bead_j": (
+            ""
+            if max_flag_bond is None
+            else max_flag_bond.get("flag_bond_rel_err_max_bead_j", "")
+        ),
+        "max_flag_bond_rel_err_len_over_b": (
+            ""
+            if max_flag_bond is None
+            else max_flag_bond.get("flag_bond_rel_err_max_len_over_b", "")
         ),
     }
     for field in SUMMARY_FIELDS:
@@ -516,6 +608,8 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--fixed-attach-first-spring-scale", type=float, default=None)
     parser.add_argument("--fixed-body-axis-angle-scale", type=float, default=None)
     parser.add_argument("--fixed-first-second-spring-scale", type=float, default=1.0)
+    parser.add_argument("--fixed-attach-frame-position-scale", type=float, default=None)
+    parser.add_argument("--fixed-attach-frame-tangent-scale", type=float, default=None)
     parser.add_argument("--sample-limit", type=int, default=None)
     parser.add_argument("--progress-interval", type=int, default=1000)
     parser.add_argument("--overwrite", action="store_true")

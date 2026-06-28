@@ -96,6 +96,11 @@ STEP_SUMMARY_COLUMNS = [
     "flag_bond_len_max_over_b",
     "flag_bond_rel_err_mean",
     "flag_bond_rel_err_max",
+    "flag_bond_rel_err_max_flag_id",
+    "flag_bond_rel_err_max_bead_i",
+    "flag_bond_rel_err_max_bead_j",
+    "flag_bond_rel_err_max_len_over_b",
+    "flag_bond_rel_err_per_flag",
     "flag_helix_axis_vs_rear_angle_deg_min",
     "flag_helix_axis_vs_rear_angle_deg_mean",
     "flag_helix_axis_vs_rear_angle_deg_max",
@@ -751,6 +756,55 @@ def _hook_link_diagnostics(
     )
     default["local_attach_frame_tangent_angle_err_deg_per_flag"] = _format_flag_metric(
         frame_tangent_angle_by_flag
+    )
+    return default
+
+
+def _flag_bond_diagnostics(
+    positions_m: np.ndarray,
+    model: SimModel,
+    spring_pairs: np.ndarray,
+    spring_rests_m: np.ndarray,
+    flag_intra_rows: np.ndarray,
+    b_m: float,
+) -> dict[str, float | int | str]:
+    default: dict[str, float | int | str] = {
+        "flag_bond_rel_err_max_flag_id": -1,
+        "flag_bond_rel_err_max_bead_i": -1,
+        "flag_bond_rel_err_max_bead_j": -1,
+        "flag_bond_rel_err_max_len_over_b": float("nan"),
+        "flag_bond_rel_err_per_flag": "",
+    }
+    if flag_intra_rows.size == 0:
+        return default
+
+    per_flag_max: dict[int, float] = {}
+    max_rel = -float("inf")
+    for row_raw in flag_intra_rows.astype(int, copy=False):
+        row = int(row_raw)
+        i = int(spring_pairs[row, 0])
+        j = int(spring_pairs[row, 1])
+        flag_i = int(model.bead_flag_ids[i])
+        flag_j = int(model.bead_flag_ids[j])
+        flag_id = flag_i if flag_i >= 0 else flag_j
+        if flag_i >= 0 and flag_j >= 0 and flag_i != flag_j:
+            flag_id = -1
+        rest = max(float(spring_rests_m[row]), 1e-30)
+        length = float(np.linalg.norm(positions_m[j] - positions_m[i]))
+        rel = float(abs(length - rest) / rest)
+        if flag_id >= 0:
+            per_flag_max[flag_id] = max(per_flag_max.get(flag_id, -float("inf")), rel)
+        if np.isfinite(rel) and rel > max_rel:
+            max_rel = rel
+            default["flag_bond_rel_err_max_flag_id"] = flag_id
+            default["flag_bond_rel_err_max_bead_i"] = i
+            default["flag_bond_rel_err_max_bead_j"] = j
+            default["flag_bond_rel_err_max_len_over_b"] = float(
+                length / max(b_m, 1e-30)
+            )
+
+    default["flag_bond_rel_err_per_flag"] = _format_flag_metric(
+        sorted(per_flag_max.items())
     )
     return default
 
@@ -1602,6 +1656,14 @@ class StepSummaryRecorder:
             self.spring_rests_m,
             self.flag_intra_rows,
         )
+        flag_bond_diagnostics = _flag_bond_diagnostics(
+            pos_after,
+            self.model,
+            self.spring_pairs,
+            self.spring_rests_m,
+            self.flag_intra_rows,
+            self.cfg.b_m,
+        )
         body_axis = estimate_body_axis(
             pos_after,
             self.model.body_layer_indices,
@@ -2051,6 +2113,7 @@ class StepSummaryRecorder:
             "flag_bond_len_max_over_b": flag_bond_len_max_over_b,
             "flag_bond_rel_err_mean": flag_bond_rel_err_mean,
             "flag_bond_rel_err_max": flag_bond_rel_err_max,
+            **flag_bond_diagnostics,
             "flag_helix_axis_vs_rear_angle_deg_min": (
                 flag_helix_axis_vs_rear_angle_deg_min
             ),

@@ -712,6 +712,38 @@
   - `docs/codex-runs/20260625_205543_phase2_82_hook_overstretch/review_result.json`
   - `docs/codex-runs/20260627_010359_phase2_82_attach_frame_validation/review_result.json`
 
+### P2-8-094: hook補強時の flag bond 過伸長位置を診断する
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/94`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/82`
+- branch: `feature/phase2-94-flag-bond-overstretch`
+- goal: attach-frame 補強後に発生する `flag_bond_rel_err_max` の発生 flag / bead pair を step ごとに特定し，hook抑制を維持したまま flag bond 過伸長を悪化させない補正候補を比較できるようにする。
+- implementation notes:
+  - `step_summary.csv` に `flag_bond_rel_err_max_flag_id`，`flag_bond_rel_err_max_bead_i`，`flag_bond_rel_err_max_bead_j`，`flag_bond_rel_err_max_len_over_b`，`flag_bond_rel_err_per_flag` を追加した。
+  - Issue #82 sweep summary に first fail 時点と全期間最大時点の flag bond event 指標を追加した。
+  - `first-second-grid` で `--fixed-attach-frame-position-scale` / `--fixed-attach-frame-tangent-scale` を指定できるようにし，`fp=3, ft=1.5` 固定で `local_first_second_spring_scale` を比較できるようにした。
+  - CSV 中心の診断とし，3D render 上の破綻 bond 強調表示は今回の対象外とした。
+- result:
+  - smoke sweep `outputs/phase2_94/fs_sweep_fp3_ft1p5_dur0p05` では `fp=3, ft=1.5` を固定し，`fs=1,1.25,1.5,2,3` を `duration_s=0.05` で比較した。全条件で first fail はなく，`hook_len_rel_err_max` は約 `0.02327`，`max_flag_bond_rel_err` は約 `0.18223` でほぼ同等だった。
+  - 同 smoke sweep の最大 flag bond event は全条件で `flag_id=2`, bead pair `39-40`, `len_over_b=0.68569` 付近だった。短時間条件では `local_first_second_spring_scale` 増強による明確な改善は見えない。
+  - 2.0 s の #94 代表条件再実行は segment repulsion 計算が重く，ローカルでは途中中断した。長時間の破綻位置判定は，今回追加した列で再実行時に取得する。
+  - default local scale は全て `1.0` のまま維持する。今回の変更は診断列と非default比較CLIの拡張であり，標準挙動は変更しない。
+- acceptance criteria:
+  - [x] `flag_bond_rel_err_max` の発生 flag / bead pair を step ごとに特定できる。
+  - [x] #82 sweep summary で first fail と全期間最大の flag bond event を比較できる。
+  - [x] `fp=3, ft=1.5` 固定で `local_first_second_spring_scale` を比較できる。
+  - [x] default local scale は長時間安定性が確認されるまで `1.0` のまま維持する。
+- verification:
+  - `uv run pytest tests/test_simulation.py::test_run_writes_step_summary_csv_without_projection_columns tests/test_phase2_82_hook_overstretch_sweep.py`
+  - `uv run ruff check src/sim_swim/sim/debug_summary.py scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py tests/test_phase2_82_hook_overstretch_sweep.py`
+  - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.001 --dt-star 1.0e-4 --torque-nm 0 --n-flagella 3 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --first-second-spring-scales 1 --output-dir /private/tmp/phase2_issue94_smoke_sweep --overwrite --progress-interval 10000`
+  - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.05 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --fixed-attach-frame-position-scale 3 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_94/fs_sweep_fp3_ft1p5_dur0p05 --overwrite --progress-interval 1000`
+- docs:
+  - `docs/phase2/phase2_current.md`
+  - `docs/phase2/phase2_tasks.md`
+  - `docs/codex-runs/20260628_230234_phase2_94_flag_bond_overstretch/review_result.json`
+
 ## Phase 2.9: Tumble状態の段階実装
 
 ### P2-9-010: Tumble状態を段階実装する

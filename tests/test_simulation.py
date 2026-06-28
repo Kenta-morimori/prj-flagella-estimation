@@ -410,6 +410,11 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
         "hook_len_mean_over_b",
         "flag_bond_len_mean_over_b",
         "flag_bond_rel_err_max",
+        "flag_bond_rel_err_max_flag_id",
+        "flag_bond_rel_err_max_bead_i",
+        "flag_bond_rel_err_max_bead_j",
+        "flag_bond_rel_err_max_len_over_b",
+        "flag_bond_rel_err_per_flag",
         "flag_helix_axis_vs_rear_angle_deg_min",
         "flag_helix_axis_vs_rear_angle_deg_mean",
         "flag_helix_axis_vs_rear_angle_deg_max",
@@ -449,6 +454,11 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
         "local_F_repulsion_basal_region",
     ]:
         assert key in first
+    assert int(first["flag_bond_rel_err_max_flag_id"]) >= 0
+    assert int(first["flag_bond_rel_err_max_bead_i"]) >= 0
+    assert int(first["flag_bond_rel_err_max_bead_j"]) >= 0
+    assert float(first["flag_bond_rel_err_max_len_over_b"]) > 0.0
+    assert first["flag_bond_rel_err_per_flag"]
 
     axis_csv_path = tmp_path / "sim" / "flag_helix_axis_diagnostics.csv"
     assert axis_csv_path.is_file()

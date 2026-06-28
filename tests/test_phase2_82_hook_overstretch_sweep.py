@@ -71,6 +71,32 @@ def test_phase2_82_first_second_grid_conditions() -> None:
     }
 
 
+def test_phase2_82_first_second_grid_can_fix_attach_frame_scales() -> None:
+    script = _load_sweep_script()
+    args = SimpleNamespace(
+        mode="first-second-grid",
+        fixed_attach_first_spring_scale=1.0,
+        fixed_body_axis_angle_scale=1.0,
+        fixed_attach_frame_position_scale=3.0,
+        fixed_attach_frame_tangent_scale=1.5,
+        first_second_spring_scales=[1.0, 1.5],
+    )
+
+    conditions = script.build_conditions(args)
+
+    assert [condition.condition_id for condition in conditions] == [
+        "af1_axis1_fs1_fp3_ft1p5",
+        "af1_axis1_fs1p5_fp3_ft1p5",
+    ]
+    assert conditions[-1].scales == {
+        "local_attach_first_spring_scale": 1.0,
+        "local_attach_first_body_axis_angle_scale": 1.0,
+        "local_first_second_spring_scale": 1.5,
+        "local_attach_frame_position_scale": 3.0,
+        "local_attach_frame_tangent_scale": 1.5,
+    }
+
+
 def test_phase2_82_attach_frame_grid_conditions() -> None:
     script = _load_sweep_script()
     args = SimpleNamespace(
@@ -129,6 +155,11 @@ def test_phase2_82_summary_row_records_fail_and_max_hook_events(
             "shape_pass_nonbody": "True",
             "hook_len_rel_err_max": "0.1",
             "hook_len_rel_err_max_flag_id": "0",
+            "flag_bond_rel_err_max": "0.1",
+            "flag_bond_rel_err_max_flag_id": "0",
+            "flag_bond_rel_err_max_bead_i": "9",
+            "flag_bond_rel_err_max_bead_j": "10",
+            "flag_bond_rel_err_max_len_over_b": "0.63",
         },
         {
             "t_s": "0.2",
@@ -136,6 +167,11 @@ def test_phase2_82_summary_row_records_fail_and_max_hook_events(
             "first_fail_category_nonbody": "flag",
             "hook_len_rel_err_max": "1.01",
             "hook_len_rel_err_max_flag_id": "1",
+            "flag_bond_rel_err_max": "1.2",
+            "flag_bond_rel_err_max_flag_id": "1",
+            "flag_bond_rel_err_max_bead_i": "20",
+            "flag_bond_rel_err_max_bead_j": "21",
+            "flag_bond_rel_err_max_len_over_b": "1.276",
             "local_attach_first_rel_err": "0.9",
             "local_first_second_rel_err": "0.2",
             "local_attach_frame_position_rel_err": "0.3",
@@ -150,6 +186,11 @@ def test_phase2_82_summary_row_records_fail_and_max_hook_events(
             "hook_len_rel_err_max_attach_body_bead_index": "8",
             "hook_len_rel_err_max_flag_first_bead_index": "25",
             "hook_len_rel_err_max_len_over_b": "0.6",
+            "flag_bond_rel_err_max": "2.05",
+            "flag_bond_rel_err_max_flag_id": "2",
+            "flag_bond_rel_err_max_bead_i": "33",
+            "flag_bond_rel_err_max_bead_j": "34",
+            "flag_bond_rel_err_max_len_over_b": "1.769",
             "local_attach_frame_position_rel_err": "0.7",
             "local_attach_frame_position_angle_err_deg": "8.0",
             "local_attach_frame_tangent_angle_err_deg": "9.0",
@@ -172,6 +213,11 @@ def test_phase2_82_summary_row_records_fail_and_max_hook_events(
     assert row["first_fail_local_attach_frame_position_rel_err"] == "0.3"
     assert row["first_fail_local_attach_frame_position_angle_err_deg"] == "4.0"
     assert row["first_fail_local_attach_frame_tangent_angle_err_deg"] == "5.0"
+    assert row["first_fail_flag_bond_rel_err_max"] == "1.2"
+    assert row["first_fail_flag_bond_rel_err_max_flag_id"] == "1"
+    assert row["first_fail_flag_bond_rel_err_max_bead_i"] == "20"
+    assert row["first_fail_flag_bond_rel_err_max_bead_j"] == "21"
+    assert row["first_fail_flag_bond_rel_err_max_len_over_b"] == "1.276"
     assert row["max_hook_len_rel_err_t_s"] == "0.5"
     assert row["max_hook_len_rel_err"] == "1.4"
     assert row["max_hook_len_rel_err_flag_id"] == "2"
@@ -180,3 +226,9 @@ def test_phase2_82_summary_row_records_fail_and_max_hook_events(
     assert row["max_hook_local_attach_frame_position_rel_err"] == "0.7"
     assert row["max_hook_local_attach_frame_position_angle_err_deg"] == "8.0"
     assert row["max_hook_local_attach_frame_tangent_angle_err_deg"] == "9.0"
+    assert row["max_flag_bond_rel_err_t_s"] == "0.5"
+    assert row["max_flag_bond_rel_err"] == "2.05"
+    assert row["max_flag_bond_rel_err_flag_id"] == "2"
+    assert row["max_flag_bond_rel_err_bead_i"] == "33"
+    assert row["max_flag_bond_rel_err_bead_j"] == "34"
+    assert row["max_flag_bond_rel_err_len_over_b"] == "1.769"
