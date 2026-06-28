@@ -48,9 +48,9 @@
   "adr_required": false,
   "adr_reason": "標準default物理モデルは変更せず，診断CSV列と非default比較CLIの拡張に留めたため。flag bond 安定化のために力学モデルやdefault条件を変更する場合は別途ADRを検討する。",
   "commit_type": "complete",
-  "commit_hash": "pending_final_commit",
-  "push_status": "pending",
-  "pull_request_url": "",
+  "commit_hash": "5d891ca6ba42ff1c4b8c0c757db61ce4c1dcc4a3",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/95",
   "next_actions": [
     "clean git 状態で 2.0 s の #94 代表条件を再実行し，`flag_bond_rel_err_max` の first fail / max event が root近傍か下流helixかを記録する。",
     "長時間で `flag_bond_rel_err_max` を下げる補正候補は，今回追加した event 列を使って別タスクで比較する。",
