@@ -88,6 +88,11 @@ def test_default_motor_local_scales_are_paper_aligned_one() -> None:
 
     assert sim_cfg.motor.local_hook_scale == pytest.approx(1.0)
     assert sim_cfg.motor.local_spring_scale == pytest.approx(1.0)
+    assert sim_cfg.motor.local_attach_first_spring_scale == pytest.approx(1.0)
+    assert sim_cfg.motor.local_attach_first_body_axis_angle_scale == pytest.approx(1.0)
+    assert sim_cfg.motor.local_first_second_spring_scale == pytest.approx(1.0)
+    assert sim_cfg.motor.local_attach_frame_position_scale == pytest.approx(1.0)
+    assert sim_cfg.motor.local_attach_frame_tangent_scale == pytest.approx(1.0)
     assert sim_cfg.motor.local_bend_scale == pytest.approx(1.0)
     assert sim_cfg.motor.local_torsion_scale == pytest.approx(1.0)
     assert sim_cfg.motor_local_scale_deviations() == {}
@@ -263,6 +268,11 @@ def test_motor_local_scales_can_be_configured() -> None:
     cfg = _base_cfg()
     cfg["motor"]["local_hook_scale"] = 1.5
     cfg["motor"]["local_spring_scale"] = 1.25
+    cfg["motor"]["local_attach_first_spring_scale"] = 1.4
+    cfg["motor"]["local_attach_first_body_axis_angle_scale"] = 2.0
+    cfg["motor"]["local_first_second_spring_scale"] = 1.75
+    cfg["motor"]["local_attach_frame_position_scale"] = 1.6
+    cfg["motor"]["local_attach_frame_tangent_scale"] = 1.3
     cfg["motor"]["local_bend_scale"] = 0.75
     cfg["motor"]["local_torsion_scale"] = 0.5
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
@@ -270,17 +280,32 @@ def test_motor_local_scales_can_be_configured() -> None:
 
     assert sim_cfg.motor.local_hook_scale == pytest.approx(1.5)
     assert sim_cfg.motor.local_spring_scale == pytest.approx(1.25)
+    assert sim_cfg.motor.local_attach_first_spring_scale == pytest.approx(1.4)
+    assert sim_cfg.motor.local_attach_first_body_axis_angle_scale == pytest.approx(2.0)
+    assert sim_cfg.motor.local_first_second_spring_scale == pytest.approx(1.75)
+    assert sim_cfg.motor.local_attach_frame_position_scale == pytest.approx(1.6)
+    assert sim_cfg.motor.local_attach_frame_tangent_scale == pytest.approx(1.3)
     assert sim_cfg.motor.local_bend_scale == pytest.approx(0.75)
     assert sim_cfg.motor.local_torsion_scale == pytest.approx(0.5)
     deviations = sim_cfg.motor_local_scale_deviations()
     assert set(deviations) == {
         "local_hook_scale",
         "local_spring_scale",
+        "local_attach_first_spring_scale",
+        "local_attach_first_body_axis_angle_scale",
+        "local_first_second_spring_scale",
+        "local_attach_frame_position_scale",
+        "local_attach_frame_tangent_scale",
         "local_bend_scale",
         "local_torsion_scale",
     }
     assert deviations["local_hook_scale"] == pytest.approx(1.5)
     assert deviations["local_spring_scale"] == pytest.approx(1.25)
+    assert deviations["local_attach_first_spring_scale"] == pytest.approx(1.4)
+    assert deviations["local_attach_first_body_axis_angle_scale"] == pytest.approx(2.0)
+    assert deviations["local_first_second_spring_scale"] == pytest.approx(1.75)
+    assert deviations["local_attach_frame_position_scale"] == pytest.approx(1.6)
+    assert deviations["local_attach_frame_tangent_scale"] == pytest.approx(1.3)
     assert deviations["local_bend_scale"] == pytest.approx(0.75)
     assert deviations["local_torsion_scale"] == pytest.approx(0.5)
 

@@ -42,6 +42,11 @@ motor:
   enable_switching: false      # false: run固定（多形切替なし）
   local_hook_scale: 1.0        # [-] 1.0が論文モデル相当。変更時は診断条件としてwarningを出す
   local_spring_scale: 1.0      # [-] 1.0が論文モデル相当。変更時は診断条件としてwarningを出す
+  local_attach_first_spring_scale: 1.0      # [-] attach-first距離補強。1.0で追加補強なし
+  local_attach_first_body_axis_angle_scale: 1.0  # [-] attach->first とbody長軸の90度補強。1.0で追加補強なし
+  local_first_second_spring_scale: 1.0      # [-] first-second距離補強。1.0で追加補強なし
+  local_attach_frame_position_scale: 1.0    # [-] body表面局所frameでのattach->first位置補強。1.0で追加補強なし
+  local_attach_frame_tangent_scale: 1.0     # [-] body表面局所frameでのfirst->second根元接線補強。1.0で追加補強なし
   local_bend_scale: 1.0        # [-] 1.0が論文モデル相当。変更時は診断条件としてwarningを出す
   local_torsion_scale: 1.0     # [-] 1.0が論文モデル相当。変更時は診断条件としてwarningを出す
 

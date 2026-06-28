@@ -85,7 +85,10 @@ Rules:
 * Do not commit directly on `main` or `master`.
 * Commit useful FAIL progress only when it is clearly diagnostic or WIP and does not claim completion.
 * Push the feature branch when remote access is available.
+* Send the final user report only after the final task state has been committed and pushed when remote access is available.
 * Create a PR after pushing a feature branch when GitHub remote access is available.
+* Link the PR to the original source issue in the PR body. Use `Closes #<issue>` / `Fixes #<issue>` only when the PR is intended to complete that issue.
+* Target the branch specified by the task or issue. If no target branch is specified, target the repository default branch.
 * Do not merge PRs.
 * Do not create GitHub issues unless explicitly requested.
 

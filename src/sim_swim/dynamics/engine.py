@@ -11,6 +11,8 @@ import numpy as np
 from sim_swim.dynamics.brownian import sample_brownian_displacement
 from sim_swim.dynamics.forces import (
     MotorForceDiagnostics,
+    compute_attach_first_body_axis_angle_forces,
+    compute_attach_frame_target_forces,
     compute_bending_forces,
     compute_hook_forces,
     compute_motor_forces,
@@ -22,6 +24,11 @@ from sim_swim.dynamics.forces import (
 )
 from sim_swim.dynamics.hydro_rpy import compute_rpy_mobility
 from sim_swim.model.types import PolymorphState, SimModel
+from sim_swim.sim.hook_frame import (
+    hook_attach_layer_indices,
+    hook_frame_local_vectors,
+    hook_frame_target_vectors,
+)
 from sim_swim.sim.params import SimulationConfig
 
 
@@ -238,8 +245,35 @@ class DynamicsEngine:
         self.bead_is_body = self.model.bead_is_body.astype(bool, copy=False)
         self.motor_local_hook_scale = float(cfg.motor.local_hook_scale)
         self.motor_local_spring_scale = float(cfg.motor.local_spring_scale)
+        self.motor_local_attach_first_spring_scale = float(
+            cfg.motor.local_attach_first_spring_scale
+        )
+        self.motor_local_attach_first_body_axis_angle_scale = float(
+            cfg.motor.local_attach_first_body_axis_angle_scale
+        )
+        self.motor_local_first_second_spring_scale = float(
+            cfg.motor.local_first_second_spring_scale
+        )
+        self.motor_local_attach_frame_position_scale = float(
+            cfg.motor.local_attach_frame_position_scale
+        )
+        self.motor_local_attach_frame_tangent_scale = float(
+            cfg.motor.local_attach_frame_tangent_scale
+        )
         self.motor_local_bend_scale = float(cfg.motor.local_bend_scale)
         self.motor_local_torsion_scale = float(cfg.motor.local_torsion_scale)
+        self.hook_attach_first_rest_lengths_m = self._hook_attach_first_rest_lengths_m()
+        self.hook_first_second_rest_lengths_m = self._hook_first_second_rest_lengths_m()
+        self.hook_attach_layer_indices = hook_attach_layer_indices(self.model)
+        (
+            self.hook_attach_first_frame_local_m,
+            self.hook_first_second_frame_local_m,
+        ) = hook_frame_local_vectors(
+            positions_m=self.model.positions_m,
+            model=self.model,
+            attach_layer_indices=self.hook_attach_layer_indices,
+            body_axis_unit=self._body_axis_unit(self.model.positions_m),
+        )
         self.local_twist_orientations = [
             np.zeros((max(int(idxs.size) - 1, 1),), dtype=float)
             for idxs in self.model.flagella_indices
@@ -251,6 +285,39 @@ class DynamicsEngine:
             "abs_max_deg": float("nan"),
             "tip_activity_ratio": float("nan"),
         }
+
+    def _hook_attach_first_rest_lengths_m(self) -> np.ndarray:
+        return self._hook_pair_rest_lengths_m(pair="attach_first")
+
+    def _hook_first_second_rest_lengths_m(self) -> np.ndarray:
+        return self._hook_pair_rest_lengths_m(pair="first_second")
+
+    def _hook_pair_rest_lengths_m(self, *, pair: str) -> np.ndarray:
+        pair_to_rest: dict[tuple[int, int], float] = {}
+        for row, spring_pair in enumerate(
+            self.model.spring_pairs.astype(int, copy=False)
+        ):
+            a = int(spring_pair[0])
+            b = int(spring_pair[1])
+            key = (a, b) if a < b else (b, a)
+            pair_to_rest[key] = float(self.model.spring_rest_lengths_m[row])
+
+        rests: list[float] = []
+        for attach_raw, first_raw, second_raw in self.model.hook_triplets.astype(
+            int, copy=False
+        ):
+            attach = int(attach_raw)
+            first = int(first_raw)
+            second = int(second_raw)
+            if pair == "attach_first":
+                a, b = attach, first
+            elif pair == "first_second":
+                a, b = first, second
+            else:
+                raise ValueError(f"Unsupported hook pair: {pair!r}")
+            key = (a, b) if a < b else (b, a)
+            rests.append(float(pair_to_rest.get(key, 0.0)))
+        return np.asarray(rests, dtype=float)
 
     def set_external_force_callback(
         self,
@@ -612,18 +679,21 @@ class DynamicsEngine:
                 clamp_eps=1e-3,
             )
         if self.hook_spring_rows.size > 0:
+            hook_spring_scale = self.motor_local_spring_scale
+            hook_spring_scale *= self.motor_local_attach_first_spring_scale
             spring_forces += compute_spring_forces(
                 positions_m=pos,
                 spring_pairs=self.model.spring_pairs[self.hook_spring_rows],
                 spring_rest_lengths_m=self.model.spring_rest_lengths_m[
                     self.hook_spring_rows
                 ],
-                h_const=self.spring_h
-                * (self.motor_local_spring_scale if motor_on else 1.0),
+                h_const=self.spring_h * (hook_spring_scale if motor_on else 1.0),
                 s_limit_m=self.spring_s_m,
                 clamp_eps=1e-3,
             )
         if self.flag_local_spring_rows.size > 0:
+            first_second_spring_scale = self.motor_local_spring_scale
+            first_second_spring_scale *= self.motor_local_first_second_spring_scale
             spring_forces += compute_spring_forces(
                 positions_m=pos,
                 spring_pairs=self.model.spring_pairs[self.flag_local_spring_rows],
@@ -631,7 +701,7 @@ class DynamicsEngine:
                     self.flag_local_spring_rows
                 ],
                 h_const=self.spring_h
-                * (self.motor_local_spring_scale if motor_on else 1.0),
+                * (first_second_spring_scale if motor_on else 1.0),
                 s_limit_m=self.spring_s_m,
                 clamp_eps=1e-3,
             )
@@ -700,6 +770,53 @@ class DynamicsEngine:
             )
             if motor_on:
                 hook_forces *= self.motor_local_hook_scale
+                body_axis_angle_extra_scale = max(
+                    self.motor_local_attach_first_body_axis_angle_scale - 1.0,
+                    0.0,
+                )
+                if body_axis_angle_extra_scale > 0.0:
+                    hook_forces += compute_attach_first_body_axis_angle_forces(
+                        positions_m=pos,
+                        hook_triplets=self.model.hook_triplets,
+                        attach_first_rest_lengths_m=(
+                            self.hook_attach_first_rest_lengths_m
+                        ),
+                        body_axis_unit=self._body_axis_unit(pos),
+                        k_angle=self.k_hook * body_axis_angle_extra_scale,
+                    )
+                frame_position_extra_scale = max(
+                    self.motor_local_attach_frame_position_scale - 1.0,
+                    0.0,
+                )
+                frame_tangent_extra_scale = max(
+                    self.motor_local_attach_frame_tangent_scale - 1.0,
+                    0.0,
+                )
+                if frame_position_extra_scale > 0.0 or frame_tangent_extra_scale > 0.0:
+                    attach_first_targets, first_second_targets = (
+                        hook_frame_target_vectors(
+                            positions_m=pos,
+                            model=self.model,
+                            attach_layer_indices=self.hook_attach_layer_indices,
+                            attach_first_local_m=(self.hook_attach_first_frame_local_m),
+                            first_second_local_m=(self.hook_first_second_frame_local_m),
+                            body_axis_unit=self._body_axis_unit(pos),
+                        )
+                    )
+                    hook_forces += compute_attach_frame_target_forces(
+                        positions_m=pos,
+                        hook_triplets=self.model.hook_triplets,
+                        attach_first_target_vectors_m=attach_first_targets,
+                        first_second_target_vectors_m=first_second_targets,
+                        attach_first_rest_lengths_m=(
+                            self.hook_attach_first_rest_lengths_m
+                        ),
+                        first_second_rest_lengths_m=(
+                            self.hook_first_second_rest_lengths_m
+                        ),
+                        k_position=self.k_hook * frame_position_extra_scale,
+                        k_tangent=self.k_hook * frame_tangent_extra_scale,
+                    )
 
         repulsion_forces = compute_segment_repulsion_forces(
             positions_m=pos,

@@ -138,6 +138,38 @@ def _make_phase0b_cfg(duration_s: float = 1.0e-2) -> SimulationConfig:
     )
 
 
+def test_phase2_hook_overstretch_scales_are_engine_localized() -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=2.5e-20,
+        n_flagella=1,
+        stub_mode="full_flagella",
+    ).with_overrides(
+        {
+            "motor": {
+                "local_attach_first_spring_scale": 1.5,
+                "local_attach_first_body_axis_angle_scale": 2.0,
+                "local_first_second_spring_scale": 1.75,
+                "local_attach_frame_position_scale": 1.6,
+                "local_attach_frame_tangent_scale": 1.4,
+            }
+        }
+    )
+    simulator = Simulator(cfg)
+    engine = simulator.engine
+
+    assert engine.motor_local_attach_first_spring_scale == pytest.approx(1.5)
+    assert engine.motor_local_attach_first_body_axis_angle_scale == pytest.approx(2.0)
+    assert engine.motor_local_first_second_spring_scale == pytest.approx(1.75)
+    assert engine.motor_local_attach_frame_position_scale == pytest.approx(1.6)
+    assert engine.motor_local_attach_frame_tangent_scale == pytest.approx(1.4)
+    assert engine.hook_spring_rows.size == 1
+    assert engine.flag_local_spring_rows.size == 1
+    assert engine.hook_attach_first_rest_lengths_m.shape == (1,)
+    assert engine.hook_attach_first_rest_lengths_m[0] > 0.0
+    assert engine.hook_first_second_rest_lengths_m.shape == (1,)
+    assert engine.hook_first_second_rest_lengths_m[0] > 0.0
+
+
 def _make_phase1_cfg(
     surrogate_torque_Nm: float = 1.0e-20, duration_s: float = 1.0e-2
 ) -> SimulationConfig:
@@ -394,6 +426,21 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
         "flag_helix_bundle_radius_max_um",
         "local_attach_first_rel_err",
         "local_first_second_rel_err",
+        "hook_len_rel_err_max_flag_id",
+        "hook_len_rel_err_max_attach_body_bead_index",
+        "hook_len_rel_err_max_flag_first_bead_index",
+        "hook_len_rel_err_max_len_over_b",
+        "hook_len_rel_err_per_flag",
+        "local_attach_first_rel_err_per_flag",
+        "local_first_second_rel_err_per_flag",
+        "local_attach_first_vs_body_axis_angle_deg_per_flag",
+        "local_attach_first_vs_body_axis_err_deg_per_flag",
+        "local_attach_frame_position_rel_err",
+        "local_attach_frame_position_angle_err_deg",
+        "local_attach_frame_tangent_angle_err_deg",
+        "local_attach_frame_position_rel_err_per_flag",
+        "local_attach_frame_position_angle_err_deg_per_flag",
+        "local_attach_frame_tangent_angle_err_deg_per_flag",
         "local_second_third_rel_err",
         "local_basal_bend_err_deg",
         "local_first_torsion_err_deg",
@@ -415,6 +462,16 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
     assert np.isfinite(float(first["flag_helix_axis_vs_rear_angle_deg_mean"]))
     assert np.isfinite(float(first_axis["flag_helix_axis_fit_r2"]))
     assert int(first["flag_flag_helix_close_pair_count"]) >= 0
+    assert len(first["hook_len_rel_err_per_flag"].split("|")) == cfg.flagella.n_flagella
+    assert (
+        len(first["local_first_second_rel_err_per_flag"].split("|"))
+        == cfg.flagella.n_flagella
+    )
+    assert (
+        len(first["local_attach_frame_position_rel_err_per_flag"].split("|"))
+        == cfg.flagella.n_flagella
+    )
+    assert int(first["hook_len_rel_err_max_flag_id"]) in range(cfg.flagella.n_flagella)
 
 
 def test_run_writes_initial_geometry_summary_json(tmp_path: Path) -> None:
