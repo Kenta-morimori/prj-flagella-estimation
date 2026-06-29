@@ -728,7 +728,9 @@
   - smoke sweep `outputs/phase2_94/fs_sweep_fp3_ft1p5_dur0p05` では `fp=3, ft=1.5` を固定し，`fs=1,1.25,1.5,2,3` を `duration_s=0.05` で比較した。全条件で first fail はなく，`hook_len_rel_err_max` は約 `0.02327`，`max_flag_bond_rel_err` は約 `0.18223` でほぼ同等だった。
   - 同 smoke sweep の最大 flag bond event は全条件で `flag_id=2`, bead pair `39-40`, `len_over_b=0.68569` 付近だった。`max_flag_bond_rel_err` の条件間 range は `3.737e-06` 程度で，相対差は約 `0.0021%` に留まる。短時間条件では `local_first_second_spring_scale` 増強による明確な改善は見えない。
   - 2.0 s の #94 代表条件 `outputs/phase2_94/representative_fp3_ft1p5_fs1p5/af1_axis1_fs1p5_fp3_ft1p5` では，`t=0.4363 s` に first fail `flag` が発生した。この時点の `hook_len_rel_err_max=0.0157` に対し，`flag_bond_rel_err_max=1.000565` で，発生箇所は `flag_id=1`, global bead `29-30`, local bead `3-4` だった。final `t=1.9999 s` でも同じ bond が最大で，`flag_bond_rel_err_max=2.0500`, `len_over_b=1.7690` まで伸びた。
-  - 破綻 bond は first-second や second-third ではなく proximal helix 側の local bead `3-4` である。したがって `fs=1.5` を標準候補として採用する根拠は弱く，以後は `fs=1.0` を基本，`fs` は比較軸として扱う。
+  - 0.6 s の `outputs/phase2_94/fs_sweep_af1_axis1_fp3_ft1p5_dur0p6` では，`fs=1,1.25,1.5,2,3` の全条件で first fail が `t=0.4363 s`, category `flag`, `flag_id=1`, global bead `29-30`, local bead `3-4` に固定された。first fail 時点の `flag_bond_rel_err_max` は `1.00031..1.00057` とほぼ同等で，`fs` 増強による改善はない。
+  - 同 0.6 s sweep の max event は多くの条件で `flag_id=1`, local bead `3-4` のまま `max_flag_bond_rel_err=1.496..1.514` だった。一方 `fs=1.25` は `t=0.5084 s` に `flag_id=0`, local bead `0-1` が `max_flag_bond_rel_err=2.4948` まで伸び，別の根元 bond 破綻を誘発した可能性がある。
+  - 破綻 bond は first-second や second-third ではなく proximal helix 側の local bead `3-4` である。したがって `fs` 増強は採用せず，以後の attach-frame 診断代表は `fs=1.0`, `fp=3`, `ft=1.5` を基本にする。`fs` は標準候補ではなく，必要時の比較軸として扱う。
   - default local scale は全て `1.0` のまま維持する。今回の変更は診断列と非default比較CLIの拡張であり，標準挙動は変更しない。
 - acceptance criteria:
   - [x] `flag_bond_rel_err_max` の発生 flag / bead pair を step ごとに特定できる。
@@ -742,13 +744,14 @@
   - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.001 --torque-nm 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --first-second-spring-scales 1 --output-dir /private/tmp/phase2_issue94_smoke_sweep --overwrite --progress-interval 10000`
   - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.05 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --fixed-attach-frame-position-scale 3 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_94/fs_sweep_fp3_ft1p5_dur0p05 --overwrite --progress-interval 1000`
 - user-run commands:
-  - first fail を捕まえる 0.6 s `fs` 比較:
-    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.6 --attach-seed 0 --phase-seed 0 --fixed-attach-frame-position-scale 3 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_94/fs_sweep_fp3_ft1p5_dur0p6 --overwrite --progress-interval 5000`
+  - 0.6 s `fs` 比較の再実行:
+    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.6 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --fixed-attach-frame-position-scale 3 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_94/fs_sweep_af1_axis1_fp3_ft1p5_dur0p6 --overwrite --progress-interval 5000`
 - docs:
   - `docs/phase2/phase2_current.md`
   - `docs/phase2/phase2_tasks.md`
   - `docs/codex-runs/20260628_230234_phase2_94_flag_bond_overstretch/review_result.json`
   - `docs/codex-runs/20260629_100756_phase2_94_flag_bond_local_index/review_result.json`
+  - `docs/codex-runs/20260629_151102_phase2_94_fs_sweep_analysis/review_result.json`
 
 ### P2-8-DTSTAR: Phase 2標準dt_starと実行コマンドを整理する
 
