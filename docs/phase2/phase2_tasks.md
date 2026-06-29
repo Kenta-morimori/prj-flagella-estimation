@@ -556,7 +556,7 @@
 - goal: 実験時の設定編集と動画確認を簡略化するため，標準config default，3D render表示，dataset一括再描画CLIを整理する。
 - result:
   - `conf/sim_swim.yaml` の `motor.torque_Nm` default は，Phase 2.6 torque評価の第一候補，Phase 2.7代表条件，Phase 2.8 dataset条件と揃え，`2.5e-20` とした。`-1` sentinel の意味はコメントに残した。
-  - `1.0e-4` は `time.dt_star` の実行時overrideとして使う値であり，モータートルクdefaultにはしない。
+  - `motor.torque_Nm` と `time.dt_star` は独立した設定である。P2-8-DTSTAR 以降，標準configでは `time.dt_star=1.0e-4` を内部積分刻み，`time.dt_s=1.0e-3` を出力・記録間隔として扱う。
   - `flagella.placement_mode` と `flagella.initial_phase_mode` の取りうる値をconfigコメントへ明記した。
   - `render.save_frames_3d` / `render.save_frames_2d` の default を `false` にし，mp4 と final image は維持した。
   - 3D render に RUN/TUMBLE，時刻，実効トルク，`follow_camera_3d` を併記するようにした。
@@ -685,27 +685,27 @@
   - `uv run pytest tests/test_phase2_82_hook_overstretch_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py`
 - user-run commands:
   - Stage 1 body-first grid:
-    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode body-first-grid --duration-s 0.5 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --attach-first-spring-scales 1,1.25,1.5,2,3 --body-axis-angle-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_82/body_first_grid --overwrite --progress-interval 5000`
+    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode body-first-grid --duration-s 0.5 --attach-seed 0 --phase-seed 0 --attach-first-spring-scales 1,1.25,1.5,2,3 --body-axis-angle-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_82/body_first_grid --overwrite --progress-interval 5000`
   - Stage 1 heatmap:
     `uv run python scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py --summary-csv outputs/phase2_82/body_first_grid/phase2_82_hook_scale_sweep_summary.csv --mode body-first-grid --output-dir outputs/phase2_82/body_first_grid/plots`
   - Stage 2 first-second grid:
-    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.5 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 3 --fixed-body-axis-angle-scale 1.25 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_82/first_second_grid_af3_axis1p25 --overwrite --progress-interval 5000`
+    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.5 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 3 --fixed-body-axis-angle-scale 1.25 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_82/first_second_grid_af3_axis1p25 --overwrite --progress-interval 5000`
   - Stage 2 heatmap:
     `uv run python scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py --summary-csv outputs/phase2_82/first_second_grid_af3_axis1p25/phase2_82_hook_scale_sweep_summary.csv --mode first-second-grid --output-dir outputs/phase2_82/first_second_grid_af3_axis1p25/plots`
   - Stage 2 per-flag diagnostic rerun:
-    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.5 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 3 --fixed-body-axis-angle-scale 1.25 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_82/first_second_grid_af3_axis1p25_diagnostics --overwrite --progress-interval 5000`
+    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.5 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 3 --fixed-body-axis-angle-scale 1.25 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_82/first_second_grid_af3_axis1p25_diagnostics --overwrite --progress-interval 5000`
   - Stage 2 per-flag diagnostic heatmap:
     `uv run python scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py --summary-csv outputs/phase2_82/first_second_grid_af3_axis1p25_diagnostics/phase2_82_hook_scale_sweep_summary.csv --mode first-second-grid --output-dir outputs/phase2_82/first_second_grid_af3_axis1p25_diagnostics/plots`
   - Stage A attach-frame grid:
-    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode attach-frame-grid --duration-s 0.5 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --attach-frame-position-scales 1,1.25,1.5,2,3 --attach-frame-tangent-scales 1,1.25,1.5,2 --output-dir outputs/phase2_82/attach_frame_grid_stage_a --overwrite --progress-interval 5000`
+    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode attach-frame-grid --duration-s 0.5 --attach-seed 0 --phase-seed 0 --attach-frame-position-scales 1,1.25,1.5,2,3 --attach-frame-tangent-scales 1,1.25,1.5,2 --output-dir outputs/phase2_82/attach_frame_grid_stage_a --overwrite --progress-interval 5000`
   - Stage B attach-frame grid with best existing scales:
-    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode attach-frame-grid --duration-s 0.5 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 3 --fixed-body-axis-angle-scale 1.25 --fixed-first-second-spring-scale 1.25 --attach-frame-position-scales 1,1.25,1.5,2,3 --attach-frame-tangent-scales 1,1.25,1.5,2 --output-dir outputs/phase2_82/attach_frame_grid_stage_b --overwrite --progress-interval 5000`
+    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode attach-frame-grid --duration-s 0.5 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 3 --fixed-body-axis-angle-scale 1.25 --fixed-first-second-spring-scale 1.25 --attach-frame-position-scales 1,1.25,1.5,2,3 --attach-frame-tangent-scales 1,1.25,1.5,2 --output-dir outputs/phase2_82/attach_frame_grid_stage_b --overwrite --progress-interval 5000`
   - Stage A/B attach-frame heatmap:
     `uv run python scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py --summary-csv <stage_output>/phase2_82_hook_scale_sweep_summary.csv --mode attach-frame-grid --output-dir <stage_output>/plots`
   - Merge前の長時間後方条件 sweep:
-    `uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --helix-axis-angles-deg 0 --n-flagella 3 --torques 1.0e-20,2.5e-20 --duration-s 2.0 --dt-star 1.0e-4 --output-dir outputs/phase2_82/long_posterior_attach_frame_review_dur2p0/<case> seed.attach_seed=0 seed.phase_seed=0 motor.local_attach_first_spring_scale=<af> motor.local_attach_first_body_axis_angle_scale=<axis> motor.local_first_second_spring_scale=<fs> motor.local_attach_frame_position_scale=<fp> motor.local_attach_frame_tangent_scale=<ft>`
+    `uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --helix-axis-angles-deg 0 --torques 1.0e-20,2.5e-20 --duration-s 2.0 --output-dir outputs/phase2_82/long_posterior_attach_frame_review_dur2p0/<case> seed.attach_seed=0 seed.phase_seed=0 motor.local_attach_first_spring_scale=<af> motor.local_attach_first_body_axis_angle_scale=<axis> motor.local_first_second_spring_scale=<fs> motor.local_attach_frame_position_scale=<fp> motor.local_attach_frame_tangent_scale=<ft>`
   - 長時間3D定性評価:
-    `uv run python -m scripts.01_simulate_swimming flagella.n_flagella=3 flagella.initial_helix_axis_from_rear_deg=0 seed.attach_seed=0 seed.phase_seed=0 time.duration_s=2.0 time.dt_star=1.0e-4 motor.torque_Nm=2.5e-20 motor.local_attach_first_spring_scale=1 motor.local_attach_first_body_axis_angle_scale=1 motor.local_first_second_spring_scale=1.5 motor.local_attach_frame_position_scale=3 motor.local_attach_frame_tangent_scale=1.5 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.render_flagella=true render.show_flagella_helix_axis_3d=true render.save_frames_3d=false output.base_dir=outputs/phase2_82/qualitative_long_flag_bond_review/frame_fp3_ft1p5_fs1p5`
+    `uv run python -m scripts.01_simulate_swimming flagella.initial_helix_axis_from_rear_deg=0 seed.attach_seed=0 seed.phase_seed=0 time.duration_s=2.0 motor.local_first_second_spring_scale=1.5 motor.local_attach_frame_position_scale=3 motor.local_attach_frame_tangent_scale=1.5 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.render_flagella=true render.show_flagella_helix_axis_3d=true output.base_dir=outputs/phase2_82/qualitative_long_flag_bond_review/frame_fp3_ft1p5_fs1p5`
 - docs:
   - `docs/phase2/phase2_current.md`
   - `docs/phase2/phase2_tasks.md`
@@ -737,12 +737,39 @@
 - verification:
   - `uv run pytest tests/test_simulation.py::test_run_writes_step_summary_csv_without_projection_columns tests/test_phase2_82_hook_overstretch_sweep.py`
   - `uv run ruff check src/sim_swim/sim/debug_summary.py scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py tests/test_phase2_82_hook_overstretch_sweep.py`
-  - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.001 --dt-star 1.0e-4 --torque-nm 0 --n-flagella 3 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --first-second-spring-scales 1 --output-dir /private/tmp/phase2_issue94_smoke_sweep --overwrite --progress-interval 10000`
-  - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.05 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --fixed-attach-frame-position-scale 3 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_94/fs_sweep_fp3_ft1p5_dur0p05 --overwrite --progress-interval 1000`
+  - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.001 --torque-nm 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --first-second-spring-scales 1 --output-dir /private/tmp/phase2_issue94_smoke_sweep --overwrite --progress-interval 10000`
+  - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.05 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --fixed-attach-frame-position-scale 3 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_94/fs_sweep_fp3_ft1p5_dur0p05 --overwrite --progress-interval 1000`
 - docs:
   - `docs/phase2/phase2_current.md`
   - `docs/phase2/phase2_tasks.md`
   - `docs/codex-runs/20260628_230234_phase2_94_flag_bond_overstretch/review_result.json`
+
+### P2-8-DTSTAR: Phase 2標準dt_starと実行コマンドを整理する
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/94`
+- branch: `feature/phase2-94-flag-bond-overstretch`
+- goal: `dt_star=1.0e-4` を Phase 2 標準configへ反映し，代表コマンドでは default 値をなるべく明示しない運用へ揃える。
+- result:
+  - `conf/sim_swim.yaml` の `time.dt_star` default を `1.0e-4` にした。
+  - `time.dt_s=1.0e-3` は出力・記録間隔として説明し，`time.dt_star: null` の場合だけ従来互換として内部積分刻みが `time.dt_s/tau_s` へ戻ることを明記した。
+  - parser の `dt_star: null` 互換挙動は変更していない。
+  - Issue #82 / #94 の user-run commands から `--dt-star 1.0e-4`，`--torque-nm 2.5e-20`，`--n-flagella 3` など script default と重複する指定を削った。
+- acceptance criteria:
+  - [x] 標準configを読むと `dt_star=1.0e-4` になる。
+  - [x] `dt_star: null` の互換挙動は維持される。
+  - [x] 重い代表実行コマンドは default 値を不要に指定しない。
+- verification:
+  - `uv run pytest tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py`
+  - `uv run ruff check tests/test_params.py`
+  - `uv run ruff format --check tests/test_params.py`
+  - `uv run python -c "import yaml; yaml.safe_load(open('conf/sim_swim.yaml', encoding='utf-8'))"`
+  - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --dry-run --sample-limit 1`
+- docs:
+  - `docs/phase2/phase2_current.md`
+  - `docs/phase2/phase2_tasks.md`
+  - `docs/PROJECT_PLAN.md`
+  - `docs/codex-runs/20260629_094125_phase2_dt_star_default/review_result.json`
 
 ## Phase 2.9: Tumble状態の段階実装
 
