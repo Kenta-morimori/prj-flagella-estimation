@@ -79,18 +79,24 @@ SUMMARY_FIELDS = (
     "flag_bond_rel_err_max_flag_id",
     "flag_bond_rel_err_max_bead_i",
     "flag_bond_rel_err_max_bead_j",
+    "flag_bond_rel_err_max_local_bead_i",
+    "flag_bond_rel_err_max_local_bead_j",
     "flag_bond_rel_err_max_len_over_b",
     "flag_bond_rel_err_per_flag",
     "first_fail_flag_bond_rel_err_max",
     "first_fail_flag_bond_rel_err_max_flag_id",
     "first_fail_flag_bond_rel_err_max_bead_i",
     "first_fail_flag_bond_rel_err_max_bead_j",
+    "first_fail_flag_bond_rel_err_max_local_bead_i",
+    "first_fail_flag_bond_rel_err_max_local_bead_j",
     "first_fail_flag_bond_rel_err_max_len_over_b",
     "max_flag_bond_rel_err_t_s",
     "max_flag_bond_rel_err",
     "max_flag_bond_rel_err_flag_id",
     "max_flag_bond_rel_err_bead_i",
     "max_flag_bond_rel_err_bead_j",
+    "max_flag_bond_rel_err_local_bead_i",
+    "max_flag_bond_rel_err_local_bead_j",
     "max_flag_bond_rel_err_len_over_b",
     "flag_bend_err_max_deg",
     "flag_torsion_err_max_deg",
@@ -191,6 +197,13 @@ def _parse_float(value: str | float | None) -> float:
         return float("nan")
 
 
+def _parse_int(value: str | int | None) -> int | None:
+    try:
+        return int(float(value))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
 def _first_fail_row(rows: list[dict[str, str]]) -> dict[str, str] | None:
     for row in rows[1:]:
         if not _parse_bool(row.get("shape_pass_nonbody")):
@@ -222,6 +235,27 @@ def _max_flag_bond_row(rows: list[dict[str, str]]) -> dict[str, str] | None:
     return max(
         finite_rows, key=lambda row: _parse_float(row.get("flag_bond_rel_err_max"))
     )
+
+
+def _flag_bond_local_bead_index(
+    cfg: SimulationConfig,
+    row: dict[str, str] | None,
+    bead_field: str,
+    flag_field: str = "flag_bond_rel_err_max_flag_id",
+) -> str:
+    if row is None:
+        return ""
+    flag_id = _parse_int(row.get(flag_field))
+    bead_index = _parse_int(row.get(bead_field))
+    if flag_id is None or bead_index is None:
+        return ""
+
+    n_body = cfg.compute_body_n_layers() * int(cfg.body.prism.n_prism)
+    n_flag = int(cfg.flagella.n_beads_per_flagellum)
+    local_index = bead_index - n_body - flag_id * n_flag
+    if local_index < 0 or local_index >= n_flag:
+        return ""
+    return str(local_index)
 
 
 def _parse_float_values(text: str) -> list[float]:
@@ -445,6 +479,12 @@ def _summary_row(
             if first_fail is None
             else first_fail.get("flag_bond_rel_err_max_bead_j", "")
         ),
+        "first_fail_flag_bond_rel_err_max_local_bead_i": (
+            _flag_bond_local_bead_index(cfg, first_fail, "flag_bond_rel_err_max_bead_i")
+        ),
+        "first_fail_flag_bond_rel_err_max_local_bead_j": (
+            _flag_bond_local_bead_index(cfg, first_fail, "flag_bond_rel_err_max_bead_j")
+        ),
         "first_fail_flag_bond_rel_err_max_len_over_b": (
             ""
             if first_fail is None
@@ -510,6 +550,16 @@ def _summary_row(
             if max_flag_bond is None
             else max_flag_bond.get("flag_bond_rel_err_max_bead_j", "")
         ),
+        "max_flag_bond_rel_err_local_bead_i": (
+            _flag_bond_local_bead_index(
+                cfg, max_flag_bond, "flag_bond_rel_err_max_bead_i"
+            )
+        ),
+        "max_flag_bond_rel_err_local_bead_j": (
+            _flag_bond_local_bead_index(
+                cfg, max_flag_bond, "flag_bond_rel_err_max_bead_j"
+            )
+        ),
         "max_flag_bond_rel_err_len_over_b": (
             ""
             if max_flag_bond is None
@@ -521,6 +571,12 @@ def _summary_row(
             continue
         source_key = field.removeprefix("final_")
         row[field] = helix_summary.get(field, last.get(source_key, last.get(field, "")))
+    row["flag_bond_rel_err_max_local_bead_i"] = _flag_bond_local_bead_index(
+        cfg, last, "flag_bond_rel_err_max_bead_i"
+    )
+    row["flag_bond_rel_err_max_local_bead_j"] = _flag_bond_local_bead_index(
+        cfg, last, "flag_bond_rel_err_max_bead_j"
+    )
     return row
 
 

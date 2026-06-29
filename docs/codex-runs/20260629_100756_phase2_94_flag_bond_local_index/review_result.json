@@ -1,0 +1,54 @@
+{
+  "status": "PASS",
+  "summary": "#94 の 0.05 s `fs=1..3` sweep と 2.0 s 代表実行を読み，`local_first_second_spring_scale` 増強では flag bond 過伸長の改善シグナルがないことを記録した。2.0 s 代表では first fail が `t=0.4363 s`, `flag_id=1`, global bead `29-30`, local bead `3-4` に出ており，first-second / second-third ではなく proximal helix 側の破綻だった。#82 sweep summary には final / first fail / max flag bond event の local bead pair 列を追加し，今後の再実行で手計算なしに破綻位置を判定できるようにした。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "既存の `outputs/phase2_94/fs_sweep_fp3_ft1p5_dur0p05` と `outputs/phase2_94/representative_fp3_ft1p5_fs1p5` は旧 commit の出力であり，新しい local bead pair 列は再実行後の summary に出る。",
+    "長時間で `flag_bond_rel_err_max` を下げる補正候補の実装は今回行っていない。今回の変更は破綻位置の分析と sweep summary 診断列の追加である。",
+    "body-flagella 貫通や接触起因の検証は #93 側へ分離したまま維持する。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_phase2_82_hook_overstretch_sweep.py",
+      "result": "PASS: 5 passed。#82 sweep summary の first fail / max flag bond event と local bead pair 換算を確認。"
+    },
+    {
+      "command": "uv run ruff check scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_phase2_82_hook_overstretch_sweep.py",
+      "result": "PASS: All checks passed"
+    },
+    {
+      "command": "uv run ruff format --check scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_phase2_82_hook_overstretch_sweep.py",
+      "result": "PASS: 2 files already formatted"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --dry-run --sample-limit 1",
+      "result": "PASS: default 引数を明示しない呼び方で dry-run が成功し，条件名 `baseline` を出力した。"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.001 --torque-nm 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --fixed-attach-frame-position-scale 3 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1 --output-dir /private/tmp/phase2_issue94_local_index_smoke --overwrite --progress-interval 10000",
+      "result": "PASS: summary CSV に `flag_bond_rel_err_max_local_bead_i/j`, `first_fail_flag_bond_rel_err_max_local_bead_i/j`, `max_flag_bond_rel_err_local_bead_i/j` が出力された。smoke では final/max event が `flag_id=0`, global bead `15-16`, local bead `0-1`。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "今回の対応は CSV 分析と sweep summary 診断列追加であり，新規動画の目視判定は要求しない。",
+  "user_review_outputs": [
+    "outputs/phase2_94/fs_sweep_fp3_ft1p5_dur0p05/phase2_82_hook_scale_sweep_summary.csv",
+    "outputs/phase2_94/representative_fp3_ft1p5_fs1p5/phase2_82_hook_scale_sweep_summary.csv",
+    "/private/tmp/phase2_issue94_local_index_smoke/phase2_82_hook_scale_sweep_summary.csv"
+  ],
+  "user_review_points": [
+    "0.05 s sweep では `fs=1..3` の `max_flag_bond_rel_err` がほぼ同等である。",
+    "2.0 s 代表では first fail が local bead `3-4` に出ており，first-second / second-third ではない。",
+    "今後 0.6 s sweep を再実行すると，新しい local bead pair 列で各 `fs` 条件の破綻位置を直接比較できる。"
+  ],
+  "adr_required": false,
+  "adr_reason": "物理モデルやdefault scaleは変更せず，既存診断 summary の出力列追加と結果記録に留めたため。flag bond 安定化のために力学モデルやdefault条件を変更する場合は別途ADRを検討する。",
+  "commit_type": "complete",
+  "commit_hash": "",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/95",
+  "next_actions": [
+    "0.6 s の `fs=1..3` sweep を実行し，first fail 時刻と local bead pair が `fs` で変わるかを比較する。",
+    "長時間で `flag_bond_rel_err_max` を下げる補正候補は，local bead `3-4` 付近の proximal helix bond 破綻として別タスクで検討する。"
+  ]
+}
