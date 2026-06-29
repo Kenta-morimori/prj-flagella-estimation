@@ -18,8 +18,16 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
 
 from sim_swim.sim.core import Simulator
+from sim_swim.sim.debug_summary import PROXIMAL_FLAG_BOND_REL_ERR_FIELDS
 from sim_swim.sim.helix_retention_gate import summarize_single_flagellum_helix_retention
 from sim_swim.sim.params import SimulationConfig
+
+FIRST_FAIL_PROXIMAL_FLAG_BOND_REL_ERR_FIELDS = tuple(
+    f"first_fail_{field}" for field in PROXIMAL_FLAG_BOND_REL_ERR_FIELDS
+)
+MAX_PROXIMAL_FLAG_BOND_REL_ERR_FIELDS = tuple(
+    f"max_{field}" for field in PROXIMAL_FLAG_BOND_REL_ERR_FIELDS
+)
 
 SUMMARY_FIELDS = (
     "condition_id",
@@ -83,6 +91,7 @@ SUMMARY_FIELDS = (
     "flag_bond_rel_err_max_local_bead_j",
     "flag_bond_rel_err_max_len_over_b",
     "flag_bond_rel_err_per_flag",
+    *PROXIMAL_FLAG_BOND_REL_ERR_FIELDS,
     "first_fail_flag_bond_rel_err_max",
     "first_fail_flag_bond_rel_err_max_flag_id",
     "first_fail_flag_bond_rel_err_max_bead_i",
@@ -90,6 +99,7 @@ SUMMARY_FIELDS = (
     "first_fail_flag_bond_rel_err_max_local_bead_i",
     "first_fail_flag_bond_rel_err_max_local_bead_j",
     "first_fail_flag_bond_rel_err_max_len_over_b",
+    *FIRST_FAIL_PROXIMAL_FLAG_BOND_REL_ERR_FIELDS,
     "max_flag_bond_rel_err_t_s",
     "max_flag_bond_rel_err",
     "max_flag_bond_rel_err_flag_id",
@@ -98,6 +108,7 @@ SUMMARY_FIELDS = (
     "max_flag_bond_rel_err_local_bead_i",
     "max_flag_bond_rel_err_local_bead_j",
     "max_flag_bond_rel_err_len_over_b",
+    *MAX_PROXIMAL_FLAG_BOND_REL_ERR_FIELDS,
     "flag_bend_err_max_deg",
     "flag_torsion_err_max_deg",
     "net_abs_flag_helix_spin_revolutions",
@@ -256,6 +267,16 @@ def _flag_bond_local_bead_index(
     if local_index < 0 or local_index >= n_flag:
         return ""
     return str(local_index)
+
+
+def _copy_prefixed_fields(
+    target: dict[str, str | float],
+    source: dict[str, str] | None,
+    fields: tuple[str, ...],
+    prefix: str,
+) -> None:
+    for field in fields:
+        target[f"{prefix}{field}"] = "" if source is None else source.get(field, "")
 
 
 def _parse_float_values(text: str) -> list[float]:
@@ -566,6 +587,18 @@ def _summary_row(
             else max_flag_bond.get("flag_bond_rel_err_max_len_over_b", "")
         ),
     }
+    _copy_prefixed_fields(
+        row,
+        first_fail,
+        PROXIMAL_FLAG_BOND_REL_ERR_FIELDS,
+        prefix="first_fail_",
+    )
+    _copy_prefixed_fields(
+        row,
+        max_flag_bond,
+        PROXIMAL_FLAG_BOND_REL_ERR_FIELDS,
+        prefix="max_",
+    )
     for field in SUMMARY_FIELDS:
         if field in row:
             continue

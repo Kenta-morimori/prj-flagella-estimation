@@ -25,6 +25,11 @@ from sim_swim.sim.hook_frame import (
 from sim_swim.sim.params import SimulationConfig
 
 M_TO_UM = 1.0e6
+PROXIMAL_FLAG_BOND_LOCAL_PAIRS = tuple((i, i + 1) for i in range(5))
+PROXIMAL_FLAG_BOND_REL_ERR_FIELDS = tuple(
+    f"flag_bond_rel_err_local_{i}_{j}_per_flag"
+    for i, j in PROXIMAL_FLAG_BOND_LOCAL_PAIRS
+)
 
 STEP_SUMMARY_COLUMNS = [
     "step",
@@ -101,6 +106,7 @@ STEP_SUMMARY_COLUMNS = [
     "flag_bond_rel_err_max_bead_j",
     "flag_bond_rel_err_max_len_over_b",
     "flag_bond_rel_err_per_flag",
+    *PROXIMAL_FLAG_BOND_REL_ERR_FIELDS,
     "flag_helix_axis_vs_rear_angle_deg_min",
     "flag_helix_axis_vs_rear_angle_deg_mean",
     "flag_helix_axis_vs_rear_angle_deg_max",
@@ -775,10 +781,13 @@ def _flag_bond_diagnostics(
         "flag_bond_rel_err_max_len_over_b": float("nan"),
         "flag_bond_rel_err_per_flag": "",
     }
+    for rel_err_field in PROXIMAL_FLAG_BOND_REL_ERR_FIELDS:
+        default[rel_err_field] = ""
     if flag_intra_rows.size == 0:
         return default
 
     per_flag_max: dict[int, float] = {}
+    rest_by_pair: dict[tuple[int, int], float] = {}
     max_rel = -float("inf")
     for row_raw in flag_intra_rows.astype(int, copy=False):
         row = int(row_raw)
@@ -790,6 +799,8 @@ def _flag_bond_diagnostics(
         if flag_i >= 0 and flag_j >= 0 and flag_i != flag_j:
             flag_id = -1
         rest = max(float(spring_rests_m[row]), 1e-30)
+        rest_by_pair[(i, j)] = rest
+        rest_by_pair[(j, i)] = rest
         length = float(np.linalg.norm(positions_m[j] - positions_m[i]))
         rel = float(abs(length - rest) / rest)
         if flag_id >= 0:
@@ -806,6 +817,22 @@ def _flag_bond_diagnostics(
     default["flag_bond_rel_err_per_flag"] = _format_flag_metric(
         sorted(per_flag_max.items())
     )
+    for local_i, local_j in PROXIMAL_FLAG_BOND_LOCAL_PAIRS:
+        values: list[tuple[int, float]] = []
+        for flag_id, flag_indices in enumerate(model.flagella_indices):
+            if local_j >= int(flag_indices.size):
+                continue
+            bead_i = int(flag_indices[local_i])
+            bead_j = int(flag_indices[local_j])
+            rest = rest_by_pair.get((bead_i, bead_j))
+            if rest is None:
+                continue
+            length = float(np.linalg.norm(positions_m[bead_j] - positions_m[bead_i]))
+            rel = float(abs(length - rest) / max(rest, 1e-30))
+            values.append((flag_id, rel))
+        default[f"flag_bond_rel_err_local_{local_i}_{local_j}_per_flag"] = (
+            _format_flag_metric(values)
+        )
     return default
 
 

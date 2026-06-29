@@ -722,6 +722,7 @@
 - implementation notes:
   - `step_summary.csv` に `flag_bond_rel_err_max_flag_id`，`flag_bond_rel_err_max_bead_i`，`flag_bond_rel_err_max_bead_j`，`flag_bond_rel_err_max_len_over_b`，`flag_bond_rel_err_per_flag` を追加した。
   - Issue #82 sweep summary に first fail 時点と全期間最大時点の flag bond event 指標を追加した。2026-06-29追補として，global bead index だけでなく `flag_bond_rel_err_max_local_bead_i/j`，`first_fail_flag_bond_rel_err_max_local_bead_i/j`，`max_flag_bond_rel_err_local_bead_i/j` も出力し，root近傍か下流helixかを手計算なしで判定できるようにした。
+  - 2026-06-29追補として，`flag_bond_rel_err_local_0_1_per_flag` から `flag_bond_rel_err_local_4_5_per_flag` を `step_summary.csv` に追加した。Issue #82 sweep summary には同じ proximal local bond rel err を final / first fail / max flag bond event 時点で出し，local `3-4` 以外の近位bondが同時に伸びるかを比較できるようにした。
   - `first-second-grid` で `--fixed-attach-frame-position-scale` / `--fixed-attach-frame-tangent-scale` を指定できるようにし，`fp=3, ft=1.5` 固定で `local_first_second_spring_scale` を比較できるようにした。
   - CSV 中心の診断とし，3D render 上の破綻 bond 強調表示は今回の対象外とした。
 - result:
@@ -741,17 +742,22 @@
 - verification:
   - `uv run pytest tests/test_simulation.py::test_run_writes_step_summary_csv_without_projection_columns tests/test_phase2_82_hook_overstretch_sweep.py`
   - `uv run ruff check src/sim_swim/sim/debug_summary.py scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py tests/test_phase2_82_hook_overstretch_sweep.py`
+  - `uv run ruff format --check src/sim_swim/sim/debug_summary.py scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py tests/test_phase2_82_hook_overstretch_sweep.py`
   - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.001 --torque-nm 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --first-second-spring-scales 1 --output-dir /private/tmp/phase2_issue94_smoke_sweep --overwrite --progress-interval 10000`
+  - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.001 --torque-nm 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --fixed-attach-frame-position-scale 3 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1 --output-dir /private/tmp/phase2_issue94_proximal_bond_smoke --overwrite --progress-interval 10000`
   - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.05 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --fixed-attach-frame-position-scale 3 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_94/fs_sweep_fp3_ft1p5_dur0p05 --overwrite --progress-interval 1000`
 - user-run commands:
   - 0.6 s `fs` 比較の再実行:
     `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.6 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --fixed-attach-frame-position-scale 3 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_94/fs_sweep_af1_axis1_fp3_ft1p5_dur0p6 --overwrite --progress-interval 5000`
+  - torque切り分けは同じ代表条件で `--torque-nm` を `1.0e-20`, `1.5e-20`, `2.0e-20`, `2.5e-20` に変えて個別実行し，first fail 時刻と proximal local bond rel err を比較する。
+  - attach-frame強度切り分けは `attach-frame-grid` で `--fixed-first-second-spring-scale 1 --attach-frame-position-scales 2,3 --attach-frame-tangent-scales 1,1.5` を `duration_s=0.6` で実行し，hook抑制と local `3-4` 破綻の tradeoff を比較する。
 - docs:
   - `docs/phase2/phase2_current.md`
   - `docs/phase2/phase2_tasks.md`
   - `docs/codex-runs/20260628_230234_phase2_94_flag_bond_overstretch/review_result.json`
   - `docs/codex-runs/20260629_100756_phase2_94_flag_bond_local_index/review_result.json`
   - `docs/codex-runs/20260629_151102_phase2_94_fs_sweep_analysis/review_result.json`
+  - `docs/codex-runs/20260629_155821_phase2_94_proximal_bond_diagnostics/review_result.json`
 
 ### P2-8-DTSTAR: Phase 2標準dt_starと実行コマンドを整理する
 
