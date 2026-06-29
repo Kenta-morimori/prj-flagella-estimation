@@ -732,9 +732,10 @@
   - 0.6 s の `outputs/phase2_94/fs_sweep_af1_axis1_fp3_ft1p5_dur0p6` では，`fs=1,1.25,1.5,2,3` の全条件で first fail が `t=0.4363 s`, category `flag`, `flag_id=1`, global bead `29-30`, local bead `3-4` に固定された。first fail 時点の `flag_bond_rel_err_max` は `1.00031..1.00057` とほぼ同等で，`fs` 増強による改善はない。
   - 同 0.6 s sweep の max event は多くの条件で `flag_id=1`, local bead `3-4` のまま `max_flag_bond_rel_err=1.496..1.514` だった。一方 `fs=1.25` は `t=0.5084 s` に `flag_id=0`, local bead `0-1` が `max_flag_bond_rel_err=2.4948` まで伸び，別の根元 bond 破綻を誘発した可能性がある。
   - 破綻 bond は first-second や second-third ではなく proximal helix 側の local bead `3-4` である。したがって `fs` 増強は採用しない。`fs` は標準候補ではなく，必要時の比較軸として扱う。
-  - torque切り分けでは，`fp=3, ft=1.5, fs=1.0` 条件で `1.0e-20`, `1.5e-20`, `2.0e-20` は0.6 s first failなしだった。`max_flag_bond_rel_err` はそれぞれ約 `0.4727`, `0.9524`, `0.9118`。`2.5e-20` は非有限座標に起因すると見られる helix axis SVD crash で summary 化前に停止したため，診断 guard 実装後に再実行する。
+  - torque切り分けでは，`fp=3, ft=1.5, fs=1.0` 条件で `1.0e-20`, `1.5e-20`, `2.0e-20` は0.6 s first failなしだった。`max_flag_bond_rel_err` はそれぞれ約 `0.4727`, `0.9524`, `0.9118`。`2.5e-20` は非有限座標に起因すると見られる SVD crash で summary 化前に停止したため，非有限座標と SVD 失敗を fail-safe に扱う guard を追加した。
   - attach-frame強度切り分け `outputs/phase2_94/attach_frame_grid_fs1_fp2-3_ft1-1p5_dur0p6` では，`ft=1` が local `0-1` 破綻を誘発しやすい。`fp=2, ft=1` は first fail `0.2710 s`, final `flag_bond_rel_err_max=1.7212`, max `1.9617`，`fp=3, ft=1` は first fail `0.2361 s`, final `2.0177`, max `2.2457` だったため不採用とする。
   - 同 attach-frame強度切り分けで `ft=1.5` は root近傍 local `0-1` を抑え，破綻箇所を local `3-4` に移す。`fp=2, ft=1.5` は first fail `0.4217 s`, final/max `flag_bond_rel_err_max=1.3315`，`fp=3, ft=1.5` は first fail `0.4363 s`, final/max `1.4964`。`fp=3` は first fail が少し遅い一方で final/max が大きいため，今後の代表候補は `ft=1.5` 固定で `fp=2` と `fp=3` を併記比較する。
+  - SVD crash guard 実装後の smoke `outputs=/private/tmp/phase2_issue94_svd_guard_fp3_ft1p5` では，`fp=3, ft=1.5, fs=1.0, torque=2.5e-20, duration_s=0.6` が Python 例外では落ちず，`phase2_82_hook_scale_sweep_summary.csv` まで出力された。結果は `first_fail_t_s=0.0009`, `first_fail_category_nonbody=hook`, `max_flag_bond_rel_err=1.8267e+83`, local `0-1` であり，物理条件としては明確な破綻扱いを継続する。
   - default local scale は全て `1.0` のまま維持する。今回の変更は診断列と非default比較CLIの拡張であり，標準挙動は変更しない。
 - acceptance criteria:
   - [x] `flag_bond_rel_err_max` の発生 flag / bead pair を step ごとに特定できる。
@@ -749,8 +750,11 @@
   - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.001 --torque-nm 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --first-second-spring-scales 1 --output-dir /private/tmp/phase2_issue94_smoke_sweep --overwrite --progress-interval 10000`
   - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.001 --torque-nm 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --fixed-attach-frame-position-scale 3 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1 --output-dir /private/tmp/phase2_issue94_proximal_bond_smoke --overwrite --progress-interval 10000`
   - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.05 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --fixed-attach-frame-position-scale 3 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_94/fs_sweep_fp3_ft1p5_dur0p05 --overwrite --progress-interval 1000`
+  - `uv run pytest tests/test_helix_axis.py tests/test_debug_summary.py tests/test_motor_forces.py`
+  - `uv run ruff check src/sim_swim/dynamics/forces.py src/sim_swim/sim/helix_axis.py src/sim_swim/sim/debug_summary.py tests/test_helix_axis.py tests/test_debug_summary.py tests/test_motor_forces.py`
+  - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.6 --attach-seed 0 --phase-seed 0 --fixed-attach-frame-position-scale 3 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1 --torque-nm 2.5e-20 --output-dir /private/tmp/phase2_issue94_svd_guard_fp3_ft1p5 --overwrite --progress-interval 5000`
 - user-run commands:
-  - SVD crash guard 実装後，`fp=2,3` の代表比較と `fp=2` の torque 追加切り分けを一括実行する:
+  - `fp=2,3` の代表比較と `fp=2` の torque 追加切り分けを一括実行する:
     `set -e; git pull --ff-only origin feature/phase2-94-flag-bond-overstretch; for fp in 2 3; do uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.6 --attach-seed 0 --phase-seed 0 --fixed-attach-frame-position-scale "$fp" --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1 --torque-nm 2.5e-20 --output-dir "outputs/phase2_94/representative_fp${fp}_ft1p5_fs1_torque2p5e20_dur0p6" --overwrite --progress-interval 5000; done; for torque in 2.0e-20 2.25e-20 2.5e-20; do label=$(printf "%s" "$torque" | sed 's/\\.//g; s/e-20/e20/'); uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.6 --attach-seed 0 --phase-seed 0 --fixed-attach-frame-position-scale 2 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1 --torque-nm "$torque" --output-dir "outputs/phase2_94/torque_${label}_fs1_fp2_ft1p5_dur0p6" --overwrite --progress-interval 5000; done`
   - 共有対象は `outputs/phase2_94/representative_fp2_ft1p5_fs1_torque2p5e20_dur0p6/phase2_82_hook_scale_sweep_summary.csv`, `outputs/phase2_94/representative_fp3_ft1p5_fs1_torque2p5e20_dur0p6/phase2_82_hook_scale_sweep_summary.csv`, `outputs/phase2_94/torque_*_fs1_fp2_ft1p5_dur0p6/phase2_82_hook_scale_sweep_summary.csv`。
 - docs:
@@ -761,6 +765,7 @@
   - `docs/codex-runs/20260629_151102_phase2_94_fs_sweep_analysis/review_result.json`
   - `docs/codex-runs/20260629_155821_phase2_94_proximal_bond_diagnostics/review_result.json`
   - `docs/codex-runs/20260629_184812_phase2_94_attach_frame_torque_docs/review_result.json`
+  - `docs/codex-runs/20260629_193414_phase2_94_svd_guard/review_result.json`
 
 ### P2-8-DTSTAR: Phase 2標準dt_starと実行コマンドを整理する
 

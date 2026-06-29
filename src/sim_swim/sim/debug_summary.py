@@ -340,9 +340,14 @@ def _to_body_frame(positions_m: np.ndarray, model: SimModel) -> np.ndarray:
 def _estimate_helix_spin_offset_deg(points_body: np.ndarray) -> tuple[float, float]:
     if points_body.shape[0] < 5:
         return float("nan"), float("nan")
+    if not np.isfinite(points_body).all():
+        return float("nan"), float("nan")
 
     centered = points_body - np.mean(points_body, axis=0)
-    _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    try:
+        _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    except np.linalg.LinAlgError:
+        return float("nan"), float("nan")
     axis = vh[0]
     axis = axis / max(float(np.linalg.norm(axis)), 1e-18)
     if float(np.dot(axis, points_body[-1] - points_body[0])) < 0.0:
@@ -869,7 +874,10 @@ def _bundle_metrics(
     root_center = np.mean(roots, axis=0)
     tip_center = np.mean(tips, axis=0)
     bundle_axis = _unit_vector(tip_center - root_center)
-    if float(np.linalg.norm(bundle_axis)) <= 1e-18:
+    if (
+        not np.isfinite(bundle_axis).all()
+        or float(np.linalg.norm(bundle_axis)) <= 1e-18
+    ):
         bundle_axis_body_angle = float("nan")
         bundle_axis_rear_angle = float("nan")
         rearward_projection = float("nan")
@@ -1058,9 +1066,14 @@ def _flag_helix_bundle_radius_stats_um(
     points = np.vstack(helix_points)
     if points.shape[0] < 2:
         return float("nan"), float("nan")
+    if not np.isfinite(points).all():
+        return float("nan"), float("nan")
     origin = np.mean(points, axis=0)
     centered = points - origin
-    _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    try:
+        _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    except np.linalg.LinAlgError:
+        return float("nan"), float("nan")
     axis = vh[0]
     axis = axis / max(float(np.linalg.norm(axis)), 1.0e-18)
     projections = centered @ axis

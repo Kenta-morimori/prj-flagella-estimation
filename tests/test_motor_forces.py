@@ -294,6 +294,82 @@ def test_root_torque_segment_couples_reacts_to_applied_flag_torque() -> None:
     assert np.isclose(flag_torque + body_torque, 0.0, atol=1e-28)
 
 
+def test_root_torque_axis_projection_skips_nonfinite_flag_positions() -> None:
+    body = np.array(
+        [
+            [0.0, -1.0, -1.0],
+            [0.0, 1.0, -1.0],
+            [0.0, 1.0, 1.0],
+            [0.0, -1.0, 1.0],
+        ],
+        dtype=float,
+    )
+    flag = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [float("nan"), 0.25, 0.0],
+            [3.0, 0.25, 0.0],
+            [4.0, 0.0, 0.0],
+        ],
+        dtype=float,
+    )
+    positions = np.vstack([body, flag])
+    body_indices = np.arange(body.shape[0], dtype=int)
+    flag_indices = [np.arange(body.shape[0], positions.shape[0], dtype=int)]
+
+    forces, diag = compute_root_torque_axis_projection_forces(
+        positions_m=positions,
+        flagella_indices=flag_indices,
+        body_indices=body_indices,
+        torque_per_flag=np.array([2.0e-20], dtype=float),
+    )
+
+    assert diag.degenerate_axis_count == 1
+    assert np.allclose(forces, np.zeros_like(positions), equal_nan=False)
+
+
+def test_root_torque_segment_couples_skips_when_axis_svd_fails(monkeypatch) -> None:
+    body = np.array(
+        [
+            [0.0, -1.0, -1.0],
+            [0.0, 1.0, -1.0],
+            [0.0, 1.0, 1.0],
+            [0.0, -1.0, 1.0],
+        ],
+        dtype=float,
+    )
+    flag = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [2.0, 0.25, 0.0],
+            [3.0, 0.25, 0.0],
+            [4.0, 0.0, 0.0],
+        ],
+        dtype=float,
+    )
+    positions = np.vstack([body, flag])
+    body_indices = np.arange(body.shape[0], dtype=int)
+    flag_indices = [np.arange(body.shape[0], positions.shape[0], dtype=int)]
+
+    def raise_linalg_error(*_args, **_kwargs):
+        raise np.linalg.LinAlgError("SVD did not converge")
+
+    monkeypatch.setattr(np.linalg, "svd", raise_linalg_error)
+
+    forces, diag = compute_root_torque_segment_couples_forces(
+        positions_m=positions,
+        flagella_indices=flag_indices,
+        body_indices=body_indices,
+        torque_per_flag=np.array([2.0e-20], dtype=float),
+        segment_weights=[np.ones(flag.shape[0] - 1, dtype=float)],
+    )
+
+    assert diag.degenerate_axis_count == 1
+    assert np.allclose(forces, np.zeros_like(positions))
+
+
 def test_attach_first_body_axis_angle_force_penalizes_body_axis_component() -> None:
     positions = np.array(
         [
