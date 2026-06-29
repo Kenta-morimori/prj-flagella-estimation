@@ -1,0 +1,57 @@
+{
+  "status": "PASS",
+  "summary": "#94 の torque 切り分けと attach-frame 強度切り分けのユーザー実行結果を docs に反映した。`fp=3, ft=1.5, fs=1.0` の torque sweep では `1.0e-20`, `1.5e-20`, `2.0e-20` が0.6 s first failなし，`2.5e-20` は helix axis SVD crash で summary 化前に停止した。attach-frame grid では `ft=1` が local `0-1` 破綻を誘発しやすく不採用，`ft=1.5` を維持候補とし，`fp=2` と `fp=3` は今後の代表候補として併記比較する方針を記録した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "今回の変更は docs 更新のみであり，物理モデル，default scale，補正実装は変更していない。",
+    "`2.5e-20` 破綻条件は現状 Python 例外で落ちるため，非有限座標や SVD 失敗を fail-safe に記録する guard が次実装として必要。",
+    "`fp=2, ft=1.5` は標準採用ではなく，`fp=3, ft=1.5` と並ぶ次回比較候補として扱う。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "read outputs/phase2_94/torque_10e20_fs1_fp3_ft1p5_dur0p6/phase2_82_hook_scale_sweep_summary.csv",
+      "result": "PASS: 0.6 s first fail なし，max_flag_bond_rel_err=0.4727"
+    },
+    {
+      "command": "read outputs/phase2_94/torque_15e20_fs1_fp3_ft1p5_dur0p6/phase2_82_hook_scale_sweep_summary.csv",
+      "result": "PASS: 0.6 s first fail なし，max_flag_bond_rel_err=0.9524"
+    },
+    {
+      "command": "read outputs/phase2_94/torque_20e20_fs1_fp3_ft1p5_dur0p6/phase2_82_hook_scale_sweep_summary.csv",
+      "result": "PASS: 0.6 s first fail なし，max_flag_bond_rel_err=0.9118"
+    },
+    {
+      "command": "read outputs/phase2_94/attach_frame_grid_fs1_fp2-3_ft1-1p5_dur0p6/phase2_82_hook_scale_sweep_summary.csv",
+      "result": "PASS: 4条件を確認。`ft=1` は local `0-1` 破綻，`ft=1.5` は local `3-4` 破綻へ移り，`fp=2, ft=1.5` の final/max flag_bond_rel_err_max=1.3315 が `fp=3, ft=1.5` の 1.4964 より低い。"
+    },
+    {
+      "command": "uv run python -m json.tool docs/codex-runs/20260629_184812_phase2_94_attach_frame_torque_docs/review_result.json",
+      "result": "PASS: JSON parse OK"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "今回の対応は既存 CSV の分析結果と次回コマンドの docs 記録であり，新規動画の目視判定は要求しない。",
+  "user_review_outputs": [
+    "outputs/phase2_94/torque_10e20_fs1_fp3_ft1p5_dur0p6/phase2_82_hook_scale_sweep_summary.csv",
+    "outputs/phase2_94/torque_15e20_fs1_fp3_ft1p5_dur0p6/phase2_82_hook_scale_sweep_summary.csv",
+    "outputs/phase2_94/torque_20e20_fs1_fp3_ft1p5_dur0p6/phase2_82_hook_scale_sweep_summary.csv",
+    "outputs/phase2_94/attach_frame_grid_fs1_fp2-3_ft1-1p5_dur0p6/phase2_82_hook_scale_sweep_summary.csv"
+  ],
+  "user_review_points": [
+    "`ft=1` を不採用とする。",
+    "`ft=1.5` を維持候補とする。",
+    "`fp=2, ft=1.5` と `fp=3, ft=1.5` を次回代表候補として比較する。",
+    "`2.5e-20` は SVD crash guard 実装後に再実行する。"
+  ],
+  "adr_required": false,
+  "adr_reason": "実装や default 方針を変更せず，既存 sweep 結果の分析と運用方針の記録に留めたため。",
+  "commit_type": "complete",
+  "commit_hash": "",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/95",
+  "next_actions": [
+    "helix axis 診断で非有限座標や `np.linalg.LinAlgError` を fail-safe に扱い，summary 出力を完了できるようにする。",
+    "guard 実装後に `fp=2, ft=1.5` と `fp=3, ft=1.5` の `2.5e-20` 代表比較を再実行する。",
+    "guard 実装後に `fp=2, ft=1.5` で `2.0e-20`, `2.25e-20`, `2.5e-20` を比較する。"
+  ]
+}
