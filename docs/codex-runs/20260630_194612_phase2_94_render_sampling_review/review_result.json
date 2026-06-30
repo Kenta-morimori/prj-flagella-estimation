@@ -1,0 +1,40 @@
+{
+  "status": "PASS",
+  "summary": "chatgpt-codex-connector review の指摘に対応し，`time.dt_star=1.0e-4` default と `time.dt_s=1.0e-3` 出力間隔の分離に合わせて，通常3D render default を全内部step描画から `fps_out_3d` 間引きへ変更した。`output_sampling.out_all_steps_3d` は config / parser fallback ともに default `false` とし，全内部stepを3D描画したい診断runだけ明示overrideで `true` にする。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "今回の変更は通常3D render の default frame selection のみであり，`step_summary.csv` の内部step記録や Phase 2.8 raw sample の全step保存方針は変更しない。",
+    "過去の全step3D描画を再現したい場合は `output_sampling.out_all_steps_3d=true` を明示する必要がある。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_params.py tests/test_render_state_and_projection.py",
+      "result": "PASS: 59 passed"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/sim/params.py tests/test_params.py tests/test_render_state_and_projection.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/sim/params.py tests/test_params.py tests/test_render_state_and_projection.py",
+      "result": "PASS: 3 files already formatted"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "レビュー対応は通常3D render default の軽量化であり，新規動画の目視確認は不要。",
+  "user_review_outputs": [],
+  "user_review_points": [
+    "通常CLIでは `dt_star=1.0e-4` でも3D動画は `fps_out_3d` で間引かれる。",
+    "全内部step描画が必要な診断runでは `output_sampling.out_all_steps_3d=true` を明示する。"
+  ],
+  "adr_required": false,
+  "adr_reason": "既存の `out_all_steps_3d` / `fps_out_3d` 仕様内の default 調整であり，新しい物理モデルや公開データ形式を追加していないため。",
+  "commit_type": "complete",
+  "commit_hash": "",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/95",
+  "review_thread_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/95#discussion_r3497936309",
+  "next_actions": [
+    "PR review thread に，通常3D render default を `out_all_steps_3d=false` へ変更したことを返信する。"
+  ]
+}

@@ -25,6 +25,11 @@ from sim_swim.sim.hook_frame import (
 from sim_swim.sim.params import SimulationConfig
 
 M_TO_UM = 1.0e6
+PROXIMAL_FLAG_BOND_LOCAL_PAIRS = tuple((i, i + 1) for i in range(5))
+PROXIMAL_FLAG_BOND_REL_ERR_FIELDS = tuple(
+    f"flag_bond_rel_err_local_{i}_{j}_per_flag"
+    for i, j in PROXIMAL_FLAG_BOND_LOCAL_PAIRS
+)
 
 STEP_SUMMARY_COLUMNS = [
     "step",
@@ -96,6 +101,12 @@ STEP_SUMMARY_COLUMNS = [
     "flag_bond_len_max_over_b",
     "flag_bond_rel_err_mean",
     "flag_bond_rel_err_max",
+    "flag_bond_rel_err_max_flag_id",
+    "flag_bond_rel_err_max_bead_i",
+    "flag_bond_rel_err_max_bead_j",
+    "flag_bond_rel_err_max_len_over_b",
+    "flag_bond_rel_err_per_flag",
+    *PROXIMAL_FLAG_BOND_REL_ERR_FIELDS,
     "flag_helix_axis_vs_rear_angle_deg_min",
     "flag_helix_axis_vs_rear_angle_deg_mean",
     "flag_helix_axis_vs_rear_angle_deg_max",
@@ -329,9 +340,14 @@ def _to_body_frame(positions_m: np.ndarray, model: SimModel) -> np.ndarray:
 def _estimate_helix_spin_offset_deg(points_body: np.ndarray) -> tuple[float, float]:
     if points_body.shape[0] < 5:
         return float("nan"), float("nan")
+    if not np.isfinite(points_body).all():
+        return float("nan"), float("nan")
 
     centered = points_body - np.mean(points_body, axis=0)
-    _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    try:
+        _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    except np.linalg.LinAlgError:
+        return float("nan"), float("nan")
     axis = vh[0]
     axis = axis / max(float(np.linalg.norm(axis)), 1e-18)
     if float(np.dot(axis, points_body[-1] - points_body[0])) < 0.0:
@@ -755,6 +771,76 @@ def _hook_link_diagnostics(
     return default
 
 
+def _flag_bond_diagnostics(
+    positions_m: np.ndarray,
+    model: SimModel,
+    spring_pairs: np.ndarray,
+    spring_rests_m: np.ndarray,
+    flag_intra_rows: np.ndarray,
+    b_m: float,
+) -> dict[str, float | int | str]:
+    default: dict[str, float | int | str] = {
+        "flag_bond_rel_err_max_flag_id": -1,
+        "flag_bond_rel_err_max_bead_i": -1,
+        "flag_bond_rel_err_max_bead_j": -1,
+        "flag_bond_rel_err_max_len_over_b": float("nan"),
+        "flag_bond_rel_err_per_flag": "",
+    }
+    for rel_err_field in PROXIMAL_FLAG_BOND_REL_ERR_FIELDS:
+        default[rel_err_field] = ""
+    if flag_intra_rows.size == 0:
+        return default
+
+    per_flag_max: dict[int, float] = {}
+    rest_by_pair: dict[tuple[int, int], float] = {}
+    max_rel = -float("inf")
+    for row_raw in flag_intra_rows.astype(int, copy=False):
+        row = int(row_raw)
+        i = int(spring_pairs[row, 0])
+        j = int(spring_pairs[row, 1])
+        flag_i = int(model.bead_flag_ids[i])
+        flag_j = int(model.bead_flag_ids[j])
+        flag_id = flag_i if flag_i >= 0 else flag_j
+        if flag_i >= 0 and flag_j >= 0 and flag_i != flag_j:
+            flag_id = -1
+        rest = max(float(spring_rests_m[row]), 1e-30)
+        rest_by_pair[(i, j)] = rest
+        rest_by_pair[(j, i)] = rest
+        length = float(np.linalg.norm(positions_m[j] - positions_m[i]))
+        rel = float(abs(length - rest) / rest)
+        if flag_id >= 0:
+            per_flag_max[flag_id] = max(per_flag_max.get(flag_id, -float("inf")), rel)
+        if np.isfinite(rel) and rel > max_rel:
+            max_rel = rel
+            default["flag_bond_rel_err_max_flag_id"] = flag_id
+            default["flag_bond_rel_err_max_bead_i"] = i
+            default["flag_bond_rel_err_max_bead_j"] = j
+            default["flag_bond_rel_err_max_len_over_b"] = float(
+                length / max(b_m, 1e-30)
+            )
+
+    default["flag_bond_rel_err_per_flag"] = _format_flag_metric(
+        sorted(per_flag_max.items())
+    )
+    for local_i, local_j in PROXIMAL_FLAG_BOND_LOCAL_PAIRS:
+        values: list[tuple[int, float]] = []
+        for flag_id, flag_indices in enumerate(model.flagella_indices):
+            if local_j >= int(flag_indices.size):
+                continue
+            bead_i = int(flag_indices[local_i])
+            bead_j = int(flag_indices[local_j])
+            rest = rest_by_pair.get((bead_i, bead_j))
+            if rest is None:
+                continue
+            length = float(np.linalg.norm(positions_m[bead_j] - positions_m[bead_i]))
+            rel = float(abs(length - rest) / max(rest, 1e-30))
+            values.append((flag_id, rel))
+        default[f"flag_bond_rel_err_local_{local_i}_{local_j}_per_flag"] = (
+            _format_flag_metric(values)
+        )
+    return default
+
+
 def _bundle_metrics(
     positions_m: np.ndarray,
     model: SimModel,
@@ -788,7 +874,10 @@ def _bundle_metrics(
     root_center = np.mean(roots, axis=0)
     tip_center = np.mean(tips, axis=0)
     bundle_axis = _unit_vector(tip_center - root_center)
-    if float(np.linalg.norm(bundle_axis)) <= 1e-18:
+    if (
+        not np.isfinite(bundle_axis).all()
+        or float(np.linalg.norm(bundle_axis)) <= 1e-18
+    ):
         bundle_axis_body_angle = float("nan")
         bundle_axis_rear_angle = float("nan")
         rearward_projection = float("nan")
@@ -977,9 +1066,14 @@ def _flag_helix_bundle_radius_stats_um(
     points = np.vstack(helix_points)
     if points.shape[0] < 2:
         return float("nan"), float("nan")
+    if not np.isfinite(points).all():
+        return float("nan"), float("nan")
     origin = np.mean(points, axis=0)
     centered = points - origin
-    _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    try:
+        _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    except np.linalg.LinAlgError:
+        return float("nan"), float("nan")
     axis = vh[0]
     axis = axis / max(float(np.linalg.norm(axis)), 1.0e-18)
     projections = centered @ axis
@@ -1602,6 +1696,14 @@ class StepSummaryRecorder:
             self.spring_rests_m,
             self.flag_intra_rows,
         )
+        flag_bond_diagnostics = _flag_bond_diagnostics(
+            pos_after,
+            self.model,
+            self.spring_pairs,
+            self.spring_rests_m,
+            self.flag_intra_rows,
+            self.cfg.b_m,
+        )
         body_axis = estimate_body_axis(
             pos_after,
             self.model.body_layer_indices,
@@ -2051,6 +2153,7 @@ class StepSummaryRecorder:
             "flag_bond_len_max_over_b": flag_bond_len_max_over_b,
             "flag_bond_rel_err_mean": flag_bond_rel_err_mean,
             "flag_bond_rel_err_max": flag_bond_rel_err_max,
+            **flag_bond_diagnostics,
             "flag_helix_axis_vs_rear_angle_deg_min": (
                 flag_helix_axis_vs_rear_angle_deg_min
             ),

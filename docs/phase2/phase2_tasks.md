@@ -556,7 +556,7 @@
 - goal: 実験時の設定編集と動画確認を簡略化するため，標準config default，3D render表示，dataset一括再描画CLIを整理する。
 - result:
   - `conf/sim_swim.yaml` の `motor.torque_Nm` default は，Phase 2.6 torque評価の第一候補，Phase 2.7代表条件，Phase 2.8 dataset条件と揃え，`2.5e-20` とした。`-1` sentinel の意味はコメントに残した。
-  - `1.0e-4` は `time.dt_star` の実行時overrideとして使う値であり，モータートルクdefaultにはしない。
+  - `motor.torque_Nm` と `time.dt_star` は独立した設定である。P2-8-DTSTAR 以降，標準configでは `time.dt_star=1.0e-4` を内部積分刻み，`time.dt_s=1.0e-3` を出力・記録間隔として扱う。
   - `flagella.placement_mode` と `flagella.initial_phase_mode` の取りうる値をconfigコメントへ明記した。
   - `render.save_frames_3d` / `render.save_frames_2d` の default を `false` にし，mp4 と final image は維持した。
   - 3D render に RUN/TUMBLE，時刻，実効トルク，`follow_camera_3d` を併記するようにした。
@@ -685,32 +685,129 @@
   - `uv run pytest tests/test_phase2_82_hook_overstretch_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py`
 - user-run commands:
   - Stage 1 body-first grid:
-    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode body-first-grid --duration-s 0.5 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --attach-first-spring-scales 1,1.25,1.5,2,3 --body-axis-angle-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_82/body_first_grid --overwrite --progress-interval 5000`
+    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode body-first-grid --duration-s 0.5 --attach-seed 0 --phase-seed 0 --attach-first-spring-scales 1,1.25,1.5,2,3 --body-axis-angle-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_82/body_first_grid --overwrite --progress-interval 5000`
   - Stage 1 heatmap:
     `uv run python scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py --summary-csv outputs/phase2_82/body_first_grid/phase2_82_hook_scale_sweep_summary.csv --mode body-first-grid --output-dir outputs/phase2_82/body_first_grid/plots`
   - Stage 2 first-second grid:
-    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.5 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 3 --fixed-body-axis-angle-scale 1.25 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_82/first_second_grid_af3_axis1p25 --overwrite --progress-interval 5000`
+    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.5 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 3 --fixed-body-axis-angle-scale 1.25 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_82/first_second_grid_af3_axis1p25 --overwrite --progress-interval 5000`
   - Stage 2 heatmap:
     `uv run python scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py --summary-csv outputs/phase2_82/first_second_grid_af3_axis1p25/phase2_82_hook_scale_sweep_summary.csv --mode first-second-grid --output-dir outputs/phase2_82/first_second_grid_af3_axis1p25/plots`
   - Stage 2 per-flag diagnostic rerun:
-    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.5 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 3 --fixed-body-axis-angle-scale 1.25 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_82/first_second_grid_af3_axis1p25_diagnostics --overwrite --progress-interval 5000`
+    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.5 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 3 --fixed-body-axis-angle-scale 1.25 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_82/first_second_grid_af3_axis1p25_diagnostics --overwrite --progress-interval 5000`
   - Stage 2 per-flag diagnostic heatmap:
     `uv run python scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py --summary-csv outputs/phase2_82/first_second_grid_af3_axis1p25_diagnostics/phase2_82_hook_scale_sweep_summary.csv --mode first-second-grid --output-dir outputs/phase2_82/first_second_grid_af3_axis1p25_diagnostics/plots`
   - Stage A attach-frame grid:
-    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode attach-frame-grid --duration-s 0.5 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --attach-frame-position-scales 1,1.25,1.5,2,3 --attach-frame-tangent-scales 1,1.25,1.5,2 --output-dir outputs/phase2_82/attach_frame_grid_stage_a --overwrite --progress-interval 5000`
+    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode attach-frame-grid --duration-s 0.5 --attach-seed 0 --phase-seed 0 --attach-frame-position-scales 1,1.25,1.5,2,3 --attach-frame-tangent-scales 1,1.25,1.5,2 --output-dir outputs/phase2_82/attach_frame_grid_stage_a --overwrite --progress-interval 5000`
   - Stage B attach-frame grid with best existing scales:
-    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode attach-frame-grid --duration-s 0.5 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 3 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 3 --fixed-body-axis-angle-scale 1.25 --fixed-first-second-spring-scale 1.25 --attach-frame-position-scales 1,1.25,1.5,2,3 --attach-frame-tangent-scales 1,1.25,1.5,2 --output-dir outputs/phase2_82/attach_frame_grid_stage_b --overwrite --progress-interval 5000`
+    `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode attach-frame-grid --duration-s 0.5 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 3 --fixed-body-axis-angle-scale 1.25 --fixed-first-second-spring-scale 1.25 --attach-frame-position-scales 1,1.25,1.5,2,3 --attach-frame-tangent-scales 1,1.25,1.5,2 --output-dir outputs/phase2_82/attach_frame_grid_stage_b --overwrite --progress-interval 5000`
   - Stage A/B attach-frame heatmap:
     `uv run python scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py --summary-csv <stage_output>/phase2_82_hook_scale_sweep_summary.csv --mode attach-frame-grid --output-dir <stage_output>/plots`
   - Merge前の長時間後方条件 sweep:
-    `uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --helix-axis-angles-deg 0 --n-flagella 3 --torques 1.0e-20,2.5e-20 --duration-s 2.0 --dt-star 1.0e-4 --output-dir outputs/phase2_82/long_posterior_attach_frame_review_dur2p0/<case> seed.attach_seed=0 seed.phase_seed=0 motor.local_attach_first_spring_scale=<af> motor.local_attach_first_body_axis_angle_scale=<axis> motor.local_first_second_spring_scale=<fs> motor.local_attach_frame_position_scale=<fp> motor.local_attach_frame_tangent_scale=<ft>`
+    `uv run python scripts/01_simulate_swimming/run_phase2_7_bundling_sweep.py --helix-axis-angles-deg 0 --torques 1.0e-20,2.5e-20 --duration-s 2.0 --output-dir outputs/phase2_82/long_posterior_attach_frame_review_dur2p0/<case> seed.attach_seed=0 seed.phase_seed=0 motor.local_attach_first_spring_scale=<af> motor.local_attach_first_body_axis_angle_scale=<axis> motor.local_first_second_spring_scale=<fs> motor.local_attach_frame_position_scale=<fp> motor.local_attach_frame_tangent_scale=<ft>`
   - 長時間3D定性評価:
-    `uv run python -m scripts.01_simulate_swimming flagella.n_flagella=3 flagella.initial_helix_axis_from_rear_deg=0 seed.attach_seed=0 seed.phase_seed=0 time.duration_s=2.0 time.dt_star=1.0e-4 motor.torque_Nm=2.5e-20 motor.local_attach_first_spring_scale=1 motor.local_attach_first_body_axis_angle_scale=1 motor.local_first_second_spring_scale=1.5 motor.local_attach_frame_position_scale=3 motor.local_attach_frame_tangent_scale=1.5 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.render_flagella=true render.show_flagella_helix_axis_3d=true render.save_frames_3d=false output.base_dir=outputs/phase2_82/qualitative_long_flag_bond_review/frame_fp3_ft1p5_fs1p5`
+    `uv run python -m scripts.01_simulate_swimming flagella.initial_helix_axis_from_rear_deg=0 seed.attach_seed=0 seed.phase_seed=0 time.duration_s=2.0 motor.local_first_second_spring_scale=1.5 motor.local_attach_frame_position_scale=3 motor.local_attach_frame_tangent_scale=1.5 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.render_flagella=true render.show_flagella_helix_axis_3d=true output.base_dir=outputs/phase2_82/qualitative_long_flag_bond_review/frame_fp3_ft1p5_fs1p5`
 - docs:
   - `docs/phase2/phase2_current.md`
   - `docs/phase2/phase2_tasks.md`
   - `docs/codex-runs/20260625_205543_phase2_82_hook_overstretch/review_result.json`
   - `docs/codex-runs/20260627_010359_phase2_82_attach_frame_validation/review_result.json`
+
+### P2-8-094: hook補強時の flag bond 過伸長位置を診断する
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/94`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/82`
+- branch: `feature/phase2-94-flag-bond-overstretch`
+- goal: attach-frame 補強後に発生する `flag_bond_rel_err_max` の発生 flag / bead pair を step ごとに特定し，hook抑制を維持したまま flag bond 過伸長を悪化させない補正候補を比較できるようにする。
+- implementation notes:
+  - `step_summary.csv` に `flag_bond_rel_err_max_flag_id`，`flag_bond_rel_err_max_bead_i`，`flag_bond_rel_err_max_bead_j`，`flag_bond_rel_err_max_len_over_b`，`flag_bond_rel_err_per_flag` を追加した。
+  - Issue #82 sweep summary に first fail 時点と全期間最大時点の flag bond event 指標を追加した。2026-06-29追補として，global bead index だけでなく `flag_bond_rel_err_max_local_bead_i/j`，`first_fail_flag_bond_rel_err_max_local_bead_i/j`，`max_flag_bond_rel_err_local_bead_i/j` も出力し，root近傍か下流helixかを手計算なしで判定できるようにした。
+  - 2026-06-29追補として，`flag_bond_rel_err_local_0_1_per_flag` から `flag_bond_rel_err_local_4_5_per_flag` を `step_summary.csv` に追加した。Issue #82 sweep summary には同じ proximal local bond rel err を final / first fail / max flag bond event 時点で出し，local `3-4` 以外の近位bondが同時に伸びるかを比較できるようにした。
+  - `first-second-grid` で `--fixed-attach-frame-position-scale` / `--fixed-attach-frame-tangent-scale` を指定できるようにし，`fp=3, ft=1.5` 固定で `local_first_second_spring_scale` を比較できるようにした。
+  - CSV 中心の診断とし，3D render 上の破綻 bond 強調表示は今回の対象外とした。
+- result:
+  - smoke sweep `outputs/phase2_94/fs_sweep_fp3_ft1p5_dur0p05` では `fp=3, ft=1.5` を固定し，`fs=1,1.25,1.5,2,3` を `duration_s=0.05` で比較した。全条件で first fail はなく，`hook_len_rel_err_max` は約 `0.02327`，`max_flag_bond_rel_err` は約 `0.18223` でほぼ同等だった。
+  - 同 smoke sweep の最大 flag bond event は全条件で `flag_id=2`, bead pair `39-40`, `len_over_b=0.68569` 付近だった。`max_flag_bond_rel_err` の条件間 range は `3.737e-06` 程度で，相対差は約 `0.0021%` に留まる。短時間条件では `local_first_second_spring_scale` 増強による明確な改善は見えない。
+  - 2.0 s の #94 代表条件 `outputs/phase2_94/representative_fp3_ft1p5_fs1p5/af1_axis1_fs1p5_fp3_ft1p5` では，`t=0.4363 s` に first fail `flag` が発生した。この時点の `hook_len_rel_err_max=0.0157` に対し，`flag_bond_rel_err_max=1.000565` で，発生箇所は `flag_id=1`, global bead `29-30`, local bead `3-4` だった。final `t=1.9999 s` でも同じ bond が最大で，`flag_bond_rel_err_max=2.0500`, `len_over_b=1.7690` まで伸びた。
+  - 0.6 s の `outputs/phase2_94/fs_sweep_af1_axis1_fp3_ft1p5_dur0p6` では，`fs=1,1.25,1.5,2,3` の全条件で first fail が `t=0.4363 s`, category `flag`, `flag_id=1`, global bead `29-30`, local bead `3-4` に固定された。first fail 時点の `flag_bond_rel_err_max` は `1.00031..1.00057` とほぼ同等で，`fs` 増強による改善はない。
+  - 同 0.6 s sweep の max event は多くの条件で `flag_id=1`, local bead `3-4` のまま `max_flag_bond_rel_err=1.496..1.514` だった。一方 `fs=1.25` は `t=0.5084 s` に `flag_id=0`, local bead `0-1` が `max_flag_bond_rel_err=2.4948` まで伸び，別の根元 bond 破綻を誘発した可能性がある。
+  - 破綻 bond は first-second や second-third ではなく proximal helix 側の local bead `3-4` である。したがって `fs` 増強は採用しない。`fs` は標準候補ではなく，必要時の比較軸として扱う。
+  - torque切り分けでは，`fp=3, ft=1.5, fs=1.0` 条件で `1.0e-20`, `1.5e-20`, `2.0e-20` は0.6 s first failなしだった。`max_flag_bond_rel_err` はそれぞれ約 `0.4727`, `0.9524`, `0.9118`。`2.5e-20` は非有限座標に起因すると見られる SVD crash で summary 化前に停止したため，非有限座標と SVD 失敗を fail-safe に扱う guard を追加した。
+  - attach-frame強度切り分け `outputs/phase2_94/attach_frame_grid_fs1_fp2-3_ft1-1p5_dur0p6` では，`ft=1` が local `0-1` 破綻を誘発しやすい。`fp=2, ft=1` は first fail `0.2710 s`, final `flag_bond_rel_err_max=1.7212`, max `1.9617`，`fp=3, ft=1` は first fail `0.2361 s`, final `2.0177`, max `2.2457` だったため不採用とする。
+  - 同 attach-frame強度切り分けで `ft=1.5` は root近傍 local `0-1` を抑え，破綻箇所を local `3-4` に移す。`fp=2, ft=1.5` は first fail `0.4217 s`, final/max `flag_bond_rel_err_max=1.3315`，`fp=3, ft=1.5` は first fail `0.4363 s`, final/max `1.4964`。`fp=3` は first fail が少し遅い一方で final/max が大きいため，今後の代表候補は `ft=1.5` 固定で `fp=2` と `fp=3` を併記比較する。
+  - SVD crash guard 実装後の smoke `outputs=/private/tmp/phase2_issue94_svd_guard_fp3_ft1p5` では，`fp=3, ft=1.5, fs=1.0, torque=2.5e-20, duration_s=0.6` が Python 例外では落ちず，`phase2_82_hook_scale_sweep_summary.csv` まで出力された。結果は `first_fail_t_s=0.0009`, `first_fail_category_nonbody=hook`, `max_flag_bond_rel_err=1.8267e+83`, local `0-1` であり，物理条件としては明確な破綻扱いを継続する。
+  - 2026-06-30追補として，`run_phase2_82_hook_overstretch_sweep.py` は `_overrides_for_condition` で `flagella.initial_helix_axis_from_rear_deg=0.0` を内部overrideするため，#94 の数値sweepは後方束化初期条件で評価している。一方，`python -m scripts.01_simulate_swimming` の動画定性評価ではこの override は自動では入らないため，merge判定用コマンドでは `flagella.initial_helix_axis_from_rear_deg=0` を必ず明示する。
+  - 後方条件の数値sweepでは，`af=1, axis=1, fs=1, fp=2, ft=1.5` 固定で torque を `1.75e-20, 1.9e-20, 2.0e-20, 2.25e-20, 2.5e-20` に切り分けた。0.6 s の自動 shape gate は `1.9e-20` のみ pass した。`1.75e-20` は final 近傍の local `4-5` で border fail，`2.0e-20` 以上は local `3-4` の flag bond 過伸長で fail した。
+  - 同じ後方条件で `fp=3, ft=1.5` も比較した。`torque=1.9e-20` と `2.0e-20` は 0.6 s の自動 shape gate を通り，`2.0e-20` は `max_flag_bond_rel_err=0.9063` で `fp=2, torque=1.9e-20` の `0.9449` より余裕があった。`torque=2.25e-20` 以上は local `3-4` の flag bond 過伸長で fail した。
+  - 後方動画定性評価 `outputs/phase2_94/posterior_merge_review/qual_videos/fp3_ft1p5_torque2p0_dur0p6/2026-06-30/170248` では，`flagella.initial_helix_axis_from_rear_deg=0`, `fp=3`, `ft=1.5`, `torque=2.0e-20`, `duration_s=0.6` を確認した。自動指標は `shape_pass_nonbody=True`, first failなし，`hook_len_rel_err_max` max `0.1559` / final `0.0120`, `flag_bond_rel_err_max` max `0.9063` / final `0.9034`, `body_displacement_um=0.4648` だった。ユーザー定性評価では概ね良好と判断された。
+  - PR #95 の採用候補は `motor.local_attach_frame_position_scale=3`, `motor.local_attach_frame_tangent_scale=1.5`, `motor.local_first_second_spring_scale=1`, `motor.torque_Nm=2.0e-20` とする。定性評価の観点は，後方へ揃えた初期べん毛軸，滑らかな回転，後方束化または後方軸整列，遊泳らしい移動，hook/root/flagella/body の目立つ破綻なし，2D projection の自然さである。
+  - 残リスクとして，自動指標上は後方軸整列が時間とともに弱まる。`fp=3, torque=2.0e-20` の final は `flag_helix_axis_vs_rear_angle_deg_mean=29.23 deg`, `flag_helix_axis_pair_angle_deg_max=46.90 deg`, `bundle_participation_ratio=0.0` である。また，べん毛が螺旋軸中心に剛体的に回っているかは既存の `flag_helix_spin_rate_hz=-22.65`, `flag_helix_spin_fit_r2=0.907` だけでは厳密判定できない。これらは Issue #97 のトルク分散・回転伝達見直しで扱う。
+  - torque 分散方法そのものの見直しは Issue #97 `[Phase2] hookとべん毛形状を保つトルク分散方法を見直す` へ分離した。#97 では，root/proximal 側に負荷が集中する現行 `root_torque_segment_couples` の代替として，hookとべん毛形状を保ちながら螺旋全体へより自然に torque を伝搬・分散する方法を比較する。
+  - default local scale は全て `1.0` のまま維持する。今回の変更は診断列と非default比較CLIの拡張であり，標準挙動は変更しない。
+- acceptance criteria:
+  - [x] `flag_bond_rel_err_max` の発生 flag / bead pair を step ごとに特定できる。
+  - [x] #82 sweep summary で first fail と全期間最大の flag bond event を比較できる。
+  - [x] #82 sweep summary で flag bond event の local bead pair を確認できる。
+  - [x] `fp=3, ft=1.5` 固定で `local_first_second_spring_scale` を比較できる。
+  - [x] default local scale は長時間安定性が確認されるまで `1.0` のまま維持する。
+- verification:
+  - `uv run pytest tests/test_simulation.py::test_run_writes_step_summary_csv_without_projection_columns tests/test_phase2_82_hook_overstretch_sweep.py`
+  - `uv run ruff check src/sim_swim/sim/debug_summary.py scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py tests/test_phase2_82_hook_overstretch_sweep.py`
+  - `uv run ruff format --check src/sim_swim/sim/debug_summary.py scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py tests/test_phase2_82_hook_overstretch_sweep.py`
+  - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.001 --torque-nm 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --first-second-spring-scales 1 --output-dir /private/tmp/phase2_issue94_smoke_sweep --overwrite --progress-interval 10000`
+  - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.001 --torque-nm 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --fixed-attach-frame-position-scale 3 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1 --output-dir /private/tmp/phase2_issue94_proximal_bond_smoke --overwrite --progress-interval 10000`
+  - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.05 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --fixed-attach-frame-position-scale 3 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1,1.25,1.5,2,3 --output-dir outputs/phase2_94/fs_sweep_fp3_ft1p5_dur0p05 --overwrite --progress-interval 1000`
+  - `uv run pytest tests/test_helix_axis.py tests/test_debug_summary.py tests/test_motor_forces.py`
+  - `uv run ruff check src/sim_swim/dynamics/forces.py src/sim_swim/sim/helix_axis.py src/sim_swim/sim/debug_summary.py tests/test_helix_axis.py tests/test_debug_summary.py tests/test_motor_forces.py`
+  - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.6 --attach-seed 0 --phase-seed 0 --fixed-attach-frame-position-scale 3 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1 --torque-nm 2.5e-20 --output-dir /private/tmp/phase2_issue94_svd_guard_fp3_ft1p5 --overwrite --progress-interval 5000`
+- user-run commands:
+  - 後方束化条件の merge判定用 sweep は，side-attach や誤条件runと混ざらないよう `outputs/phase2_94/posterior_merge_review/metric_sweeps/` 以下へ出す:
+    `set -e; for fp in 2 3; do for torque in 1.75e-20 1.9e-20 2.0e-20 2.25e-20 2.5e-20; do label=$(printf "%s" "$torque" | sed 's/\\.//g; s/e-20/e20/'); uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.6 --attach-seed 0 --phase-seed 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --fixed-attach-frame-position-scale "$fp" --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1 --torque-nm "$torque" --output-dir "outputs/phase2_94/posterior_merge_review/metric_sweeps/torque_${label}_af1_axis1_fs1_fp${fp}_ft1p5_dur0p6" --overwrite --progress-interval 5000; done; done`
+  - 共有対象は `outputs/phase2_94/posterior_merge_review/metric_sweeps/*/phase2_82_hook_scale_sweep_summary.csv`。
+  - PR #95 merge前の後方束化動画定性評価:
+    `uv run python -m scripts.01_simulate_swimming flagella.initial_helix_axis_from_rear_deg=0 seed.attach_seed=0 seed.phase_seed=0 time.duration_s=0.6 motor.torque_Nm=2.0e-20 motor.local_attach_frame_position_scale=3 motor.local_attach_frame_tangent_scale=1.5 output_sampling.out_all_steps_3d=false render.render_flagella_2d=true render.show_flagella_helix_axis_3d=true output.base_dir=outputs/phase2_94/posterior_merge_review/qual_videos/fp3_ft1p5_torque2p0_dur0p6`
+  - 定性評価の共有対象は，run directory の `manifest.json`, `render/swim3d.mp4`, `render/swim3d_final.png`, `render2d/projection.mp4`, `sim/step_summary.csv`。既存の `outputs/phase2_94/qual_review_fp2_ft1p5_torque1p9_dur0p6` は side-attach 条件の補助runとして扱い，merge判定には使わない。
+- docs:
+  - `docs/phase2/phase2_current.md`
+  - `docs/phase2/phase2_tasks.md`
+  - `docs/codex-runs/20260628_230234_phase2_94_flag_bond_overstretch/review_result.json`
+  - `docs/codex-runs/20260629_100756_phase2_94_flag_bond_local_index/review_result.json`
+  - `docs/codex-runs/20260629_151102_phase2_94_fs_sweep_analysis/review_result.json`
+  - `docs/codex-runs/20260629_155821_phase2_94_proximal_bond_diagnostics/review_result.json`
+  - `docs/codex-runs/20260629_184812_phase2_94_attach_frame_torque_docs/review_result.json`
+  - `docs/codex-runs/20260629_193414_phase2_94_svd_guard/review_result.json`
+  - `docs/codex-runs/20260630_134216_phase2_94_pr95_issue97_handoff/review_result.json`
+
+### P2-8-DTSTAR: Phase 2標準dt_starと実行コマンドを整理する
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/94`
+- branch: `feature/phase2-94-flag-bond-overstretch`
+- goal: `dt_star=1.0e-4` を Phase 2 標準configへ反映し，代表コマンドでは default 値をなるべく明示しない運用へ揃える。
+- result:
+  - `conf/sim_swim.yaml` の `time.dt_star` default を `1.0e-4` にした。
+  - `time.dt_s=1.0e-3` は出力・記録間隔として説明し，`time.dt_star: null` の場合だけ従来互換として内部積分刻みが `time.dt_s/tau_s` へ戻ることを明記した。
+  - parser の `dt_star: null` 互換挙動は変更していない。
+  - Issue #82 / #94 の user-run commands から `--dt-star 1.0e-4`，`--torque-nm 2.5e-20`，`--n-flagella 3` など script default と重複する指定を削った。
+  - chatgpt-codex-connector review への対応として，通常3D render の default を `output_sampling.out_all_steps_3d=false` にした。`dt_star=1.0e-4` では内部step数が多いため，通常CLIは `fps_out_3d` で間引き，全内部stepを3D描画したい診断runだけ `output_sampling.out_all_steps_3d=true` を明示する。
+- acceptance criteria:
+  - [x] 標準configを読むと `dt_star=1.0e-4` になる。
+  - [x] `dt_star: null` の互換挙動は維持される。
+  - [x] 通常3D render default は全内部step描画ではなく `fps_out_3d` 間引きになる。
+  - [x] 重い代表実行コマンドは default 値を不要に指定しない。
+- verification:
+  - `uv run pytest tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py`
+  - `uv run ruff check tests/test_params.py`
+  - `uv run ruff format --check tests/test_params.py`
+  - `uv run python -c "import yaml; yaml.safe_load(open('conf/sim_swim.yaml', encoding='utf-8'))"`
+  - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --dry-run --sample-limit 1`
+  - `uv run pytest tests/test_params.py tests/test_render_state_and_projection.py`
+- docs:
+  - `docs/phase2/phase2_current.md`
+  - `docs/phase2/phase2_tasks.md`
+  - `docs/PROJECT_PLAN.md`
+  - `docs/codex-runs/20260629_094125_phase2_dt_star_default/review_result.json`
+  - `docs/codex-runs/20260630_194612_phase2_94_render_sampling_review/review_result.json`
 
 ## Phase 2.9: Tumble状態の段階実装
 

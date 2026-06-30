@@ -92,12 +92,12 @@ run_tumble:
 
 time:
   duration_s: 0.1              # [s] 物理時間（デバッグ固定）
-  dt_s: 1.0e-3                 # [s] 時間刻み（default: tau=1 より dt=1e-3）
-  dt_star: null                # [-] 内部積分刻みの上書き（CLI 実験用。未指定なら既定値）
+  dt_s: 1.0e-3                 # [s] 出力・記録間隔。dt_star=null時は内部積分刻みとしても使う
+  dt_star: 1.0e-4              # [-] Phase 2標準の内部積分刻み。null時はdt_s/tau_sを使用
 
 output_sampling:
-  out_all_steps_3d: true       # true: 3D は dt ごと全step保存
-  fps_out_3d: 25.0             # [Hz] out_all_steps_3d=false のときの3D動画出力fps
+  out_all_steps_3d: false      # false: 3D は fps_out_3d で間引く。全内部step描画は明示override時のみ
+  fps_out_3d: 25.0             # [Hz] 3D動画出力fps（out_all_steps_3d=false のとき）
   fps_out_2d: 25.0             # [Hz] 2D は固定25Hzで間引き
 
 brownian:

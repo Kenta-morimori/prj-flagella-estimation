@@ -367,7 +367,7 @@ class TimeParams:
 class OutputSamplingParams:
     """出力サンプリング設定。"""
 
-    out_all_steps_3d: bool = True
+    out_all_steps_3d: bool = False
     fps_out_3d: float = 25.0
     fps_out_2d: float = 25.0
 
@@ -942,7 +942,7 @@ class SimulationConfig:
             "fps_out_3d", out_sample_raw.get("fps_3d_out", old_fps or 25.0)
         )
         output_sampling = OutputSamplingParams(
-            out_all_steps_3d=bool(_get(out_sample_raw, "out_all_steps_3d", True)),
+            out_all_steps_3d=bool(_get(out_sample_raw, "out_all_steps_3d", False)),
             fps_out_3d=float(fps_out_3d_raw),
             fps_out_2d=float(_get(out_sample_raw, "fps_out_2d", old_fps or 25.0)),
         )

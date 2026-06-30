@@ -1,0 +1,52 @@
+{
+  "status": "PASS",
+  "summary": "#94 の `2.5e-20` 代表条件が非有限座標後の SVD 失敗で Python 例外終了していたため，helix axis 診断，bundle radius / spin offset 診断，root torque force 分配の SVD を fail-safe 化した。非有限座標または `np.linalg.LinAlgError` では診断値を NaN / degenerate として扱い，motor force 側は当該 flag の torque を入れず degenerate と数える。`fp=3, ft=1.5, fs=1.0, torque=2.5e-20, duration_s=0.6` の再現条件は summary CSV まで出力できるようになった。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "今回の変更は例外終了を防ぐ fail-safe guard であり，`2.5e-20` 条件の物理破綻を解消するものではない。",
+    "guard 後の `fp=3, ft=1.5, torque=2.5e-20` smoke は `first_fail_t_s=0.0009`, category `hook`, `max_flag_bond_rel_err=1.8267e+83` であり，破綻条件として扱う。",
+    "`stop_on_shape_fail=False` の sweep では fail 後も最後まで回るため，破綻後の NaN / 極大値は summary に残る。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_helix_axis.py tests/test_debug_summary.py tests/test_motor_forces.py",
+      "result": "PASS: 20 passed"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/dynamics/forces.py src/sim_swim/sim/helix_axis.py src/sim_swim/sim/debug_summary.py tests/test_helix_axis.py tests/test_debug_summary.py tests/test_motor_forces.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.6 --attach-seed 0 --phase-seed 0 --fixed-attach-frame-position-scale 3 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1 --torque-nm 2.5e-20 --output-dir /private/tmp/phase2_issue94_svd_guard_fp3_ft1p5 --overwrite --progress-interval 5000",
+      "result": "PASS: `/private/tmp/phase2_issue94_svd_guard_fp3_ft1p5/phase2_82_hook_scale_sweep_summary.csv` was written without SVD crash or RuntimeWarning"
+    },
+    {
+      "command": "inspect /private/tmp/phase2_issue94_svd_guard_fp3_ft1p5/phase2_82_hook_scale_sweep_summary.csv",
+      "result": "PASS: first_fail_t_s=0.0009, first_fail_category_nonbody=hook, max_flag_bond_rel_err=1.8267e+83, max local bead=0-1"
+    },
+    {
+      "command": "uv run python -m json.tool docs/codex-runs/20260629_193414_phase2_94_svd_guard/review_result.json",
+      "result": "PASS: JSON parse OK"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "今回の対応は SVD crash guard と CSV 到達確認であり，新規動画の目視判定は要求しない。",
+  "user_review_outputs": [
+    "/private/tmp/phase2_issue94_svd_guard_fp3_ft1p5/phase2_82_hook_scale_sweep_summary.csv"
+  ],
+  "user_review_points": [
+    "`2.5e-20` 条件が Python 例外ではなく summary に失敗条件として残る。",
+    "破綻条件自体は解消していないため，`fp=2, ft=1.5` と torque 境界の再比較へ進む。"
+  ],
+  "adr_required": false,
+  "adr_reason": "診断・force計算の例外耐性を上げる実装であり，物理モデルや default 方針は変更していないため。",
+  "commit_type": "complete",
+  "commit_hash": "",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/95",
+  "next_actions": [
+    "ユーザー側で `fp=2,3` の代表比較と `fp=2` の torque `2.0e-20`, `2.25e-20`, `2.5e-20` 比較を再実行する。",
+    "共有された summary CSV で `fp=2, ft=1.5` が `2.5e-20` でも summary 上どの fail 種別になるか確認する。",
+    "body-flagella 接触や貫通の関与は #93 側で検証する。"
+  ]
+}

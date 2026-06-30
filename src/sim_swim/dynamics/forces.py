@@ -37,6 +37,21 @@ def _wrap_angle(rad: float) -> float:
     return (rad + math.pi) % (2.0 * math.pi) - math.pi
 
 
+def _principal_axis_or_none(points: np.ndarray) -> np.ndarray | None:
+    if points.shape[0] < 2 or not np.isfinite(points).all():
+        return None
+    centered = points - np.mean(points, axis=0)
+    try:
+        _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    except np.linalg.LinAlgError:
+        return None
+    axis = vh[0]
+    axis_norm = float(np.linalg.norm(axis))
+    if axis_norm <= 1e-18 or not np.isfinite(axis_norm):
+        return None
+    return axis / axis_norm
+
+
 def compute_spring_forces(
     positions_m: np.ndarray,
     spring_pairs: np.ndarray,
@@ -576,6 +591,8 @@ def _zero_net_force_torque_drive(
         return np.zeros_like(positions_m), 0, 0.0, 0.0
 
     rel = positions_m[idx] - origin
+    if not np.isfinite(rel).all() or not np.isfinite(axis).all():
+        return np.zeros_like(positions_m), 1, 0.0, 0.0
     radial = rel - np.outer(rel @ axis, axis)
     drive = np.cross(axis, radial)
     drive -= np.mean(drive, axis=0, keepdims=True)
@@ -630,14 +647,10 @@ def compute_root_torque_axis_projection_forces(
 
         flag_pts = positions_m[flag_idx]
         origin = np.mean(flag_pts, axis=0)
-        centered = flag_pts - origin
-        _, _, vh = np.linalg.svd(centered, full_matrices=False)
-        axis = vh[0]
-        axis_norm = float(np.linalg.norm(axis))
-        if axis_norm <= 1e-18:
+        axis = _principal_axis_or_none(flag_pts)
+        if axis is None or not np.isfinite(origin).all():
             degenerate_count += 1
             continue
-        axis = axis / axis_norm
         if float(np.dot(axis, flag_pts[-1] - flag_pts[0])) < 0.0:
             axis = -axis
 
@@ -715,14 +728,10 @@ def compute_root_torque_segment_couples_forces(
 
         flag_pts = positions_m[flag_idx]
         origin = flag_pts[0]
-        centered = flag_pts - np.mean(flag_pts, axis=0)
-        _, _, vh = np.linalg.svd(centered, full_matrices=False)
-        axis = vh[0]
-        axis_norm = float(np.linalg.norm(axis))
-        if axis_norm <= 1e-18:
+        axis = _principal_axis_or_none(flag_pts)
+        if axis is None or not np.isfinite(origin).all():
             degenerate_count += 1
             continue
-        axis = axis / axis_norm
         if float(np.dot(axis, flag_pts[-1] - flag_pts[0])) < 0.0:
             axis = -axis
 

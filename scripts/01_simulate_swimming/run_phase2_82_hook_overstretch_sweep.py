@@ -18,8 +18,16 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
 
 from sim_swim.sim.core import Simulator
+from sim_swim.sim.debug_summary import PROXIMAL_FLAG_BOND_REL_ERR_FIELDS
 from sim_swim.sim.helix_retention_gate import summarize_single_flagellum_helix_retention
 from sim_swim.sim.params import SimulationConfig
+
+FIRST_FAIL_PROXIMAL_FLAG_BOND_REL_ERR_FIELDS = tuple(
+    f"first_fail_{field}" for field in PROXIMAL_FLAG_BOND_REL_ERR_FIELDS
+)
+MAX_PROXIMAL_FLAG_BOND_REL_ERR_FIELDS = tuple(
+    f"max_{field}" for field in PROXIMAL_FLAG_BOND_REL_ERR_FIELDS
+)
 
 SUMMARY_FIELDS = (
     "condition_id",
@@ -76,6 +84,31 @@ SUMMARY_FIELDS = (
     "max_hook_local_attach_frame_position_angle_err_deg",
     "max_hook_local_attach_frame_tangent_angle_err_deg",
     "flag_bond_rel_err_max",
+    "flag_bond_rel_err_max_flag_id",
+    "flag_bond_rel_err_max_bead_i",
+    "flag_bond_rel_err_max_bead_j",
+    "flag_bond_rel_err_max_local_bead_i",
+    "flag_bond_rel_err_max_local_bead_j",
+    "flag_bond_rel_err_max_len_over_b",
+    "flag_bond_rel_err_per_flag",
+    *PROXIMAL_FLAG_BOND_REL_ERR_FIELDS,
+    "first_fail_flag_bond_rel_err_max",
+    "first_fail_flag_bond_rel_err_max_flag_id",
+    "first_fail_flag_bond_rel_err_max_bead_i",
+    "first_fail_flag_bond_rel_err_max_bead_j",
+    "first_fail_flag_bond_rel_err_max_local_bead_i",
+    "first_fail_flag_bond_rel_err_max_local_bead_j",
+    "first_fail_flag_bond_rel_err_max_len_over_b",
+    *FIRST_FAIL_PROXIMAL_FLAG_BOND_REL_ERR_FIELDS,
+    "max_flag_bond_rel_err_t_s",
+    "max_flag_bond_rel_err",
+    "max_flag_bond_rel_err_flag_id",
+    "max_flag_bond_rel_err_bead_i",
+    "max_flag_bond_rel_err_bead_j",
+    "max_flag_bond_rel_err_local_bead_i",
+    "max_flag_bond_rel_err_local_bead_j",
+    "max_flag_bond_rel_err_len_over_b",
+    *MAX_PROXIMAL_FLAG_BOND_REL_ERR_FIELDS,
     "flag_bend_err_max_deg",
     "flag_torsion_err_max_deg",
     "net_abs_flag_helix_spin_revolutions",
@@ -175,6 +208,13 @@ def _parse_float(value: str | float | None) -> float:
         return float("nan")
 
 
+def _parse_int(value: str | int | None) -> int | None:
+    try:
+        return int(float(value))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
 def _first_fail_row(rows: list[dict[str, str]]) -> dict[str, str] | None:
     for row in rows[1:]:
         if not _parse_bool(row.get("shape_pass_nonbody")):
@@ -193,6 +233,50 @@ def _max_hook_row(rows: list[dict[str, str]]) -> dict[str, str] | None:
     return max(
         finite_rows, key=lambda row: _parse_float(row.get("hook_len_rel_err_max"))
     )
+
+
+def _max_flag_bond_row(rows: list[dict[str, str]]) -> dict[str, str] | None:
+    finite_rows = [
+        row
+        for row in rows
+        if math.isfinite(_parse_float(row.get("flag_bond_rel_err_max")))
+    ]
+    if not finite_rows:
+        return None
+    return max(
+        finite_rows, key=lambda row: _parse_float(row.get("flag_bond_rel_err_max"))
+    )
+
+
+def _flag_bond_local_bead_index(
+    cfg: SimulationConfig,
+    row: dict[str, str] | None,
+    bead_field: str,
+    flag_field: str = "flag_bond_rel_err_max_flag_id",
+) -> str:
+    if row is None:
+        return ""
+    flag_id = _parse_int(row.get(flag_field))
+    bead_index = _parse_int(row.get(bead_field))
+    if flag_id is None or bead_index is None:
+        return ""
+
+    n_body = cfg.compute_body_n_layers() * int(cfg.body.prism.n_prism)
+    n_flag = int(cfg.flagella.n_beads_per_flagellum)
+    local_index = bead_index - n_body - flag_id * n_flag
+    if local_index < 0 or local_index >= n_flag:
+        return ""
+    return str(local_index)
+
+
+def _copy_prefixed_fields(
+    target: dict[str, str | float],
+    source: dict[str, str] | None,
+    fields: tuple[str, ...],
+    prefix: str,
+) -> None:
+    for field in fields:
+        target[f"{prefix}{field}"] = "" if source is None else source.get(field, "")
 
 
 def _parse_float_values(text: str) -> list[float]:
@@ -241,22 +325,33 @@ def build_conditions(args: argparse.Namespace) -> tuple[Condition, ...]:
     if args.mode == "first-second-grid":
         attach_scale = float(args.fixed_attach_first_spring_scale or 2.0)
         angle_scale = float(args.fixed_body_axis_angle_scale or 2.0)
+        frame_position_scale = getattr(args, "fixed_attach_frame_position_scale", None)
+        frame_tangent_scale = getattr(args, "fixed_attach_frame_tangent_scale", None)
         for first_second_scale in args.first_second_spring_scales:
             condition_id = (
                 f"af{_format_scale(attach_scale)}"
                 f"_axis{_format_scale(angle_scale)}"
                 f"_fs{_format_scale(first_second_scale)}"
             )
+            scales = {
+                "local_attach_first_spring_scale": attach_scale,
+                "local_attach_first_body_axis_angle_scale": angle_scale,
+                "local_first_second_spring_scale": float(first_second_scale),
+            }
+            if frame_position_scale is not None:
+                position_scale = float(frame_position_scale)
+                scales["local_attach_frame_position_scale"] = position_scale
+                condition_id += f"_fp{_format_scale(position_scale)}"
+            if frame_tangent_scale is not None:
+                tangent_scale = float(frame_tangent_scale)
+                scales["local_attach_frame_tangent_scale"] = tangent_scale
+                condition_id += f"_ft{_format_scale(tangent_scale)}"
             conditions.append(
                 Condition(
                     condition_id=condition_id,
                     mode=args.mode,
                     description="first-second distance grid after body-first fix",
-                    scales={
-                        "local_attach_first_spring_scale": attach_scale,
-                        "local_attach_first_body_axis_angle_scale": angle_scale,
-                        "local_first_second_spring_scale": float(first_second_scale),
-                    },
+                    scales=scales,
                 )
             )
         return tuple(conditions)
@@ -327,6 +422,7 @@ def _summary_row(
 ) -> dict[str, str | float]:
     first_fail = _first_fail_row(rows)
     max_hook = _max_hook_row(rows)
+    max_flag_bond = _max_flag_bond_row(rows)
     row: dict[str, str | float] = {
         "condition_id": condition.condition_id,
         "mode": condition.mode,
@@ -386,6 +482,35 @@ def _summary_row(
             if first_fail is None
             else first_fail.get("local_attach_frame_tangent_angle_err_deg", "")
         ),
+        "first_fail_flag_bond_rel_err_max": (
+            "" if first_fail is None else first_fail.get("flag_bond_rel_err_max", "")
+        ),
+        "first_fail_flag_bond_rel_err_max_flag_id": (
+            ""
+            if first_fail is None
+            else first_fail.get("flag_bond_rel_err_max_flag_id", "")
+        ),
+        "first_fail_flag_bond_rel_err_max_bead_i": (
+            ""
+            if first_fail is None
+            else first_fail.get("flag_bond_rel_err_max_bead_i", "")
+        ),
+        "first_fail_flag_bond_rel_err_max_bead_j": (
+            ""
+            if first_fail is None
+            else first_fail.get("flag_bond_rel_err_max_bead_j", "")
+        ),
+        "first_fail_flag_bond_rel_err_max_local_bead_i": (
+            _flag_bond_local_bead_index(cfg, first_fail, "flag_bond_rel_err_max_bead_i")
+        ),
+        "first_fail_flag_bond_rel_err_max_local_bead_j": (
+            _flag_bond_local_bead_index(cfg, first_fail, "flag_bond_rel_err_max_bead_j")
+        ),
+        "first_fail_flag_bond_rel_err_max_len_over_b": (
+            ""
+            if first_fail is None
+            else first_fail.get("flag_bond_rel_err_max_len_over_b", "")
+        ),
         "max_hook_len_rel_err_t_s": "" if max_hook is None else max_hook.get("t_s", ""),
         "max_hook_len_rel_err": (
             "" if max_hook is None else max_hook.get("hook_len_rel_err_max", "")
@@ -423,12 +548,68 @@ def _summary_row(
             if max_hook is None
             else max_hook.get("local_attach_frame_tangent_angle_err_deg", "")
         ),
+        "max_flag_bond_rel_err_t_s": (
+            "" if max_flag_bond is None else max_flag_bond.get("t_s", "")
+        ),
+        "max_flag_bond_rel_err": (
+            ""
+            if max_flag_bond is None
+            else max_flag_bond.get("flag_bond_rel_err_max", "")
+        ),
+        "max_flag_bond_rel_err_flag_id": (
+            ""
+            if max_flag_bond is None
+            else max_flag_bond.get("flag_bond_rel_err_max_flag_id", "")
+        ),
+        "max_flag_bond_rel_err_bead_i": (
+            ""
+            if max_flag_bond is None
+            else max_flag_bond.get("flag_bond_rel_err_max_bead_i", "")
+        ),
+        "max_flag_bond_rel_err_bead_j": (
+            ""
+            if max_flag_bond is None
+            else max_flag_bond.get("flag_bond_rel_err_max_bead_j", "")
+        ),
+        "max_flag_bond_rel_err_local_bead_i": (
+            _flag_bond_local_bead_index(
+                cfg, max_flag_bond, "flag_bond_rel_err_max_bead_i"
+            )
+        ),
+        "max_flag_bond_rel_err_local_bead_j": (
+            _flag_bond_local_bead_index(
+                cfg, max_flag_bond, "flag_bond_rel_err_max_bead_j"
+            )
+        ),
+        "max_flag_bond_rel_err_len_over_b": (
+            ""
+            if max_flag_bond is None
+            else max_flag_bond.get("flag_bond_rel_err_max_len_over_b", "")
+        ),
     }
+    _copy_prefixed_fields(
+        row,
+        first_fail,
+        PROXIMAL_FLAG_BOND_REL_ERR_FIELDS,
+        prefix="first_fail_",
+    )
+    _copy_prefixed_fields(
+        row,
+        max_flag_bond,
+        PROXIMAL_FLAG_BOND_REL_ERR_FIELDS,
+        prefix="max_",
+    )
     for field in SUMMARY_FIELDS:
         if field in row:
             continue
         source_key = field.removeprefix("final_")
         row[field] = helix_summary.get(field, last.get(source_key, last.get(field, "")))
+    row["flag_bond_rel_err_max_local_bead_i"] = _flag_bond_local_bead_index(
+        cfg, last, "flag_bond_rel_err_max_bead_i"
+    )
+    row["flag_bond_rel_err_max_local_bead_j"] = _flag_bond_local_bead_index(
+        cfg, last, "flag_bond_rel_err_max_bead_j"
+    )
     return row
 
 
@@ -516,6 +697,8 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--fixed-attach-first-spring-scale", type=float, default=None)
     parser.add_argument("--fixed-body-axis-angle-scale", type=float, default=None)
     parser.add_argument("--fixed-first-second-spring-scale", type=float, default=1.0)
+    parser.add_argument("--fixed-attach-frame-position-scale", type=float, default=None)
+    parser.add_argument("--fixed-attach-frame-tangent-scale", type=float, default=None)
     parser.add_argument("--sample-limit", type=int, default=None)
     parser.add_argument("--progress-interval", type=int, default=1000)
     parser.add_argument("--overwrite", action="store_true")

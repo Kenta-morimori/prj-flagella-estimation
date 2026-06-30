@@ -1,0 +1,48 @@
+{
+  "status": "PASS",
+  "summary": "Phase 2 標準configの `time.dt_star` を `1.0e-4` にし，`time.dt_s=1.0e-3` は出力・記録間隔として説明を整理した。parser の `dt_star: null` 互換挙動は維持し，null 指定時だけ内部積分刻みが `time.dt_s/tau_s` へ戻る。Issue #82 / #94 の user-run commands は，`--dt-star 1.0e-4`，`--torque-nm 2.5e-20`，`--n-flagella 3` など script default と重複する指定を省いた形へ更新した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "2.0 s の代表 simulation は今回ローカルでは実行していない。重い実行はユーザー側で行い，結果を共有する前提で，default 値を省いた実行コマンドを docs に残した。",
+    "`dt_star: null` の互換挙動は残しているため，明示的に null を指定した config では従来通り `time.dt_s/tau_s` が内部積分刻みになる。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py",
+      "result": "PASS: 51 passed。標準configの `time.dt_star=1.0e-4` と，`dt_star: null` 互換挙動，#82 sweep CLI の条件生成を確認。"
+    },
+    {
+      "command": "uv run ruff check tests/test_params.py",
+      "result": "PASS: All checks passed"
+    },
+    {
+      "command": "uv run ruff format --check tests/test_params.py",
+      "result": "PASS: 1 file already formatted"
+    },
+    {
+      "command": "uv run python -c \"import yaml; yaml.safe_load(open('conf/sim_swim.yaml', encoding='utf-8'))\"",
+      "result": "PASS: YAML parse OK"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --dry-run --sample-limit 1",
+      "result": "PASS: default 引数を明示しない呼び方で dry-run が成功し，条件名 `baseline` を出力した。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "今回の対応は config default，テスト，docs command 整理であり，新規の長時間simulationや動画目視判定は要求しない。",
+  "user_review_outputs": [],
+  "user_review_points": [
+    "ユーザー側で重い #94 代表実行を行う場合，docs の user-run commands にある default 省略版を使う。",
+    "`time.dt_s` は出力・記録間隔，`time.dt_star` は内部積分刻みとして結果を解釈する。"
+  ],
+  "adr_required": false,
+  "adr_reason": "物理モデルや新しい補正力の導入ではなく，Phase 2 で既に採用していた `dt_star=1.0e-4` を標準configへ反映し，運用上の default 指定を整理した変更であるため。parser の null 互換挙動は維持している。",
+  "commit_type": "complete",
+  "commit_hash": "",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/95",
+  "next_actions": [
+    "ユーザー側で 2.0 s の #94 代表条件を再実行し，追加済みの `flag_bond_rel_err_max_*` 列で長時間破綻位置を確認する。",
+    "長時間で `flag_bond_rel_err_max` を下げる補正候補は，今回の default 整理とは別タスクとして比較する。"
+  ]
+}

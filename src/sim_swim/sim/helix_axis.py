@@ -38,6 +38,19 @@ class HelixAxisAlignmentMetrics:
     alignment_order: float
 
 
+def _degenerate_helix_axis_estimate(flag_id: int) -> HelixAxisEstimate:
+    nan_vec = np.full(3, float("nan"), dtype=float)
+    return HelixAxisEstimate(
+        flag_id=int(flag_id),
+        origin=nan_vec.copy(),
+        axis=nan_vec.copy(),
+        line_start=nan_vec.copy(),
+        line_end=nan_vec.copy(),
+        fit_r2=float("nan"),
+        degenerate=True,
+    )
+
+
 def estimate_body_axis(
     positions: np.ndarray,
     body_layer_indices: list[np.ndarray],
@@ -80,21 +93,19 @@ def estimate_flag_helix_axis(
     idx = np.asarray(flag_indices, dtype=int)
     helix_idx = idx[1:]
     if helix_idx.size < 2:
-        nan_vec = np.full(3, float("nan"), dtype=float)
-        return HelixAxisEstimate(
-            flag_id=int(flag_id),
-            origin=nan_vec.copy(),
-            axis=nan_vec.copy(),
-            line_start=nan_vec.copy(),
-            line_end=nan_vec.copy(),
-            fit_r2=float("nan"),
-            degenerate=True,
-        )
+        return _degenerate_helix_axis_estimate(flag_id)
 
     pts = positions[helix_idx]
+    if not np.isfinite(pts).all():
+        return _degenerate_helix_axis_estimate(flag_id)
+
     origin = np.mean(pts, axis=0)
     centered = pts - origin
-    _, singular_values, vh = np.linalg.svd(centered, full_matrices=False)
+    try:
+        _, singular_values, vh = np.linalg.svd(centered, full_matrices=False)
+    except np.linalg.LinAlgError:
+        return _degenerate_helix_axis_estimate(flag_id)
+
     variance = singular_values * singular_values
     variance_sum = float(np.sum(variance))
     if variance_sum <= 1.0e-30:
