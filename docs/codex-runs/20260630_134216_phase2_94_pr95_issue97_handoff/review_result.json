@@ -1,8 +1,9 @@
 {
   "status": "FAIL",
-  "summary": "PR #95 の #94 対応を，形状破綻診断・SVD fail-safe・補強候補比較・暫定候補整理までに再整理した。0.6 s の自動指標では `af=1, axis=1, fs=1, fp=2, ft=1.5, torque=1.9e-20` が現時点の暫定候補だが，滑らかな回転・束化・遊泳の定性評価が未共有であるため，代表条件採用は未完了とする。トルク分散方法そのものの見直しは Issue #97 へ分離した。",
+  "summary": "PR #95 の #94 対応を，形状破綻診断・SVD fail-safe・補強候補比較・暫定候補整理までに再整理した。#94 の数値sweepは `run_phase2_82_hook_overstretch_sweep.py` が `flagella.initial_helix_axis_from_rear_deg=0` を内部overrideするため後方束化初期条件で評価している。一方，動画定性評価は `python -m scripts.01_simulate_swimming` で同overrideを明示しないと side-attach 条件になるため，PR #95 の merge 判定には後方束化条件の動画定性評価が必要である。トルク分散方法そのものの見直しは Issue #97 へ分離した。",
   "blocking_issues": [
-    "PR #95 の代表条件採用には，`outputs/phase2_94/qual_review_fp2_ft1p5_torque1p9_dur0p6` の動画定性評価が必要である。",
+    "PR #95 の代表条件採用には，`flagella.initial_helix_axis_from_rear_deg=0` を明示した後方束化条件の動画定性評価が必要である。",
+    "既存または実行中の `outputs/phase2_94/qual_review_fp2_ft1p5_torque1p9_dur0p6` は side-attach 条件であり，merge 判定の根拠には使えない。",
     "低 torque 候補は自動 shape gate を通っても，十分に回転・束化・遊泳しない可能性がある。"
   ],
   "non_blocking_issues": [
@@ -13,7 +14,7 @@
   "tests_reviewed": [
     {
       "command": "docs update only",
-      "result": "PASS: `docs/phase2/phase2_current.md` と `docs/phase2/phase2_tasks.md` に PR #95 の暫定候補，定性評価待ち，Issue #97 分離を記録した"
+      "result": "PASS: `docs/phase2/phase2_current.md` と `docs/phase2/phase2_tasks.md` に PR #95 の後方束化条件での merge 判定，side-attach 動画の扱い，Issue #97 分離を記録した"
     },
     {
       "command": "uv run pytest tests/test_helix_axis.py tests/test_debug_summary.py tests/test_motor_forces.py",
@@ -21,17 +22,18 @@
     }
   ],
   "user_review_required": true,
-  "user_review_command": "uv run python -m scripts.01_simulate_swimming seed.attach_seed=0 seed.phase_seed=0 time.duration_s=0.6 motor.torque_Nm=1.9e-20 motor.local_attach_frame_position_scale=2 motor.local_attach_frame_tangent_scale=1.5 output_sampling.out_all_steps_3d=false render.render_flagella_2d=true render.show_flagella_helix_axis_3d=true output.base_dir=outputs/phase2_94/qual_review_fp2_ft1p5_torque1p9_dur0p6",
+  "user_review_command": "uv run python -m scripts.01_simulate_swimming flagella.initial_helix_axis_from_rear_deg=0 seed.attach_seed=0 seed.phase_seed=0 time.duration_s=0.6 motor.torque_Nm=1.9e-20 motor.local_attach_frame_position_scale=2 motor.local_attach_frame_tangent_scale=1.5 output_sampling.out_all_steps_3d=false render.render_flagella_2d=true render.show_flagella_helix_axis_3d=true output.base_dir=outputs/phase2_94/posterior_merge_review/qual_videos/fp2_ft1p5_torque1p9_dur0p6",
   "user_review_outputs": [
-    "outputs/phase2_94/qual_review_fp2_ft1p5_torque1p9_dur0p6/<date>/<time>/manifest.json",
-    "outputs/phase2_94/qual_review_fp2_ft1p5_torque1p9_dur0p6/<date>/<time>/render/swim3d.mp4",
-    "outputs/phase2_94/qual_review_fp2_ft1p5_torque1p9_dur0p6/<date>/<time>/render/swim3d_final.png",
-    "outputs/phase2_94/qual_review_fp2_ft1p5_torque1p9_dur0p6/<date>/<time>/render2d/projection.mp4",
-    "outputs/phase2_94/qual_review_fp2_ft1p5_torque1p9_dur0p6/<date>/<time>/sim/step_summary.csv"
+    "outputs/phase2_94/posterior_merge_review/qual_videos/fp2_ft1p5_torque1p9_dur0p6/<date>/<time>/manifest.json",
+    "outputs/phase2_94/posterior_merge_review/qual_videos/fp2_ft1p5_torque1p9_dur0p6/<date>/<time>/render/swim3d.mp4",
+    "outputs/phase2_94/posterior_merge_review/qual_videos/fp2_ft1p5_torque1p9_dur0p6/<date>/<time>/render/swim3d_final.png",
+    "outputs/phase2_94/posterior_merge_review/qual_videos/fp2_ft1p5_torque1p9_dur0p6/<date>/<time>/render2d/projection.mp4",
+    "outputs/phase2_94/posterior_merge_review/qual_videos/fp2_ft1p5_torque1p9_dur0p6/<date>/<time>/sim/step_summary.csv"
   ],
   "user_review_points": [
+    "初期条件として，べん毛軸が菌体後方へ揃っている。",
     "べん毛が滑らかに回転している。",
-    "3本のべん毛が不自然に崩壊せず，束化傾向が見える。",
+    "3本のべん毛が不自然に崩壊せず，後方束化または後方軸整列を維持している。",
     "菌体が遊泳らしく移動・姿勢変化している。",
     "hook/root/flagella/body に目立つ破綻がない。",
     "2D projection が downstream ML 用の擬似動画として不自然でない。"
@@ -40,12 +42,13 @@
   "adr_reason": "今回の更新は #94 の診断結果整理と #97 への課題分離であり，物理モデル・default config・公開I/Oを変更していないため。",
   "commit_type": "handoff",
   "commit_hash": "",
-  "push_status": "not_pushed_yet",
+  "push_status": "pending_push",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/95",
   "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/97",
   "next_actions": [
-    "ユーザーが実行中の定性評価結果を共有する。",
-    "定性評価が通れば PR #95 に代表候補として記録し，review_result を PASS に更新する。",
-    "定性評価が通らなければ PR #95 は診断・fail-safe・候補絞り込みまでとし，トルク分散方法の再設計を #97 で進める。"
+    "後方束化条件の metric sweep を `outputs/phase2_94/posterior_merge_review/metric_sweeps/` 以下に実行し，summary CSV を共有する。",
+    "後方束化条件の動画定性評価を `outputs/phase2_94/posterior_merge_review/qual_videos/` 以下に実行し，manifest と動画を共有する。",
+    "後方束化条件の定性評価が通れば PR #95 に代表候補として記録し，review_result を PASS に更新する。",
+    "後方束化条件の定性評価が通らなければ PR #95 は merge 条件未達とし，トルク分散方法の再設計を #97 で進める。"
   ]
 }
