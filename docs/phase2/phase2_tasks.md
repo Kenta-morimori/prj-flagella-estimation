@@ -789,9 +789,11 @@
   - `time.dt_s=1.0e-3` は出力・記録間隔として説明し，`time.dt_star: null` の場合だけ従来互換として内部積分刻みが `time.dt_s/tau_s` へ戻ることを明記した。
   - parser の `dt_star: null` 互換挙動は変更していない。
   - Issue #82 / #94 の user-run commands から `--dt-star 1.0e-4`，`--torque-nm 2.5e-20`，`--n-flagella 3` など script default と重複する指定を削った。
+  - chatgpt-codex-connector review への対応として，通常3D render の default を `output_sampling.out_all_steps_3d=false` にした。`dt_star=1.0e-4` では内部step数が多いため，通常CLIは `fps_out_3d` で間引き，全内部stepを3D描画したい診断runだけ `output_sampling.out_all_steps_3d=true` を明示する。
 - acceptance criteria:
   - [x] 標準configを読むと `dt_star=1.0e-4` になる。
   - [x] `dt_star: null` の互換挙動は維持される。
+  - [x] 通常3D render default は全内部step描画ではなく `fps_out_3d` 間引きになる。
   - [x] 重い代表実行コマンドは default 値を不要に指定しない。
 - verification:
   - `uv run pytest tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py`
@@ -799,11 +801,13 @@
   - `uv run ruff format --check tests/test_params.py`
   - `uv run python -c "import yaml; yaml.safe_load(open('conf/sim_swim.yaml', encoding='utf-8'))"`
   - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --dry-run --sample-limit 1`
+  - `uv run pytest tests/test_params.py tests/test_render_state_and_projection.py`
 - docs:
   - `docs/phase2/phase2_current.md`
   - `docs/phase2/phase2_tasks.md`
   - `docs/PROJECT_PLAN.md`
   - `docs/codex-runs/20260629_094125_phase2_dt_star_default/review_result.json`
+  - `docs/codex-runs/20260630_194612_phase2_94_render_sampling_review/review_result.json`
 
 ## Phase 2.9: Tumble状態の段階実装
 

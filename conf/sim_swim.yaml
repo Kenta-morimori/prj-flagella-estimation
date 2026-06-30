@@ -96,8 +96,8 @@ time:
   dt_star: 1.0e-4              # [-] Phase 2標準の内部積分刻み。null時はdt_s/tau_sを使用
 
 output_sampling:
-  out_all_steps_3d: true       # true: 3D は dt ごと全step保存
-  fps_out_3d: 25.0             # [Hz] out_all_steps_3d=false のときの3D動画出力fps
+  out_all_steps_3d: false      # false: 3D は fps_out_3d で間引く。全内部step描画は明示override時のみ
+  fps_out_3d: 25.0             # [Hz] 3D動画出力fps（out_all_steps_3d=false のとき）
   fps_out_2d: 25.0             # [Hz] 2D は固定25Hzで間引き
 
 brownian:
