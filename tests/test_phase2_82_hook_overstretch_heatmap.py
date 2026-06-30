@@ -1,32 +1,14 @@
 from __future__ import annotations
 
 import csv
-import importlib.util
-import sys
 from pathlib import Path
 
 import pytest
 
-
-def _load_plot_script():
-    script_path = (
-        Path(__file__).resolve().parents[1]
-        / "scripts"
-        / "01_simulate_swimming"
-        / "plot_phase2_82_hook_overstretch_heatmap.py"
-    )
-    spec = importlib.util.spec_from_file_location("phase2_82_heatmap", script_path)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+from sim_swim.analysis.heatmaps import hook_overstretch as script
 
 
 def test_phase2_82_category_rank_uses_first_fail_category() -> None:
-    script = _load_plot_script()
-
     assert script._category_rank(
         {
             "final_shape_pass_nonbody": "True",
@@ -46,8 +28,6 @@ def test_phase2_82_category_rank_uses_first_fail_category() -> None:
 
 
 def test_phase2_82_category_rank_keeps_legacy_summary_fallback() -> None:
-    script = _load_plot_script()
-
     assert script._category_rank(
         {
             "final_shape_pass_nonbody": "True",
@@ -78,10 +58,7 @@ def test_phase2_82_category_rank_keeps_legacy_summary_fallback() -> None:
     ) == script.CATEGORY_ORDER.index("finite")
 
 
-def test_phase2_82_body_first_heatmap_outputs_files(
-    tmp_path: Path, monkeypatch
-) -> None:
-    script = _load_plot_script()
+def test_phase2_82_body_first_heatmap_outputs_files(tmp_path: Path) -> None:
     summary_csv = tmp_path / "summary.csv"
     fields = [
         "condition_id",
@@ -151,11 +128,8 @@ def test_phase2_82_body_first_heatmap_outputs_files(
         writer.writerows(rows)
 
     output_dir = tmp_path / "plots"
-    monkeypatch.setattr(
-        sys,
-        "argv",
+    script.main(
         [
-            "plot_phase2_82_hook_overstretch_heatmap",
             "--summary-csv",
             str(summary_csv),
             "--mode",
@@ -165,21 +139,16 @@ def test_phase2_82_body_first_heatmap_outputs_files(
         ],
     )
 
-    script.main()
-
-    assert (output_dir / "phase2_82_hook_overstretch_heatmap.csv").is_file()
-    assert (output_dir / "phase2_82_first_fail_category_heatmap.png").is_file()
-    assert (output_dir / "phase2_82_shape_pass_fail_heatmap.png").is_file()
-    assert (output_dir / "phase2_82_hook_len_rel_err_max_heatmap.png").is_file()
+    assert (output_dir / "heatmap_data.csv").is_file()
+    assert (output_dir / "first_fail_category_heatmap.png").is_file()
+    assert (output_dir / "shape_pass_fail_heatmap.png").is_file()
+    assert (output_dir / "hook_len_rel_err_max_heatmap.png").is_file()
     assert (
-        output_dir / "phase2_82_local_attach_first_vs_body_axis_err_deg_heatmap.png"
+        output_dir / "local_attach_first_vs_body_axis_err_deg_heatmap.png"
     ).is_file()
 
 
-def test_phase2_82_first_second_heatmap_outputs_files(
-    tmp_path: Path, monkeypatch
-) -> None:
-    script = _load_plot_script()
+def test_phase2_82_first_second_heatmap_outputs_files(tmp_path: Path) -> None:
     summary_csv = tmp_path / "summary.csv"
     fields = [
         "condition_id",
@@ -228,11 +197,8 @@ def test_phase2_82_first_second_heatmap_outputs_files(
         writer.writerows(rows)
 
     output_dir = tmp_path / "plots"
-    monkeypatch.setattr(
-        sys,
-        "argv",
+    script.main(
         [
-            "plot_phase2_82_hook_overstretch_heatmap",
             "--summary-csv",
             str(summary_csv),
             "--mode",
@@ -242,17 +208,12 @@ def test_phase2_82_first_second_heatmap_outputs_files(
         ],
     )
 
-    script.main()
-
-    assert (output_dir / "phase2_82_hook_overstretch_heatmap.csv").is_file()
-    assert (output_dir / "phase2_82_first_fail_category_heatmap.png").is_file()
-    assert (output_dir / "phase2_82_local_first_second_rel_err_heatmap.png").is_file()
+    assert (output_dir / "heatmap_data.csv").is_file()
+    assert (output_dir / "first_fail_category_heatmap.png").is_file()
+    assert (output_dir / "local_first_second_rel_err_heatmap.png").is_file()
 
 
-def test_phase2_82_attach_frame_heatmap_outputs_files(
-    tmp_path: Path, monkeypatch
-) -> None:
-    script = _load_plot_script()
+def test_phase2_82_attach_frame_heatmap_outputs_files(tmp_path: Path) -> None:
     summary_csv = tmp_path / "summary.csv"
     fields = [
         "condition_id",
@@ -316,11 +277,8 @@ def test_phase2_82_attach_frame_heatmap_outputs_files(
         writer.writerows(rows)
 
     output_dir = tmp_path / "plots"
-    monkeypatch.setattr(
-        sys,
-        "argv",
+    script.main(
         [
-            "plot_phase2_82_hook_overstretch_heatmap",
             "--summary-csv",
             str(summary_csv),
             "--mode",
@@ -330,47 +288,34 @@ def test_phase2_82_attach_frame_heatmap_outputs_files(
         ],
     )
 
-    script.main()
-
-    assert (output_dir / "phase2_82_hook_overstretch_heatmap.csv").is_file()
-    assert (output_dir / "phase2_82_first_fail_category_heatmap.png").is_file()
-    assert (
-        output_dir / "phase2_82_local_attach_frame_position_rel_err_heatmap.png"
-    ).is_file()
+    assert (output_dir / "heatmap_data.csv").is_file()
+    assert (output_dir / "first_fail_category_heatmap.png").is_file()
+    assert (output_dir / "local_attach_frame_position_rel_err_heatmap.png").is_file()
 
 
-def test_phase2_82_heatmap_missing_summary_lists_candidates(
-    tmp_path: Path, monkeypatch
-) -> None:
-    script = _load_plot_script()
-    phase2_dir = tmp_path / "outputs" / "phase2_82"
+def test_phase2_82_heatmap_missing_summary_lists_candidates(tmp_path: Path) -> None:
+    phase2_dir = tmp_path / "outputs" / "hook_overstretch"
     candidate_dir = phase2_dir / "first_second_grid_af3_axis1p25"
     candidate_dir.mkdir(parents=True)
-    candidate_csv = candidate_dir / "phase2_82_hook_scale_sweep_summary.csv"
+    candidate_csv = candidate_dir / "summary.csv"
     candidate_csv.write_text(
         "condition_id,mode,final_shape_pass_nonbody\n",
         encoding="utf-8",
     )
     output_dir = phase2_dir / "first_second_grid" / "plots"
-    missing_csv = (
-        phase2_dir / "first_second_grid" / "phase2_82_hook_scale_sweep_summary.csv"
-    )
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "plot_phase2_82_hook_overstretch_heatmap",
-            "--summary-csv",
-            str(missing_csv),
-            "--mode",
-            "first-second-grid",
-            "--output-dir",
-            str(output_dir),
-        ],
-    )
+    missing_csv = phase2_dir / "first_second_grid" / "summary.csv"
 
     with pytest.raises(SystemExit) as excinfo:
-        script.main()
+        script.main(
+            [
+                "--summary-csv",
+                str(missing_csv),
+                "--mode",
+                "first-second-grid",
+                "--output-dir",
+                str(output_dir),
+            ]
+        )
 
     message = str(excinfo.value)
     assert f"Summary CSV not found: {missing_csv}" in message

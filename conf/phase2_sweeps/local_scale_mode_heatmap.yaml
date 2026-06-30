@@ -1,0 +1,3 @@
+kind: local_scale_mode
+args:
+  output_dir: outputs/phase2_sweeps/single_flagellum_torque/local_scale_mode_plots

@@ -1,0 +1,54 @@
+{
+  "status": "PASS",
+  "summary": "Issue #96 に対応し，Phase 2 の sweep / heatmap 現役導線を `run_sweep.py` と `plot_heatmap.py` に統一した。条件セットは `conf/phase2_sweeps/*.yaml` で管理し，既存ロジックは用途名 module under `src/sim_swim/analysis/` へ移した。未使用の `src/flagella_estimation` package は削除し，wheel 配布対象を `sim_swim` に切り替えた。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "過去の docs/codex-runs と古い Phase 2 実験記録内の旧コマンド名は履歴として残している。",
+    "現役 sweep summary の標準名は `summary.csv` に変わったため，新しい heatmap 生成ではこの名前を使う。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest",
+      "result": "PASS: 286 passed in 100.70s"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/analysis scripts/01_simulate_swimming tests/test_motor_scale_sweep.py tests/test_phase2_6_dt_star_torque_heatmap.py tests/test_phase2_6_local_scale_mode_heatmap.py tests/test_phase2_6_torque_model_evaluation.py tests/test_phase2_7_bundling_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_plot_motor_scale_collapse_heatmap.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/analysis scripts/01_simulate_swimming tests/test_motor_scale_sweep.py tests/test_phase2_6_dt_star_torque_heatmap.py tests/test_phase2_6_local_scale_mode_heatmap.py tests/test_phase2_6_torque_model_evaluation.py tests/test_phase2_7_bundling_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_plot_motor_scale_collapse_heatmap.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS: 27 files already formatted"
+    },
+    {
+      "command": "uv build --out-dir /private/tmp/phase2_96_build",
+      "result": "PASS: wheel includes `sim_swim` package"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py --config conf/phase2_sweeps/hook_overstretch.yaml --dry-run --sample-limit 2",
+      "result": "PASS: printed two planned hook_overstretch conditions"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py --config conf/phase2_sweeps/hook_overstretch.yaml --mode first-second-grid --duration-s 0.001 --torque-nm 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --first-second-spring-scales 1 --output-dir /private/tmp/phase2_96_smoke --overwrite --progress-interval 10000",
+      "result": "PASS: wrote /private/tmp/phase2_96_smoke/summary.csv"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/plot_heatmap.py --config conf/phase2_sweeps/hook_overstretch_heatmap.yaml --mode first-second-grid --summary-csv /private/tmp/phase2_96_smoke/summary.csv --output-dir /private/tmp/phase2_96_heatmap",
+      "result": "PASS: wrote heatmap_data.csv and heatmap PNGs"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "CLI整理とREADME更新であり，新規動画の目視確認は不要。",
+  "user_review_outputs": [],
+  "user_review_points": [
+    "`scripts/README.md` は現行操作だけを説明する。",
+    "`run_sweep.py` / `plot_heatmap.py` と `conf/phase2_sweeps/*.yaml` が標準導線になる。"
+  ],
+  "adr_required": false,
+  "adr_reason": "物理モデルやデータ解釈を変える判断ではなく，CLI整理・設定管理・未使用package削除のため。",
+  "commit_type": "complete",
+  "commit_hash": "",
+  "push_status": "pushed",
+  "pull_request_url": "",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/96",
+  "next_actions": []
+}

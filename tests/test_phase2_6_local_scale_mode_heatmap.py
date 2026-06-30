@@ -1,33 +1,12 @@
 from __future__ import annotations
 
 import csv
-import importlib.util
-import sys
 from pathlib import Path
 
-
-def _load_plot_script():
-    script_path = (
-        Path(__file__).resolve().parents[1]
-        / "scripts"
-        / "01_simulate_swimming"
-        / "plot_phase2_6_local_scale_mode_heatmap.py"
-    )
-    spec = importlib.util.spec_from_file_location(
-        "phase2_6_local_scale_mode_heatmap", script_path
-    )
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+from sim_swim.analysis.heatmaps import local_scale_mode
 
 
-def test_phase2_6_local_scale_mode_heatmap_outputs_files(
-    tmp_path: Path, monkeypatch
-) -> None:
-    script = _load_plot_script()
+def test_phase2_6_local_scale_mode_heatmap_outputs_files(tmp_path: Path) -> None:
     summary_csv = tmp_path / "summary.csv"
     fields = [
         "stage",
@@ -87,11 +66,8 @@ def test_phase2_6_local_scale_mode_heatmap_outputs_files(
         writer.writerows(rows)
 
     out_dir = tmp_path / "plots"
-    monkeypatch.setattr(
-        sys,
-        "argv",
+    local_scale_mode.main(
         [
-            "plot_phase2_6_local_scale_mode_heatmap",
             "--summary-csv",
             str(summary_csv),
             "--output-dir",
@@ -99,12 +75,10 @@ def test_phase2_6_local_scale_mode_heatmap_outputs_files(
         ],
     )
 
-    script.main()
-
-    normalized_csv = out_dir / "phase2_6_local_scale_mode_heatmap.csv"
+    normalized_csv = out_dir / "heatmap_data.csv"
     assert normalized_csv.is_file()
-    assert (out_dir / "phase2_6_local_scale_mode_category_heatmap.png").is_file()
-    assert (out_dir / "phase2_6_local_scale_mode_pass_fail_heatmap.png").is_file()
+    assert (out_dir / "local_scale_mode_category_heatmap.png").is_file()
+    assert (out_dir / "local_scale_mode_pass_fail_heatmap.png").is_file()
 
     with normalized_csv.open("r", encoding="utf-8", newline="") as handle:
         normalized_rows = list(csv.DictReader(handle))

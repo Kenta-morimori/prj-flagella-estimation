@@ -43,7 +43,7 @@ def _parse_float_list(text: str | None) -> set[float] | None:
     return values or None
 
 
-def _parse_args() -> argparse.Namespace:
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Plot Phase 2.6 torque x dt_star heatmaps from torque model "
@@ -75,7 +75,7 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Optional comma-separated dt_star filter.",
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def _parse_bool(value: str | bool | None) -> bool:
@@ -215,8 +215,8 @@ def _write_normalized_csv(rows: list[dict[str, str]], out_path: Path) -> None:
             writer.writerow({field: row.get(field, "") for field in fields})
 
 
-def main() -> None:
-    args = _parse_args()
+def main(argv: list[str] | None = None) -> None:
+    args = _parse_args(argv)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     rows = _collect_rows(
         args.summary_csv,
@@ -224,9 +224,9 @@ def main() -> None:
         dt_stars_filter=_parse_float_list(args.dt_stars),
     )
     category, torques, dt_stars, pass_fail = _build_matrices(rows)
-    normalized_csv = args.output_dir / "phase2_6_dt_star_torque_heatmap.csv"
-    category_png = args.output_dir / "phase2_6_dt_star_torque_category_heatmap.png"
-    pass_fail_png = args.output_dir / "phase2_6_dt_star_torque_pass_fail_heatmap.png"
+    normalized_csv = args.output_dir / "heatmap_data.csv"
+    category_png = args.output_dir / "dt_star_torque_category_heatmap.png"
+    pass_fail_png = args.output_dir / "dt_star_torque_pass_fail_heatmap.png"
     _write_normalized_csv(rows, normalized_csv)
     _save_category_heatmap(category, torques, dt_stars, category_png)
     _save_pass_fail_heatmap(pass_fail, torques, dt_stars, pass_fail_png)

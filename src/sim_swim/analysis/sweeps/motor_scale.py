@@ -28,11 +28,8 @@ from __future__ import annotations
 
 import argparse
 import csv
-import sys
 from pathlib import Path
 from typing import Any
-
-sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
 
 from sim_swim.sim.body_shape_gate import summarize_body_shape_diagnostics_csv
 from sim_swim.sim.core import Simulator
@@ -187,7 +184,7 @@ def _collect_body_shape_metrics(csv_path: Path) -> dict[str, float | bool | str]
     return summarize_body_shape_diagnostics_csv(csv_path)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         description="Run a sweep over motor-local scale factors."
     )
@@ -259,12 +256,12 @@ def main() -> None:
         default="outputs/motor_scale_sweep",
         help="Directory for sweep results.",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     sweep_dir = Path(args.output_dir)
     sweep_dir.mkdir(parents=True, exist_ok=True)
 
-    summary_path = sweep_dir / f"{args.target}_sweep_summary.csv"
+    summary_path = sweep_dir / "summary.csv"
     with summary_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
             handle,
@@ -314,119 +311,118 @@ def main() -> None:
         base_torque = float(_base_cfg()["motor"]["torque_Nm"])
         torques = args.torques if args.torques is not None else [base_torque]
 
-        for torque in torques:
-            for value in args.values:
-                cfg_dict = _base_cfg()
-                cfg_dict["flagella"]["stub_mode"] = str(args.stub_mode)
-                cfg_dict["flagella"]["n_flagella"] = int(args.n_flagella)
-                cfg_dict["motor"]["torque_Nm"] = float(torque)
-                cfg_dict["motor"][args.target] = float(value)
-                cfg_dict["time"]["duration_s"] = float(args.duration)
-                if args.dt_star is not None:
-                    cfg_dict["time"]["dt_star"] = float(args.dt_star)
-                if args.body_stiffness_scale is not None:
-                    cfg_dict["stiffness_scales"]["body"] = float(
-                        args.body_stiffness_scale
-                    )
-                cfg = SimulationConfig.from_dict(cfg_dict)
+        conditions = [(torque, value) for torque in torques for value in args.values]
+        total = len(conditions)
+        for index, (torque, value) in enumerate(conditions, start=1):
+            print(
+                "[{}/{}] motor_scale target={} torque={:.3e} value={:g}".format(
+                    index, total, args.target, float(torque), float(value)
+                ),
+                flush=True,
+            )
+            cfg_dict = _base_cfg()
+            cfg_dict["flagella"]["stub_mode"] = str(args.stub_mode)
+            cfg_dict["flagella"]["n_flagella"] = int(args.n_flagella)
+            cfg_dict["motor"]["torque_Nm"] = float(torque)
+            cfg_dict["motor"][args.target] = float(value)
+            cfg_dict["time"]["duration_s"] = float(args.duration)
+            if args.dt_star is not None:
+                cfg_dict["time"]["dt_star"] = float(args.dt_star)
+            if args.body_stiffness_scale is not None:
+                cfg_dict["stiffness_scales"]["body"] = float(args.body_stiffness_scale)
+            cfg = SimulationConfig.from_dict(cfg_dict)
 
-                run_dir = (
-                    sweep_dir / f"torque_{torque:.2e}" / f"{args.target}_{value:g}"
-                )
-                run_dir.mkdir(parents=True, exist_ok=True)
-                sim = Simulator(cfg)
-                sim.run(cfg.time.duration_s, step_summary_dir=run_dir)
-                last = _collect_last_step_metrics(run_dir / "step_summary.csv")
-                body_shape = _collect_body_shape_metrics(
-                    run_dir / "body_constraint_diagnostics.csv"
-                )
+            run_dir = sweep_dir / f"torque_{torque:.2e}" / f"{args.target}_{value:g}"
+            run_dir.mkdir(parents=True, exist_ok=True)
+            sim = Simulator(cfg)
+            sim.run(cfg.time.duration_s, step_summary_dir=run_dir)
+            last = _collect_last_step_metrics(run_dir / "step_summary.csv")
+            body_shape = _collect_body_shape_metrics(
+                run_dir / "body_constraint_diagnostics.csv"
+            )
 
-                finite_pass = _parse_bool(last.get("finite_pass"))
-                shape_pass_nonbody = _parse_bool(last.get("shape_pass_nonbody"))
-                body_shape_pass = _parse_bool(body_shape.get("body_shape_pass"))
-                shape_pass = bool(
-                    finite_pass and shape_pass_nonbody and body_shape_pass
-                )
-                first_fail_category_nonbody = str(
-                    last.get("first_fail_category_nonbody", "none")
-                )
-                body_fail_category = str(body_shape.get("body_fail_category", "none"))
-                first_fail_category = (
-                    first_fail_category_nonbody
-                    if first_fail_category_nonbody != "none"
-                    else body_fail_category
-                    if body_fail_category != "none"
-                    else "none"
-                )
+            finite_pass = _parse_bool(last.get("finite_pass"))
+            shape_pass_nonbody = _parse_bool(last.get("shape_pass_nonbody"))
+            body_shape_pass = _parse_bool(body_shape.get("body_shape_pass"))
+            shape_pass = bool(finite_pass and shape_pass_nonbody and body_shape_pass)
+            first_fail_category_nonbody = str(
+                last.get("first_fail_category_nonbody", "none")
+            )
+            body_fail_category = str(body_shape.get("body_fail_category", "none"))
+            first_fail_category = (
+                first_fail_category_nonbody
+                if first_fail_category_nonbody != "none"
+                else body_fail_category
+                if body_fail_category != "none"
+                else "none"
+            )
 
-                writer.writerow(
-                    {
-                        "target": args.target,
-                        "torque_Nm": float(torque),
-                        "value": float(value),
-                        "stub_mode": str(cfg.flagella.stub_mode),
-                        "n_flagella": int(cfg.flagella.n_flagella),
-                        "dt_star": float(cfg.dt_star),
-                        "dt_internal_s": float(cfg.dt_s),
-                        "body_stiffness_scale": float(cfg.stiffness_scales.body),
-                        "output_dir": str(run_dir),
-                        "pos_all_finite": last.get("pos_all_finite", ""),
-                        "any_nan": last.get("any_nan", ""),
-                        "any_inf": last.get("any_inf", ""),
-                        "finite_pass": finite_pass,
-                        "shape_pass_nonbody": shape_pass_nonbody,
-                        "body_shape_pass": body_shape_pass,
-                        "shape_pass": shape_pass,
-                        "first_fail_category": first_fail_category,
-                        "first_fail_category_nonbody": first_fail_category_nonbody,
-                        "body_fail_category": body_fail_category,
-                        "flag_root_azimuth_deg": last.get("flag_root_azimuth_deg", ""),
-                        "flag_phase_deg": last.get("flag_phase_deg", ""),
-                        "flag_phase_rate_hz": last.get("flag_phase_rate_hz", ""),
-                        "flag_body_phase_diff_deg": last.get(
-                            "flag_body_phase_diff_deg", ""
-                        ),
-                        "local_attach_first_rel_err": last.get(
-                            "local_attach_first_rel_err", ""
-                        ),
-                        "local_first_second_rel_err": last.get(
-                            "local_first_second_rel_err", ""
-                        ),
-                        "hook_angle_err_max_deg": last.get(
-                            "hook_angle_err_max_deg", ""
-                        ),
-                        "hook_len_rel_err_max": last.get("hook_len_rel_err_max", ""),
-                        "flag_bond_rel_err_max": last.get("flag_bond_rel_err_max", ""),
-                        "flag_bend_err_max_deg": last.get("flag_bend_err_max_deg", ""),
-                        "flag_torsion_err_max_deg": last.get(
-                            "flag_torsion_err_max_deg", ""
-                        ),
-                        "body_spring_max_stretch_ratio": body_shape.get(
-                            "body_spring_max_stretch_ratio", ""
-                        ),
-                        "body_bend_max_error_deg": body_shape.get(
-                            "body_bend_max_error_deg", ""
-                        ),
-                        "body_centerline_max_deviation_um": body_shape.get(
-                            "body_centerline_max_deviation_um", ""
-                        ),
-                        "body_triangle_area_ratio_min": body_shape.get(
-                            "body_triangle_area_ratio_min", ""
-                        ),
-                        "motor_split_residual_norm": last.get(
-                            "motor_split_residual_norm", ""
-                        ),
-                        "motor_degenerate_axis_count": last.get(
-                            "motor_degenerate_axis_count", ""
-                        ),
-                        "motor_split_rank_deficient_count": last.get(
-                            "motor_split_rank_deficient_count", ""
-                        ),
-                        "motor_bond_length_clipped_count": last.get(
-                            "motor_bond_length_clipped_count", ""
-                        ),
-                    }
-                )
+            writer.writerow(
+                {
+                    "target": args.target,
+                    "torque_Nm": float(torque),
+                    "value": float(value),
+                    "stub_mode": str(cfg.flagella.stub_mode),
+                    "n_flagella": int(cfg.flagella.n_flagella),
+                    "dt_star": float(cfg.dt_star),
+                    "dt_internal_s": float(cfg.dt_s),
+                    "body_stiffness_scale": float(cfg.stiffness_scales.body),
+                    "output_dir": str(run_dir),
+                    "pos_all_finite": last.get("pos_all_finite", ""),
+                    "any_nan": last.get("any_nan", ""),
+                    "any_inf": last.get("any_inf", ""),
+                    "finite_pass": finite_pass,
+                    "shape_pass_nonbody": shape_pass_nonbody,
+                    "body_shape_pass": body_shape_pass,
+                    "shape_pass": shape_pass,
+                    "first_fail_category": first_fail_category,
+                    "first_fail_category_nonbody": first_fail_category_nonbody,
+                    "body_fail_category": body_fail_category,
+                    "flag_root_azimuth_deg": last.get("flag_root_azimuth_deg", ""),
+                    "flag_phase_deg": last.get("flag_phase_deg", ""),
+                    "flag_phase_rate_hz": last.get("flag_phase_rate_hz", ""),
+                    "flag_body_phase_diff_deg": last.get(
+                        "flag_body_phase_diff_deg", ""
+                    ),
+                    "local_attach_first_rel_err": last.get(
+                        "local_attach_first_rel_err", ""
+                    ),
+                    "local_first_second_rel_err": last.get(
+                        "local_first_second_rel_err", ""
+                    ),
+                    "hook_angle_err_max_deg": last.get("hook_angle_err_max_deg", ""),
+                    "hook_len_rel_err_max": last.get("hook_len_rel_err_max", ""),
+                    "flag_bond_rel_err_max": last.get("flag_bond_rel_err_max", ""),
+                    "flag_bend_err_max_deg": last.get("flag_bend_err_max_deg", ""),
+                    "flag_torsion_err_max_deg": last.get(
+                        "flag_torsion_err_max_deg", ""
+                    ),
+                    "body_spring_max_stretch_ratio": body_shape.get(
+                        "body_spring_max_stretch_ratio", ""
+                    ),
+                    "body_bend_max_error_deg": body_shape.get(
+                        "body_bend_max_error_deg", ""
+                    ),
+                    "body_centerline_max_deviation_um": body_shape.get(
+                        "body_centerline_max_deviation_um", ""
+                    ),
+                    "body_triangle_area_ratio_min": body_shape.get(
+                        "body_triangle_area_ratio_min", ""
+                    ),
+                    "motor_split_residual_norm": last.get(
+                        "motor_split_residual_norm", ""
+                    ),
+                    "motor_degenerate_axis_count": last.get(
+                        "motor_degenerate_axis_count", ""
+                    ),
+                    "motor_split_rank_deficient_count": last.get(
+                        "motor_split_rank_deficient_count", ""
+                    ),
+                    "motor_bond_length_clipped_count": last.get(
+                        "motor_bond_length_clipped_count", ""
+                    ),
+                }
+            )
 
     print(f"Sweep summary saved to {summary_path}")
 

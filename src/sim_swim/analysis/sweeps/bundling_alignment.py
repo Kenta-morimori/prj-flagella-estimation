@@ -465,7 +465,7 @@ def _build_config(
     return SimulationConfig.from_dict(raw_cfg).with_overrides(override_dict)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=Path("conf/sim_swim.yaml"))
     parser.add_argument(
@@ -515,101 +515,115 @@ def main() -> None:
         nargs="*",
         help="Optional config overrides such as output_sampling.out_all_steps_3d=false.",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     raw_cfg = _load_yaml(args.config)
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    summary_path = out_dir / "phase2_7_bundling_sweep_summary.csv"
+    summary_path = out_dir / "summary.csv"
 
     with summary_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=SUMMARY_FIELDS)
         writer.writeheader()
 
-        for helix_axis_angle_deg in args.helix_axis_angles_deg:
-            for n_flagella in args.n_flagella:
-                for torque in args.torques:
-                    cfg = _build_config(
-                        raw_cfg,
-                        initial_helix_axis_from_rear_deg=float(helix_axis_angle_deg),
-                        n_flagella=int(n_flagella),
-                        torque_Nm=float(torque),
-                        duration_s=float(args.duration_s),
-                        dt_star=float(args.dt_star),
-                        overrides=args.overrides,
-                    )
-                    angle_label = f"{float(helix_axis_angle_deg):g}deg"
-                    run_dir = (
-                        out_dir
-                        / f"helix_axis_angle_{angle_label}"
-                        / f"n_{int(n_flagella)}"
-                        / f"torque_{float(torque):.2e}"
-                    )
-                    run_dir.mkdir(parents=True, exist_ok=True)
-                    sim = Simulator(cfg)
-                    sim.run(
-                        cfg.time.duration_s,
-                        step_summary_dir=run_dir,
-                        stop_on_shape_fail=bool(args.stop_on_shape_fail),
-                    )
-                    step_rows = _step_rows(run_dir / "step_summary.csv")
-                    last = step_rows[-1] if step_rows else {}
-                    net_abs_spin = _net_abs_helix_spin_revolutions(step_rows)
-                    phase27_class = classify_phase27_condition(
-                        step_rows,
-                        int(n_flagella),
-                    )
-                    phase27_class_hook_len_relaxed = (
-                        classify_phase27_condition_hook_len_relaxed(
-                            step_rows,
-                            int(n_flagella),
-                        )
-                    )
-                    axis_alignment_stable, axis_alignment_stable_fraction = (
-                        _axis_alignment_stable_summary(step_rows)
-                    )
-                    axis_plot_path = run_dir / "flag_helix_axis_angles_timeseries.png"
-                    try:
-                        plot_flag_helix_axis_timeseries(
-                            axis_csv_path=run_dir / "flag_helix_axis_diagnostics.csv",
-                            output_path=axis_plot_path,
-                        )
-                        axis_plot_value = str(axis_plot_path)
-                    except ValueError:
-                        axis_plot_value = ""
+        conditions = [
+            (helix_axis_angle_deg, n_flagella, torque)
+            for helix_axis_angle_deg in args.helix_axis_angles_deg
+            for n_flagella in args.n_flagella
+            for torque in args.torques
+        ]
+        total = len(conditions)
+        for index, (helix_axis_angle_deg, n_flagella, torque) in enumerate(
+            conditions, start=1
+        ):
+            print(
+                "[{}/{}] bundling_alignment angle={} n_flagella={} "
+                "torque={:.3e}".format(
+                    index,
+                    total,
+                    float(helix_axis_angle_deg),
+                    int(n_flagella),
+                    float(torque),
+                ),
+                flush=True,
+            )
+            cfg = _build_config(
+                raw_cfg,
+                initial_helix_axis_from_rear_deg=float(helix_axis_angle_deg),
+                n_flagella=int(n_flagella),
+                torque_Nm=float(torque),
+                duration_s=float(args.duration_s),
+                dt_star=float(args.dt_star),
+                overrides=args.overrides,
+            )
+            angle_label = f"{float(helix_axis_angle_deg):g}deg"
+            run_dir = (
+                out_dir
+                / f"helix_axis_angle_{angle_label}"
+                / f"n_{int(n_flagella)}"
+                / f"torque_{float(torque):.2e}"
+            )
+            run_dir.mkdir(parents=True, exist_ok=True)
+            sim = Simulator(cfg)
+            sim.run(
+                cfg.time.duration_s,
+                step_summary_dir=run_dir,
+                stop_on_shape_fail=bool(args.stop_on_shape_fail),
+            )
+            step_rows = _step_rows(run_dir / "step_summary.csv")
+            last = step_rows[-1] if step_rows else {}
+            net_abs_spin = _net_abs_helix_spin_revolutions(step_rows)
+            phase27_class = classify_phase27_condition(
+                step_rows,
+                int(n_flagella),
+            )
+            phase27_class_hook_len_relaxed = (
+                classify_phase27_condition_hook_len_relaxed(
+                    step_rows,
+                    int(n_flagella),
+                )
+            )
+            axis_alignment_stable, axis_alignment_stable_fraction = (
+                _axis_alignment_stable_summary(step_rows)
+            )
+            axis_plot_path = run_dir / "flag_helix_axis_angles_timeseries.png"
+            try:
+                plot_flag_helix_axis_timeseries(
+                    axis_csv_path=run_dir / "flag_helix_axis_diagnostics.csv",
+                    output_path=axis_plot_path,
+                )
+                axis_plot_value = str(axis_plot_path)
+            except ValueError:
+                axis_plot_value = ""
 
-                    writer.writerow(
-                        {
-                            "initial_helix_axis_from_rear_deg": float(
-                                helix_axis_angle_deg
-                            ),
-                            "n_flagella": int(n_flagella),
-                            "torque_Nm": float(torque),
-                            "duration_s": float(cfg.time.duration_s),
-                            "final_t_s": last.get("t_s", ""),
-                            "dt_star": float(cfg.dt_star),
-                            "output_dir": str(run_dir),
-                            "flag_helix_axis_timeseries_plot": axis_plot_value,
-                            "phase27_class": phase27_class,
-                            "phase27_class_hook_len_relaxed": (
-                                phase27_class_hook_len_relaxed
-                            ),
-                            "phase27_axis_alignment_threshold_deg": (
-                                AXIS_ALIGNMENT_THRESHOLD_DEG
-                            ),
-                            "phase27_axis_alignment_stable": axis_alignment_stable,
-                            "phase27_axis_alignment_stable_fraction": (
-                                axis_alignment_stable_fraction
-                            ),
-                            "net_abs_flag_helix_spin_revolutions": net_abs_spin,
-                            **{
-                                key: last.get(key, "")
-                                for key in STEP_SUMMARY_METRIC_FIELDS
-                                if key != "net_abs_flag_helix_spin_revolutions"
-                            },
-                        }
-                    )
-                    handle.flush()
+            writer.writerow(
+                {
+                    "initial_helix_axis_from_rear_deg": float(helix_axis_angle_deg),
+                    "n_flagella": int(n_flagella),
+                    "torque_Nm": float(torque),
+                    "duration_s": float(cfg.time.duration_s),
+                    "final_t_s": last.get("t_s", ""),
+                    "dt_star": float(cfg.dt_star),
+                    "output_dir": str(run_dir),
+                    "flag_helix_axis_timeseries_plot": axis_plot_value,
+                    "phase27_class": phase27_class,
+                    "phase27_class_hook_len_relaxed": (phase27_class_hook_len_relaxed),
+                    "phase27_axis_alignment_threshold_deg": (
+                        AXIS_ALIGNMENT_THRESHOLD_DEG
+                    ),
+                    "phase27_axis_alignment_stable": axis_alignment_stable,
+                    "phase27_axis_alignment_stable_fraction": (
+                        axis_alignment_stable_fraction
+                    ),
+                    "net_abs_flag_helix_spin_revolutions": net_abs_spin,
+                    **{
+                        key: last.get(key, "")
+                        for key in STEP_SUMMARY_METRIC_FIELDS
+                        if key != "net_abs_flag_helix_spin_revolutions"
+                    },
+                }
+            )
+            handle.flush()
 
     print(summary_path)
 

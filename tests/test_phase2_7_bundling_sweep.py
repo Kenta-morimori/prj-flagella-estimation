@@ -1,21 +1,9 @@
 from __future__ import annotations
 
 import csv
-import importlib.util
 from pathlib import Path
 
-
-SCRIPT_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "scripts"
-    / "01_simulate_swimming"
-    / "run_phase2_7_bundling_sweep.py"
-)
-SPEC = importlib.util.spec_from_file_location("phase27_bundling_sweep", SCRIPT_PATH)
-assert SPEC is not None
-phase27 = importlib.util.module_from_spec(SPEC)
-assert SPEC.loader is not None
-SPEC.loader.exec_module(phase27)
+from sim_swim.analysis.sweeps import bundling_alignment as phase27
 
 
 def test_phase27_classifies_shape_fail_as_collapse() -> None:
