@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from sim_swim.analysis.sweeps import hook_overstretch as script
 
 
@@ -114,13 +116,22 @@ def test_phase2_82_torque_profile_grid_conditions() -> None:
         fixed_first_second_spring_scale=1.0,
         fixed_attach_frame_position_scale=3.0,
         fixed_attach_frame_tangent_scale=1.5,
-        torque_segment_weight_profiles=["local_twist_activity", "uniform"],
+        torque_segment_weight_profiles=[
+            "local_twist_activity",
+            "activity_sqrt",
+            "activity_floor_0p2",
+            "activity_floor_0p4",
+            "uniform",
+        ],
     )
 
     conditions = script.build_conditions(args)
 
     assert [condition.condition_id for condition in conditions] == [
         "profile_local_twist_activity_fp3_ft1p5",
+        "profile_activity_sqrt_fp3_ft1p5",
+        "profile_activity_floor_0p2_fp3_ft1p5",
+        "profile_activity_floor_0p4_fp3_ft1p5",
         "profile_uniform_fp3_ft1p5",
     ]
     assert conditions[-1].scales == {
@@ -131,6 +142,25 @@ def test_phase2_82_torque_profile_grid_conditions() -> None:
         "local_attach_frame_tangent_scale": 1.5,
         "torque_segment_weight_profile": "uniform",
     }
+
+
+def test_phase2_82_axis_center_phase_summary() -> None:
+    rows = [
+        {"flag_id": "0", "axis_center_spin_phase_deg": "170"},
+        {"flag_id": "1", "axis_center_spin_phase_deg": "10"},
+        {"flag_id": "0", "axis_center_spin_phase_deg": "-170"},
+        {"flag_id": "1", "axis_center_spin_phase_deg": "40"},
+        {"flag_id": "0", "axis_center_spin_phase_deg": "-150"},
+        {"flag_id": "1", "axis_center_spin_phase_deg": "70"},
+    ]
+
+    summary = script._axis_center_phase_summary(rows)
+
+    assert summary["axis_center_net_abs_revolutions_min"] == pytest.approx(1.0 / 9.0)
+    assert summary["axis_center_net_abs_revolutions_max"] == pytest.approx(1.0 / 6.0)
+    assert summary["axis_center_net_abs_revolutions_mean"] == pytest.approx(5.0 / 36.0)
+    assert summary["axis_center_direction_consistency_mean"] == 1.0
+    assert summary["axis_center_direction_consistency_min"] == 1.0
 
 
 def test_phase2_82_summary_row_records_fail_and_max_hook_events(

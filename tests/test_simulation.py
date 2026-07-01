@@ -170,8 +170,17 @@ def test_phase2_hook_overstretch_scales_are_engine_localized() -> None:
     assert engine.hook_first_second_rest_lengths_m[0] > 0.0
 
 
-def test_root_torque_segment_couples_uniform_weight_profile_runs(
-    tmp_path: Path,
+@pytest.mark.parametrize(
+    "profile",
+    [
+        "activity_floor_0p2",
+        "activity_floor_0p4",
+        "activity_sqrt",
+        "uniform",
+    ],
+)
+def test_root_torque_segment_couples_weight_profiles_run(
+    profile: str, tmp_path: Path
 ) -> None:
     cfg = _make_cfg(
         motor_torque_Nm=2.0e-20,
@@ -180,7 +189,7 @@ def test_root_torque_segment_couples_uniform_weight_profile_runs(
         duration_s=1.0e-4,
     ).with_overrides(
         {
-            "motor": {"torque_segment_weight_profile": "uniform"},
+            "motor": {"torque_segment_weight_profile": profile},
             "time": {"dt_star": 1.0e-4},
         }
     )
@@ -189,7 +198,7 @@ def test_root_torque_segment_couples_uniform_weight_profile_runs(
     rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "sim")
 
     assert rows
-    assert cfg.motor.torque_segment_weight_profile == "uniform"
+    assert cfg.motor.torque_segment_weight_profile == profile
     assert np.isfinite(float(rows[-1]["flag_helix_axis_center_radius_cv_mean"]))
     assert np.isfinite(float(rows[-1]["flag_helix_axis_center_spin_fit_r2_min"]))
 

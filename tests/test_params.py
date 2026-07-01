@@ -49,13 +49,22 @@ def test_default_motor_torque_segment_weight_profile_is_local_twist_activity() -
     assert sim_cfg.motor.torque_segment_weight_profile == "local_twist_activity"
 
 
-def test_motor_torque_segment_weight_profile_accepts_uniform() -> None:
+@pytest.mark.parametrize(
+    "profile",
+    [
+        "activity_floor_0p2",
+        "activity_floor_0p4",
+        "activity_sqrt",
+        "uniform",
+    ],
+)
+def test_motor_torque_segment_weight_profile_accepts_profiles(profile: str) -> None:
     cfg = _base_cfg()
-    cfg["motor"]["torque_segment_weight_profile"] = "uniform"
+    cfg["motor"]["torque_segment_weight_profile"] = profile
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
     sim_cfg = SimulationConfig.from_dict(cfg)
 
-    assert sim_cfg.motor.torque_segment_weight_profile == "uniform"
+    assert sim_cfg.motor.torque_segment_weight_profile == profile
 
 
 def test_motor_torque_segment_weight_profile_rejects_unknown_value() -> None:

@@ -26,6 +26,9 @@ MOTOR_FORCE_DISTRIBUTION_ALIASES = {
 MOTOR_TORQUE_SEGMENT_WEIGHT_PROFILE_DEFAULT = "local_twist_activity"
 MOTOR_TORQUE_SEGMENT_WEIGHT_PROFILES = frozenset(
     {
+        "activity_floor_0p2",
+        "activity_floor_0p4",
+        "activity_sqrt",
         "local_twist_activity",
         "uniform",
     }

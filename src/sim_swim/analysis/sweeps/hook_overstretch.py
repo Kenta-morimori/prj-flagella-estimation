@@ -117,6 +117,11 @@ SUMMARY_FIELDS = (
     "flag_helix_axis_center_spin_fit_r2_min",
     "flag_helix_axis_center_root_offset_um_mean",
     "flag_helix_axis_center_root_offset_um_max",
+    "axis_center_net_abs_revolutions_mean",
+    "axis_center_net_abs_revolutions_min",
+    "axis_center_net_abs_revolutions_max",
+    "axis_center_direction_consistency_mean",
+    "axis_center_direction_consistency_min",
 )
 
 
@@ -197,6 +202,71 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 def _read_step_rows(path: Path) -> list[dict[str, str]]:
     with path.open("r", encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def _unwrap_deg(values: list[float]) -> list[float]:
+    unwrapped: list[float] = []
+    prev_raw: float | None = None
+    prev_unwrapped: float | None = None
+    for value in values:
+        if prev_raw is None or prev_unwrapped is None:
+            unwrapped.append(value)
+            prev_raw = value
+            prev_unwrapped = value
+            continue
+        delta = (value - prev_raw + 180.0) % 360.0 - 180.0
+        prev_unwrapped += delta
+        unwrapped.append(prev_unwrapped)
+        prev_raw = value
+    return unwrapped
+
+
+def _mean(values: list[float]) -> float | str:
+    return sum(values) / len(values) if values else ""
+
+
+def _axis_center_phase_summary(rows: list[dict[str, str]]) -> dict[str, float | str]:
+    phases_by_flag: dict[int, list[float]] = {}
+    for row in rows:
+        try:
+            flag_id = int(row["flag_id"])
+            phase = float(row["axis_center_spin_phase_deg"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if math.isfinite(phase):
+            phases_by_flag.setdefault(flag_id, []).append(phase)
+
+    net_revolutions: list[float] = []
+    direction_consistency: list[float] = []
+    for phases in phases_by_flag.values():
+        if len(phases) < 2:
+            continue
+        unwrapped = _unwrap_deg(phases)
+        deltas = [b - a for a, b in zip(unwrapped, unwrapped[1:])]
+        signed = sum(deltas)
+        moving = [delta for delta in deltas if abs(delta) > 1e-9]
+        if not moving or abs(signed) <= 1e-9:
+            consistency = 0.0
+        else:
+            consistency = sum(1 for delta in moving if delta * signed >= 0.0) / len(
+                moving
+            )
+        net_revolutions.append(abs(unwrapped[-1] - unwrapped[0]) / 360.0)
+        direction_consistency.append(consistency)
+
+    return {
+        "axis_center_net_abs_revolutions_mean": _mean(net_revolutions),
+        "axis_center_net_abs_revolutions_min": (
+            min(net_revolutions) if net_revolutions else ""
+        ),
+        "axis_center_net_abs_revolutions_max": (
+            max(net_revolutions) if net_revolutions else ""
+        ),
+        "axis_center_direction_consistency_mean": _mean(direction_consistency),
+        "axis_center_direction_consistency_min": (
+            min(direction_consistency) if direction_consistency else ""
+        ),
+    }
 
 
 def _parse_bool(value: str | bool | None) -> bool:
@@ -459,6 +529,7 @@ def _summary_row(
     last: dict[str, str],
     rows: list[dict[str, str]],
     helix_summary: dict[str, bool | int | float | str],
+    axis_center_summary: dict[str, float | str] | None = None,
 ) -> dict[str, str | float]:
     first_fail = _first_fail_row(rows)
     max_hook = _max_hook_row(rows)
@@ -640,11 +711,15 @@ def _summary_row(
         PROXIMAL_FLAG_BOND_REL_ERR_FIELDS,
         prefix="max_",
     )
+    if axis_center_summary is None:
+        axis_center_summary = {}
     for field in SUMMARY_FIELDS:
         if field in row:
             continue
         source_key = field.removeprefix("final_")
-        row[field] = helix_summary.get(field, last.get(source_key, last.get(field, "")))
+        row[field] = axis_center_summary.get(
+            field, helix_summary.get(field, last.get(source_key, last.get(field, "")))
+        )
     row["flag_bond_rel_err_max_local_bead_i"] = _flag_bond_local_bead_index(
         cfg, last, "flag_bond_rel_err_max_bead_i"
     )
@@ -673,6 +748,9 @@ def _run_condition(
     )
     step_summary_path = condition_dir / "step_summary.csv"
     rows = _read_step_rows(step_summary_path)
+    axis_center_summary = _axis_center_phase_summary(
+        _read_step_rows(condition_dir / "flag_helix_axis_diagnostics.csv")
+    )
     helix_summary = summarize_single_flagellum_helix_retention(
         rows,
         min_steps=min(50, max(len(rows) - 1, 1)),
@@ -681,7 +759,9 @@ def _run_condition(
     if not rows:
         raise RuntimeError(f"No rows found in {step_summary_path}")
     last = rows[-1]
-    return _summary_row(cfg, condition, condition_dir, last, rows, helix_summary)
+    return _summary_row(
+        cfg, condition, condition_dir, last, rows, helix_summary, axis_center_summary
+    )
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -739,7 +819,10 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--torque-segment-weight-profiles",
         type=_parse_text_values,
-        default=_parse_text_values("local_twist_activity,uniform"),
+        default=_parse_text_values(
+            "local_twist_activity,activity_sqrt,"
+            "activity_floor_0p2,activity_floor_0p4,uniform"
+        ),
         help="Comma-separated profile values for --mode torque-profile-grid.",
     )
     parser.add_argument("--fixed-attach-first-spring-scale", type=float, default=None)

@@ -1,19 +1,19 @@
 {
   "status": "PASS",
-  "summary": "Issue #97 の description を #94/#95 の結果に基づいて完成し，初期実装として螺旋軸中心診断と torque segment weight 比較導線を追加した。`step_summary.csv` と `flag_helix_axis_diagnostics.csv` に axis-centered helix 指標を出し，`motor.torque_segment_weight_profile` で default `local_twist_activity` を維持したまま `uniform` を比較できるようにした。`hook_overstretch` sweep には `mode=torque-profile-grid` を追加し，0.001 s smoke で `local_twist_activity` / `uniform` の両条件が summary へ出ることを確認した。",
+  "summary": "Issue #97 の description を #94/#95 の結果に基づいて完成し，螺旋軸中心診断，torque segment weight profile 比較導線，0.6 s 後方代表条件での追加探索を完了した。`motor.torque_segment_weight_profile` は default `local_twist_activity` を維持し，比較候補として `activity_sqrt`, `activity_floor_0p2`, `activity_floor_0p4`, `uniform` を追加した。Stage C では `local_twist_activity` のみ shape gate を通り，追加候補はすべて `flag` fail したため，default 変更はしない。",
   "blocking_issues": [],
   "non_blocking_issues": [
-    "Issue #97 全体は未完了である。0.6 s 後方条件での `local_twist_activity` と `uniform` の本評価，代表動画生成，ユーザー目視レビューは未実施。",
-    "`uniform` は比較候補として追加しただけで，default は `local_twist_activity` のまま維持した。",
-    "今回の axis-centered 指標は螺旋中心軸まわりの形状品質・位相・root offset を出す診断であり，0.6 s 条件での採用判定閾値はまだ固定していない。"
+    "追加候補は axis-center net revolution をやや増やすが，flag bond 過伸長を悪化させるため不採用とした。",
+    "今回の採用判断は代表条件 `fp=3`, `ft=1.5`, `torque=2.0e-20`, `duration_s=0.6`, `attach_seed=0`, `phase_seed=0` に限定した。複数seed・長時間評価は別issueで扱う。",
+    "default 物理モデルは変更していないため ADR は作成していない。"
   ],
   "tests_reviewed": [
     {
-      "command": "uv run pytest tests/test_phase2_82_hook_overstretch_sweep.py tests/test_helix_axis.py tests/test_simulation.py::test_root_torque_segment_couples_uniform_weight_profile_runs tests/test_simulation.py::test_run_writes_step_summary_csv_without_projection_columns tests/test_params.py -q",
-      "result": "PASS: 66 passed。axis-centered helix 指標，uniform weight profile の短時間実行，config parser，hook_overstretch torque-profile-grid summary を確認。"
+      "command": "uv run pytest tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py::test_root_torque_segment_couples_weight_profiles_run -q",
+      "result": "PASS: 64 passed。追加profile の config parser，短時間simulation，torque-profile-grid 条件生成，axis-center phase 集約を確認。"
     },
     {
-      "command": "uv run ruff check src/sim_swim/sim/helix_axis.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/params.py src/sim_swim/dynamics/engine.py src/sim_swim/analysis/sweeps/hook_overstretch.py tests/test_helix_axis.py tests/test_simulation.py tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py",
+      "command": "uv run ruff check src/sim_swim/sim/params.py src/sim_swim/dynamics/engine.py src/sim_swim/analysis/sweeps/hook_overstretch.py tests/test_params.py tests/test_simulation.py tests/test_phase2_82_hook_overstretch_sweep.py",
       "result": "PASS: All checks passed"
     },
     {
@@ -22,45 +22,72 @@
     },
     {
       "command": "uv run pytest -q",
-      "result": "PASS: 296 passed in 84.28s"
+      "result": "PASS: 303 passed in 84.71s"
     },
     {
-      "command": "uv run ruff format --check src/sim_swim/sim/helix_axis.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/params.py src/sim_swim/dynamics/engine.py src/sim_swim/analysis/sweeps/hook_overstretch.py tests/test_helix_axis.py tests/test_simulation.py tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py",
-      "result": "PASS: 9 files already formatted"
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.001 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 output_dir=/private/tmp/phase2_issue97_profile_expansion_smoke overwrite=true progress_interval=10000",
+      "result": "PASS: 5 profile の smoke summary を生成し，axis-center 集約列が出力された。"
     },
     {
-      "command": "uv run python -c \"import yaml; yaml.safe_load(open('conf/sim_swim.yaml', encoding='utf-8'))\"",
-      "result": "PASS: YAML parse OK"
-    },
-    {
-      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_segment_weight_profiles=local_twist_activity,uniform dry_run=true",
-      "result": "PASS: `profile_local_twist_activity_fp3_ft1p5` と `profile_uniform_fp3_ft1p5` を出力。"
-    },
-    {
-      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.001 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_segment_weight_profiles=local_twist_activity,uniform output_dir=/private/tmp/phase2_issue97_torque_profile_smoke overwrite=true progress_interval=10000",
-      "result": "PASS: `/private/tmp/phase2_issue97_torque_profile_smoke/summary.csv` を生成。両 profile で `final_shape_pass_nonbody=True`，axis-centered 指標が出力された。"
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.6 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_segment_weight_profiles=local_twist_activity,activity_sqrt,activity_floor_0p2,activity_floor_0p4,uniform output_dir=outputs/phase2_97/stage_c_torque_profile_expansion_fp3_ft1p5_torque2p0_dur0p6 overwrite=true progress_interval=5000",
+      "result": "PASS: Stage C summary を生成。`local_twist_activity` のみ `final_shape_pass_nonbody=True`。`activity_sqrt`, `activity_floor_0p2`, `activity_floor_0p4`, `uniform` はすべて `flag` fail。"
     }
   ],
+  "stage_c_summary": {
+    "output": "outputs/phase2_97/stage_c_torque_profile_expansion_fp3_ft1p5_torque2p0_dur0p6/summary.csv",
+    "local_twist_activity": {
+      "final_shape_pass_nonbody": true,
+      "first_fail_category_nonbody": "none",
+      "max_flag_bond_rel_err": 0.9063138564783416,
+      "axis_center_net_abs_revolutions_mean": 0.7967494635346232,
+      "axis_center_direction_consistency_mean": 0.5442018114130133
+    },
+    "activity_sqrt": {
+      "final_shape_pass_nonbody": false,
+      "first_fail_t_s": 0.46449999999996516,
+      "first_fail_category_nonbody": "flag",
+      "max_flag_bond_rel_err": 1.1681014393801605
+    },
+    "activity_floor_0p2": {
+      "final_shape_pass_nonbody": false,
+      "first_fail_t_s": 0.4738999999999641,
+      "first_fail_category_nonbody": "flag",
+      "max_flag_bond_rel_err": 1.1423946563353982
+    },
+    "activity_floor_0p4": {
+      "final_shape_pass_nonbody": false,
+      "first_fail_t_s": 0.44289999999996754,
+      "first_fail_category_nonbody": "flag",
+      "max_flag_bond_rel_err": 1.2620448311215537
+    },
+    "uniform": {
+      "final_shape_pass_nonbody": false,
+      "first_fail_t_s": 0.4170999999999704,
+      "first_fail_category_nonbody": "flag",
+      "max_flag_bond_rel_err": 1.4272381326607944
+    }
+  },
   "user_review_required": false,
-  "user_review_command": "今回の対応は診断CSV・比較設定・smoke sweep までであり，代表動画の目視採用判定は要求しない。0.6 s 本評価後に候補が出た場合は別途ユーザー目視レビューが必要。",
+  "user_review_command": "Stage B 代表動画はユーザー定性評価OK。追加候補は Stage C 自動gateで不採用となったため，新規動画目視は不要。",
   "user_review_outputs": [
-    "/private/tmp/phase2_issue97_torque_profile_smoke/summary.csv"
+    "outputs/phase2_97/stage_b_local_twist_activity_qual_fp3_ft1p5_torque2p0_dur0p6/2026-07-01/134725/render/swim3d.mp4",
+    "outputs/phase2_97/stage_b_local_twist_activity_qual_fp3_ft1p5_torque2p0_dur0p6/2026-07-01/134725/render2d/projection.mp4",
+    "outputs/phase2_97/stage_c_torque_profile_expansion_fp3_ft1p5_torque2p0_dur0p6/summary.csv"
   ],
   "user_review_points": [
-    "0.6 s 本評価では，`flag_helix_axis_center_radius_cv_*` と `flag_helix_axis_center_spin_fit_r2_min` が profile 間比較に使えるか。",
-    "`uniform` が hook / flag bond 過伸長を悪化させず，後方軸整列や螺旋軸中心性を改善するか。",
-    "採用候補が出た場合，3D/2D動画で後方軸整列，螺旋軸中心回転，遊泳らしさを確認する。"
+    "body / hook / flagella が 0.6 s 中に破綻・飛散・collapse しないことを確認済み。",
+    "flagella が螺旋軸まわりに回って見えることを確認済み。",
+    "菌体隣接の attach bead 付近の角度が不自然に崩れていないことを確認済み。"
   ],
   "adr_required": false,
-  "adr_reason": "今回は default 物理モデルを変更せず，診断列と比較用 profile を追加した段階であるため。`uniform` などを標準候補へ昇格する場合や物理モデル解釈を変更する場合は ADR を検討する。",
+  "adr_reason": "default 物理モデルを変更せず，追加候補も採用しないため。default変更や物理モデル解釈変更を別issueで行う場合は ADR 要否を再評価する。",
   "commit_type": "diagnostic",
-  "commit_hash": "16cd910ff06ccc5e4ea00147a0847672032edc4a",
-  "push_status": "pushed",
+  "commit_hash": "pending",
+  "push_status": "pending",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/99",
   "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/97",
   "next_actions": [
-    "0.6 s 後方条件で `torque-profile-grid` を実行し，`local_twist_activity` と `uniform` を比較する。",
-    "`uniform` が改善候補になった場合は代表動画を生成し，ユーザー目視レビューを受ける。",
-    "採用判断に至る場合は ADR 要否を再評価する。"
+    "PR #99 を draft から ready にする前に full test を再確認する。",
+    "複数seed・長時間評価が必要になった場合は #97 から分離した別issueで扱う。"
   ]
 }
