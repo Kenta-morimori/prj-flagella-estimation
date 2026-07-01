@@ -34,6 +34,7 @@ SUMMARY_FIELDS = (
     "duration_s",
     "dt_star",
     "torque_Nm",
+    "torque_segment_weight_profile",
     "n_flagella",
     "local_attach_first_spring_scale",
     "local_attach_first_body_axis_angle_scale",
@@ -110,6 +111,17 @@ SUMMARY_FIELDS = (
     "flag_torsion_err_max_deg",
     "net_abs_flag_helix_spin_revolutions",
     "flag_helix_spin_direction_consistency",
+    "flag_helix_axis_center_radius_mean_um",
+    "flag_helix_axis_center_radius_cv_mean",
+    "flag_helix_axis_center_radius_cv_max",
+    "flag_helix_axis_center_spin_fit_r2_min",
+    "flag_helix_axis_center_root_offset_um_mean",
+    "flag_helix_axis_center_root_offset_um_max",
+    "axis_center_net_abs_revolutions_mean",
+    "axis_center_net_abs_revolutions_min",
+    "axis_center_net_abs_revolutions_max",
+    "axis_center_direction_consistency_mean",
+    "axis_center_direction_consistency_min",
 )
 
 
@@ -118,7 +130,7 @@ class Condition:
     condition_id: str
     mode: str
     description: str
-    scales: dict[str, float]
+    scales: dict[str, float | str]
 
 
 CONDITIONS = (
@@ -190,6 +202,71 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 def _read_step_rows(path: Path) -> list[dict[str, str]]:
     with path.open("r", encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def _unwrap_deg(values: list[float]) -> list[float]:
+    unwrapped: list[float] = []
+    prev_raw: float | None = None
+    prev_unwrapped: float | None = None
+    for value in values:
+        if prev_raw is None or prev_unwrapped is None:
+            unwrapped.append(value)
+            prev_raw = value
+            prev_unwrapped = value
+            continue
+        delta = (value - prev_raw + 180.0) % 360.0 - 180.0
+        prev_unwrapped += delta
+        unwrapped.append(prev_unwrapped)
+        prev_raw = value
+    return unwrapped
+
+
+def _mean(values: list[float]) -> float | str:
+    return sum(values) / len(values) if values else ""
+
+
+def _axis_center_phase_summary(rows: list[dict[str, str]]) -> dict[str, float | str]:
+    phases_by_flag: dict[int, list[float]] = {}
+    for row in rows:
+        try:
+            flag_id = int(row["flag_id"])
+            phase = float(row["axis_center_spin_phase_deg"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if math.isfinite(phase):
+            phases_by_flag.setdefault(flag_id, []).append(phase)
+
+    net_revolutions: list[float] = []
+    direction_consistency: list[float] = []
+    for phases in phases_by_flag.values():
+        if len(phases) < 2:
+            continue
+        unwrapped = _unwrap_deg(phases)
+        deltas = [b - a for a, b in zip(unwrapped, unwrapped[1:])]
+        signed = sum(deltas)
+        moving = [delta for delta in deltas if abs(delta) > 1e-9]
+        if not moving or abs(signed) <= 1e-9:
+            consistency = 0.0
+        else:
+            consistency = sum(1 for delta in moving if delta * signed >= 0.0) / len(
+                moving
+            )
+        net_revolutions.append(abs(unwrapped[-1] - unwrapped[0]) / 360.0)
+        direction_consistency.append(consistency)
+
+    return {
+        "axis_center_net_abs_revolutions_mean": _mean(net_revolutions),
+        "axis_center_net_abs_revolutions_min": (
+            min(net_revolutions) if net_revolutions else ""
+        ),
+        "axis_center_net_abs_revolutions_max": (
+            max(net_revolutions) if net_revolutions else ""
+        ),
+        "axis_center_direction_consistency_mean": _mean(direction_consistency),
+        "axis_center_direction_consistency_min": (
+            min(direction_consistency) if direction_consistency else ""
+        ),
+    }
 
 
 def _parse_bool(value: str | bool | None) -> bool:
@@ -283,6 +360,13 @@ def _parse_float_values(text: str) -> list[float]:
     return values
 
 
+def _parse_text_values(text: str) -> list[str]:
+    values = [item.strip() for item in text.split(",") if item.strip()]
+    if not values:
+        raise argparse.ArgumentTypeError("at least one value is required")
+    return values
+
+
 def _format_scale(value: float) -> str:
     return f"{value:g}".replace(".", "p").replace("-", "m")
 
@@ -353,6 +437,35 @@ def build_conditions(args: argparse.Namespace) -> tuple[Condition, ...]:
             )
         return tuple(conditions)
 
+    if args.mode == "torque-profile-grid":
+        attach_scale = float(args.fixed_attach_first_spring_scale or 1.0)
+        angle_scale = float(args.fixed_body_axis_angle_scale or 1.0)
+        first_second_scale = float(args.fixed_first_second_spring_scale)
+        frame_position_scale = float(args.fixed_attach_frame_position_scale or 1.0)
+        frame_tangent_scale = float(args.fixed_attach_frame_tangent_scale or 1.0)
+        for profile in args.torque_segment_weight_profiles:
+            condition_id = (
+                f"profile_{profile}"
+                f"_fp{_format_scale(frame_position_scale)}"
+                f"_ft{_format_scale(frame_tangent_scale)}"
+            )
+            conditions.append(
+                Condition(
+                    condition_id=condition_id,
+                    mode=args.mode,
+                    description="torque segment weight profile comparison",
+                    scales={
+                        "local_attach_first_spring_scale": attach_scale,
+                        "local_attach_first_body_axis_angle_scale": angle_scale,
+                        "local_first_second_spring_scale": first_second_scale,
+                        "local_attach_frame_position_scale": frame_position_scale,
+                        "local_attach_frame_tangent_scale": frame_tangent_scale,
+                        "torque_segment_weight_profile": str(profile),
+                    },
+                )
+            )
+        return tuple(conditions)
+
     if args.mode == "attach-frame-grid":
         attach_scale = float(args.fixed_attach_first_spring_scale or 1.0)
         angle_scale = float(args.fixed_body_axis_angle_scale or 1.0)
@@ -416,6 +529,7 @@ def _summary_row(
     last: dict[str, str],
     rows: list[dict[str, str]],
     helix_summary: dict[str, bool | int | float | str],
+    axis_center_summary: dict[str, float | str] | None = None,
 ) -> dict[str, str | float]:
     first_fail = _first_fail_row(rows)
     max_hook = _max_hook_row(rows)
@@ -429,6 +543,7 @@ def _summary_row(
         "dt_star": cfg.dt_star,
         "torque_Nm": cfg.motor_torque_Nm,
         "n_flagella": cfg.flagella.n_flagella,
+        "torque_segment_weight_profile": cfg.motor.torque_segment_weight_profile,
         "local_attach_first_spring_scale": cfg.motor.local_attach_first_spring_scale,
         "local_attach_first_body_axis_angle_scale": (
             cfg.motor.local_attach_first_body_axis_angle_scale
@@ -596,11 +711,15 @@ def _summary_row(
         PROXIMAL_FLAG_BOND_REL_ERR_FIELDS,
         prefix="max_",
     )
+    if axis_center_summary is None:
+        axis_center_summary = {}
     for field in SUMMARY_FIELDS:
         if field in row:
             continue
         source_key = field.removeprefix("final_")
-        row[field] = helix_summary.get(field, last.get(source_key, last.get(field, "")))
+        row[field] = axis_center_summary.get(
+            field, helix_summary.get(field, last.get(source_key, last.get(field, "")))
+        )
     row["flag_bond_rel_err_max_local_bead_i"] = _flag_bond_local_bead_index(
         cfg, last, "flag_bond_rel_err_max_bead_i"
     )
@@ -629,6 +748,9 @@ def _run_condition(
     )
     step_summary_path = condition_dir / "step_summary.csv"
     rows = _read_step_rows(step_summary_path)
+    axis_center_summary = _axis_center_phase_summary(
+        _read_step_rows(condition_dir / "flag_helix_axis_diagnostics.csv")
+    )
     helix_summary = summarize_single_flagellum_helix_retention(
         rows,
         min_steps=min(50, max(len(rows) - 1, 1)),
@@ -637,7 +759,9 @@ def _run_condition(
     if not rows:
         raise RuntimeError(f"No rows found in {step_summary_path}")
     last = rows[-1]
-    return _summary_row(cfg, condition, condition_dir, last, rows, helix_summary)
+    return _summary_row(
+        cfg, condition, condition_dir, last, rows, helix_summary, axis_center_summary
+    )
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -649,6 +773,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "body-first-grid",
             "first-second-grid",
             "attach-frame-grid",
+            "torque-profile-grid",
         ),
         default="preset",
         help="Condition generation mode.",
@@ -690,6 +815,15 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=_parse_float_values,
         default=_parse_float_values("1,1.25,1.5,2"),
         help="Comma-separated tangent scale values for --mode attach-frame-grid.",
+    )
+    parser.add_argument(
+        "--torque-segment-weight-profiles",
+        type=_parse_text_values,
+        default=_parse_text_values(
+            "local_twist_activity,activity_sqrt,"
+            "activity_floor_0p2,activity_floor_0p4,uniform"
+        ),
+        help="Comma-separated profile values for --mode torque-profile-grid.",
     )
     parser.add_argument("--fixed-attach-first-spring-scale", type=float, default=None)
     parser.add_argument("--fixed-body-axis-angle-scale", type=float, default=None)

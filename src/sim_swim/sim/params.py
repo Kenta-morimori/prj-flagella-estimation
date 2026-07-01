@@ -23,6 +23,16 @@ MOTOR_FORCE_DISTRIBUTION_ALIASES = {
     "material_twist_local_couple": "root_torque_segment_couples",
     "distributed_flagellum": "root_torque_axis_projection",
 }
+MOTOR_TORQUE_SEGMENT_WEIGHT_PROFILE_DEFAULT = "local_twist_activity"
+MOTOR_TORQUE_SEGMENT_WEIGHT_PROFILES = frozenset(
+    {
+        "activity_floor_0p2",
+        "activity_floor_0p4",
+        "activity_sqrt",
+        "local_twist_activity",
+        "uniform",
+    }
+)
 MOTOR_LOCAL_SCALE_KEYS = (
     "local_hook_scale",
     "local_spring_scale",
@@ -80,6 +90,19 @@ def normalize_motor_force_distribution(value: Any) -> str:
             f"Deprecated aliases accepted: {aliases}."
         )
     return mode
+
+
+def normalize_motor_torque_segment_weight_profile(value: Any) -> str:
+    """Validate root_torque_segment_couples segment torque weighting mode."""
+
+    profile = str(value)
+    if profile not in MOTOR_TORQUE_SEGMENT_WEIGHT_PROFILES:
+        supported = ", ".join(sorted(MOTOR_TORQUE_SEGMENT_WEIGHT_PROFILES))
+        raise ValueError(
+            "Unsupported motor.torque_segment_weight_profile: "
+            f"{profile!r}. Use one of: {supported}."
+        )
+    return profile
 
 
 class DynamicsMode(Enum):
@@ -245,6 +268,7 @@ class MotorParams:
 
     torque_Nm: float = 4.0e-18
     force_distribution: str = MOTOR_FORCE_DISTRIBUTION_DEFAULT
+    torque_segment_weight_profile: str = MOTOR_TORQUE_SEGMENT_WEIGHT_PROFILE_DEFAULT
     reverse_n_flagella: int = 1
     enable_switching: bool = False
     torque_ramp_enabled: bool = False
@@ -756,6 +780,13 @@ class SimulationConfig:
                     motor_raw,
                     "force_distribution",
                     MOTOR_FORCE_DISTRIBUTION_DEFAULT,
+                )
+            ),
+            torque_segment_weight_profile=normalize_motor_torque_segment_weight_profile(
+                _get(
+                    motor_raw,
+                    "torque_segment_weight_profile",
+                    MOTOR_TORQUE_SEGMENT_WEIGHT_PROFILE_DEFAULT,
                 )
             ),
             reverse_n_flagella=int(_get(motor_raw, "reverse_n_flagella", 1)),

@@ -615,10 +615,21 @@ class DynamicsEngine:
             orientation[0] += drive_rate * dt_s
 
             activity = np.abs(orientation)
-            if float(np.max(activity)) <= 1e-12:
+            profile = self.cfg.motor.torque_segment_weight_profile
+            if profile == "uniform":
+                weights.append(np.ones_like(orientation))
+            elif float(np.max(activity)) <= 1e-12:
                 weights.append(np.ones_like(orientation))
             else:
-                weights.append(activity / max(float(np.max(activity)), 1e-12))
+                normalized = activity / max(float(np.max(activity)), 1e-12)
+                if profile == "activity_sqrt":
+                    weights.append(np.sqrt(normalized))
+                elif profile == "activity_floor_0p2":
+                    weights.append(0.2 + 0.8 * normalized)
+                elif profile == "activity_floor_0p4":
+                    weights.append(0.4 + 0.6 * normalized)
+                else:
+                    weights.append(normalized)
 
             if f_id == 0:
                 local_twist = (

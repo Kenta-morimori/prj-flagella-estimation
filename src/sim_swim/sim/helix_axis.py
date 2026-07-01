@@ -38,6 +38,19 @@ class HelixAxisAlignmentMetrics:
     alignment_order: float
 
 
+@dataclass(frozen=True)
+class HelixAxisCenteredMetrics:
+    """Metrics for helix shape around its estimated center axis."""
+
+    phase_deg: float
+    fit_r2: float
+    radius_mean_m: float
+    radius_std_m: float
+    radius_cv: float
+    root_offset_m: float
+    degenerate: bool
+
+
 def _degenerate_helix_axis_estimate(flag_id: int) -> HelixAxisEstimate:
     nan_vec = np.full(3, float("nan"), dtype=float)
     return HelixAxisEstimate(
@@ -47,6 +60,18 @@ def _degenerate_helix_axis_estimate(flag_id: int) -> HelixAxisEstimate:
         line_start=nan_vec.copy(),
         line_end=nan_vec.copy(),
         fit_r2=float("nan"),
+        degenerate=True,
+    )
+
+
+def _degenerate_centered_metrics() -> HelixAxisCenteredMetrics:
+    return HelixAxisCenteredMetrics(
+        phase_deg=float("nan"),
+        fit_r2=float("nan"),
+        radius_mean_m=float("nan"),
+        radius_std_m=float("nan"),
+        radius_cv=float("nan"),
+        root_offset_m=float("nan"),
         degenerate=True,
     )
 
@@ -145,6 +170,87 @@ def angle_deg_between(a: np.ndarray, b: np.ndarray) -> float:
         return float("nan")
     cos_angle = float(np.clip(np.dot(a, b) / (norm_a * norm_b), -1.0, 1.0))
     return float(np.rad2deg(np.arccos(cos_angle)))
+
+
+def helix_axis_centered_metrics(
+    positions: np.ndarray,
+    flag_indices: np.ndarray,
+    estimate: HelixAxisEstimate,
+    reference_direction: np.ndarray,
+) -> HelixAxisCenteredMetrics:
+    """Measure how cleanly helix beads wrap around the estimated center axis."""
+
+    idx = np.asarray(flag_indices, dtype=int)
+    helix_idx = idx[1:]
+    if helix_idx.size < 3 or estimate.degenerate:
+        return _degenerate_centered_metrics()
+
+    pts = positions[helix_idx]
+    axis = np.asarray(estimate.axis, dtype=float)
+    origin = np.asarray(estimate.origin, dtype=float)
+    ref = np.asarray(reference_direction, dtype=float)
+    if (
+        not np.isfinite(pts).all()
+        or not np.isfinite(axis).all()
+        or not np.isfinite(origin).all()
+        or not np.isfinite(ref).all()
+    ):
+        return _degenerate_centered_metrics()
+
+    axis_norm = float(np.linalg.norm(axis))
+    if axis_norm <= 1.0e-18:
+        return _degenerate_centered_metrics()
+    axis = axis / axis_norm
+
+    e1 = ref - float(np.dot(ref, axis)) * axis
+    if float(np.linalg.norm(e1)) <= 1.0e-18:
+        rel0 = pts[0] - origin
+        e1 = rel0 - float(np.dot(rel0, axis)) * axis
+    if float(np.linalg.norm(e1)) <= 1.0e-18:
+        fallback = np.array([1.0, 0.0, 0.0], dtype=float)
+        if abs(float(np.dot(fallback, axis))) > 0.9:
+            fallback = np.array([0.0, 1.0, 0.0], dtype=float)
+        e1 = fallback - float(np.dot(fallback, axis)) * axis
+    e1_norm = float(np.linalg.norm(e1))
+    if e1_norm <= 1.0e-18:
+        return _degenerate_centered_metrics()
+    e1 = e1 / e1_norm
+    e2 = np.cross(axis, e1)
+    e2 = e2 / max(float(np.linalg.norm(e2)), 1.0e-18)
+
+    rel = pts - origin
+    axial = rel @ axis
+    radial = rel - np.outer(axial, axis)
+    radius = np.linalg.norm(radial, axis=1)
+    radius_mean = float(np.mean(radius))
+    radius_std = float(np.std(radius))
+    radius_cv = radius_std / max(radius_mean, 1.0e-18)
+
+    u = radial @ e1
+    v = radial @ e2
+    theta = np.unwrap(np.arctan2(v, u))
+    if theta.size < 3 or not np.isfinite(theta).all():
+        return _degenerate_centered_metrics()
+    slope, intercept = np.polyfit(axial, theta, 1)
+    pred = slope * axial + intercept
+    ss_res = float(np.sum((theta - pred) ** 2))
+    ss_tot = float(np.sum((theta - float(np.mean(theta))) ** 2))
+    fit_r2 = 1.0 - ss_res / max(ss_tot, 1.0e-30)
+
+    root = positions[int(idx[0])]
+    root_rel = root - origin
+    root_radial = root_rel - float(np.dot(root_rel, axis)) * axis
+    root_offset = float(np.linalg.norm(root_radial))
+
+    return HelixAxisCenteredMetrics(
+        phase_deg=float(np.rad2deg(intercept)),
+        fit_r2=float(fit_r2),
+        radius_mean_m=radius_mean,
+        radius_std_m=radius_std,
+        radius_cv=float(radius_cv),
+        root_offset_m=root_offset,
+        degenerate=False,
+    )
 
 
 def helix_axis_alignment_metrics(axes: list[np.ndarray]) -> HelixAxisAlignmentMetrics:
