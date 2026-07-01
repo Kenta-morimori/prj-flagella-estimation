@@ -778,6 +778,45 @@
   - `docs/codex-runs/20260629_193414_phase2_94_svd_guard/review_result.json`
   - `docs/codex-runs/20260630_134216_phase2_94_pr95_issue97_handoff/review_result.json`
 
+### P2-8-097: torque分散方法見直しの初期診断と比較導線を作る
+
+- status: in_progress
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/97`
+- branch: `feature/phase2-97-torque-distribution-review`
+- goal: #94/#95 で残った後方軸整列低下と螺旋軸中心回転の未評価に対し，現行 `root_torque_segment_couples` を保ったまま診断指標と torque segment weight 比較導線を追加する。
+- implementation notes:
+  - Issue #97 の description を #94/#95 の結果に基づいて完成した。
+  - `helix_axis_centered_metrics` を追加し，推定された螺旋中心軸まわりの `phase`, `fit_r2`, 半径平均，半径CV，root offset を計算できるようにした。
+  - `step_summary.csv` に `flag_helix_axis_center_radius_mean_um`, `flag_helix_axis_center_radius_cv_mean/max`, `flag_helix_axis_center_spin_fit_r2_min`, `flag_helix_axis_center_root_offset_um_mean/max` を追加した。
+  - `flag_helix_axis_diagnostics.csv` に per-flag の `axis_center_spin_phase_deg`, `axis_center_spin_fit_r2`, `axis_center_radius_*`, `axis_center_root_offset_um` を追加した。
+  - `motor.torque_segment_weight_profile` を追加した。default は現行挙動の `local_twist_activity` とし，比較候補として `uniform` を指定できる。
+  - `hook_overstretch` sweep に `mode=torque-profile-grid` を追加し，`fp/ft/fs` を固定したまま `local_twist_activity` と `uniform` を同じ `summary.csv` で比較できるようにした。
+- result:
+  - 0.001 s smoke `outputs=/private/tmp/phase2_issue97_torque_profile_smoke` では `profile_local_twist_activity_fp3_ft1p5` と `profile_uniform_fp3_ft1p5` の両方が `final_shape_pass_nonbody=True` だった。
+  - smoke summary では `flag_helix_axis_center_radius_cv_mean` と `flag_helix_axis_center_spin_fit_r2_min` が両 profile で出力された。
+  - 0.6 s 後方条件の本評価，代表動画生成，定性レビューは未実施であり，#97 の次タスクとして残す。
+- acceptance criteria:
+  - [x] Issue #97 の背景・段階タスク・受け入れ条件が GitHub Issue 本文に記録される。
+  - [x] 螺旋軸中心性を評価する診断列を `step_summary.csv` と `flag_helix_axis_diagnostics.csv` に出せる。
+  - [x] `root_torque_segment_couples` の segment weight を default維持のまま `uniform` と比較できる。
+  - [x] `hook_overstretch` sweep summary に torque weight profile と新しい軸中心指標を集約できる。
+  - [ ] 0.6 s 後方条件で `local_twist_activity` と `uniform` を比較し，採用・不採用を判断する。
+  - [ ] 採用候補が出た場合は必要な代表動画を生成し，ユーザー目視レビューを受ける。
+- verification:
+  - `uv run pytest tests/test_phase2_82_hook_overstretch_sweep.py tests/test_helix_axis.py tests/test_simulation.py::test_root_torque_segment_couples_uniform_weight_profile_runs tests/test_simulation.py::test_run_writes_step_summary_csv_without_projection_columns tests/test_params.py -q`
+  - `uv run ruff check src/sim_swim/sim/helix_axis.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/params.py src/sim_swim/dynamics/engine.py src/sim_swim/analysis/sweeps/hook_overstretch.py tests/test_helix_axis.py tests/test_simulation.py tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py`
+  - `uv run ruff format --check src/sim_swim/sim/helix_axis.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/params.py src/sim_swim/dynamics/engine.py src/sim_swim/analysis/sweeps/hook_overstretch.py tests/test_helix_axis.py tests/test_simulation.py tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py`
+  - `uv run python -c "import yaml; yaml.safe_load(open('conf/sim_swim.yaml', encoding='utf-8'))"`
+  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_segment_weight_profiles=local_twist_activity,uniform dry_run=true`
+  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.001 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_segment_weight_profiles=local_twist_activity,uniform output_dir=/private/tmp/phase2_issue97_torque_profile_smoke overwrite=true progress_interval=10000`
+- user-run command:
+  - 0.6 s 本評価候補:
+    `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.6 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_segment_weight_profiles=local_twist_activity,uniform output_dir=outputs/phase2_97/torque_profile_fp3_ft1p5_torque2p0_dur0p6 overwrite=true progress_interval=5000`
+- docs:
+  - `docs/phase2/phase2_current.md`
+  - `docs/phase2/phase2_tasks.md`
+  - `docs/codex-runs/20260701_103418_phase2_97_torque_distribution_review/review_result.json`
+
 ### P2-8-DTSTAR: Phase 2標準dt_starと実行コマンドを整理する
 
 - status: complete

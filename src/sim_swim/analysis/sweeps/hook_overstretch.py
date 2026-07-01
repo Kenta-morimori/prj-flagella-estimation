@@ -34,6 +34,7 @@ SUMMARY_FIELDS = (
     "duration_s",
     "dt_star",
     "torque_Nm",
+    "torque_segment_weight_profile",
     "n_flagella",
     "local_attach_first_spring_scale",
     "local_attach_first_body_axis_angle_scale",
@@ -110,6 +111,12 @@ SUMMARY_FIELDS = (
     "flag_torsion_err_max_deg",
     "net_abs_flag_helix_spin_revolutions",
     "flag_helix_spin_direction_consistency",
+    "flag_helix_axis_center_radius_mean_um",
+    "flag_helix_axis_center_radius_cv_mean",
+    "flag_helix_axis_center_radius_cv_max",
+    "flag_helix_axis_center_spin_fit_r2_min",
+    "flag_helix_axis_center_root_offset_um_mean",
+    "flag_helix_axis_center_root_offset_um_max",
 )
 
 
@@ -118,7 +125,7 @@ class Condition:
     condition_id: str
     mode: str
     description: str
-    scales: dict[str, float]
+    scales: dict[str, float | str]
 
 
 CONDITIONS = (
@@ -283,6 +290,13 @@ def _parse_float_values(text: str) -> list[float]:
     return values
 
 
+def _parse_text_values(text: str) -> list[str]:
+    values = [item.strip() for item in text.split(",") if item.strip()]
+    if not values:
+        raise argparse.ArgumentTypeError("at least one value is required")
+    return values
+
+
 def _format_scale(value: float) -> str:
     return f"{value:g}".replace(".", "p").replace("-", "m")
 
@@ -349,6 +363,35 @@ def build_conditions(args: argparse.Namespace) -> tuple[Condition, ...]:
                     mode=args.mode,
                     description="first-second distance grid after body-first fix",
                     scales=scales,
+                )
+            )
+        return tuple(conditions)
+
+    if args.mode == "torque-profile-grid":
+        attach_scale = float(args.fixed_attach_first_spring_scale or 1.0)
+        angle_scale = float(args.fixed_body_axis_angle_scale or 1.0)
+        first_second_scale = float(args.fixed_first_second_spring_scale)
+        frame_position_scale = float(args.fixed_attach_frame_position_scale or 1.0)
+        frame_tangent_scale = float(args.fixed_attach_frame_tangent_scale or 1.0)
+        for profile in args.torque_segment_weight_profiles:
+            condition_id = (
+                f"profile_{profile}"
+                f"_fp{_format_scale(frame_position_scale)}"
+                f"_ft{_format_scale(frame_tangent_scale)}"
+            )
+            conditions.append(
+                Condition(
+                    condition_id=condition_id,
+                    mode=args.mode,
+                    description="torque segment weight profile comparison",
+                    scales={
+                        "local_attach_first_spring_scale": attach_scale,
+                        "local_attach_first_body_axis_angle_scale": angle_scale,
+                        "local_first_second_spring_scale": first_second_scale,
+                        "local_attach_frame_position_scale": frame_position_scale,
+                        "local_attach_frame_tangent_scale": frame_tangent_scale,
+                        "torque_segment_weight_profile": str(profile),
+                    },
                 )
             )
         return tuple(conditions)
@@ -429,6 +472,7 @@ def _summary_row(
         "dt_star": cfg.dt_star,
         "torque_Nm": cfg.motor_torque_Nm,
         "n_flagella": cfg.flagella.n_flagella,
+        "torque_segment_weight_profile": cfg.motor.torque_segment_weight_profile,
         "local_attach_first_spring_scale": cfg.motor.local_attach_first_spring_scale,
         "local_attach_first_body_axis_angle_scale": (
             cfg.motor.local_attach_first_body_axis_angle_scale
@@ -649,6 +693,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "body-first-grid",
             "first-second-grid",
             "attach-frame-grid",
+            "torque-profile-grid",
         ),
         default="preset",
         help="Condition generation mode.",
@@ -690,6 +735,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=_parse_float_values,
         default=_parse_float_values("1,1.25,1.5,2"),
         help="Comma-separated tangent scale values for --mode attach-frame-grid.",
+    )
+    parser.add_argument(
+        "--torque-segment-weight-profiles",
+        type=_parse_text_values,
+        default=_parse_text_values("local_twist_activity,uniform"),
+        help="Comma-separated profile values for --mode torque-profile-grid.",
     )
     parser.add_argument("--fixed-attach-first-spring-scale", type=float, default=None)
     parser.add_argument("--fixed-body-axis-angle-scale", type=float, default=None)

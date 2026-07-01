@@ -615,7 +615,10 @@ class DynamicsEngine:
             orientation[0] += drive_rate * dt_s
 
             activity = np.abs(orientation)
-            if float(np.max(activity)) <= 1e-12:
+            profile = self.cfg.motor.torque_segment_weight_profile
+            if profile == "uniform":
+                weights.append(np.ones_like(orientation))
+            elif float(np.max(activity)) <= 1e-12:
                 weights.append(np.ones_like(orientation))
             else:
                 weights.append(activity / max(float(np.max(activity)), 1e-12))

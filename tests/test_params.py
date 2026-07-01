@@ -41,6 +41,35 @@ def test_default_motor_force_distribution_is_root_torque_segment_couples() -> No
     assert sim_cfg.motor.force_distribution == "root_torque_segment_couples"
 
 
+def test_default_motor_torque_segment_weight_profile_is_local_twist_activity() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor.torque_segment_weight_profile == "local_twist_activity"
+
+
+def test_motor_torque_segment_weight_profile_accepts_uniform() -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["torque_segment_weight_profile"] = "uniform"
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor.torque_segment_weight_profile == "uniform"
+
+
+def test_motor_torque_segment_weight_profile_rejects_unknown_value() -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["torque_segment_weight_profile"] = "root_only"
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    with pytest.raises(
+        ValueError,
+        match="Unsupported motor.torque_segment_weight_profile",
+    ):
+        SimulationConfig.from_dict(cfg)
+
+
 @pytest.mark.parametrize(
     ("alias", "expected"),
     [
