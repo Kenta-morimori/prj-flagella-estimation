@@ -54,9 +54,9 @@
   "adr_required": false,
   "adr_reason": "今回は default 物理モデルを変更せず，診断列と比較用 profile を追加した段階であるため。`uniform` などを標準候補へ昇格する場合や物理モデル解釈を変更する場合は ADR を検討する。",
   "commit_type": "diagnostic",
-  "commit_hash": "",
-  "push_status": "not_pushed",
-  "pull_request_url": "",
+  "commit_hash": "16cd910ff06ccc5e4ea00147a0847672032edc4a",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/99",
   "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/97",
   "next_actions": [
     "0.6 s 後方条件で `torque-profile-grid` を実行し，`local_twist_activity` と `uniform` を比較する。",
