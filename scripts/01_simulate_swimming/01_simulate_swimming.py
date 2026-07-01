@@ -82,6 +82,8 @@ def main(
 ) -> None:
     """Phase2 用のシミュレーション＆投影エントリ。"""
 
+    if _is_typer_default(config):
+        config = Path(getattr(config, "default", "conf/sim_swim.yaml"))
     if _is_typer_default(overrides):
         overrides = []
     if _is_typer_default(duration_s):
