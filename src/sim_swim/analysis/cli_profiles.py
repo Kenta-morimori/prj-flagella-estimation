@@ -82,6 +82,8 @@ def split_config_key(argv: list[str]) -> tuple[Path | None, list[str]]:
     out: list[str] = []
     for raw in argv:
         if raw.startswith("config="):
+            if config_path is not None:
+                raise ValueError("config= specified multiple times")
             value = raw.split("=", 1)[1].strip()
             if not value:
                 raise ValueError("config= requires a path")
