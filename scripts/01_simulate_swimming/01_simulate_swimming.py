@@ -33,6 +33,23 @@ def _is_typer_default(value: Any) -> bool:
     return isinstance(value, (typer.models.OptionInfo, typer.models.ArgumentInfo))
 
 
+def _split_config_override(
+    config: Path,
+    overrides: Optional[List[str]],
+) -> tuple[Path, List[str]]:
+    remaining: List[str] = []
+    selected_config = config
+    for raw in overrides or []:
+        if raw.startswith("config="):
+            value = raw.split("=", 1)[1].strip()
+            if not value:
+                raise ValueError("config= requires a path")
+            selected_config = Path(value)
+            continue
+        remaining.append(raw)
+    return selected_config, remaining
+
+
 @app.command()
 def main(
     config: Path = typer.Option(Path("conf/sim_swim.yaml"), "--config", "-c"),
@@ -65,7 +82,6 @@ def main(
 ) -> None:
     """Phase2 用のシミュレーション＆投影エントリ。"""
 
-    raw_cfg = _load_config(config)
     if _is_typer_default(overrides):
         overrides = []
     if _is_typer_default(duration_s):
@@ -77,6 +93,8 @@ def main(
     if _is_typer_default(render_flagella_2d):
         render_flagella_2d = None
 
+    config, overrides = _split_config_override(config, overrides)
+    raw_cfg = _load_config(config)
     cli_overrides = list(overrides or [])
     shorthand_overrides: List[str] = []
     override_dict = _to_nested_overrides(overrides)

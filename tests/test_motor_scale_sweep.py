@@ -1,42 +1,21 @@
 from __future__ import annotations
 
 import csv
-import importlib.util
-import sys
 from pathlib import Path
 
 import pytest
 
-
-def _load_sweep_script():
-    script_path = (
-        Path(__file__).resolve().parents[1]
-        / "scripts"
-        / "01_simulate_swimming"
-        / "run_motor_scale_sweep.py"
-    )
-    spec = importlib.util.spec_from_file_location(
-        "motor_scale_sweep_script", script_path
-    )
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+from sim_swim.analysis.sweeps import motor_scale
 
 
 def test_phase24_local_hook_scale_sweep_reproduces_hook_gate(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path,
 ) -> None:
     """P2-4-003: standard local_hook_scale sweep keeps hook first-fail traceable."""
-    sweep_script = _load_sweep_script()
     out_dir = tmp_path / "phase24_hook_sweep"
 
-    monkeypatch.setattr(
-        sys,
-        "argv",
+    motor_scale.main(
         [
-            "run_motor_scale_sweep",
             "--target",
             "local_hook_scale",
             "--values",
@@ -52,9 +31,7 @@ def test_phase24_local_hook_scale_sweep_reproduces_hook_gate(
         ],
     )
 
-    sweep_script.main()
-
-    summary_csv = out_dir / "local_hook_scale_sweep_summary.csv"
+    summary_csv = out_dir / "summary.csv"
     assert summary_csv.is_file()
     with summary_csv.open("r", encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
@@ -97,38 +74,27 @@ def test_phase24_local_hook_scale_sweep_reproduces_hook_gate(
         assert row["body_spring_max_stretch_ratio"] != ""
 
 
-def test_body_stiffness_scale_must_be_positive(tmp_path: Path, monkeypatch) -> None:
+def test_body_stiffness_scale_must_be_positive(tmp_path: Path) -> None:
     """body stiffness override は無効値を argparse error として早期拒否する。"""
-    sweep_script = _load_sweep_script()
-
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "run_motor_scale_sweep",
-            "--body-stiffness-scale",
-            "0",
-            "--output-dir",
-            str(tmp_path / "invalid_body_stiffness"),
-        ],
-    )
-
     with pytest.raises(SystemExit) as excinfo:
-        sweep_script.main()
+        motor_scale.main(
+            [
+                "--body-stiffness-scale",
+                "0",
+                "--output-dir",
+                str(tmp_path / "invalid_body_stiffness"),
+            ]
+        )
 
     assert excinfo.value.code == 2
 
 
-def test_stub_mode_full_flagella_summary_columns(tmp_path: Path, monkeypatch) -> None:
+def test_stub_mode_full_flagella_summary_columns(tmp_path: Path) -> None:
     """P2-5-004: sweep helper can run the full_flagella single-flagellum baseline."""
-    sweep_script = _load_sweep_script()
     out_dir = tmp_path / "phase25_full_flagella_sweep"
 
-    monkeypatch.setattr(
-        sys,
-        "argv",
+    motor_scale.main(
         [
-            "run_motor_scale_sweep",
             "--target",
             "local_hook_scale",
             "--values",
@@ -144,9 +110,7 @@ def test_stub_mode_full_flagella_summary_columns(tmp_path: Path, monkeypatch) ->
         ],
     )
 
-    sweep_script.main()
-
-    summary_csv = out_dir / "local_hook_scale_sweep_summary.csv"
+    summary_csv = out_dir / "summary.csv"
     with summary_csv.open("r", encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
 

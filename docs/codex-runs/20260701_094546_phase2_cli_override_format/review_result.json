@@ -1,0 +1,50 @@
+{
+  "status": "PASS",
+  "summary": "Phase 2 の単発 simulation / sweep / heatmap CLI で KEY=VALUE 指定を第一表記として使えるようにし，README と運用メモを更新した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_phase2_sweep_profiles.py tests/test_e2e_cli.py -q",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=first-second-grid time.duration_s=0.001 motor.torque_Nm=0 first_second_spring_scales=1 output_dir=/private/tmp/phase2_cli_override_smoke dry_run=true sample_limit=1",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/plot_heatmap.py config=conf/phase2_sweeps/hook_overstretch_heatmap.yaml summary_csv=/private/tmp/phase2_cli_override_heatmap_summary.csv mode=first-second-grid output_dir=/private/tmp/phase2_cli_override_heatmap_plots",
+      "result": "PASS",
+      "outputs": [
+        "/private/tmp/phase2_cli_override_heatmap_plots/heatmap_data.csv"
+      ]
+    },
+    {
+      "command": "uv run pytest tests/test_phase2_sweep_profiles.py tests/test_e2e_cli.py tests/test_phase2_82_hook_overstretch_heatmap.py -q",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/01_simulate_swimming.py --help",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check scripts/01_simulate_swimming/01_simulate_swimming.py scripts/01_simulate_swimming/run_sweep.py scripts/01_simulate_swimming/plot_heatmap.py src/sim_swim/analysis/cli_profiles.py tests/test_phase2_sweep_profiles.py tests/test_e2e_cli.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff check scripts/01_simulate_swimming/01_simulate_swimming.py scripts/01_simulate_swimming/run_sweep.py scripts/01_simulate_swimming/plot_heatmap.py src/sim_swim/analysis/cli_profiles.py tests/test_phase2_sweep_profiles.py tests/test_e2e_cli.py",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "CLI指定形式と互換aliasの整理であり，物理モデル，数値解釈，下流MLデータ生成方針を変える意思決定ではないため。",
+  "commit_type": "complete",
+  "commit_hash": "",
+  "push_status": "",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/91",
+  "next_actions": []
+}

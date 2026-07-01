@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
+import yaml
 
 from sim_swim.sim.params import SimulationConfig
 
@@ -88,12 +91,31 @@ def test_default_motor_local_scales_are_paper_aligned_one() -> None:
 
     assert sim_cfg.motor.local_hook_scale == pytest.approx(1.0)
     assert sim_cfg.motor.local_spring_scale == pytest.approx(1.0)
+    assert sim_cfg.motor.local_attach_first_spring_scale == pytest.approx(1.0)
+    assert sim_cfg.motor.local_attach_first_body_axis_angle_scale == pytest.approx(1.0)
+    assert sim_cfg.motor.local_first_second_spring_scale == pytest.approx(1.0)
+    assert sim_cfg.motor.local_attach_frame_position_scale == pytest.approx(1.0)
+    assert sim_cfg.motor.local_attach_frame_tangent_scale == pytest.approx(1.0)
     assert sim_cfg.motor.local_bend_scale == pytest.approx(1.0)
     assert sim_cfg.motor.local_torsion_scale == pytest.approx(1.0)
     assert sim_cfg.motor_local_scale_deviations() == {}
 
 
-def test_validate_time_scaling_is_always_fixed_to_paper_dt_star() -> None:
+def test_default_config_sets_phase2_dt_star() -> None:
+    cfg_path = Path(__file__).resolve().parents[1] / "conf" / "sim_swim.yaml"
+    raw_cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
+    sim_cfg = SimulationConfig.from_dict(raw_cfg)
+
+    assert sim_cfg.time.dt_s == pytest.approx(1.0e-3)
+    assert sim_cfg.time.dt_star == pytest.approx(1.0e-4)
+    assert sim_cfg.tau_s == pytest.approx(1.0)
+    assert sim_cfg.dt_s == pytest.approx(1.0e-4)
+    assert sim_cfg.dt_star == pytest.approx(1.0e-4)
+    assert sim_cfg.output_dt_s == pytest.approx(1.0e-3)
+    assert sim_cfg.output_sampling.out_all_steps_3d is False
+
+
+def test_null_dt_star_uses_output_dt_s_as_internal_dt() -> None:
     cfg = _base_cfg()
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-7}
     sim_cfg = SimulationConfig.from_dict(cfg)
@@ -263,6 +285,11 @@ def test_motor_local_scales_can_be_configured() -> None:
     cfg = _base_cfg()
     cfg["motor"]["local_hook_scale"] = 1.5
     cfg["motor"]["local_spring_scale"] = 1.25
+    cfg["motor"]["local_attach_first_spring_scale"] = 1.4
+    cfg["motor"]["local_attach_first_body_axis_angle_scale"] = 2.0
+    cfg["motor"]["local_first_second_spring_scale"] = 1.75
+    cfg["motor"]["local_attach_frame_position_scale"] = 1.6
+    cfg["motor"]["local_attach_frame_tangent_scale"] = 1.3
     cfg["motor"]["local_bend_scale"] = 0.75
     cfg["motor"]["local_torsion_scale"] = 0.5
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
@@ -270,17 +297,32 @@ def test_motor_local_scales_can_be_configured() -> None:
 
     assert sim_cfg.motor.local_hook_scale == pytest.approx(1.5)
     assert sim_cfg.motor.local_spring_scale == pytest.approx(1.25)
+    assert sim_cfg.motor.local_attach_first_spring_scale == pytest.approx(1.4)
+    assert sim_cfg.motor.local_attach_first_body_axis_angle_scale == pytest.approx(2.0)
+    assert sim_cfg.motor.local_first_second_spring_scale == pytest.approx(1.75)
+    assert sim_cfg.motor.local_attach_frame_position_scale == pytest.approx(1.6)
+    assert sim_cfg.motor.local_attach_frame_tangent_scale == pytest.approx(1.3)
     assert sim_cfg.motor.local_bend_scale == pytest.approx(0.75)
     assert sim_cfg.motor.local_torsion_scale == pytest.approx(0.5)
     deviations = sim_cfg.motor_local_scale_deviations()
     assert set(deviations) == {
         "local_hook_scale",
         "local_spring_scale",
+        "local_attach_first_spring_scale",
+        "local_attach_first_body_axis_angle_scale",
+        "local_first_second_spring_scale",
+        "local_attach_frame_position_scale",
+        "local_attach_frame_tangent_scale",
         "local_bend_scale",
         "local_torsion_scale",
     }
     assert deviations["local_hook_scale"] == pytest.approx(1.5)
     assert deviations["local_spring_scale"] == pytest.approx(1.25)
+    assert deviations["local_attach_first_spring_scale"] == pytest.approx(1.4)
+    assert deviations["local_attach_first_body_axis_angle_scale"] == pytest.approx(2.0)
+    assert deviations["local_first_second_spring_scale"] == pytest.approx(1.75)
+    assert deviations["local_attach_frame_position_scale"] == pytest.approx(1.6)
+    assert deviations["local_attach_frame_tangent_scale"] == pytest.approx(1.3)
     assert deviations["local_bend_scale"] == pytest.approx(0.75)
     assert deviations["local_torsion_scale"] == pytest.approx(0.5)
 
@@ -299,6 +341,16 @@ def test_output_sampling_fps_out_3d_can_be_configured() -> None:
     assert sim_cfg.output_sampling.out_all_steps_3d is False
     assert sim_cfg.output_sampling.fps_out_3d == pytest.approx(12.5)
     assert sim_cfg.output_sampling.fps_out_2d == pytest.approx(25.0)
+
+
+def test_output_sampling_defaults_to_3d_fps_sampling() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.output_sampling.out_all_steps_3d is False
+    assert sim_cfg.output_sampling.fps_out_3d == pytest.approx(25.0)
 
 
 def test_output_sampling_accepts_fps_3d_out_alias() -> None:

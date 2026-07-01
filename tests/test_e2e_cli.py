@@ -98,11 +98,11 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
     cfg_path.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
 
     mod.main(
-        config=cfg_path,
+        config=tmp_path / "ignored.yaml",
         duration_s=5.0e-5,
         fps_out=25.0,
         render_flagella=True,
-        overrides=[],
+        overrides=[f"config={cfg_path}"],
     )
 
     run_logs = list((tmp_path / "outputs").rglob("run.log"))

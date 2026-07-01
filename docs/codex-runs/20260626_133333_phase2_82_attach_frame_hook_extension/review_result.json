@@ -1,0 +1,63 @@
+{
+  "status": "PASS",
+  "summary": "Issue #82 / PR #90 の続きとして，hook過伸長の次候補である body表面局所frame補正を実装した。`local_attach_frame_position_scale` は `attach -> first` 相対位置を，`local_attach_frame_tangent_scale` は `first -> second` 根元接線を attach bead の body局所frameに対して保つ診断用 extension である。どちらも default は `1.0` で，標準挙動は変更しない。`attach-frame-grid` sweep と heatmap 出力，step_summary / sweep summary の frame error 診断列を追加した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "今回の smoke run は n_flagella=1, duration_s=0.02 の列出力確認であり，n_flagella=3, duration_s=0.5 の Stage A/B/C full sweep は未実行である。",
+    "局所frame補正は paper model default ではなく，非defaultの診断用 extension として扱う。代表条件へ昇格するには Stage A/B/C sweep と定性評価が必要である。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_params.py tests/test_motor_forces.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py",
+      "result": "PASS: 63 passed in 4.23s"
+    },
+    {
+      "command": "uv run pytest tests/test_simulation.py -k \"hook_overstretch_scales_are_engine_localized or run_writes_step_summary or phase2_body_hook_static_stability_minimal_stub\"",
+      "result": "PASS: 3 passed, 43 deselected in 0.29s"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/dynamics/engine.py src/sim_swim/dynamics/forces.py src/sim_swim/sim/hook_frame.py src/sim_swim/sim/params.py src/sim_swim/sim/debug_summary.py scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py tests/test_params.py tests/test_motor_forces.py tests/test_simulation.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py",
+      "result": "PASS: All checks passed"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/dynamics/engine.py src/sim_swim/dynamics/forces.py src/sim_swim/sim/hook_frame.py src/sim_swim/sim/params.py src/sim_swim/sim/debug_summary.py scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py tests/test_params.py tests/test_motor_forces.py tests/test_simulation.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py",
+      "result": "PASS: 12 files already formatted"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode attach-frame-grid --dry-run --sample-limit 3",
+      "result": "PASS: af1_axis1_fs1_fp1_ft1, af1_axis1_fs1_fp1_ft1p25, af1_axis1_fs1_fp1_ft1p5 を出力"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode attach-frame-grid --duration-s 0.02 --dt-star 1.0e-4 --torque-nm 2.5e-20 --n-flagella 1 --attach-frame-position-scales 1 --attach-frame-tangent-scales 1 --output-dir outputs/phase2_82/attach_frame_smoke --overwrite --progress-interval 5000",
+      "result": "PASS: outputs/phase2_82/attach_frame_smoke/phase2_82_hook_scale_sweep_summary.csv を生成し，step_summary.csv に frame 診断列が出力された"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/plot_phase2_82_hook_overstretch_heatmap.py --summary-csv outputs/phase2_82/attach_frame_smoke/phase2_82_hook_scale_sweep_summary.csv --mode attach-frame-grid --output-dir outputs/phase2_82/attach_frame_smoke/plots",
+      "result": "PASS: normalized CSV と heatmap PNG を生成"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "uv run python scripts/01_simulate_swimming/01_simulate_swimming.py -- time.duration_s=0.5 time.dt_star=1.0e-4 flagella.n_flagella=3 flagella.placement_mode=seeded_surface flagella.initial_phase_mode=seeded flagella.initial_helix_axis_from_rear_deg=0.0 seed.attach_seed=<best_attach_seed> seed.phase_seed=<best_phase_seed> motor.local_attach_first_spring_scale=<best_af> motor.local_attach_first_body_axis_angle_scale=<best_axis> motor.local_first_second_spring_scale=<best_fs> motor.local_attach_frame_position_scale=<best_frame_position> motor.local_attach_frame_tangent_scale=<best_frame_tangent> render.render_flagella=true render.render_flagella_2d=true render.save_frames_3d=true render.save_frames_2d=true output.base_dir=outputs/phase2_82/qualitative_attach_frame_<condition_id>",
+  "user_review_outputs": [
+    "outputs/phase2_82/qualitative_attach_frame_<condition_id>/"
+  ],
+  "user_review_points": [
+    "hook過伸長が抑えられているか",
+    "body回転が距離制限で不自然に止まっていないか",
+    "べん毛が菌体へ寄りすぎていないか",
+    "helical flagellar shape が保たれているか",
+    "swimming-like propulsion と 2D pseudo-microscopy の自然さ"
+  ],
+  "adr_required": false,
+  "adr_reason": "標準default物理モデルを変更せず，非default時のみ有効な診断用 extension と比較CLIを追加したため。今後，局所frame補正をPhase 2代表defaultへ昇格する場合はADRを作成する。",
+  "commit_type": "complete",
+  "commit_hash": "613c94b4f4a76ab3817559714dd51a5394e6a791",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/90",
+  "next_actions": [
+    "Stage A: af=1, axis=1, fs=1 で attach-frame-grid を n_flagella=3, duration_s=0.5 で実行する。",
+    "Stage B: af=3, axis=1.25, fs=1.25 固定で attach-frame-grid を実行する。",
+    "Stage A/B の最良候補を attach_seed=0..4, phase_seed=0 と attach_seed=0, phase_seed=0..4 で確認する。",
+    "自動指標で有望な候補を選んだ後，ユーザー定性評価を実施する。"
+  ]
+}

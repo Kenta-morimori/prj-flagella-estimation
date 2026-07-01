@@ -37,6 +37,21 @@ def _wrap_angle(rad: float) -> float:
     return (rad + math.pi) % (2.0 * math.pi) - math.pi
 
 
+def _principal_axis_or_none(points: np.ndarray) -> np.ndarray | None:
+    if points.shape[0] < 2 or not np.isfinite(points).all():
+        return None
+    centered = points - np.mean(points, axis=0)
+    try:
+        _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    except np.linalg.LinAlgError:
+        return None
+    axis = vh[0]
+    axis_norm = float(np.linalg.norm(axis))
+    if axis_norm <= 1e-18 or not np.isfinite(axis_norm):
+        return None
+    return axis / axis_norm
+
+
 def compute_spring_forces(
     positions_m: np.ndarray,
     spring_pairs: np.ndarray,
@@ -204,6 +219,96 @@ def compute_hook_forces(
         forces[int(i)] += f_i
         forces[int(j)] += f_j
         forces[int(k)] += f_k
+
+    return forces
+
+
+def compute_attach_first_body_axis_angle_forces(
+    positions_m: np.ndarray,
+    hook_triplets: np.ndarray,
+    attach_first_rest_lengths_m: np.ndarray,
+    body_axis_unit: np.ndarray,
+    k_angle: float,
+) -> np.ndarray:
+    """Keep attach->first approximately perpendicular to the body long axis."""
+
+    forces = np.zeros_like(positions_m)
+    if hook_triplets.size == 0 or k_angle <= 0.0:
+        return forces
+
+    axis_norm = float(np.linalg.norm(body_axis_unit))
+    if axis_norm <= 1e-18:
+        return forces
+    axis = body_axis_unit / axis_norm
+
+    for row, (attach_raw, first_raw, _second_raw) in enumerate(hook_triplets):
+        attach = int(attach_raw)
+        first = int(first_raw)
+        rest_len = (
+            float(attach_first_rest_lengths_m[row])
+            if row < attach_first_rest_lengths_m.shape[0]
+            else 0.0
+        )
+        rest_len = max(rest_len, 1e-18)
+        attach_first = positions_m[first] - positions_m[attach]
+        axial_offset = float(np.dot(attach_first, axis))
+        force = -(k_angle / (rest_len * rest_len)) * axial_offset * axis
+        forces[first] += force
+        forces[attach] -= force
+
+    return forces
+
+
+def compute_attach_frame_target_forces(
+    positions_m: np.ndarray,
+    hook_triplets: np.ndarray,
+    attach_first_target_vectors_m: np.ndarray,
+    first_second_target_vectors_m: np.ndarray,
+    attach_first_rest_lengths_m: np.ndarray,
+    first_second_rest_lengths_m: np.ndarray,
+    k_position: float,
+    k_tangent: float,
+) -> np.ndarray:
+    """Keep basal vectors close to targets expressed in the body attach frame."""
+
+    forces = np.zeros_like(positions_m)
+    if hook_triplets.size == 0 or (k_position <= 0.0 and k_tangent <= 0.0):
+        return forces
+
+    for row, (attach_raw, first_raw, second_raw) in enumerate(
+        hook_triplets.astype(int, copy=False)
+    ):
+        attach = int(attach_raw)
+        first = int(first_raw)
+        second = int(second_raw)
+
+        if k_position > 0.0 and row < int(attach_first_target_vectors_m.shape[0]):
+            rest = (
+                float(attach_first_rest_lengths_m[row])
+                if row < int(attach_first_rest_lengths_m.shape[0])
+                else 0.0
+            )
+            rest = max(rest, 1e-18)
+            target = np.asarray(attach_first_target_vectors_m[row], dtype=float)
+            if np.isfinite(target).all():
+                delta = (positions_m[first] - positions_m[attach]) - target
+                force = -(float(k_position) / (rest * rest)) * delta
+                forces[first] += force
+                forces[attach] -= force
+
+        if k_tangent > 0.0 and row < int(first_second_target_vectors_m.shape[0]):
+            rest = (
+                float(first_second_rest_lengths_m[row])
+                if row < int(first_second_rest_lengths_m.shape[0])
+                else 0.0
+            )
+            rest = max(rest, 1e-18)
+            target = np.asarray(first_second_target_vectors_m[row], dtype=float)
+            if np.isfinite(target).all():
+                delta = (positions_m[second] - positions_m[first]) - target
+                force = -(float(k_tangent) / (rest * rest)) * delta
+                forces[second] += force
+                forces[first] -= force
 
     return forces
 
@@ -486,6 +591,8 @@ def _zero_net_force_torque_drive(
         return np.zeros_like(positions_m), 0, 0.0, 0.0
 
     rel = positions_m[idx] - origin
+    if not np.isfinite(rel).all() or not np.isfinite(axis).all():
+        return np.zeros_like(positions_m), 1, 0.0, 0.0
     radial = rel - np.outer(rel @ axis, axis)
     drive = np.cross(axis, radial)
     drive -= np.mean(drive, axis=0, keepdims=True)
@@ -540,14 +647,10 @@ def compute_root_torque_axis_projection_forces(
 
         flag_pts = positions_m[flag_idx]
         origin = np.mean(flag_pts, axis=0)
-        centered = flag_pts - origin
-        _, _, vh = np.linalg.svd(centered, full_matrices=False)
-        axis = vh[0]
-        axis_norm = float(np.linalg.norm(axis))
-        if axis_norm <= 1e-18:
+        axis = _principal_axis_or_none(flag_pts)
+        if axis is None or not np.isfinite(origin).all():
             degenerate_count += 1
             continue
-        axis = axis / axis_norm
         if float(np.dot(axis, flag_pts[-1] - flag_pts[0])) < 0.0:
             axis = -axis
 
@@ -625,14 +728,10 @@ def compute_root_torque_segment_couples_forces(
 
         flag_pts = positions_m[flag_idx]
         origin = flag_pts[0]
-        centered = flag_pts - np.mean(flag_pts, axis=0)
-        _, _, vh = np.linalg.svd(centered, full_matrices=False)
-        axis = vh[0]
-        axis_norm = float(np.linalg.norm(axis))
-        if axis_norm <= 1e-18:
+        axis = _principal_axis_or_none(flag_pts)
+        if axis is None or not np.isfinite(origin).all():
             degenerate_count += 1
             continue
-        axis = axis / axis_norm
         if float(np.dot(axis, flag_pts[-1] - flag_pts[0])) < 0.0:
             axis = -axis
 

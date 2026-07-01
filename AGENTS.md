@@ -59,6 +59,8 @@ There is no `prompts/` source of truth in the current repository. Do not recreat
 * Do not run remote scripts directly, such as `curl ... | sh`, unless explicitly approved by the user.
 * Do not create GitHub issues unless explicitly requested.
 * Do not merge pull requests.
+* When creating a PR for an issue, link the original source issue in the PR body using an issue-closing keyword when the PR is intended to complete it.
+* Target the branch specified by the task or issue. If no target branch is specified, target the repository default branch.
 * Do not mark a task complete without a local `review_result.json` with `"status": "PASS"`.
 
 ## Directory Responsibilities
@@ -79,6 +81,16 @@ There is no `prompts/` source of truth in the current repository. Do not recreat
 * `manifest.json` should record config paths, overrides, seeds, input/output paths, Git commit information, and environment details when available.
 * Phase 2 simulation logs use `step_summary.csv` as the unified per-step summary.
 * Do not reintroduce `step_summary_full.csv` unless a task explicitly changes this decision.
+
+## Phase 2 CLI Command Convention
+
+For Phase 2 simulation, sweep, and heatmap commands, prefer `KEY=VALUE` arguments in new user-facing examples:
+
+`uv run python -m scripts.01_simulate_swimming config=conf/sim_swim.yaml time.duration_s=0.5 time.dt_star=1.0e-4`
+
+`uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml dry_run=true sample_limit=3`
+
+Option-style arguments such as `--config`, `--duration-s`, and `--fps-out` remain only for legacy compatibility.
 
 ## Testing And Review
 
@@ -127,6 +139,8 @@ Phase 2 baseline configs should omit `stiffness_scales` when all values are pars
 For Phase 2 simulation runs, do not change the default config just to set the integration step. Use explicit runtime overrides such as `time.dt_star=1.0e-4` unless the task requires another value.
 
 ## Final Response
+
+Final response should be sent only after the task state has been committed and pushed when remote access is available.
 
 After each task, report:
 

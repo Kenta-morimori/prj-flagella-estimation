@@ -1,0 +1,54 @@
+{
+  "status": "PASS",
+  "summary": "#94 の次段診断として，近位側 flagellum local bond `0-1` から `4-5` の rel err を per-flag で記録する列を追加した。`step_summary.csv` には `flag_bond_rel_err_local_0_1_per_flag` から `flag_bond_rel_err_local_4_5_per_flag` を出し，#82 sweep summary には同じ値を final / first fail / max flag bond event 時点で出す。これにより，0.6 s sweep で first fail が固定された local `3-4` と，`fs=1.25` で max event が飛んだ local `0-1` を同じ CSV 上で追える。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "今回の変更は診断列の追加であり，新しい補正・projection・stiffness default 変更は行っていない。",
+    "既存の `outputs/phase2_94/...` CSV には新列がないため，proximal local bond の時系列比較には sweep の再実行が必要。",
+    "0.6 s 以上の torque sweep と attach-frame 強度 sweep は重いため，ローカルでは smoke run のみ実行した。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run ruff check src/sim_swim/sim/debug_summary.py scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py tests/test_phase2_82_hook_overstretch_sweep.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/sim/debug_summary.py scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py tests/test_phase2_82_hook_overstretch_sweep.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py::test_run_writes_step_summary_csv_without_projection_columns",
+      "result": "PASS: 6 passed"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --mode first-second-grid --duration-s 0.001 --torque-nm 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --fixed-attach-frame-position-scale 3 --fixed-attach-frame-tangent-scale 1.5 --first-second-spring-scales 1 --output-dir /private/tmp/phase2_issue94_proximal_bond_smoke --overwrite --progress-interval 10000",
+      "result": "PASS: smoke summary and per-condition step_summary.csv were written"
+    },
+    {
+      "command": "inspect /private/tmp/phase2_issue94_proximal_bond_smoke/phase2_82_hook_scale_sweep_summary.csv and condition step_summary.csv",
+      "result": "PASS: proximal local bond columns are present in step_summary.csv and sweep summary final / first_fail / max fields. first_fail fields are empty for the no-fail smoke case as expected."
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "今回の対応は CSV 診断列の追加であり，新規動画の目視判定は要求しない。",
+  "user_review_outputs": [
+    "/private/tmp/phase2_issue94_proximal_bond_smoke/phase2_82_hook_scale_sweep_summary.csv",
+    "/private/tmp/phase2_issue94_proximal_bond_smoke/af1_axis1_fs1_fp3_ft1p5/step_summary.csv"
+  ],
+  "user_review_points": [
+    "`flag_bond_rel_err_local_3_4_per_flag` が first fail 前後でどの flag に集中するか。",
+    "`flag_bond_rel_err_local_0_1_per_flag` が `fs=1.25` などで局所的に悪化するか。",
+    "hook 抑制用の attach-frame 強度を下げた時に local `3-4` 破綻が遅れるか。"
+  ],
+  "adr_required": false,
+  "adr_reason": "物理モデル，default scale，出力仕様の根本方針は変えず，Issue #94 の診断列追加として扱えるため。",
+  "commit_type": "complete",
+  "commit_hash": "",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/95",
+  "next_actions": [
+    "代表条件 `fs=1.0`, `fp=3`, `ft=1.5` で torque を `1.0e-20`, `1.5e-20`, `2.0e-20`, `2.5e-20` に変え，local `3-4` の first fail 時刻を比較する。",
+    "`attach-frame-grid` で `fp=2,3` と `ft=1,1.5` を比較し，hook 抑制と proximal flag bond 過伸長の tradeoff を見る。",
+    "body-flagella 接触や貫通の関与は #93 側で検証する。"
+  ]
+}

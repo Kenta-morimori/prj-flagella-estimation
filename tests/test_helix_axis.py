@@ -39,6 +39,49 @@ def test_helix_axis_reports_degenerate_when_only_one_helix_bead_exists() -> None
     assert np.isnan(estimate.axis).all()
 
 
+def test_helix_axis_reports_degenerate_for_nonfinite_positions() -> None:
+    positions = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [float("nan"), 0.0, 0.0],
+            [3.0, 0.0, 0.0],
+        ],
+        dtype=float,
+    )
+
+    estimate = estimate_flag_helix_axis(positions, np.array([0, 1, 2, 3]), flag_id=2)
+
+    assert estimate.flag_id == 2
+    assert estimate.degenerate
+    assert np.isnan(estimate.fit_r2)
+    assert np.isnan(estimate.axis).all()
+
+
+def test_helix_axis_reports_degenerate_when_svd_fails(monkeypatch) -> None:
+    positions = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [3.0, 0.0, 0.0],
+        ],
+        dtype=float,
+    )
+
+    def raise_linalg_error(*_args, **_kwargs):
+        raise np.linalg.LinAlgError("SVD did not converge")
+
+    monkeypatch.setattr(np.linalg, "svd", raise_linalg_error)
+
+    estimate = estimate_flag_helix_axis(positions, np.array([0, 1, 2, 3]), flag_id=3)
+
+    assert estimate.flag_id == 3
+    assert estimate.degenerate
+    assert np.isnan(estimate.fit_r2)
+    assert np.isnan(estimate.axis).all()
+
+
 def test_helix_axis_alignment_metrics_detects_aligned_axes() -> None:
     metrics = helix_axis_alignment_metrics(
         [

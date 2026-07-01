@@ -1,0 +1,4 @@
+kind: motor_scale_collapse
+args:
+  target: local_hook_scale
+  output_dir: outputs/phase2_sweeps/motor_scale/plots

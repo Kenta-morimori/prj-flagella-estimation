@@ -1,0 +1,56 @@
+{
+  "status": "PASS",
+  "summary": "PR #95 の #94 対応として，形状破綻診断・SVD fail-safe・補強候補比較・後方束化条件での定性評価までを完了した。merge 判定対象は `outputs/phase2_94/posterior_merge_review/qual_videos/fp3_ft1p5_torque2p0_dur0p6/2026-06-30/170248` で，`flagella.initial_helix_axis_from_rear_deg=0`, `fp=3`, `ft=1.5`, `torque=2.0e-20` の後方条件である。自動指標は shape pass / first fail なし / `max_flag_bond_rel_err=0.9063` / `body_displacement_um=0.4648` で，ユーザー定性評価でも概ね良好と判断された。トルク分散方法そのものと螺旋軸中心回転の厳密評価は Issue #97 へ分離した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "`local_first_second_spring_scale` 増強は local `3-4` の flag bond 過伸長を改善せず，`fs=1.25` では local `0-1` の悪化候補も見えたため採用しない。",
+    "`fp=3, ft=1.5, torque=2.0e-20` は shape gate を通り定性評価も概ね良好だが，自動指標上は後方軸整列が時間とともに弱まる。final `flag_helix_axis_vs_rear_angle_deg_mean=29.23 deg`, `flag_helix_axis_pair_angle_deg_max=46.90 deg`, `bundle_participation_ratio=0.0` は残リスクとして扱う。",
+    "べん毛が螺旋軸中心に剛体的に回っているかは既存の `flag_helix_spin_rate_hz` / `flag_helix_spin_fit_r2` だけでは厳密判定できない。現行 `root_torque_segment_couples` のトルク分散方法の再設計と合わせ，Issue #97 `[Phase2] hookとべん毛形状を保つトルク分散方法を見直す` で扱う。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "docs update only",
+      "result": "PASS: `docs/phase2/phase2_current.md` と `docs/phase2/phase2_tasks.md` に PR #95 の後方束化条件での採用候補，定性評価結果，Issue #97 への残課題を記録した"
+    },
+    {
+      "command": "inspect outputs/phase2_94/posterior_merge_review/metric_sweeps/*/phase2_82_hook_scale_sweep_summary.csv",
+      "result": "PASS: `fp=3, ft=1.5, torque=2.0e-20` は 0.6 s shape gate pass, first fail なし, max_flag_bond_rel_err=0.9063"
+    },
+    {
+      "command": "inspect outputs/phase2_94/posterior_merge_review/qual_videos/fp3_ft1p5_torque2p0_dur0p6/2026-06-30/170248/manifest.json",
+      "result": "PASS: 後方条件 `flagella.initial_helix_axis_from_rear_deg=0` と render3d/render2d 動画生成を確認"
+    },
+    {
+      "command": "user qualitative review",
+      "result": "PASS: `fp3, ft=1.5, torque=2.0e-20` の後方条件動画は概ね良好。ただし螺旋軸中心回転の厳密評価は残課題。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "uv run python -m scripts.01_simulate_swimming flagella.initial_helix_axis_from_rear_deg=0 seed.attach_seed=0 seed.phase_seed=0 time.duration_s=0.6 motor.torque_Nm=2.0e-20 motor.local_attach_frame_position_scale=3 motor.local_attach_frame_tangent_scale=1.5 output_sampling.out_all_steps_3d=false render.render_flagella_2d=true render.show_flagella_helix_axis_3d=true output.base_dir=outputs/phase2_94/posterior_merge_review/qual_videos/fp3_ft1p5_torque2p0_dur0p6",
+  "user_review_outputs": [
+    "outputs/phase2_94/posterior_merge_review/qual_videos/fp3_ft1p5_torque2p0_dur0p6/2026-06-30/170248/manifest.json",
+    "outputs/phase2_94/posterior_merge_review/qual_videos/fp3_ft1p5_torque2p0_dur0p6/2026-06-30/170248/render/swim3d.mp4",
+    "outputs/phase2_94/posterior_merge_review/qual_videos/fp3_ft1p5_torque2p0_dur0p6/2026-06-30/170248/render/swim3d_final.png",
+    "outputs/phase2_94/posterior_merge_review/qual_videos/fp3_ft1p5_torque2p0_dur0p6/2026-06-30/170248/render2d/projection.mp4",
+    "outputs/phase2_94/posterior_merge_review/qual_videos/fp3_ft1p5_torque2p0_dur0p6/2026-06-30/170248/sim/step_summary.csv"
+  ],
+  "user_review_points": [
+    "初期条件として，べん毛軸が菌体後方へ揃っている。",
+    "べん毛が滑らかに回転している。",
+    "3本のべん毛が不自然に崩壊せず，後方束化または後方軸整列は動画上概ね許容できる。",
+    "菌体が遊泳らしく移動・姿勢変化している。",
+    "hook/root/flagella/body に目立つ破綻がない。",
+    "2D projection が downstream ML 用の擬似動画として不自然でない。"
+  ],
+  "adr_required": false,
+  "adr_reason": "今回の更新は #94 の診断結果整理と #97 への課題分離であり，物理モデル・default config・公開I/Oを変更していないため。",
+  "commit_type": "complete",
+  "commit_hash": "",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/95",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/97",
+  "next_actions": [
+    "PR #95 では `fp=3, ft=1.5, torque=2.0e-20` を後方条件の採用候補として扱う。",
+    "Issue #97 で，トルク分散方法，後方軸整列の維持，螺旋軸中心回転の厳密評価を進める。"
+  ]
+}
