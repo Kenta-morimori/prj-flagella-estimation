@@ -50,6 +50,8 @@ def main(argv: list[str] | None = None) -> None:
         help="Print the profile kind and exit without running conditions.",
     )
     args, passthrough = parser.parse_known_args(parser_argv)
+    if config_from_key is not None and args.config is not None:
+        parser.error("Use either config=PATH or --config PATH (not both)")
     config = config_from_key or args.config
     if config is None:
         parser.error("config=PATH or --config PATH is required")
