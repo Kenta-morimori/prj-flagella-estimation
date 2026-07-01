@@ -3,7 +3,15 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-from sim_swim.analysis.cli_profiles import args_from_profile, load_profile
+import pytest
+
+from sim_swim.analysis.cli_profiles import (
+    args_from_profile,
+    key_value_args_to_cli_args,
+    load_profile,
+    split_config_key,
+    sweep_aliases,
+)
 
 
 def _load_script(path: Path, name: str):
@@ -25,13 +33,55 @@ def test_sweep_profile_converts_yaml_args_to_cli_args() -> None:
     assert args[args.index("--config") + 1] == "conf/sim_swim.yaml"
 
 
+def test_split_config_key_extracts_key_value_profile_path() -> None:
+    config, args = split_config_key(
+        [
+            "config=conf/phase2_sweeps/hook_overstretch.yaml",
+            "dry_run=true",
+        ]
+    )
+
+    assert config == Path("conf/phase2_sweeps/hook_overstretch.yaml")
+    assert args == ["dry_run=true"]
+
+
+def test_key_value_args_convert_to_argparse_options() -> None:
+    args = key_value_args_to_cli_args(
+        [
+            "mode=first-second-grid",
+            "time.duration_s=0.001",
+            "motor.torque_Nm=0",
+            "first_second_spring_scales=1",
+            "dry_run=true",
+        ],
+        aliases=sweep_aliases("hook_overstretch"),
+    )
+
+    assert args == [
+        "--mode",
+        "first-second-grid",
+        "--duration-s",
+        "0.001",
+        "--torque-nm",
+        "0",
+        "--first-second-spring-scales",
+        "1",
+        "--dry-run",
+    ]
+
+
+def test_key_value_args_reject_false_boolean() -> None:
+    with pytest.raises(ValueError, match="dry_run=false is not supported"):
+        key_value_args_to_cli_args(["dry_run=false"])
+
+
 def test_run_sweep_wrapper_lists_profile_kind(capsys) -> None:
     module = _load_script(
         Path("scripts/01_simulate_swimming/run_sweep.py"),
         "phase2_run_sweep_wrapper",
     )
 
-    module.main(["--config", "conf/phase2_sweeps/hook_overstretch.yaml", "--list-kind"])
+    module.main(["config=conf/phase2_sweeps/hook_overstretch.yaml", "list_kind=true"])
 
     assert capsys.readouterr().out.strip() == "hook_overstretch"
 

@@ -82,6 +82,16 @@ There is no `prompts/` source of truth in the current repository. Do not recreat
 * Phase 2 simulation logs use `step_summary.csv` as the unified per-step summary.
 * Do not reintroduce `step_summary_full.csv` unless a task explicitly changes this decision.
 
+## Phase 2 CLI Command Convention
+
+For Phase 2 simulation, sweep, and heatmap commands, prefer `KEY=VALUE` arguments in new user-facing examples:
+
+`uv run python -m scripts.01_simulate_swimming config=conf/sim_swim.yaml time.duration_s=0.5 time.dt_star=1.0e-4`
+
+`uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml dry_run=true sample_limit=3`
+
+Option-style arguments such as `--config`, `--duration-s`, and `--fps-out` remain only for legacy compatibility.
+
 ## Testing And Review
 
 * Add or update pytest tests when changing physics, geometry, output format, or pipeline behavior.
@@ -107,7 +117,7 @@ When visual review is required, report the command, expected output directory, f
 
 Standard command pattern:
 
-`uv run python -m scripts.01_simulate_swimming ...`
+`uv run python -m scripts.01_simulate_swimming time.duration_s=0.5 time.dt_star=1.0e-4 ...`
 
 If visual review is required but not completed, the review result remains `FAIL`.
 

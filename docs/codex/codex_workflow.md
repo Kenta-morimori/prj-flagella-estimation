@@ -92,6 +92,14 @@ Rules:
 * Do not merge PRs.
 * Do not create GitHub issues unless explicitly requested.
 
+## Phase 2 CLI command convention
+
+For single-run Phase 2 simulation commands, prefer `KEY=VALUE` overrides:
+
+`uv run python -m scripts.01_simulate_swimming time.duration_s=0.5 time.dt_star=1.0e-4 ...`
+
+Do not introduce new user-facing examples that mix `--duration-s` / `--fps-out` with `time.duration_s=...` / `output_sampling.fps_out_2d=...`. The shorthand options remain only for legacy compatibility.
+
 ## ADR policy
 
 Create an ADR for significant decisions such as:
