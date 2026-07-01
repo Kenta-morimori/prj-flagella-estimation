@@ -50,7 +50,7 @@ def _parse_float_list(text: str | None) -> set[float] | None:
     return values or None
 
 
-def _parse_args() -> argparse.Namespace:
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Plot Phase 2.6 torque x local-scale-mode heatmaps."
     )
@@ -79,7 +79,7 @@ def _parse_args() -> argparse.Namespace:
         default=2.0,
         help="Local scale value used for one-factor modes.",
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def _parse_bool(value: str | bool | None) -> bool:
@@ -217,8 +217,8 @@ def _write_normalized_csv(rows: list[dict[str, str]], out_path: Path) -> None:
             writer.writerow({field: row.get(field, "") for field in fields})
 
 
-def main() -> None:
-    args = _parse_args()
+def main(argv: list[str] | None = None) -> None:
+    args = _parse_args(argv)
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     mode_value = float(args.mode_value)
@@ -234,9 +234,9 @@ def main() -> None:
         mode_value=mode_value,
     )
     category, torques, modes, pass_fail = _build_matrices(rows)
-    normalized_csv = args.output_dir / "phase2_6_local_scale_mode_heatmap.csv"
-    category_png = args.output_dir / "phase2_6_local_scale_mode_category_heatmap.png"
-    pass_fail_png = args.output_dir / "phase2_6_local_scale_mode_pass_fail_heatmap.png"
+    normalized_csv = args.output_dir / "heatmap_data.csv"
+    category_png = args.output_dir / "local_scale_mode_category_heatmap.png"
+    pass_fail_png = args.output_dir / "local_scale_mode_pass_fail_heatmap.png"
     _write_normalized_csv(rows, normalized_csv)
     _save_category_heatmap(category, torques, modes, category_png)
     _save_pass_fail_heatmap(pass_fail, torques, modes, pass_fail_png)

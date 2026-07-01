@@ -9,13 +9,10 @@ from dataclasses import dataclass
 from datetime import datetime
 import math
 from pathlib import Path
-import sys
 from typing import Any
 from zoneinfo import ZoneInfo
 
 import yaml
-
-sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
 
 from sim_swim.sim.core import Simulator
 from sim_swim.sim.debug_summary import PROXIMAL_FLAG_BOND_REL_ERR_FIELDS
@@ -643,7 +640,7 @@ def _run_condition(
     return _summary_row(cfg, condition, condition_dir, last, rows, helix_summary)
 
 
-def _parse_args() -> argparse.Namespace:
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--mode",
@@ -703,11 +700,11 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--progress-interval", type=int, default=1000)
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
-def main() -> None:
-    args = _parse_args()
+def main(argv: list[str] | None = None) -> None:
+    args = _parse_args(argv)
     base_cfg = _load_yaml(args.config)
     all_conditions = build_conditions(args)
     conditions = (
@@ -720,8 +717,14 @@ def main() -> None:
         return
 
     args.output_dir.mkdir(parents=True, exist_ok=args.overwrite)
-    rows = [_run_condition(base_cfg, args, condition) for condition in conditions]
-    summary_path = args.output_dir / "phase2_82_hook_scale_sweep_summary.csv"
+    rows = []
+    total = len(conditions)
+    for index, condition in enumerate(conditions, start=1):
+        print(
+            f"[{index}/{total}] hook_overstretch {condition.condition_id}", flush=True
+        )
+        rows.append(_run_condition(base_cfg, args, condition))
+    summary_path = args.output_dir / "summary.csv"
     with summary_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=SUMMARY_FIELDS)
         writer.writeheader()

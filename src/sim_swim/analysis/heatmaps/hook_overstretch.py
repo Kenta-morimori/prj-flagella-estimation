@@ -37,7 +37,7 @@ def _get_plt():
     return plt
 
 
-def _parse_args() -> argparse.Namespace:
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--summary-csv", type=Path, required=True)
     parser.add_argument(
@@ -46,7 +46,7 @@ def _parse_args() -> argparse.Namespace:
         required=True,
     )
     parser.add_argument("--output-dir", type=Path, required=True)
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def _parse_bool(value: str | bool | None) -> bool:
@@ -106,8 +106,8 @@ def _summary_csv_candidates(summary_csv: Path) -> list[Path]:
     for root in (summary_csv.parent, summary_csv.parent.parent):
         if not root.is_dir():
             continue
-        candidates.extend(root.glob("phase2_82_hook_scale_sweep_summary.csv"))
-        candidates.extend(root.glob("*/phase2_82_hook_scale_sweep_summary.csv"))
+        candidates.extend(root.glob("summary.csv"))
+        candidates.extend(root.glob("*/summary.csv"))
     return sorted(set(candidates))
 
 
@@ -345,8 +345,8 @@ def _write_normalized_csv(rows: list[dict[str, str]], out_path: Path) -> None:
             writer.writerow({field: row.get(field, "") for field in fields})
 
 
-def main() -> None:
-    args = _parse_args()
+def main(argv: list[str] | None = None) -> None:
+    args = _parse_args(argv)
     try:
         rows = _load_rows(args.summary_csv, args.mode)
     except FileNotFoundError as exc:
@@ -354,7 +354,7 @@ def main() -> None:
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    normalized_csv = args.output_dir / "phase2_82_hook_overstretch_heatmap.csv"
+    normalized_csv = args.output_dir / "heatmap_data.csv"
     _write_normalized_csv(rows, normalized_csv)
 
     category_matrix, x_values, y_labels, x_name, y_name = _build_matrix(
@@ -366,7 +366,7 @@ def main() -> None:
         y_labels,
         x_name,
         y_name,
-        args.output_dir / "phase2_82_first_fail_category_heatmap.png",
+        args.output_dir / "first_fail_category_heatmap.png",
     )
     pass_fail_matrix = np.where(
         category_matrix == CATEGORY_ORDER.index("none"), 1.0, 0.0
@@ -377,7 +377,7 @@ def main() -> None:
         y_labels,
         x_name,
         y_name,
-        args.output_dir / "phase2_82_shape_pass_fail_heatmap.png",
+        args.output_dir / "shape_pass_fail_heatmap.png",
     )
 
     for metric in NUMERIC_METRICS:
@@ -391,7 +391,7 @@ def main() -> None:
             x_name,
             y_name,
             metric,
-            args.output_dir / f"phase2_82_{metric}_heatmap.png",
+            args.output_dir / f"{metric}_heatmap.png",
         )
 
     print(f"Saved normalized CSV to {normalized_csv}")

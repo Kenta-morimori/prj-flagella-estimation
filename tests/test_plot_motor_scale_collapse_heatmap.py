@@ -1,28 +1,12 @@
 from __future__ import annotations
 
-import importlib.util
 import csv
-import sys
 from pathlib import Path
 
-
-def _load_plot_script():
-    script_path = (
-        Path(__file__).resolve().parents[1]
-        / "scripts"
-        / "01_simulate_swimming"
-        / "plot_motor_scale_collapse_heatmap.py"
-    )
-    spec = importlib.util.spec_from_file_location("plot_script", script_path)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+from sim_swim.analysis.heatmaps import motor_scale_collapse
 
 
-def test_plot_motor_scale_collapse_heatmap(tmp_path: Path, monkeypatch) -> None:
-    plot_script = _load_plot_script()
+def test_motor_scale_collapse_heatmap(tmp_path: Path) -> None:
     summary_csv = tmp_path / "local_hook_scale_sweep_summary.csv"
     summary_csv.write_text(
         "\n".join(
@@ -49,19 +33,14 @@ def test_plot_motor_scale_collapse_heatmap(tmp_path: Path, monkeypatch) -> None:
         encoding="utf-8",
     )
 
-    monkeypatch.setattr(
-        sys,
-        "argv",
+    motor_scale_collapse.main(
         [
-            "plot_motor_scale_collapse_heatmap",
             "--summary-csv",
             str(summary_csv),
             "--output-dir",
             str(tmp_path / "plots"),
         ],
     )
-
-    plot_script.main()
 
     output_dir = tmp_path / "plots"
     normalized_csv = output_dir / "local_hook_scale_sweep_summary_collapse_matrix.csv"
@@ -88,10 +67,9 @@ def test_plot_motor_scale_collapse_heatmap(tmp_path: Path, monkeypatch) -> None:
     assert rows[2]["first_fail_category"] == "none"
 
 
-def test_plot_motor_scale_collapse_heatmap_emits_flagella_plot(
-    tmp_path: Path, monkeypatch
+def test_motor_scale_collapse_heatmap_emits_flagella_plot(
+    tmp_path: Path,
 ) -> None:
-    plot_script = _load_plot_script()
     summary_csv = tmp_path / "local_hook_scale_sweep_summary.csv"
     summary_csv.write_text(
         "\n".join(
@@ -114,19 +92,14 @@ def test_plot_motor_scale_collapse_heatmap_emits_flagella_plot(
         encoding="utf-8",
     )
 
-    monkeypatch.setattr(
-        sys,
-        "argv",
+    motor_scale_collapse.main(
         [
-            "plot_motor_scale_collapse_heatmap",
             "--summary-csv",
             str(summary_csv),
             "--output-dir",
             str(tmp_path / "plots"),
         ],
     )
-
-    plot_script.main()
 
     output_dir = tmp_path / "plots"
     flagella_png = (

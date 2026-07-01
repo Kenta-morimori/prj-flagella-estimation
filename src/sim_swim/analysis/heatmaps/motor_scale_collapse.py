@@ -68,7 +68,7 @@ HOOK_FAIL_CATEGORIES = {"hook"}
 FLAGELLA_FAIL_CATEGORIES = {"flag", "flag_nonfinite"}
 
 
-def _parse_args() -> argparse.Namespace:
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=("Plot torque x scale collapse heatmaps from sweep summaries.")
     )
@@ -90,7 +90,7 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Optional figure title prefix.",
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def _collapse_rank(row: dict[str, str]) -> int:
@@ -338,8 +338,8 @@ def _has_flagella_failure(rows: list[dict[str, str]]) -> bool:
     )
 
 
-def main() -> None:
-    args = _parse_args()
+def main(argv: list[str] | None = None) -> None:
+    args = _parse_args(argv)
     with args.summary_csv.open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
 

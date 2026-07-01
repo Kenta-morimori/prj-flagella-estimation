@@ -809,6 +809,40 @@
   - `docs/codex-runs/20260629_094125_phase2_dt_star_default/review_result.json`
   - `docs/codex-runs/20260630_194612_phase2_94_render_sampling_review/review_result.json`
 
+### P2-SCRIPT-096: Phase 2 sweep / heatmap CLI を整理する
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/96`
+- branch: `feature/phase2-96-script-cleanup`
+- goal: issue固有の使い捨て sweep / heatmap script を現役導線から外し，profile設定で再利用できる Phase 2 CLI へ整理する。
+- result:
+  - 現役CLIを `scripts/01_simulate_swimming/run_sweep.py` と `scripts/01_simulate_swimming/plot_heatmap.py` に統一した。
+  - sweep / heatmap の条件セットを `conf/phase2_sweeps/*.yaml` に追加し，CLI option で profile 値を上書きできるようにした。
+  - 既存ロジックは `src/sim_swim/analysis/sweeps/` と `src/sim_swim/analysis/heatmaps/` の用途名 module へ移した。
+  - 複数条件 sweep は `[i/N] <kind> ...` を標準出力へ出し，実行中の進捗が見えるようにした。
+  - sweep summary の現役標準名を `summary.csv` にした。
+  - `scripts/README.md` は初見ユーザー向けに，現行CLI・profile・dry-run・heatmap生成だけを説明する内容へ更新した。
+  - 未使用の `src/flagella_estimation` package と壊れていた console script を削除し，wheel 配布対象を `sim_swim` に切り替えた。
+- acceptance criteria:
+  - [x] issue番号付きの現役 script entrypoint が `scripts/01_simulate_swimming/` から消えている。
+  - [x] sweep / heatmap を profile YAML から実行できる。
+  - [x] 複数条件 sweep の進捗が標準出力で分かる。
+  - [x] README は現行の使い方だけを簡潔に説明している。
+  - [x] `uv build` 後の wheel に `sim_swim` が含まれる。
+- verification:
+  - `uv run pytest`
+  - `uv run ruff check src/sim_swim/analysis scripts/01_simulate_swimming tests/test_motor_scale_sweep.py tests/test_phase2_6_dt_star_torque_heatmap.py tests/test_phase2_6_local_scale_mode_heatmap.py tests/test_phase2_6_torque_model_evaluation.py tests/test_phase2_7_bundling_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_plot_motor_scale_collapse_heatmap.py tests/test_phase2_sweep_profiles.py`
+  - `uv run ruff format --check src/sim_swim/analysis scripts/01_simulate_swimming tests/test_motor_scale_sweep.py tests/test_phase2_6_dt_star_torque_heatmap.py tests/test_phase2_6_local_scale_mode_heatmap.py tests/test_phase2_6_torque_model_evaluation.py tests/test_phase2_7_bundling_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_plot_motor_scale_collapse_heatmap.py tests/test_phase2_sweep_profiles.py`
+  - `uv build --out-dir /private/tmp/phase2_96_build`
+  - `uv run python scripts/01_simulate_swimming/run_sweep.py --config conf/phase2_sweeps/hook_overstretch.yaml --dry-run --sample-limit 2`
+  - `uv run python scripts/01_simulate_swimming/run_sweep.py --config conf/phase2_sweeps/hook_overstretch.yaml --mode first-second-grid --duration-s 0.001 --torque-nm 0 --fixed-attach-first-spring-scale 1 --fixed-body-axis-angle-scale 1 --first-second-spring-scales 1 --output-dir /private/tmp/phase2_96_smoke --overwrite --progress-interval 10000`
+  - `uv run python scripts/01_simulate_swimming/plot_heatmap.py --config conf/phase2_sweeps/hook_overstretch_heatmap.yaml --mode first-second-grid --summary-csv /private/tmp/phase2_96_smoke/summary.csv --output-dir /private/tmp/phase2_96_heatmap`
+- docs:
+  - `scripts/README.md`
+  - `docs/phase2/phase2_current.md`
+  - `docs/phase2/phase2_tasks.md`
+  - `docs/codex-runs/20260630_195819_phase2_96_script_cleanup/review_result.json`
+
 ## Phase 2.9: Tumble状態の段階実装
 
 ### P2-9-010: Tumble状態を段階実装する

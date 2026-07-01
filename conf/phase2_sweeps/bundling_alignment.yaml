@@ -1,0 +1,9 @@
+kind: bundling_alignment
+args:
+  config: conf/sim_swim.yaml
+  helix_axis_angles_deg: [0.0]
+  n_flagella: [3]
+  torques: [0.5e-20, 1.0e-20, 1.5e-20, 2.0e-20, 2.5e-20, 3.0e-20]
+  duration_s: 0.5
+  dt_star: 1.0e-4
+  output_dir: outputs/phase2_sweeps/bundling_alignment

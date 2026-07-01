@@ -1,29 +1,12 @@
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-
-def _load_sweep_script():
-    script_path = (
-        Path(__file__).resolve().parents[1]
-        / "scripts"
-        / "01_simulate_swimming"
-        / "run_phase2_82_hook_overstretch_sweep.py"
-    )
-    spec = importlib.util.spec_from_file_location("phase2_82_sweep", script_path)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+from sim_swim.analysis.sweeps import hook_overstretch as script
 
 
 def test_phase2_82_body_first_grid_conditions() -> None:
-    script = _load_sweep_script()
     args = SimpleNamespace(
         mode="body-first-grid",
         attach_first_spring_scales=[1.0, 2.0],
@@ -48,7 +31,6 @@ def test_phase2_82_body_first_grid_conditions() -> None:
 
 
 def test_phase2_82_first_second_grid_conditions() -> None:
-    script = _load_sweep_script()
     args = SimpleNamespace(
         mode="first-second-grid",
         fixed_attach_first_spring_scale=2.0,
@@ -72,7 +54,6 @@ def test_phase2_82_first_second_grid_conditions() -> None:
 
 
 def test_phase2_82_first_second_grid_can_fix_attach_frame_scales() -> None:
-    script = _load_sweep_script()
     args = SimpleNamespace(
         mode="first-second-grid",
         fixed_attach_first_spring_scale=1.0,
@@ -98,7 +79,6 @@ def test_phase2_82_first_second_grid_can_fix_attach_frame_scales() -> None:
 
 
 def test_phase2_82_attach_frame_grid_conditions() -> None:
-    script = _load_sweep_script()
     args = SimpleNamespace(
         mode="attach-frame-grid",
         fixed_attach_first_spring_scale=3.0,
@@ -129,7 +109,6 @@ def test_phase2_82_attach_frame_grid_conditions() -> None:
 def test_phase2_82_summary_row_records_fail_and_max_hook_events(
     tmp_path: Path,
 ) -> None:
-    script = _load_sweep_script()
     cfg = SimpleNamespace(
         time=SimpleNamespace(duration_s=0.5),
         dt_star=1.0e-4,

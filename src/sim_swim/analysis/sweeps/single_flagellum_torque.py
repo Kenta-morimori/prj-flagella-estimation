@@ -11,14 +11,11 @@ import json
 import logging
 from pathlib import Path
 import subprocess
-import sys
 from typing import Any
 from zoneinfo import ZoneInfo
 
 import numpy as np
 import yaml
-
-sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
 
 from sim_swim.sim.core import SimulationState, Simulator
 from sim_swim.sim.helix_retention_gate import (
@@ -430,7 +427,7 @@ def _setup_logger(output_dir: Path) -> logging.Logger:
     return logger
 
 
-def _parse_args() -> argparse.Namespace:
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run Phase 2.6 torque transmission model evaluation."
     )
@@ -470,11 +467,11 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Optional limit for smoke tests and quick diagnostics.",
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
-def main() -> None:
-    args = _parse_args()
+def main(argv: list[str] | None = None) -> None:
+    args = _parse_args(argv)
     output_dir = args.output_dir or _default_output_dir()
     output_dir.mkdir(parents=True, exist_ok=True)
     logger = _setup_logger(output_dir)
@@ -486,7 +483,7 @@ def main() -> None:
         raise SystemExit("P2-6-009 torque upper bound is 1.0e-19 N m")
 
     base_cfg = SimulationConfig.from_dict(_load_config(args.config))
-    summary_path = output_dir / "phase2_6_torque_model_evaluation_summary.csv"
+    summary_path = output_dir / "summary.csv"
     _write_manifest(
         output_dir / "manifest.json",
         args=args,
