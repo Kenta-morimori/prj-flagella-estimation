@@ -778,19 +778,22 @@
   - `docs/codex-runs/20260629_193414_phase2_94_svd_guard/review_result.json`
   - `docs/codex-runs/20260630_134216_phase2_94_pr95_issue97_handoff/review_result.json`
 
-### P2-8-097: torque分散方法見直しの診断と比較導線を作る
+### P2-8-097: torque分散方法見直しの診断と比較導線を拡張する
 
-- status: complete
+- status: in_progress
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/97`
 - branch: `feature/phase2-97-torque-distribution-review`
-- goal: #94/#95 で残った後方軸整列低下と螺旋軸中心回転の未評価に対し，現行 `root_torque_segment_couples` を保ったまま診断指標と torque segment weight 比較導線を追加し，0.6 s 後方代表条件で採用可否を判断する。
+- goal: #94/#95 で残った後方条件での回転安定性不足に対し，flagellum 側の torque 分散方法を比較できるようにし，後方主評価 / 側方参照評価で採用候補を絞る。
 - implementation notes:
   - Issue #97 の description を #94/#95 の結果に基づいて完成した。
   - `helix_axis_centered_metrics` を追加し，推定された螺旋中心軸まわりの `phase`, `fit_r2`, 半径平均，半径CV，root offset を計算できるようにした。
   - `step_summary.csv` に `flag_helix_axis_center_radius_mean_um`, `flag_helix_axis_center_radius_cv_mean/max`, `flag_helix_axis_center_spin_fit_r2_min`, `flag_helix_axis_center_root_offset_um_mean/max` を追加した。
   - `flag_helix_axis_diagnostics.csv` に per-flag の `axis_center_spin_phase_deg`, `axis_center_spin_fit_r2`, `axis_center_radius_*`, `axis_center_root_offset_um` を追加した。
-  - `motor.torque_segment_weight_profile` を追加した。default は現行挙動の `local_twist_activity` とし，比較候補として `activity_sqrt`, `activity_floor_0p2`, `activity_floor_0p4`, `uniform` を指定できる。
-  - `hook_overstretch` sweep に `mode=torque-profile-grid` を追加し，`fp/ft/fs` を固定したまま各 torque weight profile を同じ `summary.csv` で比較できるようにした。
+  - 旧 `motor.torque_segment_weight_profile` を `motor.torque_distribution_profile` へ改名し，旧名は deprecated alias とした。
+  - 旧 profile 名 `local_twist_activity`, `activity_sqrt`, `activity_floor_0p2`, `activity_floor_0p4` をそれぞれ `diffusive`, `diffusive_sqrt`, `diffusive_floor_0p2`, `diffusive_floor_0p4` へ整理し，`basal_unloading` を追加した。
+  - `motor.force_distribution` に `root_torque_hybrid_couples` を追加した。`root_torque_segment_couples` の root 起点性を保ちつつ，`root_torque_axis_projection` 的な接線方向を混ぜる比較方式として扱う。
+  - `root_torque_axis_projection` でも `motor.torque_distribution_profile` を使えるようにし，bead 単位重みとして解釈する。
+  - `hook_overstretch` sweep の `mode=torque-profile-grid` を `force_distribution x torque_distribution_profile` 比較へ拡張し，同じ `summary.csv` で集約できるようにした。
   - `hook_overstretch` sweep summary に `axis_center_net_abs_revolutions_mean/min/max` と `axis_center_direction_consistency_mean/min` を追加し，`flag_helix_axis_diagnostics.csv` の per-flag 位相を手元後処理なしで集約できるようにした。
 - result:
   - 0.001 s smoke `outputs=/private/tmp/phase2_issue97_torque_profile_smoke` では `profile_local_twist_activity_fp3_ft1p5` と `profile_uniform_fp3_ft1p5` の両方が `final_shape_pass_nonbody=True` だった。
@@ -803,10 +806,11 @@
 - acceptance criteria:
   - [x] Issue #97 の背景・段階タスク・受け入れ条件が GitHub Issue 本文に記録される。
   - [x] 螺旋軸中心性を評価する診断列を `step_summary.csv` と `flag_helix_axis_diagnostics.csv` に出せる。
-  - [x] `root_torque_segment_couples` の segment weight を default維持のまま追加profileと比較できる。
-  - [x] `hook_overstretch` sweep summary に torque weight profile と新しい軸中心指標を集約できる。
-  - [x] 0.6 s 後方条件で `local_twist_activity` と追加候補を比較し，採用・不採用を判断する。
-  - [x] 採用候補が出た場合は必要な代表動画を生成し，ユーザー目視レビューを受ける。今回は `local_twist_activity` 維持の代表動画を確認し，追加候補は自動gateで不採用とした。
+  - [x] `root_torque_segment_couples`, `root_torque_axis_projection`, `root_torque_hybrid_couples` を共通の `motor.torque_distribution_profile` で比較できる。
+  - [x] `hook_overstretch` sweep summary に `force_distribution` と `torque_distribution_profile` を集約できる。
+  - [ ] 0.6 s 後方条件で新しい比較候補を主評価し，候補を絞る。
+  - [ ] 側方条件を参照比較し，後方条件の悪化が torque 分散由来かを確認する。
+  - [ ] 通過候補のみ 1.0 s と定性確認を行い，採用候補を確定する。
 - verification:
   - `uv run pytest tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py::test_root_torque_segment_couples_weight_profiles_run -q`
   - `uv run ruff check src/sim_swim/sim/helix_axis.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/params.py src/sim_swim/dynamics/engine.py src/sim_swim/analysis/sweeps/hook_overstretch.py tests/test_helix_axis.py tests/test_simulation.py tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py`

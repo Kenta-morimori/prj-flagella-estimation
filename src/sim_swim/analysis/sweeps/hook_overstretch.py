@@ -34,7 +34,8 @@ SUMMARY_FIELDS = (
     "duration_s",
     "dt_star",
     "torque_Nm",
-    "torque_segment_weight_profile",
+    "force_distribution",
+    "torque_distribution_profile",
     "n_flagella",
     "local_attach_first_spring_scale",
     "local_attach_first_body_axis_angle_scale",
@@ -443,27 +444,30 @@ def build_conditions(args: argparse.Namespace) -> tuple[Condition, ...]:
         first_second_scale = float(args.fixed_first_second_spring_scale)
         frame_position_scale = float(args.fixed_attach_frame_position_scale or 1.0)
         frame_tangent_scale = float(args.fixed_attach_frame_tangent_scale or 1.0)
-        for profile in args.torque_segment_weight_profiles:
-            condition_id = (
-                f"profile_{profile}"
-                f"_fp{_format_scale(frame_position_scale)}"
-                f"_ft{_format_scale(frame_tangent_scale)}"
-            )
-            conditions.append(
-                Condition(
-                    condition_id=condition_id,
-                    mode=args.mode,
-                    description="torque segment weight profile comparison",
-                    scales={
-                        "local_attach_first_spring_scale": attach_scale,
-                        "local_attach_first_body_axis_angle_scale": angle_scale,
-                        "local_first_second_spring_scale": first_second_scale,
-                        "local_attach_frame_position_scale": frame_position_scale,
-                        "local_attach_frame_tangent_scale": frame_tangent_scale,
-                        "torque_segment_weight_profile": str(profile),
-                    },
+        for distribution in args.force_distributions:
+            for profile in args.torque_distribution_profiles:
+                condition_id = (
+                    f"{distribution.removeprefix('root_torque_')}"
+                    f"_{profile}"
+                    f"_fp{_format_scale(frame_position_scale)}"
+                    f"_ft{_format_scale(frame_tangent_scale)}"
                 )
-            )
+                conditions.append(
+                    Condition(
+                        condition_id=condition_id,
+                        mode=args.mode,
+                        description="torque distribution comparison",
+                        scales={
+                            "force_distribution": str(distribution),
+                            "local_attach_first_spring_scale": attach_scale,
+                            "local_attach_first_body_axis_angle_scale": angle_scale,
+                            "local_first_second_spring_scale": first_second_scale,
+                            "local_attach_frame_position_scale": frame_position_scale,
+                            "local_attach_frame_tangent_scale": frame_tangent_scale,
+                            "torque_distribution_profile": str(profile),
+                        },
+                    )
+                )
         return tuple(conditions)
 
     if args.mode == "attach-frame-grid":
@@ -542,8 +546,9 @@ def _summary_row(
         "duration_s": cfg.time.duration_s,
         "dt_star": cfg.dt_star,
         "torque_Nm": cfg.motor_torque_Nm,
+        "force_distribution": cfg.motor.force_distribution,
         "n_flagella": cfg.flagella.n_flagella,
-        "torque_segment_weight_profile": cfg.motor.torque_segment_weight_profile,
+        "torque_distribution_profile": cfg.motor.torque_distribution_profile,
         "local_attach_first_spring_scale": cfg.motor.local_attach_first_spring_scale,
         "local_attach_first_body_axis_angle_scale": (
             cfg.motor.local_attach_first_body_axis_angle_scale
@@ -817,11 +822,16 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Comma-separated tangent scale values for --mode attach-frame-grid.",
     )
     parser.add_argument(
-        "--torque-segment-weight-profiles",
+        "--force-distributions",
+        type=_parse_text_values,
+        default=_parse_text_values("root_torque_segment_couples"),
+        help="Comma-separated motor.force_distribution values for --mode torque-profile-grid.",
+    )
+    parser.add_argument(
+        "--torque-distribution-profiles",
         type=_parse_text_values,
         default=_parse_text_values(
-            "local_twist_activity,activity_sqrt,"
-            "activity_floor_0p2,activity_floor_0p4,uniform"
+            "diffusive,diffusive_sqrt,diffusive_floor_0p2,diffusive_floor_0p4,uniform"
         ),
         help="Comma-separated profile values for --mode torque-profile-grid.",
     )

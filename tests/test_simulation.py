@@ -173,9 +173,10 @@ def test_phase2_hook_overstretch_scales_are_engine_localized() -> None:
 @pytest.mark.parametrize(
     "profile",
     [
-        "activity_floor_0p2",
-        "activity_floor_0p4",
-        "activity_sqrt",
+        "basal_unloading",
+        "diffusive_floor_0p2",
+        "diffusive_floor_0p4",
+        "diffusive_sqrt",
         "uniform",
     ],
 )
@@ -189,7 +190,7 @@ def test_root_torque_segment_couples_weight_profiles_run(
         duration_s=1.0e-4,
     ).with_overrides(
         {
-            "motor": {"torque_segment_weight_profile": profile},
+            "motor": {"torque_distribution_profile": profile},
             "time": {"dt_star": 1.0e-4},
         }
     )
@@ -198,7 +199,7 @@ def test_root_torque_segment_couples_weight_profiles_run(
     rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "sim")
 
     assert rows
-    assert cfg.motor.torque_segment_weight_profile == profile
+    assert cfg.motor.torque_distribution_profile == profile
     assert np.isfinite(float(rows[-1]["flag_helix_axis_center_radius_cv_mean"]))
     assert np.isfinite(float(rows[-1]["flag_helix_axis_center_spin_fit_r2_min"]))
 

@@ -111,36 +111,43 @@ def test_phase2_82_attach_frame_grid_conditions() -> None:
 def test_phase2_82_torque_profile_grid_conditions() -> None:
     args = SimpleNamespace(
         mode="torque-profile-grid",
+        force_distributions=[
+            "root_torque_segment_couples",
+            "root_torque_axis_projection",
+            "root_torque_hybrid_couples",
+        ],
         fixed_attach_first_spring_scale=1.0,
         fixed_body_axis_angle_scale=1.0,
         fixed_first_second_spring_scale=1.0,
         fixed_attach_frame_position_scale=3.0,
         fixed_attach_frame_tangent_scale=1.5,
-        torque_segment_weight_profiles=[
-            "local_twist_activity",
-            "activity_sqrt",
-            "activity_floor_0p2",
-            "activity_floor_0p4",
+        torque_distribution_profiles=[
+            "diffusive",
+            "diffusive_sqrt",
+            "diffusive_floor_0p2",
+            "diffusive_floor_0p4",
             "uniform",
         ],
     )
 
     conditions = script.build_conditions(args)
 
-    assert [condition.condition_id for condition in conditions] == [
-        "profile_local_twist_activity_fp3_ft1p5",
-        "profile_activity_sqrt_fp3_ft1p5",
-        "profile_activity_floor_0p2_fp3_ft1p5",
-        "profile_activity_floor_0p4_fp3_ft1p5",
-        "profile_uniform_fp3_ft1p5",
+    assert [condition.condition_id for condition in conditions[:5]] == [
+        "segment_couples_diffusive_fp3_ft1p5",
+        "segment_couples_diffusive_sqrt_fp3_ft1p5",
+        "segment_couples_diffusive_floor_0p2_fp3_ft1p5",
+        "segment_couples_diffusive_floor_0p4_fp3_ft1p5",
+        "segment_couples_uniform_fp3_ft1p5",
     ]
+    assert len(conditions) == 15
     assert conditions[-1].scales == {
+        "force_distribution": "root_torque_hybrid_couples",
         "local_attach_first_spring_scale": 1.0,
         "local_attach_first_body_axis_angle_scale": 1.0,
         "local_first_second_spring_scale": 1.0,
         "local_attach_frame_position_scale": 3.0,
         "local_attach_frame_tangent_scale": 1.5,
-        "torque_segment_weight_profile": "uniform",
+        "torque_distribution_profile": "uniform",
     }
 
 
@@ -173,12 +180,13 @@ def test_phase2_82_summary_row_records_fail_and_max_hook_events(
         flagella=SimpleNamespace(n_flagella=3, n_beads_per_flagellum=11),
         body=SimpleNamespace(prism=SimpleNamespace(n_prism=3)),
         motor=SimpleNamespace(
+            force_distribution="root_torque_segment_couples",
             local_attach_first_spring_scale=3.0,
             local_attach_first_body_axis_angle_scale=1.25,
             local_first_second_spring_scale=1.25,
             local_attach_frame_position_scale=2.0,
             local_attach_frame_tangent_scale=1.5,
-            torque_segment_weight_profile="local_twist_activity",
+            torque_distribution_profile="diffusive",
         ),
         compute_body_n_layers=lambda: 5,
     )
@@ -261,7 +269,8 @@ def test_phase2_82_summary_row_records_fail_and_max_hook_events(
     )
 
     assert row["first_fail_t_s"] == "0.2"
-    assert row["torque_segment_weight_profile"] == "local_twist_activity"
+    assert row["force_distribution"] == "root_torque_segment_couples"
+    assert row["torque_distribution_profile"] == "diffusive"
     assert row["first_fail_category_nonbody"] == "flag"
     assert row["first_fail_hook_len_rel_err_max"] == "1.01"
     assert row["first_fail_hook_len_rel_err_max_flag_id"] == "1"

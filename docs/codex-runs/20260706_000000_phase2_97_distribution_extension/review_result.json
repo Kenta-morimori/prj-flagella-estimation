@@ -1,0 +1,52 @@
+{
+  "status": "PASS",
+  "summary": "Issue #97 の実装段階として、`motor.torque_distribution_profile` への rename と旧名 alias、`root_torque_axis_projection` の profile 対応、`root_torque_hybrid_couples`、`basal_unloading`、`torque-profile-grid` の `force_distribution x torque_distribution_profile` 比較導線を追加した。長時間の後方条件評価は未実施で、次段のユーザー実行に引き継ぐ。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "0.6 s 後方主評価、側方参照比較、1.0 s と定性確認は未実施であり、この run には含めていない。",
+    "body 側反トルクの掛け方は別 issue とし、本変更では触れていない。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_params.py tests/test_motor_forces.py tests/test_simulation.py::test_root_torque_segment_couples_weight_profiles_run tests/test_phase2_82_hook_overstretch_sweep.py -q",
+      "result": "PASS: 81 passed"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/sim/params.py src/sim_swim/dynamics/forces.py src/sim_swim/dynamics/engine.py src/sim_swim/analysis/sweeps/hook_overstretch.py tests/test_params.py tests/test_motor_forces.py tests/test_simulation.py tests/test_phase2_82_hook_overstretch_sweep.py",
+      "result": "PASS: All checks passed"
+    },
+    {
+      "command": "uv run python -c \"import yaml; yaml.safe_load(open('conf/sim_swim.yaml', encoding='utf-8'))\"",
+      "result": "PASS: default config parses"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 force_distributions=root_torque_segment_couples,root_torque_axis_projection,root_torque_hybrid_couples torque_distribution_profiles=diffusive,uniform,basal_unloading dry_run=true",
+      "result": "PASS: 9 conditions printed"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.001 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 force_distributions=root_torque_segment_couples,root_torque_axis_projection,root_torque_hybrid_couples torque_distribution_profiles=diffusive,uniform,basal_unloading output_dir=/private/tmp/phase2_issue97_distribution_smoke overwrite=true progress_interval=10000",
+      "result": "PASS: 9 conditions completed and /private/tmp/phase2_issue97_distribution_smoke/summary.csv was generated"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "0.6 s / 1.0 s の後方条件と側方条件の比較は次段でユーザー実行する。",
+  "user_review_outputs": [
+    "/private/tmp/phase2_issue97_distribution_smoke/summary.csv"
+  ],
+  "user_review_points": [
+    "長時間評価時に body / hook / flagella が破綻しないこと",
+    "attach-bead 近傍角度が不自然に崩れないこと",
+    "後方条件で軸中心位相が一貫して進むこと"
+  ],
+  "adr_required": false,
+  "adr_reason": "default 物理モデルは変更しておらず、比較条件と設定名の拡張が中心のため。",
+  "commit_type": "diagnostic",
+  "commit_hash": "pending",
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/99",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/97",
+  "next_actions": [
+    "0.6 s 後方主評価で `root_torque_segment_couples`, `root_torque_axis_projection`, `root_torque_hybrid_couples` と `diffusive / uniform / basal_unloading` を比較する。",
+    "通過候補だけを 1.0 s と定性評価へ進める。"
+  ]
+}
