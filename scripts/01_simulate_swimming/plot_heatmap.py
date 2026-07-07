@@ -20,6 +20,7 @@ from sim_swim.analysis.heatmaps import (
     hook_overstretch,
     local_scale_mode,
     motor_scale_collapse,
+    shape_stability_grid,
 )
 
 
@@ -27,6 +28,7 @@ HEATMAP_MAIN = {
     "motor_scale_collapse": motor_scale_collapse.main,
     "dt_star_torque": dt_star_torque.main,
     "local_scale_mode": local_scale_mode.main,
+    "shape_stability_grid": shape_stability_grid.main,
     "hook_overstretch": hook_overstretch.main,
 }
 

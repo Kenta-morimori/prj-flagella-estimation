@@ -20,6 +20,7 @@ from sim_swim.analysis.sweeps import (
     bundling_alignment,
     hook_overstretch,
     motor_scale,
+    shape_stability_grid,
     single_flagellum_torque,
 )
 
@@ -28,6 +29,7 @@ SWEEP_MAIN = {
     "motor_scale": motor_scale.main,
     "single_flagellum_torque": single_flagellum_torque.main,
     "bundling_alignment": bundling_alignment.main,
+    "shape_stability_grid": shape_stability_grid.main,
     "hook_overstretch": hook_overstretch.main,
 }
 

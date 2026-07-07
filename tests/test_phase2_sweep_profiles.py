@@ -24,9 +24,9 @@ def _load_script(path: Path, name: str):
 
 
 def test_sweep_profile_converts_yaml_args_to_cli_args() -> None:
-    profile = load_profile(Path("conf/phase2_sweeps/hook_overstretch.yaml"))
+    profile = load_profile(Path("conf/phase2_sweeps/shape_stability_grid.yaml"))
 
-    assert profile["kind"] == "hook_overstretch"
+    assert profile["kind"] == "shape_stability_grid"
     args = args_from_profile(profile)
     assert "--duration-s" in args
     assert args[args.index("--mode") + 1] == "preset"
@@ -36,12 +36,12 @@ def test_sweep_profile_converts_yaml_args_to_cli_args() -> None:
 def test_split_config_key_extracts_key_value_profile_path() -> None:
     config, args = split_config_key(
         [
-            "config=conf/phase2_sweeps/hook_overstretch.yaml",
+            "config=conf/phase2_sweeps/shape_stability_grid.yaml",
             "dry_run=true",
         ]
     )
 
-    assert config == Path("conf/phase2_sweeps/hook_overstretch.yaml")
+    assert config == Path("conf/phase2_sweeps/shape_stability_grid.yaml")
     assert args == ["dry_run=true"]
 
 
@@ -54,7 +54,7 @@ def test_key_value_args_convert_to_argparse_options() -> None:
             "first_second_spring_scales=1",
             "dry_run=true",
         ],
-        aliases=sweep_aliases("hook_overstretch"),
+        aliases=sweep_aliases("shape_stability_grid"),
     )
 
     assert args == [
@@ -81,9 +81,35 @@ def test_run_sweep_wrapper_lists_profile_kind(capsys) -> None:
         "phase2_run_sweep_wrapper",
     )
 
+    module.main(
+        ["config=conf/phase2_sweeps/shape_stability_grid.yaml", "list_kind=true"]
+    )
+
+    assert capsys.readouterr().out.strip() == "shape_stability_grid"
+
+
+def test_run_sweep_wrapper_keeps_hook_overstretch_alias(capsys) -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/run_sweep.py"),
+        "phase2_run_sweep_wrapper_alias",
+    )
+
     module.main(["config=conf/phase2_sweeps/hook_overstretch.yaml", "list_kind=true"])
 
     assert capsys.readouterr().out.strip() == "hook_overstretch"
+
+
+def test_torque_distribution_profile_is_shape_stability_grid() -> None:
+    profile = load_profile(Path("conf/phase2_sweeps/torque_distribution_grid.yaml"))
+
+    assert profile["kind"] == "shape_stability_grid"
+    args = args_from_profile(profile)
+    assert args[args.index("--mode") + 1] == "torque-profile-grid"
+    assert (
+        args[args.index("--force-distributions") + 1]
+        == "root_torque_segment_couples,root_torque_axis_projection"
+    )
+    assert args[args.index("--torque-distribution-profiles") + 1] == "diffusive,uniform"
 
 
 def test_plot_heatmap_wrapper_rejects_unknown_kind(tmp_path: Path) -> None:

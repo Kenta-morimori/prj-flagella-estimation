@@ -1,0 +1,60 @@
+{
+  "status": "PASS",
+  "summary": "Issue #100 として，現役 sweep/heatmap 導線を shape_stability_grid へ移し，旧 hook_overstretch module/profile は歴史的 alias として残した。#97 の 2x2 torque distribution 比較用 profile を追加し，summary.csv / trajectory.csv / state_archive.npz / run_manifest.json と replay-only plot 導線を維持した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "Issue #100 の stacked PR が feature/phase2-97-torque-distribution-review へ merge されるまでは，Issue #97 の残評価は再開しない。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py",
+      "result": "PASS: 23 passed"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/analysis scripts/01_simulate_swimming tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/analysis scripts/01_simulate_swimming tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py",
+      "result": "PASS: 24 files already formatted"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/shape_stability_grid.yaml list_kind=true",
+      "result": "PASS: shape_stability_grid"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/torque_distribution_grid.yaml dry_run=true",
+      "result": "PASS: #97 の 4条件を展開"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/shape_stability_grid.yaml mode=first-second-grid time.duration_s=0.001 motor.torque_Nm=0 fixed_attach_first_spring_scale=1 fixed_body_axis_angle_scale=1 first_second_spring_scales=1 output_dir=/private/tmp/phase2_100_shape_smoke overwrite=true progress_interval=10000",
+      "result": "PASS: /private/tmp/phase2_100_shape_smoke/summary.csv を生成"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/plot_heatmap.py config=conf/phase2_sweeps/shape_stability_heatmap.yaml mode=first-second-grid summary_csv=/private/tmp/phase2_100_shape_smoke/summary.csv output_dir=/private/tmp/phase2_100_shape_heatmap",
+      "result": "PASS: heatmap_data.csv と heatmap PNG を生成"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/torque_distribution_grid.yaml time.duration_s=0.001 motor.torque_Nm=2.0e-20 output_dir=/private/tmp/phase2_100_torque_grid_smoke overwrite=true progress_interval=10000",
+      "result": "PASS: #97 の 4条件を実行し，summary.csv / run_manifest.json / state_archive.npz / trajectory.csv を生成"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir /private/tmp/phase2_100_torque_grid_smoke --mode plot-only --output-dir /private/tmp/phase2_100_replay_plot --overwrite",
+      "result": "PASS: issue97_metrics.csv と issue97_metrics.png を生成"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "物理モデル，出力データ契約，主要ディレクトリ構造の変更ではなく，既存 sweep/heatmap 実装の命名と profile 導線を整理したため。",
+  "commit_type": "complete",
+  "commit_hash": "pending",
+  "push_status": "not_pushed",
+  "pull_request_url": "",
+  "next_actions": [
+    "feature/phase2-100-generic-sweep-cli の PR を feature/phase2-97-torque-distribution-review base で作成する。",
+    "PR merge 後，Issue #97 の posterior 1.0 s，lateral 0.6 s，replay qualitative review，最終採用判断を再開する。"
+  ]
+}

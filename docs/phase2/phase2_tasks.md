@@ -798,8 +798,8 @@
   - 旧 `motor.torque_segment_weight_profile` を `motor.torque_distribution_profile` へ改名し，旧名は deprecated alias とした。
   - 旧 profile 名 `local_twist_activity`, `activity_sqrt`, `activity_floor_0p2`, `activity_floor_0p4` をそれぞれ `diffusive`, `diffusive_sqrt`, `diffusive_floor_0p2`, `diffusive_floor_0p4` へ整理した。
   - `root_torque_axis_projection` でも `motor.torque_distribution_profile` を使えるようにし，bead 単位重みとして解釈する。
-  - `hook_overstretch` sweep の `mode=torque-profile-grid` を `force_distribution x torque_distribution_profile` 比較へ拡張し，同じ `summary.csv` で集約できるようにした。
-  - `hook_overstretch` sweep summary に `axis_center_net_abs_revolutions_mean/min/max` と `axis_center_direction_consistency_mean/min` を追加し，`flag_helix_axis_diagnostics.csv` の per-flag 位相を手元後処理なしで集約できるようにした。
+  - 旧 `hook_overstretch` sweep の `mode=torque-profile-grid` を `force_distribution x torque_distribution_profile` 比較へ拡張し，同じ `summary.csv` で集約できるようにした。
+  - 旧 `hook_overstretch` sweep summary に `axis_center_net_abs_revolutions_mean/min/max` と `axis_center_direction_consistency_mean/min` を追加し，`flag_helix_axis_diagnostics.csv` の per-flag 位相を手元後処理なしで集約できるようにした。
 - result:
   - 0.001 s smoke `outputs=/private/tmp/phase2_issue97_torque_profile_smoke` では `profile_local_twist_activity_fp3_ft1p5` と `profile_uniform_fp3_ft1p5` の両方が `final_shape_pass_nonbody=True` だった。
   - smoke summary では `flag_helix_axis_center_radius_cv_mean` と `flag_helix_axis_center_spin_fit_r2_min` が両 profile で出力された。
@@ -810,7 +810,8 @@
   - 追加候補は `axis_center_net_abs_revolutions_mean` を `local_twist_activity=0.7967` から最大 `uniform=0.8627` まで増やすが，形状安定性を落とすため採用しない。default は `local_twist_activity` のまま維持する。
   - Stage E `outputs/phase2_97/stage_e_distribution_grid_fp3_ft1p5_torque2p0_dur0p6/summary.csv` では，`segment_couples_diffusive` だけが `final_shape_pass_nonbody=True`, `max_flag_bond_rel_err=0.9063` で 0.6 s を通過した。`axis_projection_uniform` は `first_fail_t_s=0.4593`, `max_flag_bond_rel_err=1.1244` で次点だが不通過，`axis_projection_diffusive` はより早く `flag` fail，hybrid 3条件は `t=0.0011..0.0039 s` で即時破綻した。
   - 上記を受けて `root_torque_hybrid_couples` は削除し，`basal_unloading` も主比較から除外した。Issue #97 の標準比較面は `root_torque_segment_couples / root_torque_axis_projection` × `diffusive / uniform` の 2x2 とする。
-  - `hook_overstretch` sweep は既定で `state_archive.npz` と `trajectory.csv` を各 condition directory に保存するようにし，定量 sweep 後に再シミュレーションなしで replay/render できるようにした。
+  - Issue #100 で現役導線は `shape_stability_grid` sweep / heatmap へ移り，旧 `hook_overstretch` は歴史的 alias として残した。#97 の 2x2 比較は `conf/phase2_sweeps/torque_distribution_grid.yaml` で実行できる。
+  - `shape_stability_grid` sweep は既定で `state_archive.npz` と `trajectory.csv` を各 condition directory に保存するようにし，定量 sweep 後に再シミュレーションなしで replay/render できるようにした。
   - 一時スクリプト `scripts/01_simulate_swimming/render_issue97_grid_qualitative.py` は sweep 出力 directory を入力として，標準 2x2 比較の `plot-only / render-only / both` を切り替えられる replay utility に更新した。定量 run 後の定性比較は既存 output の再編集で行う。
   - 2026-07-07 に follow-up Issue #100 `[Phase2] sweep/heatmap CLI を task-specific module 依存から切り離す` を作成した。Issue #97 はこの整理を blocker とし，Issue #100 の実装 branch / PR base は `feature/phase2-97-torque-distribution-review` に固定する。
   - 2026-07-07 追補として，Issue #100 の branch 名を `feature/phase2-100-generic-sweep-cli` に固定し，新しいスレッドからは `run_sweep.py`, `plot_heatmap.py`, `src/sim_swim/analysis/sweeps/hook_overstretch.py`, `conf/phase2_sweeps/hook_overstretch.yaml` を最初の確認対象とする。
@@ -818,7 +819,7 @@
   - [x] Issue #97 の背景・段階タスク・受け入れ条件が GitHub Issue 本文に記録される。
   - [x] 螺旋軸中心性を評価する診断列を `step_summary.csv` と `flag_helix_axis_diagnostics.csv` に出せる。
   - [x] `root_torque_segment_couples` と `root_torque_axis_projection` を共通の `motor.torque_distribution_profile` で比較できる。
-  - [x] `hook_overstretch` sweep summary に `force_distribution` と `torque_distribution_profile` を集約できる。
+  - [x] `shape_stability_grid` sweep summary に `force_distribution` と `torque_distribution_profile` を集約できる。
   - [x] 0.6 s 後方条件で新しい比較候補を主評価し，候補を絞る。
   - [ ] Issue #100 の stacked PR が `feature/phase2-97-torque-distribution-review` へ merge され，generic 化後も 2x2 比較と replay output contract が維持される。
   - [ ] 側方条件を参照比較し，後方条件の悪化が torque 分散由来かを確認する。
@@ -845,6 +846,39 @@
   - `docs/phase2/phase2_tasks.md`
   - `docs/codex-runs/20260701_103418_phase2_97_torque_distribution_review/review_result.json`
   - `docs/codex-runs/20260707_130000_phase2_97_grid_qualitative/review_result.json`
+
+### P2-8-100: sweep/heatmap CLI を task-specific module 依存から切り離す
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/100`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/82`
+- branch: `feature/phase2-100-generic-sweep-cli`
+- goal: 現役 user-facing sweep / heatmap 導線から `hook_overstretch` の task-specific naming を外し，#97 の 2x2 比較と replay output contract を維持したまま generic profile 導線へ移す。
+- result:
+  - `src/sim_swim/analysis/sweeps/shape_stability_grid.py` と `src/sim_swim/analysis/heatmaps/shape_stability_grid.py` を現役実装にし，旧 `hook_overstretch` module は deprecated alias として残した。
+  - `run_sweep.py` / `plot_heatmap.py` は `kind: shape_stability_grid` を正式に dispatch し，旧 `kind: hook_overstretch` も互換用に受け付ける。
+  - `conf/phase2_sweeps/shape_stability_grid.yaml`，`shape_stability_heatmap.yaml`，`torque_distribution_grid.yaml` を追加した。`torque_distribution_grid.yaml` は #97 の `root_torque_segment_couples / root_torque_axis_projection` × `diffusive / uniform` 2x2 条件を既定にする。
+  - `summary.csv`，`trajectory.csv`，`state_archive.npz`，`run_manifest.json` の replayable output contract は維持した。
+- acceptance criteria:
+  - [x] `run_sweep.py` / `plot_heatmap.py` の現役導線を `shape_stability_grid` として説明できる。
+  - [x] 旧 `hook_overstretch` profile / module は歴史的 alias として維持される。
+  - [x] #97 の 2x2 torque distribution 比較を新 profile で dry-run / smoke 実行できる。
+  - [x] replay-only plot 導線が新 profile の出力を読める。
+- verification:
+  - `uv run pytest tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py`
+  - `uv run ruff check src/sim_swim/analysis scripts/01_simulate_swimming tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py`
+  - `uv run ruff format --check src/sim_swim/analysis scripts/01_simulate_swimming tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_phase2_82_hook_overstretch_heatmap.py`
+  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/shape_stability_grid.yaml list_kind=true`
+  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/torque_distribution_grid.yaml dry_run=true`
+  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/shape_stability_grid.yaml mode=first-second-grid time.duration_s=0.001 motor.torque_Nm=0 fixed_attach_first_spring_scale=1 fixed_body_axis_angle_scale=1 first_second_spring_scales=1 output_dir=/private/tmp/phase2_100_shape_smoke overwrite=true progress_interval=10000`
+  - `uv run python scripts/01_simulate_swimming/plot_heatmap.py config=conf/phase2_sweeps/shape_stability_heatmap.yaml mode=first-second-grid summary_csv=/private/tmp/phase2_100_shape_smoke/summary.csv output_dir=/private/tmp/phase2_100_shape_heatmap`
+  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/torque_distribution_grid.yaml time.duration_s=0.001 motor.torque_Nm=2.0e-20 output_dir=/private/tmp/phase2_100_torque_grid_smoke overwrite=true progress_interval=10000`
+  - `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir /private/tmp/phase2_100_torque_grid_smoke --mode plot-only --output-dir /private/tmp/phase2_100_replay_plot --overwrite`
+- docs:
+  - `scripts/README.md`
+  - `docs/phase2/phase2_current.md`
+  - `docs/phase2/phase2_tasks.md`
+  - `docs/codex-runs/20260707_180315_phase2_100_generic_sweep_cli/review_result.json`
 
 ### P2-8-DTSTAR: Phase 2標準dt_starと実行コマンドを整理する
 

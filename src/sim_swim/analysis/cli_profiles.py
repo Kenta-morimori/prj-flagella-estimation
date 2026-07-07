@@ -22,6 +22,14 @@ SWEEP_OVERRIDE_ALIASES = {
         "time.dt_star": "dt-star",
         "time.duration_s": "duration-s",
     },
+    "shape_stability_grid": {
+        "flagella.n_flagella": "n-flagella",
+        "motor.torque_Nm": "torque-nm",
+        "seed.attach_seed": "attach-seed",
+        "seed.phase_seed": "phase-seed",
+        "time.dt_star": "dt-star",
+        "time.duration_s": "duration-s",
+    },
     "hook_overstretch": {
         "flagella.n_flagella": "n-flagella",
         "motor.torque_Nm": "torque-nm",
