@@ -19,7 +19,7 @@
   "adr_required": false,
   "adr_reason": "GitHub metadata と運用ドキュメントの整理であり、物理モデルや恒久I/O契約の変更ではない。",
   "commit_type": "docs",
-  "commit_hash": "",
+  "commit_hash": "0b6c3bb",
   "push_status": "pending",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/99",
   "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/97",
