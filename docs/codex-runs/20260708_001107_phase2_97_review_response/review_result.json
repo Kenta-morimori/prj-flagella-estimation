@@ -1,0 +1,49 @@
+{
+  "status": "PASS",
+  "summary": "PR #99 の Codex review 2件に対応した。root_torque_axis_projection の weighted drive では，ゼロ重み bead に balance force が漏れないよう active/weighted support 内だけで平均差し引きを行うよう修正した。さらに historical Issue #97 command の再現性を保つため，torque_segment_weight_profiles / --torque-segment-weight-profiles を deprecated alias として維持し，docs上の現役検証コマンドは torque_distribution_profiles と正式profile名へ更新した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "review thread へのGitHub返信・resolve操作はユーザーから明示依頼があるまで実施しない。",
+    "長時間 Phase 2 sweep / render は実行していない。今回の修正は単体テスト，parser dry-run，docs整合の範囲で確認した。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_motor_forces.py tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py -q",
+      "result": "PASS: 37 passed"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/dynamics/forces.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_motor_forces.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/dynamics/forces.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_motor_forces.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS: 4 files already formatted"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_segment_weight_profiles=diffusive,uniform dry_run=true",
+      "result": "PASS: deprecated alias expands the 4 Issue #97 torque conditions"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_distribution_profiles=diffusive,uniform dry_run=true",
+      "result": "PASS: canonical key expands the same 4 Issue #97 torque conditions"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "adr_required": false,
+  "adr_reason": "既存意図どおりゼロ重み bead を無荷重に保つバグ修正と deprecated CLI alias の追加であり，新しい物理モデル方針や公開output contractの意味変更ではないため。",
+  "commit_type": "complete",
+  "commit_hash": "pending",
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/99",
+  "next_actions": [
+    "PR #99 の review thread が更新後diffで outdated になるか確認する。",
+    "必要ならGitHub上でreview threadに返信またはresolveする。",
+    "PR #99 merge後に #97/#100 のcloseを確認し，#103へ進む。"
+  ]
+}

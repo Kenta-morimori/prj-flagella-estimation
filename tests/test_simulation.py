@@ -170,6 +170,39 @@ def test_phase2_hook_overstretch_scales_are_engine_localized() -> None:
     assert engine.hook_first_second_rest_lengths_m[0] > 0.0
 
 
+@pytest.mark.parametrize(
+    "profile",
+    [
+        "diffusive_floor_0p2",
+        "diffusive_floor_0p4",
+        "diffusive_sqrt",
+        "uniform",
+    ],
+)
+def test_root_torque_segment_couples_weight_profiles_run(
+    profile: str, tmp_path: Path
+) -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=2.0e-20,
+        n_flagella=1,
+        force_distribution="root_torque_segment_couples",
+        duration_s=1.0e-4,
+    ).with_overrides(
+        {
+            "motor": {"torque_distribution_profile": profile},
+            "time": {"dt_star": 1.0e-4},
+        }
+    )
+
+    sim = Simulator(cfg)
+    rows = _run_and_load_step_summary(sim, cfg.time.duration_s, tmp_path / "sim")
+
+    assert rows
+    assert cfg.motor.torque_distribution_profile == profile
+    assert np.isfinite(float(rows[-1]["flag_helix_axis_center_radius_cv_mean"]))
+    assert np.isfinite(float(rows[-1]["flag_helix_axis_center_spin_fit_r2_min"]))
+
+
 def _make_phase1_cfg(
     surrogate_torque_Nm: float = 1.0e-20, duration_s: float = 1.0e-2
 ) -> SimulationConfig:
@@ -430,6 +463,12 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
         "flag_helix_axis_pair_angle_deg_max",
         "flag_helix_axis_mean_deviation_deg_max",
         "flag_helix_axis_alignment_order",
+        "flag_helix_axis_center_radius_mean_um",
+        "flag_helix_axis_center_radius_cv_mean",
+        "flag_helix_axis_center_radius_cv_max",
+        "flag_helix_axis_center_spin_fit_r2_min",
+        "flag_helix_axis_center_root_offset_um_mean",
+        "flag_helix_axis_center_root_offset_um_max",
         "flag_flag_helix_bead_dist_min_um",
         "flag_flag_helix_close_pair_count",
         "flag_helix_bundle_radius_mean_um",
@@ -475,8 +514,13 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
     assert first_axis["flag_id"] == "0"
     assert "flag_helix_axis_vs_rear_angle_deg" in first_axis
     assert "axis_origin_x_um" in first_axis
+    assert "axis_center_spin_phase_deg" in first_axis
+    assert "axis_center_radius_cv" in first_axis
+    assert "axis_center_root_offset_um" in first_axis
     assert np.isfinite(float(first["flag_helix_axis_vs_rear_angle_deg_mean"]))
     assert np.isfinite(float(first_axis["flag_helix_axis_fit_r2"]))
+    assert np.isfinite(float(first["flag_helix_axis_center_radius_cv_mean"]))
+    assert np.isfinite(float(first_axis["axis_center_spin_fit_r2"]))
     assert int(first["flag_flag_helix_close_pair_count"]) >= 0
     assert len(first["hook_len_rel_err_per_flag"].split("|")) == cfg.flagella.n_flagella
     assert (

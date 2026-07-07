@@ -190,6 +190,89 @@ def test_root_torque_axis_projection_applies_balanced_torque() -> None:
     assert np.isclose(float((flag_torque + body_torque) @ axis), 0.0, atol=1e-28)
 
 
+def test_root_torque_axis_projection_respects_bead_weights() -> None:
+    body = np.array(
+        [
+            [0.0, -1.0, -1.0],
+            [0.0, 1.0, -1.0],
+            [0.0, 1.0, 1.0],
+            [0.0, -1.0, 1.0],
+        ],
+        dtype=float,
+    )
+    theta = np.linspace(0.0, 2.0 * math.pi, 8, endpoint=False)
+    flag = np.column_stack(
+        [
+            np.linspace(0.0, 3.0, theta.size),
+            0.25 * np.cos(theta),
+            0.25 * np.sin(theta),
+        ]
+    )
+    positions = np.vstack([body, flag])
+    body_indices = np.arange(body.shape[0], dtype=int)
+    flag_indices = [np.arange(body.shape[0], positions.shape[0], dtype=int)]
+
+    forces_weighted, _ = compute_root_torque_axis_projection_forces(
+        positions_m=positions,
+        flagella_indices=flag_indices,
+        body_indices=body_indices,
+        torque_per_flag=np.array([2.0e-20], dtype=float),
+        bead_weights=[np.array([3.0, 3.0, 2.0, 1.0, 0.5, 0.5, 0.2, 0.2], dtype=float)],
+    )
+    forces_uniform, _ = compute_root_torque_axis_projection_forces(
+        positions_m=positions,
+        flagella_indices=flag_indices,
+        body_indices=body_indices,
+        torque_per_flag=np.array([2.0e-20], dtype=float),
+        bead_weights=[np.ones((flag.shape[0],), dtype=float)],
+    )
+
+    assert np.allclose(forces_weighted.sum(axis=0), np.zeros(3), atol=1e-30)
+    assert not np.allclose(
+        forces_weighted[flag_indices[0]],
+        forces_uniform[flag_indices[0]],
+        atol=1e-30,
+        rtol=1e-8,
+    )
+
+
+def test_root_torque_axis_projection_keeps_zero_weight_beads_unloaded() -> None:
+    body = np.array(
+        [
+            [0.0, -1.0, -1.0],
+            [0.0, 1.0, -1.0],
+            [0.0, 1.0, 1.0],
+            [0.0, -1.0, 1.0],
+        ],
+        dtype=float,
+    )
+    theta = np.linspace(0.0, 2.0 * math.pi, 8, endpoint=False)
+    flag = np.column_stack(
+        [
+            np.linspace(0.0, 3.0, theta.size),
+            0.25 * np.cos(theta),
+            0.25 * np.sin(theta),
+        ]
+    )
+    positions = np.vstack([body, flag])
+    body_indices = np.arange(body.shape[0], dtype=int)
+    flag_indices = [np.arange(body.shape[0], positions.shape[0], dtype=int)]
+    torque = 2.0e-20
+
+    forces, diag = compute_root_torque_axis_projection_forces(
+        positions_m=positions,
+        flagella_indices=flag_indices,
+        body_indices=body_indices,
+        torque_per_flag=np.array([torque], dtype=float),
+        bead_weights=[np.array([1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])],
+    )
+
+    assert diag.degenerate_axis_count == 0
+    assert np.allclose(forces.sum(axis=0), np.zeros(3), atol=1e-30)
+    assert np.allclose(forces[flag_indices[0][2:]], np.zeros((6, 3)), atol=1e-30)
+    assert not np.allclose(forces[flag_indices[0][:2]], np.zeros((2, 3)), atol=1e-30)
+
+
 def test_root_torque_segment_couples_applies_local_balanced_torque() -> None:
     body = np.array(
         [

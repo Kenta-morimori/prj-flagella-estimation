@@ -3,6 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+import yaml
+
 from sim_swim.analysis.sweeps import hook_overstretch as script
 
 
@@ -106,6 +109,67 @@ def test_phase2_82_attach_frame_grid_conditions() -> None:
     }
 
 
+def test_phase2_82_torque_profile_grid_conditions() -> None:
+    args = SimpleNamespace(
+        mode="torque-profile-grid",
+        force_distributions=[
+            "root_torque_segment_couples",
+            "root_torque_axis_projection",
+        ],
+        fixed_attach_first_spring_scale=1.0,
+        fixed_body_axis_angle_scale=1.0,
+        fixed_first_second_spring_scale=1.0,
+        fixed_attach_frame_position_scale=3.0,
+        fixed_attach_frame_tangent_scale=1.5,
+        torque_distribution_profiles=[
+            "diffusive",
+            "diffusive_sqrt",
+            "diffusive_floor_0p2",
+            "diffusive_floor_0p4",
+            "uniform",
+        ],
+    )
+
+    conditions = script.build_conditions(args)
+
+    assert [condition.condition_id for condition in conditions[:5]] == [
+        "segment_couples_diffusive_fp3_ft1p5",
+        "segment_couples_diffusive_sqrt_fp3_ft1p5",
+        "segment_couples_diffusive_floor_0p2_fp3_ft1p5",
+        "segment_couples_diffusive_floor_0p4_fp3_ft1p5",
+        "segment_couples_uniform_fp3_ft1p5",
+    ]
+    assert len(conditions) == 10
+    assert conditions[-1].scales == {
+        "force_distribution": "root_torque_axis_projection",
+        "local_attach_first_spring_scale": 1.0,
+        "local_attach_first_body_axis_angle_scale": 1.0,
+        "local_first_second_spring_scale": 1.0,
+        "local_attach_frame_position_scale": 3.0,
+        "local_attach_frame_tangent_scale": 1.5,
+        "torque_distribution_profile": "uniform",
+    }
+
+
+def test_phase2_82_axis_center_phase_summary() -> None:
+    rows = [
+        {"flag_id": "0", "axis_center_spin_phase_deg": "170"},
+        {"flag_id": "1", "axis_center_spin_phase_deg": "10"},
+        {"flag_id": "0", "axis_center_spin_phase_deg": "-170"},
+        {"flag_id": "1", "axis_center_spin_phase_deg": "40"},
+        {"flag_id": "0", "axis_center_spin_phase_deg": "-150"},
+        {"flag_id": "1", "axis_center_spin_phase_deg": "70"},
+    ]
+
+    summary = script._axis_center_phase_summary(rows)
+
+    assert summary["axis_center_net_abs_revolutions_min"] == pytest.approx(1.0 / 9.0)
+    assert summary["axis_center_net_abs_revolutions_max"] == pytest.approx(1.0 / 6.0)
+    assert summary["axis_center_net_abs_revolutions_mean"] == pytest.approx(5.0 / 36.0)
+    assert summary["axis_center_direction_consistency_mean"] == 1.0
+    assert summary["axis_center_direction_consistency_min"] == 1.0
+
+
 def test_phase2_82_summary_row_records_fail_and_max_hook_events(
     tmp_path: Path,
 ) -> None:
@@ -116,11 +180,13 @@ def test_phase2_82_summary_row_records_fail_and_max_hook_events(
         flagella=SimpleNamespace(n_flagella=3, n_beads_per_flagellum=11),
         body=SimpleNamespace(prism=SimpleNamespace(n_prism=3)),
         motor=SimpleNamespace(
+            force_distribution="root_torque_segment_couples",
             local_attach_first_spring_scale=3.0,
             local_attach_first_body_axis_angle_scale=1.25,
             local_first_second_spring_scale=1.25,
             local_attach_frame_position_scale=2.0,
             local_attach_frame_tangent_scale=1.5,
+            torque_distribution_profile="diffusive",
         ),
         compute_body_n_layers=lambda: 5,
     )
@@ -203,6 +269,8 @@ def test_phase2_82_summary_row_records_fail_and_max_hook_events(
     )
 
     assert row["first_fail_t_s"] == "0.2"
+    assert row["force_distribution"] == "root_torque_segment_couples"
+    assert row["torque_distribution_profile"] == "diffusive"
     assert row["first_fail_category_nonbody"] == "flag"
     assert row["first_fail_hook_len_rel_err_max"] == "1.01"
     assert row["first_fail_hook_len_rel_err_max_flag_id"] == "1"
@@ -239,3 +307,45 @@ def test_phase2_82_summary_row_records_fail_and_max_hook_events(
     assert row["flag_bond_rel_err_max_local_bead_j"] == "4"
     assert row["flag_bond_rel_err_local_3_4_per_flag"] == "0:1.02|1:1.12|2:1.22"
     assert row["max_flag_bond_rel_err_local_3_4_per_flag"] == "0:1.02|1:1.12|2:1.22"
+
+
+@pytest.mark.parametrize("save_state_archive", [True, False])
+def test_phase2_82_run_condition_optionally_saves_state_archive(
+    tmp_path: Path, save_state_archive: bool
+) -> None:
+    base_cfg = yaml.safe_load(Path("conf/sim_swim.yaml").read_text(encoding="utf-8"))
+    args = SimpleNamespace(
+        output_dir=tmp_path,
+        overwrite=True,
+        duration_s=1.0e-4,
+        dt_star=1.0e-4,
+        torque_nm=2.0e-20,
+        n_flagella=3,
+        attach_seed=0,
+        phase_seed=0,
+        progress_interval=1000,
+        save_state_archive=save_state_archive,
+    )
+    condition = script.Condition(
+        condition_id="segment_couples_diffusive_fp3_ft1p5",
+        mode="torque-profile-grid",
+        description="archive test",
+        scales={
+            "force_distribution": "root_torque_segment_couples",
+            "local_attach_first_spring_scale": 1.0,
+            "local_attach_first_body_axis_angle_scale": 1.0,
+            "local_first_second_spring_scale": 1.0,
+            "local_attach_frame_position_scale": 3.0,
+            "local_attach_frame_tangent_scale": 1.5,
+            "torque_distribution_profile": "diffusive",
+        },
+    )
+
+    row = script._run_condition(base_cfg, args, condition)
+
+    condition_dir = tmp_path / condition.condition_id
+    assert row["condition_id"] == condition.condition_id
+    assert (condition_dir / "step_summary.csv").is_file()
+    assert (condition_dir / "flag_helix_axis_diagnostics.csv").is_file()
+    assert (condition_dir / "state_archive.npz").is_file() == save_state_archive
+    assert (condition_dir / "trajectory.csv").is_file() == save_state_archive

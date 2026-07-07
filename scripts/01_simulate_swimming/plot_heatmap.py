@@ -20,6 +20,7 @@ from sim_swim.analysis.heatmaps import (
     hook_overstretch,
     local_scale_mode,
     motor_scale_collapse,
+    shape_stability_grid,
 )
 
 
@@ -27,8 +28,31 @@ HEATMAP_MAIN = {
     "motor_scale_collapse": motor_scale_collapse.main,
     "dt_star_torque": dt_star_torque.main,
     "local_scale_mode": local_scale_mode.main,
+    "shape_stability_grid": shape_stability_grid.main,
     "hook_overstretch": hook_overstretch.main,
 }
+
+
+def _has_option(args: list[str], option_name: str) -> bool:
+    return any(arg == option_name or arg.startswith(f"{option_name}=") for arg in args)
+
+
+def _first_option_value(args: list[str], option_name: str) -> str | None:
+    for index, arg in enumerate(args):
+        if arg == option_name and index + 1 < len(args):
+            return args[index + 1]
+        if arg.startswith(f"{option_name}="):
+            return arg.split("=", 1)[1]
+    return None
+
+
+def _with_default_output_dir(args: list[str]) -> list[str]:
+    if _has_option(args, "--output-dir"):
+        return args
+    summary_csv = _first_option_value(args, "--summary-csv")
+    if summary_csv is None:
+        return args
+    return [*args, "--output-dir", str(Path(summary_csv).parent / "plots")]
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -55,8 +79,8 @@ def main(argv: list[str] | None = None) -> None:
         choices = ", ".join(sorted(HEATMAP_MAIN))
         raise SystemExit(f"Unknown heatmap kind {kind!r}. Expected one of: {choices}")
 
-    effective_args = args_from_profile(profile) + key_value_args_to_cli_args(
-        passthrough
+    effective_args = _with_default_output_dir(
+        args_from_profile(profile) + key_value_args_to_cli_args(passthrough)
     )
     HEATMAP_MAIN[kind](effective_args)
 

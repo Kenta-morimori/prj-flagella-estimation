@@ -15,6 +15,7 @@ from sim_swim.sim.helix_axis import (
     angle_deg_between,
     estimate_body_axis,
     estimate_flag_helix_axis,
+    helix_axis_centered_metrics,
     helix_axis_alignment_metrics,
 )
 from sim_swim.sim.hook_frame import (
@@ -117,6 +118,12 @@ STEP_SUMMARY_COLUMNS = [
     "flag_helix_axis_pair_angle_deg_max",
     "flag_helix_axis_mean_deviation_deg_max",
     "flag_helix_axis_alignment_order",
+    "flag_helix_axis_center_radius_mean_um",
+    "flag_helix_axis_center_radius_cv_mean",
+    "flag_helix_axis_center_radius_cv_max",
+    "flag_helix_axis_center_spin_fit_r2_min",
+    "flag_helix_axis_center_root_offset_um_mean",
+    "flag_helix_axis_center_root_offset_um_max",
     "flag_flag_helix_bead_dist_min_um",
     "flag_flag_helix_close_pair_count",
     "flag_helix_bundle_radius_mean_um",
@@ -273,6 +280,12 @@ FLAG_HELIX_AXIS_DIAGNOSTICS_COLUMNS = [
     "axis_dir_x",
     "axis_dir_y",
     "axis_dir_z",
+    "axis_center_spin_phase_deg",
+    "axis_center_spin_fit_r2",
+    "axis_center_radius_mean_um",
+    "axis_center_radius_std_um",
+    "axis_center_radius_cv",
+    "axis_center_root_offset_um",
 ]
 
 RAD_TO_DEG = 180.0 / np.pi
@@ -1713,11 +1726,22 @@ class StepSummaryRecorder:
         helix_axis_rearward_projections: list[float] = []
         helix_axis_fit_r2_values: list[float] = []
         helix_axes: list[np.ndarray] = []
+        center_radius_means_um: list[float] = []
+        center_radius_cvs: list[float] = []
+        center_spin_fit_r2_values: list[float] = []
+        center_root_offsets_um: list[float] = []
         helix_axis_degenerate_count = 0
+        _, phase_ref_e1, _ = self._phase_reference_frame(pos_after)
         for flag_id, flag_indices in enumerate(self.model.flagella_indices):
             estimate = estimate_flag_helix_axis(pos_after, flag_indices, flag_id)
             angle_deg = angle_deg_between(estimate.axis, body_axis.rear_direction)
             rearward_projection = float(np.dot(estimate.axis, body_axis.rear_direction))
+            centered = helix_axis_centered_metrics(
+                pos_after,
+                flag_indices,
+                estimate,
+                phase_ref_e1,
+            )
             if estimate.degenerate:
                 helix_axis_degenerate_count += 1
             if np.isfinite(angle_deg):
@@ -1726,6 +1750,14 @@ class StepSummaryRecorder:
                 helix_axis_rearward_projections.append(float(rearward_projection))
             if np.isfinite(estimate.fit_r2):
                 helix_axis_fit_r2_values.append(float(estimate.fit_r2))
+            if np.isfinite(centered.radius_mean_m):
+                center_radius_means_um.append(float(centered.radius_mean_m * M_TO_UM))
+            if np.isfinite(centered.radius_cv):
+                center_radius_cvs.append(float(centered.radius_cv))
+            if np.isfinite(centered.fit_r2):
+                center_spin_fit_r2_values.append(float(centered.fit_r2))
+            if np.isfinite(centered.root_offset_m):
+                center_root_offsets_um.append(float(centered.root_offset_m * M_TO_UM))
             if not estimate.degenerate and np.isfinite(estimate.axis).all():
                 helix_axes.append(estimate.axis)
 
@@ -1747,6 +1779,24 @@ class StepSummaryRecorder:
                     "axis_dir_x": float(estimate.axis[0]),
                     "axis_dir_y": float(estimate.axis[1]),
                     "axis_dir_z": float(estimate.axis[2]),
+                    "axis_center_spin_phase_deg": centered.phase_deg,
+                    "axis_center_spin_fit_r2": centered.fit_r2,
+                    "axis_center_radius_mean_um": (
+                        float(centered.radius_mean_m * M_TO_UM)
+                        if np.isfinite(centered.radius_mean_m)
+                        else float("nan")
+                    ),
+                    "axis_center_radius_std_um": (
+                        float(centered.radius_std_m * M_TO_UM)
+                        if np.isfinite(centered.radius_std_m)
+                        else float("nan")
+                    ),
+                    "axis_center_radius_cv": centered.radius_cv,
+                    "axis_center_root_offset_um": (
+                        float(centered.root_offset_m * M_TO_UM)
+                        if np.isfinite(centered.root_offset_m)
+                        else float("nan")
+                    ),
                 }
             )
 
@@ -1770,6 +1820,32 @@ class StepSummaryRecorder:
             else float("nan")
         )
         helix_axis_alignment = helix_axis_alignment_metrics(helix_axes)
+        flag_helix_axis_center_radius_mean_um = (
+            float(np.mean(center_radius_means_um))
+            if center_radius_means_um
+            else float("nan")
+        )
+        flag_helix_axis_center_radius_cv_mean = (
+            float(np.mean(center_radius_cvs)) if center_radius_cvs else float("nan")
+        )
+        flag_helix_axis_center_radius_cv_max = (
+            float(np.max(center_radius_cvs)) if center_radius_cvs else float("nan")
+        )
+        flag_helix_axis_center_spin_fit_r2_min = (
+            float(np.min(center_spin_fit_r2_values))
+            if center_spin_fit_r2_values
+            else float("nan")
+        )
+        flag_helix_axis_center_root_offset_um_mean = (
+            float(np.mean(center_root_offsets_um))
+            if center_root_offsets_um
+            else float("nan")
+        )
+        flag_helix_axis_center_root_offset_um_max = (
+            float(np.max(center_root_offsets_um))
+            if center_root_offsets_um
+            else float("nan")
+        )
         (
             flag_flag_helix_bead_dist_min_um,
             flag_flag_helix_close_pair_count,
@@ -2178,6 +2254,24 @@ class StepSummaryRecorder:
                 helix_axis_alignment.mean_deviation_deg_max
             ),
             "flag_helix_axis_alignment_order": helix_axis_alignment.alignment_order,
+            "flag_helix_axis_center_radius_mean_um": (
+                flag_helix_axis_center_radius_mean_um
+            ),
+            "flag_helix_axis_center_radius_cv_mean": (
+                flag_helix_axis_center_radius_cv_mean
+            ),
+            "flag_helix_axis_center_radius_cv_max": (
+                flag_helix_axis_center_radius_cv_max
+            ),
+            "flag_helix_axis_center_spin_fit_r2_min": (
+                flag_helix_axis_center_spin_fit_r2_min
+            ),
+            "flag_helix_axis_center_root_offset_um_mean": (
+                flag_helix_axis_center_root_offset_um_mean
+            ),
+            "flag_helix_axis_center_root_offset_um_max": (
+                flag_helix_axis_center_root_offset_um_max
+            ),
             "flag_flag_helix_bead_dist_min_um": flag_flag_helix_bead_dist_min_um,
             "flag_flag_helix_close_pair_count": int(flag_flag_helix_close_pair_count),
             "flag_helix_bundle_radius_mean_um": flag_helix_bundle_radius_mean_um,

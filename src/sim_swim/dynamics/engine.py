@@ -574,18 +574,61 @@ class DynamicsEngine:
 
         return out
 
+    def _profile_from_activity(
+        self,
+        *,
+        profile: str,
+        count: int,
+        activity: np.ndarray,
+        segment_based: bool,
+    ) -> np.ndarray:
+        if count <= 0:
+            return np.zeros((0,), dtype=float)
+        if profile == "uniform":
+            return np.ones((count,), dtype=float)
+
+        signal = np.asarray(activity, dtype=float).reshape((-1,))
+        if segment_based:
+            profile_signal = signal
+        else:
+            profile_signal = np.zeros((count,), dtype=float)
+            if signal.size == 0:
+                profile_signal.fill(1.0)
+            elif signal.size == 1:
+                profile_signal.fill(float(signal[0]))
+            else:
+                profile_signal[0] = float(signal[0])
+                profile_signal[-1] = float(signal[-1])
+                if count > 2:
+                    profile_signal[1:-1] = 0.5 * (signal[:-1] + signal[1:])
+        if profile_signal.shape[0] != count:
+            profile_signal = np.resize(profile_signal, (count,))
+        if float(np.max(np.abs(profile_signal))) <= 1e-12:
+            return np.ones((count,), dtype=float)
+        normalized = np.abs(profile_signal) / max(
+            float(np.max(np.abs(profile_signal))), 1e-12
+        )
+        if profile == "diffusive_sqrt":
+            return np.sqrt(normalized)
+        if profile == "diffusive_floor_0p2":
+            return 0.2 + 0.8 * normalized
+        if profile == "diffusive_floor_0p4":
+            return 0.4 + 0.6 * normalized
+        return normalized
+
     def _advance_local_twist_state(
         self,
         torque_per_flag: np.ndarray,
         dt_s: float,
-    ) -> list[np.ndarray]:
-        """root torque を segment orientation state として先端側へ拡散する。"""
+    ) -> tuple[list[np.ndarray], list[np.ndarray]]:
+        """root torque を局所回転状態として先端側へ拡散し、分配重みを返す。"""
 
         torque_ref = 2.0e-20
         drive_rate_ref_rad_s = 2.0 * math.pi * 2.2
         diffusion_rate_s = 80.0
         relaxation_rate_s = 0.05
-        weights: list[np.ndarray] = []
+        segment_weights: list[np.ndarray] = []
+        bead_weights: list[np.ndarray] = []
 
         root_orientation = float("nan")
         tip_orientation = float("nan")
@@ -595,7 +638,8 @@ class DynamicsEngine:
 
         for f_id, orientation in enumerate(self.local_twist_orientations):
             if f_id >= torque_per_flag.shape[0]:
-                weights.append(np.ones_like(orientation))
+                segment_weights.append(np.ones_like(orientation))
+                bead_weights.append(np.ones((orientation.size + 1,), dtype=float))
                 continue
 
             tau = float(torque_per_flag[f_id])
@@ -615,10 +659,23 @@ class DynamicsEngine:
             orientation[0] += drive_rate * dt_s
 
             activity = np.abs(orientation)
-            if float(np.max(activity)) <= 1e-12:
-                weights.append(np.ones_like(orientation))
-            else:
-                weights.append(activity / max(float(np.max(activity)), 1e-12))
+            profile = self.cfg.motor.torque_distribution_profile
+            segment_weights.append(
+                self._profile_from_activity(
+                    profile=profile,
+                    count=orientation.size,
+                    activity=activity,
+                    segment_based=True,
+                )
+            )
+            bead_weights.append(
+                self._profile_from_activity(
+                    profile=profile,
+                    count=orientation.size + 1,
+                    activity=activity,
+                    segment_based=False,
+                )
+            )
 
             if f_id == 0:
                 local_twist = (
@@ -648,7 +705,7 @@ class DynamicsEngine:
             "abs_max_deg": abs_max,
             "tip_activity_ratio": tip_activity_ratio,
         }
-        return weights
+        return segment_weights, bead_weights
 
     def step(self, dt_star: float) -> StepDiagnostics:
         """1ステップ更新する。
@@ -843,14 +900,19 @@ class DynamicsEngine:
                     body_axis_unit=self._body_axis_unit(pos),
                 )
             elif distribution == "root_torque_axis_projection":
+                _segment_weights, bead_weights = self._advance_local_twist_state(
+                    torque_per_flag=torque_per_flag,
+                    dt_s=dt_s,
+                )
                 motor_forces, motor_diag = compute_root_torque_axis_projection_forces(
                     positions_m=pos,
                     flagella_indices=self.model.flagella_indices,
                     body_indices=self.model.body_indices,
                     torque_per_flag=torque_per_flag,
+                    bead_weights=bead_weights,
                 )
             elif distribution == "root_torque_segment_couples":
-                segment_weights = self._advance_local_twist_state(
+                segment_weights, _bead_weights = self._advance_local_twist_state(
                     torque_per_flag=torque_per_flag,
                     dt_s=dt_s,
                 )
@@ -865,7 +927,7 @@ class DynamicsEngine:
                 raise ValueError(
                     "Unsupported motor.force_distribution: "
                     f"{distribution!r}. Use 'triplet', "
-                    "'root_torque_axis_projection', or "
+                    "'root_torque_axis_projection', "
                     "'root_torque_segment_couples'."
                 )
         motor_axis_vs_rear_direction_angle_deg = (

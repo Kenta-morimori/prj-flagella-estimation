@@ -99,6 +99,7 @@ Option-style arguments such as `--config`, `--duration-s`, and `--fps-out` remai
 * Stability-sensitive Phase 2 behavior may require multi-step tests; one-step tests are often insufficient.
 * Do not rely only on manual video inspection.
 * If tests or simulations cannot run, record what was not run, why, and what alternative checks were performed.
+* Do not run long Phase 2 simulation, sweep, or render commands unless the user explicitly asks Codex to execute them. For long runs, provide the exact command, output directory, files to inspect, evaluation points, and checks already passed; treat the long run as user-executed.
 * Completion, review_result schema, commit, push, PR, ADR, and Cloud review details live in `docs/codex/codex_workflow.md`.
 
 ## Phase 2 Visual Review

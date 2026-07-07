@@ -585,6 +585,7 @@ def _zero_net_force_torque_drive(
     origin: np.ndarray,
     axis: np.ndarray,
     target_torque_Nm: float,
+    weights: np.ndarray | None = None,
 ) -> tuple[np.ndarray, int, float, float]:
     idx = indices.astype(int, copy=False)
     if idx.size < 2 or abs(float(target_torque_Nm)) <= 0.0:
@@ -595,7 +596,18 @@ def _zero_net_force_torque_drive(
         return np.zeros_like(positions_m), 1, 0.0, 0.0
     radial = rel - np.outer(rel @ axis, axis)
     drive = np.cross(axis, radial)
-    drive -= np.mean(drive, axis=0, keepdims=True)
+    if weights is not None:
+        w = np.asarray(weights, dtype=float).reshape((-1,))
+        if w.shape[0] != idx.size:
+            w = np.resize(w, (idx.size,))
+        w = np.maximum(w, 0.0)
+        if float(np.sum(w)) <= 1e-18:
+            w = np.ones((idx.size,), dtype=float)
+        drive = drive * w[:, None]
+        active = w > 0.0
+        drive[active] -= np.mean(drive[active], axis=0, keepdims=True)
+    else:
+        drive -= np.mean(drive, axis=0, keepdims=True)
     torque_unit = float(np.sum(np.cross(radial, drive) @ axis))
     if abs(torque_unit) <= 1e-30:
         return np.zeros_like(positions_m), 1, 0.0, 0.0
@@ -614,6 +626,7 @@ def compute_root_torque_axis_projection_forces(
     flagella_indices: list[np.ndarray],
     body_indices: np.ndarray,
     torque_per_flag: np.ndarray,
+    bead_weights: list[np.ndarray] | None = None,
 ) -> tuple[np.ndarray, MotorForceDiagnostics]:
     """root torque を flagellum 軸まわりの接線力場として分配する。
 
@@ -661,6 +674,11 @@ def compute_root_torque_axis_projection_forces(
                 origin=origin,
                 axis=axis,
                 target_torque_Nm=tau,
+                weights=(
+                    bead_weights[f_id]
+                    if bead_weights is not None and f_id < len(bead_weights)
+                    else None
+                ),
             )
         )
         body_forces, body_degenerate, body_torque, body_force = (

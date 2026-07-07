@@ -23,6 +23,22 @@ MOTOR_FORCE_DISTRIBUTION_ALIASES = {
     "material_twist_local_couple": "root_torque_segment_couples",
     "distributed_flagellum": "root_torque_axis_projection",
 }
+MOTOR_TORQUE_DISTRIBUTION_PROFILE_DEFAULT = "diffusive"
+MOTOR_TORQUE_DISTRIBUTION_PROFILES = frozenset(
+    {
+        "diffusive",
+        "diffusive_floor_0p2",
+        "diffusive_floor_0p4",
+        "diffusive_sqrt",
+        "uniform",
+    }
+)
+MOTOR_TORQUE_DISTRIBUTION_PROFILE_ALIASES = {
+    "local_twist_activity": "diffusive",
+    "activity_sqrt": "diffusive_sqrt",
+    "activity_floor_0p2": "diffusive_floor_0p2",
+    "activity_floor_0p4": "diffusive_floor_0p4",
+}
 MOTOR_LOCAL_SCALE_KEYS = (
     "local_hook_scale",
     "local_spring_scale",
@@ -80,6 +96,30 @@ def normalize_motor_force_distribution(value: Any) -> str:
             f"Deprecated aliases accepted: {aliases}."
         )
     return mode
+
+
+def normalize_motor_torque_distribution_profile(value: Any) -> str:
+    """Normalize deprecated aliases and validate torque distribution mode."""
+
+    profile = str(value)
+    if profile in MOTOR_TORQUE_DISTRIBUTION_PROFILE_ALIASES:
+        normalized = MOTOR_TORQUE_DISTRIBUTION_PROFILE_ALIASES[profile]
+        warnings.warn(
+            "motor.torque_distribution_profile="
+            f"{profile!r} is deprecated; use {normalized!r} instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        return normalized
+    if profile not in MOTOR_TORQUE_DISTRIBUTION_PROFILES:
+        supported = ", ".join(sorted(MOTOR_TORQUE_DISTRIBUTION_PROFILES))
+        aliases = ", ".join(sorted(MOTOR_TORQUE_DISTRIBUTION_PROFILE_ALIASES))
+        raise ValueError(
+            "Unsupported motor.torque_distribution_profile: "
+            f"{profile!r}. Use one of: {supported}. "
+            f"Deprecated aliases accepted: {aliases}."
+        )
+    return profile
 
 
 class DynamicsMode(Enum):
@@ -245,6 +285,7 @@ class MotorParams:
 
     torque_Nm: float = 4.0e-18
     force_distribution: str = MOTOR_FORCE_DISTRIBUTION_DEFAULT
+    torque_distribution_profile: str = MOTOR_TORQUE_DISTRIBUTION_PROFILE_DEFAULT
     reverse_n_flagella: int = 1
     enable_switching: bool = False
     torque_ramp_enabled: bool = False
@@ -749,6 +790,17 @@ class SimulationConfig:
         )
 
         motor_raw = raw.get("motor", {}) or {}
+        profile_raw = motor_raw.get("torque_distribution_profile")
+        if profile_raw in (None, "") and motor_raw.get(
+            "torque_segment_weight_profile"
+        ) not in (None, ""):
+            profile_raw = motor_raw["torque_segment_weight_profile"]
+            warnings.warn(
+                "motor.torque_segment_weight_profile is deprecated; use "
+                "motor.torque_distribution_profile instead.",
+                FutureWarning,
+                stacklevel=2,
+            )
         motor = MotorParams(
             torque_Nm=float(_get(motor_raw, "torque_Nm", 2.5e-20)),
             force_distribution=normalize_motor_force_distribution(
@@ -757,6 +809,11 @@ class SimulationConfig:
                     "force_distribution",
                     MOTOR_FORCE_DISTRIBUTION_DEFAULT,
                 )
+            ),
+            torque_distribution_profile=normalize_motor_torque_distribution_profile(
+                profile_raw
+                if profile_raw not in (None, "")
+                else MOTOR_TORQUE_DISTRIBUTION_PROFILE_DEFAULT
             ),
             reverse_n_flagella=int(_get(motor_raw, "reverse_n_flagella", 1)),
             enable_switching=bool(_get(motor_raw, "enable_switching", False)),

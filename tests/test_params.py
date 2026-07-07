@@ -41,6 +41,55 @@ def test_default_motor_force_distribution_is_root_torque_segment_couples() -> No
     assert sim_cfg.motor.force_distribution == "root_torque_segment_couples"
 
 
+def test_default_motor_torque_distribution_profile_is_diffusive() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor.torque_distribution_profile == "diffusive"
+
+
+@pytest.mark.parametrize(
+    "profile",
+    [
+        "diffusive_floor_0p2",
+        "diffusive_floor_0p4",
+        "diffusive_sqrt",
+        "uniform",
+    ],
+)
+def test_motor_torque_distribution_profile_accepts_profiles(profile: str) -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["torque_distribution_profile"] = profile
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor.torque_distribution_profile == profile
+
+
+def test_motor_torque_distribution_profile_rejects_unknown_value() -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["torque_distribution_profile"] = "root_only"
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    with pytest.raises(
+        ValueError,
+        match="Unsupported motor.torque_distribution_profile",
+    ):
+        SimulationConfig.from_dict(cfg)
+
+
+def test_deprecated_torque_segment_weight_profile_alias_is_normalized() -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["torque_segment_weight_profile"] = "activity_sqrt"
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    with pytest.warns(FutureWarning, match="deprecated"):
+        sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor.torque_distribution_profile == "diffusive_sqrt"
+
+
 @pytest.mark.parametrize(
     ("alias", "expected"),
     [

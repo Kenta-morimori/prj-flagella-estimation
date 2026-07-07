@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "summary": "Issue #97 の sweep 基盤整理を別Issue #100 として切り出し、#97 を #100 で block する関係と、stacked PR base 方針を GitHub / docs の両方に反映した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "Issue #100 の実装自体は未着手であり、#97 の最終結論前に別PRとして進める必要がある。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "gh issue edit 97 --repo Kenta-morimori/prj-flagella-estimation --add-blocked-by 100",
+      "result": "PASS: Issue #97 is now blocked by Issue #100"
+    },
+    {
+      "command": "python -m json.tool docs/codex-runs/20260707_171047_phase2_97_sweep_issue_split/review_result.json",
+      "result": "PASS: review_result.json is valid JSON"
+    }
+  ],
+  "user_review_required": false,
+  "adr_required": false,
+  "adr_reason": "GitHub metadata と運用ドキュメントの整理であり、物理モデルや恒久I/O契約の変更ではない。",
+  "commit_type": "docs",
+  "commit_hash": "0b6c3bb",
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/99",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/97",
+  "next_actions": [
+    "Issue #100 用の branch を `feature/phase2-97-torque-distribution-review` から切り、generic sweep/heatmap cleanup を先行実装する。",
+    "その後に Issue #97 の 1.0 s 後方条件と 0.6 s 側方条件の比較、定性 render、最終判断へ戻る。"
+  ]
+}

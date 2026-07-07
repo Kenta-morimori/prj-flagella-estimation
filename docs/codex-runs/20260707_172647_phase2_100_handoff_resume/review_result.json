@@ -1,0 +1,34 @@
+{
+  "status": "PASS",
+  "summary": "Issue #100 を新スレッドで即着手できるよう branch/base/開始対象を整理し、Issue #100 merge 後に Issue #97 の posterior/lateral/replay 評価へ復帰する順序を docs と issue metadata に反映した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "Issue #100 自体の実装は未着手であり、stacked PR の merge までは Issue #97 の残評価に進まない。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "gh issue view 82 --repo Kenta-morimori/prj-flagella-estimation --json body,subIssues",
+      "result": "PASS: #82 配下に #94, #97, #100 が並ぶ構造を確認"
+    },
+    {
+      "command": "gh issue view 97 --repo Kenta-morimori/prj-flagella-estimation --json body,blockedBy",
+      "result": "PASS: #97 is blocked by #100 を確認"
+    },
+    {
+      "command": "gh issue view 100 --repo Kenta-morimori/prj-flagella-estimation --json body,parent,blocking",
+      "result": "PASS: #100 is sub-issue of #82 and blocks #97 を確認"
+    }
+  ],
+  "user_review_required": false,
+  "adr_required": false,
+  "adr_reason": "Issue/PR metadata と運用 docs の handoff 整理であり、物理モデルや公開 I/O 契約の変更ではない。",
+  "commit_type": "docs",
+  "commit_hash": "2cd8c45",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/99",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/100",
+  "next_actions": [
+    "feature/phase2-100-generic-sweep-cli を feature/phase2-97-torque-distribution-review から切り、generic sweep/heatmap cleanup の stacked PR を作る。",
+    "その PR を feature/phase2-97-torque-distribution-review へ merge した後、Issue #97 の posterior 1.0 s, lateral 0.6 s, replay qualitative review, final adoption decision を順に再開する。"
+  ]
+}
