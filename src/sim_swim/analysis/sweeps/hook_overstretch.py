@@ -824,15 +824,15 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--force-distributions",
         type=_parse_text_values,
-        default=_parse_text_values("root_torque_segment_couples"),
+        default=_parse_text_values(
+            "root_torque_segment_couples,root_torque_axis_projection"
+        ),
         help="Comma-separated motor.force_distribution values for --mode torque-profile-grid.",
     )
     parser.add_argument(
         "--torque-distribution-profiles",
         type=_parse_text_values,
-        default=_parse_text_values(
-            "diffusive,diffusive_sqrt,diffusive_floor_0p2,diffusive_floor_0p4,uniform"
-        ),
+        default=_parse_text_values("diffusive,uniform"),
         help="Comma-separated profile values for --mode torque-profile-grid.",
     )
     parser.add_argument("--fixed-attach-first-spring-scale", type=float, default=None)

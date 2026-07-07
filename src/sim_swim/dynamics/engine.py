@@ -16,7 +16,6 @@ from sim_swim.dynamics.forces import (
     compute_bending_forces,
     compute_hook_forces,
     compute_motor_forces,
-    compute_root_torque_hybrid_couples_forces,
     compute_root_torque_axis_projection_forces,
     compute_root_torque_segment_couples_forces,
     compute_segment_repulsion_forces,
@@ -587,9 +586,6 @@ class DynamicsEngine:
             return np.zeros((0,), dtype=float)
         if profile == "uniform":
             return np.ones((count,), dtype=float)
-        if profile == "basal_unloading":
-            x = np.linspace(0.0, 1.0, count, dtype=float)
-            return 0.2 + 0.8 * np.sin(math.pi * x)
 
         signal = np.asarray(activity, dtype=float).reshape((-1,))
         if segment_based:
@@ -927,24 +923,11 @@ class DynamicsEngine:
                     torque_per_flag=torque_per_flag,
                     segment_weights=segment_weights,
                 )
-            elif distribution == "root_torque_hybrid_couples":
-                segment_weights, _bead_weights = self._advance_local_twist_state(
-                    torque_per_flag=torque_per_flag,
-                    dt_s=dt_s,
-                )
-                motor_forces, motor_diag = compute_root_torque_hybrid_couples_forces(
-                    positions_m=pos,
-                    flagella_indices=self.model.flagella_indices,
-                    body_indices=self.model.body_indices,
-                    torque_per_flag=torque_per_flag,
-                    segment_weights=segment_weights,
-                )
             else:
                 raise ValueError(
                     "Unsupported motor.force_distribution: "
                     f"{distribution!r}. Use 'triplet', "
                     "'root_torque_axis_projection', "
-                    "'root_torque_hybrid_couples', or "
                     "'root_torque_segment_couples'."
                 )
         motor_axis_vs_rear_direction_angle_deg = (

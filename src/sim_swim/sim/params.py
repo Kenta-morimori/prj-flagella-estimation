@@ -16,7 +16,6 @@ MOTOR_FORCE_DISTRIBUTIONS = frozenset(
     {
         "triplet",
         "root_torque_segment_couples",
-        "root_torque_hybrid_couples",
         "root_torque_axis_projection",
     }
 )
@@ -27,7 +26,6 @@ MOTOR_FORCE_DISTRIBUTION_ALIASES = {
 MOTOR_TORQUE_DISTRIBUTION_PROFILE_DEFAULT = "diffusive"
 MOTOR_TORQUE_DISTRIBUTION_PROFILES = frozenset(
     {
-        "basal_unloading",
         "diffusive",
         "diffusive_floor_0p2",
         "diffusive_floor_0p4",

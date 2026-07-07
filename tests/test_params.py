@@ -52,7 +52,6 @@ def test_default_motor_torque_distribution_profile_is_diffusive() -> None:
 @pytest.mark.parametrize(
     "profile",
     [
-        "basal_unloading",
         "diffusive_floor_0p2",
         "diffusive_floor_0p4",
         "diffusive_sqrt",

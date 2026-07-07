@@ -790,8 +790,7 @@
   - `step_summary.csv` に `flag_helix_axis_center_radius_mean_um`, `flag_helix_axis_center_radius_cv_mean/max`, `flag_helix_axis_center_spin_fit_r2_min`, `flag_helix_axis_center_root_offset_um_mean/max` を追加した。
   - `flag_helix_axis_diagnostics.csv` に per-flag の `axis_center_spin_phase_deg`, `axis_center_spin_fit_r2`, `axis_center_radius_*`, `axis_center_root_offset_um` を追加した。
   - 旧 `motor.torque_segment_weight_profile` を `motor.torque_distribution_profile` へ改名し，旧名は deprecated alias とした。
-  - 旧 profile 名 `local_twist_activity`, `activity_sqrt`, `activity_floor_0p2`, `activity_floor_0p4` をそれぞれ `diffusive`, `diffusive_sqrt`, `diffusive_floor_0p2`, `diffusive_floor_0p4` へ整理し，`basal_unloading` を追加した。
-  - `motor.force_distribution` に `root_torque_hybrid_couples` を追加した。`root_torque_segment_couples` の root 起点性を保ちつつ，`root_torque_axis_projection` 的な接線方向を混ぜる比較方式として扱う。
+  - 旧 profile 名 `local_twist_activity`, `activity_sqrt`, `activity_floor_0p2`, `activity_floor_0p4` をそれぞれ `diffusive`, `diffusive_sqrt`, `diffusive_floor_0p2`, `diffusive_floor_0p4` へ整理した。
   - `root_torque_axis_projection` でも `motor.torque_distribution_profile` を使えるようにし，bead 単位重みとして解釈する。
   - `hook_overstretch` sweep の `mode=torque-profile-grid` を `force_distribution x torque_distribution_profile` 比較へ拡張し，同じ `summary.csv` で集約できるようにした。
   - `hook_overstretch` sweep summary に `axis_center_net_abs_revolutions_mean/min/max` と `axis_center_direction_consistency_mean/min` を追加し，`flag_helix_axis_diagnostics.csv` の per-flag 位相を手元後処理なしで集約できるようにした。
@@ -803,17 +802,18 @@
   - Stage B 代表動画 `outputs/phase2_97/stage_b_local_twist_activity_qual_fp3_ft1p5_torque2p0_dur0p6/2026-07-01/134725` はユーザー定性評価でOKだった。
   - Stage C `outputs/phase2_97/stage_c_torque_profile_expansion_fp3_ft1p5_torque2p0_dur0p6/summary.csv` では，`local_twist_activity` のみ `final_shape_pass_nonbody=True`。`activity_sqrt` は `first_fail_t_s=0.4645`, `max_flag_bond_rel_err=1.1681`，`activity_floor_0p2` は `first_fail_t_s=0.4739`, `max_flag_bond_rel_err=1.1424`，`activity_floor_0p4` は `first_fail_t_s=0.4429`, `max_flag_bond_rel_err=1.2620`，`uniform` は `first_fail_t_s=0.4171`, `max_flag_bond_rel_err=1.4272` で，すべて `flag` fail だった。
   - 追加候補は `axis_center_net_abs_revolutions_mean` を `local_twist_activity=0.7967` から最大 `uniform=0.8627` まで増やすが，形状安定性を落とすため採用しない。default は `local_twist_activity` のまま維持する。
-  - Stage E `outputs/phase2_97/stage_e_distribution_grid_fp3_ft1p5_torque2p0_dur0p6/summary.csv` では，`segment_couples_diffusive` だけが `final_shape_pass_nonbody=True`, `max_flag_bond_rel_err=0.9063` で 0.6 s を通過した。`axis_projection_uniform` は `first_fail_t_s=0.4593`, `max_flag_bond_rel_err=1.1244` で次点だが不通過，`axis_projection_diffusive` / `axis_projection_basal_unloading` はより早く `flag` fail，hybrid 3条件は `t=0.0011..0.0039 s` で即時破綻した。
-  - Stage E 出力には 3D動画や `state_archive.npz` がないため，9条件の定性比較は既存 output の再編集ではなく再実行が必要である。このため，一時スクリプト `scripts/01_simulate_swimming/render_issue97_grid_qualitative.py` を追加し，9条件を再走させて `grid_swim3d.mp4` と `grid_swim3d_final.png` を生成できるようにした。
+  - Stage E `outputs/phase2_97/stage_e_distribution_grid_fp3_ft1p5_torque2p0_dur0p6/summary.csv` では，`segment_couples_diffusive` だけが `final_shape_pass_nonbody=True`, `max_flag_bond_rel_err=0.9063` で 0.6 s を通過した。`axis_projection_uniform` は `first_fail_t_s=0.4593`, `max_flag_bond_rel_err=1.1244` で次点だが不通過，`axis_projection_diffusive` はより早く `flag` fail，hybrid 3条件は `t=0.0011..0.0039 s` で即時破綻した。
+  - 上記を受けて `root_torque_hybrid_couples` は削除し，`basal_unloading` も主比較から除外した。Issue #97 の標準比較面は `root_torque_segment_couples / root_torque_axis_projection` × `diffusive / uniform` の 2x2 とする。
+  - Stage E 出力には 3D動画や `state_archive.npz` がないため，定性比較は既存 output の再編集ではなく再実行が必要である。このため，一時スクリプト `scripts/01_simulate_swimming/render_issue97_grid_qualitative.py` を追加し，標準 2x2 比較を `grid_swim3d.mp4` と `grid_swim3d_final.png` で再生成できるようにした。
 - acceptance criteria:
   - [x] Issue #97 の背景・段階タスク・受け入れ条件が GitHub Issue 本文に記録される。
   - [x] 螺旋軸中心性を評価する診断列を `step_summary.csv` と `flag_helix_axis_diagnostics.csv` に出せる。
-  - [x] `root_torque_segment_couples`, `root_torque_axis_projection`, `root_torque_hybrid_couples` を共通の `motor.torque_distribution_profile` で比較できる。
+  - [x] `root_torque_segment_couples` と `root_torque_axis_projection` を共通の `motor.torque_distribution_profile` で比較できる。
   - [x] `hook_overstretch` sweep summary に `force_distribution` と `torque_distribution_profile` を集約できる。
   - [x] 0.6 s 後方条件で新しい比較候補を主評価し，候補を絞る。
   - [ ] 側方条件を参照比較し，後方条件の悪化が torque 分散由来かを確認する。
   - [ ] 通過候補のみ 1.0 s と定性確認を行い，採用候補を確定する。
-  - [ ] 9条件の3D定性比較 movie を user review し，自動指標と見た目の整合を確認する。
+  - [ ] 4条件の3D定性比較 movie を user review し，自動指標と見た目の整合を確認する。
 - verification:
   - `uv run pytest tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py::test_root_torque_segment_couples_weight_profiles_run -q`
   - `uv run ruff check src/sim_swim/sim/helix_axis.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/params.py src/sim_swim/dynamics/engine.py src/sim_swim/analysis/sweeps/hook_overstretch.py tests/test_helix_axis.py tests/test_simulation.py tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py`
@@ -823,10 +823,10 @@
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.001 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_segment_weight_profiles=local_twist_activity,uniform output_dir=/private/tmp/phase2_issue97_torque_profile_smoke overwrite=true progress_interval=10000`
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.001 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 output_dir=/private/tmp/phase2_issue97_profile_expansion_smoke overwrite=true progress_interval=10000`
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.6 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_segment_weight_profiles=local_twist_activity,activity_sqrt,activity_floor_0p2,activity_floor_0p4,uniform output_dir=outputs/phase2_97/stage_c_torque_profile_expansion_fp3_ft1p5_torque2p0_dur0p6 overwrite=true progress_interval=5000`
-  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.6 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 force_distributions=root_torque_segment_couples,root_torque_axis_projection,root_torque_hybrid_couples torque_distribution_profiles=diffusive,uniform,basal_unloading output_dir=outputs/phase2_97/stage_e_distribution_grid_fp3_ft1p5_torque2p0_dur0p6 overwrite=true progress_interval=5000`
+  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.6 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 force_distributions=root_torque_segment_couples,root_torque_axis_projection torque_distribution_profiles=diffusive,uniform output_dir=outputs/phase2_97/stage_e_distribution_grid_fp3_ft1p5_torque2p0_dur0p6 overwrite=true progress_interval=5000`
   - `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --duration-s 0.001 --output-dir /private/tmp/phase2_issue97_grid_smoke --overwrite`
 - user-run command:
-  - Stage E は完了済み。9条件の3D比較 movie は `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --output-dir outputs/phase2_97/stage_f_grid_qual_3d_fp3_ft1p5_torque2p0_dur0p6 --overwrite` を実行する。
+  - Stage E は完了済み。4条件の3D比較 movie は `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --output-dir outputs/phase2_97/stage_f_grid_qual_3d_fp3_ft1p5_torque2p0_dur0p6 --overwrite` を実行する。
 - docs:
   - `docs/phase2/phase2_current.md`
   - `docs/phase2/phase2_tasks.md`

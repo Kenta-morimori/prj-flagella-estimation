@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render a 3x3 qualitative comparison movie for Issue #97 torque conditions."""
+"""Render a 2x2 qualitative comparison movie for Issue #97 torque conditions."""
 
 from __future__ import annotations
 
@@ -97,14 +97,13 @@ def _condition_matrix() -> list[hook_overstretch.Condition]:
         force_distributions=[
             "root_torque_segment_couples",
             "root_torque_axis_projection",
-            "root_torque_hybrid_couples",
         ],
         fixed_attach_first_spring_scale=1.0,
         fixed_body_axis_angle_scale=1.0,
         fixed_first_second_spring_scale=1.0,
         fixed_attach_frame_position_scale=3.0,
         fixed_attach_frame_tangent_scale=1.5,
-        torque_distribution_profiles=["diffusive", "uniform", "basal_unloading"],
+        torque_distribution_profiles=["diffusive", "uniform"],
     )
     return list(hook_overstretch.build_conditions(args))
 
@@ -113,7 +112,6 @@ def _short_distribution_label(value: str) -> str:
     mapping = {
         "root_torque_segment_couples": "segment_couples",
         "root_torque_axis_projection": "axis_projection",
-        "root_torque_hybrid_couples": "hybrid_couples",
     }
     return mapping.get(value, value)
 
@@ -237,10 +235,10 @@ def _render_grid_movie(
             fail_labels.append(f"FAIL {fail_c}@{fail_t[:6]}")
 
     for frame_idx in range(frame_count):
-        fig = plt.figure(figsize=(12, 12))
+        fig = plt.figure(figsize=(10, 10))
         axes = [
-            fig.add_subplot(3, 3, plot_index + 1, projection="3d")
-            for plot_index in range(9)
+            fig.add_subplot(2, 2, plot_index + 1, projection="3d")
+            for plot_index in range(4)
         ]
         for idx, ax in enumerate(axes):
             _plot_cell(

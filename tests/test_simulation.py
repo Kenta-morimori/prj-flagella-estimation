@@ -173,7 +173,6 @@ def test_phase2_hook_overstretch_scales_are_engine_localized() -> None:
 @pytest.mark.parametrize(
     "profile",
     [
-        "basal_unloading",
         "diffusive_floor_0p2",
         "diffusive_floor_0p4",
         "diffusive_sqrt",

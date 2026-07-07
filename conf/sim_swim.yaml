@@ -34,17 +34,15 @@ fluid:
 motor:
   torque_Nm: 2.5e-20      # [N*m] Phase 2代表条件のモータートルク(Torque, T)．-1のときはτ=1になるよう「η * b^3」と定義する．
   # motor torque をbead forceへ変換する方式。
-  # - root_torque_segment_couples: 既定値。root torqueをsegmentごとのlocal force coupleとして分配する。
-  # - root_torque_hybrid_couples: segment coupleを基本にしつつ、螺旋軸まわりの接線方向も取り入れる比較方式。
+  # - root_torque_segment_couples: 既定値。root起点のねじりをsegmentごとのlocal force coupleとして分配し、形状安定性を優先する。
+  # - root_torque_axis_projection: flagellum軸まわりの接線方向へzero-net-forceで分配し、軸中心回転の参照比較に使う。
   # - triplet: 従来方式。attach-first-second の局所3点へ力カップルを入れる。root近傍の診断baselineとして残す。
-  # - root_torque_axis_projection: root torqueをflagellum軸まわりのzero-net-force接線力場として分配する。
   force_distribution: "root_torque_segment_couples"
   # 上の force_distribution の中で、torque を root から先端へどう空間分配するか。
-  # - diffusive: 既定値。root で入った回転活動が先端側へ拡散したとみなして分配する。
+  # - diffusive: 既定値。root で入った回転活動が先端側へ拡散したとみなして配分し、後方条件の主採用候補とする。
   # - diffusive_sqrt: diffusive より均しつつ、root 由来の偏りは残す。
   # - diffusive_floor_0p2 / diffusive_floor_0p4: basal 側の最小配分を持たせた diffusive 比較条件。
-  # - basal_unloading: root 近傍の過負荷を避け、中腹寄りへ厚く配る静的比較条件。
-  # - uniform: 全 bead / segment に一様に分配する比較条件。
+  # - uniform: 全 bead / segment に一様に配分する参照比較条件。
   torque_distribution_profile: "diffusive"
   reverse_n_flagella: 1        # [-] tumble で反転するべん毛本数
   enable_switching: false      # false: run固定（多形切替なし）

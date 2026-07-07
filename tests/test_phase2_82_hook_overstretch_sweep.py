@@ -114,7 +114,6 @@ def test_phase2_82_torque_profile_grid_conditions() -> None:
         force_distributions=[
             "root_torque_segment_couples",
             "root_torque_axis_projection",
-            "root_torque_hybrid_couples",
         ],
         fixed_attach_first_spring_scale=1.0,
         fixed_body_axis_angle_scale=1.0,
@@ -139,9 +138,9 @@ def test_phase2_82_torque_profile_grid_conditions() -> None:
         "segment_couples_diffusive_floor_0p4_fp3_ft1p5",
         "segment_couples_uniform_fp3_ft1p5",
     ]
-    assert len(conditions) == 15
+    assert len(conditions) == 10
     assert conditions[-1].scales == {
-        "force_distribution": "root_torque_hybrid_couples",
+        "force_distribution": "root_torque_axis_projection",
         "local_attach_first_spring_scale": 1.0,
         "local_attach_first_body_axis_angle_scale": 1.0,
         "local_first_second_spring_scale": 1.0,
