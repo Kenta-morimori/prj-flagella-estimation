@@ -1,0 +1,47 @@
+{
+  "status": "PASS",
+  "summary": "Issue #97 の定性比較段として、9条件の 3x3 3D subplot movie を再生成する一時スクリプト `render_issue97_grid_qualitative.py` を追加した。既存の Stage E 出力は `step_summary.csv` と `flag_helix_axis_diagnostics.csv` のみで動画再構成に必要な state 保存を持たないため、定性比較は再実行方式に切り替えた。Stage E の後方主評価では `root_torque_segment_couples + diffusive` のみが 0.6 s shape pass で、比較動画はこの結論を見た目で点検するための補助である。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "このスクリプトは PR #99 の比較レビュー専用であり、merge 前に削除してよい一時資産として扱う。",
+    "側方参照比較と 1.0 s 延長評価は未実施で、この run には含めていない。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run ruff check scripts/01_simulate_swimming/render_issue97_grid_qualitative.py",
+      "result": "PASS: All checks passed"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --dry-run",
+      "result": "PASS: 9 conditions printed"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --duration-s 0.001 --output-dir /private/tmp/phase2_issue97_grid_smoke --overwrite",
+      "result": "PASS: grid_swim3d.mp4, grid_swim3d_final.png, summary.csv, manifest.json were generated"
+    }
+  ],
+  "user_review_required": true,
+  "user_review_command": "uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --output-dir outputs/phase2_97/stage_f_grid_qual_3d_fp3_ft1p5_torque2p0_dur0p6 --overwrite",
+  "user_review_outputs": [
+    "outputs/phase2_97/stage_f_grid_qual_3d_fp3_ft1p5_torque2p0_dur0p6/grid_swim3d.mp4",
+    "outputs/phase2_97/stage_f_grid_qual_3d_fp3_ft1p5_torque2p0_dur0p6/grid_swim3d_final.png",
+    "outputs/phase2_97/stage_f_grid_qual_3d_fp3_ft1p5_torque2p0_dur0p6/summary.csv"
+  ],
+  "user_review_points": [
+    "segment_couples_diffusive が 0.6 s を通す一方で、axis_projection_uniform が fail 直前までどう崩れるか",
+    "hybrid 3条件が即時破綻する原因が hook root 近傍の過大変形として見えるか",
+    "螺旋軸中心まわりの回転と body-hook-flagella の一体回転が定性的に自然か"
+  ],
+  "adr_required": false,
+  "adr_reason": "新しい物理モデルの追加ではなく、既存比較条件の定性確認用 render script の追加であるため。",
+  "commit_type": "diagnostic",
+  "commit_hash": "pending",
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/99",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/97",
+  "next_actions": [
+    "ユーザーが 0.6 s の 9条件比較 movie を確認し、自動指標と定性所見の整合を判断する。",
+    "必要なら通過候補だけを 1.0 s と側方参照比較へ進める。",
+    "merge 前に一時スクリプトを残すか削除するかを最終判断する。"
+  ]
+}

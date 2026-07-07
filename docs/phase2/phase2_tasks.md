@@ -803,14 +803,17 @@
   - Stage B 代表動画 `outputs/phase2_97/stage_b_local_twist_activity_qual_fp3_ft1p5_torque2p0_dur0p6/2026-07-01/134725` はユーザー定性評価でOKだった。
   - Stage C `outputs/phase2_97/stage_c_torque_profile_expansion_fp3_ft1p5_torque2p0_dur0p6/summary.csv` では，`local_twist_activity` のみ `final_shape_pass_nonbody=True`。`activity_sqrt` は `first_fail_t_s=0.4645`, `max_flag_bond_rel_err=1.1681`，`activity_floor_0p2` は `first_fail_t_s=0.4739`, `max_flag_bond_rel_err=1.1424`，`activity_floor_0p4` は `first_fail_t_s=0.4429`, `max_flag_bond_rel_err=1.2620`，`uniform` は `first_fail_t_s=0.4171`, `max_flag_bond_rel_err=1.4272` で，すべて `flag` fail だった。
   - 追加候補は `axis_center_net_abs_revolutions_mean` を `local_twist_activity=0.7967` から最大 `uniform=0.8627` まで増やすが，形状安定性を落とすため採用しない。default は `local_twist_activity` のまま維持する。
+  - Stage E `outputs/phase2_97/stage_e_distribution_grid_fp3_ft1p5_torque2p0_dur0p6/summary.csv` では，`segment_couples_diffusive` だけが `final_shape_pass_nonbody=True`, `max_flag_bond_rel_err=0.9063` で 0.6 s を通過した。`axis_projection_uniform` は `first_fail_t_s=0.4593`, `max_flag_bond_rel_err=1.1244` で次点だが不通過，`axis_projection_diffusive` / `axis_projection_basal_unloading` はより早く `flag` fail，hybrid 3条件は `t=0.0011..0.0039 s` で即時破綻した。
+  - Stage E 出力には 3D動画や `state_archive.npz` がないため，9条件の定性比較は既存 output の再編集ではなく再実行が必要である。このため，一時スクリプト `scripts/01_simulate_swimming/render_issue97_grid_qualitative.py` を追加し，9条件を再走させて `grid_swim3d.mp4` と `grid_swim3d_final.png` を生成できるようにした。
 - acceptance criteria:
   - [x] Issue #97 の背景・段階タスク・受け入れ条件が GitHub Issue 本文に記録される。
   - [x] 螺旋軸中心性を評価する診断列を `step_summary.csv` と `flag_helix_axis_diagnostics.csv` に出せる。
   - [x] `root_torque_segment_couples`, `root_torque_axis_projection`, `root_torque_hybrid_couples` を共通の `motor.torque_distribution_profile` で比較できる。
   - [x] `hook_overstretch` sweep summary に `force_distribution` と `torque_distribution_profile` を集約できる。
-  - [ ] 0.6 s 後方条件で新しい比較候補を主評価し，候補を絞る。
+  - [x] 0.6 s 後方条件で新しい比較候補を主評価し，候補を絞る。
   - [ ] 側方条件を参照比較し，後方条件の悪化が torque 分散由来かを確認する。
   - [ ] 通過候補のみ 1.0 s と定性確認を行い，採用候補を確定する。
+  - [ ] 9条件の3D定性比較 movie を user review し，自動指標と見た目の整合を確認する。
 - verification:
   - `uv run pytest tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py::test_root_torque_segment_couples_weight_profiles_run -q`
   - `uv run ruff check src/sim_swim/sim/helix_axis.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/params.py src/sim_swim/dynamics/engine.py src/sim_swim/analysis/sweeps/hook_overstretch.py tests/test_helix_axis.py tests/test_simulation.py tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py`
@@ -820,12 +823,15 @@
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.001 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_segment_weight_profiles=local_twist_activity,uniform output_dir=/private/tmp/phase2_issue97_torque_profile_smoke overwrite=true progress_interval=10000`
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.001 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 output_dir=/private/tmp/phase2_issue97_profile_expansion_smoke overwrite=true progress_interval=10000`
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.6 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_segment_weight_profiles=local_twist_activity,activity_sqrt,activity_floor_0p2,activity_floor_0p4,uniform output_dir=outputs/phase2_97/stage_c_torque_profile_expansion_fp3_ft1p5_torque2p0_dur0p6 overwrite=true progress_interval=5000`
+  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.6 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 force_distributions=root_torque_segment_couples,root_torque_axis_projection,root_torque_hybrid_couples torque_distribution_profiles=diffusive,uniform,basal_unloading output_dir=outputs/phase2_97/stage_e_distribution_grid_fp3_ft1p5_torque2p0_dur0p6 overwrite=true progress_interval=5000`
+  - `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --duration-s 0.001 --output-dir /private/tmp/phase2_issue97_grid_smoke --overwrite`
 - user-run command:
-  - 完了済み。追加候補の再確認が必要な場合は Stage C command を再実行する。
+  - Stage E は完了済み。9条件の3D比較 movie は `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --output-dir outputs/phase2_97/stage_f_grid_qual_3d_fp3_ft1p5_torque2p0_dur0p6 --overwrite` を実行する。
 - docs:
   - `docs/phase2/phase2_current.md`
   - `docs/phase2/phase2_tasks.md`
   - `docs/codex-runs/20260701_103418_phase2_97_torque_distribution_review/review_result.json`
+  - `docs/codex-runs/20260707_130000_phase2_97_grid_qualitative/review_result.json`
 
 ### P2-8-DTSTAR: Phase 2標準dt_starと実行コマンドを整理する
 
