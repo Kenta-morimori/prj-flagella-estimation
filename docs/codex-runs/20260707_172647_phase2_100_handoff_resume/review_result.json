@@ -23,8 +23,8 @@
   "adr_required": false,
   "adr_reason": "Issue/PR metadata と運用 docs の handoff 整理であり、物理モデルや公開 I/O 契約の変更ではない。",
   "commit_type": "docs",
-  "commit_hash": "77fe730",
-  "push_status": "pending",
+  "commit_hash": "2cd8c45",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/99",
   "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/100",
   "next_actions": [
