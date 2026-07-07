@@ -134,6 +134,10 @@ STEP_SUMMARY_COLUMNS = [
     "body_axis_cumulative_angle_deg",
     "body_axis_wobble_rms_deg",
     "body_angular_velocity_rms_rad_s",
+    "body_roll_phase_deg",
+    "body_roll_rate_hz",
+    "body_roll_net_abs_revolutions",
+    "body_roll_direction_consistency",
     "bundle_axis_vs_body_axis_angle_deg",
     "bundle_axis_vs_rear_angle_deg",
     "bundle_rearward_projection",
@@ -286,6 +290,8 @@ FLAG_HELIX_AXIS_DIAGNOSTICS_COLUMNS = [
     "axis_center_radius_std_um",
     "axis_center_radius_cv",
     "axis_center_root_offset_um",
+    "body_roll_phase_deg",
+    "axis_center_body_relative_phase_deg",
 ]
 
 RAD_TO_DEG = 180.0 / np.pi
@@ -1464,6 +1470,11 @@ class StepSummaryRecorder:
         self.body_axis_wobble_count = 0
         self.body_omega_square_sum = 0.0
         self.body_omega_count = 0
+        self.prev_body_roll_offset_deg: float | None = None
+        self.prev_body_roll_phase_deg: float | None = None
+        self.prev_body_roll_t_s: float | None = None
+        self.initial_body_roll_phase_deg: float | None = None
+        self.body_roll_deltas_deg: list[float] = []
         self.last_row: dict[str, float | int | bool] | None = None
 
         pair_rows = _pair_row_lookup(self.spring_pairs)
@@ -1612,6 +1623,17 @@ class StepSummaryRecorder:
             return float("nan")
         return float(np.rad2deg(np.arctan2(proj_y, proj_x)))
 
+    def _body_roll_offset_deg(self, positions_m: np.ndarray) -> float:
+        if len(self.model.body_layer_indices) <= 0:
+            return float("nan")
+        _axis, e1, e2 = self._phase_reference_frame(positions_m)
+        body_layer = self.model.body_layer_indices[0].astype(int, copy=False)
+        if body_layer.size <= 0:
+            return float("nan")
+        body_center = np.mean(positions_m[body_layer], axis=0)
+        body_marker = positions_m[int(body_layer[0])] - body_center
+        return self._azimuth_deg(body_marker, e1, e2)
+
     @staticmethod
     def _wrap_deg(deg: float) -> float:
         return float((deg + 180.0) % 360.0 - 180.0)
@@ -1732,6 +1754,44 @@ class StepSummaryRecorder:
         center_root_offsets_um: list[float] = []
         helix_axis_degenerate_count = 0
         _, phase_ref_e1, _ = self._phase_reference_frame(pos_after)
+        body_roll_offset_deg = self._body_roll_offset_deg(pos_after)
+        body_roll_phase_deg = float("nan")
+        body_roll_rate_hz = float("nan")
+        body_roll_net_abs_revolutions = float("nan")
+        body_roll_direction_consistency = float("nan")
+        if np.isfinite(body_roll_offset_deg):
+            if (
+                self.prev_body_roll_offset_deg is None
+                or self.prev_body_roll_phase_deg is None
+            ):
+                body_roll_phase_deg = body_roll_offset_deg
+                body_roll_rate_hz = 0.0
+            else:
+                delta = self._wrap_deg(
+                    body_roll_offset_deg - self.prev_body_roll_offset_deg
+                )
+                body_roll_phase_deg = self.prev_body_roll_phase_deg + delta
+                if self.prev_body_roll_t_s is not None:
+                    dt_s = max(t_s - self.prev_body_roll_t_s, 1e-30)
+                    body_roll_rate_hz = delta / 360.0 / dt_s
+                if abs(delta) > 1e-9:
+                    self.body_roll_deltas_deg.append(delta)
+            if self.initial_body_roll_phase_deg is None:
+                self.initial_body_roll_phase_deg = body_roll_phase_deg
+            body_roll_net_abs_revolutions = (
+                abs(body_roll_phase_deg - self.initial_body_roll_phase_deg) / 360.0
+            )
+            signed = float(sum(self.body_roll_deltas_deg))
+            moving = [delta for delta in self.body_roll_deltas_deg if abs(delta) > 1e-9]
+            if not moving or abs(signed) <= 1e-9:
+                body_roll_direction_consistency = 0.0
+            else:
+                body_roll_direction_consistency = sum(
+                    1 for delta in moving if delta * signed >= 0.0
+                ) / len(moving)
+            self.prev_body_roll_offset_deg = body_roll_offset_deg
+            self.prev_body_roll_phase_deg = body_roll_phase_deg
+            self.prev_body_roll_t_s = t_s
         for flag_id, flag_indices in enumerate(self.model.flagella_indices):
             estimate = estimate_flag_helix_axis(pos_after, flag_indices, flag_id)
             angle_deg = angle_deg_between(estimate.axis, body_axis.rear_direction)
@@ -1765,6 +1825,11 @@ class StepSummaryRecorder:
                 raise RuntimeError(
                     "flag helix axis diagnostics writer is not initialized"
                 )
+            axis_center_body_relative_phase_deg = (
+                self._wrap_deg(centered.phase_deg - body_roll_offset_deg)
+                if np.isfinite(centered.phase_deg) and np.isfinite(body_roll_offset_deg)
+                else float("nan")
+            )
             self._axis_writer.writerow(
                 {
                     "step": int(step),
@@ -1796,6 +1861,10 @@ class StepSummaryRecorder:
                         float(centered.root_offset_m * M_TO_UM)
                         if np.isfinite(centered.root_offset_m)
                         else float("nan")
+                    ),
+                    "body_roll_phase_deg": body_roll_phase_deg,
+                    "axis_center_body_relative_phase_deg": (
+                        axis_center_body_relative_phase_deg
                     ),
                 }
             )
@@ -2282,6 +2351,10 @@ class StepSummaryRecorder:
             "body_axis_cumulative_angle_deg": self.body_axis_cumulative_angle_deg,
             "body_axis_wobble_rms_deg": body_axis_wobble_rms_deg,
             "body_angular_velocity_rms_rad_s": body_angular_velocity_rms_rad_s,
+            "body_roll_phase_deg": body_roll_phase_deg,
+            "body_roll_rate_hz": body_roll_rate_hz,
+            "body_roll_net_abs_revolutions": body_roll_net_abs_revolutions,
+            "body_roll_direction_consistency": body_roll_direction_consistency,
             **bundle_metrics,
             **flag_flag_repulsion_metrics,
             "F_total_mean_body": _mean_norm(diag.total_forces, self.body_mask),

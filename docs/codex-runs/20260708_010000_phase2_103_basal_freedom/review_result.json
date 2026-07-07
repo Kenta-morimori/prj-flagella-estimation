@@ -1,0 +1,63 @@
+{
+  "status": "PASS",
+  "summary": "Issue #103 の第一段として，attach-frame 補強による剛体回転を診断する body roll / body-relative helix spin 指標を追加し，root 軸まわり spin を許す `motor.local_attach_frame_tangent_mode=basal_bearing` を実装した。#103 標準比較 profile `conf/phase2_sweeps/basal_freedom_diagnostic.yaml` は no_frame / fp only / ft only / fp+ft vector / fp+ft basal_bearing の5条件を展開する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "長時間 Phase 2 sweep / replay render は Codex 側では実行していない。側方0.6 s，後方1.0 s のユーザー実行と定性評価が必要である。",
+    "`basal_bearing` は参照論文モデルではなく，現行 bead-spring 実装で hook安定化と root axial spin 自由度を分離するための project-specific extension として扱う。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_params.py tests/test_motor_forces.py tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py::test_run_writes_step_summary_csv_without_projection_columns -q",
+      "result": "PASS: 99 passed"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/dynamics/forces.py src/sim_swim/dynamics/engine.py src/sim_swim/sim/params.py src/sim_swim/sim/debug_summary.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_params.py tests/test_motor_forces.py tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/dynamics/forces.py src/sim_swim/dynamics/engine.py src/sim_swim/sim/params.py src/sim_swim/sim/debug_summary.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_params.py tests/test_motor_forces.py tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py",
+      "result": "PASS: 10 files already formatted"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/basal_freedom_diagnostic.yaml dry_run=true",
+      "result": "PASS: no_frame, fp3, ft1p5, fp3_ft1p5_vector, fp3_ft1p5_bearing の5条件を展開"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/basal_freedom_diagnostic.yaml time.duration_s=0.001 output_dir=/private/tmp/phase2_103_basal_freedom_smoke overwrite=true progress_interval=10000",
+      "result": "PASS: 5条件が完走し，summary.csv に body_roll_net_abs_revolutions / axis_center_body_relative_net_abs_revolutions_mean / axis_center_to_body_roll_ratio_mean が出力された"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS: 77 files already formatted"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS: 323 passed"
+    }
+  ],
+  "user_review_required": true,
+  "user_review_command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/basal_freedom_diagnostic.yaml time.duration_s=0.6 flagella.initial_helix_axis_from_rear_deg=null output_dir=outputs/phase2_103/stage_a_lateral_basal_freedom_dur0p6 overwrite=true progress_interval=5000 && uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/basal_freedom_diagnostic.yaml time.duration_s=1.0 flagella.initial_helix_axis_from_rear_deg=0 output_dir=outputs/phase2_103/stage_b_posterior_basal_freedom_dur1p0 overwrite=true progress_interval=5000",
+  "user_review_outputs": [
+    "outputs/phase2_103/stage_a_lateral_basal_freedom_dur0p6/summary.csv",
+    "outputs/phase2_103/stage_b_posterior_basal_freedom_dur1p0/summary.csv",
+    "outputs/phase2_103/stage_a_lateral_basal_freedom_qual/",
+    "outputs/phase2_103/stage_b_posterior_basal_freedom_qual/"
+  ],
+  "adr_required": true,
+  "adr_reason": "`basal_bearing` は新しい物理近似であり，output interpretation に body roll / body-relative spin 指標を追加するため。",
+  "adr_path": "docs/adr/0007_phase2_basal_bearing_attach_frame.md",
+  "commit_type": "implementation",
+  "commit_hash": "pending",
+  "push_status": "pending",
+  "pull_request_url": "pending",
+  "next_actions": [
+    "ユーザー側で側方0.6 s / 後方1.0 s の #103 sweep を実行する。",
+    "replay render を作成し，`fp3_ft1p5_bearing` が hook安定性を保ちつつ剛体回転を緩和するかを定性評価する。",
+    "summary.csv の `body_roll_net_abs_revolutions`, `axis_center_body_relative_net_abs_revolutions_mean`, `axis_center_to_body_roll_ratio_mean`, `final_shape_pass_nonbody`, `first_fail_category_nonbody`, `max_flag_bond_rel_err` を比較する。"
+  ]
+}

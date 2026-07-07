@@ -469,6 +469,10 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
         "flag_helix_axis_center_spin_fit_r2_min",
         "flag_helix_axis_center_root_offset_um_mean",
         "flag_helix_axis_center_root_offset_um_max",
+        "body_roll_phase_deg",
+        "body_roll_rate_hz",
+        "body_roll_net_abs_revolutions",
+        "body_roll_direction_consistency",
         "flag_flag_helix_bead_dist_min_um",
         "flag_flag_helix_close_pair_count",
         "flag_helix_bundle_radius_mean_um",
@@ -517,6 +521,8 @@ def test_run_writes_step_summary_csv_without_projection_columns(tmp_path: Path) 
     assert "axis_center_spin_phase_deg" in first_axis
     assert "axis_center_radius_cv" in first_axis
     assert "axis_center_root_offset_um" in first_axis
+    assert "body_roll_phase_deg" in first_axis
+    assert "axis_center_body_relative_phase_deg" in first_axis
     assert np.isfinite(float(first["flag_helix_axis_vs_rear_angle_deg_mean"]))
     assert np.isfinite(float(first_axis["flag_helix_axis_fit_r2"]))
     assert np.isfinite(float(first["flag_helix_axis_center_radius_cv_mean"]))

@@ -133,6 +133,23 @@ def test_torque_distribution_profile_is_shape_stability_grid() -> None:
     assert args[args.index("--torque-distribution-profiles") + 1] == "diffusive,uniform"
 
 
+def test_basal_freedom_profile_builds_issue103_conditions() -> None:
+    profile = load_profile(Path("conf/phase2_sweeps/basal_freedom_diagnostic.yaml"))
+
+    assert profile["kind"] == "shape_stability_grid"
+    args = shape_stability_grid._parse_args(args_from_profile(profile))
+    conditions = shape_stability_grid.build_conditions(args)
+
+    assert [condition.condition_id for condition in conditions] == [
+        "no_frame",
+        "fp3",
+        "ft1p5",
+        "fp3_ft1p5_vector",
+        "fp3_ft1p5_bearing",
+    ]
+    assert conditions[-1].scales["local_attach_frame_tangent_mode"] == ("basal_bearing")
+
+
 def test_shape_stability_grid_keeps_deprecated_torque_segment_profile_alias() -> None:
     args = shape_stability_grid._parse_args(
         ["--torque-segment-weight-profiles", "diffusive,uniform"]

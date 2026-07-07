@@ -170,6 +170,37 @@ def test_phase2_82_axis_center_phase_summary() -> None:
     assert summary["axis_center_direction_consistency_min"] == 1.0
 
 
+def test_phase2_82_axis_center_phase_summary_tracks_body_relative_spin() -> None:
+    rows = [
+        {
+            "flag_id": "0",
+            "axis_center_spin_phase_deg": "0",
+            "body_roll_phase_deg": "0",
+            "axis_center_body_relative_phase_deg": "0",
+        },
+        {
+            "flag_id": "0",
+            "axis_center_spin_phase_deg": "90",
+            "body_roll_phase_deg": "45",
+            "axis_center_body_relative_phase_deg": "45",
+        },
+        {
+            "flag_id": "0",
+            "axis_center_spin_phase_deg": "180",
+            "body_roll_phase_deg": "90",
+            "axis_center_body_relative_phase_deg": "90",
+        },
+    ]
+
+    summary = script._axis_center_phase_summary(rows)
+
+    assert summary["axis_center_net_abs_revolutions_mean"] == pytest.approx(0.5)
+    assert summary["axis_center_body_relative_net_abs_revolutions_mean"] == (
+        pytest.approx(0.25)
+    )
+    assert summary["axis_center_to_body_roll_ratio_mean"] == pytest.approx(2.0)
+
+
 def test_phase2_82_summary_row_records_fail_and_max_hook_events(
     tmp_path: Path,
 ) -> None:

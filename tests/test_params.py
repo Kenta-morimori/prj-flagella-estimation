@@ -49,6 +49,35 @@ def test_default_motor_torque_distribution_profile_is_diffusive() -> None:
     assert sim_cfg.motor.torque_distribution_profile == "diffusive"
 
 
+def test_default_attach_frame_tangent_mode_is_vector() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor.local_attach_frame_tangent_mode == "vector"
+
+
+def test_attach_frame_tangent_mode_accepts_basal_bearing() -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["local_attach_frame_tangent_mode"] = "basal_bearing"
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor.local_attach_frame_tangent_mode == "basal_bearing"
+
+
+def test_attach_frame_tangent_mode_rejects_unknown_value() -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["local_attach_frame_tangent_mode"] = "hinge"
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    with pytest.raises(
+        ValueError,
+        match="Unsupported motor.local_attach_frame_tangent_mode",
+    ):
+        SimulationConfig.from_dict(cfg)
+
+
 @pytest.mark.parametrize(
     "profile",
     [

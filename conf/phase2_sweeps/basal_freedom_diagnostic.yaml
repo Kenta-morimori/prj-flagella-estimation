@@ -1,0 +1,21 @@
+kind: shape_stability_grid
+args:
+  config: conf/sim_swim.yaml
+  mode: basal-freedom-grid
+  output_dir: outputs/phase2_sweeps/basal_freedom_diagnostic
+  duration_s: 0.6
+  dt_star: 1.0e-4
+  torque_nm: 2.0e-20
+  n_flagella: 3
+  attach_seed: 0
+  phase_seed: 0
+  fixed_attach_first_spring_scale: 1.0
+  fixed_body_axis_angle_scale: 1.0
+  fixed_first_second_spring_scale: 1.0
+  fixed_attach_frame_position_scale: 3.0
+  fixed_attach_frame_tangent_scale: 1.5
+  force_distributions:
+    - root_torque_segment_couples
+  torque_distribution_profiles:
+    - diffusive
+  progress_interval: 5000

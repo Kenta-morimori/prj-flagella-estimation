@@ -12,6 +12,7 @@ from sim_swim.dynamics.brownian import sample_brownian_displacement
 from sim_swim.dynamics.forces import (
     MotorForceDiagnostics,
     compute_attach_first_body_axis_angle_forces,
+    compute_attach_frame_basal_bearing_forces,
     compute_attach_frame_target_forces,
     compute_bending_forces,
     compute_hook_forces,
@@ -259,6 +260,9 @@ class DynamicsEngine:
         )
         self.motor_local_attach_frame_tangent_scale = float(
             cfg.motor.local_attach_frame_tangent_scale
+        )
+        self.motor_local_attach_frame_tangent_mode = (
+            cfg.motor.local_attach_frame_tangent_mode
         )
         self.motor_local_bend_scale = float(cfg.motor.local_bend_scale)
         self.motor_local_torsion_scale = float(cfg.motor.local_torsion_scale)
@@ -860,6 +864,11 @@ class DynamicsEngine:
                             body_axis_unit=self._body_axis_unit(pos),
                         )
                     )
+                    vector_tangent_scale = (
+                        frame_tangent_extra_scale
+                        if self.motor_local_attach_frame_tangent_mode == "vector"
+                        else 0.0
+                    )
                     hook_forces += compute_attach_frame_target_forces(
                         positions_m=pos,
                         hook_triplets=self.model.hook_triplets,
@@ -872,8 +881,21 @@ class DynamicsEngine:
                             self.hook_first_second_rest_lengths_m
                         ),
                         k_position=self.k_hook * frame_position_extra_scale,
-                        k_tangent=self.k_hook * frame_tangent_extra_scale,
+                        k_tangent=self.k_hook * vector_tangent_scale,
                     )
+                    if (
+                        self.motor_local_attach_frame_tangent_mode == "basal_bearing"
+                        and frame_tangent_extra_scale > 0.0
+                    ):
+                        hook_forces += compute_attach_frame_basal_bearing_forces(
+                            positions_m=pos,
+                            hook_triplets=self.model.hook_triplets,
+                            first_second_target_vectors_m=first_second_targets,
+                            first_second_rest_lengths_m=(
+                                self.hook_first_second_rest_lengths_m
+                            ),
+                            k_tangent=self.k_hook * frame_tangent_extra_scale,
+                        )
 
         repulsion_forces = compute_segment_repulsion_forces(
             positions_m=pos,

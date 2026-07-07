@@ -43,6 +43,7 @@ SUMMARY_FIELDS = (
     "force_distribution",
     "torque_distribution_profile",
     "n_flagella",
+    "local_attach_frame_tangent_mode",
     "local_attach_first_spring_scale",
     "local_attach_first_body_axis_angle_scale",
     "local_first_second_spring_scale",
@@ -124,11 +125,21 @@ SUMMARY_FIELDS = (
     "flag_helix_axis_center_spin_fit_r2_min",
     "flag_helix_axis_center_root_offset_um_mean",
     "flag_helix_axis_center_root_offset_um_max",
+    "body_roll_net_abs_revolutions",
+    "body_roll_direction_consistency",
     "axis_center_net_abs_revolutions_mean",
     "axis_center_net_abs_revolutions_min",
     "axis_center_net_abs_revolutions_max",
     "axis_center_direction_consistency_mean",
     "axis_center_direction_consistency_min",
+    "axis_center_body_relative_net_abs_revolutions_mean",
+    "axis_center_body_relative_net_abs_revolutions_min",
+    "axis_center_body_relative_net_abs_revolutions_max",
+    "axis_center_body_relative_direction_consistency_mean",
+    "axis_center_body_relative_direction_consistency_min",
+    "axis_center_to_body_roll_ratio_mean",
+    "axis_center_to_body_roll_ratio_min",
+    "axis_center_to_body_roll_ratio_max",
 )
 
 
@@ -232,17 +243,9 @@ def _mean(values: list[float]) -> float | str:
     return sum(values) / len(values) if values else ""
 
 
-def _axis_center_phase_summary(rows: list[dict[str, str]]) -> dict[str, float | str]:
-    phases_by_flag: dict[int, list[float]] = {}
-    for row in rows:
-        try:
-            flag_id = int(row["flag_id"])
-            phase = float(row["axis_center_spin_phase_deg"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        if math.isfinite(phase):
-            phases_by_flag.setdefault(flag_id, []).append(phase)
-
+def _phase_series_summary(
+    phases_by_flag: dict[int, list[float]],
+) -> tuple[list[float], list[float]]:
     net_revolutions: list[float] = []
     direction_consistency: list[float] = []
     for phases in phases_by_flag.values():
@@ -260,6 +263,47 @@ def _axis_center_phase_summary(rows: list[dict[str, str]]) -> dict[str, float | 
             )
         net_revolutions.append(abs(unwrapped[-1] - unwrapped[0]) / 360.0)
         direction_consistency.append(consistency)
+    return net_revolutions, direction_consistency
+
+
+def _axis_center_phase_summary(rows: list[dict[str, str]]) -> dict[str, float | str]:
+    phases_by_flag: dict[int, list[float]] = {}
+    relative_phases_by_flag: dict[int, list[float]] = {}
+    body_roll_phases_by_flag: dict[int, list[float]] = {}
+    for row in rows:
+        try:
+            flag_id = int(row["flag_id"])
+            phase = float(row["axis_center_spin_phase_deg"])
+        except (KeyError, TypeError, ValueError):
+            flag_id = -1
+            phase = float("nan")
+        if math.isfinite(phase):
+            phases_by_flag.setdefault(flag_id, []).append(phase)
+        try:
+            relative_phase = float(row["axis_center_body_relative_phase_deg"])
+        except (KeyError, TypeError, ValueError):
+            relative_phase = float("nan")
+        if flag_id >= 0 and math.isfinite(relative_phase):
+            relative_phases_by_flag.setdefault(flag_id, []).append(relative_phase)
+        try:
+            body_roll_phase = float(row["body_roll_phase_deg"])
+        except (KeyError, TypeError, ValueError):
+            body_roll_phase = float("nan")
+        if flag_id >= 0 and math.isfinite(body_roll_phase):
+            body_roll_phases_by_flag.setdefault(flag_id, []).append(body_roll_phase)
+
+    net_revolutions, direction_consistency = _phase_series_summary(phases_by_flag)
+    relative_net_revolutions, relative_direction_consistency = _phase_series_summary(
+        relative_phases_by_flag
+    )
+    body_roll_net_by_flag, _body_roll_consistency_by_flag = _phase_series_summary(
+        body_roll_phases_by_flag
+    )
+    ratios = [
+        axis_rev / body_rev
+        for axis_rev, body_rev in zip(net_revolutions, body_roll_net_by_flag)
+        if body_rev > 1e-12
+    ]
 
     return {
         "axis_center_net_abs_revolutions_mean": _mean(net_revolutions),
@@ -273,6 +317,26 @@ def _axis_center_phase_summary(rows: list[dict[str, str]]) -> dict[str, float | 
         "axis_center_direction_consistency_min": (
             min(direction_consistency) if direction_consistency else ""
         ),
+        "axis_center_body_relative_net_abs_revolutions_mean": _mean(
+            relative_net_revolutions
+        ),
+        "axis_center_body_relative_net_abs_revolutions_min": (
+            min(relative_net_revolutions) if relative_net_revolutions else ""
+        ),
+        "axis_center_body_relative_net_abs_revolutions_max": (
+            max(relative_net_revolutions) if relative_net_revolutions else ""
+        ),
+        "axis_center_body_relative_direction_consistency_mean": _mean(
+            relative_direction_consistency
+        ),
+        "axis_center_body_relative_direction_consistency_min": (
+            min(relative_direction_consistency)
+            if relative_direction_consistency
+            else ""
+        ),
+        "axis_center_to_body_roll_ratio_mean": _mean(ratios),
+        "axis_center_to_body_roll_ratio_min": min(ratios) if ratios else "",
+        "axis_center_to_body_roll_ratio_max": max(ratios) if ratios else "",
     }
 
 
@@ -523,6 +587,83 @@ def build_conditions(args: argparse.Namespace) -> tuple[Condition, ...]:
                 )
         return tuple(conditions)
 
+    if args.mode == "basal-freedom-grid":
+        attach_scale = float(args.fixed_attach_first_spring_scale or 1.0)
+        angle_scale = float(args.fixed_body_axis_angle_scale or 1.0)
+        first_second_scale = float(args.fixed_first_second_spring_scale)
+        frame_position_scale = float(args.fixed_attach_frame_position_scale or 3.0)
+        frame_tangent_scale = float(args.fixed_attach_frame_tangent_scale or 1.5)
+        base_scales: dict[str, float | str] = {
+            "force_distribution": str(args.force_distributions[0]),
+            "torque_distribution_profile": str(args.torque_distribution_profiles[0]),
+            "local_attach_first_spring_scale": attach_scale,
+            "local_attach_first_body_axis_angle_scale": angle_scale,
+            "local_first_second_spring_scale": first_second_scale,
+        }
+        condition_specs = (
+            (
+                "no_frame",
+                "no attach-frame reinforcement",
+                1.0,
+                1.0,
+                "vector",
+            ),
+            (
+                f"fp{_format_scale(frame_position_scale)}",
+                "attach-frame position only",
+                frame_position_scale,
+                1.0,
+                "vector",
+            ),
+            (
+                f"ft{_format_scale(frame_tangent_scale)}",
+                "attach-frame tangent only",
+                1.0,
+                frame_tangent_scale,
+                "vector",
+            ),
+            (
+                f"fp{_format_scale(frame_position_scale)}"
+                f"_ft{_format_scale(frame_tangent_scale)}_vector",
+                "attach-frame position and vector tangent",
+                frame_position_scale,
+                frame_tangent_scale,
+                "vector",
+            ),
+            (
+                f"fp{_format_scale(frame_position_scale)}"
+                f"_ft{_format_scale(frame_tangent_scale)}_bearing",
+                "attach-frame position and basal-bearing tangent",
+                frame_position_scale,
+                frame_tangent_scale,
+                "basal_bearing",
+            ),
+        )
+        for (
+            condition_id,
+            description,
+            position_scale,
+            tangent_scale,
+            tangent_mode,
+        ) in condition_specs:
+            scales = dict(base_scales)
+            scales.update(
+                {
+                    "local_attach_frame_position_scale": float(position_scale),
+                    "local_attach_frame_tangent_scale": float(tangent_scale),
+                    "local_attach_frame_tangent_mode": str(tangent_mode),
+                }
+            )
+            conditions.append(
+                Condition(
+                    condition_id=condition_id,
+                    mode=args.mode,
+                    description=description,
+                    scales=scales,
+                )
+            )
+        return tuple(conditions)
+
     if args.mode == "attach-frame-grid":
         attach_scale = float(args.fixed_attach_first_spring_scale or 1.0)
         angle_scale = float(args.fixed_body_axis_angle_scale or 1.0)
@@ -604,6 +745,9 @@ def _summary_row(
         "force_distribution": cfg.motor.force_distribution,
         "n_flagella": cfg.flagella.n_flagella,
         "torque_distribution_profile": cfg.motor.torque_distribution_profile,
+        "local_attach_frame_tangent_mode": (
+            getattr(cfg.motor, "local_attach_frame_tangent_mode", "vector")
+        ),
         "local_attach_first_spring_scale": cfg.motor.local_attach_first_spring_scale,
         "local_attach_first_body_axis_angle_scale": (
             cfg.motor.local_attach_first_body_axis_angle_scale
@@ -847,6 +991,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "first-second-grid",
             "attach-frame-grid",
             "torque-profile-grid",
+            "basal-freedom-grid",
         ),
         default="preset",
         help="Condition generation mode.",
