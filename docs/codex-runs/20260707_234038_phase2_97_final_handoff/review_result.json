@@ -1,0 +1,56 @@
+{
+  "status": "PASS",
+  "summary": "Issue #97 の posterior 1.0 s / lateral 0.6 s 最終比較とユーザー定性評価を整理した。後方4条件はすべて flag fail，側方4条件は shape gate を通ったが剛体回転様で採用不可と判断し，現行 2x2 torque distribution 候補は採用しない負の結論として PR #99 で #97/#100 を close 対象にした。残る attach-frame補強と basal/root自由度の問題は Issue #103 として #82 配下へ分離した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "GitHub connectorでは Issue #103 を GitHub UI 上の sub-issue として #82 に直接関連付けられないため，#103 本文と #82 本文に parent/follow-up 関係を記録した。",
+    "Issue #97 は最終候補採用ではなく，現行候補を採用しない診断完了として close する。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "inspected outputs/phase2_97/stage_g_posterior_distribution_grid_fp3_ft1p5_torque2p0_dur1p0/summary.csv",
+      "result": "PASS: 2x2 の4条件すべて final_shape_pass_nonbody=False, first_fail_category_nonbody=flag"
+    },
+    {
+      "command": "inspected outputs/phase2_97/stage_h_lateral_distribution_grid_fp3_ft1p5_torque2p0_dur0p6/summary.csv",
+      "result": "PASS: 2x2 の4条件すべて shape gate は通過したが net_abs_flag_helix_spin_revolutions は小さい"
+    },
+    {
+      "command": "user visual review of outputs/phase2_97/stage_g_posterior_grid_qual_fp3_ft1p5_torque2p0_dur1p0 and outputs/phase2_97/stage_h_lateral_grid_qual_fp3_ft1p5_torque2p0_dur0p6",
+      "result": "PASS: lateral は軸中心回転ではなく菌体を含む剛体回転様と判定"
+    },
+    {
+      "command": "updated GitHub PR #99 body",
+      "result": "PASS: Closes #97, Closes #100, Refs #82/#94/#103 を記録"
+    },
+    {
+      "command": "created GitHub Issue #103 and updated Issue #82 body",
+      "result": "PASS: attach-frame補強による剛体回転 / basal自由度の follow-up を分離"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "completed by user before this handoff",
+  "user_review_outputs": [
+    "outputs/phase2_97/stage_g_posterior_distribution_grid_fp3_ft1p5_torque2p0_dur1p0/summary.csv",
+    "outputs/phase2_97/stage_g_posterior_grid_qual_fp3_ft1p5_torque2p0_dur1p0/",
+    "outputs/phase2_97/stage_h_lateral_distribution_grid_fp3_ft1p5_torque2p0_dur0p6/summary.csv",
+    "outputs/phase2_97/stage_h_lateral_grid_qual_fp3_ft1p5_torque2p0_dur0p6/"
+  ],
+  "user_review_points": [
+    "posterior 1.0 s は全候補が flag fail のため採用不可。",
+    "lateral 0.6 s は shape gate 通過だけでは不十分で，螺旋軸中心 spin ではなく剛体回転様に見えるため採用不可。",
+    "次は torque distribution ではなく attach-frame補強と basal/root自由度の分離を扱う。"
+  ],
+  "adr_required": false,
+  "adr_reason": "今回の変更は診断結果の整理，Issue/PR本文更新，後続タスク分離であり，物理モデル・default config・公開 output contract の新規変更ではないため。",
+  "commit_type": "complete",
+  "commit_hash": "pending",
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/99",
+  "created_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/103",
+  "next_actions": [
+    "PR #99 を review/merge すると #97 と #100 が close 対象になる。",
+    "Issue #103 で attach-frame補強あり/なし，側方/後方の比較を同一指標で再設計する。",
+    "Issue #82 は親課題として open のまま維持する。"
+  ]
+}

@@ -780,12 +780,12 @@
 
 ### P2-8-097: torque分散方法見直しの診断と比較導線を拡張する
 
-- status: in_progress
+- status: complete
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/97`
 - branch: `feature/phase2-97-torque-distribution-review`
 - goal: #94/#95 で残った後方条件での回転安定性不足に対し，flagellum 側の torque 分散方法を比較できるようにし，後方主評価 / 側方参照評価で採用候補を絞る。
 - dependency handoff:
-  - Issue #100 `[Phase2] sweep/heatmap CLI を task-specific module 依存から切り離す` を先行 blocker とする。
+  - Issue #100 `[Phase2] sweep/heatmap CLI を task-specific module 依存から切り離す` は PR #102 で `feature/phase2-97-torque-distribution-review` へ merge 済み。
   - Issue #100 の実装 branch は `feature/phase2-100-generic-sweep-cli` に固定する。
   - Issue #100 の PR base は `feature/phase2-97-torque-distribution-review` に固定する。
   - Issue #100 では物理モデルや 2x2 比較条件は変えず，user-facing sweep/heatmap 導線と naming の generic 化だけを扱う。
@@ -815,17 +815,23 @@
   - 一時スクリプト `scripts/01_simulate_swimming/render_issue97_grid_qualitative.py` は sweep 出力 directory を入力として，標準 2x2 比較の `plot-only / render-only / both` を切り替えられる replay utility に更新した。定量 run 後の定性比較は既存 output の再編集で行う。
   - 2026-07-07 に follow-up Issue #100 `[Phase2] sweep/heatmap CLI を task-specific module 依存から切り離す` を作成した。Issue #97 はこの整理を blocker とし，Issue #100 の実装 branch / PR base は `feature/phase2-97-torque-distribution-review` に固定する。
   - 2026-07-07 追補として，Issue #100 の branch 名を `feature/phase2-100-generic-sweep-cli` に固定し，新しいスレッドからは `run_sweep.py`, `plot_heatmap.py`, `src/sim_swim/analysis/sweeps/hook_overstretch.py`, `conf/phase2_sweeps/hook_overstretch.yaml` を最初の確認対象とする。
+  - 2026-07-07 に #100 の stacked PR #102 を #99 branch へ merge し，generic 化後の `torque_distribution_grid.yaml` でも `summary.csv`, `trajectory.csv`, `state_archive.npz`, `run_manifest.json` の contract を維持した。
+  - sweep CLI override として `flagella.initial_helix_axis_from_rear_deg=null` を受けられるようにし，側方参照runで後方束化overrideを外せるようにした。
+  - 後方 1.0 s `outputs/phase2_97/stage_g_posterior_distribution_grid_fp3_ft1p5_torque2p0_dur1p0/summary.csv` では，2x2の4条件すべてが `final_shape_pass_nonbody=False`, `first_fail_category_nonbody=flag` だった。
+  - 側方 0.6 s `outputs/phase2_97/stage_h_lateral_distribution_grid_fp3_ft1p5_torque2p0_dur0p6/summary.csv` では4条件すべてが shape gate を通ったが，`net_abs_flag_helix_spin_revolutions` は小さく，user定性評価 `outputs/phase2_97/stage_h_lateral_grid_qual_fp3_ft1p5_torque2p0_dur0p6` では螺旋軸中心の回転ではなく菌体を含む剛体回転に見えた。
+  - 従って #97 の現行2x2候補は採用しない。問題の主因は torque distribution profile 単体ではなく，#94 の attach-frame補強が body-root 相対自由度を抑えすぎることに移ったと判断し，Issue #103 `[Phase2] attach-frame補強による剛体回転を診断しbasal自由度を分離する` を #82 配下の follow-up とする。
 - acceptance criteria:
   - [x] Issue #97 の背景・段階タスク・受け入れ条件が GitHub Issue 本文に記録される。
   - [x] 螺旋軸中心性を評価する診断列を `step_summary.csv` と `flag_helix_axis_diagnostics.csv` に出せる。
   - [x] `root_torque_segment_couples` と `root_torque_axis_projection` を共通の `motor.torque_distribution_profile` で比較できる。
   - [x] `shape_stability_grid` sweep summary に `force_distribution` と `torque_distribution_profile` を集約できる。
   - [x] 0.6 s 後方条件で新しい比較候補を主評価し，候補を絞る。
-  - [ ] Issue #100 の stacked PR が `feature/phase2-97-torque-distribution-review` へ merge され，generic 化後も 2x2 比較と replay output contract が維持される。
-  - [ ] 側方条件を参照比較し，後方条件の悪化が torque 分散由来かを確認する。
-  - [ ] 通過候補のみ 1.0 s と定性確認を行い，採用候補を確定する。
-  - [ ] 4条件の3D定性比較 movie を user review し，自動指標と見た目の整合を確認する。
-  - [ ] Issue #100 merge 後に posterior 1.0 s，lateral 0.6 s，replay qualitative review，最終採用判断の順で #97 を再開する。
+  - [x] Issue #100 の stacked PR が `feature/phase2-97-torque-distribution-review` へ merge され，generic 化後も 2x2 比較と replay output contract が維持される。
+  - [x] 側方条件を参照比較し，後方条件の悪化が torque 分散由来かを確認する。
+  - [x] posterior 1.0 s と lateral 0.6 s の定量・定性確認を行い，現行2x2候補を採用しないと判断する。
+  - [x] 4条件の3D定性比較 movie を user review し，自動指標と見た目の整合を確認する。
+  - [x] Issue #100 merge 後に posterior 1.0 s，lateral 0.6 s，replay qualitative review，最終採用判断の順で #97 を再開する。
+  - [x] 現行2x2候補を採用しない負の結論を記録し，残課題を Issue #103 へ分離する。
 - verification:
   - `uv run pytest tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py::test_root_torque_segment_couples_weight_profiles_run -q`
   - `uv run ruff check src/sim_swim/sim/helix_axis.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/params.py src/sim_swim/dynamics/engine.py src/sim_swim/analysis/sweeps/hook_overstretch.py tests/test_helix_axis.py tests/test_simulation.py tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py`
@@ -839,13 +845,20 @@
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.001 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 output_dir=/private/tmp/phase2_issue97_replay_smoke overwrite=true progress_interval=10000`
   - `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir /private/tmp/phase2_issue97_replay_smoke --mode plot-only --output-dir /private/tmp/phase2_issue97_replay_plot --overwrite`
   - `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir /private/tmp/phase2_issue97_replay_smoke --mode render-only --output-dir /private/tmp/phase2_issue97_replay_render --overwrite`
+  - `uv run pytest tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py -q`
+  - `uv run ruff check src/sim_swim/analysis scripts/01_simulate_swimming tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py`
+  - `uv run ruff format --check src/sim_swim/analysis scripts/01_simulate_swimming tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py`
+  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/torque_distribution_grid.yaml dry_run=true`
+  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/torque_distribution_grid.yaml flagella.initial_helix_axis_from_rear_deg=null dry_run=true`
 - user-run command:
-  - Stage E は完了済み。4条件の比較 plot / movie は `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir outputs/phase2_97/stage_e_distribution_grid_fp3_ft1p5_torque2p0_dur0p6 --mode both --output-dir outputs/phase2_97/stage_f_grid_qual_3d_fp3_ft1p5_torque2p0_dur0p6 --overwrite` を実行する。
+  - 最終確認はユーザー実行済み。posterior 1.0 s は `outputs/phase2_97/stage_g_posterior_distribution_grid_fp3_ft1p5_torque2p0_dur1p0` / `outputs/phase2_97/stage_g_posterior_grid_qual_fp3_ft1p5_torque2p0_dur1p0`，lateral 0.6 s は `outputs/phase2_97/stage_h_lateral_distribution_grid_fp3_ft1p5_torque2p0_dur0p6` / `outputs/phase2_97/stage_h_lateral_grid_qual_fp3_ft1p5_torque2p0_dur0p6` を参照する。
 - docs:
   - `docs/phase2/phase2_current.md`
   - `docs/phase2/phase2_tasks.md`
   - `docs/codex-runs/20260701_103418_phase2_97_torque_distribution_review/review_result.json`
   - `docs/codex-runs/20260707_130000_phase2_97_grid_qualitative/review_result.json`
+  - `docs/codex-runs/20260707_193748_phase2_97_sweep_axis_override/review_result.json`
+  - `docs/codex-runs/20260707_234038_phase2_97_final_handoff/review_result.json`
 
 ### P2-8-100: sweep/heatmap CLI を task-specific module 依存から切り離す
 
@@ -879,6 +892,31 @@
   - `docs/phase2/phase2_current.md`
   - `docs/phase2/phase2_tasks.md`
   - `docs/codex-runs/20260707_180315_phase2_100_generic_sweep_cli/review_result.json`
+
+### P2-8-103: attach-frame補強による剛体回転を診断しbasal自由度を分離する
+
+- status: in_progress
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/103`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/82`
+- goal: #94 の attach-frame補強が hook過伸長を抑える一方で，body/root/flagella の相対運動を抑えすぎて剛体回転様の挙動を作っていないかを診断し，hook安定化と軸中心回転を両立する basal 自由度の扱いを分離する。
+- background:
+  - 補強なし側方条件では，ユーザー定性評価で比較的きれいな螺旋軸中心回転が見られた。
+  - 補強なし後方束化条件では，hook過伸長が支配的だった。
+  - `local_attach_frame_position_scale=3`, `local_attach_frame_tangent_scale=1.5` の後方束化条件は hook過伸長を抑えたが，菌体を含む剛体回転様に見えた。
+  - 同じ補強を入れた側方条件も shape gate は通るが，軸中心の flagella spin ではなく剛体回転様に見えた。
+- planned tasks:
+  - 補強なし / 補強ありの側方・後方条件を同じ torque, duration, output contract で比較し，body angular velocity, root/body relative rotation, flag helix axis-centered spin を分離して記録する。
+  - attach-frame補強のうち，位置拘束，接線拘束，body側反トルク，basal/root自由度のどれが一体回転を誘発しているかを切り分ける。
+  - hook長安定性を維持しつつ body-root 相対回転を許す候補を1つ以上作り，#97 の 2x2 torque distribution 比較とは別軸で評価する。
+  - 破綻条件も再現可能な出力として保持し，#82 の最終候補選定に使えるようにする。
+- acceptance criteria:
+  - [ ] 補強なし側方，補強なし後方，補強あり側方，補強あり後方の比較条件が再現可能な command/profile として記録される。
+  - [ ] body剛体回転と flagella螺旋軸中心回転を分離する指標が summary で比較できる。
+  - [ ] attach-frame補強のどの成分が body-root 一体化に寄与するかを説明できる。
+  - [ ] hook安定性と軸中心回転を両立する次候補，または両立しない理由を #82 へ返せる。
+- docs:
+  - `docs/phase2/phase2_current.md`
+  - `docs/phase2/phase2_tasks.md`
 
 ### P2-8-DTSTAR: Phase 2標準dt_starと実行コマンドを整理する
 
