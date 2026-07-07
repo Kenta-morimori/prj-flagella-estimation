@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render and/or plot Issue #97 2x2 comparisons from hook_overstretch sweep outputs."""
+"""Render and/or plot Issue #97 2x2 comparisons from sweep outputs."""
 
 from __future__ import annotations
 

@@ -1,9 +1,8 @@
-# Deprecated historical alias. Prefer shape_stability_grid.yaml.
-kind: hook_overstretch
+kind: shape_stability_grid
 args:
   config: conf/sim_swim.yaml
   mode: preset
-  output_dir: outputs/phase2_sweeps/hook_overstretch
+  output_dir: outputs/phase2_sweeps/shape_stability_grid
   duration_s: 0.5
   dt_star: 1.0e-4
   torque_nm: 2.5e-20
