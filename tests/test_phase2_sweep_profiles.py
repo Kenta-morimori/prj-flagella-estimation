@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from sim_swim.analysis.sweeps import shape_stability_grid
 from sim_swim.analysis.cli_profiles import (
     args_from_profile,
     key_value_args_to_cli_args,
@@ -49,6 +50,7 @@ def test_key_value_args_convert_to_argparse_options() -> None:
     args = key_value_args_to_cli_args(
         [
             "mode=first-second-grid",
+            "flagella.initial_helix_axis_from_rear_deg=null",
             "time.duration_s=0.001",
             "motor.torque_Nm=0",
             "first_second_spring_scales=1",
@@ -60,6 +62,8 @@ def test_key_value_args_convert_to_argparse_options() -> None:
     assert args == [
         "--mode",
         "first-second-grid",
+        "--initial-helix-axis-from-rear-deg",
+        "null",
         "--duration-s",
         "0.001",
         "--torque-nm",
@@ -73,6 +77,23 @@ def test_key_value_args_convert_to_argparse_options() -> None:
 def test_key_value_args_reject_false_boolean() -> None:
     with pytest.raises(ValueError, match="dry_run=false is not supported"):
         key_value_args_to_cli_args(["dry_run=false"])
+
+
+def test_shape_stability_grid_initial_helix_axis_arg_defaults_to_posterior() -> None:
+    args = shape_stability_grid._parse_args([])
+
+    assert args.initial_helix_axis_from_rear_deg == pytest.approx(0.0)
+
+
+def test_shape_stability_grid_initial_helix_axis_arg_accepts_null() -> None:
+    args = shape_stability_grid._parse_args(
+        ["--initial-helix-axis-from-rear-deg", "null"]
+    )
+    condition = shape_stability_grid.Condition("case", "preset", "case", {})
+    overrides = shape_stability_grid._overrides_for_condition(args, condition)
+
+    assert args.initial_helix_axis_from_rear_deg is None
+    assert overrides["flagella"]["initial_helix_axis_from_rear_deg"] is None
 
 
 def test_run_sweep_wrapper_lists_profile_kind(capsys) -> None:

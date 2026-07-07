@@ -398,6 +398,22 @@ def _parse_float_values(text: str) -> list[float]:
     return values
 
 
+def _parse_optional_float(value: str | float | None) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, (float, int)):
+        return float(value)
+    text = str(value).strip().lower()
+    if text in {"", "null", "none"}:
+        return None
+    try:
+        return float(text)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            f"Expected float or null, got: {value!r}"
+        ) from exc
+
+
 def _parse_text_values(text: str) -> list[str]:
     values = [item.strip() for item in text.split(",") if item.strip()]
     if not values:
@@ -553,7 +569,9 @@ def _overrides_for_condition(
             "n_flagella": args.n_flagella,
             "placement_mode": "seeded_surface",
             "initial_phase_mode": "seeded",
-            "initial_helix_axis_from_rear_deg": 0.0,
+            "initial_helix_axis_from_rear_deg": (
+                getattr(args, "initial_helix_axis_from_rear_deg", 0.0)
+            ),
         },
         "motor": motor_overrides,
         "seed": {"attach_seed": args.attach_seed, "phase_seed": args.phase_seed},
@@ -842,6 +860,15 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--attach-seed", type=int, default=0)
     parser.add_argument("--phase-seed", type=int, default=0)
     parser.add_argument(
+        "--initial-helix-axis-from-rear-deg",
+        type=_parse_optional_float,
+        default=0.0,
+        help=(
+            "flagella.initial_helix_axis_from_rear_deg override. "
+            "Use null for the legacy side-attach/lateral initial condition."
+        ),
+    )
+    parser.add_argument(
         "--attach-first-spring-scales",
         type=_parse_float_values,
         default=_parse_float_values("1,1.25,1.5,2,3"),
@@ -943,6 +970,7 @@ def main(argv: list[str] | None = None) -> None:
             "n_flagella": args.n_flagella,
             "attach_seed": args.attach_seed,
             "phase_seed": args.phase_seed,
+            "initial_helix_axis_from_rear_deg": (args.initial_helix_axis_from_rear_deg),
             "progress_interval": args.progress_interval,
             "save_state_archive": bool(args.save_state_archive),
         },
