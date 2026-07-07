@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #100 として，現役 sweep/heatmap 導線を shape_stability_grid へ移し，旧 hook_overstretch module/profile は歴史的 alias として残した。#97 の 2x2 torque distribution 比較用 profile を追加し，summary.csv / trajectory.csv / state_archive.npz / run_manifest.json と replay-only plot 導線を維持した。",
+  "summary": "Issue #100 として，現役 sweep/heatmap 導線を shape_stability_grid へ移し，旧 hook_overstretch module/profile は歴史的 alias として残した。#97 の 2x2 torque distribution 比較用 profile を追加し，summary.csv / trajectory.csv / state_archive.npz / run_manifest.json と replay-only plot 導線を維持した。追補として，plot_heatmap.py は output_dir 未指定時に summary_csv と同じ directory の plots/ を既定出力先にする。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "Issue #100 の stacked PR が feature/phase2-97-torque-distribution-review へ merge されるまでは，Issue #97 の残評価は再開しない。"
@@ -41,6 +41,18 @@
     {
       "command": "uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir /private/tmp/phase2_100_torque_grid_smoke --mode plot-only --output-dir /private/tmp/phase2_100_replay_plot --overwrite",
       "result": "PASS: issue97_metrics.csv と issue97_metrics.png を生成"
+    },
+    {
+      "command": "uv run pytest tests/test_phase2_sweep_profiles.py",
+      "result": "PASS: 10 passed。plot_heatmap.py の output_dir default と明示 output_dir 優先を確認"
+    },
+    {
+      "command": "uv run ruff check scripts/01_simulate_swimming/plot_heatmap.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check scripts/01_simulate_swimming/plot_heatmap.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS: 2 files already formatted"
     }
   ],
   "user_review_required": false,
@@ -50,7 +62,7 @@
   "adr_required": false,
   "adr_reason": "物理モデル，出力データ契約，主要ディレクトリ構造の変更ではなく，既存 sweep/heatmap 実装の命名と profile 導線を整理したため。",
   "commit_type": "complete",
-  "commit_hash": "12502e0",
+  "commit_hash": "a8afb5d",
   "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/102",
   "next_actions": [

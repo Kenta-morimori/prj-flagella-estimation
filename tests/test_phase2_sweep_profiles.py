@@ -126,3 +126,59 @@ def test_plot_heatmap_wrapper_rejects_unknown_kind(tmp_path: Path) -> None:
         assert "Unknown heatmap kind" in str(exc)
     else:
         raise AssertionError("expected SystemExit for unknown heatmap kind")
+
+
+def test_plot_heatmap_wrapper_defaults_output_dir_next_to_summary(
+    tmp_path: Path,
+) -> None:
+    profile = tmp_path / "heatmap.yaml"
+    profile.write_text(
+        "kind: shape_stability_grid\nargs:\n  mode: first-second-grid\n",
+        encoding="utf-8",
+    )
+    summary_csv = tmp_path / "summary.csv"
+    captured: dict[str, list[str]] = {}
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/plot_heatmap.py"),
+        "phase2_plot_heatmap_wrapper_default_output",
+    )
+    module.HEATMAP_MAIN["shape_stability_grid"] = lambda args: captured.setdefault(
+        "args", args
+    )
+
+    module.main(["config=" + str(profile), "summary_csv=" + str(summary_csv)])
+
+    args = captured["args"]
+    assert args[args.index("--output-dir") + 1] == str(tmp_path / "plots")
+
+
+def test_plot_heatmap_wrapper_keeps_explicit_output_dir(tmp_path: Path) -> None:
+    profile = tmp_path / "heatmap.yaml"
+    profile_output_dir = tmp_path / "profile_plots"
+    profile.write_text(
+        "\n".join(
+            [
+                "kind: shape_stability_grid",
+                "args:",
+                "  mode: first-second-grid",
+                f"  output_dir: {profile_output_dir}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    summary_csv = tmp_path / "summary.csv"
+    captured: dict[str, list[str]] = {}
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/plot_heatmap.py"),
+        "phase2_plot_heatmap_wrapper_explicit_output",
+    )
+    module.HEATMAP_MAIN["shape_stability_grid"] = lambda args: captured.setdefault(
+        "args", args
+    )
+
+    module.main(["config=" + str(profile), "summary_csv=" + str(summary_csv)])
+
+    args = captured["args"]
+    assert args.count("--output-dir") == 1
+    assert args[args.index("--output-dir") + 1] == str(profile_output_dir)
