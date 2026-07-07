@@ -806,6 +806,7 @@
   - 上記を受けて `root_torque_hybrid_couples` は削除し，`basal_unloading` も主比較から除外した。Issue #97 の標準比較面は `root_torque_segment_couples / root_torque_axis_projection` × `diffusive / uniform` の 2x2 とする。
   - `hook_overstretch` sweep は既定で `state_archive.npz` と `trajectory.csv` を各 condition directory に保存するようにし，定量 sweep 後に再シミュレーションなしで replay/render できるようにした。
   - 一時スクリプト `scripts/01_simulate_swimming/render_issue97_grid_qualitative.py` は sweep 出力 directory を入力として，標準 2x2 比較の `plot-only / render-only / both` を切り替えられる replay utility に更新した。定量 run 後の定性比較は既存 output の再編集で行う。
+  - 2026-07-07 に follow-up Issue #100 `[Phase2] sweep/heatmap CLI を task-specific module 依存から切り離す` を作成した。Issue #97 はこの整理を blocker とし，Issue #100 の実装 branch / PR base は `feature/phase2-97-torque-distribution-review` に固定する。
 - acceptance criteria:
   - [x] Issue #97 の背景・段階タスク・受け入れ条件が GitHub Issue 本文に記録される。
   - [x] 螺旋軸中心性を評価する診断列を `step_summary.csv` と `flag_helix_axis_diagnostics.csv` に出せる。
