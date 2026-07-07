@@ -925,10 +925,11 @@
   - #103 標準比較 profile `conf/phase2_sweeps/basal_freedom_diagnostic.yaml` は `no_frame`, `fp3`, `ft1p5`, `fp3_ft1p5_vector`, `fp3_ft1p5_bearing` の5条件を展開する。
   - 2026-07-08 追補として，`render_issue97_grid_qualitative.py` を #97 固定4条件だけでなく #103 の5条件にも対応させた。条件数に応じて3D grid layoutを自動化し，metrics plot には body roll / body-relative axis-center spin 指標を含める。
   - 2026-07-08 追補として，`local_attach_frame_tangent_scale` は「接線方向だけ」の拘束ではなく，body attach frame で見た `first -> second` ベクトル全体を初期 target に戻す実装であるため，root の軸まわり相対 spin も同時に抑えやすいと整理した。したがって `ft` 系と `basal_bearing` は #103 の主系列から外し，次の比較は `conf/phase2_sweeps/basal_freedom_position_only_sweep.yaml` の `no_frame`, `fp1p25`, `fp1p5`, `fp2`, `fp2p5`, `fp3` で行う。
+  - 2026-07-08 追補として，position-only sweep `outputs/phase2_103/stage_c_lateral_position_only_dur0p6/summary.csv` と `outputs/phase2_103/stage_d_posterior_position_only_dur1p0/summary.csv` を確認した。側方では `no_frame` がもっとも自然な軸中心回転に見え，`fp>=1.25` は `max_hook_len_rel_err=0.0245..0.0033` まで hook を改善する一方で `axis_center_to_body_roll_ratio_mean` は `103.5 -> 48.6` 前後へ下がった。後方では `no_frame` が `t=0.0449 s` で `hook` fail，`fp1p25` は `t=0.3295 s` まで `flag` fail を遅らせ，`max_hook_len_rel_err=0.1207`, `body_roll_net_abs_revolutions=0.0135`, `axis_center_to_body_roll_ratio_mean=151.2` で最良の折衷だった。`fp1p5` は `first_fail_t_s=0.3498 s` とやや遅いが body roll が増え，`fp2+` は `max_flag_bond_rel_err` 悪化で不利だった。従って現時点の posterior 本命は `fp1p25`，次点は `fp1p5`，lateral の自然回転参照点は `no_frame` とする。
 - acceptance criteria:
   - [x] 補強なし側方，補強なし後方，補強あり側方，補強あり後方の比較条件が再現可能な command/profile として記録される。
   - [x] body剛体回転と flagella螺旋軸中心回転を分離する指標が summary で比較できる。
-  - [ ] attach-frame補強のどの成分が body-root 一体化に寄与するかを説明できる。
+  - [x] attach-frame補強のどの成分が body-root 一体化に寄与するかを説明できる。
   - [ ] hook安定性と軸中心回転を両立する次候補，または両立しない理由を #82 へ返せる。
 - verification:
   - `uv run pytest tests/test_params.py tests/test_motor_forces.py tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py::test_run_writes_step_summary_csv_without_projection_columns -q`

@@ -1,10 +1,10 @@
 {
   "status": "PASS",
-  "summary": "Issue #103 の第一段として，attach-frame 補強による剛体回転を診断する body roll / body-relative helix spin 指標を追加し，root 軸まわり spin を許す `motor.local_attach_frame_tangent_mode=basal_bearing` を実装した。#103 標準比較 profile `conf/phase2_sweeps/basal_freedom_diagnostic.yaml` は no_frame / fp only / ft only / fp+ft vector / fp+ft basal_bearing の5条件を展開する。追補として，replay renderer を #103 の5条件にも対応させ，local `.sh` から sweep 後の plot/render までまとめて実行できるようにした。",
+  "summary": "Issue #103 では，attach-frame 補強による剛体回転を診断する body roll / body-relative helix spin 指標と `motor.local_attach_frame_tangent_mode=basal_bearing` を追加したうえで，position-only sweep まで拡張した。ユーザー実行の lateral 0.6 s / posterior 1.0 s 比較により，`local_attach_frame_tangent_scale` は root の軸まわり相対 spin も抑えやすく剛体回転化の主因と整理できた。position-only 列では lateral の自然回転参照点は `no_frame`，posterior の最良折衷は `fp1p25`，次点は `fp1p5` と判断した。",
   "blocking_issues": [],
   "non_blocking_issues": [
-    "長時間 Phase 2 sweep / replay render は Codex 側では実行していない。側方0.6 s，後方1.0 s のユーザー実行と定性評価が必要である。",
-    "`basal_bearing` は参照論文モデルではなく，現行 bead-spring 実装で hook安定化と root axial spin 自由度を分離するための project-specific extension として扱う。"
+    "`basal_bearing` は参照論文モデルではなく，現行 bead-spring 実装で hook安定化と root axial spin 自由度を分離するための project-specific extension として扱う。",
+    "`fp1p25` は posterior の best compromise だが `first_fail_category_nonbody=flag`, `first_fail_t_s=0.3295 s` であり，完全 pass ではない。#82 へ返す代表候補にするには `fp1p5` との最終比較整理が残る。"
   ],
   "tests_reviewed": [
     {
@@ -40,6 +40,18 @@
       "result": "PASS: 325 passed"
     },
     {
+      "command": "uv run pytest tests/test_git_hooks.py tests/test_phase2_sweep_profiles.py -q",
+      "result": "PASS: 21 passed"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS: 329 passed"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS: 146 passed, 183 deselected"
+    },
+    {
       "command": "uv run pytest tests/test_phase2_sweep_profiles.py -q",
       "result": "PASS: 17 passed"
     },
@@ -72,24 +84,28 @@
       "result": "PASS: 実際の posterior #103 出力から metrics と 5条件 grid movie を生成"
     }
   ],
-  "user_review_required": true,
-  "user_review_command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/basal_freedom_diagnostic.yaml time.duration_s=0.6 flagella.initial_helix_axis_from_rear_deg=null output_dir=outputs/phase2_103/stage_a_lateral_basal_freedom_dur0p6 overwrite=true progress_interval=5000 && uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/basal_freedom_diagnostic.yaml time.duration_s=1.0 flagella.initial_helix_axis_from_rear_deg=0 output_dir=outputs/phase2_103/stage_b_posterior_basal_freedom_dur1p0 overwrite=true progress_interval=5000",
+  "user_review_required": false,
+  "user_review_command": "",
   "user_review_outputs": [
     "outputs/phase2_103/stage_a_lateral_basal_freedom_dur0p6/summary.csv",
     "outputs/phase2_103/stage_b_posterior_basal_freedom_dur1p0/summary.csv",
     "outputs/phase2_103/stage_a_lateral_basal_freedom_qual/",
-    "outputs/phase2_103/stage_b_posterior_basal_freedom_qual/"
+    "outputs/phase2_103/stage_b_posterior_basal_freedom_qual/",
+    "outputs/phase2_103/stage_c_lateral_position_only_dur0p6/summary.csv",
+    "outputs/phase2_103/stage_d_posterior_position_only_dur1p0/summary.csv",
+    "outputs/phase2_103/stage_c_lateral_position_only_qual/",
+    "outputs/phase2_103/stage_d_posterior_position_only_qual/"
   ],
   "adr_required": true,
   "adr_reason": "`basal_bearing` は新しい物理近似であり，output interpretation に body roll / body-relative spin 指標を追加するため。",
   "adr_path": "docs/adr/0007_phase2_basal_bearing_attach_frame.md",
   "commit_type": "implementation",
-  "commit_hash": "27a5a87",
+  "commit_hash": "pending",
   "push_status": "pending",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/104",
   "next_actions": [
-    "ユーザー側で側方0.6 s / 後方1.0 s の #103 sweep を実行する。",
-    "replay render を作成し，`fp3_ft1p5_bearing` が hook安定性を保ちつつ剛体回転を緩和するかを定性評価する。",
-    "summary.csv の `body_roll_net_abs_revolutions`, `axis_center_body_relative_net_abs_revolutions_mean`, `axis_center_to_body_roll_ratio_mean`, `final_shape_pass_nonbody`, `first_fail_category_nonbody`, `max_flag_bond_rel_err` を比較する。"
+    "`fp1p25` と `fp1p5` のどちらを #82 へ返す posterior 代表候補にするか，定性所見と `first_fail_*` を優先して最終判断する。",
+    "必要なら `fp1p25` 近傍の finer position-only sweep か，`flag` fail の局所 bead pair 診断を追加する。",
+    "PR #104 に latest main の lightweight pre-commit 方針反映後の review 結果を反映する。"
   ]
 }
