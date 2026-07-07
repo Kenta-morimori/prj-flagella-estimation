@@ -923,6 +923,7 @@
   - `flag_helix_axis_diagnostics.csv` に `body_roll_phase_deg`, `axis_center_body_relative_phase_deg` を追加した。
   - `shape_stability_grid` summary に body-relative axis-center spin と axis/body roll ratio を追加した。
   - #103 標準比較 profile `conf/phase2_sweeps/basal_freedom_diagnostic.yaml` は `no_frame`, `fp3`, `ft1p5`, `fp3_ft1p5_vector`, `fp3_ft1p5_bearing` の5条件を展開する。
+  - 2026-07-08 追補として，`render_issue97_grid_qualitative.py` を #97 固定4条件だけでなく #103 の5条件にも対応させた。条件数に応じて3D grid layoutを自動化し，metrics plot には body roll / body-relative axis-center spin 指標を含める。
 - acceptance criteria:
   - [x] 補強なし側方，補強なし後方，補強あり側方，補強あり後方の比較条件が再現可能な command/profile として記録される。
   - [x] body剛体回転と flagella螺旋軸中心回転を分離する指標が summary で比較できる。
@@ -934,6 +935,11 @@
   - `uv run ruff format --check src/sim_swim/dynamics/forces.py src/sim_swim/dynamics/engine.py src/sim_swim/sim/params.py src/sim_swim/sim/debug_summary.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_params.py tests/test_motor_forces.py tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py`
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/basal_freedom_diagnostic.yaml dry_run=true`
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/basal_freedom_diagnostic.yaml time.duration_s=0.001 output_dir=/private/tmp/phase2_103_basal_freedom_smoke overwrite=true progress_interval=10000`
+  - `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir outputs/phase2_103/stage_a_lateral_basal_freedom_dur0p6 --mode plot-only --output-dir /private/tmp/phase2_103_lateral_replay_plot --overwrite`
+  - `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir outputs/phase2_103/stage_b_posterior_basal_freedom_dur1p0 --mode plot-only --output-dir /private/tmp/phase2_103_posterior_replay_plot --overwrite`
+  - `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir /private/tmp/phase2_103_basal_freedom_smoke --mode render-only --fps-out-3d 10 --output-dir /private/tmp/phase2_103_smoke_replay_render --overwrite`
+  - `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir outputs/phase2_103/stage_a_lateral_basal_freedom_dur0p6 --mode both --fps-out-3d 10 --output-dir /private/tmp/phase2_103_lateral_replay_both --overwrite`
+  - `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir outputs/phase2_103/stage_b_posterior_basal_freedom_dur1p0 --mode both --fps-out-3d 10 --output-dir /private/tmp/phase2_103_posterior_replay_both --overwrite`
 - user-run commands:
   - 側方 0.6 s 比較:
     `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/basal_freedom_diagnostic.yaml time.duration_s=0.6 flagella.initial_helix_axis_from_rear_deg=null output_dir=outputs/phase2_103/stage_a_lateral_basal_freedom_dur0p6 overwrite=true progress_interval=5000`

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render and/or plot Issue #97 2x2 comparisons from sweep outputs."""
+"""Render and/or plot Phase 2 shape-stability grid comparisons from sweep outputs."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ from sim_swim.render.video_writer import VideoRenderResult, open_mp4_writer
 from sim_swim.sim.core import SimulationState, Simulator
 from sim_swim.sim.params import SimulationConfig
 
-EXPECTED_CONDITION_IDS = (
+ISSUE97_CONDITION_IDS = (
     "segment_couples_diffusive_fp3_ft1p5",
     "segment_couples_uniform_fp3_ft1p5",
     "axis_projection_diffusive_fp3_ft1p5",
@@ -50,8 +50,13 @@ METRIC_FIELDS = (
     "first_fail_category_nonbody",
     "hook_len_rel_err_max",
     "max_flag_bond_rel_err",
+    "body_roll_net_abs_revolutions",
+    "body_roll_direction_consistency",
     "axis_center_net_abs_revolutions_mean",
     "axis_center_direction_consistency_mean",
+    "axis_center_body_relative_net_abs_revolutions_mean",
+    "axis_center_body_relative_direction_consistency_mean",
+    "axis_center_to_body_roll_ratio_mean",
 )
 
 
@@ -127,10 +132,16 @@ def _short_distribution_label(value: str) -> str:
 
 
 def _label_for_row(row: dict[str, str]) -> str:
-    return (
-        f"{_short_distribution_label(row['force_distribution'])}\n"
-        f"{row['torque_distribution_profile']}"
-    )
+    condition_id = row.get("condition_id", "")
+    if condition_id in ISSUE97_CONDITION_IDS:
+        return (
+            f"{_short_distribution_label(row['force_distribution'])}\n"
+            f"{row['torque_distribution_profile']}"
+        )
+    tangent_mode = row.get("local_attach_frame_tangent_mode", "")
+    if tangent_mode and tangent_mode != "vector":
+        return f"{condition_id}\n{tangent_mode}"
+    return condition_id
 
 
 def _fail_label(row: dict[str, str]) -> str:
@@ -153,6 +164,18 @@ def _condition_records(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return {str(record["condition_id"]): dict(record) for record in records}
 
 
+def _ordered_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    condition_ids = [row.get("condition_id", "") for row in rows]
+    if all(condition_id in condition_ids for condition_id in ISSUE97_CONDITION_IDS):
+        return [
+            row
+            for condition_id in ISSUE97_CONDITION_IDS
+            for row in rows
+            if row.get("condition_id") == condition_id
+        ]
+    return [row for row in rows if row.get("condition_id")]
+
+
 def _load_inputs(
     input_dir: Path,
 ) -> tuple[list[dict[str, str]], dict[str, dict[str, Any]], Path]:
@@ -166,15 +189,9 @@ def _load_inputs(
     manifest = _load_json(manifest_path)
     records = _condition_records(manifest)
     base_cfg_path = Path(str(manifest["config"]))
-    ordered_rows = [
-        row for row in rows if row.get("condition_id") in EXPECTED_CONDITION_IDS
-    ]
-    if len(ordered_rows) != len(EXPECTED_CONDITION_IDS):
-        found = [row.get("condition_id", "") for row in ordered_rows]
-        raise RuntimeError(
-            f"Expected exactly the 4 Issue #97 conditions in summary.csv; found {found}"
-        )
-    ordered_rows.sort(key=lambda row: EXPECTED_CONDITION_IDS.index(row["condition_id"]))
+    ordered_rows = _ordered_rows(rows)
+    if not ordered_rows:
+        raise RuntimeError(f"No condition rows found in summary.csv under {input_dir}")
     for row in ordered_rows:
         condition_id = row["condition_id"]
         if condition_id not in records:
@@ -315,12 +332,15 @@ def _render_grid_movie(
     last_frame = None
     titles = [_label_for_row(row) for row in condition_rows]
     fail_labels = [_fail_label(row) for row in condition_rows]
+    n_conditions = len(condition_rows)
+    n_cols = min(3, max(1, int(np.ceil(np.sqrt(n_conditions)))))
+    n_rows = int(np.ceil(n_conditions / n_cols))
 
     for frame_idx in range(frame_count):
-        fig = plt.figure(figsize=(10, 10))
+        fig = plt.figure(figsize=(4.8 * n_cols, 4.8 * n_rows))
         axes = [
-            fig.add_subplot(2, 2, plot_index + 1, projection="3d")
-            for plot_index in range(4)
+            fig.add_subplot(n_rows, n_cols, plot_index + 1, projection="3d")
+            for plot_index in range(n_conditions)
         ]
         for idx, ax in enumerate(axes):
             _plot_cell(
@@ -377,6 +397,10 @@ def _write_metrics(
     return metrics_path
 
 
+def _metric_series(rows: list[dict[str, str]], field: str) -> list[float]:
+    return [_float_or_nan(row.get(field)) for row in rows]
+
+
 def _plot_metrics(
     *,
     rows: list[dict[str, str]],
@@ -395,19 +419,21 @@ def _plot_metrics(
         for row in rows
     ]
     max_flag_bond = [_float_or_nan(row.get("max_flag_bond_rel_err")) for row in rows]
-    axis_rev = [
-        _float_or_nan(row.get("axis_center_net_abs_revolutions_mean")) for row in rows
-    ]
-    axis_consistency = [
-        _float_or_nan(row.get("axis_center_direction_consistency_mean")) for row in rows
-    ]
+    axis_rev = _metric_series(rows, "axis_center_net_abs_revolutions_mean")
+    axis_relative_rev = _metric_series(
+        rows, "axis_center_body_relative_net_abs_revolutions_mean"
+    )
+    body_roll_rev = _metric_series(rows, "body_roll_net_abs_revolutions")
+    axis_body_ratio = _metric_series(rows, "axis_center_to_body_roll_ratio_mean")
 
-    fig, axes = plt.subplots(2, 2, figsize=(11, 8))
+    fig, axes = plt.subplots(2, 3, figsize=(14, 8))
     panels = [
         ("first_fail_t_s_or_duration", first_fail),
         ("max_flag_bond_rel_err", max_flag_bond),
         ("axis_center_net_abs_revolutions_mean", axis_rev),
-        ("axis_center_direction_consistency_mean", axis_consistency),
+        ("axis_center_body_relative_net_abs_revolutions_mean", axis_relative_rev),
+        ("body_roll_net_abs_revolutions", body_roll_rev),
+        ("axis_center_to_body_roll_ratio_mean", axis_body_ratio),
     ]
     for ax, (title, values) in zip(axes.flat, panels):
         ax.bar(labels, values, color=colors)
@@ -446,7 +472,7 @@ def main(argv: list[str] | None = None) -> None:
     output_dir = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=args.overwrite)
     logger = _setup_logger(output_dir / "run.log")
-    logger.info("Starting issue97 replay render/plot")
+    logger.info("Starting shape-stability replay render/plot")
     logger.info("input_dir=%s", args.input_dir)
     logger.info("mode=%s", args.mode)
 

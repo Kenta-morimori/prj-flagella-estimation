@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -148,6 +149,83 @@ def test_basal_freedom_profile_builds_issue103_conditions() -> None:
         "fp3_ft1p5_bearing",
     ]
     assert conditions[-1].scales["local_attach_frame_tangent_mode"] == ("basal_bearing")
+
+
+def _write_replay_inputs(tmp_path: Path, condition_ids: list[str]) -> Path:
+    input_dir = tmp_path / "replay"
+    input_dir.mkdir()
+    (input_dir / "summary.csv").write_text(
+        "\n".join(
+            [
+                "condition_id,force_distribution,torque_distribution_profile,local_attach_frame_tangent_mode",
+                *[
+                    f"{condition_id},root_torque_segment_couples,diffusive,vector"
+                    for condition_id in condition_ids
+                ],
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    manifest = {
+        "config": "conf/sim_swim.yaml",
+        "conditions": [
+            {"condition_id": condition_id, "config_overrides": {}}
+            for condition_id in condition_ids
+        ],
+    }
+    (input_dir / "run_manifest.json").write_text(
+        json.dumps(manifest),
+        encoding="utf-8",
+    )
+    for condition_id in condition_ids:
+        condition_dir = input_dir / condition_id
+        condition_dir.mkdir()
+        (condition_dir / "state_archive.npz").write_bytes(b"")
+    return input_dir
+
+
+def test_issue97_replay_keeps_canonical_condition_order(tmp_path: Path) -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_issue97_grid_qualitative.py"),
+        "phase2_issue97_replay_order",
+    )
+    condition_ids = [
+        "axis_projection_uniform_fp3_ft1p5",
+        "segment_couples_uniform_fp3_ft1p5",
+        "axis_projection_diffusive_fp3_ft1p5",
+        "segment_couples_diffusive_fp3_ft1p5",
+    ]
+    input_dir = _write_replay_inputs(tmp_path, condition_ids)
+
+    rows, _records, _base_cfg_path = module._load_inputs(input_dir)
+
+    assert [row["condition_id"] for row in rows] == [
+        "segment_couples_diffusive_fp3_ft1p5",
+        "segment_couples_uniform_fp3_ft1p5",
+        "axis_projection_diffusive_fp3_ft1p5",
+        "axis_projection_uniform_fp3_ft1p5",
+    ]
+
+
+def test_issue103_replay_accepts_basal_freedom_conditions(tmp_path: Path) -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_issue97_grid_qualitative.py"),
+        "phase2_issue103_replay_order",
+    )
+    condition_ids = [
+        "no_frame",
+        "fp3",
+        "ft1p5",
+        "fp3_ft1p5_vector",
+        "fp3_ft1p5_bearing",
+    ]
+    input_dir = _write_replay_inputs(tmp_path, condition_ids)
+
+    rows, _records, _base_cfg_path = module._load_inputs(input_dir)
+
+    assert [row["condition_id"] for row in rows] == condition_ids
+    assert module._label_for_row(rows[-1]) == "fp3_ft1p5_bearing"
 
 
 def test_shape_stability_grid_keeps_deprecated_torque_segment_profile_alias() -> None:

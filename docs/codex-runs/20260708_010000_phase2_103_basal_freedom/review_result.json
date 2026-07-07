@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #103 の第一段として，attach-frame 補強による剛体回転を診断する body roll / body-relative helix spin 指標を追加し，root 軸まわり spin を許す `motor.local_attach_frame_tangent_mode=basal_bearing` を実装した。#103 標準比較 profile `conf/phase2_sweeps/basal_freedom_diagnostic.yaml` は no_frame / fp only / ft only / fp+ft vector / fp+ft basal_bearing の5条件を展開する。",
+  "summary": "Issue #103 の第一段として，attach-frame 補強による剛体回転を診断する body roll / body-relative helix spin 指標を追加し，root 軸まわり spin を許す `motor.local_attach_frame_tangent_mode=basal_bearing` を実装した。#103 標準比較 profile `conf/phase2_sweeps/basal_freedom_diagnostic.yaml` は no_frame / fp only / ft only / fp+ft vector / fp+ft basal_bearing の5条件を展開する。追補として，replay renderer を #103 の5条件にも対応させ，local `.sh` から sweep 後の plot/render までまとめて実行できるようにした。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "長時間 Phase 2 sweep / replay render は Codex 側では実行していない。側方0.6 s，後方1.0 s のユーザー実行と定性評価が必要である。",
@@ -38,6 +38,38 @@
     {
       "command": "uv run pytest -q",
       "result": "PASS: 323 passed"
+    },
+    {
+      "command": "uv run pytest tests/test_phase2_sweep_profiles.py -q",
+      "result": "PASS: 17 passed"
+    },
+    {
+      "command": "uv run ruff check scripts/01_simulate_swimming/render_issue97_grid_qualitative.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check scripts/01_simulate_swimming/render_issue97_grid_qualitative.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS: 2 files already formatted"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir outputs/phase2_103/stage_a_lateral_basal_freedom_dur0p6 --mode plot-only --output-dir /private/tmp/phase2_103_lateral_replay_plot --overwrite",
+      "result": "PASS: #103 の5条件 summary を受け入れ metrics CSV/PNG を生成"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir outputs/phase2_103/stage_b_posterior_basal_freedom_dur1p0 --mode plot-only --output-dir /private/tmp/phase2_103_posterior_replay_plot --overwrite",
+      "result": "PASS: #103 posterior の5条件 summary を受け入れ metrics CSV/PNG を生成"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir /private/tmp/phase2_103_basal_freedom_smoke --mode render-only --fps-out-3d 10 --output-dir /private/tmp/phase2_103_smoke_replay_render --overwrite",
+      "result": "PASS: 5条件 grid movie を生成"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir outputs/phase2_103/stage_a_lateral_basal_freedom_dur0p6 --mode both --fps-out-3d 10 --output-dir /private/tmp/phase2_103_lateral_replay_both --overwrite",
+      "result": "PASS: 実際の lateral #103 出力から metrics と 5条件 grid movie を生成"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir outputs/phase2_103/stage_b_posterior_basal_freedom_dur1p0 --mode both --fps-out-3d 10 --output-dir /private/tmp/phase2_103_posterior_replay_both --overwrite",
+      "result": "PASS: 実際の posterior #103 出力から metrics と 5条件 grid movie を生成"
     }
   ],
   "user_review_required": true,
@@ -52,8 +84,8 @@
   "adr_reason": "`basal_bearing` は新しい物理近似であり，output interpretation に body roll / body-relative spin 指標を追加するため。",
   "adr_path": "docs/adr/0007_phase2_basal_bearing_attach_frame.md",
   "commit_type": "implementation",
-  "commit_hash": "588e379",
-  "push_status": "pushed to origin/feature/phase2-103-basal-freedom",
+  "commit_hash": "pending",
+  "push_status": "pending",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/104",
   "next_actions": [
     "ユーザー側で側方0.6 s / 後方1.0 s の #103 sweep を実行する。",
