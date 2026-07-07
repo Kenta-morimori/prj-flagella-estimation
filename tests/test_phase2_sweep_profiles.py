@@ -133,6 +133,14 @@ def test_torque_distribution_profile_is_shape_stability_grid() -> None:
     assert args[args.index("--torque-distribution-profiles") + 1] == "diffusive,uniform"
 
 
+def test_shape_stability_grid_keeps_deprecated_torque_segment_profile_alias() -> None:
+    args = shape_stability_grid._parse_args(
+        ["--torque-segment-weight-profiles", "diffusive,uniform"]
+    )
+
+    assert args.torque_distribution_profiles == ["diffusive", "uniform"]
+
+
 def test_plot_heatmap_wrapper_rejects_unknown_kind(tmp_path: Path) -> None:
     profile = tmp_path / "bad_heatmap.yaml"
     profile.write_text("kind: missing\n", encoding="utf-8")

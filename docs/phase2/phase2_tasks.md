@@ -820,6 +820,7 @@
   - 後方 1.0 s `outputs/phase2_97/stage_g_posterior_distribution_grid_fp3_ft1p5_torque2p0_dur1p0/summary.csv` では，2x2の4条件すべてが `final_shape_pass_nonbody=False`, `first_fail_category_nonbody=flag` だった。
   - 側方 0.6 s `outputs/phase2_97/stage_h_lateral_distribution_grid_fp3_ft1p5_torque2p0_dur0p6/summary.csv` では4条件すべてが shape gate を通ったが，`net_abs_flag_helix_spin_revolutions` は小さく，user定性評価 `outputs/phase2_97/stage_h_lateral_grid_qual_fp3_ft1p5_torque2p0_dur0p6` では螺旋軸中心の回転ではなく菌体を含む剛体回転に見えた。
   - 従って #97 の現行2x2候補は採用しない。問題の主因は torque distribution profile 単体ではなく，#94 の attach-frame補強が body-root 相対自由度を抑えすぎることに移ったと判断し，Issue #103 `[Phase2] attach-frame補強による剛体回転を診断しbasal自由度を分離する` を #82 配下の follow-up とする。
+  - PR #99 review 対応として，`root_torque_axis_projection` の weighted drive はゼロ重み bead に合力補正を漏らさず，active/weighted support 内だけで balance するよう修正した。また，historical command 再現用に `torque_segment_weight_profiles` / `--torque-segment-weight-profiles` を deprecated alias として維持し，docs上の現役検証コマンドは `torque_distribution_profiles` へ更新した。
 - acceptance criteria:
   - [x] Issue #97 の背景・段階タスク・受け入れ条件が GitHub Issue 本文に記録される。
   - [x] 螺旋軸中心性を評価する診断列を `step_summary.csv` と `flag_helix_axis_diagnostics.csv` に出せる。
@@ -837,10 +838,10 @@
   - `uv run ruff check src/sim_swim/sim/helix_axis.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/params.py src/sim_swim/dynamics/engine.py src/sim_swim/analysis/sweeps/hook_overstretch.py tests/test_helix_axis.py tests/test_simulation.py tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py`
   - `uv run ruff format --check src/sim_swim/sim/helix_axis.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/params.py src/sim_swim/dynamics/engine.py src/sim_swim/analysis/sweeps/hook_overstretch.py tests/test_helix_axis.py tests/test_simulation.py tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py`
   - `uv run python -c "import yaml; yaml.safe_load(open('conf/sim_swim.yaml', encoding='utf-8'))"`
-  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_segment_weight_profiles=local_twist_activity,uniform dry_run=true`
-  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.001 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_segment_weight_profiles=local_twist_activity,uniform output_dir=/private/tmp/phase2_issue97_torque_profile_smoke overwrite=true progress_interval=10000`
+  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_distribution_profiles=diffusive,uniform dry_run=true`
+  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.001 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_distribution_profiles=diffusive,uniform output_dir=/private/tmp/phase2_issue97_torque_profile_smoke overwrite=true progress_interval=10000`
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.001 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 output_dir=/private/tmp/phase2_issue97_profile_expansion_smoke overwrite=true progress_interval=10000`
-  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.6 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_segment_weight_profiles=local_twist_activity,activity_sqrt,activity_floor_0p2,activity_floor_0p4,uniform output_dir=outputs/phase2_97/stage_c_torque_profile_expansion_fp3_ft1p5_torque2p0_dur0p6 overwrite=true progress_interval=5000`
+  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.6 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_distribution_profiles=diffusive,diffusive_sqrt,diffusive_floor_0p2,diffusive_floor_0p4,uniform output_dir=outputs/phase2_97/stage_c_torque_profile_expansion_fp3_ft1p5_torque2p0_dur0p6 overwrite=true progress_interval=5000`
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.6 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 force_distributions=root_torque_segment_couples,root_torque_axis_projection torque_distribution_profiles=diffusive,uniform output_dir=outputs/phase2_97/stage_e_distribution_grid_fp3_ft1p5_torque2p0_dur0p6 overwrite=true progress_interval=5000`
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.001 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 output_dir=/private/tmp/phase2_issue97_replay_smoke overwrite=true progress_interval=10000`
   - `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir /private/tmp/phase2_issue97_replay_smoke --mode plot-only --output-dir /private/tmp/phase2_issue97_replay_plot --overwrite`
@@ -850,6 +851,11 @@
   - `uv run ruff format --check src/sim_swim/analysis scripts/01_simulate_swimming tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py`
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/torque_distribution_grid.yaml dry_run=true`
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/torque_distribution_grid.yaml flagella.initial_helix_axis_from_rear_deg=null dry_run=true`
+  - `uv run pytest tests/test_motor_forces.py tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py -q`
+  - `uv run ruff check src/sim_swim/dynamics/forces.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_motor_forces.py tests/test_phase2_sweep_profiles.py`
+  - `uv run ruff format --check src/sim_swim/dynamics/forces.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_motor_forces.py tests/test_phase2_sweep_profiles.py`
+  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_segment_weight_profiles=diffusive,uniform dry_run=true`
+  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_distribution_profiles=diffusive,uniform dry_run=true`
 - user-run command:
   - 最終確認はユーザー実行済み。posterior 1.0 s は `outputs/phase2_97/stage_g_posterior_distribution_grid_fp3_ft1p5_torque2p0_dur1p0` / `outputs/phase2_97/stage_g_posterior_grid_qual_fp3_ft1p5_torque2p0_dur1p0`，lateral 0.6 s は `outputs/phase2_97/stage_h_lateral_distribution_grid_fp3_ft1p5_torque2p0_dur0p6` / `outputs/phase2_97/stage_h_lateral_grid_qual_fp3_ft1p5_torque2p0_dur0p6` を参照する。
 - docs:
@@ -859,6 +865,7 @@
   - `docs/codex-runs/20260707_130000_phase2_97_grid_qualitative/review_result.json`
   - `docs/codex-runs/20260707_193748_phase2_97_sweep_axis_override/review_result.json`
   - `docs/codex-runs/20260707_234038_phase2_97_final_handoff/review_result.json`
+  - `docs/codex-runs/20260708_001107_phase2_97_review_response/review_result.json`
 
 ### P2-8-100: sweep/heatmap CLI を task-specific module 依存から切り離す
 

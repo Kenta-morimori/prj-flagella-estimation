@@ -604,7 +604,10 @@ def _zero_net_force_torque_drive(
         if float(np.sum(w)) <= 1e-18:
             w = np.ones((idx.size,), dtype=float)
         drive = drive * w[:, None]
-    drive -= np.mean(drive, axis=0, keepdims=True)
+        active = w > 0.0
+        drive[active] -= np.mean(drive[active], axis=0, keepdims=True)
+    else:
+        drive -= np.mean(drive, axis=0, keepdims=True)
     torque_unit = float(np.sum(np.cross(radial, drive) @ axis))
     if abs(torque_unit) <= 1e-30:
         return np.zeros_like(positions_m), 1, 0.0, 0.0

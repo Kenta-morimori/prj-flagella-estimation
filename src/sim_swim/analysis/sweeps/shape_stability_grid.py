@@ -909,8 +909,18 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--torque-distribution-profiles",
         type=_parse_text_values,
-        default=_parse_text_values("diffusive,uniform"),
+        default=None,
         help="Comma-separated profile values for --mode torque-profile-grid.",
+    )
+    parser.add_argument(
+        "--torque-segment-weight-profiles",
+        dest="torque_distribution_profiles",
+        type=_parse_text_values,
+        default=None,
+        help=(
+            "Deprecated alias for --torque-distribution-profiles, kept for "
+            "replaying historical Issue #97 commands."
+        ),
     )
     parser.add_argument("--fixed-attach-first-spring-scale", type=float, default=None)
     parser.add_argument("--fixed-body-axis-angle-scale", type=float, default=None)
@@ -927,7 +937,10 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.torque_distribution_profiles is None:
+        args.torque_distribution_profiles = _parse_text_values("diffusive,uniform")
+    return args
 
 
 def main(argv: list[str] | None = None) -> None:
