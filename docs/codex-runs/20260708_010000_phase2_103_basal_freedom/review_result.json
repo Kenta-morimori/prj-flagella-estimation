@@ -52,9 +52,9 @@
   "adr_reason": "`basal_bearing` は新しい物理近似であり，output interpretation に body roll / body-relative spin 指標を追加するため。",
   "adr_path": "docs/adr/0007_phase2_basal_bearing_attach_frame.md",
   "commit_type": "implementation",
-  "commit_hash": "pending",
-  "push_status": "pending",
-  "pull_request_url": "pending",
+  "commit_hash": "588e379",
+  "push_status": "pushed to origin/feature/phase2-103-basal-freedom",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/104",
   "next_actions": [
     "ユーザー側で側方0.6 s / 後方1.0 s の #103 sweep を実行する。",
     "replay render を作成し，`fp3_ft1p5_bearing` が hook安定性を保ちつつ剛体回転を緩和するかを定性評価する。",
