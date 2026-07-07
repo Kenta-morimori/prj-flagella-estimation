@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render a 2x2 qualitative comparison movie for Issue #97 torque conditions."""
+"""Render and/or plot Issue #97 2x2 comparisons from hook_overstretch sweep outputs."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from sim_swim.analysis.sweeps import hook_overstretch
+from sim_swim.analysis.flagella_count_behavior import load_state_archive
 from sim_swim.render.render3d import (
     _flagella_colors,
     _hook_edges,
@@ -35,6 +35,24 @@ from sim_swim.render.render3d import (
 from sim_swim.render.video_writer import VideoRenderResult, open_mp4_writer
 from sim_swim.sim.core import SimulationState, Simulator
 from sim_swim.sim.params import SimulationConfig
+
+EXPECTED_CONDITION_IDS = (
+    "segment_couples_diffusive_fp3_ft1p5",
+    "segment_couples_uniform_fp3_ft1p5",
+    "axis_projection_diffusive_fp3_ft1p5",
+    "axis_projection_uniform_fp3_ft1p5",
+)
+
+METRIC_FIELDS = (
+    "condition_id",
+    "final_shape_pass_nonbody",
+    "first_fail_t_s",
+    "first_fail_category_nonbody",
+    "hook_len_rel_err_max",
+    "max_flag_bond_rel_err",
+    "axis_center_net_abs_revolutions_mean",
+    "axis_center_direction_consistency_mean",
+)
 
 
 def _default_output_dir() -> Path:
@@ -50,6 +68,15 @@ def _default_output_dir() -> Path:
 
 def _load_yaml(path: Path) -> dict[str, Any]:
     return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+
+
+def _load_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _load_csv_rows(path: Path) -> list[dict[str, str]]:
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle))
 
 
 def _setup_logger(log_path: Path) -> logging.Logger:
@@ -91,23 +118,6 @@ def _git_info() -> dict[str, Any]:
         }
 
 
-def _condition_matrix() -> list[hook_overstretch.Condition]:
-    args = argparse.Namespace(
-        mode="torque-profile-grid",
-        force_distributions=[
-            "root_torque_segment_couples",
-            "root_torque_axis_projection",
-        ],
-        fixed_attach_first_spring_scale=1.0,
-        fixed_body_axis_angle_scale=1.0,
-        fixed_first_second_spring_scale=1.0,
-        fixed_attach_frame_position_scale=3.0,
-        fixed_attach_frame_tangent_scale=1.5,
-        torque_distribution_profiles=["diffusive", "uniform"],
-    )
-    return list(hook_overstretch.build_conditions(args))
-
-
 def _short_distribution_label(value: str) -> str:
     mapping = {
         "root_torque_segment_couples": "segment_couples",
@@ -116,12 +126,102 @@ def _short_distribution_label(value: str) -> str:
     return mapping.get(value, value)
 
 
+def _label_for_row(row: dict[str, str]) -> str:
+    return (
+        f"{_short_distribution_label(row['force_distribution'])}\n"
+        f"{row['torque_distribution_profile']}"
+    )
+
+
+def _fail_label(row: dict[str, str]) -> str:
+    if row.get("final_shape_pass_nonbody", "") == "True":
+        return "PASS"
+    fail_t = row.get("first_fail_t_s", "")
+    fail_c = row.get("first_fail_category_nonbody", "")
+    return f"FAIL {fail_c}@{fail_t[:6]}"
+
+
+def _float_or_nan(value: str | None) -> float:
+    try:
+        return float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return float("nan")
+
+
+def _condition_records(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    records = manifest.get("conditions", [])
+    return {str(record["condition_id"]): dict(record) for record in records}
+
+
+def _load_inputs(
+    input_dir: Path,
+) -> tuple[list[dict[str, str]], dict[str, dict[str, Any]], Path]:
+    summary_path = input_dir / "summary.csv"
+    manifest_path = input_dir / "run_manifest.json"
+    if not summary_path.exists():
+        raise FileNotFoundError(f"Missing summary.csv under {input_dir}")
+    if not manifest_path.exists():
+        raise FileNotFoundError(f"Missing run_manifest.json under {input_dir}")
+    rows = _load_csv_rows(summary_path)
+    manifest = _load_json(manifest_path)
+    records = _condition_records(manifest)
+    base_cfg_path = Path(str(manifest["config"]))
+    ordered_rows = [
+        row for row in rows if row.get("condition_id") in EXPECTED_CONDITION_IDS
+    ]
+    if len(ordered_rows) != len(EXPECTED_CONDITION_IDS):
+        found = [row.get("condition_id", "") for row in ordered_rows]
+        raise RuntimeError(
+            f"Expected exactly the 4 Issue #97 conditions in summary.csv; found {found}"
+        )
+    ordered_rows.sort(key=lambda row: EXPECTED_CONDITION_IDS.index(row["condition_id"]))
+    for row in ordered_rows:
+        condition_id = row["condition_id"]
+        if condition_id not in records:
+            raise RuntimeError(f"Missing {condition_id} in run_manifest.json")
+        archive_path = input_dir / condition_id / "state_archive.npz"
+        if not archive_path.exists():
+            raise FileNotFoundError(
+                f"Missing state archive for {condition_id}: {archive_path}"
+            )
+    return ordered_rows, records, base_cfg_path
+
+
+def _build_cfg(
+    *,
+    base_cfg_path: Path,
+    condition_record: dict[str, Any],
+    fps_out_3d: float,
+) -> SimulationConfig:
+    raw_cfg = _load_yaml(base_cfg_path)
+    cfg = SimulationConfig.from_dict(raw_cfg).with_overrides(
+        condition_record["config_overrides"]
+    )
+    return cfg.with_overrides(
+        {
+            "render": {
+                "render_flagella": True,
+                "render_flagella_2d": False,
+                "show_flagella_helix_axis_3d": True,
+                "label_flagella": False,
+                "follow_camera_3d": True,
+                "save_frames_3d": False,
+                "save_frames_2d": False,
+            },
+            "output_sampling": {
+                "out_all_steps_3d": False,
+                "fps_out_3d": fps_out_3d,
+            },
+        }
+    )
+
+
 def _plot_cell(
     ax: plt.Axes,
     *,
     st: SimulationState,
     cfg: SimulationConfig,
-    rig,
+    rig: Any,
     title: str,
     fail_label: str,
 ) -> None:
@@ -182,15 +282,10 @@ def _plot_cell(
             linewidth=2.2,
         )
 
-    lines = [
-        _run_tumble_label(st, cfg),
-        f"t = {st.t:.3f} s",
-        fail_label,
-    ]
     ax.text2D(
         0.02,
         0.96,
-        "\n".join(lines),
+        "\n".join([_run_tumble_label(st, cfg), f"t = {st.t:.3f} s", fail_label]),
         transform=ax.transAxes,
         va="top",
         fontsize=8,
@@ -201,12 +296,13 @@ def _render_grid_movie(
     *,
     states_by_condition: list[list[SimulationState]],
     cfg_by_condition: list[SimulationConfig],
-    rig_by_condition: list,
+    rig_by_condition: list[Any],
     condition_rows: list[dict[str, str]],
     out_dir: Path,
+    fps_out_3d: float,
 ) -> VideoRenderResult:
     render_states_by_condition = [
-        _select_frames(states, out_all_steps_3d=False, fps_hint=25.0)
+        _select_frames(states, out_all_steps_3d=False, fps_hint=fps_out_3d)
         for states in states_by_condition
     ]
     frame_count = min(len(states) for states in render_states_by_condition)
@@ -217,22 +313,8 @@ def _render_grid_movie(
     writer = None
     writer_selection = None
     last_frame = None
-
-    titles = [
-        (
-            f"{_short_distribution_label(row['force_distribution'])}\n"
-            f"{row['torque_distribution_profile']}"
-        )
-        for row in condition_rows
-    ]
-    fail_labels = []
-    for row in condition_rows:
-        if row.get("final_shape_pass_nonbody", "") == "True":
-            fail_labels.append("PASS")
-        else:
-            fail_t = row.get("first_fail_t_s", "")
-            fail_c = row.get("first_fail_category_nonbody", "")
-            fail_labels.append(f"FAIL {fail_c}@{fail_t[:6]}")
+    titles = [_label_for_row(row) for row in condition_rows]
+    fail_labels = [_fail_label(row) for row in condition_rows]
 
     for frame_idx in range(frame_count):
         fig = plt.figure(figsize=(10, 10))
@@ -249,7 +331,6 @@ def _render_grid_movie(
                 title=titles[idx],
                 fail_label=fail_labels[idx],
             )
-
         fig.tight_layout()
         canvas = FigureCanvasAgg(fig)
         canvas.draw()
@@ -260,7 +341,7 @@ def _render_grid_movie(
         if writer is None:
             writer_selection = open_mp4_writer(
                 movie_path,
-                fps=25.0,
+                fps=fps_out_3d,
                 frame_size=(frame.shape[1], frame.shape[0]),
             )
             writer = writer_selection.writer
@@ -276,23 +357,79 @@ def _render_grid_movie(
         path=str(movie_path),
         selected_codec=writer_selection.selected_codec,
         attempted_codecs=writer_selection.attempted_codecs,
-        fps=25.0,
+        fps=fps_out_3d,
         frame_size=(last_frame.shape[1], last_frame.shape[0]),
         frame_count=frame_count,
     )
 
 
+def _write_metrics(
+    *,
+    rows: list[dict[str, str]],
+    out_dir: Path,
+) -> Path:
+    metrics_path = out_dir / "issue97_metrics.csv"
+    with metrics_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=METRIC_FIELDS)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({field: row.get(field, "") for field in METRIC_FIELDS})
+    return metrics_path
+
+
+def _plot_metrics(
+    *,
+    rows: list[dict[str, str]],
+    out_dir: Path,
+) -> Path:
+    labels = [_label_for_row(row) for row in rows]
+    colors = [
+        "#2f855a" if row.get("final_shape_pass_nonbody", "") == "True" else "#c05621"
+        for row in rows
+    ]
+    duration_s = max(_float_or_nan(row.get("duration_s")) for row in rows)
+    first_fail = [
+        duration_s
+        if row.get("final_shape_pass_nonbody", "") == "True"
+        else _float_or_nan(row.get("first_fail_t_s"))
+        for row in rows
+    ]
+    max_flag_bond = [_float_or_nan(row.get("max_flag_bond_rel_err")) for row in rows]
+    axis_rev = [
+        _float_or_nan(row.get("axis_center_net_abs_revolutions_mean")) for row in rows
+    ]
+    axis_consistency = [
+        _float_or_nan(row.get("axis_center_direction_consistency_mean")) for row in rows
+    ]
+
+    fig, axes = plt.subplots(2, 2, figsize=(11, 8))
+    panels = [
+        ("first_fail_t_s_or_duration", first_fail),
+        ("max_flag_bond_rel_err", max_flag_bond),
+        ("axis_center_net_abs_revolutions_mean", axis_rev),
+        ("axis_center_direction_consistency_mean", axis_consistency),
+    ]
+    for ax, (title, values) in zip(axes.flat, panels):
+        ax.bar(labels, values, color=colors)
+        ax.set_title(title, fontsize=10)
+        ax.tick_params(axis="x", labelrotation=15)
+    fig.tight_layout()
+    out_path = out_dir / "issue97_metrics.png"
+    fig.savefig(out_path, dpi=160)
+    plt.close(fig)
+    return out_path
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, default=Path("conf/sim_swim.yaml"))
+    parser.add_argument("--input-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, default=_default_output_dir())
-    parser.add_argument("--duration-s", type=float, default=0.6)
-    parser.add_argument("--dt-star", type=float, default=1.0e-4)
-    parser.add_argument("--torque-nm", type=float, default=2.0e-20)
-    parser.add_argument("--attach-seed", type=int, default=0)
-    parser.add_argument("--phase-seed", type=int, default=0)
-    parser.add_argument("--n-flagella", type=int, default=3)
-    parser.add_argument("--progress-interval", type=int, default=5000)
+    parser.add_argument(
+        "--mode",
+        choices=("both", "plot-only", "render-only"),
+        default="both",
+    )
+    parser.add_argument("--fps-out-3d", type=float, default=25.0)
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args(argv)
@@ -300,120 +437,82 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
-    conditions = _condition_matrix()
+    rows, records, base_cfg_path = _load_inputs(args.input_dir)
     if args.dry_run:
-        for condition in conditions:
-            print(condition.condition_id)
+        for row in rows:
+            print(row["condition_id"])
         return
 
     output_dir = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=args.overwrite)
     logger = _setup_logger(output_dir / "run.log")
-    logger.info("Starting issue97 grid qualitative render")
+    logger.info("Starting issue97 replay render/plot")
+    logger.info("input_dir=%s", args.input_dir)
+    logger.info("mode=%s", args.mode)
 
-    base_cfg = _load_yaml(args.config)
-    states_by_condition: list[list[SimulationState]] = []
-    cfg_by_condition: list[SimulationConfig] = []
-    rig_by_condition: list[Any] = []
-    condition_rows: list[dict[str, str]] = []
+    metrics_path = None
+    metrics_plot_path = None
+    render_result = None
 
-    for index, condition in enumerate(conditions, start=1):
-        logger.info("[%d/%d] %s", index, len(conditions), condition.condition_id)
-        overrides = hook_overstretch._overrides_for_condition(args, condition)
-        cfg = (
-            SimulationConfig.from_dict(base_cfg)
-            .with_overrides(overrides)
-            .with_overrides(
-                {
-                    "render": {
-                        "render_flagella": True,
-                        "render_flagella_2d": False,
-                        "show_flagella_helix_axis_3d": True,
-                        "label_flagella": False,
-                        "follow_camera_3d": True,
-                        "save_frames_3d": False,
-                        "save_frames_2d": False,
-                    },
-                    "output_sampling": {
-                        "out_all_steps_3d": False,
-                        "fps_out_3d": 25.0,
-                    },
-                }
+    if args.mode in {"both", "plot-only"}:
+        metrics_path = _write_metrics(rows=rows, out_dir=output_dir)
+        metrics_plot_path = _plot_metrics(rows=rows, out_dir=output_dir)
+        logger.info("Wrote metrics outputs: %s %s", metrics_path, metrics_plot_path)
+
+    if args.mode in {"both", "render-only"}:
+        states_by_condition: list[list[SimulationState]] = []
+        cfg_by_condition: list[SimulationConfig] = []
+        rig_by_condition: list[Any] = []
+        for row in rows:
+            condition_id = row["condition_id"]
+            record = records[condition_id]
+            cfg = _build_cfg(
+                base_cfg_path=base_cfg_path,
+                condition_record=record,
+                fps_out_3d=args.fps_out_3d,
             )
+            states = load_state_archive(
+                args.input_dir / condition_id / "state_archive.npz"
+            )
+            simulator = Simulator(cfg)
+            states_by_condition.append(states)
+            cfg_by_condition.append(cfg)
+            rig_by_condition.append(simulator.rig)
+        render_result = _render_grid_movie(
+            states_by_condition=states_by_condition,
+            cfg_by_condition=cfg_by_condition,
+            rig_by_condition=rig_by_condition,
+            condition_rows=rows,
+            out_dir=output_dir,
+            fps_out_3d=args.fps_out_3d,
         )
-        condition_dir = output_dir / condition.condition_id / "sim"
-        condition_dir.mkdir(parents=True, exist_ok=True)
-        simulator = Simulator(cfg)
-        states = simulator.run(
-            cfg.time.duration_s,
-            step_summary_dir=condition_dir,
-            stop_on_shape_fail=False,
-            progress_interval=args.progress_interval,
-        )
-        states_by_condition.append(states)
-        cfg_by_condition.append(cfg)
-        rig_by_condition.append(simulator.rig)
-        rows = list(
-            csv.DictReader((condition_dir / "step_summary.csv").open(encoding="utf-8"))
-        )
-        summary = hook_overstretch._summary_row(
-            cfg,
-            condition,
-            condition_dir,
-            rows[-1],
-            rows,
-            helix_summary={},
-            axis_center_summary=hook_overstretch._axis_center_phase_summary(
-                list(
-                    csv.DictReader(
-                        (condition_dir / "flag_helix_axis_diagnostics.csv").open(
-                            encoding="utf-8"
-                        )
-                    )
-                )
-            ),
-        )
-        condition_rows.append({k: str(v) for k, v in summary.items()})
-
-    summary_path = output_dir / "summary.csv"
-    with summary_path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=hook_overstretch.SUMMARY_FIELDS)
-        writer.writeheader()
-        writer.writerows(condition_rows)
-
-    render_result = _render_grid_movie(
-        states_by_condition=states_by_condition,
-        cfg_by_condition=cfg_by_condition,
-        rig_by_condition=rig_by_condition,
-        condition_rows=condition_rows,
-        out_dir=output_dir,
-    )
+        logger.info("Rendered video: %s", render_result.path)
 
     manifest = {
         "git": _git_info(),
+        "temporary_script": True,
         "input": {
-            "config": str(args.config),
-            "duration_s": args.duration_s,
-            "dt_star": args.dt_star,
-            "torque_nm": args.torque_nm,
-            "attach_seed": args.attach_seed,
-            "phase_seed": args.phase_seed,
-            "n_flagella": args.n_flagella,
+            "input_dir": str(args.input_dir),
+            "base_config": str(base_cfg_path),
+            "mode": args.mode,
+            "fps_out_3d": args.fps_out_3d,
         },
-        "conditions": [condition.condition_id for condition in conditions],
-        "render_video": {"grid_swim3d": render_result.to_manifest()},
+        "conditions": [row["condition_id"] for row in rows],
         "outputs": {
             "root": str(output_dir),
-            "summary_csv": str(summary_path),
-            "log": str(output_dir / "run.log"),
+            "metrics_csv": str(metrics_path) if metrics_path is not None else "",
+            "metrics_png": str(metrics_plot_path)
+            if metrics_plot_path is not None
+            else "",
+            "render_log": str(output_dir / "run.log"),
         },
-        "temporary_script": True,
     }
+    if render_result is not None:
+        manifest["render_video"] = {"grid_swim3d": render_result.to_manifest()}
     (output_dir / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    logger.info("Completed issue97 grid qualitative render: %s", render_result.path)
     print(output_dir)
 
 

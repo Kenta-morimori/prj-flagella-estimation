@@ -7,13 +7,19 @@ import argparse
 import csv
 from dataclasses import dataclass
 from datetime import datetime
+import json
 import math
 from pathlib import Path
+import subprocess
 from typing import Any
 from zoneinfo import ZoneInfo
 
 import yaml
 
+from sim_swim.analysis.flagella_count_behavior import (
+    save_state_archive,
+    write_trajectory_csv,
+)
 from sim_swim.sim.core import Simulator
 from sim_swim.sim.debug_summary import PROXIMAL_FLAG_BOND_REL_ERR_FIELDS
 from sim_swim.sim.helix_retention_gate import summarize_single_flagellum_helix_retention
@@ -288,6 +294,37 @@ def _parse_int(value: str | int | None) -> int | None:
         return int(float(value))  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return None
+
+
+def _parse_bool(value: str | bool | None) -> bool:
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    if text in {"1", "true", "yes", "y", "on"}:
+        return True
+    if text in {"0", "false", "no", "n", "off"}:
+        return False
+    raise argparse.ArgumentTypeError(f"Expected boolean value, got: {value!r}")
+
+
+def _git_info() -> dict[str, Any]:
+    def run(cmd: list[str]) -> str:
+        return subprocess.check_output(cmd, stderr=subprocess.STDOUT, text=True).strip()
+
+    try:
+        return {
+            "commit": run(["git", "rev-parse", "HEAD"]),
+            "commit_short": run(["git", "rev-parse", "--short", "HEAD"]),
+            "branch": run(["git", "rev-parse", "--abbrev-ref", "HEAD"]),
+            "is_clean": run(["git", "status", "--porcelain"]) == "",
+        }
+    except Exception:
+        return {
+            "commit": "unknown",
+            "commit_short": "unknown",
+            "branch": "unknown",
+            "is_clean": False,
+        }
 
 
 def _first_fail_row(rows: list[dict[str, str]]) -> dict[str, str] | None:
@@ -739,18 +776,20 @@ def _run_condition(
     args: argparse.Namespace,
     condition: Condition,
 ) -> dict[str, str | float]:
-    cfg = SimulationConfig.from_dict(base_cfg).with_overrides(
-        _overrides_for_condition(args, condition)
-    )
+    overrides = _overrides_for_condition(args, condition)
+    cfg = SimulationConfig.from_dict(base_cfg).with_overrides(overrides)
     condition_dir = args.output_dir / condition.condition_id
     condition_dir.mkdir(parents=True, exist_ok=args.overwrite)
     simulator = Simulator(cfg)
-    simulator.run(
+    states = simulator.run(
         cfg.time.duration_s,
         step_summary_dir=condition_dir,
         stop_on_shape_fail=False,
         progress_interval=args.progress_interval,
     )
+    if args.save_state_archive:
+        save_state_archive(condition_dir / "state_archive.npz", states)
+        write_trajectory_csv(condition_dir / "trajectory.csv", states)
     step_summary_path = condition_dir / "step_summary.csv"
     rows = _read_step_rows(step_summary_path)
     axis_center_summary = _axis_center_phase_summary(
@@ -767,6 +806,17 @@ def _run_condition(
     return _summary_row(
         cfg, condition, condition_dir, last, rows, helix_summary, axis_center_summary
     )
+
+
+def _manifest_record(args: argparse.Namespace, condition: Condition) -> dict[str, Any]:
+    return {
+        "condition_id": condition.condition_id,
+        "mode": condition.mode,
+        "description": condition.description,
+        "scales": dict(condition.scales),
+        "output_dir": str(args.output_dir / condition.condition_id),
+        "config_overrides": _overrides_for_condition(args, condition),
+    }
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -842,6 +892,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--fixed-attach-frame-tangent-scale", type=float, default=None)
     parser.add_argument("--sample-limit", type=int, default=None)
     parser.add_argument("--progress-interval", type=int, default=1000)
+    parser.add_argument(
+        "--save-state-archive",
+        type=_parse_bool,
+        default=True,
+        help="Save state_archive.npz and trajectory.csv for replay/render (default: true).",
+    )
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args(argv)
@@ -873,6 +929,30 @@ def main(argv: list[str] | None = None) -> None:
         writer = csv.DictWriter(handle, fieldnames=SUMMARY_FIELDS)
         writer.writeheader()
         writer.writerows(rows)
+    manifest = {
+        "kind": "hook_overstretch",
+        "created_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
+        "config": str(args.config),
+        "args": {
+            "mode": args.mode,
+            "output_dir": str(args.output_dir),
+            "duration_s": args.duration_s,
+            "dt_star": args.dt_star,
+            "torque_nm": args.torque_nm,
+            "n_flagella": args.n_flagella,
+            "attach_seed": args.attach_seed,
+            "phase_seed": args.phase_seed,
+            "progress_interval": args.progress_interval,
+            "save_state_archive": bool(args.save_state_archive),
+        },
+        "summary_csv": str(summary_path),
+        "git": _git_info(),
+        "conditions": [_manifest_record(args, condition) for condition in conditions],
+    }
+    (args.output_dir / "run_manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
     print(summary_path)
 
 

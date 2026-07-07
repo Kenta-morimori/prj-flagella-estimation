@@ -1,0 +1,62 @@
+{
+  "status": "FAIL",
+  "summary": "Issue #97 の 4条件比較について、`hook_overstretch` sweep が既定で `state_archive.npz` と `trajectory.csv` を保存し、後段の定量・定性評価を再シミュレーションなしで replay できるようにした。PR限定の一時スクリプト `render_issue97_grid_qualitative.py` は sweep 出力 directory を入力として `plot-only / render-only / both` を切り替える replay utility に変更した。",
+  "blocking_issues": [
+    "4条件の 2x2 replay movie に対する user visual review が未実施である。",
+    "後方 1.0 s と側方 0.6 s の本番 run はこの変更後にユーザー実行が必要である。"
+  ],
+  "non_blocking_issues": [
+    "`render_issue97_grid_qualitative.py` は PR #99 の比較レビュー専用 utility であり、merge 前に削除してよい。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run ruff check src/sim_swim/analysis/sweeps/hook_overstretch.py scripts/01_simulate_swimming/render_issue97_grid_qualitative.py tests/test_phase2_82_hook_overstretch_sweep.py",
+      "result": "PASS: All checks passed"
+    },
+    {
+      "command": "uv run pytest tests/test_phase2_82_hook_overstretch_sweep.py -q",
+      "result": "PASS: 9 passed in 0.28s"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid dry_run=true fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5",
+      "result": "PASS: 4 conditions printed"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.001 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 output_dir=/private/tmp/phase2_issue97_replay_smoke overwrite=true progress_interval=10000",
+      "result": "PASS: summary.csv, run_manifest.json, state_archive.npz, trajectory.csv were generated for all 4 conditions"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir /private/tmp/phase2_issue97_replay_smoke --mode plot-only --output-dir /private/tmp/phase2_issue97_replay_plot --overwrite",
+      "result": "PASS: issue97_metrics.csv and issue97_metrics.png were generated"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir /private/tmp/phase2_issue97_replay_smoke --mode render-only --output-dir /private/tmp/phase2_issue97_replay_render --overwrite",
+      "result": "PASS: grid_swim3d.mp4 and grid_swim3d_final.png were generated from saved archives"
+    }
+  ],
+  "user_review_required": true,
+  "user_review_command": "uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir outputs/phase2_97/stage_e_distribution_grid_fp3_ft1p5_torque2p0_dur0p6 --mode both --output-dir outputs/phase2_97/stage_f_grid_qual_3d_fp3_ft1p5_torque2p0_dur0p6 --overwrite",
+  "user_review_outputs": [
+    "outputs/phase2_97/stage_f_grid_qual_3d_fp3_ft1p5_torque2p0_dur0p6/issue97_metrics.csv",
+    "outputs/phase2_97/stage_f_grid_qual_3d_fp3_ft1p5_torque2p0_dur0p6/issue97_metrics.png",
+    "outputs/phase2_97/stage_f_grid_qual_3d_fp3_ft1p5_torque2p0_dur0p6/grid_swim3d.mp4",
+    "outputs/phase2_97/stage_f_grid_qual_3d_fp3_ft1p5_torque2p0_dur0p6/grid_swim3d_final.png"
+  ],
+  "user_review_points": [
+    "`segment_couples_diffusive` が 0.6 s を通す一方で、`axis_projection_uniform` がどのように崩れ始めるか",
+    "`segment_couples_uniform` と `axis_projection_diffusive` の fail が累積型に見えるか",
+    "定量 plot と 2x2 movie の印象が整合しているか"
+  ],
+  "adr_required": false,
+  "adr_reason": "sweep 出力の replay 導線追加と PR専用 utility の更新であり、新しい物理モデルや恒久設計変更ではないため。",
+  "commit_type": "diagnostic",
+  "commit_hash": "pending",
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/99",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/97",
+  "next_actions": [
+    "後方 1.0 s の4条件 sweep を archive 保存つきで実行し、plot/render-only で評価する。",
+    "側方 0.6 s の4条件 run を archive 保存つきで実行し、同様に replay で比較する。",
+    "user visual review 完了後に長時間 fail 対策案の絞り込みへ進む。"
+  ]
+}
