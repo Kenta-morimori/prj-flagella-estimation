@@ -50,9 +50,9 @@
   "adr_required": false,
   "adr_reason": "物理モデル，出力データ契約，主要ディレクトリ構造の変更ではなく，既存 sweep/heatmap 実装の命名と profile 導線を整理したため。",
   "commit_type": "complete",
-  "commit_hash": "pending",
-  "push_status": "not_pushed",
-  "pull_request_url": "",
+  "commit_hash": "12502e0",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/102",
   "next_actions": [
     "feature/phase2-100-generic-sweep-cli の PR を feature/phase2-97-torque-distribution-review base で作成する。",
     "PR merge 後，Issue #97 の posterior 1.0 s，lateral 0.6 s，replay qualitative review，最終採用判断を再開する。"
