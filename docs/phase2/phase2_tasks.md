@@ -784,6 +784,12 @@
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/97`
 - branch: `feature/phase2-97-torque-distribution-review`
 - goal: #94/#95 で残った後方条件での回転安定性不足に対し，flagellum 側の torque 分散方法を比較できるようにし，後方主評価 / 側方参照評価で採用候補を絞る。
+- dependency handoff:
+  - Issue #100 `[Phase2] sweep/heatmap CLI を task-specific module 依存から切り離す` を先行 blocker とする。
+  - Issue #100 の実装 branch は `feature/phase2-100-generic-sweep-cli` に固定する。
+  - Issue #100 の PR base は `feature/phase2-97-torque-distribution-review` に固定する。
+  - Issue #100 では物理モデルや 2x2 比較条件は変えず，user-facing sweep/heatmap 導線と naming の generic 化だけを扱う。
+  - Issue #100 で維持すべき output contract は `summary.csv`, `trajectory.csv`, `state_archive.npz`, `run_manifest.json` と replay-only render 導線である。
 - implementation notes:
   - Issue #97 の description を #94/#95 の結果に基づいて完成した。
   - `helix_axis_centered_metrics` を追加し，推定された螺旋中心軸まわりの `phase`, `fit_r2`, 半径平均，半径CV，root offset を計算できるようにした。
@@ -807,15 +813,18 @@
   - `hook_overstretch` sweep は既定で `state_archive.npz` と `trajectory.csv` を各 condition directory に保存するようにし，定量 sweep 後に再シミュレーションなしで replay/render できるようにした。
   - 一時スクリプト `scripts/01_simulate_swimming/render_issue97_grid_qualitative.py` は sweep 出力 directory を入力として，標準 2x2 比較の `plot-only / render-only / both` を切り替えられる replay utility に更新した。定量 run 後の定性比較は既存 output の再編集で行う。
   - 2026-07-07 に follow-up Issue #100 `[Phase2] sweep/heatmap CLI を task-specific module 依存から切り離す` を作成した。Issue #97 はこの整理を blocker とし，Issue #100 の実装 branch / PR base は `feature/phase2-97-torque-distribution-review` に固定する。
+  - 2026-07-07 追補として，Issue #100 の branch 名を `feature/phase2-100-generic-sweep-cli` に固定し，新しいスレッドからは `run_sweep.py`, `plot_heatmap.py`, `src/sim_swim/analysis/sweeps/hook_overstretch.py`, `conf/phase2_sweeps/hook_overstretch.yaml` を最初の確認対象とする。
 - acceptance criteria:
   - [x] Issue #97 の背景・段階タスク・受け入れ条件が GitHub Issue 本文に記録される。
   - [x] 螺旋軸中心性を評価する診断列を `step_summary.csv` と `flag_helix_axis_diagnostics.csv` に出せる。
   - [x] `root_torque_segment_couples` と `root_torque_axis_projection` を共通の `motor.torque_distribution_profile` で比較できる。
   - [x] `hook_overstretch` sweep summary に `force_distribution` と `torque_distribution_profile` を集約できる。
   - [x] 0.6 s 後方条件で新しい比較候補を主評価し，候補を絞る。
+  - [ ] Issue #100 の stacked PR が `feature/phase2-97-torque-distribution-review` へ merge され，generic 化後も 2x2 比較と replay output contract が維持される。
   - [ ] 側方条件を参照比較し，後方条件の悪化が torque 分散由来かを確認する。
   - [ ] 通過候補のみ 1.0 s と定性確認を行い，採用候補を確定する。
   - [ ] 4条件の3D定性比較 movie を user review し，自動指標と見た目の整合を確認する。
+  - [ ] Issue #100 merge 後に posterior 1.0 s，lateral 0.6 s，replay qualitative review，最終採用判断の順で #97 を再開する。
 - verification:
   - `uv run pytest tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py::test_root_torque_segment_couples_weight_profiles_run -q`
   - `uv run ruff check src/sim_swim/sim/helix_axis.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/params.py src/sim_swim/dynamics/engine.py src/sim_swim/analysis/sweeps/hook_overstretch.py tests/test_helix_axis.py tests/test_simulation.py tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py`
