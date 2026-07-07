@@ -1,4 +1,3 @@
 kind: shape_stability_grid
 args:
   mode: attach-frame-grid
-  output_dir: outputs/phase2_sweeps/shape_stability_grid/plots

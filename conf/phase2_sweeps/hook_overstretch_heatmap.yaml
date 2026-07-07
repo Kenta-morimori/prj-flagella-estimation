@@ -2,4 +2,3 @@
 kind: hook_overstretch
 args:
   mode: attach-frame-grid
-  output_dir: outputs/phase2_sweeps/hook_overstretch/plots

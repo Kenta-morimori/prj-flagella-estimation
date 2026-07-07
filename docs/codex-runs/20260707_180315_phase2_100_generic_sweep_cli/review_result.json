@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #100 として，現役 sweep/heatmap 導線を shape_stability_grid へ移し，旧 hook_overstretch module/profile は歴史的 alias として残した。#97 の 2x2 torque distribution 比較用 profile を追加し，summary.csv / trajectory.csv / state_archive.npz / run_manifest.json と replay-only plot 導線を維持した。追補として，plot_heatmap.py は output_dir 未指定時に summary_csv と同じ directory の plots/ を既定出力先にする。",
+  "summary": "Issue #100 として，現役 sweep/heatmap 導線を shape_stability_grid へ移し，旧 hook_overstretch module/profile は歴史的 alias として残した。#97 の 2x2 torque distribution 比較用 profile を追加し，summary.csv / trajectory.csv / state_archive.npz / run_manifest.json と replay-only plot 導線を維持した。追補として，plot_heatmap.py は output_dir 未指定時に summary_csv と同じ directory の plots/ を既定出力先にし，heatmap profile 側の固定 output_dir を削除した。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "Issue #100 の stacked PR が feature/phase2-97-torque-distribution-review へ merge されるまでは，Issue #97 の残評価は再開しない。"
@@ -47,6 +47,14 @@
       "result": "PASS: 10 passed。plot_heatmap.py の output_dir default と明示 output_dir 優先を確認"
     },
     {
+      "command": "uv run pytest tests/test_phase2_sweep_profiles.py",
+      "result": "PASS: 11 passed。heatmap profile が args.output_dir を固定しないことを確認"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/plot_heatmap.py config=conf/phase2_sweeps/shape_stability_heatmap.yaml mode=first-second-grid summary_csv=/private/tmp/phase2_100_shape_smoke/summary.csv",
+      "result": "PASS: /private/tmp/phase2_100_shape_smoke/plots/heatmap_data.csv を生成"
+    },
+    {
       "command": "uv run ruff check scripts/01_simulate_swimming/plot_heatmap.py tests/test_phase2_sweep_profiles.py",
       "result": "PASS"
     },
@@ -62,7 +70,7 @@
   "adr_required": false,
   "adr_reason": "物理モデル，出力データ契約，主要ディレクトリ構造の変更ではなく，既存 sweep/heatmap 実装の命名と profile 導線を整理したため。",
   "commit_type": "complete",
-  "commit_hash": "d55cb13",
+  "commit_hash": "pending",
   "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/102",
   "next_actions": [

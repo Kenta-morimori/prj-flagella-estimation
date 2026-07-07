@@ -128,6 +128,16 @@ def test_plot_heatmap_wrapper_rejects_unknown_kind(tmp_path: Path) -> None:
         raise AssertionError("expected SystemExit for unknown heatmap kind")
 
 
+def test_heatmap_profiles_do_not_fix_output_dir() -> None:
+    profile_paths = sorted(Path("conf/phase2_sweeps").glob("*heatmap.yaml"))
+
+    assert profile_paths
+    for profile_path in profile_paths:
+        profile = load_profile(profile_path)
+        raw_args = profile.get("args") or {}
+        assert "output_dir" not in raw_args, profile_path
+
+
 def test_plot_heatmap_wrapper_defaults_output_dir_next_to_summary(
     tmp_path: Path,
 ) -> None:
