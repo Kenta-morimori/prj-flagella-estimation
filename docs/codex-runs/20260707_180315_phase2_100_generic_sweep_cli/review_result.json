@@ -70,7 +70,7 @@
   "adr_required": false,
   "adr_reason": "物理モデル，出力データ契約，主要ディレクトリ構造の変更ではなく，既存 sweep/heatmap 実装の命名と profile 導線を整理したため。",
   "commit_type": "complete",
-  "commit_hash": "pending",
+  "commit_hash": "97be56f",
   "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/102",
   "next_actions": [
