@@ -812,7 +812,7 @@
   - 上記を受けて `root_torque_hybrid_couples` は削除し，`basal_unloading` も主比較から除外した。Issue #97 の標準比較面は `root_torque_segment_couples / root_torque_axis_projection` × `diffusive / uniform` の 2x2 とする。
   - Issue #100 で現役導線は `shape_stability_grid` sweep / heatmap へ移り，旧 `hook_overstretch` は歴史的 alias として残した。#97 の 2x2 比較は `conf/phase2_sweeps/torque_distribution_grid.yaml` で実行できる。
   - `shape_stability_grid` sweep は既定で `state_archive.npz` と `trajectory.csv` を各 condition directory に保存するようにし，定量 sweep 後に再シミュレーションなしで replay/render できるようにした。
-  - 一時スクリプト `scripts/01_simulate_swimming/render_issue97_grid_qualitative.py` は sweep 出力 directory を入力として，標準 2x2 比較の `plot-only / render-only / both` を切り替えられる replay utility に更新した。定量 run 後の定性比較は既存 output の再編集で行う。
+  - replay utility `scripts/01_simulate_swimming/render_shape_stability_grid_replay.py` は sweep 出力 directory を入力として，標準 2x2 比較や #103 条件群の `plot-only / render-only / both` を切り替えられる。定量 run 後の定性比較は既存 output の再編集で行う。
   - 2026-07-07 に follow-up Issue #100 `[Phase2] sweep/heatmap CLI を task-specific module 依存から切り離す` を作成した。Issue #97 はこの整理を blocker とし，Issue #100 の実装 branch / PR base は `feature/phase2-97-torque-distribution-review` に固定する。
   - 2026-07-07 追補として，Issue #100 の branch 名を `feature/phase2-100-generic-sweep-cli` に固定し，新しいスレッドからは `run_sweep.py`, `plot_heatmap.py`, `src/sim_swim/analysis/sweeps/hook_overstretch.py`, `conf/phase2_sweeps/hook_overstretch.yaml` を最初の確認対象とする。
   - 2026-07-07 に #100 の stacked PR #102 を #99 branch へ merge し，generic 化後の `torque_distribution_grid.yaml` でも `summary.csv`, `trajectory.csv`, `state_archive.npz`, `run_manifest.json` の contract を維持した。
@@ -844,8 +844,8 @@
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.6 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_distribution_profiles=diffusive,diffusive_sqrt,diffusive_floor_0p2,diffusive_floor_0p4,uniform output_dir=outputs/phase2_97/stage_c_torque_profile_expansion_fp3_ft1p5_torque2p0_dur0p6 overwrite=true progress_interval=5000`
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.6 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 force_distributions=root_torque_segment_couples,root_torque_axis_projection torque_distribution_profiles=diffusive,uniform output_dir=outputs/phase2_97/stage_e_distribution_grid_fp3_ft1p5_torque2p0_dur0p6 overwrite=true progress_interval=5000`
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.001 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 output_dir=/private/tmp/phase2_issue97_replay_smoke overwrite=true progress_interval=10000`
-  - `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir /private/tmp/phase2_issue97_replay_smoke --mode plot-only --output-dir /private/tmp/phase2_issue97_replay_plot --overwrite`
-  - `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir /private/tmp/phase2_issue97_replay_smoke --mode render-only --output-dir /private/tmp/phase2_issue97_replay_render --overwrite`
+  - `uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py --input-dir /private/tmp/phase2_issue97_replay_smoke --mode plot-only --output-dir /private/tmp/phase2_issue97_replay_plot --overwrite`
+  - `uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py --input-dir /private/tmp/phase2_issue97_replay_smoke --mode render-only --output-dir /private/tmp/phase2_issue97_replay_render --overwrite`
   - `uv run pytest tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py -q`
   - `uv run ruff check src/sim_swim/analysis scripts/01_simulate_swimming tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py`
   - `uv run ruff format --check src/sim_swim/analysis scripts/01_simulate_swimming tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py`
@@ -893,7 +893,7 @@
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/shape_stability_grid.yaml mode=first-second-grid time.duration_s=0.001 motor.torque_Nm=0 fixed_attach_first_spring_scale=1 fixed_body_axis_angle_scale=1 first_second_spring_scales=1 output_dir=/private/tmp/phase2_100_shape_smoke overwrite=true progress_interval=10000`
   - `uv run python scripts/01_simulate_swimming/plot_heatmap.py config=conf/phase2_sweeps/shape_stability_heatmap.yaml mode=first-second-grid summary_csv=/private/tmp/phase2_100_shape_smoke/summary.csv output_dir=/private/tmp/phase2_100_shape_heatmap`
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/torque_distribution_grid.yaml time.duration_s=0.001 motor.torque_Nm=2.0e-20 output_dir=/private/tmp/phase2_100_torque_grid_smoke overwrite=true progress_interval=10000`
-  - `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir /private/tmp/phase2_100_torque_grid_smoke --mode plot-only --output-dir /private/tmp/phase2_100_replay_plot --overwrite`
+  - `uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py --input-dir /private/tmp/phase2_100_torque_grid_smoke --mode plot-only --output-dir /private/tmp/phase2_100_replay_plot --overwrite`
 - docs:
   - `scripts/README.md`
   - `docs/phase2/phase2_current.md`
@@ -912,18 +912,59 @@
   - `local_attach_frame_position_scale=3`, `local_attach_frame_tangent_scale=1.5` の後方束化条件は hook過伸長を抑えたが，菌体を含む剛体回転様に見えた。
   - 同じ補強を入れた側方条件も shape gate は通るが，軸中心の flagella spin ではなく剛体回転様に見えた。
 - planned tasks:
-  - 補強なし / 補強ありの側方・後方条件を同じ torque, duration, output contract で比較し，body angular velocity, root/body relative rotation, flag helix axis-centered spin を分離して記録する。
-  - attach-frame補強のうち，位置拘束，接線拘束，body側反トルク，basal/root自由度のどれが一体回転を誘発しているかを切り分ける。
-  - hook長安定性を維持しつつ body-root 相対回転を許す候補を1つ以上作り，#97 の 2x2 torque distribution 比較とは別軸で評価する。
+  - [x] 補強なし / 補強ありの側方・後方条件を同じ torque, duration, output contract で比較できる `basal-freedom-grid` profile を追加する。
+  - [x] body roll と flag helix axis-centered spin を分離し，summary と per-flag diagnostics に記録する。
+  - [x] hook長安定性を維持しつつ body-root 相対回転を許す候補として `motor.local_attach_frame_tangent_mode=basal_bearing` を追加する。
+  - [ ] attach-frame補強のうち，位置拘束，接線拘束，basal/root自由度のどれが一体回転を誘発しているかをユーザー実行結果で切り分ける。
   - 破綻条件も再現可能な出力として保持し，#82 の最終候補選定に使えるようにする。
+- implementation notes:
+  - `motor.local_attach_frame_tangent_mode` を追加した。default `vector` は従来互換で，`basal_bearing` は `attach -> first` 軸まわりの方位角を拘束せず，`first -> second` の軸方向成分と垂直半径だけを保つ。
+  - `step_summary.csv` に `body_roll_phase_deg`, `body_roll_rate_hz`, `body_roll_net_abs_revolutions`, `body_roll_direction_consistency` を追加した。
+  - `flag_helix_axis_diagnostics.csv` に `body_roll_phase_deg`, `axis_center_body_relative_phase_deg` を追加した。
+  - `shape_stability_grid` summary に body-relative axis-center spin と axis/body roll ratio を追加した。
+  - #103 標準比較 profile `conf/phase2_sweeps/basal_freedom_diagnostic.yaml` は `no_frame`, `fp3`, `ft1p5`, `fp3_ft1p5_vector`, `fp3_ft1p5_bearing` の5条件を展開する。
+  - 2026-07-08 追補として，`render_shape_stability_grid_replay.py` は #97 固定4条件だけでなく #103 の5条件にも対応する。条件数に応じて3D grid layoutを自動化し，metrics plot には body roll / body-relative axis-center spin 指標を含める。
+  - 2026-07-08 追補として，`local_attach_frame_tangent_scale` は「接線方向だけ」の拘束ではなく，body attach frame で見た `first -> second` ベクトル全体を初期 target に戻す実装であるため，root の軸まわり相対 spin も同時に抑えやすいと整理した。したがって `ft` 系と `basal_bearing` は #103 の主系列から外し，次の比較は `conf/phase2_sweeps/basal_freedom_position_only_sweep.yaml` の `no_frame`, `fp1p25`, `fp1p5`, `fp2`, `fp2p5`, `fp3` で行う。
+  - 2026-07-08 追補として，position-only sweep `outputs/phase2_103/stage_c_lateral_position_only_dur0p6/summary.csv` と `outputs/phase2_103/stage_d_posterior_position_only_dur1p0/summary.csv` を確認した。側方では `no_frame` がもっとも自然な軸中心回転に見え，`fp>=1.25` は `max_hook_len_rel_err=0.0245..0.0033` まで hook を改善する一方で `axis_center_to_body_roll_ratio_mean` は `103.5 -> 48.6` 前後へ下がった。後方では `no_frame` が `t=0.0449 s` で `hook` fail，`fp1p25` は `t=0.3295 s` まで `flag` fail を遅らせ，`max_hook_len_rel_err=0.1207`, `body_roll_net_abs_revolutions=0.0135`, `axis_center_to_body_roll_ratio_mean=151.2` で最良の折衷だった。`fp1p5` は `first_fail_t_s=0.3498 s` とやや遅いが body roll が増え，`fp2+` は `max_flag_bond_rel_err` 悪化で不利だった。従って現時点の posterior 本命は `fp1p25`，次点は `fp1p5`，lateral の自然回転参照点は `no_frame` とする。
+  - 2026-07-08 追補として，default は `motor.local_attach_frame_position_scale=1.25`, `motor.local_attach_frame_tangent_scale=1.0`, `motor.local_first_second_spring_scale=1.0` へ更新する。理由は，位置だけを弱めに戻す補強なら hook の乱れを大きく減らしつつ，菌体ごとの一体回転をまだ抑えられたためである。`fp1p5` は少し長く保つ場面があっても body roll が増え，`ft` は回転の自然さを壊し，`fs` は主破綻の flag bond 過伸長を十分には改善しなかった。
 - acceptance criteria:
-  - [ ] 補強なし側方，補強なし後方，補強あり側方，補強あり後方の比較条件が再現可能な command/profile として記録される。
-  - [ ] body剛体回転と flagella螺旋軸中心回転を分離する指標が summary で比較できる。
-  - [ ] attach-frame補強のどの成分が body-root 一体化に寄与するかを説明できる。
+  - [x] 補強なし側方，補強なし後方，補強あり側方，補強あり後方の比較条件が再現可能な command/profile として記録される。
+  - [x] body剛体回転と flagella螺旋軸中心回転を分離する指標が summary で比較できる。
+  - [x] attach-frame補強のどの成分が body-root 一体化に寄与するかを説明できる。
   - [ ] hook安定性と軸中心回転を両立する次候補，または両立しない理由を #82 へ返せる。
+- verification:
+  - `uv run pytest tests/test_params.py tests/test_motor_forces.py tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py::test_run_writes_step_summary_csv_without_projection_columns -q`
+  - `uv run ruff check src/sim_swim/dynamics/forces.py src/sim_swim/dynamics/engine.py src/sim_swim/sim/params.py src/sim_swim/sim/debug_summary.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_params.py tests/test_motor_forces.py tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py`
+  - `uv run ruff format --check src/sim_swim/dynamics/forces.py src/sim_swim/dynamics/engine.py src/sim_swim/sim/params.py src/sim_swim/sim/debug_summary.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_params.py tests/test_motor_forces.py tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py`
+  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/basal_freedom_diagnostic.yaml dry_run=true`
+  - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/basal_freedom_diagnostic.yaml time.duration_s=0.001 output_dir=/private/tmp/phase2_103_basal_freedom_smoke overwrite=true progress_interval=10000`
+  - `uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py --input-dir outputs/phase2_103/stage_a_lateral_basal_freedom_dur0p6 --mode plot-only --output-dir /private/tmp/phase2_103_lateral_replay_plot --overwrite`
+  - `uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py --input-dir outputs/phase2_103/stage_b_posterior_basal_freedom_dur1p0 --mode plot-only --output-dir /private/tmp/phase2_103_posterior_replay_plot --overwrite`
+  - `uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py --input-dir /private/tmp/phase2_103_basal_freedom_smoke --mode render-only --fps-out-3d 10 --output-dir /private/tmp/phase2_103_smoke_replay_render --overwrite`
+  - `uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py --input-dir outputs/phase2_103/stage_a_lateral_basal_freedom_dur0p6 --mode both --fps-out-3d 10 --output-dir /private/tmp/phase2_103_lateral_replay_both --overwrite`
+  - `uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py --input-dir outputs/phase2_103/stage_b_posterior_basal_freedom_dur1p0 --mode both --fps-out-3d 10 --output-dir /private/tmp/phase2_103_posterior_replay_both --overwrite`
+- user-run commands:
+  - 側方 0.6 s 比較:
+    `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/basal_freedom_diagnostic.yaml time.duration_s=0.6 flagella.initial_helix_axis_from_rear_deg=null output_dir=outputs/phase2_103/stage_a_lateral_basal_freedom_dur0p6 overwrite=true progress_interval=5000`
+  - 後方 1.0 s 比較:
+    `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/basal_freedom_diagnostic.yaml time.duration_s=1.0 flagella.initial_helix_axis_from_rear_deg=0 output_dir=outputs/phase2_103/stage_b_posterior_basal_freedom_dur1p0 overwrite=true progress_interval=5000`
+  - 側方 replay review:
+    `uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py --input-dir outputs/phase2_103/stage_a_lateral_basal_freedom_dur0p6 --mode both --output-dir outputs/phase2_103/stage_a_lateral_basal_freedom_qual --overwrite`
+  - 後方 replay review:
+    `uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py --input-dir outputs/phase2_103/stage_b_posterior_basal_freedom_dur1p0 --mode both --output-dir outputs/phase2_103/stage_b_posterior_basal_freedom_qual --overwrite`
+  - 次比較の側方 0.6 s position-only sweep:
+    `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/basal_freedom_position_only_sweep.yaml time.duration_s=0.6 flagella.initial_helix_axis_from_rear_deg=null output_dir=outputs/phase2_103/stage_c_lateral_position_only_dur0p6 overwrite=true progress_interval=5000`
+  - 次比較の後方 1.0 s position-only sweep:
+    `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/basal_freedom_position_only_sweep.yaml time.duration_s=1.0 flagella.initial_helix_axis_from_rear_deg=0 output_dir=outputs/phase2_103/stage_d_posterior_position_only_dur1p0 overwrite=true progress_interval=5000`
+  - 次比較の側方 replay review:
+    `uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py --input-dir outputs/phase2_103/stage_c_lateral_position_only_dur0p6 --mode both --output-dir outputs/phase2_103/stage_c_lateral_position_only_qual --overwrite`
+  - 次比較の後方 replay review:
+    `uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py --input-dir outputs/phase2_103/stage_d_posterior_position_only_dur1p0 --mode both --output-dir outputs/phase2_103/stage_d_posterior_position_only_qual --overwrite`
 - docs:
   - `docs/phase2/phase2_current.md`
   - `docs/phase2/phase2_tasks.md`
+  - `docs/adr/0007_phase2_basal_bearing_attach_frame.md`
+  - `docs/codex-runs/20260708_010000_phase2_103_basal_freedom/review_result.json`
 
 ### P2-8-DTSTAR: Phase 2標準dt_starと実行コマンドを整理する
 

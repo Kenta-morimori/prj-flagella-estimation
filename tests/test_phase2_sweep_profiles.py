@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import builtins
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -131,6 +133,174 @@ def test_torque_distribution_profile_is_shape_stability_grid() -> None:
         == "root_torque_segment_couples,root_torque_axis_projection"
     )
     assert args[args.index("--torque-distribution-profiles") + 1] == "diffusive,uniform"
+
+
+def test_basal_freedom_profile_builds_issue103_conditions() -> None:
+    profile = load_profile(Path("conf/phase2_sweeps/basal_freedom_diagnostic.yaml"))
+
+    assert profile["kind"] == "shape_stability_grid"
+    args = shape_stability_grid._parse_args(args_from_profile(profile))
+    conditions = shape_stability_grid.build_conditions(args)
+
+    assert [condition.condition_id for condition in conditions] == [
+        "no_frame",
+        "fp3",
+        "ft1p5",
+        "fp3_ft1p5_vector",
+        "fp3_ft1p5_bearing",
+    ]
+    assert conditions[-1].scales["local_attach_frame_tangent_mode"] == ("basal_bearing")
+
+
+def test_basal_freedom_position_only_profile_builds_issue103_followup_conditions() -> (
+    None
+):
+    profile = load_profile(
+        Path("conf/phase2_sweeps/basal_freedom_position_only_sweep.yaml")
+    )
+
+    assert profile["kind"] == "shape_stability_grid"
+    args = shape_stability_grid._parse_args(args_from_profile(profile))
+    conditions = shape_stability_grid.build_conditions(args)
+
+    assert [condition.condition_id for condition in conditions] == [
+        "no_frame",
+        "fp1p25",
+        "fp1p5",
+        "fp2",
+        "fp2p5",
+        "fp3",
+    ]
+    assert all(
+        condition.scales["local_attach_frame_tangent_scale"] == 1.0
+        for condition in conditions
+    )
+    assert all(
+        condition.scales["local_attach_frame_tangent_mode"] == "vector"
+        for condition in conditions
+    )
+
+
+def _write_replay_inputs(tmp_path: Path, condition_ids: list[str]) -> Path:
+    input_dir = tmp_path / "replay"
+    input_dir.mkdir()
+    (input_dir / "summary.csv").write_text(
+        "\n".join(
+            [
+                "condition_id,force_distribution,torque_distribution_profile,local_attach_frame_tangent_mode",
+                *[
+                    f"{condition_id},root_torque_segment_couples,diffusive,vector"
+                    for condition_id in condition_ids
+                ],
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    manifest = {
+        "config": "conf/sim_swim.yaml",
+        "conditions": [
+            {"condition_id": condition_id, "config_overrides": {}}
+            for condition_id in condition_ids
+        ],
+    }
+    (input_dir / "run_manifest.json").write_text(
+        json.dumps(manifest),
+        encoding="utf-8",
+    )
+    for condition_id in condition_ids:
+        condition_dir = input_dir / condition_id
+        condition_dir.mkdir()
+        (condition_dir / "state_archive.npz").write_bytes(b"")
+    return input_dir
+
+
+def test_issue97_replay_keeps_canonical_condition_order(tmp_path: Path) -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_issue97_replay_order",
+    )
+    condition_ids = [
+        "axis_projection_uniform_fp3_ft1p5",
+        "segment_couples_uniform_fp3_ft1p5",
+        "axis_projection_diffusive_fp3_ft1p5",
+        "segment_couples_diffusive_fp3_ft1p5",
+    ]
+    input_dir = _write_replay_inputs(tmp_path, condition_ids)
+
+    rows, _records, _base_cfg_path = module._load_inputs(input_dir)
+
+    assert [row["condition_id"] for row in rows] == [
+        "segment_couples_diffusive_fp3_ft1p5",
+        "segment_couples_uniform_fp3_ft1p5",
+        "axis_projection_diffusive_fp3_ft1p5",
+        "axis_projection_uniform_fp3_ft1p5",
+    ]
+
+
+def test_issue103_replay_accepts_basal_freedom_conditions(tmp_path: Path) -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_issue103_replay_order",
+    )
+    condition_ids = [
+        "no_frame",
+        "fp3",
+        "ft1p5",
+        "fp3_ft1p5_vector",
+        "fp3_ft1p5_bearing",
+    ]
+    input_dir = _write_replay_inputs(tmp_path, condition_ids)
+
+    rows, _records, _base_cfg_path = module._load_inputs(input_dir)
+
+    assert [row["condition_id"] for row in rows] == condition_ids
+    assert module._label_for_row(rows[-1]) == "fp3_ft1p5_bearing"
+
+
+def test_issue103_replay_accepts_position_only_conditions(tmp_path: Path) -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_issue103_position_only_replay_order",
+    )
+    condition_ids = [
+        "no_frame",
+        "fp1p25",
+        "fp1p5",
+        "fp2",
+        "fp2p5",
+        "fp3",
+    ]
+    input_dir = _write_replay_inputs(tmp_path, condition_ids)
+
+    rows, _records, _base_cfg_path = module._load_inputs(input_dir)
+
+    assert [row["condition_id"] for row in rows] == condition_ids
+    assert module._label_for_row(rows[-1]) == "fp3"
+
+
+def test_replay_module_import_does_not_require_cv2(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real_import = builtins.__import__
+
+    def guarded_import(
+        name: str,
+        globals: dict[str, object] | None = None,
+        locals: dict[str, object] | None = None,
+        fromlist: tuple[str, ...] = (),
+        level: int = 0,
+    ) -> object:
+        if name == "cv2":
+            raise AssertionError("cv2 should not be imported at module load time")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", guarded_import)
+
+    _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_replay_import_without_cv2",
+    )
 
 
 def test_shape_stability_grid_keeps_deprecated_torque_segment_profile_alias() -> None:

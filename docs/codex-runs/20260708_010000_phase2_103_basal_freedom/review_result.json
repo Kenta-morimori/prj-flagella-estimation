@@ -1,0 +1,111 @@
+{
+  "status": "PASS",
+  "summary": "Issue #103 では，attach-frame 補強による剛体回転を診断する body roll / body-relative helix spin 指標と `motor.local_attach_frame_tangent_mode=basal_bearing` を追加したうえで，position-only sweep まで拡張した。ユーザー実行の lateral 0.6 s / posterior 1.0 s 比較により，`local_attach_frame_tangent_scale` は root の軸まわり相対 spin も抑えやすく剛体回転化の主因と整理できた。position-only 列では lateral の自然回転参照点は `no_frame`，posterior の最良折衷は `fp1p25`，次点は `fp1p5` と判断した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "`basal_bearing` は参照論文モデルではなく，現行 bead-spring 実装で hook安定化と root axial spin 自由度を分離するための project-specific extension として扱う。",
+    "`fp1p25` は posterior の best compromise だが `first_fail_category_nonbody=flag`, `first_fail_t_s=0.3295 s` であり，完全 pass ではない。#82 へ返す代表候補にするには `fp1p5` との最終比較整理が残る。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_params.py tests/test_motor_forces.py tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py::test_run_writes_step_summary_csv_without_projection_columns -q",
+      "result": "PASS: 99 passed"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/dynamics/forces.py src/sim_swim/dynamics/engine.py src/sim_swim/sim/params.py src/sim_swim/sim/debug_summary.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_params.py tests/test_motor_forces.py tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/dynamics/forces.py src/sim_swim/dynamics/engine.py src/sim_swim/sim/params.py src/sim_swim/sim/debug_summary.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_params.py tests/test_motor_forces.py tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py",
+      "result": "PASS: 10 files already formatted"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/basal_freedom_diagnostic.yaml dry_run=true",
+      "result": "PASS: no_frame, fp3, ft1p5, fp3_ft1p5_vector, fp3_ft1p5_bearing の5条件を展開"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/basal_freedom_diagnostic.yaml time.duration_s=0.001 output_dir=/private/tmp/phase2_103_basal_freedom_smoke overwrite=true progress_interval=10000",
+      "result": "PASS: 5条件が完走し，summary.csv に body_roll_net_abs_revolutions / axis_center_body_relative_net_abs_revolutions_mean / axis_center_to_body_roll_ratio_mean が出力された"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS: 77 files already formatted"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS: 325 passed"
+    },
+    {
+      "command": "uv run pytest tests/test_git_hooks.py tests/test_phase2_sweep_profiles.py -q",
+      "result": "PASS: 21 passed"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS: 329 passed"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS: 146 passed, 183 deselected"
+    },
+    {
+      "command": "uv run pytest tests/test_phase2_sweep_profiles.py -q",
+      "result": "PASS: 17 passed"
+    },
+    {
+      "command": "uv run ruff check scripts/01_simulate_swimming/render_issue97_grid_qualitative.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check scripts/01_simulate_swimming/render_issue97_grid_qualitative.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS: 2 files already formatted"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir outputs/phase2_103/stage_a_lateral_basal_freedom_dur0p6 --mode plot-only --output-dir /private/tmp/phase2_103_lateral_replay_plot --overwrite",
+      "result": "PASS: #103 の5条件 summary を受け入れ metrics CSV/PNG を生成"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir outputs/phase2_103/stage_b_posterior_basal_freedom_dur1p0 --mode plot-only --output-dir /private/tmp/phase2_103_posterior_replay_plot --overwrite",
+      "result": "PASS: #103 posterior の5条件 summary を受け入れ metrics CSV/PNG を生成"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir /private/tmp/phase2_103_basal_freedom_smoke --mode render-only --fps-out-3d 10 --output-dir /private/tmp/phase2_103_smoke_replay_render --overwrite",
+      "result": "PASS: 5条件 grid movie を生成"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir outputs/phase2_103/stage_a_lateral_basal_freedom_dur0p6 --mode both --fps-out-3d 10 --output-dir /private/tmp/phase2_103_lateral_replay_both --overwrite",
+      "result": "PASS: 実際の lateral #103 出力から metrics と 5条件 grid movie を生成"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir outputs/phase2_103/stage_b_posterior_basal_freedom_dur1p0 --mode both --fps-out-3d 10 --output-dir /private/tmp/phase2_103_posterior_replay_both --overwrite",
+      "result": "PASS: 実際の posterior #103 出力から metrics と 5条件 grid movie を生成"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [
+    "outputs/phase2_103/stage_a_lateral_basal_freedom_dur0p6/summary.csv",
+    "outputs/phase2_103/stage_b_posterior_basal_freedom_dur1p0/summary.csv",
+    "outputs/phase2_103/stage_a_lateral_basal_freedom_qual/",
+    "outputs/phase2_103/stage_b_posterior_basal_freedom_qual/",
+    "outputs/phase2_103/stage_c_lateral_position_only_dur0p6/summary.csv",
+    "outputs/phase2_103/stage_d_posterior_position_only_dur1p0/summary.csv",
+    "outputs/phase2_103/stage_c_lateral_position_only_qual/",
+    "outputs/phase2_103/stage_d_posterior_position_only_qual/"
+  ],
+  "adr_required": true,
+  "adr_reason": "`basal_bearing` は新しい物理近似であり，output interpretation に body roll / body-relative spin 指標を追加するため。",
+  "adr_path": "docs/adr/0007_phase2_basal_bearing_attach_frame.md",
+  "commit_type": "implementation",
+  "commit_hash": "pending",
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/104",
+  "next_actions": [
+    "`fp1p25` と `fp1p5` のどちらを #82 へ返す posterior 代表候補にするか，定性所見と `first_fail_*` を優先して最終判断する。",
+    "必要なら `fp1p25` 近傍の finer position-only sweep か，`flag` fail の局所 bead pair 診断を追加する。",
+    "PR #104 に latest main の lightweight pre-commit 方針反映後の review 結果を反映する。"
+  ]
+}

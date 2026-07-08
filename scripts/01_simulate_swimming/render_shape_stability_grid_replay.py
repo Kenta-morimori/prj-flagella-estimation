@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render and/or plot Issue #97 2x2 comparisons from sweep outputs."""
+"""Render and/or plot Phase 2 shape-stability grid comparisons from sweep outputs."""
 
 from __future__ import annotations
 
@@ -14,7 +14,6 @@ import sys
 from typing import Any
 from zoneinfo import ZoneInfo
 
-import cv2
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import matplotlib.pyplot as plt
 import numpy as np
@@ -22,21 +21,9 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from sim_swim.analysis.flagella_count_behavior import load_state_archive
-from sim_swim.render.render3d import (
-    _flagella_colors,
-    _hook_edges,
-    _plot_flagella_helix_axis_3d,
-    _plot_segments_3d,
-    _resolve_view_range_um,
-    _run_tumble_label,
-    _select_frames,
-)
-from sim_swim.render.video_writer import VideoRenderResult, open_mp4_writer
-from sim_swim.sim.core import SimulationState, Simulator
 from sim_swim.sim.params import SimulationConfig
 
-EXPECTED_CONDITION_IDS = (
+CANONICAL_TORQUE_DISTRIBUTION_CONDITION_IDS = (
     "segment_couples_diffusive_fp3_ft1p5",
     "segment_couples_uniform_fp3_ft1p5",
     "axis_projection_diffusive_fp3_ft1p5",
@@ -50,8 +37,13 @@ METRIC_FIELDS = (
     "first_fail_category_nonbody",
     "hook_len_rel_err_max",
     "max_flag_bond_rel_err",
+    "body_roll_net_abs_revolutions",
+    "body_roll_direction_consistency",
     "axis_center_net_abs_revolutions_mean",
     "axis_center_direction_consistency_mean",
+    "axis_center_body_relative_net_abs_revolutions_mean",
+    "axis_center_body_relative_direction_consistency_mean",
+    "axis_center_to_body_roll_ratio_mean",
 )
 
 
@@ -59,8 +51,8 @@ def _default_output_dir() -> Path:
     now = datetime.now(ZoneInfo("Asia/Tokyo"))
     return (
         Path("outputs")
-        / "phase2_97"
-        / "stage_f_grid_qual_3d_fp3_ft1p5_torque2p0_dur0p6"
+        / "phase2_replay"
+        / "shape_stability_grid"
         / now.strftime("%Y-%m-%d")
         / now.strftime("%H%M%S")
     )
@@ -80,7 +72,7 @@ def _load_csv_rows(path: Path) -> list[dict[str, str]]:
 
 
 def _setup_logger(log_path: Path) -> logging.Logger:
-    logger = logging.getLogger(f"issue97.grid_qual.{log_path.parent.name}")
+    logger = logging.getLogger(f"shape_stability_grid_replay.{log_path.parent.name}")
     logger.setLevel(logging.INFO)
     logger.handlers.clear()
     logger.propagate = False
@@ -127,10 +119,16 @@ def _short_distribution_label(value: str) -> str:
 
 
 def _label_for_row(row: dict[str, str]) -> str:
-    return (
-        f"{_short_distribution_label(row['force_distribution'])}\n"
-        f"{row['torque_distribution_profile']}"
-    )
+    condition_id = row.get("condition_id", "")
+    if condition_id in CANONICAL_TORQUE_DISTRIBUTION_CONDITION_IDS:
+        return (
+            f"{_short_distribution_label(row['force_distribution'])}\n"
+            f"{row['torque_distribution_profile']}"
+        )
+    tangent_mode = row.get("local_attach_frame_tangent_mode", "")
+    if tangent_mode and tangent_mode != "vector":
+        return f"{condition_id}\n{tangent_mode}"
+    return condition_id
 
 
 def _fail_label(row: dict[str, str]) -> str:
@@ -153,6 +151,21 @@ def _condition_records(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return {str(record["condition_id"]): dict(record) for record in records}
 
 
+def _ordered_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    condition_ids = [row.get("condition_id", "") for row in rows]
+    if all(
+        condition_id in condition_ids
+        for condition_id in CANONICAL_TORQUE_DISTRIBUTION_CONDITION_IDS
+    ):
+        return [
+            row
+            for condition_id in CANONICAL_TORQUE_DISTRIBUTION_CONDITION_IDS
+            for row in rows
+            if row.get("condition_id") == condition_id
+        ]
+    return [row for row in rows if row.get("condition_id")]
+
+
 def _load_inputs(
     input_dir: Path,
 ) -> tuple[list[dict[str, str]], dict[str, dict[str, Any]], Path]:
@@ -166,15 +179,9 @@ def _load_inputs(
     manifest = _load_json(manifest_path)
     records = _condition_records(manifest)
     base_cfg_path = Path(str(manifest["config"]))
-    ordered_rows = [
-        row for row in rows if row.get("condition_id") in EXPECTED_CONDITION_IDS
-    ]
-    if len(ordered_rows) != len(EXPECTED_CONDITION_IDS):
-        found = [row.get("condition_id", "") for row in ordered_rows]
-        raise RuntimeError(
-            f"Expected exactly the 4 Issue #97 conditions in summary.csv; found {found}"
-        )
-    ordered_rows.sort(key=lambda row: EXPECTED_CONDITION_IDS.index(row["condition_id"]))
+    ordered_rows = _ordered_rows(rows)
+    if not ordered_rows:
+        raise RuntimeError(f"No condition rows found in summary.csv under {input_dir}")
     for row in ordered_rows:
         condition_id = row["condition_id"]
         if condition_id not in records:
@@ -219,12 +226,21 @@ def _build_cfg(
 def _plot_cell(
     ax: plt.Axes,
     *,
-    st: SimulationState,
-    cfg: SimulationConfig,
+    st: Any,
+    cfg: Any,
     rig: Any,
     title: str,
     fail_label: str,
 ) -> None:
+    from sim_swim.render.render3d import (
+        _flagella_colors,
+        _hook_edges,
+        _plot_flagella_helix_axis_3d,
+        _plot_segments_3d,
+        _resolve_view_range_um,
+        _run_tumble_label,
+    )
+
     ax.set_facecolor("white")
     beads = st.bead_positions_um
     view_range = _resolve_view_range_um(cfg, rig)
@@ -294,13 +310,18 @@ def _plot_cell(
 
 def _render_grid_movie(
     *,
-    states_by_condition: list[list[SimulationState]],
+    states_by_condition: list[list[Any]],
     cfg_by_condition: list[SimulationConfig],
     rig_by_condition: list[Any],
     condition_rows: list[dict[str, str]],
     out_dir: Path,
     fps_out_3d: float,
-) -> VideoRenderResult:
+) -> Any:
+    import cv2
+
+    from sim_swim.render.render3d import _select_frames
+    from sim_swim.render.video_writer import open_mp4_writer
+
     render_states_by_condition = [
         _select_frames(states, out_all_steps_3d=False, fps_hint=fps_out_3d)
         for states in states_by_condition
@@ -315,12 +336,15 @@ def _render_grid_movie(
     last_frame = None
     titles = [_label_for_row(row) for row in condition_rows]
     fail_labels = [_fail_label(row) for row in condition_rows]
+    n_conditions = len(condition_rows)
+    n_cols = min(3, max(1, int(np.ceil(np.sqrt(n_conditions)))))
+    n_rows = int(np.ceil(n_conditions / n_cols))
 
     for frame_idx in range(frame_count):
-        fig = plt.figure(figsize=(10, 10))
+        fig = plt.figure(figsize=(4.8 * n_cols, 4.8 * n_rows))
         axes = [
-            fig.add_subplot(2, 2, plot_index + 1, projection="3d")
-            for plot_index in range(4)
+            fig.add_subplot(n_rows, n_cols, plot_index + 1, projection="3d")
+            for plot_index in range(n_conditions)
         ]
         for idx, ax in enumerate(axes):
             _plot_cell(
@@ -353,6 +377,8 @@ def _render_grid_movie(
         cv2.imwrite(str(out_dir / "grid_swim3d_final.png"), last_frame)
     if writer_selection is None or last_frame is None:
         raise RuntimeError("Failed to initialize video writer.")
+    from sim_swim.render.video_writer import VideoRenderResult
+
     return VideoRenderResult(
         path=str(movie_path),
         selected_codec=writer_selection.selected_codec,
@@ -368,13 +394,17 @@ def _write_metrics(
     rows: list[dict[str, str]],
     out_dir: Path,
 ) -> Path:
-    metrics_path = out_dir / "issue97_metrics.csv"
+    metrics_path = out_dir / "shape_stability_metrics.csv"
     with metrics_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=METRIC_FIELDS)
         writer.writeheader()
         for row in rows:
             writer.writerow({field: row.get(field, "") for field in METRIC_FIELDS})
     return metrics_path
+
+
+def _metric_series(rows: list[dict[str, str]], field: str) -> list[float]:
+    return [_float_or_nan(row.get(field)) for row in rows]
 
 
 def _plot_metrics(
@@ -395,26 +425,28 @@ def _plot_metrics(
         for row in rows
     ]
     max_flag_bond = [_float_or_nan(row.get("max_flag_bond_rel_err")) for row in rows]
-    axis_rev = [
-        _float_or_nan(row.get("axis_center_net_abs_revolutions_mean")) for row in rows
-    ]
-    axis_consistency = [
-        _float_or_nan(row.get("axis_center_direction_consistency_mean")) for row in rows
-    ]
+    axis_rev = _metric_series(rows, "axis_center_net_abs_revolutions_mean")
+    axis_relative_rev = _metric_series(
+        rows, "axis_center_body_relative_net_abs_revolutions_mean"
+    )
+    body_roll_rev = _metric_series(rows, "body_roll_net_abs_revolutions")
+    axis_body_ratio = _metric_series(rows, "axis_center_to_body_roll_ratio_mean")
 
-    fig, axes = plt.subplots(2, 2, figsize=(11, 8))
+    fig, axes = plt.subplots(2, 3, figsize=(14, 8))
     panels = [
         ("first_fail_t_s_or_duration", first_fail),
         ("max_flag_bond_rel_err", max_flag_bond),
         ("axis_center_net_abs_revolutions_mean", axis_rev),
-        ("axis_center_direction_consistency_mean", axis_consistency),
+        ("axis_center_body_relative_net_abs_revolutions_mean", axis_relative_rev),
+        ("body_roll_net_abs_revolutions", body_roll_rev),
+        ("axis_center_to_body_roll_ratio_mean", axis_body_ratio),
     ]
     for ax, (title, values) in zip(axes.flat, panels):
         ax.bar(labels, values, color=colors)
         ax.set_title(title, fontsize=10)
         ax.tick_params(axis="x", labelrotation=15)
     fig.tight_layout()
-    out_path = out_dir / "issue97_metrics.png"
+    out_path = out_dir / "shape_stability_metrics.png"
     fig.savefig(out_path, dpi=160)
     plt.close(fig)
     return out_path
@@ -446,7 +478,7 @@ def main(argv: list[str] | None = None) -> None:
     output_dir = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=args.overwrite)
     logger = _setup_logger(output_dir / "run.log")
-    logger.info("Starting issue97 replay render/plot")
+    logger.info("Starting shape-stability replay render/plot")
     logger.info("input_dir=%s", args.input_dir)
     logger.info("mode=%s", args.mode)
 
@@ -460,7 +492,10 @@ def main(argv: list[str] | None = None) -> None:
         logger.info("Wrote metrics outputs: %s %s", metrics_path, metrics_plot_path)
 
     if args.mode in {"both", "render-only"}:
-        states_by_condition: list[list[SimulationState]] = []
+        from sim_swim.analysis.flagella_count_behavior import load_state_archive
+        from sim_swim.sim.core import Simulator
+
+        states_by_condition: list[list[Any]] = []
         cfg_by_condition: list[SimulationConfig] = []
         rig_by_condition: list[Any] = []
         for row in rows:
@@ -490,7 +525,7 @@ def main(argv: list[str] | None = None) -> None:
 
     manifest = {
         "git": _git_info(),
-        "temporary_script": True,
+        "tool": "render_shape_stability_grid_replay",
         "input": {
             "input_dir": str(args.input_dir),
             "base_config": str(base_cfg_path),

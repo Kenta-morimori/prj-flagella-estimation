@@ -7,6 +7,7 @@ import pytest
 
 from sim_swim.dynamics.forces import (
     compute_attach_first_body_axis_angle_forces,
+    compute_attach_frame_basal_bearing_forces,
     compute_attach_frame_target_forces,
     compute_motor_forces,
     compute_root_torque_axis_projection_forces,
@@ -112,6 +113,56 @@ def test_attach_frame_target_forces_are_pair_balanced() -> None:
 
     assert np.allclose(forces.sum(axis=0), np.zeros(3), atol=1e-12)
     assert forces[1, 0] < 0.0
+    assert forces[2, 1] < 0.0
+
+
+def test_attach_frame_basal_bearing_allows_spin_about_attach_first_axis() -> None:
+    hook_triplets = np.array([[0, 1, 2]], dtype=int)
+    target = np.array([[0.0, 1.0, 0.0]], dtype=float)
+    rest = np.array([1.0], dtype=float)
+    positions = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 0.0, 1.0],
+        ],
+        dtype=float,
+    )
+
+    forces = compute_attach_frame_basal_bearing_forces(
+        positions_m=positions,
+        hook_triplets=hook_triplets,
+        first_second_target_vectors_m=target,
+        first_second_rest_lengths_m=rest,
+        k_tangent=3.0,
+    )
+
+    assert np.allclose(forces, np.zeros_like(forces), atol=1e-12)
+
+
+def test_attach_frame_basal_bearing_resists_axial_and_radius_error() -> None:
+    hook_triplets = np.array([[0, 1, 2]], dtype=int)
+    target = np.array([[0.0, 1.0, 0.0]], dtype=float)
+    rest = np.array([1.0], dtype=float)
+    positions = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.2, 1.4, 0.0],
+        ],
+        dtype=float,
+    )
+
+    forces = compute_attach_frame_basal_bearing_forces(
+        positions_m=positions,
+        hook_triplets=hook_triplets,
+        first_second_target_vectors_m=target,
+        first_second_rest_lengths_m=rest,
+        k_tangent=3.0,
+    )
+
+    assert np.allclose(forces.sum(axis=0), np.zeros(3), atol=1e-12)
+    assert forces[2, 0] < 0.0
     assert forces[2, 1] < 0.0
 
 

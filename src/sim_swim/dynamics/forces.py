@@ -313,6 +313,66 @@ def compute_attach_frame_target_forces(
     return forces
 
 
+def compute_attach_frame_basal_bearing_forces(
+    positions_m: np.ndarray,
+    hook_triplets: np.ndarray,
+    first_second_target_vectors_m: np.ndarray,
+    first_second_rest_lengths_m: np.ndarray,
+    k_tangent: float,
+) -> np.ndarray:
+    """Keep basal tangent tilt/radius while leaving axial spin unconstrained."""
+
+    forces = np.zeros_like(positions_m)
+    if hook_triplets.size == 0 or k_tangent <= 0.0:
+        return forces
+
+    for row, (attach_raw, first_raw, second_raw) in enumerate(
+        hook_triplets.astype(int, copy=False)
+    ):
+        if row >= int(first_second_target_vectors_m.shape[0]):
+            continue
+        attach = int(attach_raw)
+        first = int(first_raw)
+        second = int(second_raw)
+        rest = (
+            float(first_second_rest_lengths_m[row])
+            if row < int(first_second_rest_lengths_m.shape[0])
+            else 0.0
+        )
+        rest = max(rest, 1e-18)
+        target = np.asarray(first_second_target_vectors_m[row], dtype=float)
+        if not np.isfinite(target).all():
+            continue
+
+        bearing_axis = positions_m[first] - positions_m[attach]
+        axis_norm = float(np.linalg.norm(bearing_axis))
+        if axis_norm <= 1e-18:
+            continue
+        axis = bearing_axis / axis_norm
+
+        current = positions_m[second] - positions_m[first]
+        current_axial = float(np.dot(current, axis))
+        target_axial = float(np.dot(target, axis))
+        current_radial = current - current_axial * axis
+        target_radial = target - target_axial * axis
+        current_radius = float(np.linalg.norm(current_radial))
+        target_radius = float(np.linalg.norm(target_radial))
+
+        force = -(float(k_tangent) / (rest * rest)) * (
+            (current_axial - target_axial) * axis
+        )
+        if current_radius > 1e-18:
+            radial_unit = current_radial / current_radius
+            force += -(float(k_tangent) / (rest * rest)) * (
+                (current_radius - target_radius) * radial_unit
+            )
+
+        forces[second] += force
+        forces[first] -= force
+
+    return forces
+
+
 def _closest_points_on_segments(
     p1: np.ndarray,
     q1: np.ndarray,

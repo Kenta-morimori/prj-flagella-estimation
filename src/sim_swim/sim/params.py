@@ -39,6 +39,8 @@ MOTOR_TORQUE_DISTRIBUTION_PROFILE_ALIASES = {
     "activity_floor_0p2": "diffusive_floor_0p2",
     "activity_floor_0p4": "diffusive_floor_0p4",
 }
+MOTOR_ATTACH_FRAME_TANGENT_MODE_DEFAULT = "vector"
+MOTOR_ATTACH_FRAME_TANGENT_MODES = frozenset({"vector", "basal_bearing"})
 MOTOR_LOCAL_SCALE_KEYS = (
     "local_hook_scale",
     "local_spring_scale",
@@ -120,6 +122,19 @@ def normalize_motor_torque_distribution_profile(value: Any) -> str:
             f"Deprecated aliases accepted: {aliases}."
         )
     return profile
+
+
+def normalize_motor_attach_frame_tangent_mode(value: Any) -> str:
+    """Validate attach-frame tangent stabilization mode."""
+
+    mode = str(value)
+    if mode not in MOTOR_ATTACH_FRAME_TANGENT_MODES:
+        supported = ", ".join(sorted(MOTOR_ATTACH_FRAME_TANGENT_MODES))
+        raise ValueError(
+            "Unsupported motor.local_attach_frame_tangent_mode: "
+            f"{mode!r}. Use one of: {supported}."
+        )
+    return mode
 
 
 class DynamicsMode(Enum):
@@ -298,6 +313,7 @@ class MotorParams:
     local_first_second_spring_scale: float = 1.0
     local_attach_frame_position_scale: float = 1.0
     local_attach_frame_tangent_scale: float = 1.0
+    local_attach_frame_tangent_mode: str = MOTOR_ATTACH_FRAME_TANGENT_MODE_DEFAULT
     local_bend_scale: float = 1.0
     local_torsion_scale: float = 1.0
 
@@ -863,6 +879,13 @@ class SimulationConfig:
                     motor_raw,
                     "local_attach_frame_tangent_scale",
                     MOTOR_LOCAL_SCALE_DEFAULT,
+                )
+            ),
+            local_attach_frame_tangent_mode=normalize_motor_attach_frame_tangent_mode(
+                _get(
+                    motor_raw,
+                    "local_attach_frame_tangent_mode",
+                    MOTOR_ATTACH_FRAME_TANGENT_MODE_DEFAULT,
                 )
             ),
             local_bend_scale=float(
