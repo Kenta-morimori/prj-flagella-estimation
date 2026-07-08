@@ -1,0 +1,26 @@
+kind: shape_stability_grid
+args:
+  config: conf/sim_swim.yaml
+  mode: position-only-grid
+  output_dir: outputs/phase2_sweeps/basal_freedom_position_only_sweep
+  duration_s: 0.6
+  dt_star: 1.0e-4
+  torque_nm: 2.0e-20
+  n_flagella: 3
+  attach_seed: 0
+  phase_seed: 0
+  fixed_attach_first_spring_scale: 1.0
+  fixed_body_axis_angle_scale: 1.0
+  fixed_first_second_spring_scale: 1.0
+  fixed_attach_frame_tangent_scale: 1.0
+  force_distributions:
+    - root_torque_segment_couples
+  torque_distribution_profiles:
+    - diffusive
+  attach_frame_position_scales:
+    - 1.25
+    - 1.5
+    - 2.0
+    - 2.5
+    - 3.0
+  progress_interval: 5000

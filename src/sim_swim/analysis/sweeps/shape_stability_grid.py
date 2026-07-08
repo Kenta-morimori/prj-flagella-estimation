@@ -664,6 +664,42 @@ def build_conditions(args: argparse.Namespace) -> tuple[Condition, ...]:
             )
         return tuple(conditions)
 
+    if args.mode == "position-only-grid":
+        attach_scale = float(args.fixed_attach_first_spring_scale or 1.0)
+        angle_scale = float(args.fixed_body_axis_angle_scale or 1.0)
+        first_second_scale = float(args.fixed_first_second_spring_scale)
+        frame_tangent_scale = float(args.fixed_attach_frame_tangent_scale or 1.0)
+        base_scales: dict[str, float | str] = {
+            "force_distribution": str(args.force_distributions[0]),
+            "torque_distribution_profile": str(args.torque_distribution_profiles[0]),
+            "local_attach_first_spring_scale": attach_scale,
+            "local_attach_first_body_axis_angle_scale": angle_scale,
+            "local_first_second_spring_scale": first_second_scale,
+            "local_attach_frame_tangent_scale": frame_tangent_scale,
+            "local_attach_frame_tangent_mode": "vector",
+        }
+        conditions.append(
+            Condition(
+                condition_id="no_frame",
+                mode=args.mode,
+                description="no attach-frame reinforcement",
+                scales={**base_scales, "local_attach_frame_position_scale": 1.0},
+            )
+        )
+        for position_scale in args.attach_frame_position_scales:
+            conditions.append(
+                Condition(
+                    condition_id=f"fp{_format_scale(position_scale)}",
+                    mode=args.mode,
+                    description="attach-frame position only",
+                    scales={
+                        **base_scales,
+                        "local_attach_frame_position_scale": float(position_scale),
+                    },
+                )
+            )
+        return tuple(conditions)
+
     if args.mode == "attach-frame-grid":
         attach_scale = float(args.fixed_attach_first_spring_scale or 1.0)
         angle_scale = float(args.fixed_body_axis_angle_scale or 1.0)
@@ -992,6 +1028,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "attach-frame-grid",
             "torque-profile-grid",
             "basal-freedom-grid",
+            "position-only-grid",
         ),
         default="preset",
         help="Condition generation mode.",

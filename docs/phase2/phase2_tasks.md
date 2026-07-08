@@ -924,6 +924,7 @@
   - `shape_stability_grid` summary に body-relative axis-center spin と axis/body roll ratio を追加した。
   - #103 標準比較 profile `conf/phase2_sweeps/basal_freedom_diagnostic.yaml` は `no_frame`, `fp3`, `ft1p5`, `fp3_ft1p5_vector`, `fp3_ft1p5_bearing` の5条件を展開する。
   - 2026-07-08 追補として，`render_issue97_grid_qualitative.py` を #97 固定4条件だけでなく #103 の5条件にも対応させた。条件数に応じて3D grid layoutを自動化し，metrics plot には body roll / body-relative axis-center spin 指標を含める。
+  - 2026-07-08 追補として，`local_attach_frame_tangent_scale` は「接線方向だけ」の拘束ではなく，body attach frame で見た `first -> second` ベクトル全体を初期 target に戻す実装であるため，root の軸まわり相対 spin も同時に抑えやすいと整理した。したがって `ft` 系と `basal_bearing` は #103 の主系列から外し，次の比較は `conf/phase2_sweeps/basal_freedom_position_only_sweep.yaml` の `no_frame`, `fp1p25`, `fp1p5`, `fp2`, `fp2p5`, `fp3` で行う。
 - acceptance criteria:
   - [x] 補強なし側方，補強なし後方，補強あり側方，補強あり後方の比較条件が再現可能な command/profile として記録される。
   - [x] body剛体回転と flagella螺旋軸中心回転を分離する指標が summary で比較できる。
@@ -949,6 +950,14 @@
     `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir outputs/phase2_103/stage_a_lateral_basal_freedom_dur0p6 --mode both --output-dir outputs/phase2_103/stage_a_lateral_basal_freedom_qual --overwrite`
   - 後方 replay review:
     `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir outputs/phase2_103/stage_b_posterior_basal_freedom_dur1p0 --mode both --output-dir outputs/phase2_103/stage_b_posterior_basal_freedom_qual --overwrite`
+  - 次比較の側方 0.6 s position-only sweep:
+    `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/basal_freedom_position_only_sweep.yaml time.duration_s=0.6 flagella.initial_helix_axis_from_rear_deg=null output_dir=outputs/phase2_103/stage_c_lateral_position_only_dur0p6 overwrite=true progress_interval=5000`
+  - 次比較の後方 1.0 s position-only sweep:
+    `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/basal_freedom_position_only_sweep.yaml time.duration_s=1.0 flagella.initial_helix_axis_from_rear_deg=0 output_dir=outputs/phase2_103/stage_d_posterior_position_only_dur1p0 overwrite=true progress_interval=5000`
+  - 次比較の側方 replay review:
+    `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir outputs/phase2_103/stage_c_lateral_position_only_dur0p6 --mode both --output-dir outputs/phase2_103/stage_c_lateral_position_only_qual --overwrite`
+  - 次比較の後方 replay review:
+    `uv run python scripts/01_simulate_swimming/render_issue97_grid_qualitative.py --input-dir outputs/phase2_103/stage_d_posterior_position_only_dur1p0 --mode both --output-dir outputs/phase2_103/stage_d_posterior_position_only_qual --overwrite`
 - docs:
   - `docs/phase2/phase2_current.md`
   - `docs/phase2/phase2_tasks.md`

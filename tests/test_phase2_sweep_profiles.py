@@ -151,6 +151,35 @@ def test_basal_freedom_profile_builds_issue103_conditions() -> None:
     assert conditions[-1].scales["local_attach_frame_tangent_mode"] == ("basal_bearing")
 
 
+def test_basal_freedom_position_only_profile_builds_issue103_followup_conditions() -> (
+    None
+):
+    profile = load_profile(
+        Path("conf/phase2_sweeps/basal_freedom_position_only_sweep.yaml")
+    )
+
+    assert profile["kind"] == "shape_stability_grid"
+    args = shape_stability_grid._parse_args(args_from_profile(profile))
+    conditions = shape_stability_grid.build_conditions(args)
+
+    assert [condition.condition_id for condition in conditions] == [
+        "no_frame",
+        "fp1p25",
+        "fp1p5",
+        "fp2",
+        "fp2p5",
+        "fp3",
+    ]
+    assert all(
+        condition.scales["local_attach_frame_tangent_scale"] == 1.0
+        for condition in conditions
+    )
+    assert all(
+        condition.scales["local_attach_frame_tangent_mode"] == "vector"
+        for condition in conditions
+    )
+
+
 def _write_replay_inputs(tmp_path: Path, condition_ids: list[str]) -> Path:
     input_dir = tmp_path / "replay"
     input_dir.mkdir()
@@ -226,6 +255,27 @@ def test_issue103_replay_accepts_basal_freedom_conditions(tmp_path: Path) -> Non
 
     assert [row["condition_id"] for row in rows] == condition_ids
     assert module._label_for_row(rows[-1]) == "fp3_ft1p5_bearing"
+
+
+def test_issue103_replay_accepts_position_only_conditions(tmp_path: Path) -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_issue97_grid_qualitative.py"),
+        "phase2_issue103_position_only_replay_order",
+    )
+    condition_ids = [
+        "no_frame",
+        "fp1p25",
+        "fp1p5",
+        "fp2",
+        "fp2p5",
+        "fp3",
+    ]
+    input_dir = _write_replay_inputs(tmp_path, condition_ids)
+
+    rows, _records, _base_cfg_path = module._load_inputs(input_dir)
+
+    assert [row["condition_id"] for row in rows] == condition_ids
+    assert module._label_for_row(rows[-1]) == "fp3"
 
 
 def test_shape_stability_grid_keeps_deprecated_torque_segment_profile_alias() -> None:

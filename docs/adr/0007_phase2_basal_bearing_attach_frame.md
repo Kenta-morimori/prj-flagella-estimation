@@ -33,3 +33,9 @@ default は `vector` とし，既存条件の挙動を変えない。`basal_bear
 - 軸方向成分または垂直半径が target からずれた場合は復元力を出す。
 - `basal_freedom_diagnostic.yaml` は #103 用の5条件を展開する。
 - `summary.csv` と `flag_helix_axis_diagnostics.csv` に body roll / body-relative spin 指標が出る。
+
+## Follow-up
+
+#103 のユーザー定性評価では，`basal_bearing` を含めても側方・後方ともに剛体回転様の見え方は解消しなかった。したがって，この ADR の decision は診断・切り分け手段としては維持するが，主系列の採用候補には直結しない。
+
+次の探索は `basal_bearing` 継続比較ではなく，`local_attach_frame_tangent_scale=1.0` に戻した上で `local_attach_frame_position_scale` だけを弱く変える position-only 列で行う。目的は，`no_frame` に近い軸中心回転を保ったまま posterior hook/flag 破綻をどこまで遅らせられるかを確認することである。
