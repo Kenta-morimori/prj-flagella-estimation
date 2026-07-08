@@ -7,6 +7,8 @@ import pytest
 
 from sim_swim.core.run_context import init_run
 
+pytestmark = pytest.mark.light
+
 
 def test_init_run_creates_log_and_manifest(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch

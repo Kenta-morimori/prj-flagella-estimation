@@ -20,7 +20,7 @@
 - 依存インストール: `uv sync`
 - Git hook 有効化: `./scripts/setup_git_hooks.sh`
 
-Git hook は commit 時に `ruff format --check .`、`ruff check .`、`pytest -q` を実行します。解除が必要な場合は `git config --unset core.hooksPath` を使います。
+Git hook は commit 時に `ruff format --check .`、`ruff check .`、`pytest -q -m light` を実行します。full pytest は PR 前、CI、モデル・出力仕様・pipeline 変更時に明示実行します。hook で full pytest まで回したい場合は `FULL_TEST=1 git commit ...` を使います。解除が必要な場合は `git config --unset core.hooksPath` を使います。
 
 ## Quick Start
 
@@ -64,7 +64,14 @@ Phase 2 analysis では、実行時の設定を `analysis_config_used.yaml` と 
 ```bash
 uv run ruff format --check .
 uv run ruff check .
+uv run pytest -q -m light
 uv run pytest -q
+```
+
+軽量 pre-commit 対象の pytest だけ確認する場合:
+
+```bash
+uv run pytest -q -m light
 ```
 
 Phase 2 analysis 周辺だけを確認する場合:

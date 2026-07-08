@@ -1,11 +1,22 @@
 #!/bin/sh
-# Run lint and tests before commit to mirror CI.
+# Run lightweight checks before commit.
 
 set -e
 
 run_cmd() {
   echo "==> $*"
   "$@"
+}
+
+run_pytest_light() {
+  set +e
+  "$@"
+  status=$?
+  set -e
+  if [ "$status" -eq 0 ] || [ "$status" -eq 5 ]; then
+    return 0
+  fi
+  return "$status"
 }
 
 has_pytest_targets() {
@@ -16,7 +27,11 @@ if command -v uv >/dev/null 2>&1; then
   run_cmd uv run ruff format --check .
   run_cmd uv run ruff check .
   if has_pytest_targets; then
-    run_cmd uv run pytest -q
+    if [ "${FULL_TEST:-0}" = "1" ]; then
+      run_cmd uv run pytest -q
+    else
+      run_cmd run_pytest_light uv run pytest -q -m light
+    fi
   else
     echo "==> pytest skipped (no tests found)"
   fi
@@ -24,7 +39,11 @@ else
   run_cmd ruff format --check .
   run_cmd ruff check .
   if has_pytest_targets; then
-    PYTHONPATH=src run_cmd pytest -q
+    if [ "${FULL_TEST:-0}" = "1" ]; then
+      PYTHONPATH=src run_cmd pytest -q
+    else
+      PYTHONPATH=src run_cmd run_pytest_light pytest -q -m light
+    fi
   else
     echo "==> pytest skipped (no tests found)"
   fi

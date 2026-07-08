@@ -35,3 +35,13 @@ dev = [
     "pytest-cov>=7.0.0",
     "ruff>=0.14.13",
 ]
+
+[tool.pytest.ini_options]
+markers = [
+    "light: fast deterministic tests safe for pre-commit",
+    "slow: long-running tests not suitable for pre-commit",
+    "e2e: end-to-end CLI or workflow tests",
+    "render: tests that generate images or videos",
+    "simulation: tests that run simulation steps",
+    "sweep: tests that run or validate sweep workflows",
+]

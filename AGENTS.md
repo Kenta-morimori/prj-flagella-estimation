@@ -94,11 +94,14 @@ Option-style arguments such as `--config`, `--duration-s`, and `--fps-out` remai
 
 ## Testing And Review
 
+* The default pre-commit hook should stay lightweight: `ruff format --check .`, `ruff check .`, and `pytest -q -m light`.
+* Do not require full pytest for docs-only, planning-only, or workflow-only changes.
 * Add or update pytest tests when changing physics, geometry, output format, or pipeline behavior.
 * Prefer library-level tests over slow subprocess-based CLI tests.
 * Stability-sensitive Phase 2 behavior may require multi-step tests; one-step tests are often insufficient.
 * Do not rely only on manual video inspection.
 * If tests or simulations cannot run, record what was not run, why, and what alternative checks were performed.
+* When changing models, physics, geometry, output schema, manifest, or pipeline behavior, run full pytest or record why it was not run in `review_result.json`.
 * Do not run long Phase 2 simulation, sweep, or render commands unless the user explicitly asks Codex to execute them. For long runs, provide the exact command, output directory, files to inspect, evaluation points, and checks already passed; treat the long run as user-executed.
 * Completion, review_result schema, commit, push, PR, ADR, and Cloud review details live in `docs/codex/codex_workflow.md`.
 
