@@ -13,8 +13,12 @@ run_pytest_light() {
   "$@"
   status=$?
   set -e
-  if [ "$status" -eq 0 ] || [ "$status" -eq 5 ]; then
+  if [ "$status" -eq 0 ]; then
     return 0
+  fi
+  if [ "$status" -eq 5 ]; then
+    echo "==> pytest -m light failed: no light-marked tests were collected" >&2
+    echo "==> add or restore at least one pytest.mark.light target before commit" >&2
   fi
   return "$status"
 }
