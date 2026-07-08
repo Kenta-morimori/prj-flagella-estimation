@@ -1,0 +1,57 @@
+{
+  "status": "PASS",
+  "summary": "Issue #101 として pre-commit の既定実行を full pytest から lightweight checks へ分離した。`.githooks/pre-commit` は `ruff format --check .`、`ruff check .`、`pytest -q -m light` を既定とし、`FULL_TEST=1` 指定時のみ full pytest を実行する。`light` marker を pytest 設定に追加し、初期対象として `test_params`、`test_model_builder`、`test_run_context`、`test_motor_forces` を明示登録した。README、AGENTS、Codex workflow、ADR も同方針へ更新し、追補として `scripts/local/` を `.gitignore` に追加してローカル補助スクリプトを管理対象外にした。PR #105 review を受け、`pytest -m light` が 0 件になった誤設定は成功扱いせず fail するように修正し、hook 回帰テストを追加した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "初回の `light` 対象は保守的に 4 ファイルへ限定した。今後増やす場合は deterministic 性、実行時間、subprocess/render/sweep 非依存を再確認する必要がある。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest -q tests/test_params.py tests/test_model_builder.py tests/test_run_context.py tests/test_motor_forces.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest --collect-only -q -m light",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS"
+    },
+    {
+      "command": "FULL_TEST=1 .githooks/pre-commit",
+      "result": "PASS"
+    },
+    {
+      "command": "git status --short",
+      "result": "PASS: `.gitignore` に `scripts/local/` を追加後、当該 untracked 表示が消えることを確認"
+    },
+    {
+      "command": "uv run pytest -q tests/test_git_hooks.py",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": true,
+  "adr_reason": "commit 時の testing strategy を full pytest 既定から lightweight checks 既定へ変更したため、ADR 0007 を追加した。",
+  "commit_type": "complete",
+  "commit_hash": "32eb5cdf006db7887b0ccff31015d430317c8103",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/105",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/101",
+  "next_actions": [
+    "PR では CI の full pytest 維持を確認する。",
+    "`light` 対象を増やす場合は pre-commit 所要時間と deterministic 性を見ながら段階的に追加する。"
+  ]
+}
