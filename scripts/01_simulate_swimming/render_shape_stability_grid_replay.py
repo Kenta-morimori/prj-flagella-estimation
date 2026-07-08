@@ -14,7 +14,6 @@ import sys
 from typing import Any
 from zoneinfo import ZoneInfo
 
-import cv2
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import matplotlib.pyplot as plt
 import numpy as np
@@ -22,18 +21,6 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from sim_swim.analysis.flagella_count_behavior import load_state_archive
-from sim_swim.render.render3d import (
-    _flagella_colors,
-    _hook_edges,
-    _plot_flagella_helix_axis_3d,
-    _plot_segments_3d,
-    _resolve_view_range_um,
-    _run_tumble_label,
-    _select_frames,
-)
-from sim_swim.render.video_writer import VideoRenderResult, open_mp4_writer
-from sim_swim.sim.core import SimulationState, Simulator
 from sim_swim.sim.params import SimulationConfig
 
 CANONICAL_TORQUE_DISTRIBUTION_CONDITION_IDS = (
@@ -239,12 +226,21 @@ def _build_cfg(
 def _plot_cell(
     ax: plt.Axes,
     *,
-    st: SimulationState,
-    cfg: SimulationConfig,
+    st: Any,
+    cfg: Any,
     rig: Any,
     title: str,
     fail_label: str,
 ) -> None:
+    from sim_swim.render.render3d import (
+        _flagella_colors,
+        _hook_edges,
+        _plot_flagella_helix_axis_3d,
+        _plot_segments_3d,
+        _resolve_view_range_um,
+        _run_tumble_label,
+    )
+
     ax.set_facecolor("white")
     beads = st.bead_positions_um
     view_range = _resolve_view_range_um(cfg, rig)
@@ -314,13 +310,18 @@ def _plot_cell(
 
 def _render_grid_movie(
     *,
-    states_by_condition: list[list[SimulationState]],
+    states_by_condition: list[list[Any]],
     cfg_by_condition: list[SimulationConfig],
     rig_by_condition: list[Any],
     condition_rows: list[dict[str, str]],
     out_dir: Path,
     fps_out_3d: float,
-) -> VideoRenderResult:
+) -> Any:
+    import cv2
+
+    from sim_swim.render.render3d import _select_frames
+    from sim_swim.render.video_writer import open_mp4_writer
+
     render_states_by_condition = [
         _select_frames(states, out_all_steps_3d=False, fps_hint=fps_out_3d)
         for states in states_by_condition
@@ -376,6 +377,8 @@ def _render_grid_movie(
         cv2.imwrite(str(out_dir / "grid_swim3d_final.png"), last_frame)
     if writer_selection is None or last_frame is None:
         raise RuntimeError("Failed to initialize video writer.")
+    from sim_swim.render.video_writer import VideoRenderResult
+
     return VideoRenderResult(
         path=str(movie_path),
         selected_codec=writer_selection.selected_codec,
@@ -489,7 +492,10 @@ def main(argv: list[str] | None = None) -> None:
         logger.info("Wrote metrics outputs: %s %s", metrics_path, metrics_plot_path)
 
     if args.mode in {"both", "render-only"}:
-        states_by_condition: list[list[SimulationState]] = []
+        from sim_swim.analysis.flagella_count_behavior import load_state_archive
+        from sim_swim.sim.core import Simulator
+
+        states_by_condition: list[list[Any]] = []
         cfg_by_condition: list[SimulationConfig] = []
         rig_by_condition: list[Any] = []
         for row in rows:

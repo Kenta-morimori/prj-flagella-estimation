@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 import importlib.util
 import json
 from pathlib import Path
@@ -276,6 +277,30 @@ def test_issue103_replay_accepts_position_only_conditions(tmp_path: Path) -> Non
 
     assert [row["condition_id"] for row in rows] == condition_ids
     assert module._label_for_row(rows[-1]) == "fp3"
+
+
+def test_replay_module_import_does_not_require_cv2(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real_import = builtins.__import__
+
+    def guarded_import(
+        name: str,
+        globals: dict[str, object] | None = None,
+        locals: dict[str, object] | None = None,
+        fromlist: tuple[str, ...] = (),
+        level: int = 0,
+    ) -> object:
+        if name == "cv2":
+            raise AssertionError("cv2 should not be imported at module load time")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", guarded_import)
+
+    _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_replay_import_without_cv2",
+    )
 
 
 def test_shape_stability_grid_keeps_deprecated_torque_segment_profile_alias() -> None:

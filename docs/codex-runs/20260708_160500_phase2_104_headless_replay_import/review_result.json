@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "summary": "PR #104 の review 指摘に対応し、`render_shape_stability_grid_replay.py` の render 専用依存を遅延 import へ変更した。これにより `--mode plot-only` や condition ordering 系 test では module import 時に `cv2` / render3d stack を読まなくなり、headless 環境でも `libGL.so.1` 依存で落ちにくくした。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "render path 自体は引き続き OpenCV と描画依存を必要とする。今回の対応は plot-only / import-ordering 経路の分離であり、render-only を headless 完全対応にしたわけではない。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest -q tests/test_phase2_sweep_profiles.py",
+      "result": "PASS: 20 passed"
+    },
+    {
+      "command": "uv run ruff check scripts/01_simulate_swimming/render_shape_stability_grid_replay.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS: 147 passed, 184 deselected"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "今回の対応は import 境界の整理と test 追加であり、新規 simulation や動画目視判定は不要。",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "既存 replay CLI の import 構造整理であり、設計方針やデータ形式の変更ではないため。",
+  "commit_type": "complete",
+  "commit_hash": "pending",
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/104",
+  "next_actions": [
+    "必要なら PR #104 上で、plot-only 経路では OpenCV を読まないようにした旨を短く返答する。"
+  ]
+}
