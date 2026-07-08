@@ -7,6 +7,8 @@ import yaml
 
 from sim_swim.sim.params import SimulationConfig
 
+pytestmark = pytest.mark.light
+
 
 def _base_cfg() -> dict:
     return {

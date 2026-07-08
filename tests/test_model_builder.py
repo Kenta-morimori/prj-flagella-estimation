@@ -14,6 +14,8 @@ from sim_swim.sim.helix_axis import (
 )
 from sim_swim.sim.params import SimulationConfig
 
+pytestmark = pytest.mark.light
+
 
 def _make_cfg(
     *,

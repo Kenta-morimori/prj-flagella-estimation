@@ -14,6 +14,8 @@ from sim_swim.dynamics.forces import (
     compute_root_torque_segment_couples_forces,
 )
 
+pytestmark = pytest.mark.light
+
 
 def test_motor_force_couple_matches_target_torque() -> None:
     positions = np.array(
