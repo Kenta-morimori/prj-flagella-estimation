@@ -178,6 +178,8 @@ def test_basal_freedom_position_only_profile_builds_issue103_followup_conditions
         condition.scales["local_attach_frame_tangent_mode"] == "vector"
         for condition in conditions
     )
+
+
 def _write_replay_inputs(tmp_path: Path, condition_ids: list[str]) -> Path:
     input_dir = tmp_path / "replay"
     input_dir.mkdir()
@@ -274,6 +276,8 @@ def test_issue103_replay_accepts_position_only_conditions(tmp_path: Path) -> Non
 
     assert [row["condition_id"] for row in rows] == condition_ids
     assert module._label_for_row(rows[-1]) == "fp3"
+
+
 def test_shape_stability_grid_keeps_deprecated_torque_segment_profile_alias() -> None:
     args = shape_stability_grid._parse_args(
         ["--torque-segment-weight-profiles", "diffusive,uniform"]
