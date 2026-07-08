@@ -216,7 +216,7 @@ def _write_replay_inputs(tmp_path: Path, condition_ids: list[str]) -> Path:
 
 def test_issue97_replay_keeps_canonical_condition_order(tmp_path: Path) -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_issue97_grid_qualitative.py"),
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
         "phase2_issue97_replay_order",
     )
     condition_ids = [
@@ -239,7 +239,7 @@ def test_issue97_replay_keeps_canonical_condition_order(tmp_path: Path) -> None:
 
 def test_issue103_replay_accepts_basal_freedom_conditions(tmp_path: Path) -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_issue97_grid_qualitative.py"),
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
         "phase2_issue103_replay_order",
     )
     condition_ids = [
@@ -259,7 +259,7 @@ def test_issue103_replay_accepts_basal_freedom_conditions(tmp_path: Path) -> Non
 
 def test_issue103_replay_accepts_position_only_conditions(tmp_path: Path) -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_issue97_grid_qualitative.py"),
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
         "phase2_issue103_position_only_replay_order",
     )
     condition_ids = [

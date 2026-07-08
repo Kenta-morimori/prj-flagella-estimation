@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "summary": "PR #104 review comment 対応として、#97/#103 の既存結果を `phase2_current.md` と `phase2_tasks.md` に明文化し、`render_issue97_grid_qualitative.py` を汎用 replay CLI `render_shape_stability_grid_replay.py` へ改名した。README、active docs、tests を新しい CLI 名へ追随させ、`no_frame` の posterior hook fail、`local_first_second_spring_scale` 非採用根拠、`torque_distribution_profile` の diffusive/uniform 差、および attach-frame tangent が剛体回転様に見せる理由を記録した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "historical `docs/codex-runs/*/review_result.json` には旧 script 名が残るが、履歴記録なので今回の rename では更新しない。",
+    "replay CLI の default output directory は generic 化したが、既存 output anchor 名は user 実行済み directory に残る。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run ruff check scripts/01_simulate_swimming/render_shape_stability_grid_replay.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase2_sweep_profiles.py",
+      "result": "PASS: 19 passed"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS: 146 passed, 183 deselected"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "今回の対応は docs 整理、generic replay CLI rename、test 追随であり、新規の長時間 simulation や動画目視判定は要求しない。",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "既存の #97/#103 解釈整理と user-facing CLI rename が中心で、新しい物理モデル判断は追加していないため。",
+  "commit_type": "complete",
+  "commit_hash": "pending",
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/104",
+  "next_actions": [
+    "PR #104 上で review comment へ、`no_frame` の posterior hook fail と fs 非採用根拠、diffusive/uniform 差、attach-frame tangent による剛体回転化を要約して返答する。",
+    "必要なら user 実行で `render_shape_stability_grid_replay.py` を使った replay command を最新名で再掲する。"
+  ]
+}

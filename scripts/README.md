@@ -86,6 +86,20 @@ heatmap profile は出力先を固定しません。`output_dir` を省略する
 | `conf/phase2_sweeps/shape_stability_heatmap.yaml` | shape stability grid heatmap |
 | `conf/phase2_sweeps/hook_overstretch_heatmap.yaml` | 旧名互換 heatmap profile |
 
+### Replay Render
+
+既存 sweep 出力の `summary.csv`、`run_manifest.json`、各 condition directory の `state_archive.npz` から、再シミュレーションなしで比較 plot / 3D replay を生成する場合は `render_shape_stability_grid_replay.py` を使います。
+
+```bash
+uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py \
+  --input-dir outputs/phase2_103/stage_c_lateral_position_only_dur0p6 \
+  --mode both \
+  --output-dir /private/tmp/phase2_103_lateral_replay \
+  --overwrite
+```
+
+`--mode plot-only` は metrics CSV / PNG のみ、`--mode render-only` は 3D grid movie のみ、`--mode both` は両方を生成します。
+
 ## 02_phase2_analysis
 
 Phase 2.8 の RUN 固定べん毛数差分析用 batch / dataset 作成 CLI です。

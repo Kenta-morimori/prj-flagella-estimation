@@ -36,7 +36,7 @@ from sim_swim.render.video_writer import VideoRenderResult, open_mp4_writer
 from sim_swim.sim.core import SimulationState, Simulator
 from sim_swim.sim.params import SimulationConfig
 
-ISSUE97_CONDITION_IDS = (
+CANONICAL_TORQUE_DISTRIBUTION_CONDITION_IDS = (
     "segment_couples_diffusive_fp3_ft1p5",
     "segment_couples_uniform_fp3_ft1p5",
     "axis_projection_diffusive_fp3_ft1p5",
@@ -64,8 +64,8 @@ def _default_output_dir() -> Path:
     now = datetime.now(ZoneInfo("Asia/Tokyo"))
     return (
         Path("outputs")
-        / "phase2_97"
-        / "stage_f_grid_qual_3d_fp3_ft1p5_torque2p0_dur0p6"
+        / "phase2_replay"
+        / "shape_stability_grid"
         / now.strftime("%Y-%m-%d")
         / now.strftime("%H%M%S")
     )
@@ -85,7 +85,7 @@ def _load_csv_rows(path: Path) -> list[dict[str, str]]:
 
 
 def _setup_logger(log_path: Path) -> logging.Logger:
-    logger = logging.getLogger(f"issue97.grid_qual.{log_path.parent.name}")
+    logger = logging.getLogger(f"shape_stability_grid_replay.{log_path.parent.name}")
     logger.setLevel(logging.INFO)
     logger.handlers.clear()
     logger.propagate = False
@@ -133,7 +133,7 @@ def _short_distribution_label(value: str) -> str:
 
 def _label_for_row(row: dict[str, str]) -> str:
     condition_id = row.get("condition_id", "")
-    if condition_id in ISSUE97_CONDITION_IDS:
+    if condition_id in CANONICAL_TORQUE_DISTRIBUTION_CONDITION_IDS:
         return (
             f"{_short_distribution_label(row['force_distribution'])}\n"
             f"{row['torque_distribution_profile']}"
@@ -166,10 +166,13 @@ def _condition_records(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 def _ordered_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
     condition_ids = [row.get("condition_id", "") for row in rows]
-    if all(condition_id in condition_ids for condition_id in ISSUE97_CONDITION_IDS):
+    if all(
+        condition_id in condition_ids
+        for condition_id in CANONICAL_TORQUE_DISTRIBUTION_CONDITION_IDS
+    ):
         return [
             row
-            for condition_id in ISSUE97_CONDITION_IDS
+            for condition_id in CANONICAL_TORQUE_DISTRIBUTION_CONDITION_IDS
             for row in rows
             if row.get("condition_id") == condition_id
         ]
@@ -388,7 +391,7 @@ def _write_metrics(
     rows: list[dict[str, str]],
     out_dir: Path,
 ) -> Path:
-    metrics_path = out_dir / "issue97_metrics.csv"
+    metrics_path = out_dir / "shape_stability_metrics.csv"
     with metrics_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=METRIC_FIELDS)
         writer.writeheader()
@@ -440,7 +443,7 @@ def _plot_metrics(
         ax.set_title(title, fontsize=10)
         ax.tick_params(axis="x", labelrotation=15)
     fig.tight_layout()
-    out_path = out_dir / "issue97_metrics.png"
+    out_path = out_dir / "shape_stability_metrics.png"
     fig.savefig(out_path, dpi=160)
     plt.close(fig)
     return out_path
@@ -516,7 +519,7 @@ def main(argv: list[str] | None = None) -> None:
 
     manifest = {
         "git": _git_info(),
-        "temporary_script": True,
+        "tool": "render_shape_stability_grid_replay",
         "input": {
             "input_dir": str(args.input_dir),
             "base_config": str(base_cfg_path),
