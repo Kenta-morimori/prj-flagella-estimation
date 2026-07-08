@@ -37,7 +37,7 @@
     },
     {
       "command": "uv run pytest -q",
-      "result": "PASS: 323 passed"
+      "result": "PASS: 325 passed"
     },
     {
       "command": "uv run pytest tests/test_phase2_sweep_profiles.py -q",
@@ -84,7 +84,7 @@
   "adr_reason": "`basal_bearing` は新しい物理近似であり，output interpretation に body roll / body-relative spin 指標を追加するため。",
   "adr_path": "docs/adr/0007_phase2_basal_bearing_attach_frame.md",
   "commit_type": "implementation",
-  "commit_hash": "pending",
+  "commit_hash": "27a5a87",
   "push_status": "pending",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/104",
   "next_actions": [
