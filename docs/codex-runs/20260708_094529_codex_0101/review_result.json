@@ -42,7 +42,7 @@
   "adr_required": true,
   "adr_reason": "commit 時の testing strategy を full pytest 既定から lightweight checks 既定へ変更したため、ADR 0007 を追加した。",
   "commit_type": "complete",
-  "commit_hash": "",
+  "commit_hash": "ec189a72992a6a117d0f385ec01ec6828b6bc52d",
   "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/105",
   "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/101",
