@@ -164,7 +164,7 @@ def test_missing_motor_torque_defaults_to_phase2_representative_value() -> None:
     assert sim_cfg.motor_torque_Nm == pytest.approx(2.5e-20)
 
 
-def test_default_motor_local_scales_are_paper_aligned_one() -> None:
+def test_default_motor_local_scales_are_unity_in_parser_defaults() -> None:
     cfg = _base_cfg()
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
     sim_cfg = SimulationConfig.from_dict(cfg)
@@ -188,6 +188,16 @@ def test_default_config_sets_phase2_dt_star() -> None:
 
     assert sim_cfg.time.dt_s == pytest.approx(1.0e-3)
     assert sim_cfg.time.dt_star == pytest.approx(1.0e-4)
+
+
+def test_default_config_sets_phase2_local_scales() -> None:
+    cfg_path = Path(__file__).resolve().parents[1] / "conf" / "sim_swim.yaml"
+    raw_cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
+    sim_cfg = SimulationConfig.from_dict(raw_cfg)
+
+    assert sim_cfg.motor.local_first_second_spring_scale == pytest.approx(1.0)
+    assert sim_cfg.motor.local_attach_frame_position_scale == pytest.approx(1.25)
+    assert sim_cfg.motor.local_attach_frame_tangent_scale == pytest.approx(1.0)
     assert sim_cfg.tau_s == pytest.approx(1.0)
     assert sim_cfg.dt_s == pytest.approx(1.0e-4)
     assert sim_cfg.dt_star == pytest.approx(1.0e-4)

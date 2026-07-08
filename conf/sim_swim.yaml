@@ -50,9 +50,9 @@ motor:
   local_spring_scale: 1.0      # [-] 1.0が論文モデル相当。変更時は診断条件としてwarningを出す
   local_attach_first_spring_scale: 1.0      # [-] attach-first距離補強。1.0で追加補強なし
   local_attach_first_body_axis_angle_scale: 1.0  # [-] attach->first とbody長軸の90度補強。1.0で追加補強なし
-  local_first_second_spring_scale: 1.0      # [-] first-second距離補強。1.0で追加補強なし
-  local_attach_frame_position_scale: 1.0    # [-] body表面局所frameでのattach->first位置補強。1.0で追加補強なし
-  local_attach_frame_tangent_scale: 1.0     # [-] body表面局所frameでのfirst->second根元接線補強。1.0で追加補強なし
+  local_first_second_spring_scale: 1.0      # [-] first-second距離補強。主破綻の flag bond 過伸長は改善しなかったため default 不採用
+  local_attach_frame_position_scale: 1.25   # [-] body表面局所frameでのattach->first位置補強。hook安定性と自然な軸中心回転の最良折衷
+  local_attach_frame_tangent_scale: 1.0     # [-] body表面局所frameでのfirst->second根元接線補強。菌体ごとの剛体回転を招きやすく default 不採用
   local_attach_frame_tangent_mode: "vector" # vector / basal_bearing。basal_bearingは軸まわりspinを許す#103診断用
   local_bend_scale: 1.0        # [-] 1.0が論文モデル相当。変更時は診断条件としてwarningを出す
   local_torsion_scale: 1.0     # [-] 1.0が論文モデル相当。変更時は診断条件としてwarningを出す
