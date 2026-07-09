@@ -32,9 +32,9 @@
   "adr_required": false,
   "adr_reason": "heatmap CLI の mode 対応と local 実行導線の整理であり，物理モデル・恒久I/O契約・解釈を変える判断ではない。",
   "commit_type": "fix",
-  "commit_hash": "pending",
-  "push_status": "pending",
-  "pull_request_url": "",
+  "commit_hash": "a25525f",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/107",
   "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/106",
   "next_actions": [
     "必要なら `scripts/local/run_phase2_82_main_latest_1s_eval.sh` を再実行し，torque=1.5e-20, 2.0e-20, 2.5e-20 の sweep / heatmap / replay を完走させる。"
