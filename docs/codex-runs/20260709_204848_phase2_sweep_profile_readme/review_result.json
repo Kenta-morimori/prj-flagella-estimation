@@ -24,7 +24,7 @@
   "adr_reason": "profile 説明 README の追加のみであり，物理モデル，出力schema，恒久的なCLI契約を変更していない。",
   "commit_type": "docs",
   "commit_hash": "dfdd387",
-  "push_status": "not_pushed",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/108",
   "related_issue_url": "",
   "next_actions": [
