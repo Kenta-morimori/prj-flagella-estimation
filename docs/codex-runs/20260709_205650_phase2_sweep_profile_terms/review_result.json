@@ -1,0 +1,34 @@
+{
+  "status": "PASS",
+  "summary": "`conf/phase2_sweeps/README.md` の `kind` / `mode` 表に用語メモ列を追加し，motor-local scale，helix axis alignment，proximal flagellum，local mitigation，attach frame，basal freedom など初見で詰まりやすい語を短く説明した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "README の説明追加のみであり，CLI仕様，YAML key，実行ロジックは変更していない。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "sed -n '45,100p' conf/phase2_sweeps/README.md",
+      "result": "PASS: `kind` / `mode` 表の用語メモ列を確認した。"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS: whitespace error なし。"
+    },
+    {
+      "command": "git commit -m \"docs(phase2): clarify sweep profile terms\"",
+      "result": "PASS: pre-commit hook ran `uv run ruff format --check .`, `uv run ruff check .`, and `uv run pytest -q -m light` successfully: 147 passed, 184 deselected."
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "docs-onlyの用語説明追加であり，物理モデル，出力schema，CLI契約を変更していない。",
+  "commit_type": "docs",
+  "commit_hash": "93fcdaf",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/108",
+  "related_issue_url": "",
+  "next_actions": []
+}
