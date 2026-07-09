@@ -24,9 +24,9 @@
   "adr_required": false,
   "adr_reason": "profile YAML の cleanup と user-facing docs/tests の追随であり，物理モデルや恒久I/O契約を変える判断ではない。",
   "commit_type": "chore",
-  "commit_hash": "pending",
-  "push_status": "pending",
-  "pull_request_url": "",
+  "commit_hash": "7235235",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/108",
   "related_issue_url": "",
   "next_actions": [
     "CLI logging 強化は別 issue / 別 PR として設計し，run_sweep.py / plot_heatmap.py / render_shape_stability_grid_replay.py の run.log / manifest 相当出力を追加する。"
