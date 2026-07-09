@@ -1,0 +1,34 @@
+{
+  "status": "PASS",
+  "summary": "Phase 2 sweep profile の整理として，deprecated な `conf/phase2_sweeps/hook_overstretch.yaml` と `conf/phase2_sweeps/hook_overstretch_heatmap.yaml` を削除し，現役導線を `shape_stability_grid.yaml` / `shape_stability_heatmap.yaml` に統一した。Python module / kind の `hook_overstretch` alias は履歴的互換として維持した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "過去の `docs/codex-runs/*` に記録された historical command は監査履歴として変更していない。",
+    "CLI logging 強化は別要件として未実装。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_heatmap.py",
+      "result": "PASS: 26 passed"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/analysis scripts/01_simulate_swimming tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_heatmap.py",
+      "result": "PASS: All checks passed"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/analysis scripts/01_simulate_swimming tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_heatmap.py",
+      "result": "PASS: 23 files already formatted after formatting tests/test_phase2_sweep_profiles.py"
+    }
+  ],
+  "user_review_required": false,
+  "adr_required": false,
+  "adr_reason": "profile YAML の cleanup と user-facing docs/tests の追随であり，物理モデルや恒久I/O契約を変える判断ではない。",
+  "commit_type": "chore",
+  "commit_hash": "pending",
+  "push_status": "pending",
+  "pull_request_url": "",
+  "related_issue_url": "",
+  "next_actions": [
+    "CLI logging 強化は別 issue / 別 PR として設計し，run_sweep.py / plot_heatmap.py / render_shape_stability_grid_replay.py の run.log / manifest 相当出力を追加する。"
+  ]
+}

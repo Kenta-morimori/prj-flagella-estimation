@@ -111,13 +111,15 @@ def test_run_sweep_wrapper_lists_profile_kind(capsys) -> None:
     assert capsys.readouterr().out.strip() == "shape_stability_grid"
 
 
-def test_run_sweep_wrapper_keeps_hook_overstretch_alias(capsys) -> None:
+def test_run_sweep_wrapper_keeps_hook_overstretch_alias(capsys, tmp_path: Path) -> None:
+    profile = tmp_path / "hook_overstretch_alias.yaml"
+    profile.write_text("kind: hook_overstretch\n", encoding="utf-8")
     module = _load_script(
         Path("scripts/01_simulate_swimming/run_sweep.py"),
         "phase2_run_sweep_wrapper_alias",
     )
 
-    module.main(["config=conf/phase2_sweeps/hook_overstretch.yaml", "list_kind=true"])
+    module.main(["config=" + str(profile), "list_kind=true"])
 
     assert capsys.readouterr().out.strip() == "hook_overstretch"
 

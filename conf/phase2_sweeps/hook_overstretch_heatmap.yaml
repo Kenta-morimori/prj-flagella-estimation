@@ -1,4 +1,0 @@
-# Deprecated historical alias. Prefer shape_stability_heatmap.yaml.
-kind: hook_overstretch
-args:
-  mode: attach-frame-grid

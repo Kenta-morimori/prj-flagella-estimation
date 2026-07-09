@@ -61,7 +61,6 @@ profile の既定値は `KEY=VALUE` で上書きできます。sweep の標準 s
 | `conf/phase2_sweeps/bundling_alignment.yaml` | 複数べん毛の helix axis alignment 評価 |
 | `conf/phase2_sweeps/shape_stability_grid.yaml` | hook / proximal flagellum を含む shape stability grid |
 | `conf/phase2_sweeps/torque_distribution_grid.yaml` | #97 用 torque distribution 2x2 比較 |
-| `conf/phase2_sweeps/hook_overstretch.yaml` | 旧名互換 profile |
 
 ### Heatmap
 
@@ -84,7 +83,6 @@ heatmap profile は出力先を固定しません。`output_dir` を省略する
 | `conf/phase2_sweeps/dt_star_torque_heatmap.yaml` | `dt_star` x torque heatmap |
 | `conf/phase2_sweeps/local_scale_mode_heatmap.yaml` | local scale mode x torque heatmap |
 | `conf/phase2_sweeps/shape_stability_heatmap.yaml` | shape stability grid heatmap |
-| `conf/phase2_sweeps/hook_overstretch_heatmap.yaml` | 旧名互換 heatmap profile |
 
 ### Replay Render
 
