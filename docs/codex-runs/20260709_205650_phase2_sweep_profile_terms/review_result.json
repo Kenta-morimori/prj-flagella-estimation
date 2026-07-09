@@ -27,7 +27,7 @@
   "adr_reason": "docs-onlyの用語説明追加であり，物理モデル，出力schema，CLI契約を変更していない。",
   "commit_type": "docs",
   "commit_hash": "93fcdaf",
-  "push_status": "not_pushed",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/108",
   "related_issue_url": "",
   "next_actions": []
