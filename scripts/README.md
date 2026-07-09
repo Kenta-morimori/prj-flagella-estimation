@@ -75,6 +75,7 @@ uv run python scripts/01_simulate_swimming/plot_heatmap.py \
 ```
 
 heatmap profile は出力先を固定しません。`output_dir` を省略すると、`summary_csv` と同じ directory の `plots/` へ出力します。明示した場合はその出力先を使います。
+`shape_stability_heatmap.yaml` は `mode=position-only-grid` などの実行時 override で対象 grid を切り替えられます。
 
 主な profile:
 

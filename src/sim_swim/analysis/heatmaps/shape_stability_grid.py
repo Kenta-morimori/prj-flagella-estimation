@@ -28,6 +28,9 @@ NUMERIC_METRICS = (
     "local_attach_frame_position_rel_err",
     "local_attach_frame_position_angle_err_deg",
     "local_attach_frame_tangent_angle_err_deg",
+    "max_flag_bond_rel_err",
+    "body_roll_net_abs_revolutions",
+    "axis_center_to_body_roll_ratio_mean",
 )
 
 
@@ -42,7 +45,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--summary-csv", type=Path, required=True)
     parser.add_argument(
         "--mode",
-        choices=("body-first-grid", "first-second-grid", "attach-frame-grid"),
+        choices=(
+            "body-first-grid",
+            "first-second-grid",
+            "attach-frame-grid",
+            "position-only-grid",
+        ),
         required=True,
     )
     parser.add_argument("--output-dir", type=Path, required=True)
@@ -154,6 +162,17 @@ def _axes_for_rows(
             "local_attach_frame_tangent_scale",
         )
 
+    if mode == "position-only-grid":
+        x_values = sorted(
+            {_parse_float(row["local_attach_frame_position_scale"]) for row in rows}
+        )
+        return (
+            x_values,
+            ["position-only"],
+            "local_attach_frame_position_scale",
+            "position-only",
+        )
+
     x_values = sorted(
         {_parse_float(row["local_first_second_spring_scale"]) for row in rows}
     )
@@ -179,6 +198,8 @@ def _row_y_label(row: dict[str, str], mode: str) -> str:
         return f"{_parse_float(row['local_attach_first_body_axis_angle_scale']):g}"
     if mode == "attach-frame-grid":
         return f"{_parse_float(row['local_attach_frame_tangent_scale']):g}"
+    if mode == "position-only-grid":
+        return "position-only"
     return (
         f"af={_parse_float(row['local_attach_first_spring_scale']):g}, "
         f"axis={_parse_float(row['local_attach_first_body_axis_angle_scale']):g}"
@@ -199,7 +220,7 @@ def _build_matrix(
                 "local_attach_first_spring_scale"
                 if mode == "body-first-grid"
                 else "local_attach_frame_position_scale"
-                if mode == "attach-frame-grid"
+                if mode in {"attach-frame-grid", "position-only-grid"}
                 else "local_first_second_spring_scale"
             ]
         )

@@ -293,6 +293,104 @@ def test_phase2_82_attach_frame_heatmap_outputs_files(tmp_path: Path) -> None:
     assert (output_dir / "local_attach_frame_position_rel_err_heatmap.png").is_file()
 
 
+def test_phase2_82_position_only_heatmap_outputs_files(tmp_path: Path) -> None:
+    summary_csv = tmp_path / "summary.csv"
+    fields = [
+        "condition_id",
+        "mode",
+        "final_shape_pass_nonbody",
+        "final_first_fail_category_nonbody",
+        "first_fail_category_nonbody",
+        "first_fail_t_s",
+        "local_attach_first_spring_scale",
+        "local_attach_first_body_axis_angle_scale",
+        "local_first_second_spring_scale",
+        "local_attach_frame_position_scale",
+        "local_attach_frame_tangent_scale",
+        "hook_len_rel_err_max",
+        "local_attach_first_rel_err",
+        "local_attach_first_vs_body_axis_err_deg",
+        "local_first_second_rel_err",
+        "local_attach_frame_position_rel_err",
+        "local_attach_frame_position_angle_err_deg",
+        "local_attach_frame_tangent_angle_err_deg",
+        "max_flag_bond_rel_err",
+        "body_roll_net_abs_revolutions",
+        "axis_center_to_body_roll_ratio_mean",
+    ]
+    rows = [
+        {
+            "condition_id": "no_frame",
+            "mode": "position-only-grid",
+            "final_shape_pass_nonbody": "False",
+            "final_first_fail_category_nonbody": "hook",
+            "first_fail_category_nonbody": "hook",
+            "first_fail_t_s": "0.0449",
+            "local_attach_first_spring_scale": "1.0",
+            "local_attach_first_body_axis_angle_scale": "1.0",
+            "local_first_second_spring_scale": "1.0",
+            "local_attach_frame_position_scale": "1.0",
+            "local_attach_frame_tangent_scale": "1.0",
+            "hook_len_rel_err_max": "1.3",
+            "local_attach_first_rel_err": "1.3",
+            "local_attach_first_vs_body_axis_err_deg": "12.0",
+            "local_first_second_rel_err": "0.2",
+            "local_attach_frame_position_rel_err": "0.8",
+            "local_attach_frame_position_angle_err_deg": "20.0",
+            "local_attach_frame_tangent_angle_err_deg": "9.0",
+            "max_flag_bond_rel_err": "0.5",
+            "body_roll_net_abs_revolutions": "0.01",
+            "axis_center_to_body_roll_ratio_mean": "100.0",
+        },
+        {
+            "condition_id": "fp1p25",
+            "mode": "position-only-grid",
+            "final_shape_pass_nonbody": "False",
+            "final_first_fail_category_nonbody": "flag",
+            "first_fail_category_nonbody": "flag",
+            "first_fail_t_s": "0.3295",
+            "local_attach_first_spring_scale": "1.0",
+            "local_attach_first_body_axis_angle_scale": "1.0",
+            "local_first_second_spring_scale": "1.0",
+            "local_attach_frame_position_scale": "1.25",
+            "local_attach_frame_tangent_scale": "1.0",
+            "hook_len_rel_err_max": "0.12",
+            "local_attach_first_rel_err": "0.12",
+            "local_attach_first_vs_body_axis_err_deg": "4.0",
+            "local_first_second_rel_err": "0.3",
+            "local_attach_frame_position_rel_err": "0.1",
+            "local_attach_frame_position_angle_err_deg": "5.0",
+            "local_attach_frame_tangent_angle_err_deg": "7.0",
+            "max_flag_bond_rel_err": "1.1",
+            "body_roll_net_abs_revolutions": "0.0135",
+            "axis_center_to_body_roll_ratio_mean": "151.2",
+        },
+    ]
+    with summary_csv.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    output_dir = tmp_path / "plots"
+    script.main(
+        [
+            "--summary-csv",
+            str(summary_csv),
+            "--mode",
+            "position-only-grid",
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+
+    assert (output_dir / "heatmap_data.csv").is_file()
+    assert (output_dir / "first_fail_category_heatmap.png").is_file()
+    assert (output_dir / "shape_pass_fail_heatmap.png").is_file()
+    assert (output_dir / "max_flag_bond_rel_err_heatmap.png").is_file()
+    assert (output_dir / "body_roll_net_abs_revolutions_heatmap.png").is_file()
+    assert (output_dir / "axis_center_to_body_roll_ratio_mean_heatmap.png").is_file()
+
+
 def test_phase2_82_heatmap_missing_summary_lists_candidates(tmp_path: Path) -> None:
     phase2_dir = tmp_path / "outputs" / "hook_overstretch"
     candidate_dir = phase2_dir / "first_second_grid_af3_axis1p25"

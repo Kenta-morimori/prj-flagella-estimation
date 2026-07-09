@@ -361,6 +361,38 @@ def test_plot_heatmap_wrapper_defaults_output_dir_next_to_summary(
     assert args[args.index("--output-dir") + 1] == str(tmp_path / "plots")
 
 
+def test_plot_heatmap_wrapper_accepts_position_only_mode_override(
+    tmp_path: Path,
+) -> None:
+    profile = tmp_path / "heatmap.yaml"
+    profile.write_text(
+        "kind: shape_stability_grid\nargs:\n  mode: attach-frame-grid\n",
+        encoding="utf-8",
+    )
+    summary_csv = tmp_path / "summary.csv"
+    captured: dict[str, list[str]] = {}
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/plot_heatmap.py"),
+        "phase2_plot_heatmap_wrapper_position_only",
+    )
+    module.HEATMAP_MAIN["shape_stability_grid"] = lambda args: captured.setdefault(
+        "args", args
+    )
+
+    module.main(
+        [
+            "config=" + str(profile),
+            "mode=position-only-grid",
+            "summary_csv=" + str(summary_csv),
+        ]
+    )
+
+    args = captured["args"]
+    mode_indices = [index for index, arg in enumerate(args) if arg == "--mode"]
+    assert args[mode_indices[-1] + 1] == "position-only-grid"
+    assert args[args.index("--output-dir") + 1] == str(tmp_path / "plots")
+
+
 def test_plot_heatmap_wrapper_keeps_explicit_output_dir(tmp_path: Path) -> None:
     profile = tmp_path / "heatmap.yaml"
     profile_output_dir = tmp_path / "profile_plots"
