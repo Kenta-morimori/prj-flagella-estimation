@@ -49,27 +49,27 @@ sweep 側に存在する `mode` でも，heatmap 実装側が未対応なら hea
 
 ## 主な `kind`
 
-| kind | 何をするか |
-| --- | --- |
-| `motor_scale` | motor-local scale を変えた sweep を実行する |
-| `single_flagellum_torque` | single flagellum の torque 条件を評価する |
-| `bundling_alignment` | 複数べん毛の helix axis alignment を評価する |
-| `shape_stability_grid` | hook / proximal flagellum を含む shape stability 条件を評価する |
-| `motor_scale_collapse` | motor scale sweep の collapse heatmap を作る |
-| `dt_star_torque` | `dt_star` x torque heatmap を作る |
-| `local_scale_mode` | local scale mode x torque heatmap を作る |
+| kind | 何をするか | 用語メモ |
+| --- | --- | --- |
+| `motor_scale` | motor-local scale を変えた sweep を実行する | motor-local scale は，motorまわりの局所的なばね・曲げ・ねじれ補強倍率を指す |
+| `single_flagellum_torque` | single flagellum の torque 条件を評価する | single flagellum は，べん毛1本だけの最小条件 |
+| `bundling_alignment` | 複数べん毛の helix axis alignment を評価する | helix axis alignment は，複数の螺旋中心軸が同じ向きへ揃うかを見る指標 |
+| `shape_stability_grid` | hook / proximal flagellum を含む shape stability 条件を評価する | proximal flagellum は，hookに近いべん毛根元側のビーズ列 |
+| `motor_scale_collapse` | motor scale sweep の collapse heatmap を作る | collapse は，形状が破綻した状態 |
+| `dt_star_torque` | `dt_star` x torque heatmap を作る | `dt_star` は内部積分刻み，torque はmotorから加えるトルク |
+| `local_scale_mode` | local scale mode x torque heatmap を作る | local scale mode は，どの局所補強だけを変えるかを表す分類 |
 
 ## `shape_stability_grid` の主な `mode`
 
-| mode | 何が変わるか |
-| --- | --- |
-| `preset` | 代表的な local mitigation 条件をまとめて比較する |
-| `body-first-grid` | body attach から first bead までの距離・角度補強を振る |
-| `first-second-grid` | first bead から second bead までの距離補強を振る |
-| `attach-frame-grid` | attach frame の position / tangent scale を振る |
-| `torque-profile-grid` | torque distribution / profile の組み合わせを比較する |
-| `basal-freedom-grid` | basal freedom 診断用に position / tangent / torque 条件を比較する |
-| `position-only-grid` | attach frame の position scale だけを振る |
+| mode | 何が変わるか | 用語メモ |
+| --- | --- | --- |
+| `preset` | 代表的な local mitigation 条件をまとめて比較する | local mitigation は，hookや根元側べん毛の破綻を抑えるための局所補強 |
+| `body-first-grid` | body attach から first bead までの距離・角度補強を振る | body attach は，菌体表面上のべん毛付着点 |
+| `first-second-grid` | first bead から second bead までの距離補強を振る | first / second bead は，付着点から数えたべん毛側の1番目・2番目のビーズ |
+| `attach-frame-grid` | attach frame の position / tangent scale を振る | attach frame は，付着点まわりで根元位置や向きを測る局所座標系 |
+| `torque-profile-grid` | torque distribution / profile の組み合わせを比較する | torque profile は，根元から先端側へトルクをどう配るか |
+| `basal-freedom-grid` | basal freedom 診断用に position / tangent / torque 条件を比較する | basal freedom は，べん毛根元が菌体に対してどれだけ相対運動できるか |
+| `position-only-grid` | attach frame の position scale だけを振る | tangent拘束を増やさず，根元位置の補強だけを比較する |
 
 ## Profile を増やすときの目安
 
