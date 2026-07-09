@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "summary": "`conf/phase2_sweeps/README.md` を追加し，sweep / heatmap profile における `kind` と `mode` の役割を説明した。`kind` は使用する処理実装，`mode` はその実装内の条件パターンとして整理し，profile を増やす目安も記録した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "README は実行仕様を変えない説明用ドキュメントであり，`kind` / `mode` の CLI 名や YAML key は変更していない。",
+    "heatmap の `position-only-grid` 対応は別 PR の実装状況に依存するため，本 README では heatmap 側の対応 mode は実装側に依存すると明記した。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "rg -n \"hook_overstretch_heatmap|hook_overstretch.yaml|kind: hook_overstretch|position-only-grid|kind|mode\" conf/phase2_sweeps scripts/README.md docs/phase2/phase2_tasks.md docs/phase2/phase2_current.md",
+      "result": "PASS: 新規 README と現行 profile / scripts README の説明に矛盾する現役 profile は見つからなかった。historical docs の旧コマンドは監査履歴として未変更。"
+    },
+    {
+      "command": "git commit -m \"docs(phase2): explain sweep profile kind and mode\"",
+      "result": "PASS: pre-commit hook ran `uv run ruff format --check .`, `uv run ruff check .`, and `uv run pytest -q -m light` successfully: 147 passed, 184 deselected."
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "profile 説明 README の追加のみであり，物理モデル，出力schema，恒久的なCLI契約を変更していない。",
+  "commit_type": "docs",
+  "commit_hash": "dfdd387",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/108",
+  "related_issue_url": "",
+  "next_actions": [
+    "PR #107 の heatmap 対応が merge された後，必要なら README の heatmap 対応 mode 説明をより具体化する。"
+  ]
+}
