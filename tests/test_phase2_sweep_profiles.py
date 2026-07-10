@@ -260,6 +260,37 @@ def test_basal_freedom_position_only_profile_builds_issue103_followup_conditions
     )
 
 
+def test_shape_stability_grid_manifest_record_includes_campaign_fields() -> None:
+    args = shape_stability_grid._parse_args(
+        [
+            "--mode",
+            "attach-frame-grid",
+            "--attach-frame-position-scales",
+            "1,2",
+            "--attach-frame-tangent-scales",
+            "1,1.5",
+        ]
+    )
+    condition = shape_stability_grid.Condition(
+        "fp2_ft1p5",
+        "attach-frame-grid",
+        "attach frame condition",
+        {
+            "local_attach_frame_position_scale": 2.0,
+            "local_attach_frame_tangent_scale": 1.5,
+        },
+    )
+
+    record = shape_stability_grid._manifest_record(args, condition, condition_index=3)
+
+    assert record["condition_index"] == 3
+    assert record["condition_label"] == "attach frame condition"
+    assert record["axis_values"]["attach_frame_position"] == 2.0
+    assert record["axis_labels"]["attach_frame_tangent"] == "1.5"
+    assert record["grid"]["row_axis"] == "attach_frame_tangent"
+    assert record["grid"]["col_axis"] == "attach_frame_position"
+
+
 def _write_replay_inputs(tmp_path: Path, condition_ids: list[str]) -> Path:
     input_dir = tmp_path / "replay"
     input_dir.mkdir()

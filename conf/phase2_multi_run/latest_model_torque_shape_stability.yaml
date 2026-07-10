@@ -3,7 +3,6 @@ metadata:
   role: sweep
   canonical: true
   description: 最新モデルの torque 複数条件 shape stability multi-run
-  recommended_heatmap_profile: conf/phase2_multi_run/latest_model_torque_shape_stability_heatmap.yaml
 
 base_config: conf/sim_swim.yaml
 

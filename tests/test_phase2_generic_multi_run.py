@@ -35,10 +35,7 @@ def test_generic_multi_run_profile_exposes_metadata() -> None:
 
     assert entry["kind"] == "generic_multi_run"
     assert entry["metadata"]["role"] == "sweep"
-    assert (
-        entry["metadata"]["recommended_heatmap_profile"]
-        == "conf/phase2_multi_run/latest_model_torque_shape_stability_heatmap.yaml"
-    )
+    assert entry["metadata"]["recommended_heatmap_profile"] is None
 
 
 def test_generic_multi_run_builds_conditions_and_cli_override() -> None:
@@ -59,10 +56,10 @@ def test_generic_multi_run_builds_conditions_and_cli_override() -> None:
     assert conditions[1]["config_overrides"]["motor"]["torque_Nm"] == 2.0e-20
 
 
-def test_run_sweep_wrapper_lists_generic_multi_run_kind(capsys) -> None:
+def test_run_multi_run_wrapper_lists_generic_multi_run_kind(capsys) -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/run_sweep.py"),
-        "phase2_run_sweep_wrapper_generic_multi",
+        Path("scripts/01_simulate_swimming/run_multi_run.py"),
+        "phase2_run_multi_run_wrapper_generic_multi",
     )
 
     module.main(
@@ -73,6 +70,22 @@ def test_run_sweep_wrapper_lists_generic_multi_run_kind(capsys) -> None:
     )
 
     assert capsys.readouterr().out.strip() == "generic_multi_run"
+
+
+def test_run_sweep_wrapper_rejects_generic_multi_run_profile() -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/run_sweep.py"),
+        "phase2_run_sweep_wrapper_reject_generic_multi",
+    )
+
+    try:
+        module.main(
+            ["config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml"]
+        )
+    except SystemExit as exc:
+        assert "use run_multi_run.py" in str(exc)
+    else:
+        raise AssertionError("expected SystemExit for generic multi-run profile")
 
 
 def test_generic_multi_run_plot_outputs_line_plots(tmp_path: Path) -> None:
@@ -96,7 +109,7 @@ def test_generic_multi_run_plot_outputs_line_plots(tmp_path: Path) -> None:
 
     module.main(
         [
-            "config=conf/phase2_multi_run/latest_model_torque_shape_stability_heatmap.yaml",
+            "config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml",
             f"summary_csv={summary_csv}",
             f"output_dir={tmp_path / 'plots'}",
         ]
@@ -105,6 +118,18 @@ def test_generic_multi_run_plot_outputs_line_plots(tmp_path: Path) -> None:
     assert (tmp_path / "plots" / "plot_data.csv").is_file()
     assert (tmp_path / "plots" / "first_fail_t_s_vs_torque.png").is_file()
     assert (tmp_path / "plots" / "max_flag_bond_rel_err_vs_torque.png").is_file()
+
+
+def test_plot_heatmap_lists_generic_multi_run_profiles(capsys) -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/plot_heatmap.py"),
+        "phase2_plot_heatmap_wrapper_generic_multi_list",
+    )
+
+    module.main(["list_canonical_profiles=true"])
+
+    output = capsys.readouterr().out
+    assert "conf/phase2_multi_run/latest_model_torque_shape_stability.yaml" in output
 
 
 def test_replay_load_inputs_uses_manifest_condition_order_and_output_dir(

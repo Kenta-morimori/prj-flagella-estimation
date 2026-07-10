@@ -39,6 +39,24 @@ HEATMAP_MAIN = {
 }
 
 
+def _heatmap_entries(*, canonical_only: bool = False) -> list[dict[str, object]]:
+    entries = list_profile_entries(role="heatmap", canonical_only=canonical_only)
+    entries.extend(
+        entry
+        for entry in list_profile_entries(role="sweep", canonical_only=canonical_only)
+        if entry["kind"] == "generic_multi_run"
+    )
+    seen: set[str] = set()
+    unique_entries: list[dict[str, object]] = []
+    for entry in entries:
+        path = str(entry["path"])
+        if path in seen:
+            continue
+        seen.add(path)
+        unique_entries.append(entry)
+    return unique_entries
+
+
 def _has_option(args: list[str], option_name: str) -> bool:
     return any(arg == option_name or arg.startswith(f"{option_name}=") for arg in args)
 
@@ -92,9 +110,7 @@ def main(argv: list[str] | None = None) -> None:
     if config_from_key is not None and args.config is not None:
         parser.error("Use either config=PATH or --config PATH (not both)")
     if args.list_profiles or args.list_canonical_profiles:
-        entries = list_profile_entries(
-            role="heatmap", canonical_only=args.list_canonical_profiles
-        )
+        entries = _heatmap_entries(canonical_only=args.list_canonical_profiles)
         for line in format_profile_listing(entries):
             print(line)
         return
@@ -108,10 +124,11 @@ def main(argv: list[str] | None = None) -> None:
         choices = ", ".join(sorted(HEATMAP_MAIN))
         raise SystemExit(f"Unknown heatmap kind {kind!r}. Expected one of: {choices}")
     if args.describe_profile:
-        for line in format_profile_description(entry, list_profile_entries()):
+        for line in format_profile_description(entry, _heatmap_entries()):
             print(line)
         return
-    validate_profile_role(entry, "heatmap")
+    if kind != "generic_multi_run":
+        validate_profile_role(entry, "heatmap")
 
     if kind == "generic_multi_run":
         effective_args = _with_default_output_dir(
