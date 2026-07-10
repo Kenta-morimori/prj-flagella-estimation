@@ -759,8 +759,13 @@ def _overrides_for_condition(
     }
 
 
-def _campaign_axes(args: argparse.Namespace) -> list[dict[str, Any]]:
-    if args.mode == "body-first-grid":
+def _campaign_axes(
+    args: argparse.Namespace,
+    *,
+    mode: str | None = None,
+) -> list[dict[str, Any]]:
+    mode = mode or str(getattr(args, "mode", "preset"))
+    if mode == "body-first-grid":
         return [
             {
                 "name": "attach_first_spring",
@@ -785,7 +790,7 @@ def _campaign_axes(args: argparse.Namespace) -> list[dict[str, Any]]:
                 ],
             },
         ]
-    if args.mode == "first-second-grid":
+    if mode == "first-second-grid":
         return [
             {
                 "name": "first_second_spring",
@@ -799,7 +804,7 @@ def _campaign_axes(args: argparse.Namespace) -> list[dict[str, Any]]:
                 ],
             }
         ]
-    if args.mode == "attach-frame-grid":
+    if mode == "attach-frame-grid":
         return [
             {
                 "name": "attach_frame_position",
@@ -824,7 +829,7 @@ def _campaign_axes(args: argparse.Namespace) -> list[dict[str, Any]]:
                 ],
             },
         ]
-    if args.mode == "torque-profile-grid":
+    if mode == "torque-profile-grid":
         return [
             {
                 "name": "force_distribution",
@@ -843,7 +848,7 @@ def _campaign_axes(args: argparse.Namespace) -> list[dict[str, Any]]:
                 "ids": [str(value) for value in args.torque_distribution_profiles],
             },
         ]
-    if args.mode == "position-only-grid":
+    if mode == "position-only-grid":
         return [
             {
                 "name": "attach_frame_position",
@@ -874,7 +879,20 @@ def _campaign_condition_metadata(
         "axis_ids": {},
         "axis_order": {},
     }
-    axes = _campaign_axes(args)
+    try:
+        axes = _campaign_axes(args, mode=condition.mode)
+    except AttributeError:
+        axes = [
+            {
+                "name": key,
+                "key": f"motor.{key}",
+                "short_name": key,
+                "values": [value],
+                "labels": [str(value)],
+                "ids": [str(value)],
+            }
+            for key, value in condition.scales.items()
+        ]
     if (
         condition.mode
         in {"body-first-grid", "attach-frame-grid", "torque-profile-grid"}
@@ -1120,7 +1138,7 @@ def _run_condition(
     args: argparse.Namespace,
     condition: Condition,
     *,
-    condition_index: int,
+    condition_index: int = 0,
 ) -> dict[str, str | float]:
     overrides = _overrides_for_condition(args, condition)
     cfg = SimulationConfig.from_dict(base_cfg).with_overrides(overrides)

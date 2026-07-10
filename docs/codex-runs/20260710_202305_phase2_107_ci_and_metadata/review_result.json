@@ -1,0 +1,26 @@
+{
+  "status": "PASS",
+  "summary": "PR #107 の follow-up として、shape_stability_grid sweep の互換 API を補強して Actions CI で落ちていた旧テスト前提を回復した。あわせて Issue #100 / PR #107 のタイトル・description と Phase 2 docs を、sweep / multi-run / replay の現在の役割分担に合わせて更新した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "shape_stability_grid の heatmap 内部は sweep 診断向け mode-specific 集計を維持しており、plot 実装までは完全 generic 化していない。"
+  ],
+  "tests_reviewed": [
+    "uv run pytest -q tests/test_phase2_82_hook_overstretch_sweep.py tests/test_phase2_sweep_profiles.py tests/test_phase2_generic_multi_run.py",
+    "uv run ruff check src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_phase2_sweep_profiles.py tests/test_phase2_generic_multi_run.py"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "CLI 導線と互換 API の整理であり、物理モデルやデータ解釈の新規意思決定は含まない。",
+  "commit_type": "complete",
+  "commit_hash": "ae00f915a401b5f9e427d3c372617be63f68c01d",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/107",
+  "next_actions": [
+    "PR #107 にこの CI fix を反映した commit を push し、Actions の再実行で test job の復旧を確認する。",
+    "multi-run と sweep の summary contract を前提に、必要なら shape_stability_grid heatmap の generic 化を別 issue で切り出す。"
+  ]
+}
