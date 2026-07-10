@@ -18,7 +18,7 @@
   "adr_required": false,
   "adr_reason": "CLI 入口と config 運用を整理した変更であり、物理モデルやデータ解釈の新規意思決定は含まない。",
   "commit_type": "complete",
-  "commit_hash": "PENDING",
+  "commit_hash": "8093819557dc16b45466446377687759ad46bb22",
   "push_status": "not_pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/107",
   "next_actions": [
