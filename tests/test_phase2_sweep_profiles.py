@@ -393,6 +393,31 @@ def test_plot_heatmap_wrapper_accepts_position_only_mode_override(
     assert args[args.index("--output-dir") + 1] == str(tmp_path / "plots")
 
 
+def test_plot_heatmap_wrapper_keeps_hook_overstretch_heatmap_alias(
+    tmp_path: Path,
+) -> None:
+    summary_csv = tmp_path / "summary.csv"
+    captured: dict[str, list[str]] = {}
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/plot_heatmap.py"),
+        "phase2_plot_heatmap_wrapper_alias",
+    )
+    module.HEATMAP_MAIN["hook_overstretch"] = lambda args: captured.setdefault(
+        "args", args
+    )
+
+    module.main(
+        [
+            "config=conf/phase2_sweeps/hook_overstretch_heatmap.yaml",
+            "summary_csv=" + str(summary_csv),
+        ]
+    )
+
+    args = captured["args"]
+    assert args[args.index("--mode") + 1] == "attach-frame-grid"
+    assert args[args.index("--output-dir") + 1] == str(tmp_path / "plots")
+
+
 def test_plot_heatmap_wrapper_keeps_explicit_output_dir(tmp_path: Path) -> None:
     profile = tmp_path / "heatmap.yaml"
     profile_output_dir = tmp_path / "profile_plots"

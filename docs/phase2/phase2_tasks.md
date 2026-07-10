@@ -814,7 +814,7 @@
   - `shape_stability_grid` sweep は既定で `state_archive.npz` と `trajectory.csv` を各 condition directory に保存するようにし，定量 sweep 後に再シミュレーションなしで replay/render できるようにした。
   - replay utility `scripts/01_simulate_swimming/render_shape_stability_grid_replay.py` は sweep 出力 directory を入力として，標準 2x2 比較や #103 条件群の `plot-only / render-only / both` を切り替えられる。定量 run 後の定性比較は既存 output の再編集で行う。
   - 2026-07-07 に follow-up Issue #100 `[Phase2] sweep/heatmap CLI を task-specific module 依存から切り離す` を作成した。Issue #97 はこの整理を blocker とし，Issue #100 の実装 branch / PR base は `feature/phase2-97-torque-distribution-review` に固定する。
-  - 2026-07-07 追補として，Issue #100 の branch 名を `feature/phase2-100-generic-sweep-cli` に固定し，新しいスレッドからは `run_sweep.py`, `plot_heatmap.py`, `src/sim_swim/analysis/sweeps/hook_overstretch.py`, `conf/phase2_sweeps/hook_overstretch.yaml` を最初の確認対象とする。
+  - 2026-07-07 追補として，Issue #100 の branch 名を `feature/phase2-100-generic-sweep-cli` に固定し，新しいスレッドからは `run_sweep.py`, `plot_heatmap.py`, `src/sim_swim/analysis/sweeps/shape_stability_grid.py`, `conf/phase2_sweeps/shape_stability_grid.yaml` を最初の確認対象とする。`hook_overstretch.yaml` は historical alias として残す。
   - 2026-07-07 に #100 の stacked PR #102 を #99 branch へ merge し，generic 化後の `torque_distribution_grid.yaml` でも `summary.csv`, `trajectory.csv`, `state_archive.npz`, `run_manifest.json` の contract を維持した。
   - sweep CLI override として `flagella.initial_helix_axis_from_rear_deg=null` を受けられるようにし，側方参照runで後方束化overrideを外せるようにした。
   - 後方 1.0 s `outputs/phase2_97/stage_g_posterior_distribution_grid_fp3_ft1p5_torque2p0_dur1p0/summary.csv` では，2x2の4条件すべてが `final_shape_pass_nonbody=False`, `first_fail_category_nonbody=flag` だった。
@@ -878,6 +878,7 @@
   - `src/sim_swim/analysis/sweeps/shape_stability_grid.py` と `src/sim_swim/analysis/heatmaps/shape_stability_grid.py` を現役実装にし，旧 `hook_overstretch` module は deprecated alias として残した。
   - `run_sweep.py` / `plot_heatmap.py` は `kind: shape_stability_grid` を正式に dispatch し，旧 `kind: hook_overstretch` も互換用に受け付ける。
   - `conf/phase2_sweeps/shape_stability_grid.yaml`，`shape_stability_heatmap.yaml`，`torque_distribution_grid.yaml` を追加した。`torque_distribution_grid.yaml` は #97 の `root_torque_segment_couples / root_torque_axis_projection` × `diffusive / uniform` 2x2 条件を既定にする。
+  - user-facing な正本 profile は `shape_stability_grid.yaml` / `shape_stability_heatmap.yaml` とし，`hook_overstretch.yaml` / `hook_overstretch_heatmap.yaml` は historical alias として維持する。
   - `summary.csv`，`trajectory.csv`，`state_archive.npz`，`run_manifest.json` の replayable output contract は維持した。
 - acceptance criteria:
   - [x] `run_sweep.py` / `plot_heatmap.py` の現役導線を `shape_stability_grid` として説明できる。
