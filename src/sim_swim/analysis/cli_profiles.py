@@ -7,6 +7,10 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROFILE_DIR = REPO_ROOT / "conf" / "phase2_sweeps"
+PROFILE_DIRS = (
+    PROFILE_DIR,
+    REPO_ROOT / "conf" / "phase2_multi_run",
+)
 
 BOOLEAN_KEYS = {
     "describe_profile",
@@ -121,7 +125,12 @@ def load_profile_entry(path: Path) -> dict[str, Any]:
 def list_profile_entries(
     *, role: str | None = None, canonical_only: bool = False
 ) -> list[dict[str, Any]]:
-    entries = [load_profile_entry(path) for path in sorted(PROFILE_DIR.glob("*.yaml"))]
+    entries = [
+        load_profile_entry(path)
+        for directory in PROFILE_DIRS
+        if directory.is_dir()
+        for path in sorted(directory.glob("*.yaml"))
+    ]
     if role is not None:
         entries = [entry for entry in entries if entry["metadata"]["role"] == role]
     if canonical_only:

@@ -21,6 +21,7 @@ from sim_swim.analysis.cli_profiles import (
 )
 from sim_swim.analysis.heatmaps import (
     dt_star_torque,
+    generic_multi_run,
     hook_overstretch,
     local_scale_mode,
     motor_scale_collapse,
@@ -34,6 +35,7 @@ HEATMAP_MAIN = {
     "local_scale_mode": local_scale_mode.main,
     "shape_stability_grid": shape_stability_grid.main,
     "hook_overstretch": hook_overstretch.main,
+    "generic_multi_run": generic_multi_run.main,
 }
 
 
@@ -111,7 +113,14 @@ def main(argv: list[str] | None = None) -> None:
         return
     validate_profile_role(entry, "heatmap")
 
-    effective_args = _with_default_output_dir(args_from_profile(entry) + passthrough)
+    if kind == "generic_multi_run":
+        effective_args = _with_default_output_dir(
+            ["--campaign-config", str(config)] + key_value_args_to_cli_args(passthrough)
+        )
+    else:
+        effective_args = _with_default_output_dir(
+            args_from_profile(entry) + passthrough
+        )
     HEATMAP_MAIN[kind](effective_args)
 
 

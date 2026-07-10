@@ -22,6 +22,7 @@ from sim_swim.analysis.cli_profiles import (
 )
 from sim_swim.analysis.sweeps import (
     bundling_alignment,
+    generic_multi_run,
     hook_overstretch,
     motor_scale,
     shape_stability_grid,
@@ -35,6 +36,7 @@ SWEEP_MAIN = {
     "bundling_alignment": bundling_alignment.main,
     "shape_stability_grid": shape_stability_grid.main,
     "hook_overstretch": hook_overstretch.main,
+    "generic_multi_run": generic_multi_run.main,
 }
 
 
@@ -98,10 +100,16 @@ def main(argv: list[str] | None = None) -> None:
         return
     validate_profile_role(entry, "sweep")
 
-    effective_args = args_from_profile(entry) + key_value_args_to_cli_args(
-        passthrough,
-        aliases=sweep_aliases(kind),
-    )
+    if kind == "generic_multi_run":
+        effective_args = [
+            "--campaign-config",
+            str(config),
+        ] + key_value_args_to_cli_args(passthrough)
+    else:
+        effective_args = args_from_profile(entry) + key_value_args_to_cli_args(
+            passthrough,
+            aliases=sweep_aliases(kind),
+        )
     SWEEP_MAIN[kind](effective_args)
 
 
