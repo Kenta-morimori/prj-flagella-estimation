@@ -17,7 +17,7 @@
   "adr_required": false,
   "adr_reason": "既存 Phase 2 CLI 導線の延長として generic campaign config と summary/plot/replay 契約を追加した変更であり、物理モデル自体の意思決定は含まない。",
   "commit_type": "complete",
-  "commit_hash": "99a8f2f347d21be545e3f151d9c22970537138bf",
+  "commit_hash": "2f3223f52197e9282d7c1ef14a9d4ab6938d3178",
   "push_status": "not_pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/107",
   "next_actions": [
