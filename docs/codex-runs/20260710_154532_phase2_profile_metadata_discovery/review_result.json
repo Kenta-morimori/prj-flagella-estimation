@@ -36,8 +36,8 @@
   "adr_required": false,
   "adr_reason": "CLI discoverability と profile metadata の追加であり、物理モデル、数値近似、恒久 I/O 契約の意味は変更していないため。",
   "commit_type": "complete",
-  "commit_hash": "99020d4",
-  "push_status": "not_pushed",
+  "commit_hash": "1d002f1",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/107",
   "next_actions": []
 }
