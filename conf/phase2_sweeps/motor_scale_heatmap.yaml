@@ -1,3 +1,8 @@
 kind: motor_scale_collapse
+metadata:
+  role: heatmap
+  canonical: true
+  description: Canonical collapse heatmap profile for motor scale sweep summaries.
+  recommended_sweep_profile: conf/phase2_sweeps/motor_scale.yaml
 args:
   target: local_hook_scale

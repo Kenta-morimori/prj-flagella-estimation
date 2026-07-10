@@ -15,6 +15,15 @@
 `hook_overstretch.yaml` / `hook_overstretch_heatmap.yaml` は historical alias であり，
 既存のメモ，過去 run，再現コマンドとの互換用に残す。削除前提では扱わない。
 
+各 profile YAML には `metadata` を持たせ，CLI が以下を判断できるようにする。
+
+* `role`: sweep / heatmap
+* `canonical`: 現役導線の正本か
+* `alias_of`: historical alias の正本
+* `recommended_heatmap_profile` / `recommended_sweep_profile`: 推奨対応先
+
+wrapper 側ではこの metadata を使って canonical 一覧や profile 説明を表示する。
+
 ## `kind` と `mode`
 
 `kind` は「どの処理プログラムを使うか」を表す。
@@ -57,3 +66,25 @@ heatmap 側では，`summary.csv` のどの `mode` 行を読み，
 
 heatmap 用 profile は sweep 条件ごとに増やさず，
 同じ heatmap 実装で読める場合は `summary_csv=...` と `mode=...` を実行時指定する。
+
+## CLI から確認する
+
+canonical な sweep profile を見たい場合:
+
+```bash
+uv run python scripts/01_simulate_swimming/run_sweep.py list_canonical_profiles=true
+```
+
+canonical な heatmap profile を見たい場合:
+
+```bash
+uv run python scripts/01_simulate_swimming/plot_heatmap.py list_canonical_profiles=true
+```
+
+個別 profile の role / canonical / 推奨対応先を見たい場合:
+
+```bash
+uv run python scripts/01_simulate_swimming/run_sweep.py \
+  config=conf/phase2_sweeps/shape_stability_grid.yaml \
+  describe_profile=true
+```

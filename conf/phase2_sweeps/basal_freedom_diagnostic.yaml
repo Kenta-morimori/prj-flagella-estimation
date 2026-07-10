@@ -1,4 +1,9 @@
 kind: shape_stability_grid
+metadata:
+  role: sweep
+  canonical: true
+  description: Canonical shape stability sweep for basal-freedom diagnostic comparisons.
+  recommended_heatmap_profile: conf/phase2_sweeps/shape_stability_heatmap.yaml
 args:
   config: conf/sim_swim.yaml
   mode: basal-freedom-grid

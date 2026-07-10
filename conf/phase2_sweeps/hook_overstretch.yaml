@@ -1,5 +1,11 @@
 # Deprecated historical alias. Prefer shape_stability_grid.yaml.
 kind: hook_overstretch
+metadata:
+  role: sweep
+  canonical: false
+  alias_of: conf/phase2_sweeps/shape_stability_grid.yaml
+  description: Historical alias of the canonical shape stability sweep profile.
+  recommended_heatmap_profile: conf/phase2_sweeps/hook_overstretch_heatmap.yaml
 args:
   config: conf/sim_swim.yaml
   mode: preset

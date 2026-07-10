@@ -879,6 +879,7 @@
   - `run_sweep.py` / `plot_heatmap.py` は `kind: shape_stability_grid` を正式に dispatch し，旧 `kind: hook_overstretch` も互換用に受け付ける。
   - `conf/phase2_sweeps/shape_stability_grid.yaml`，`shape_stability_heatmap.yaml`，`torque_distribution_grid.yaml` を追加した。`torque_distribution_grid.yaml` は #97 の `root_torque_segment_couples / root_torque_axis_projection` × `diffusive / uniform` 2x2 条件を既定にする。
   - user-facing な正本 profile は `shape_stability_grid.yaml` / `shape_stability_heatmap.yaml` とし，`hook_overstretch.yaml` / `hook_overstretch_heatmap.yaml` は historical alias として維持する。
+  - profile YAML は `metadata` に role / canonical / 推奨 sweep-heatmap 対応先を持ち，wrapper から canonical 一覧と個別 profile 説明を表示できる。
   - `summary.csv`，`trajectory.csv`，`state_archive.npz`，`run_manifest.json` の replayable output contract は維持した。
 - acceptance criteria:
   - [x] `run_sweep.py` / `plot_heatmap.py` の現役導線を `shape_stability_grid` として説明できる。

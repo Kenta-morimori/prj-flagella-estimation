@@ -1,4 +1,8 @@
 kind: single_flagellum_torque
+metadata:
+  role: sweep
+  canonical: true
+  description: Canonical sweep profile for single-flagellum torque condition comparisons.
 args:
   config: conf/sim_swim.yaml
   duration: 0.5

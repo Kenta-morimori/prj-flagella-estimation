@@ -1,4 +1,9 @@
 kind: shape_stability_grid
+metadata:
+  role: sweep
+  canonical: true
+  description: Canonical shape stability sweep for the Issue 97 torque-distribution 2x2 comparison.
+  recommended_heatmap_profile: conf/phase2_sweeps/shape_stability_heatmap.yaml
 args:
   config: conf/sim_swim.yaml
   mode: torque-profile-grid

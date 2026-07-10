@@ -1,1 +1,5 @@
 kind: dt_star_torque
+metadata:
+  role: heatmap
+  canonical: true
+  description: Canonical heatmap profile for dt_star x torque summary grids.

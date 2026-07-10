@@ -1,4 +1,8 @@
 kind: bundling_alignment
+metadata:
+  role: sweep
+  canonical: true
+  description: Canonical sweep profile for multi-flagellum helix-axis alignment comparisons.
 args:
   config: conf/sim_swim.yaml
   helix_axis_angles_deg: [0.0]

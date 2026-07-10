@@ -10,8 +10,12 @@ import pytest
 from sim_swim.analysis.sweeps import shape_stability_grid
 from sim_swim.analysis.cli_profiles import (
     args_from_profile,
+    format_profile_description,
+    format_profile_listing,
     key_value_args_to_cli_args,
+    list_profile_entries,
     load_profile,
+    load_profile_entry,
     split_config_key,
     sweep_aliases,
 )
@@ -34,6 +38,38 @@ def test_sweep_profile_converts_yaml_args_to_cli_args() -> None:
     assert "--duration-s" in args
     assert args[args.index("--mode") + 1] == "preset"
     assert args[args.index("--config") + 1] == "conf/sim_swim.yaml"
+
+
+def test_load_profile_entry_exposes_metadata() -> None:
+    entry = load_profile_entry(Path("conf/phase2_sweeps/shape_stability_grid.yaml"))
+
+    assert entry["path"] == "conf/phase2_sweeps/shape_stability_grid.yaml"
+    assert entry["metadata"]["role"] == "sweep"
+    assert entry["metadata"]["canonical"] is True
+    assert (
+        entry["metadata"]["recommended_heatmap_profile"]
+        == "conf/phase2_sweeps/shape_stability_heatmap.yaml"
+    )
+
+
+def test_profile_catalog_lists_canonical_sweeps_only() -> None:
+    entries = list_profile_entries(role="sweep", canonical_only=True)
+    lines = format_profile_listing(entries)
+
+    assert any("conf/phase2_sweeps/shape_stability_grid.yaml" in line for line in lines)
+    assert not any("conf/phase2_sweeps/hook_overstretch.yaml" in line for line in lines)
+
+
+def test_profile_description_lists_aliases_for_canonical_profile() -> None:
+    entry = load_profile_entry(Path("conf/phase2_sweeps/shape_stability_grid.yaml"))
+    lines = format_profile_description(entry, list_profile_entries())
+
+    assert "status: canonical" in lines
+    assert (
+        "recommended_heatmap_profile: conf/phase2_sweeps/shape_stability_heatmap.yaml"
+        in lines
+    )
+    assert "aliases: conf/phase2_sweeps/hook_overstretch.yaml" in lines
 
 
 def test_split_config_key_extracts_key_value_profile_path() -> None:
@@ -120,6 +156,49 @@ def test_run_sweep_wrapper_keeps_hook_overstretch_alias(capsys) -> None:
     module.main(["config=conf/phase2_sweeps/hook_overstretch.yaml", "list_kind=true"])
 
     assert capsys.readouterr().out.strip() == "hook_overstretch"
+
+
+def test_run_sweep_wrapper_lists_canonical_profiles(capsys) -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/run_sweep.py"),
+        "phase2_run_sweep_wrapper_list_profiles",
+    )
+
+    module.main(["list_canonical_profiles=true"])
+
+    output = capsys.readouterr().out
+    assert "conf/phase2_sweeps/shape_stability_grid.yaml" in output
+    assert "conf/phase2_sweeps/hook_overstretch.yaml" not in output
+    assert "conf/phase2_sweeps/shape_stability_heatmap.yaml" not in output
+
+
+def test_run_sweep_wrapper_describes_profile(capsys) -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/run_sweep.py"),
+        "phase2_run_sweep_wrapper_describe",
+    )
+
+    module.main(
+        [
+            "config=conf/phase2_sweeps/shape_stability_grid.yaml",
+            "describe_profile=true",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert "role: sweep" in output
+    assert "status: canonical" in output
+    assert "recommended_heatmap_profile:" in output
+
+
+def test_run_sweep_wrapper_rejects_heatmap_profile() -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/run_sweep.py"),
+        "phase2_run_sweep_wrapper_wrong_role",
+    )
+
+    with pytest.raises(SystemExit, match="has role 'heatmap'; use plot_heatmap.py"):
+        module.main(["config=conf/phase2_sweeps/shape_stability_heatmap.yaml"])
 
 
 def test_torque_distribution_profile_is_shape_stability_grid() -> None:
@@ -325,6 +404,49 @@ def test_plot_heatmap_wrapper_rejects_unknown_kind(tmp_path: Path) -> None:
         assert "Unknown heatmap kind" in str(exc)
     else:
         raise AssertionError("expected SystemExit for unknown heatmap kind")
+
+
+def test_plot_heatmap_wrapper_lists_canonical_profiles(capsys) -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/plot_heatmap.py"),
+        "phase2_plot_heatmap_wrapper_list_profiles",
+    )
+
+    module.main(["list_canonical_profiles=true"])
+
+    output = capsys.readouterr().out
+    assert "conf/phase2_sweeps/shape_stability_heatmap.yaml" in output
+    assert "conf/phase2_sweeps/hook_overstretch_heatmap.yaml" not in output
+    assert "conf/phase2_sweeps/shape_stability_grid.yaml" not in output
+
+
+def test_plot_heatmap_wrapper_describes_alias_profile(capsys) -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/plot_heatmap.py"),
+        "phase2_plot_heatmap_wrapper_describe",
+    )
+
+    module.main(
+        [
+            "config=conf/phase2_sweeps/hook_overstretch_heatmap.yaml",
+            "describe_profile=true",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert "role: heatmap" in output
+    assert "status: alias" in output
+    assert "alias_of: conf/phase2_sweeps/shape_stability_heatmap.yaml" in output
+
+
+def test_plot_heatmap_wrapper_rejects_sweep_profile() -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/plot_heatmap.py"),
+        "phase2_plot_heatmap_wrapper_wrong_role",
+    )
+
+    with pytest.raises(SystemExit, match="has role 'sweep'; use run_sweep.py"):
+        module.main(["config=conf/phase2_sweeps/shape_stability_grid.yaml"])
 
 
 def test_heatmap_profiles_do_not_fix_output_dir() -> None:

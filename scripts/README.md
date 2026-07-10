@@ -66,6 +66,21 @@ profile の既定値は `KEY=VALUE` で上書きできます。sweep の標準 s
 新規の user-facing 実行では `shape_stability_grid.yaml` を正本として使います。
 `hook_overstretch.yaml` は historical alias であり，既存メモや過去コマンドの互換用です。
 
+利用可能な sweep profile を CLI から確認する場合:
+
+```bash
+uv run python scripts/01_simulate_swimming/run_sweep.py \
+  list_canonical_profiles=true
+```
+
+個別 profile の `role` / `canonical` / 推奨 heatmap を確認する場合:
+
+```bash
+uv run python scripts/01_simulate_swimming/run_sweep.py \
+  config=conf/phase2_sweeps/shape_stability_grid.yaml \
+  describe_profile=true
+```
+
 ### Heatmap
 
 sweep summary から heatmap を作る場合は `plot_heatmap.py` を使います。
@@ -92,6 +107,13 @@ heatmap profile は出力先を固定しません。`output_dir` を省略する
 
 heatmap も `shape_stability_heatmap.yaml` を正本として使います。
 `hook_overstretch_heatmap.yaml` は historical alias です。
+
+利用可能な heatmap profile を CLI から確認する場合:
+
+```bash
+uv run python scripts/01_simulate_swimming/plot_heatmap.py \
+  list_canonical_profiles=true
+```
 
 ### Replay Render
 

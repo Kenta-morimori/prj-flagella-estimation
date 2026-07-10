@@ -1,1 +1,5 @@
 kind: local_scale_mode
+metadata:
+  role: heatmap
+  canonical: true
+  description: Canonical heatmap profile for local-scale-mode x torque summaries.

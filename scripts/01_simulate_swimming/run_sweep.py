@@ -11,10 +11,14 @@ sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
 
 from sim_swim.analysis.cli_profiles import (
     args_from_profile,
+    format_profile_description,
+    format_profile_listing,
     key_value_args_to_cli_args,
-    load_profile,
+    list_profile_entries,
+    load_profile_entry,
     split_config_key,
     sweep_aliases,
+    validate_profile_role,
 )
 from sim_swim.analysis.sweeps import (
     bundling_alignment,
@@ -51,23 +55,50 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="Print the profile kind and exit without running conditions.",
     )
+    parser.add_argument(
+        "--list-profiles",
+        action="store_true",
+        help="List available sweep profiles and exit.",
+    )
+    parser.add_argument(
+        "--list-canonical-profiles",
+        action="store_true",
+        help="List canonical sweep profiles and exit.",
+    )
+    parser.add_argument(
+        "--describe-profile",
+        action="store_true",
+        help="Print profile metadata for the selected config and exit.",
+    )
     args, passthrough = parser.parse_known_args(parser_argv)
     if config_from_key is not None and args.config is not None:
         parser.error("Use either config=PATH or --config PATH (not both)")
+    if args.list_profiles or args.list_canonical_profiles:
+        entries = list_profile_entries(
+            role="sweep", canonical_only=args.list_canonical_profiles
+        )
+        for line in format_profile_listing(entries):
+            print(line)
+        return
     config = config_from_key or args.config
     if config is None:
         parser.error("config=PATH or --config PATH is required")
 
-    profile = load_profile(config)
-    kind = str(profile.get("kind", "")).strip()
+    entry = load_profile_entry(config)
+    kind = entry["kind"]
     if kind not in SWEEP_MAIN:
         choices = ", ".join(sorted(SWEEP_MAIN))
         raise SystemExit(f"Unknown sweep kind {kind!r}. Expected one of: {choices}")
+    if args.describe_profile:
+        for line in format_profile_description(entry, list_profile_entries()):
+            print(line)
+        return
     if args.list_kind:
         print(kind)
         return
+    validate_profile_role(entry, "sweep")
 
-    effective_args = args_from_profile(profile) + key_value_args_to_cli_args(
+    effective_args = args_from_profile(entry) + key_value_args_to_cli_args(
         passthrough,
         aliases=sweep_aliases(kind),
     )
