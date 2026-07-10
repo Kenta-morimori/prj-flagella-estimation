@@ -24,8 +24,8 @@
   "adr_required": false,
   "adr_reason": "CLI 導線の説明整理、historical alias の扱い明確化、関連テスト追加であり、物理モデル、恒久 I/O 契約、数値近似の判断は変更していないため。",
   "commit_type": "complete",
-  "commit_hash": "0fe2019",
-  "push_status": "not_pushed",
+  "commit_hash": "dcdcccb",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/107",
   "next_actions": []
 }
