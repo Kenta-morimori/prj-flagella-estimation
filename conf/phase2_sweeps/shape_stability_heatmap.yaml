@@ -1,3 +1,8 @@
 kind: shape_stability_grid
+metadata:
+  role: heatmap
+  canonical: true
+  description: Canonical heatmap profile for shape stability sweep summaries.
+  recommended_sweep_profile: conf/phase2_sweeps/shape_stability_grid.yaml
 args:
   mode: attach-frame-grid

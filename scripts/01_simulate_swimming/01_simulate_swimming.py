@@ -120,6 +120,7 @@ def main(
     output_base = cfg.output.base_dir
     ctx = init_run(
         base_dir=output_base,
+        timestamp_subdir=cfg.output.timestamp_subdir,
         input_info={
             "config": str(config),
             "overrides": effective_overrides,

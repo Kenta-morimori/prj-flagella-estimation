@@ -1,0 +1,43 @@
+{
+  "status": "PASS",
+  "summary": "`conf/phase2_sweeps/*.yaml` に role / canonical / alias / 推奨対応先の `metadata` を追加し、`run_sweep.py` / `plot_heatmap.py` から canonical profile 一覧と個別 profile 説明を表示できるようにした。wrapper は profile role mismatch も明示的に弾くようにし、README / Phase 2 current/tasks を metadata 駆動の discoverability に合わせて更新した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_heatmap.py",
+      "result": "PASS: 38 passed"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/analysis/cli_profiles.py scripts/01_simulate_swimming/run_sweep.py scripts/01_simulate_swimming/plot_heatmap.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS: All checks passed"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/analysis/cli_profiles.py scripts/01_simulate_swimming/run_sweep.py scripts/01_simulate_swimming/plot_heatmap.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS: 4 files already formatted after ruff format"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py list_canonical_profiles=true",
+      "result": "PASS: canonical sweep profiles were listed"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/plot_heatmap.py list_canonical_profiles=true",
+      "result": "PASS: canonical heatmap profiles were listed"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/shape_stability_grid.yaml describe_profile=true",
+      "result": "PASS: profile description showed role, canonical status, recommended heatmap profile, and alias list"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "CLI discoverability と profile metadata の追加であり、物理モデル、数値近似、恒久 I/O 契約の意味は変更していないため。",
+  "commit_type": "complete",
+  "commit_hash": "1d002f1",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/107",
+  "next_actions": []
+}

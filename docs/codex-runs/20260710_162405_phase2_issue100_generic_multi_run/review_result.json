@@ -1,0 +1,27 @@
+{
+  "status": "PASS",
+  "summary": "Issue #100 向けに generic multi-run campaign を追加し、run_sweep.py / plot_heatmap.py / render_shape_stability_grid_replay.py から最新モデルの複数条件実行・summary plot・replay render を同じ導線で扱えるようにした。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "default profile は torque 1軸 sweep のため、heatmap ではなく 1軸 line plot を出す。2軸 heatmap が必要な campaign では plot.default_y_axis と sweep.axes を追加する。"
+  ],
+  "tests_reviewed": [
+    "uv run pytest -q tests/test_phase2_sweep_profiles.py tests/test_phase2_generic_multi_run.py",
+    "uv run ruff check scripts/01_simulate_swimming/run_sweep.py scripts/01_simulate_swimming/plot_heatmap.py scripts/01_simulate_swimming/render_shape_stability_grid_replay.py src/sim_swim/analysis/cli_profiles.py src/sim_swim/analysis/multi_run_campaign.py src/sim_swim/analysis/sweeps/generic_multi_run.py src/sim_swim/analysis/heatmaps/generic_multi_run.py tests/test_phase2_generic_multi_run.py",
+    "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml dry_run=true"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "既存 Phase 2 CLI 導線の延長として generic campaign config と summary/plot/replay 契約を追加した変更であり、物理モデル自体の意思決定は含まない。",
+  "commit_type": "complete",
+  "commit_hash": "2f3223f52197e9282d7c1ef14a9d4ab6938d3178",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/107",
+  "next_actions": [
+    "最新モデルの torque 複数条件 campaign を user 実行し、summary plot と replay render を確認する。",
+    "2軸比較が必要になったら conf/phase2_multi_run 配下に axis を追加し、plot.default_y_axis を設定する。"
+  ]
+}

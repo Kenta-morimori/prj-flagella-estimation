@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "summary": "merge 前の local convenience script として、最新モデルの 1.0 s・複数 torque 条件 multi-run を 1 回で実行し、同じ run root 配下に summary plot と replay 出力を保存する `scripts/local/run_phase2_82_main_latest_torque_multi_run_1s.sh` を追加した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    "bash -n scripts/local/run_phase2_82_main_latest_torque_multi_run_1s.sh"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "local 実行補助スクリプトの追加であり、物理モデル・CLI 契約・出力 schema の方針変更ではない。",
+  "commit_type": "complete",
+  "commit_hash": "0b97450f6aa40d8d9f418b9eaaf4bba4fbf22a6a",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/107",
+  "next_actions": [
+    "clean git worktree の状態で `scripts/local/run_phase2_82_main_latest_torque_multi_run_1s.sh` を実行し、生成された run root 配下の plots / replay を確認する。"
+  ]
+}

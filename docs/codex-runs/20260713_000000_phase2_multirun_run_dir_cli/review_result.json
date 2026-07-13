@@ -1,0 +1,28 @@
+{
+  "status": "PASS",
+  "summary": "generic multi-run profile の base_overrides を default 差分だけに整理し、plot / replay を `config=... run_dir=...` で同じ run root から生成できるようにした。既存の `summary_csv=...` と `--input-dir ... --output-dir ...` は互換として維持した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    "uv run pytest -q tests/test_phase2_generic_multi_run.py",
+    "uv run pytest -q tests/test_phase2_generic_multi_run.py tests/test_phase2_sweep_profiles.py",
+    "bash -n scripts/local/run_phase2_82_main_latest_torque_multi_run_1s.sh",
+    "uv run ruff check scripts/01_simulate_swimming/plot_heatmap.py scripts/01_simulate_swimming/render_shape_stability_grid_replay.py src/sim_swim/analysis/heatmaps/generic_multi_run.py tests/test_phase2_generic_multi_run.py",
+    "uv run ruff format --check .",
+    "uv run ruff check .",
+    "uv run pytest -q -m light"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "既存の multi-run / plot / replay CLI 導線の使い勝手改善であり、物理モデル・出力 schema・採用判断の新規方針変更ではない。",
+  "commit_type": "complete",
+  "commit_hash": "9592bc09db724ac89fcc31fdb3757b423451d198",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/107",
+  "next_actions": [
+    "clean git worktree の状態で `scripts/local/run_phase2_82_main_latest_torque_multi_run_1s.sh` を実行し、生成された run root 配下の plots / replay を確認する。"
+  ]
+}

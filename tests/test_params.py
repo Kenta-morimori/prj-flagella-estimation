@@ -43,6 +43,24 @@ def test_default_motor_force_distribution_is_root_torque_segment_couples() -> No
     assert sim_cfg.motor.force_distribution == "root_torque_segment_couples"
 
 
+def test_output_timestamp_subdir_defaults_to_true() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.output.timestamp_subdir is True
+
+
+def test_output_timestamp_subdir_accepts_false() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["output"] = {"base_dir": "outputs/fixed", "timestamp_subdir": False}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.output.base_dir == "outputs/fixed"
+    assert sim_cfg.output.timestamp_subdir is False
+
+
 def test_default_motor_torque_distribution_profile_is_diffusive() -> None:
     cfg = _base_cfg()
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}

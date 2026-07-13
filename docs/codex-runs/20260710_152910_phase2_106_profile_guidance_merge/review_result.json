@@ -1,0 +1,31 @@
+{
+  "status": "PASS",
+  "summary": "Issue #106 / PR #107 の position-only heatmap 対応を本線にしつつ、canonical profile を `shape_stability_grid.yaml` / `shape_stability_heatmap.yaml` に揃える説明を追加した。`hook_overstretch.yaml` / `hook_overstretch_heatmap.yaml` は historical alias として残す方針を scripts README、Phase 2 current/tasks、profile README、wrapper test に反映し、Issue #106 と PR #107/#108 本文も同じ前提へ更新した。PR #108 は superseded として close した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_phase2_82_hook_overstretch_heatmap.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS: 29 passed"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/analysis/heatmaps/shape_stability_grid.py tests/test_phase2_82_hook_overstretch_heatmap.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS: All checks passed"
+    },
+    {
+      "command": "uv run ruff format --check tests/test_phase2_sweep_profiles.py",
+      "result": "PASS: 1 file already formatted"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "CLI 導線の説明整理、historical alias の扱い明確化、関連テスト追加であり、物理モデル、恒久 I/O 契約、数値近似の判断は変更していないため。",
+  "commit_type": "complete",
+  "commit_hash": "dcdcccb",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/107",
+  "next_actions": []
+}

@@ -20,6 +20,7 @@ from sim_swim.analysis.flagella_count_behavior import (
     save_state_archive,
     write_trajectory_csv,
 )
+from sim_swim.analysis.multi_run_campaign import summary_axis_fields
 from sim_swim.sim.core import Simulator
 from sim_swim.sim.debug_summary import PROXIMAL_FLAG_BOND_REL_ERR_FIELDS
 from sim_swim.sim.helix_retention_gate import summarize_single_flagellum_helix_retention
@@ -758,6 +759,169 @@ def _overrides_for_condition(
     }
 
 
+def _campaign_axes(
+    args: argparse.Namespace,
+    *,
+    mode: str | None = None,
+) -> list[dict[str, Any]]:
+    mode = mode or str(getattr(args, "mode", "preset"))
+    if mode == "body-first-grid":
+        return [
+            {
+                "name": "attach_first_spring",
+                "key": "motor.local_attach_first_spring_scale",
+                "short_name": "af",
+                "values": list(args.attach_first_spring_scales),
+                "labels": [f"{value:g}" for value in args.attach_first_spring_scales],
+                "ids": [
+                    f"af{_format_scale(value)}"
+                    for value in args.attach_first_spring_scales
+                ],
+            },
+            {
+                "name": "body_axis_angle",
+                "key": "motor.local_attach_first_body_axis_angle_scale",
+                "short_name": "axis",
+                "values": list(args.body_axis_angle_scales),
+                "labels": [f"{value:g}" for value in args.body_axis_angle_scales],
+                "ids": [
+                    f"axis{_format_scale(value)}"
+                    for value in args.body_axis_angle_scales
+                ],
+            },
+        ]
+    if mode == "first-second-grid":
+        return [
+            {
+                "name": "first_second_spring",
+                "key": "motor.local_first_second_spring_scale",
+                "short_name": "fs",
+                "values": list(args.first_second_spring_scales),
+                "labels": [f"{value:g}" for value in args.first_second_spring_scales],
+                "ids": [
+                    f"fs{_format_scale(value)}"
+                    for value in args.first_second_spring_scales
+                ],
+            }
+        ]
+    if mode == "attach-frame-grid":
+        return [
+            {
+                "name": "attach_frame_position",
+                "key": "motor.local_attach_frame_position_scale",
+                "short_name": "fp",
+                "values": list(args.attach_frame_position_scales),
+                "labels": [f"{value:g}" for value in args.attach_frame_position_scales],
+                "ids": [
+                    f"fp{_format_scale(value)}"
+                    for value in args.attach_frame_position_scales
+                ],
+            },
+            {
+                "name": "attach_frame_tangent",
+                "key": "motor.local_attach_frame_tangent_scale",
+                "short_name": "ft",
+                "values": list(args.attach_frame_tangent_scales),
+                "labels": [f"{value:g}" for value in args.attach_frame_tangent_scales],
+                "ids": [
+                    f"ft{_format_scale(value)}"
+                    for value in args.attach_frame_tangent_scales
+                ],
+            },
+        ]
+    if mode == "torque-profile-grid":
+        return [
+            {
+                "name": "force_distribution",
+                "key": "motor.force_distribution",
+                "short_name": "dist",
+                "values": list(args.force_distributions),
+                "labels": [str(value) for value in args.force_distributions],
+                "ids": [str(value) for value in args.force_distributions],
+            },
+            {
+                "name": "torque_distribution_profile",
+                "key": "motor.torque_distribution_profile",
+                "short_name": "profile",
+                "values": list(args.torque_distribution_profiles),
+                "labels": [str(value) for value in args.torque_distribution_profiles],
+                "ids": [str(value) for value in args.torque_distribution_profiles],
+            },
+        ]
+    if mode == "position-only-grid":
+        return [
+            {
+                "name": "attach_frame_position",
+                "key": "motor.local_attach_frame_position_scale",
+                "short_name": "fp",
+                "values": list(args.attach_frame_position_scales),
+                "labels": [f"{value:g}" for value in args.attach_frame_position_scales],
+                "ids": [
+                    f"fp{_format_scale(value)}"
+                    for value in args.attach_frame_position_scales
+                ],
+            }
+        ]
+    return []
+
+
+def _campaign_condition_metadata(
+    args: argparse.Namespace,
+    condition: Condition,
+    index: int,
+) -> dict[str, Any]:
+    metadata: dict[str, Any] = {
+        "condition_index": index,
+        "condition_id": condition.condition_id,
+        "condition_label": condition.description,
+        "axis_values": {},
+        "axis_labels": {},
+        "axis_ids": {},
+        "axis_order": {},
+    }
+    try:
+        axes = _campaign_axes(args, mode=condition.mode)
+    except AttributeError:
+        axes = [
+            {
+                "name": key,
+                "key": f"motor.{key}",
+                "short_name": key,
+                "values": [value],
+                "labels": [str(value)],
+                "ids": [str(value)],
+            }
+            for key, value in condition.scales.items()
+        ]
+    if (
+        condition.mode
+        in {"body-first-grid", "attach-frame-grid", "torque-profile-grid"}
+        and len(axes) >= 2
+    ):
+        metadata["grid_row_axis"] = axes[1]["name"]
+        metadata["grid_col_axis"] = axes[0]["name"]
+    for axis in axes:
+        key_leaf = axis["key"].split(".")[-1]
+        if key_leaf not in condition.scales:
+            continue
+        value = condition.scales[key_leaf]
+        try:
+            order = axis["values"].index(value)
+        except ValueError:
+            continue
+        metadata["axis_values"][axis["name"]] = value
+        metadata["axis_labels"][axis["name"]] = axis["labels"][order]
+        metadata["axis_ids"][axis["name"]] = axis["ids"][order]
+        metadata["axis_order"][axis["name"]] = order
+        if metadata.get("grid_row_axis") == axis["name"]:
+            metadata["grid_row_index"] = order
+            metadata["grid_row_label"] = axis["labels"][order]
+        if metadata.get("grid_col_axis") == axis["name"]:
+            metadata["grid_col_index"] = order
+            metadata["grid_col_label"] = axis["labels"][order]
+    return metadata
+
+
 def _summary_row(
     cfg: SimulationConfig,
     condition: Condition,
@@ -973,6 +1137,8 @@ def _run_condition(
     base_cfg: dict[str, Any],
     args: argparse.Namespace,
     condition: Condition,
+    *,
+    condition_index: int = 0,
 ) -> dict[str, str | float]:
     overrides = _overrides_for_condition(args, condition)
     cfg = SimulationConfig.from_dict(base_cfg).with_overrides(overrides)
@@ -1001,20 +1167,58 @@ def _run_condition(
     if not rows:
         raise RuntimeError(f"No rows found in {step_summary_path}")
     last = rows[-1]
-    return _summary_row(
+    row = _summary_row(
         cfg, condition, condition_dir, last, rows, helix_summary, axis_center_summary
     )
+    row.update(
+        summary_axis_fields(
+            _campaign_condition_metadata(args, condition, condition_index)
+        )
+    )
+    return row
 
 
-def _manifest_record(args: argparse.Namespace, condition: Condition) -> dict[str, Any]:
+def _manifest_record(
+    args: argparse.Namespace,
+    condition: Condition,
+    *,
+    condition_index: int,
+) -> dict[str, Any]:
+    metadata = _campaign_condition_metadata(args, condition, condition_index)
     return {
         "condition_id": condition.condition_id,
+        "condition_index": condition_index,
+        "condition_label": metadata["condition_label"],
         "mode": condition.mode,
         "description": condition.description,
         "scales": dict(condition.scales),
         "output_dir": str(args.output_dir / condition.condition_id),
         "config_overrides": _overrides_for_condition(args, condition),
+        "axis_values": metadata["axis_values"],
+        "axis_labels": metadata["axis_labels"],
+        "axis_ids": metadata["axis_ids"],
+        "axis_order": metadata["axis_order"],
+        "grid": {
+            "row_axis": metadata.get("grid_row_axis"),
+            "row_index": metadata.get("grid_row_index"),
+            "row_label": metadata.get("grid_row_label"),
+            "col_axis": metadata.get("grid_col_axis"),
+            "col_index": metadata.get("grid_col_index"),
+            "col_label": metadata.get("grid_col_label"),
+        },
     }
+
+
+def _summary_fieldnames(rows: list[dict[str, str | float]]) -> list[str]:
+    fieldnames = list(SUMMARY_FIELDS)
+    seen = set(fieldnames)
+    for row in rows:
+        for key in row:
+            if key in seen:
+                continue
+            fieldnames.append(key)
+            seen.add(key)
+    return fieldnames
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -1146,15 +1350,23 @@ def main(argv: list[str] | None = None) -> None:
             f"[{index}/{total}] shape_stability_grid {condition.condition_id}",
             flush=True,
         )
-        rows.append(_run_condition(base_cfg, args, condition))
+        rows.append(
+            _run_condition(
+                base_cfg,
+                args,
+                condition,
+                condition_index=index - 1,
+            )
+        )
     summary_path = args.output_dir / "summary.csv"
     with summary_path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=SUMMARY_FIELDS)
+        writer = csv.DictWriter(handle, fieldnames=_summary_fieldnames(rows))
         writer.writeheader()
         writer.writerows(rows)
     manifest = {
         "kind": "shape_stability_grid",
         "created_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
+        "base_config": str(args.config),
         "config": str(args.config),
         "args": {
             "mode": args.mode,
@@ -1171,7 +1383,12 @@ def main(argv: list[str] | None = None) -> None:
         },
         "summary_csv": str(summary_path),
         "git": _git_info(),
-        "conditions": [_manifest_record(args, condition) for condition in conditions],
+        "axes": _campaign_axes(args),
+        "condition_order": [condition.condition_id for condition in conditions],
+        "conditions": [
+            _manifest_record(args, condition, condition_index=index)
+            for index, condition in enumerate(conditions)
+        ],
     }
     (args.output_dir / "run_manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2),

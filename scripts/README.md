@@ -28,7 +28,7 @@ uv run python -m scripts.01_simulate_swimming \
 
 ### Sweep
 
-複数条件の sweep は `run_sweep.py` を使います。条件セットは `conf/phase2_sweeps/` の YAML profile で選びます。
+開発用・診断用の task-specific sweep は `run_sweep.py` を使います。対象 profile は `conf/phase2_sweeps/` に置きます。
 
 ```bash
 uv run python scripts/01_simulate_swimming/run_sweep.py \
@@ -52,6 +52,26 @@ uv run python scripts/01_simulate_swimming/run_sweep.py \
 
 profile の既定値は `KEY=VALUE` で上書きできます。sweep の標準 summary は出力先の `summary.csv` です。`--config` などの legacy option 形式も互換用に残しています。
 
+### Multi-Run
+
+ユーザが複数条件を一度で実行し、その結果から replay / plot へ進む入口は `run_multi_run.py` です。profile は `conf/phase2_multi_run/` に置き、1つの config を run / plot / replay で共用します。campaign 単位で `run.log`、`manifest.json`、`run_manifest.json`、`summary.csv` を残します。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_multi_run.py \
+  config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml \
+  dry_run=true
+```
+
+```bash
+uv run python scripts/01_simulate_swimming/run_multi_run.py \
+  config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml \
+  sweep.axes.torque.values=[1.5e-20,2.0e-20,2.5e-20] \
+  time.duration_s=1.0 \
+  overwrite=true
+```
+
+`output.timestamp_subdir=false` の multi-run profile では、`output.base_dir` がそのまま run root になります。再実行で同じ run root を置き換える場合だけ `overwrite=true` を明示します。
+
 主な profile:
 
 | profile | 用途 |
@@ -62,6 +82,24 @@ profile の既定値は `KEY=VALUE` で上書きできます。sweep の標準 s
 | `conf/phase2_sweeps/shape_stability_grid.yaml` | hook / proximal flagellum を含む shape stability grid |
 | `conf/phase2_sweeps/torque_distribution_grid.yaml` | #97 用 torque distribution 2x2 比較 |
 | `conf/phase2_sweeps/hook_overstretch.yaml` | 旧名互換 profile |
+
+新規の user-facing 実行では `shape_stability_grid.yaml` を正本として使います。
+`hook_overstretch.yaml` は historical alias であり，既存メモや過去コマンドの互換用です。
+
+利用可能な sweep profile を CLI から確認する場合:
+
+```bash
+uv run python scripts/01_simulate_swimming/run_sweep.py \
+  list_canonical_profiles=true
+```
+
+個別 profile の `role` / `canonical` / 推奨 heatmap を確認する場合:
+
+```bash
+uv run python scripts/01_simulate_swimming/run_sweep.py \
+  config=conf/phase2_sweeps/shape_stability_grid.yaml \
+  describe_profile=true
+```
 
 ### Heatmap
 
@@ -75,6 +113,16 @@ uv run python scripts/01_simulate_swimming/plot_heatmap.py \
 ```
 
 heatmap profile は出力先を固定しません。`output_dir` を省略すると、`summary_csv` と同じ directory の `plots/` へ出力します。明示した場合はその出力先を使います。
+`shape_stability_heatmap.yaml` は `mode=position-only-grid` などの実行時 override で対象 grid を切り替えられます。
+
+generic multi-run の summary plot も `plot_heatmap.py` から行います。同じ config をそのまま使います。`plot.default_y_axis` が未設定の profile では heatmap ではなく 1 軸 line plot を出します。
+
+```bash
+uv run python scripts/01_simulate_swimming/plot_heatmap.py \
+  config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml
+```
+
+`output.timestamp_subdir=false` の multi-run profile では、`summary_csv` / `run_dir` を省略すると `output.base_dir/summary.csv` を読み、`output.base_dir/plots/` へ出力します。
 
 主な profile:
 
@@ -84,21 +132,31 @@ heatmap profile は出力先を固定しません。`output_dir` を省略する
 | `conf/phase2_sweeps/dt_star_torque_heatmap.yaml` | `dt_star` x torque heatmap |
 | `conf/phase2_sweeps/local_scale_mode_heatmap.yaml` | local scale mode x torque heatmap |
 | `conf/phase2_sweeps/shape_stability_heatmap.yaml` | shape stability grid heatmap |
+| `conf/phase2_multi_run/latest_model_torque_shape_stability.yaml` | generic multi-run summary plot / replay metadata |
 | `conf/phase2_sweeps/hook_overstretch_heatmap.yaml` | 旧名互換 heatmap profile |
+
+heatmap も `shape_stability_heatmap.yaml` を正本として使います。
+`hook_overstretch_heatmap.yaml` は historical alias です。
+
+利用可能な heatmap profile を CLI から確認する場合:
+
+```bash
+uv run python scripts/01_simulate_swimming/plot_heatmap.py \
+  list_canonical_profiles=true
+```
 
 ### Replay Render
 
-既存 sweep 出力の `summary.csv`、`run_manifest.json`、各 condition directory の `state_archive.npz` から、再シミュレーションなしで比較 plot / 3D replay を生成する場合は `render_shape_stability_grid_replay.py` を使います。
+既存 sweep 出力の `summary.csv`、`run_manifest.json`、各 condition directory の `state_archive.npz` から、再シミュレーションなしで比較 plot / 3D replay を生成する場合は `render_shape_stability_grid_replay.py` を使います。generic multi-run 出力でも同じ CLI を使います。
 
 ```bash
 uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py \
-  --input-dir outputs/phase2_103/stage_c_lateral_position_only_dur0p6 \
-  --mode both \
-  --output-dir /private/tmp/phase2_103_lateral_replay \
-  --overwrite
+  config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml \
+  overwrite=true
 ```
 
 `--mode plot-only` は metrics CSV / PNG のみ、`--mode render-only` は 3D grid movie のみ、`--mode both` は両方を生成します。
+`output.timestamp_subdir=false` の multi-run profile では、`run_dir` / `input_dir` を省略すると `output.base_dir` を読み、`output.base_dir/replay/` へ出力します。legacy 互換として `summary_csv=...` や `--input-dir ... --output-dir ...` も引き続き使えます。
 
 ## 02_phase2_analysis
 

@@ -5,10 +5,19 @@ from typing import Any
 
 import yaml
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
+PROFILE_DIR = REPO_ROOT / "conf" / "phase2_sweeps"
+PROFILE_DIRS = (
+    PROFILE_DIR,
+    REPO_ROOT / "conf" / "phase2_multi_run",
+)
 
 BOOLEAN_KEYS = {
+    "describe_profile",
     "dry_run",
+    "list_canonical_profiles",
     "list_kind",
+    "list_profiles",
     "no_stop_on_shape_fail",
     "overwrite",
     "stop_on_shape_fail",
@@ -60,6 +69,131 @@ def load_profile(path: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError(f"profile must be a mapping: {path}")
     return data
+
+
+def _profile_path_str(path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        return resolved.relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return str(path)
+
+
+def _infer_profile_role(path: Path) -> str:
+    return "heatmap" if "heatmap" in path.stem else "sweep"
+
+
+def _load_profile_metadata(path: Path, profile: dict[str, Any]) -> dict[str, Any]:
+    raw_metadata = profile.get("metadata") or {}
+    if not isinstance(raw_metadata, dict):
+        raise ValueError(f"profile metadata must be a mapping: {path}")
+
+    role = str(raw_metadata.get("role") or _infer_profile_role(path)).strip()
+    if role not in {"sweep", "heatmap"}:
+        raise ValueError(f"Unsupported profile role {role!r}: {path}")
+
+    canonical = bool(raw_metadata.get("canonical", True))
+    alias_of = raw_metadata.get("alias_of")
+    if alias_of is not None:
+        alias_of = _profile_path_str(REPO_ROOT / str(alias_of))
+        canonical = False
+
+    metadata = {
+        "role": role,
+        "canonical": canonical,
+        "alias_of": alias_of,
+        "description": str(raw_metadata.get("description") or "").strip(),
+        "recommended_heatmap_profile": raw_metadata.get("recommended_heatmap_profile"),
+        "recommended_sweep_profile": raw_metadata.get("recommended_sweep_profile"),
+    }
+    for key in ("recommended_heatmap_profile", "recommended_sweep_profile"):
+        value = metadata[key]
+        if value is not None:
+            metadata[key] = _profile_path_str(REPO_ROOT / str(value))
+    return metadata
+
+
+def load_profile_entry(path: Path) -> dict[str, Any]:
+    profile = load_profile(path)
+    entry = dict(profile)
+    entry["path"] = _profile_path_str(path)
+    entry["kind"] = str(profile.get("kind", "")).strip()
+    entry["metadata"] = _load_profile_metadata(path, profile)
+    return entry
+
+
+def list_profile_entries(
+    *, role: str | None = None, canonical_only: bool = False
+) -> list[dict[str, Any]]:
+    entries = [
+        load_profile_entry(path)
+        for directory in PROFILE_DIRS
+        if directory.is_dir()
+        for path in sorted(directory.glob("*.yaml"))
+    ]
+    if role is not None:
+        entries = [entry for entry in entries if entry["metadata"]["role"] == role]
+    if canonical_only:
+        entries = [entry for entry in entries if entry["metadata"]["canonical"]]
+    return entries
+
+
+def format_profile_listing(entries: list[dict[str, Any]]) -> list[str]:
+    lines: list[str] = []
+    for entry in entries:
+        metadata = entry["metadata"]
+        status = "canonical" if metadata["canonical"] else "alias"
+        description = metadata["description"]
+        line = f"{entry['path']}\t{entry['kind']}\t{status}"
+        if description:
+            line += f"\t{description}"
+        lines.append(line)
+    return lines
+
+
+def format_profile_description(
+    entry: dict[str, Any],
+    catalog: list[dict[str, Any]] | None = None,
+) -> list[str]:
+    metadata = entry["metadata"]
+    status = "canonical" if metadata["canonical"] else "alias"
+    lines = [
+        f"path: {entry['path']}",
+        f"role: {metadata['role']}",
+        f"kind: {entry['kind']}",
+        f"status: {status}",
+    ]
+    if metadata["description"]:
+        lines.append(f"description: {metadata['description']}")
+    if metadata["alias_of"]:
+        lines.append(f"alias_of: {metadata['alias_of']}")
+    if metadata["recommended_heatmap_profile"]:
+        lines.append(
+            f"recommended_heatmap_profile: {metadata['recommended_heatmap_profile']}"
+        )
+    if metadata["recommended_sweep_profile"]:
+        lines.append(
+            f"recommended_sweep_profile: {metadata['recommended_sweep_profile']}"
+        )
+    if metadata["canonical"] and catalog is not None:
+        aliases = [
+            other["path"]
+            for other in catalog
+            if other["metadata"]["alias_of"] == entry["path"]
+        ]
+        if aliases:
+            lines.append(f"aliases: {', '.join(sorted(aliases))}")
+    return lines
+
+
+def validate_profile_role(entry: dict[str, Any], expected_role: str) -> None:
+    actual_role = entry["metadata"]["role"]
+    if actual_role == expected_role:
+        return
+    script_name = "plot_heatmap.py" if actual_role == "heatmap" else "run_sweep.py"
+    raise SystemExit(
+        f"Profile {entry['path']!r} has role {actual_role!r}; use {script_name}."
+    )
 
 
 def args_from_profile(profile: dict[str, Any]) -> list[str]:

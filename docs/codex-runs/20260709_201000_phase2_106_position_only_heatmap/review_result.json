@@ -1,0 +1,42 @@
+{
+  "status": "PASS",
+  "summary": "Issue #106 として，shape_stability_grid heatmap CLI に position-only-grid mode を追加した。`local_attach_frame_position_scale` を x 軸，固定ラベル `position-only` を y 軸として pass/fail と first-fail category を可視化でき，#82/#103 評価で読む `max_flag_bond_rel_err`，`body_roll_net_abs_revolutions`，`axis_center_to_body_roll_ratio_mean` も normalized CSV と numeric heatmap に含めるようにした。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "`scripts/local/` は .gitignore 対象のため，ローカル wrapper の inline Python 削除は手元ファイルには反映済みだが commit 対象外である。",
+    "長時間 sweep / replay は実行していない。既存の torque=1.5e-20 summary を使った heatmap 生成のみ確認した。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_phase2_82_hook_overstretch_heatmap.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS: 28 passed"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/analysis/heatmaps/shape_stability_grid.py tests/test_phase2_82_hook_overstretch_heatmap.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS: All checks passed"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/analysis/heatmaps/shape_stability_grid.py tests/test_phase2_82_hook_overstretch_heatmap.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS: 3 files already formatted"
+    },
+    {
+      "command": "bash -n scripts/local/run_phase2_82_main_latest_1s_eval.sh",
+      "result": "PASS: shell syntax check passed"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/plot_heatmap.py config=conf/phase2_sweeps/shape_stability_heatmap.yaml mode=position-only-grid summary_csv=outputs/phase2_82/main_latest_position_only_torque1p5_dur1p0/summary.csv output_dir=/private/tmp/phase2_106_position_only_heatmap_check",
+      "result": "PASS: position-only-grid heatmap outputs were generated under /private/tmp/phase2_106_position_only_heatmap_check"
+    }
+  ],
+  "user_review_required": false,
+  "adr_required": false,
+  "adr_reason": "heatmap CLI の mode 対応と local 実行導線の整理であり，物理モデル・恒久I/O契約・解釈を変える判断ではない。",
+  "commit_type": "fix",
+  "commit_hash": "a25525f",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/107",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/106",
+  "next_actions": [
+    "必要なら `scripts/local/run_phase2_82_main_latest_1s_eval.sh` を再実行し，torque=1.5e-20, 2.0e-20, 2.5e-20 の sweep / heatmap / replay を完走させる。"
+  ]
+}

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a configured Phase 2 simulation sweep."""
+"""Run a configured Phase 2 generic multi-run campaign."""
 
 from __future__ import annotations
 
@@ -10,39 +10,21 @@ import sys
 sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
 
 from sim_swim.analysis.cli_profiles import (
-    args_from_profile,
     format_profile_description,
     format_profile_listing,
     key_value_args_to_cli_args,
     list_profile_entries,
     load_profile_entry,
     split_config_key,
-    sweep_aliases,
-    validate_profile_role,
 )
-from sim_swim.analysis.sweeps import (
-    bundling_alignment,
-    hook_overstretch,
-    motor_scale,
-    shape_stability_grid,
-    single_flagellum_torque,
-)
+from sim_swim.analysis.sweeps import generic_multi_run
 
 
-SWEEP_MAIN = {
-    "motor_scale": motor_scale.main,
-    "single_flagellum_torque": single_flagellum_torque.main,
-    "bundling_alignment": bundling_alignment.main,
-    "shape_stability_grid": shape_stability_grid.main,
-    "hook_overstretch": hook_overstretch.main,
-}
-
-
-def _sweep_entries(*, canonical_only: bool = False) -> list[dict[str, object]]:
+def _campaign_entries(*, canonical_only: bool = False) -> list[dict[str, object]]:
     return [
         entry
         for entry in list_profile_entries(role="sweep", canonical_only=canonical_only)
-        if entry["kind"] != "generic_multi_run"
+        if entry["kind"] == "generic_multi_run"
     ]
 
 
@@ -56,7 +38,7 @@ def main(argv: list[str] | None = None) -> None:
         "--config",
         type=Path,
         default=None,
-        help="Sweep profile YAML under conf/phase2_sweeps/.",
+        help="Generic multi-run profile YAML under conf/phase2_multi_run/.",
     )
     parser.add_argument(
         "--list-kind",
@@ -66,12 +48,12 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--list-profiles",
         action="store_true",
-        help="List available sweep profiles and exit.",
+        help="List available generic multi-run profiles and exit.",
     )
     parser.add_argument(
         "--list-canonical-profiles",
         action="store_true",
-        help="List canonical sweep profiles and exit.",
+        help="List canonical generic multi-run profiles and exit.",
     )
     parser.add_argument(
         "--describe-profile",
@@ -82,37 +64,33 @@ def main(argv: list[str] | None = None) -> None:
     if config_from_key is not None and args.config is not None:
         parser.error("Use either config=PATH or --config PATH (not both)")
     if args.list_profiles or args.list_canonical_profiles:
-        entries = _sweep_entries(canonical_only=args.list_canonical_profiles)
+        entries = _campaign_entries(canonical_only=args.list_canonical_profiles)
         for line in format_profile_listing(entries):
             print(line)
         return
+
     config = config_from_key or args.config
     if config is None:
         parser.error("config=PATH or --config PATH is required")
 
     entry = load_profile_entry(config)
-    kind = entry["kind"]
-    if kind == "generic_multi_run":
+    if entry["kind"] != "generic_multi_run":
         raise SystemExit(
-            f"Profile {entry['path']!r} is generic multi-run; use run_multi_run.py."
+            f"Profile {entry['path']!r} is kind {entry['kind']!r}; "
+            "use run_sweep.py for task-specific sweeps."
         )
-    if kind not in SWEEP_MAIN:
-        choices = ", ".join(sorted(SWEEP_MAIN))
-        raise SystemExit(f"Unknown sweep kind {kind!r}. Expected one of: {choices}")
     if args.describe_profile:
-        for line in format_profile_description(entry, _sweep_entries()):
+        for line in format_profile_description(entry, _campaign_entries()):
             print(line)
         return
     if args.list_kind:
-        print(kind)
+        print(entry["kind"])
         return
-    validate_profile_role(entry, "sweep")
 
-    effective_args = args_from_profile(entry) + key_value_args_to_cli_args(
-        passthrough,
-        aliases=sweep_aliases(kind),
+    effective_args = ["--campaign-config", str(config)] + key_value_args_to_cli_args(
+        passthrough
     )
-    SWEEP_MAIN[kind](effective_args)
+    generic_multi_run.main(effective_args)
 
 
 if __name__ == "__main__":

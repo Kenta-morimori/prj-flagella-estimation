@@ -1,4 +1,10 @@
 # Deprecated historical alias. Prefer shape_stability_heatmap.yaml.
 kind: hook_overstretch
+metadata:
+  role: heatmap
+  canonical: false
+  alias_of: conf/phase2_sweeps/shape_stability_heatmap.yaml
+  description: Historical alias of the canonical shape stability heatmap profile.
+  recommended_sweep_profile: conf/phase2_sweeps/hook_overstretch.yaml
 args:
   mode: attach-frame-grid

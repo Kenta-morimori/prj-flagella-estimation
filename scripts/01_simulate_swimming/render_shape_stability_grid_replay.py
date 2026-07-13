@@ -21,6 +21,10 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
+from sim_swim.analysis.cli_profiles import (
+    key_value_args_to_cli_args,
+    split_config_key,
+)
 from sim_swim.sim.params import SimulationConfig
 
 CANONICAL_TORQUE_DISTRIBUTION_CONDITION_IDS = (
@@ -119,6 +123,9 @@ def _short_distribution_label(value: str) -> str:
 
 
 def _label_for_row(row: dict[str, str]) -> str:
+    condition_label = str(row.get("condition_label", "")).strip()
+    if condition_label:
+        return condition_label
     condition_id = row.get("condition_id", "")
     if condition_id in CANONICAL_TORQUE_DISTRIBUTION_CONDITION_IDS:
         return (
@@ -151,7 +158,24 @@ def _condition_records(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return {str(record["condition_id"]): dict(record) for record in records}
 
 
-def _ordered_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+def _ordered_rows(
+    rows: list[dict[str, str]],
+    manifest: dict[str, Any] | None = None,
+) -> list[dict[str, str]]:
+    if manifest is not None:
+        condition_order = [
+            str(condition_id)
+            for condition_id in manifest.get("condition_order", []) or []
+        ]
+        if condition_order:
+            row_by_id = {row.get("condition_id", ""): row for row in rows}
+            ordered = [
+                row_by_id[condition_id]
+                for condition_id in condition_order
+                if condition_id in row_by_id
+            ]
+            if ordered:
+                return ordered
     condition_ids = [row.get("condition_id", "") for row in rows]
     if all(
         condition_id in condition_ids
@@ -163,6 +187,17 @@ def _ordered_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
             for row in rows
             if row.get("condition_id") == condition_id
         ]
+    if manifest is not None:
+        manifest_conditions = manifest.get("conditions", []) or []
+        if manifest_conditions:
+            row_by_id = {row.get("condition_id", ""): row for row in rows}
+            ordered = [
+                row_by_id[str(record.get("condition_id", ""))]
+                for record in manifest_conditions
+                if str(record.get("condition_id", "")) in row_by_id
+            ]
+            if ordered:
+                return ordered
     return [row for row in rows if row.get("condition_id")]
 
 
@@ -178,20 +213,27 @@ def _load_inputs(
     rows = _load_csv_rows(summary_path)
     manifest = _load_json(manifest_path)
     records = _condition_records(manifest)
-    base_cfg_path = Path(str(manifest["config"]))
-    ordered_rows = _ordered_rows(rows)
+    base_cfg_path = Path(str(manifest.get("base_config") or manifest["config"]))
+    ordered_rows = _ordered_rows(rows, manifest)
     if not ordered_rows:
         raise RuntimeError(f"No condition rows found in summary.csv under {input_dir}")
     for row in ordered_rows:
         condition_id = row["condition_id"]
         if condition_id not in records:
             raise RuntimeError(f"Missing {condition_id} in run_manifest.json")
-        archive_path = input_dir / condition_id / "state_archive.npz"
+        archive_path = _archive_path(input_dir, records[condition_id])
         if not archive_path.exists():
             raise FileNotFoundError(
                 f"Missing state archive for {condition_id}: {archive_path}"
             )
     return ordered_rows, records, base_cfg_path
+
+
+def _archive_path(input_dir: Path, condition_record: dict[str, Any]) -> Path:
+    output_dir = condition_record.get("output_dir")
+    if output_dir:
+        return Path(str(output_dir)) / "state_archive.npz"
+    return input_dir / str(condition_record["condition_id"]) / "state_archive.npz"
 
 
 def _build_cfg(
@@ -337,16 +379,45 @@ def _render_grid_movie(
     titles = [_label_for_row(row) for row in condition_rows]
     fail_labels = [_fail_label(row) for row in condition_rows]
     n_conditions = len(condition_rows)
-    n_cols = min(3, max(1, int(np.ceil(np.sqrt(n_conditions)))))
-    n_rows = int(np.ceil(n_conditions / n_cols))
+    row_indexes = [
+        int(float(row["grid_row_index"]))
+        for row in condition_rows
+        if str(row.get("grid_row_index", "")).strip() != ""
+    ]
+    col_indexes = [
+        int(float(row["grid_col_index"]))
+        for row in condition_rows
+        if str(row.get("grid_col_index", "")).strip() != ""
+    ]
+    if row_indexes and col_indexes:
+        n_rows = max(row_indexes) + 1
+        n_cols = max(col_indexes) + 1
+        subplot_positions = [
+            (
+                int(float(row["grid_row_index"])),
+                int(float(row["grid_col_index"])),
+            )
+            for row in condition_rows
+        ]
+    else:
+        n_cols = min(3, max(1, int(np.ceil(np.sqrt(n_conditions)))))
+        n_rows = int(np.ceil(n_conditions / n_cols))
+        subplot_positions = [
+            divmod(plot_index, n_cols) for plot_index in range(n_conditions)
+        ]
 
     for frame_idx in range(frame_count):
         fig = plt.figure(figsize=(4.8 * n_cols, 4.8 * n_rows))
-        axes = [
-            fig.add_subplot(n_rows, n_cols, plot_index + 1, projection="3d")
-            for plot_index in range(n_conditions)
-        ]
-        for idx, ax in enumerate(axes):
+        axes = {}
+        for row_index, col_index in subplot_positions:
+            axes[(row_index, col_index)] = fig.add_subplot(
+                n_rows,
+                n_cols,
+                row_index * n_cols + col_index + 1,
+                projection="3d",
+            )
+        for idx, (row_index, col_index) in enumerate(subplot_positions):
+            ax = axes[(row_index, col_index)]
             _plot_cell(
                 ax,
                 st=render_states_by_condition[idx][frame_idx],
@@ -452,19 +523,70 @@ def _plot_metrics(
     return out_path
 
 
+def _replay_defaults(config_path: Path | None) -> dict[str, Any]:
+    if config_path is None:
+        return {}
+    return dict((_load_yaml(config_path).get("replay") or {}))
+
+
+def _config_run_dir(config_path: Path | None) -> Path | None:
+    if config_path is None:
+        return None
+    output_cfg = dict((_load_yaml(config_path).get("output") or {}))
+    if bool(output_cfg.get("timestamp_subdir", True)):
+        return None
+    base_dir = output_cfg.get("base_dir")
+    return Path(str(base_dir)) if base_dir else None
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
+    config_from_key, parser_argv = split_config_key(raw_argv)
+    parser_argv = key_value_args_to_cli_args(parser_argv)
+
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input-dir", type=Path, required=True)
-    parser.add_argument("--output-dir", type=Path, default=_default_output_dir())
+    parser.add_argument("--config", type=Path, default=None)
+    parser.add_argument("--run-dir", type=Path, default=None)
+    parser.add_argument("--input-dir", type=Path, default=None)
+    parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument(
         "--mode",
         choices=("both", "plot-only", "render-only"),
-        default="both",
+        default=None,
     )
-    parser.add_argument("--fps-out-3d", type=float, default=25.0)
+    parser.add_argument("--fps-out-3d", type=float, default=None)
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
-    return parser.parse_args(argv)
+    args = parser.parse_args(parser_argv)
+    if config_from_key is not None and args.config is not None:
+        parser.error("Use either config=PATH or --config PATH (not both)")
+    args.config = config_from_key or args.config
+
+    if args.input_dir is not None and args.run_dir is not None:
+        parser.error("Use either run_dir=PATH or input_dir=PATH (not both)")
+    if args.input_dir is None and args.run_dir is None:
+        args.run_dir = _config_run_dir(args.config)
+    if args.input_dir is None:
+        args.input_dir = args.run_dir
+    if args.input_dir is None:
+        parser.error(
+            "--input-dir or --run-dir is required when output.timestamp_subdir is true"
+        )
+
+    replay_cfg = _replay_defaults(args.config)
+    if args.mode is None:
+        args.mode = str(replay_cfg.get("mode") or "both")
+    if args.mode not in {"both", "plot-only", "render-only"}:
+        parser.error(f"Invalid replay mode: {args.mode}")
+    if args.fps_out_3d is None:
+        args.fps_out_3d = float(replay_cfg.get("fps_out_3d") or 25.0)
+    if args.output_dir is None:
+        if args.run_dir is not None:
+            output_subdir = str(replay_cfg.get("output_subdir") or "replay")
+            args.output_dir = args.run_dir / output_subdir
+        else:
+            args.output_dir = _default_output_dir()
+    return args
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -506,9 +628,7 @@ def main(argv: list[str] | None = None) -> None:
                 condition_record=record,
                 fps_out_3d=args.fps_out_3d,
             )
-            states = load_state_archive(
-                args.input_dir / condition_id / "state_archive.npz"
-            )
+            states = load_state_archive(_archive_path(args.input_dir, record))
             simulator = Simulator(cfg)
             states_by_condition.append(states)
             cfg_by_condition.append(cfg)

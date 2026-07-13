@@ -139,3 +139,4 @@ seed:
 
 output:
   base_dir: outputs
+  timestamp_subdir: true

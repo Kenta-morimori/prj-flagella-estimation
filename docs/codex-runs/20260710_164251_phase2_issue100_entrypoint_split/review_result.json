@@ -1,0 +1,28 @@
+{
+  "status": "PASS",
+  "summary": "Issue #100 の follow-up として、sweep と multi-run の入口を分離し、generic multi-run config を 1 枚化した。あわせて shape_stability_grid sweep 出力へ共通 campaign 契約の condition metadata を追加した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "shape_stability_grid の heatmap は task-specific 実装を維持しており、generic campaign plot へはまだ完全統一していない。"
+  ],
+  "tests_reviewed": [
+    "uv run pytest -q tests/test_phase2_sweep_profiles.py tests/test_phase2_generic_multi_run.py",
+    "uv run ruff check scripts/01_simulate_swimming/run_sweep.py scripts/01_simulate_swimming/run_multi_run.py scripts/01_simulate_swimming/plot_heatmap.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_phase2_sweep_profiles.py tests/test_phase2_generic_multi_run.py",
+    "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml dry_run=true",
+    "uv run python scripts/01_simulate_swimming/plot_heatmap.py config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml list_canonical_profiles=true"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "CLI 入口と config 運用を整理した変更であり、物理モデルやデータ解釈の新規意思決定は含まない。",
+  "commit_type": "complete",
+  "commit_hash": "8093819557dc16b45466446377687759ad46bb22",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/107",
+  "next_actions": [
+    "run_multi_run.py を使って最新モデルの torque 複数条件比較を user 実行し、summary plot と replay を確認する。",
+    "task-specific heatmap 実装を generic campaign plot に寄せるかは別タスクで判断する。"
+  ]
+}
