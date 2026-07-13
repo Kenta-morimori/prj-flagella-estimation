@@ -173,7 +173,19 @@ uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.p
 | config | 用途 |
 | --- | --- |
 | `conf/phase2_analysis/flagella_count_behavior_dataset.yaml` | 標準 dataset |
+| `conf/phase2_analysis/flagella_count_behavior_dataset_torque2p0.yaml` | Issue #71 の診断用 dataset v0。最新 `fp=1.25` default で `motor.torque_Nm=2.0e-20` を使う |
 | `conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml` | center-priority 付着点 seed 比較 |
+
+Issue #71 の診断用 dataset v0 は次で実行します。36 sample の長時間 run なので、まず `--dry-run` や `--sample-limit 1` で確認してください。
+
+```bash
+uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py \
+  --config conf/phase2_analysis/flagella_count_behavior_dataset_torque2p0.yaml
+uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.py \
+  --config conf/phase2_analysis/flagella_count_behavior_dataset_torque2p0.yaml
+uv run python scripts/02_phase2_analysis/plot_flagella_count_behavior_distributions.py \
+  --dataset-id fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5
+```
 
 raw sample は `step_summary.csv`、`trajectory.csv`、`state_archive.npz` を保存します。後から 3D / 2D render を作る場合は次を使います。
 

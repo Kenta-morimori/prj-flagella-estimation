@@ -466,6 +466,31 @@
   - `scripts/README.md`
   - `docs/codex-runs/20260619_191237_phase2_73_feature_distributions/review_result.json`
 
+### P2-8-013: Issue #71 診断用 dataset v0 の条件を固定する
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
+- branch: `feature/phase2-71-diagnostic-dataset`
+- goal: 最新の basal freedom default を前提に，Phase3/4 本番訓練 dataset ではなく，RUN固定べん毛本数差の特徴分離性を確認する診断用 dataset v0 の実行条件を固定する。
+- result:
+  - `conf/phase2_analysis/flagella_count_behavior_dataset_torque2p0.yaml` を追加した。
+  - `n_flagella=[1,2,3,6]`, `attach_seeds=[0,1,2]`, `phase_seeds=[0,1,2]` の 36 sample 条件とした。
+  - `motor.torque_Nm=2.0e-20`, `motor.force_distribution=root_torque_segment_couples`, `time.dt_star=1.0e-4`, `duration_s=0.5`, RUN固定，後方初期軸を使う。
+  - `sample_order=interleave_n_flagella` とし，長時間実行時に本数条件が偏って後半へ固まらないようにした。
+- acceptance criteria:
+  - [x] 診断用 dataset config が追加されている。
+  - [x] 36 sample 条件が再現可能に生成できる。
+  - [x] 既存 runner / dataset builder / distribution plot CLI で扱える。
+  - [x] 本番訓練 dataset ではなく探索runであることが文書化されている。
+- verification:
+  - `uv run pytest tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff check conf scripts/02_phase2_analysis src/sim_swim/analysis tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff format --check conf scripts/02_phase2_analysis src/sim_swim/analysis tests/test_flagella_count_behavior_dataset.py`
+  - `/private/tmp` 出力で 1 sample smoke run / dataset build / distribution plot を確認する。
+- docs:
+  - `conf/phase2_analysis/flagella_count_behavior_dataset_torque2p0.yaml`
+  - `docs/codex-runs/20260713_210000_phase2_71_diagnostic_dataset/review_result.json`
+
 ## Completed support task: 動画出力・サンプリング整備
 
 ### P2-9-009: 3D/2D動画出力のレビュー向けサンプリングを整備する

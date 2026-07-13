@@ -126,6 +126,25 @@ def test_center_priority_dataset_config_generates_expected_conditions() -> None:
     assert conditions[-1]["sample_id"] == "nf06_as019_ps000"
 
 
+def test_torque2p0_diagnostic_dataset_config_generates_expected_conditions() -> None:
+    config_path = (
+        ROOT / "conf/phase2_analysis/flagella_count_behavior_dataset_torque2p0.yaml"
+    )
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+
+    conditions = run_sweep.build_conditions(config)
+
+    assert config["dataset_id"] == "fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5"
+    assert config["base_overrides"]["motor.torque_Nm"] == pytest.approx(2.0e-20)
+    assert config["base_overrides"]["motor.force_distribution"] == (
+        "root_torque_segment_couples"
+    )
+    assert config["runner"]["sample_order"] == "interleave_n_flagella"
+    assert len(conditions) == 36
+    assert conditions[0]["sample_id"] == "nf01_as000_ps000"
+    assert conditions[-1]["sample_id"] == "nf06_as002_ps002"
+
+
 def test_center_priority_attach_seed_mode_rejects_explicit_attach_seeds() -> None:
     config = {
         "sweep": {

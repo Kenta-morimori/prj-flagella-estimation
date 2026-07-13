@@ -1,0 +1,49 @@
+{
+  "status": "PASS",
+  "summary": "Issue #71 の診断用 dataset v0 として，最新 basal freedom default を使う torque=2.0e-20 の Phase 2.8 dataset config を追加した。これは Phase3/4 本番訓練 dataset の凍結ではなく，Ground Truth 付きで本数差の特徴分離性と QC 偏りを探索するための実行条件である。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "36 sample の本実行は長時間run扱いのため未実行。ユーザー実行後に summary / QC / distribution plot を読んで，seed拡張・評価時間延長・モデル改善のどれへ進むか判断する。",
+    "PR は親Issue #71を閉じず，Refs #71 として関連付ける。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS: 29 passed"
+    },
+    {
+      "command": "uv run ruff check conf scripts/02_phase2_analysis src/sim_swim/analysis tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check conf scripts/02_phase2_analysis src/sim_swim/analysis tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS: 24 files already formatted"
+    },
+    {
+      "command": "uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --config conf/phase2_analysis/flagella_count_behavior_dataset_torque2p0.yaml --sample-limit 1 --overwrite --progress-interval 5000 dataset_id=fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5_smoke run_batch_id=fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5_smoke output.run_batch_dir=/private/tmp/phase2_71_diagnostic_dataset/runs/fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5_smoke output.dataset_dir=/private/tmp/phase2_71_diagnostic_dataset/datasets/fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5_smoke",
+      "result": "PASS: 1 sample completed and wrote run_manifest.json under /private/tmp/phase2_71_diagnostic_dataset"
+    },
+    {
+      "command": "uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.py --config conf/phase2_analysis/flagella_count_behavior_dataset_torque2p0.yaml --run-manifest /private/tmp/phase2_71_diagnostic_dataset/runs/fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5_smoke/run_manifest.json --overwrite dataset_id=fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5_smoke output.dataset_dir=/private/tmp/phase2_71_diagnostic_dataset/datasets/fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5_smoke",
+      "result": "PASS: summary.csv, qc_summary.csv, timeseries, dataset_manifest.json を生成"
+    },
+    {
+      "command": "uv run python scripts/02_phase2_analysis/plot_flagella_count_behavior_distributions.py --dataset-dir /private/tmp/phase2_71_diagnostic_dataset/datasets/fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5_smoke --overwrite",
+      "result": "PASS: distribution_plots=6, qc_plots=7"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "adr_required": false,
+  "adr_reason": "新しい物理モデルや恒久I/O契約ではなく，既存 Phase 2.8 dataset runner の診断用設定追加である。",
+  "commit_type": "implementation",
+  "commit_hash": "pending",
+  "push_status": "pending",
+  "pull_request_url": "pending",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71",
+  "next_actions": [
+    "36 sample dataset を実行し，plot_flagella_count_behavior_distributions.py の出力から特徴分離性と QC 偏りを評価する。",
+    "特徴差が QC / first_fail に支配される場合はモデル改善へ戻り，十分に分離する場合は seed 拡張または 2D 特徴評価へ進む。"
+  ]
+}
