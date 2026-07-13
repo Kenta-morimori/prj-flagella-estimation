@@ -1,0 +1,28 @@
+{
+  "status": "PASS",
+  "summary": "PR #107 の Codex review 指摘に対応し、generic multi-run plot の axis label 解決を summary.csv の `axis_*_index` / `axis_*_label` 優先に修正した。これにより、run 時に `sweep.axes.*.values` を CLI override した場合でも、後続 plot が profile default label に引きずられて blank / NaN になる問題を防ぐ。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "plot_heatmap.py / render_shape_stability_grid_replay.py の log / manifest 強化、replay 出力種別切替、命名見直しは別PRで扱う。"
+  ],
+  "tests_reviewed": [
+    "uv run pytest -q tests/test_phase2_generic_multi_run.py",
+    "uv run pytest -q tests/test_phase2_generic_multi_run.py tests/test_phase2_sweep_profiles.py",
+    "uv run ruff format --check .",
+    "uv run ruff check .",
+    "uv run pytest -q -m light"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "plot label 解決のバグ修正であり、物理モデル・出力 schema・解析判断の方針変更ではない。",
+  "commit_type": "complete",
+  "commit_hash": "85a2fc75ed0f1466692a42694416e0f5a0fdf4c5",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/107",
+  "next_actions": [
+    "必要なら GitHub 上で Codex review thread を resolved にする。"
+  ]
+}

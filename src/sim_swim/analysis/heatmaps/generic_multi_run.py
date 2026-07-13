@@ -104,13 +104,15 @@ def _axis_labels(rows: list[dict[str, str]], axis: dict[str, Any]) -> list[str]:
     labels = list(axis["labels"])
     index_column = _axis_index_column(axis["name"])
     label_column = _axis_label_column(axis["name"])
-    seen = {
-        int(float(row[index_column]))
-        for row in rows
-        if row.get(index_column) not in {"", None}
-    }
-    if seen:
-        return [labels[index] for index in sorted(seen)]
+    indexed_labels: dict[int, str] = {}
+    for row in rows:
+        index_raw = row.get(index_column)
+        label = row.get(label_column, "")
+        if index_raw in {"", None} or not label:
+            continue
+        indexed_labels[int(float(index_raw))] = label
+    if indexed_labels:
+        return [indexed_labels[index] for index in sorted(indexed_labels)]
     present = [row.get(label_column, "") for row in rows if row.get(label_column, "")]
     return present or labels
 

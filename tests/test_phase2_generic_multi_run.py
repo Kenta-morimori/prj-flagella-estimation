@@ -173,6 +173,29 @@ def test_generic_multi_run_plot_outputs_line_plots(tmp_path: Path) -> None:
     assert (tmp_path / "plots" / "max_flag_bond_rel_err_vs_torque.png").is_file()
 
 
+def test_generic_multi_run_plot_labels_follow_summary_axis_overrides() -> None:
+    module = _load_script(
+        Path("src/sim_swim/analysis/heatmaps/generic_multi_run.py"),
+        "phase2_generic_multi_run_heatmap_labels",
+    )
+    axis = {
+        "name": "torque",
+        "labels": ["1.5e-20", "2e-20", "2.5e-20"],
+    }
+    rows = [
+        {
+            "axis_torque_index": "0",
+            "axis_torque_label": "1e-20",
+        },
+        {
+            "axis_torque_index": "1",
+            "axis_torque_label": "2e-20",
+        },
+    ]
+
+    assert module._axis_labels(rows, axis) == ["1e-20", "2e-20"]
+
+
 def test_generic_multi_run_plot_accepts_run_dir(tmp_path: Path) -> None:
     summary_csv = tmp_path / "summary.csv"
     summary_csv.write_text(
