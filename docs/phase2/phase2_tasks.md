@@ -884,6 +884,7 @@
   - `plot_heatmap.py` は multi-run profile を読む場合は generic summary plot として動き，`shape_stability_grid` を読む場合は sweep 診断向け mode-specific heatmap として動く。
   - 2026-07-13 追補として，`output.timestamp_subdir` を共通 output config に追加した。`latest_model_torque_shape_stability.yaml` は `timestamp_subdir=false` とし，`output.base_dir` を固定 run root として `run_multi_run.py config=...`，`plot_heatmap.py config=...`，`render_shape_stability_grid_replay.py config=...` の3コマンドで実行・定量plot・replayを接続できるようにした。
   - 2026-07-13 追補として，config-only 3コマンド導線により tracked local wrapper `scripts/local/run_phase2_82_main_latest_torque_multi_run_1s.sh` は不要になったため削除した。`plot_heatmap.py` / `render_shape_stability_grid_replay.py` の log / manifest 強化は別PRの後続タスクとして扱う。
+  - 2026-07-13 追補として，`conf/phase2_multi_run/README.md` を追加し，`run_multi_run.py` は複数条件 simulation 実行のみを担当すること，plot / replay は同じ config と `output.base_dir` を読む別コマンドであること，1軸 plot は `*_vs_<axis>.png`，2軸 plot は `*_heatmap.png` になることを明記した。
   - `summary.csv`，`trajectory.csv`，`state_archive.npz`，`run_manifest.json` の replayable output contract は維持した。
 - acceptance criteria:
   - [x] `run_sweep.py` / `plot_heatmap.py` の現役導線を `shape_stability_grid` として説明できる。
@@ -901,6 +902,7 @@
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/torque_distribution_grid.yaml time.duration_s=0.001 motor.torque_Nm=2.0e-20 output_dir=/private/tmp/phase2_100_torque_grid_smoke overwrite=true progress_interval=10000`
   - `uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py --input-dir /private/tmp/phase2_100_torque_grid_smoke --mode plot-only --output-dir /private/tmp/phase2_100_replay_plot --overwrite`
 - docs:
+  - `conf/phase2_multi_run/README.md`
   - `scripts/README.md`
   - `docs/phase2/phase2_current.md`
   - `docs/phase2/phase2_tasks.md`
