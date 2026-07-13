@@ -3,15 +3,17 @@
 この directory には，Phase 2 の user-facing な複数条件実行 profile YAML を置く。
 開発・診断用の task-specific sweep は `conf/phase2_sweeps/` を使い，既存 config に対する複数条件実行と結果の比較は `conf/phase2_multi_run/` を使う。
 
-## Canonical profile
+## Canonical profiles
 
 現時点の標準 profile は次である。
 
-```text
-conf/phase2_multi_run/latest_model_torque_shape_stability.yaml
-```
+| config | 用途 |
+| --- | --- |
+| `conf/phase2_multi_run/latest_model_torque_shape_stability.yaml` | 最新モデルの torque 複数条件 shape stability 比較 |
+| `conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml` | Issue #71 の RUN 固定べん毛本数差 diagnostic dataset v0 |
 
-この profile は，最新モデルで `motor.torque_Nm` を複数条件に振り，shape stability の定量 plot と replay を作るための設定を 1 枚にまとめる。
+どちらも run / plot / replay の設定を 1 枚にまとめる。
+`flagella_count_behavior_diagnostic.yaml` はさらに `dataset:` section を持ち，dataset 作成にも同じ config を使う。
 
 ## 標準実行コマンド
 
@@ -26,6 +28,22 @@ uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py
 ```
 
 `run_multi_run.py` は simulation の複数条件実行だけを担当する。plot と replay は，生成済みの `summary.csv` と各 condition の出力を別コマンドで読む。
+
+Issue #71 の diagnostic dataset は，同じ profile から dataset 作成と分布分析まで続ける。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml overwrite=true
+
+uv run python scripts/01_simulate_swimming/plot_heatmap.py config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml
+
+uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml overwrite=true
+
+uv run python scripts/02_phase2_analysis/build_dataset.py config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml overwrite=true
+
+uv run python scripts/02_phase2_analysis/plot_distributions.py --dataset-id fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5 --overwrite
+```
+
+36 sample の本実行は長時間 run として扱う。確認だけなら `dry_run=true sample_limit=5` を使う。
 
 ## 出力先
 
@@ -61,6 +79,18 @@ outputs/phase2_multi_run/latest_model_torque_shape_stability/
 ```
 
 `plots/` と `replay/` は，それぞれ plot / replay コマンドを実行したときに作られる。`run_multi_run.py` だけでは作られない。
+
+`flagella_count_behavior_diagnostic.yaml` では run root と dataset 出力先を分ける。
+
+```yaml
+output:
+  base_dir: outputs/phase2_multi_run/flagella_count_behavior_diagnostic
+  timestamp_subdir: false
+
+dataset:
+  dataset_id: fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5
+  output_dir: outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5
+```
 
 ## plot 設定
 
@@ -113,6 +143,43 @@ plot:
 
 ```text
 plots/first_fail_t_s_heatmap.png
+```
+
+条件軸が 3 つ以上ある profile では，表示しない軸を `plot.filter_axes` で固定する。
+`flagella_count_behavior_diagnostic.yaml` は `n_flagella x attach_seed` の heatmap を描くため，`phase_seed` を固定している。
+
+```yaml
+plot:
+  default_x_axis: n_flagella
+  default_y_axis: attach_seed
+  filter_axes:
+    phase_seed: "0"
+```
+
+`filter_axes` を指定しないまま 3 軸以上の profile を plot しようとすると，同じ heatmap cell へ複数条件が重なるためエラーにする。
+
+## dataset 設定
+
+`dataset` section は，`scripts/02_phase2_analysis/build_dataset.py` が読む。
+`run_multi_run.py` の `run_manifest.json` にある `conditions` を dataset sample に変換し，`summary.csv`，`qc_summary.csv`，`timeseries/<sample_id>.csv`，`dataset_manifest.json` を生成する。
+
+```yaml
+dataset:
+  dataset_id: fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5
+  feature_schema: conf/phase2_analysis/flagella_count_behavior_features.yaml
+  output_dir: outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5
+  sample_id_template: "nf{n_flagella:02d}_as{attach_seed:03d}_ps{phase_seed:03d}"
+  timeseries_sampling: all_steps
+```
+
+`dataset.dataset_id` や `dataset.output_dir` は CLI override できる。
+
+```bash
+uv run python scripts/02_phase2_analysis/build_dataset.py \
+  config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml \
+  dataset.dataset_id=my_diagnostic \
+  dataset.output_dir=/private/tmp/my_diagnostic_dataset \
+  overwrite=true
 ```
 
 ## replay 設定

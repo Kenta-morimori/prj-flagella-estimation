@@ -35,7 +35,7 @@ Phase 2.8 の診断用 dataset 作成:
 ```bash
 uv run python scripts/01_simulate_swimming/run_multi_run.py \
   config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml
-uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset_from_multi_run.py \
+uv run python scripts/02_phase2_analysis/build_dataset.py \
   config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml
 ```
 

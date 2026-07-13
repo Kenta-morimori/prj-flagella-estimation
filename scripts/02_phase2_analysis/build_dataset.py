@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a Phase 2.8 flagella-count behavior dataset from a run manifest."""
+"""Build a Phase 2.8 behavior dataset from a multi-run manifest."""
 
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plot Phase 2.8 flagella-count behavior feature distributions."""
+"""Plot Phase 2.8 behavior feature distributions."""
 
 from __future__ import annotations
 

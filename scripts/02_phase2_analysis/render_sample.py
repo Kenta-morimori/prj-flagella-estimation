@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render 3D/2D outputs from a flagella-count behavior raw sample archive."""
+"""Render 3D/2D outputs from a Phase 2.8 raw sample archive."""
 
 from __future__ import annotations
 

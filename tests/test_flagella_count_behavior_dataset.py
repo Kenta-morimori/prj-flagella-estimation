@@ -39,16 +39,16 @@ def _load_script(name: str, rel_path: str):
 
 
 build_dataset = _load_script(
-    "build_flagella_count_behavior_dataset_from_multi_run",
-    "scripts/02_phase2_analysis/build_flagella_count_behavior_dataset_from_multi_run.py",
+    "build_dataset",
+    "scripts/02_phase2_analysis/build_dataset.py",
 )
 render_sample = _load_script(
-    "render_flagella_count_behavior_sample",
-    "scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py",
+    "render_sample",
+    "scripts/02_phase2_analysis/render_sample.py",
 )
 plot_distributions = _load_script(
-    "plot_flagella_count_behavior_distributions",
-    "scripts/02_phase2_analysis/plot_flagella_count_behavior_distributions.py",
+    "plot_distributions",
+    "scripts/02_phase2_analysis/plot_distributions.py",
 )
 
 
@@ -280,7 +280,7 @@ def test_render_sample_cli_passes_sampling_options(
         sys,
         "argv",
         [
-            "render_flagella_count_behavior_sample.py",
+            "render_sample.py",
             "--sample-dir",
             str(tmp_path / "sample"),
             "--output-dir",
@@ -453,7 +453,7 @@ def test_render_sample_cli_passes_dataset_dir_options(
         sys,
         "argv",
         [
-            "render_flagella_count_behavior_sample.py",
+            "render_sample.py",
             "--dataset-dir",
             str(tmp_path / "dataset"),
             "--output-dir",
