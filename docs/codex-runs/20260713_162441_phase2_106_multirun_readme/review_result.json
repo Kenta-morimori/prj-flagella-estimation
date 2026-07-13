@@ -3,7 +3,7 @@
   "summary": "Issue #106 / PR #107 向けに conf/phase2_multi_run の README を追加し、multi-run / plot / replay の3コマンド導線、固定 output.base_dir、1軸 plot と2軸 heatmap の出力条件を明文化した。",
   "blocking_issues": [],
   "non_blocking_issues": [
-    "GitHub issue #106 の本文更新は gh issue edit が HTTP 401 で失敗したため未反映。gh auth refresh は device login 待ちになったため中断した。"
+    "GitHub issue #106 の本文更新は gh issue edit / gh api が HTTP 401 で失敗したため未反映。gh auth refresh は device login 待ちになったため中断した。"
   ],
   "tests_reviewed": [
     "uv run python scripts/01_simulate_swimming/plot_heatmap.py config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml describe_profile=true",
@@ -18,7 +18,7 @@
   "adr_reason": "既存の multi-run CLI 導線の説明追加であり、物理モデルや出力契約の新規意思決定は含まない。",
   "commit_type": "complete",
   "commit_hash": "6cbfcf502cfc04d14502efbdfaa799afb1d540f4",
-  "push_status": "not_pushed",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/107",
   "next_actions": [
     "GitHub CLI の認証を更新した後、issue #106 のタイトルと本文を README 追加後の内容へ更新する。",
