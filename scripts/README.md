@@ -160,43 +160,49 @@ uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py
 
 ## 02_phase2_analysis
 
-Phase 2.8 の RUN 固定べん毛数差分析用 batch / dataset 作成 CLI です。
+Phase 2.8 の RUN 固定べん毛数差分析用 dataset 作成 CLI です。raw 出力は `scripts/01_simulate_swimming/run_multi_run.py` で作り、同じ `conf/phase2_multi_run/*.yaml` を dataset builder / heatmap / replay でも使います。
 
 ```bash
-uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py --dry-run --sample-limit 3
-uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py
-uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.py
+uv run python scripts/01_simulate_swimming/run_multi_run.py \
+  config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml \
+  dry_run=true sample_limit=3
+uv run python scripts/01_simulate_swimming/run_multi_run.py \
+  config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml
+uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset_from_multi_run.py \
+  config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml
 ```
 
 標準設定:
 
 | config | 用途 |
 | --- | --- |
-| `conf/phase2_analysis/flagella_count_behavior_dataset.yaml` | 標準 dataset |
-| `conf/phase2_analysis/flagella_count_behavior_dataset_torque2p0.yaml` | Issue #71 の診断用 dataset v0。最新 `fp=1.25` default で `motor.torque_Nm=2.0e-20` を使う |
-| `conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml` | center-priority 付着点 seed 比較 |
+| `conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml` | Issue #71 の診断用 dataset v0。run / heatmap / replay / dataset 作成で共通に使う |
 
-Issue #71 の診断用 dataset v0 は次で実行します。36 sample の長時間 run なので、まず `--dry-run` や `--sample-limit 1` で確認してください。
+Issue #71 の診断用 dataset v0 は次で実行します。36 sample の長時間 run なので、まず `dry_run=true` や `sample_limit=1` で確認してください。
 
 ```bash
-uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py \
-  --config conf/phase2_analysis/flagella_count_behavior_dataset_torque2p0.yaml
-uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.py \
-  --config conf/phase2_analysis/flagella_count_behavior_dataset_torque2p0.yaml
+uv run python scripts/01_simulate_swimming/run_multi_run.py \
+  config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml
+uv run python scripts/01_simulate_swimming/plot_heatmap.py \
+  config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml
+uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py \
+  config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml
+uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset_from_multi_run.py \
+  config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml
 uv run python scripts/02_phase2_analysis/plot_flagella_count_behavior_distributions.py \
   --dataset-id fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5
 ```
 
-raw sample は `step_summary.csv`、`trajectory.csv`、`state_archive.npz` を保存します。後から 3D / 2D render を作る場合は次を使います。
+raw condition は `step_summary.csv`、`trajectory.csv`、`state_archive.npz` を保存します。dataset directory から 3D / 2D render を作る場合は次を使います。
 
 ```bash
 uv run python scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py \
-  --dataset-dir outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_as3_ps3_dur0p5
+  --dataset-dir outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5
 ```
 
 dataset の分布 plot は次で生成します。
 
 ```bash
 uv run python scripts/02_phase2_analysis/plot_flagella_count_behavior_distributions.py \
-  --dataset-id fc_nf1_2_3_6_as3_ps3_dur0p5
+  --dataset-id fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5
 ```

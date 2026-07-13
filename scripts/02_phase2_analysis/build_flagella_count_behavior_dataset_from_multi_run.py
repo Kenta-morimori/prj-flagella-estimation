@@ -19,7 +19,11 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from sim_swim.analysis.flagella_count_behavior import apply_analysis_cli_overrides
+from sim_swim.analysis.cli_profiles import (
+    key_value_args_to_cli_args,
+    split_config_key,
+)
+from sim_swim.analysis.multi_run_campaign import apply_campaign_cli_overrides, load_yaml
 
 
 METADATA_FIELDS = [
@@ -413,45 +417,171 @@ def _now_jst() -> str:
     return datetime.now(ZoneInfo("Asia/Tokyo")).isoformat()
 
 
+def _merge_nested(dst: dict[str, Any], src: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(dst)
+    for key, value in src.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _merge_nested(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _resolve_run_manifest_path(
+    *,
+    campaign: dict[str, Any],
+    run_manifest_path: Path | None,
+    run_dir: Path | None,
+) -> Path:
+    if run_manifest_path is not None and run_dir is not None:
+        raise ValueError("Use either run_manifest=PATH or run_dir=PATH, not both")
+    if run_manifest_path is not None:
+        return run_manifest_path
+    if run_dir is not None:
+        return run_dir / "run_manifest.json"
+    output_cfg = dict(campaign.get("output", {}) or {})
+    if bool(output_cfg.get("timestamp_subdir", True)):
+        raise ValueError(
+            "run_manifest=... or run_dir=... is required when "
+            "output.timestamp_subdir is true"
+        )
+    return Path(str(output_cfg["base_dir"])) / "run_manifest.json"
+
+
+def _condition_to_sample(
+    *,
+    condition: dict[str, Any],
+    campaign: dict[str, Any],
+    sample_id_template: str,
+) -> dict[str, Any]:
+    axis_values = dict(condition.get("axis_values", {}) or {})
+    effective_overrides = _merge_nested(
+        dict(campaign.get("base_overrides", {}) or {}),
+        dict(condition.get("config_overrides", {}) or {}),
+    )
+    time_cfg = dict(effective_overrides.get("time", {}) or {})
+    motor_cfg = dict(effective_overrides.get("motor", {}) or {})
+    seed_cfg = dict(effective_overrides.get("seed", {}) or {})
+    n_flagella = int(axis_values.get("n_flagella", 0))
+    attach_seed = int(axis_values.get("attach_seed", seed_cfg.get("attach_seed", 0)))
+    phase_seed = int(axis_values.get("phase_seed", seed_cfg.get("phase_seed", 0)))
+    sample_id = sample_id_template.format(
+        n_flagella=n_flagella,
+        attach_seed=attach_seed,
+        phase_seed=phase_seed,
+        condition_id=condition.get("condition_id", ""),
+    )
+    raw_dir = Path(str(condition["output_dir"]))
+    step_summary_csv = raw_dir / "step_summary.csv"
+    return {
+        "sample_id": sample_id,
+        "condition_id": condition.get("condition_id", ""),
+        "condition_tag": condition.get("condition_label", ""),
+        "n_flagella": n_flagella,
+        "seed": attach_seed,
+        "attach_seed": attach_seed,
+        "phase_seed": phase_seed,
+        "duration_s": time_cfg.get("duration_s", ""),
+        "dt_star": time_cfg.get("dt_star", ""),
+        "torque_Nm": motor_cfg.get("torque_Nm", ""),
+        "force_distribution": motor_cfg.get("force_distribution", ""),
+        "status": "completed" if step_summary_csv.is_file() else "missing_raw",
+        "sample_dir": str(raw_dir),
+        "raw_dir": str(raw_dir),
+        "config_overrides": effective_overrides,
+        "outputs": {
+            "raw_dir": str(raw_dir),
+            "step_summary_csv": str(step_summary_csv),
+            "state_archive_npz": str(raw_dir / "state_archive.npz"),
+            "trajectory_csv": str(raw_dir / "trajectory.csv"),
+        },
+    }
+
+
+def _samples_from_multi_run_manifest(
+    *,
+    run_manifest: dict[str, Any],
+    campaign: dict[str, Any],
+    sample_id_template: str,
+) -> list[dict[str, Any]]:
+    if "conditions" not in run_manifest:
+        raise ValueError("Multi-run run_manifest.json must contain conditions")
+    return [
+        _condition_to_sample(
+            condition=condition,
+            campaign=campaign,
+            sample_id_template=sample_id_template,
+        )
+        for condition in run_manifest.get("conditions", [])
+    ]
+
+
 def build_dataset(
     *,
-    analysis_config_path: Path,
+    campaign_config_path: Path,
     run_manifest_path: Path | None,
+    run_dir: Path | None = None,
     overwrite: bool,
     cli_overrides: list[str] | None = None,
 ) -> Path:
-    raw_analysis_config = _load_yaml(analysis_config_path)
     cli_overrides = cli_overrides or []
-    analysis_config = apply_analysis_cli_overrides(
-        raw_analysis_config,
-        cli_overrides,
-    )
-    dataset_id = str(analysis_config["dataset_id"])
-    output_cfg = analysis_config.get("output", {}) or {}
-    dataset_dir = Path(output_cfg["dataset_dir"])
+    raw_campaign = load_yaml(campaign_config_path)
+    campaign = apply_campaign_cli_overrides(raw_campaign, cli_overrides)
+    dataset_cfg = dict(campaign.get("dataset", {}) or {})
+    if not dataset_cfg:
+        raise ValueError("campaign config must contain a dataset section")
+    dataset_id = str(dataset_cfg["dataset_id"])
+    dataset_dir = Path(str(dataset_cfg["output_dir"]))
     if dataset_dir.exists() and overwrite:
         shutil.rmtree(dataset_dir)
     dataset_dir.mkdir(parents=True, exist_ok=True)
-    effective_analysis_config_path = dataset_dir / "analysis_config_used.yaml"
-    _write_yaml(effective_analysis_config_path, analysis_config)
+    effective_campaign_config_path = dataset_dir / "campaign_config_used.yaml"
+    _write_yaml(effective_campaign_config_path, campaign)
 
-    if run_manifest_path is None:
-        run_batch_dir = Path(output_cfg["run_batch_dir"])
-        run_manifest_path = run_batch_dir / "run_manifest.json"
+    run_manifest_path = _resolve_run_manifest_path(
+        campaign=campaign,
+        run_manifest_path=run_manifest_path,
+        run_dir=run_dir,
+    )
     run_manifest = json.loads(run_manifest_path.read_text(encoding="utf-8"))
     feature_schema_path = Path(
-        run_manifest.get("feature_schema")
-        or analysis_config.get(
-            "feature_schema",
-            "conf/phase2_analysis/flagella_count_behavior_features.yaml",
+        str(
+            dataset_cfg.get(
+                "feature_schema",
+                "conf/phase2_analysis/flagella_count_behavior_features.yaml",
+            )
         )
     )
     shutil.copyfile(feature_schema_path, dataset_dir / "feature_schema_used.yaml")
+    if str(dataset_cfg.get("timeseries_sampling", "all_steps")) != "all_steps":
+        raise ValueError("Only dataset.timeseries_sampling=all_steps is supported")
+    sample_id_template = str(
+        dataset_cfg.get(
+            "sample_id_template",
+            "nf{n_flagella:02d}_as{attach_seed:03d}_ps{phase_seed:03d}",
+        )
+    )
+    samples = _samples_from_multi_run_manifest(
+        run_manifest=run_manifest,
+        campaign=campaign,
+        sample_id_template=sample_id_template,
+    )
+    base_cfg = _load_yaml(Path(str(campaign["base_config"])))
+    config_dir = dataset_dir / "configs"
+    for sample in samples:
+        sample_id = str(sample["sample_id"])
+        sample_config_path = config_dir / f"{sample_id}.yaml"
+        sample_config = _merge_nested(
+            base_cfg,
+            dict(sample.get("config_overrides", {}) or {}),
+        )
+        _write_yaml(sample_config_path, sample_config)
+        sample["config_path"] = str(sample_config_path)
 
     timeseries_dir = dataset_dir / "timeseries"
     summaries: list[dict[str, Any]] = []
     qc_rows: list[dict[str, Any]] = []
-    for sample in run_manifest.get("samples", []):
+    for sample in samples:
         sample_id = str(sample.get("sample_id", ""))
         timeseries_csv = timeseries_dir / f"{sample_id}.csv"
         summary, ts_rows, ts_fieldnames = summarize_sample(
@@ -500,11 +630,11 @@ def build_dataset(
 
     manifest = {
         "dataset_id": dataset_id,
-        "run_batch_id": run_manifest.get("run_batch_id", ""),
+        "run_batch_id": run_manifest.get("output_root", ""),
         "created_at": _now_jst(),
-        "analysis_config": str(analysis_config_path),
-        "effective_analysis_config": analysis_config,
-        "effective_analysis_config_yaml": str(effective_analysis_config_path),
+        "campaign_config": str(campaign_config_path),
+        "effective_campaign_config": campaign,
+        "effective_campaign_config_yaml": str(effective_campaign_config_path),
         "cli_overrides": list(cli_overrides),
         "run_manifest": str(run_manifest_path),
         "feature_schema_source": str(feature_schema_path),
@@ -520,7 +650,8 @@ def build_dataset(
             key: sum(1 for row in summaries if row["quality_class"] == key)
             for key in sorted({str(row["quality_class"]) for row in summaries})
         },
-        "timeseries_sampling": output_cfg.get("timeseries_sampling", "all_steps"),
+        "timeseries_sampling": dataset_cfg.get("timeseries_sampling", "all_steps"),
+        "samples": samples,
         "git": _git_info(),
     }
     manifest_path = dataset_dir / "dataset_manifest.json"
@@ -531,25 +662,38 @@ def build_dataset(
     return dataset_dir
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
+    config_from_key, parser_argv = split_config_key(raw_argv)
+    parser_argv = key_value_args_to_cli_args(parser_argv)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("conf/phase2_analysis/flagella_count_behavior_dataset.yaml"),
+        default=None,
     )
     parser.add_argument("--run-manifest", type=Path, default=None)
+    parser.add_argument("--run-dir", type=Path, default=None)
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument(
         "overrides",
         nargs="*",
-        help="Optional analysis overrides as key=value (e.g. dataset_id=my_dataset)",
+        help=(
+            "Optional campaign overrides as key=value "
+            "(e.g. dataset.dataset_id=my_dataset)"
+        ),
     )
-    args = parser.parse_args()
+    args = parser.parse_args(parser_argv)
+    if config_from_key is not None and args.config is not None:
+        parser.error("Use either config=PATH or --config PATH (not both)")
+    config = config_from_key or args.config
+    if config is None:
+        parser.error("config=PATH or --config PATH is required")
 
     dataset_dir = build_dataset(
-        analysis_config_path=args.config,
+        campaign_config_path=config,
         run_manifest_path=args.run_manifest,
+        run_dir=args.run_dir,
         overwrite=bool(args.overwrite),
         cli_overrides=args.overrides,
     )
