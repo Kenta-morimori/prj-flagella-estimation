@@ -1,10 +1,10 @@
 {
   "status": "PASS",
-  "summary": "Issue #71 の診断用 dataset v0 として，最新 basal freedom default を使う torque=2.0e-20 の Phase 2.8 dataset config を追加した。これは Phase3/4 本番訓練 dataset の凍結ではなく，Ground Truth 付きで本数差の特徴分離性と QC 偏りを探索するための実行条件である。",
+  "summary": "Issue #112 として，親Issue #71 の診断用 dataset v0 条件を固定し，最新 basal freedom default を使う torque=2.0e-20 の Phase 2.8 dataset config を追加した。これは Phase3/4 本番訓練 dataset の凍結ではなく，Ground Truth 付きで本数差の特徴分離性と QC 偏りを探索するための実行条件である。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "36 sample の本実行は長時間run扱いのため未実行。ユーザー実行後に summary / QC / distribution plot を読んで，seed拡張・評価時間延長・モデル改善のどれへ進むか判断する。",
-    "PR は親Issue #71を閉じず，Refs #71 として関連付ける。"
+    "PR は Issue #112 を close し，親Issue #71は Refs #71 として関連付ける。"
   ],
   "tests_reviewed": [
     {
@@ -41,7 +41,8 @@
   "commit_hash": "d9bb97b",
   "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/111",
-  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/112",
+  "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71",
   "next_actions": [
     "36 sample dataset を実行し，plot_flagella_count_behavior_distributions.py の出力から特徴分離性と QC 偏りを評価する。",
     "特徴差が QC / first_fail に支配される場合はモデル改善へ戻り，十分に分離する場合は seed 拡張または 2D 特徴評価へ進む。"
