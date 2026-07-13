@@ -475,7 +475,7 @@
 - result:
   - 当初は `conf/phase2_analysis/flagella_count_behavior_dataset_torque2p0.yaml` で固定したが，Issue #112 で `conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml` へ移行した。
   - `n_flagella=[1,2,3,6]`, `attach_seeds=[0,1,2]`, `phase_seeds=[0,1,2]` の 36 sample 条件とした。
-  - `motor.torque_Nm=2.0e-20`, `motor.force_distribution=root_torque_segment_couples`, `time.dt_star=1.0e-4`, `duration_s=0.5`, RUN固定，後方初期軸を使う。
+  - `motor.torque_Nm=2.0e-20`, `motor.force_distribution=root_torque_segment_couples`, `time.dt_star=1.0e-4`, `duration_s=1.0`, RUN固定，後方初期軸を使う。
   - generic multi-run の axes を `attach_seed -> phase_seed -> n_flagella` 順に定義し，長時間実行時に本数条件が偏って後半へ固まらないようにした。
   - dataset 固有情報は同じ multi-run profile の `dataset:` section に置き，`dataset.dataset_id` も config / override で指定する。
 - acceptance criteria:

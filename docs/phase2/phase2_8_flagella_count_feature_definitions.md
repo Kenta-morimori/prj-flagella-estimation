@@ -14,7 +14,7 @@
 * `motor.force_distribution=root_torque_segment_couples`
 * `time.dt_star=1.0e-4`
 * `flagella.initial_helix_axis_from_rear_deg=0`
-* 初期評価時間は `duration_s=0.5` を基本にする
+* 初期評価時間は `duration_s=1.0` を基本にする
 
 1 sample は，1つの `n_flagella`，1つの `attach_seed`，1つの `phase_seed`，1つの simulation run の組として定義する。旧 `seed` 形式は互換metadataとして残し，付着点選択seedと初期helix phase seedを分けて記録する。
 

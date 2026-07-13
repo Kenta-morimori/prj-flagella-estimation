@@ -73,7 +73,7 @@ def test_flagella_count_diagnostic_multi_run_config_generates_expected_condition
 
     conditions = build_campaign_conditions(config)
 
-    assert config["dataset"]["dataset_id"] == ("fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5")
+    assert config["dataset"]["dataset_id"] == ("fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0")
     assert config["base_overrides"]["motor"]["torque_Nm"] == pytest.approx(2.0e-20)
     assert config["base_overrides"]["motor"]["force_distribution"] == (
         "root_torque_segment_couples"

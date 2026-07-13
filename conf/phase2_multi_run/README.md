@@ -40,7 +40,7 @@ uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py
 
 uv run python scripts/02_phase2_analysis/build_dataset.py config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml overwrite=true
 
-uv run python scripts/02_phase2_analysis/plot_distributions.py --dataset-id fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5 --overwrite
+uv run python scripts/02_phase2_analysis/plot_distributions.py --dataset-id fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0 --overwrite
 ```
 
 36 sample の本実行は長時間 run として扱う。確認だけなら `dry_run=true sample_limit=5` を使う。
@@ -88,8 +88,8 @@ output:
   timestamp_subdir: false
 
 dataset:
-  dataset_id: fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5
-  output_dir: outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5
+  dataset_id: fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0
+  output_dir: outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0
 ```
 
 ## plot 設定
@@ -165,9 +165,9 @@ plot:
 
 ```yaml
 dataset:
-  dataset_id: fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5
+  dataset_id: fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0
   feature_schema: conf/phase2_analysis/flagella_count_behavior_features.yaml
-  output_dir: outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5
+  output_dir: outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0
   sample_id_template: "nf{n_flagella:02d}_as{attach_seed:03d}_ps{phase_seed:03d}"
   timeseries_sampling: all_steps
 ```

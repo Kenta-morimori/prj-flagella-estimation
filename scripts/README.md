@@ -190,19 +190,19 @@ uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py
 uv run python scripts/02_phase2_analysis/build_dataset.py \
   config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml
 uv run python scripts/02_phase2_analysis/plot_distributions.py \
-  --dataset-id fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5
+  --dataset-id fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0
 ```
 
 raw condition は `step_summary.csv`、`trajectory.csv`、`state_archive.npz` を保存します。dataset directory から 3D / 2D render を作る場合は次を使います。
 
 ```bash
 uv run python scripts/02_phase2_analysis/render_sample.py \
-  --dataset-dir outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5
+  --dataset-dir outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0
 ```
 
 dataset の分布 plot は次で生成します。
 
 ```bash
 uv run python scripts/02_phase2_analysis/plot_distributions.py \
-  --dataset-id fc_nf1_2_3_6_as3_ps3_torque2p0_dur0p5
+  --dataset-id fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0
 ```
