@@ -22,16 +22,13 @@ echo "run_root=${run_root}"
 echo "[2/3] phase2_82 latest-model torque summary plot"
 uv run python scripts/01_simulate_swimming/plot_heatmap.py \
   config="${CONFIG}" \
-  summary_csv="${summary_csv}" \
-  output_dir="${run_root}/plots"
+  run_dir="${run_root}"
 
 echo "[3/3] phase2_82 latest-model torque replay"
 uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py \
-  --input-dir "${run_root}" \
-  --mode both \
-  --fps-out-3d 10 \
-  --output-dir "${run_root}/replay" \
-  --overwrite
+  config="${CONFIG}" \
+  run_dir="${run_root}" \
+  overwrite=true
 
 echo "Outputs:"
 echo "  ${summary_csv}"

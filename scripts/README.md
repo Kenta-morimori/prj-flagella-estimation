@@ -117,7 +117,7 @@ generic multi-run の summary plot も `plot_heatmap.py` から行います。�
 ```bash
 uv run python scripts/01_simulate_swimming/plot_heatmap.py \
   config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml \
-  summary_csv=outputs/.../summary.csv
+  run_dir=outputs/phase2_multi_run/latest_model_torque_shape_stability/YYYY-MM-DD/HHMMSS
 ```
 
 主な profile:
@@ -147,13 +147,13 @@ uv run python scripts/01_simulate_swimming/plot_heatmap.py \
 
 ```bash
 uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py \
-  --input-dir outputs/phase2_103/stage_c_lateral_position_only_dur0p6 \
-  --mode both \
-  --output-dir /private/tmp/phase2_103_lateral_replay \
-  --overwrite
+  config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml \
+  run_dir=outputs/phase2_multi_run/latest_model_torque_shape_stability/YYYY-MM-DD/HHMMSS \
+  overwrite=true
 ```
 
 `--mode plot-only` は metrics CSV / PNG のみ、`--mode render-only` は 3D grid movie のみ、`--mode both` は両方を生成します。
+legacy 互換として `summary_csv=...` や `--input-dir ... --output-dir ...` も引き続き使えます。
 
 ## 02_phase2_analysis
 

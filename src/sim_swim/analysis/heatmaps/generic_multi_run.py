@@ -35,12 +35,19 @@ def _get_plt():
 def _parse_args(argv: list[str] | None = None) -> tuple[argparse.Namespace, list[str]]:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--campaign-config", type=Path, required=True)
-    parser.add_argument("--summary-csv", type=Path, required=True)
+    parser.add_argument("--summary-csv", type=Path, default=None)
+    parser.add_argument("--run-dir", type=Path, default=None)
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument("--x-axis", type=str, default=None)
     parser.add_argument("--y-axis", type=str, default=None)
     parser.add_argument("--metrics", type=str, default=None)
     args, passthrough = parser.parse_known_args(argv)
+    if args.summary_csv is None:
+        if args.run_dir is None:
+            parser.error("--summary-csv or --run-dir is required")
+        args.summary_csv = args.run_dir / "summary.csv"
+    if args.output_dir is None and args.run_dir is not None:
+        args.output_dir = args.run_dir / "plots"
     return args, passthrough
 
 

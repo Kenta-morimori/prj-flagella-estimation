@@ -21,6 +21,10 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
+from sim_swim.analysis.cli_profiles import (
+    key_value_args_to_cli_args,
+    split_config_key,
+)
 from sim_swim.sim.params import SimulationConfig
 
 CANONICAL_TORQUE_DISTRIBUTION_CONDITION_IDS = (
@@ -519,19 +523,56 @@ def _plot_metrics(
     return out_path
 
 
+def _replay_defaults(config_path: Path | None) -> dict[str, Any]:
+    if config_path is None:
+        return {}
+    return dict((_load_yaml(config_path).get("replay") or {}))
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
+    config_from_key, parser_argv = split_config_key(raw_argv)
+    parser_argv = key_value_args_to_cli_args(parser_argv)
+
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input-dir", type=Path, required=True)
-    parser.add_argument("--output-dir", type=Path, default=_default_output_dir())
+    parser.add_argument("--config", type=Path, default=None)
+    parser.add_argument("--run-dir", type=Path, default=None)
+    parser.add_argument("--input-dir", type=Path, default=None)
+    parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument(
         "--mode",
         choices=("both", "plot-only", "render-only"),
-        default="both",
+        default=None,
     )
-    parser.add_argument("--fps-out-3d", type=float, default=25.0)
+    parser.add_argument("--fps-out-3d", type=float, default=None)
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
-    return parser.parse_args(argv)
+    args = parser.parse_args(parser_argv)
+    if config_from_key is not None and args.config is not None:
+        parser.error("Use either config=PATH or --config PATH (not both)")
+    args.config = config_from_key or args.config
+
+    if args.input_dir is not None and args.run_dir is not None:
+        parser.error("Use either run_dir=PATH or input_dir=PATH (not both)")
+    if args.input_dir is None:
+        args.input_dir = args.run_dir
+    if args.input_dir is None:
+        parser.error("--input-dir or --run-dir is required")
+
+    replay_cfg = _replay_defaults(args.config)
+    if args.mode is None:
+        args.mode = str(replay_cfg.get("mode") or "both")
+    if args.mode not in {"both", "plot-only", "render-only"}:
+        parser.error(f"Invalid replay mode: {args.mode}")
+    if args.fps_out_3d is None:
+        args.fps_out_3d = float(replay_cfg.get("fps_out_3d") or 25.0)
+    if args.output_dir is None:
+        if args.run_dir is not None:
+            output_subdir = str(replay_cfg.get("output_subdir") or "replay")
+            args.output_dir = args.run_dir / output_subdir
+        else:
+            args.output_dir = _default_output_dir()
+    return args
 
 
 def main(argv: list[str] | None = None) -> None:

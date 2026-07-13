@@ -70,9 +70,14 @@ def _first_option_value(args: list[str], option_name: str) -> str | None:
     return None
 
 
-def _with_default_output_dir(args: list[str]) -> list[str]:
+def _with_run_dir_defaults(args: list[str]) -> list[str]:
+    run_dir = _first_option_value(args, "--run-dir")
+    if run_dir is not None and not _has_option(args, "--summary-csv"):
+        args = [*args, "--summary-csv", str(Path(run_dir) / "summary.csv")]
     if _has_option(args, "--output-dir"):
         return args
+    if run_dir is not None:
+        return [*args, "--output-dir", str(Path(run_dir) / "plots")]
     summary_csv = _first_option_value(args, "--summary-csv")
     if summary_csv is None:
         return args
@@ -131,13 +136,11 @@ def main(argv: list[str] | None = None) -> None:
         validate_profile_role(entry, "heatmap")
 
     if kind == "generic_multi_run":
-        effective_args = _with_default_output_dir(
+        effective_args = _with_run_dir_defaults(
             ["--campaign-config", str(config)] + key_value_args_to_cli_args(passthrough)
         )
     else:
-        effective_args = _with_default_output_dir(
-            args_from_profile(entry) + passthrough
-        )
+        effective_args = _with_run_dir_defaults(args_from_profile(entry) + passthrough)
     HEATMAP_MAIN[kind](effective_args)
 
 

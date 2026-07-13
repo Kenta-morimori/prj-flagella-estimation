@@ -8,23 +8,9 @@ base_config: conf/sim_swim.yaml
 
 base_overrides:
   time.duration_s: 1.0
-  time.dt_star: 1.0e-4
-  motor.enable_switching: false
-  motor.force_distribution: root_torque_segment_couples
-  motor.local_attach_frame_position_scale: 1.25
-  motor.local_attach_frame_tangent_scale: 1.0
-  motor.local_first_second_spring_scale: 1.0
-  flagella.n_flagella: 3
-  flagella.placement_mode: seeded_surface
-  flagella.initial_phase_mode: seeded
   flagella.initial_helix_axis_from_rear_deg: 0
   seed.attach_seed: 0
   seed.phase_seed: 0
-  output_sampling.out_all_steps_3d: false
-  output_sampling.fps_out_3d: 25.0
-  output_sampling.fps_out_2d: 25.0
-  render.save_frames_3d: false
-  render.save_frames_2d: false
 
 sweep:
   axes:
@@ -33,7 +19,10 @@ sweep:
       short_name: torque
       values: [1.5e-20, 2.0e-20, 2.5e-20]
 
-replay: {}
+replay:
+  mode: both
+  fps_out_3d: 10.0
+  output_subdir: replay
 
 plot:
   default_x_axis: torque
