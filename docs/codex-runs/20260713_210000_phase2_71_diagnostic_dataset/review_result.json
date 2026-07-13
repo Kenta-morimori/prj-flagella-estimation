@@ -38,9 +38,9 @@
   "adr_required": false,
   "adr_reason": "新しい物理モデルや恒久I/O契約ではなく，既存 Phase 2.8 dataset runner の診断用設定追加である。",
   "commit_type": "implementation",
-  "commit_hash": "pending",
-  "push_status": "pending",
-  "pull_request_url": "pending",
+  "commit_hash": "d9bb97b",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/111",
   "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71",
   "next_actions": [
     "36 sample dataset を実行し，plot_flagella_count_behavior_distributions.py の出力から特徴分離性と QC 偏りを評価する。",
