@@ -41,6 +41,7 @@ def _parse_args(argv: list[str] | None = None) -> tuple[argparse.Namespace, list
     parser.add_argument("--sample-limit", type=int, default=None)
     parser.add_argument("--progress-interval", type=int, default=None)
     parser.add_argument("--save-state-archive", type=str, default=None)
+    parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args, passthrough = parser.parse_known_args(argv)
     return args, passthrough
@@ -144,8 +145,16 @@ def run_campaign(argv: list[str] | None = None) -> Path:
     output_base_dir = Path(
         str(campaign.get("output", {}).get("base_dir") or "outputs/phase2_multi_run")
     )
+    output_cfg = dict(campaign.get("output", {}) or {})
+    timestamp_subdir = _parse_bool(
+        output_cfg.get("timestamp_subdir"),
+        default=True,
+    )
+    overwrite = args.overwrite or bool(output_cfg.get("overwrite", False))
     ctx = init_run(
         base_dir=output_base_dir,
+        timestamp_subdir=timestamp_subdir,
+        overwrite=overwrite,
         input_info={
             "campaign_config": str(args.campaign_config),
             "overrides": passthrough,

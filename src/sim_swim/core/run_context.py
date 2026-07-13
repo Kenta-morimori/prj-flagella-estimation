@@ -9,6 +9,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+import shutil
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -124,7 +125,13 @@ def _setup_logger(log_path: Path) -> logging.Logger:
     return logger
 
 
-def init_run(base_dir: str | Path, input_info: dict[str, Any]) -> RunContext:
+def init_run(
+    base_dir: str | Path,
+    input_info: dict[str, Any],
+    *,
+    timestamp_subdir: bool = True,
+    overwrite: bool = False,
+) -> RunContext:
     """実行ディレクトリ・ログ・manifestを作成して返す。
 
     Args:
@@ -138,10 +145,18 @@ def init_run(base_dir: str | Path, input_info: dict[str, Any]) -> RunContext:
     _require_clean_git()
 
     date_str, time_str = _now_jst()
-    root = Path(base_dir) / date_str / time_str
+    root = Path(base_dir) / date_str / time_str if timestamp_subdir else Path(base_dir)
     sim_dir = root / "sim"
     render_dir = root / "render"
     render2d_dir = root / "render2d"
+
+    if root.exists():
+        if not overwrite:
+            raise FileExistsError(
+                f"Run output directory already exists: {root}. "
+                "Use overwrite=true only when replacing this run is intended."
+            )
+        shutil.rmtree(root)
 
     sim_dir.mkdir(parents=True, exist_ok=False)
     render_dir.mkdir(parents=True, exist_ok=False)
@@ -175,6 +190,7 @@ def init_run(base_dir: str | Path, input_info: dict[str, Any]) -> RunContext:
             "date": date_str,
             "time": time_str,
             "timezone": "Asia/Tokyo",
+            "timestamp_subdir": timestamp_subdir,
         },
         "input": input_info,
         "outputs": {

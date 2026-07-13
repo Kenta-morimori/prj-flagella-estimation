@@ -33,6 +33,68 @@ def test_init_run_creates_log_and_manifest(
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["input"]["config"] == "conf/sim_swim.yaml"
     assert Path(manifest["outputs"]["sim_dir"]).name == "sim"
+    assert manifest["run_time"]["timestamp_subdir"] is True
+
+
+def test_init_run_can_use_base_dir_as_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("sim_swim.core.run_context._require_clean_git", lambda: None)
+    monkeypatch.setattr(
+        "sim_swim.core.run_context._now_jst",
+        lambda: ("2026-02-18", "210000"),
+    )
+
+    run_dir = tmp_path / "run"
+    ctx = init_run(
+        base_dir=run_dir,
+        input_info={"config": "conf/sim_swim.yaml"},
+        timestamp_subdir=False,
+    )
+
+    assert ctx.out.root == run_dir
+    assert (run_dir / "manifest.json").is_file()
+    assert (run_dir / "sim").is_dir()
+    assert not (run_dir / "2026-02-18").exists()
+
+
+def test_init_run_fixed_root_requires_overwrite(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("sim_swim.core.run_context._require_clean_git", lambda: None)
+
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "manifest.json").write_text("{}", encoding="utf-8")
+
+    with pytest.raises(FileExistsError, match="overwrite=true"):
+        init_run(
+            base_dir=run_dir,
+            input_info={"config": "conf/sim_swim.yaml"},
+            timestamp_subdir=False,
+        )
+
+
+def test_init_run_fixed_root_overwrite_replaces_existing_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("sim_swim.core.run_context._require_clean_git", lambda: None)
+
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    stale = run_dir / "stale.txt"
+    stale.write_text("old", encoding="utf-8")
+
+    ctx = init_run(
+        base_dir=run_dir,
+        input_info={"config": "conf/sim_swim.yaml"},
+        timestamp_subdir=False,
+        overwrite=True,
+    )
+
+    assert ctx.out.root == run_dir
+    assert not stale.exists()
+    assert (run_dir / "manifest.json").is_file()
 
 
 def test_init_run_aborts_when_dirty_and_leaves_no_output(

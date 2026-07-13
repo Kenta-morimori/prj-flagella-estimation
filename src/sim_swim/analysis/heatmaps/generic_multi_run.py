@@ -42,13 +42,22 @@ def _parse_args(argv: list[str] | None = None) -> tuple[argparse.Namespace, list
     parser.add_argument("--y-axis", type=str, default=None)
     parser.add_argument("--metrics", type=str, default=None)
     args, passthrough = parser.parse_known_args(argv)
+    return args, passthrough
+
+
+def _resolve_input_paths(args: argparse.Namespace, campaign: dict[str, Any]) -> None:
     if args.summary_csv is None:
         if args.run_dir is None:
-            parser.error("--summary-csv or --run-dir is required")
+            output_cfg = dict(campaign.get("output", {}) or {})
+            if bool(output_cfg.get("timestamp_subdir", True)):
+                raise ValueError(
+                    "summary_csv=... or run_dir=... is required when "
+                    "output.timestamp_subdir is true"
+                )
+            args.run_dir = Path(str(output_cfg["base_dir"]))
         args.summary_csv = args.run_dir / "summary.csv"
     if args.output_dir is None and args.run_dir is not None:
         args.output_dir = args.run_dir / "plots"
-    return args, passthrough
 
 
 def _load_rows(summary_csv: Path) -> list[dict[str, str]]:
@@ -193,6 +202,7 @@ def main(argv: list[str] | None = None) -> None:
     campaign = apply_campaign_cli_overrides(
         load_yaml(args.campaign_config), passthrough
     )
+    _resolve_input_paths(args, campaign)
     rows = _load_rows(args.summary_csv)
     output_dir = args.output_dir or (args.summary_csv.parent / "plots")
     output_dir.mkdir(parents=True, exist_ok=True)

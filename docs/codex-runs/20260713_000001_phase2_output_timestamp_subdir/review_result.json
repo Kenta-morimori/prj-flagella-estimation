@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "summary": "共通 output config に `timestamp_subdir` を追加し、default true で既存の timestamp 付き run root を維持しつつ、generic multi-run profile では `output.base_dir` を固定 run root として run / plot / replay を config だけで接続できるようにした。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    "uv run pytest -q tests/test_params.py tests/test_run_context.py tests/test_phase2_generic_multi_run.py",
+    "uv run pytest -q tests/test_params.py tests/test_run_context.py tests/test_phase2_generic_multi_run.py tests/test_phase2_sweep_profiles.py",
+    "uv run pytest -q tests/test_flagella_count_behavior_dataset.py",
+    "uv run pytest -q tests/test_e2e_cli.py tests/test_simulation.py::test_run_writes_step_summary_csv_without_projection_columns",
+    "bash -n scripts/local/run_phase2_82_main_latest_torque_multi_run_1s.sh",
+    "uv run ruff check src/sim_swim/sim/params.py src/sim_swim/core/run_context.py scripts/01_simulate_swimming/01_simulate_swimming.py src/sim_swim/analysis/sweeps/generic_multi_run.py src/sim_swim/analysis/heatmaps/generic_multi_run.py scripts/01_simulate_swimming/render_shape_stability_grid_replay.py tests/test_params.py tests/test_run_context.py tests/test_phase2_generic_multi_run.py",
+    "uv run ruff format --check .",
+    "uv run ruff check .",
+    "uv run pytest -q -m light"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "出力ディレクトリの既存 policy を default true で維持し、固定 run root を opt-in で追加する CLI/output 整合の改善であり、物理モデルや解析指標の判断変更ではない。",
+  "commit_type": "complete",
+  "commit_hash": "70394093613a64dd2fb2b9df285266ffa6629722",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/107",
+  "next_actions": [
+    "`scripts/local/run_phase2_82_main_latest_torque_multi_run_1s.sh` を実行し、固定 run root 配下の summary.csv / plots / replay を確認する。"
+  ]
+}

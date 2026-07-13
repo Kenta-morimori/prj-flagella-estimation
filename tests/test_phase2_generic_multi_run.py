@@ -4,6 +4,8 @@ import importlib.util
 import json
 from pathlib import Path
 
+import pytest
+
 from sim_swim.analysis.cli_profiles import list_profile_entries, load_profile_entry
 from sim_swim.analysis.multi_run_campaign import (
     apply_campaign_cli_overrides,
@@ -19,6 +21,43 @@ def _load_script(path: Path, name: str):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def _write_generic_profile(
+    path: Path, base_dir: Path, *, timestamp_subdir: bool
+) -> None:
+    path.write_text(
+        "\n".join(
+            [
+                "kind: generic_multi_run",
+                "metadata:",
+                "  role: sweep",
+                "  canonical: true",
+                "base_config: conf/sim_swim.yaml",
+                "base_overrides: {}",
+                "sweep:",
+                "  axes:",
+                "    torque:",
+                "      key: motor.torque_Nm",
+                "      short_name: torque",
+                "      values: [1.5e-20, 2.0e-20]",
+                "replay:",
+                "  mode: both",
+                "  fps_out_3d: 10.0",
+                "  output_subdir: replay",
+                "plot:",
+                "  default_x_axis: torque",
+                "  default_y_axis: null",
+                "  metrics:",
+                "    - first_fail_t_s",
+                "output:",
+                f"  base_dir: {base_dir}",
+                f"  timestamp_subdir: {str(timestamp_subdir).lower()}",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 def test_generic_multi_run_profile_is_listed() -> None:
@@ -49,6 +88,7 @@ def test_latest_model_profile_base_overrides_only_intentional_diffs() -> None:
         "seed.attach_seed": 0,
         "seed.phase_seed": 0,
     }
+    assert profile["output"]["timestamp_subdir"] is False
 
 
 def test_generic_multi_run_builds_conditions_and_cli_override() -> None:
@@ -162,6 +202,51 @@ def test_generic_multi_run_plot_accepts_run_dir(tmp_path: Path) -> None:
     assert (tmp_path / "plots" / "first_fail_t_s_vs_torque.png").is_file()
 
 
+def test_generic_multi_run_plot_uses_fixed_output_base_dir(tmp_path: Path) -> None:
+    run_dir = tmp_path / "fixed_run"
+    run_dir.mkdir()
+    profile = tmp_path / "fixed_profile.yaml"
+    _write_generic_profile(profile, run_dir, timestamp_subdir=False)
+    (run_dir / "summary.csv").write_text(
+        "\n".join(
+            [
+                "condition_id,condition_label,axis_torque_label,axis_torque_index,first_fail_t_s",
+                "torque_1p5e20,torque=1.5e-20,1.5e-20,0,0.5",
+                "torque_2p0e20,torque=2.0e-20,2.0e-20,1,0.3",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/plot_heatmap.py"),
+        "phase2_plot_heatmap_wrapper_generic_multi_fixed_output",
+    )
+
+    module.main([f"config={profile}"])
+
+    assert (run_dir / "plots" / "plot_data.csv").is_file()
+    assert (run_dir / "plots" / "first_fail_t_s_vs_torque.png").is_file()
+
+
+def test_generic_multi_run_plot_requires_run_dir_for_timestamped_output(
+    tmp_path: Path,
+) -> None:
+    profile = tmp_path / "timestamped_profile.yaml"
+    _write_generic_profile(
+        profile,
+        tmp_path / "timestamped_parent",
+        timestamp_subdir=True,
+    )
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/plot_heatmap.py"),
+        "phase2_plot_heatmap_wrapper_generic_multi_timestamped_output",
+    )
+
+    with pytest.raises(ValueError, match="output.timestamp_subdir is true"):
+        module.main([f"config={profile}"])
+
+
 def test_plot_heatmap_lists_generic_multi_run_profiles(capsys) -> None:
     module = _load_script(
         Path("scripts/01_simulate_swimming/plot_heatmap.py"),
@@ -254,3 +339,20 @@ def test_replay_wrapper_accepts_config_run_dir_defaults(tmp_path: Path) -> None:
     assert args.mode == "both"
     assert args.fps_out_3d == 10.0
     assert args.overwrite is True
+
+
+def test_replay_wrapper_uses_fixed_output_base_dir(tmp_path: Path) -> None:
+    run_dir = tmp_path / "fixed_run"
+    profile = tmp_path / "fixed_profile.yaml"
+    _write_generic_profile(profile, run_dir, timestamp_subdir=False)
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_replay_generic_multi_fixed_output_args",
+    )
+
+    args = module._parse_args([f"config={profile}", "overwrite=true"])
+
+    assert args.input_dir == run_dir
+    assert args.output_dir == run_dir / "replay"
+    assert args.mode == "both"
+    assert args.fps_out_3d == 10.0

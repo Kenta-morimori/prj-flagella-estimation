@@ -35,5 +35,6 @@ plot:
 
 output:
   base_dir: outputs/phase2_multi_run/latest_model_torque_shape_stability
+  timestamp_subdir: false
   save_state_archive: true
   progress_interval: 1000

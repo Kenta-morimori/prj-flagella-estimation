@@ -11,7 +11,8 @@ summary_csv="$(
   uv run python scripts/01_simulate_swimming/run_multi_run.py \
     config="${CONFIG}" \
     time.duration_s=1.0 \
-    sweep.axes.torque.values="${TORQUE_VALUES}"
+    sweep.axes.torque.values="${TORQUE_VALUES}" \
+    overwrite=true
 )"
 summary_csv="$(printf '%s\n' "${summary_csv}" | tail -n 1)"
 run_root="$(dirname "${summary_csv}")"
@@ -21,13 +22,11 @@ echo "run_root=${run_root}"
 
 echo "[2/3] phase2_82 latest-model torque summary plot"
 uv run python scripts/01_simulate_swimming/plot_heatmap.py \
-  config="${CONFIG}" \
-  run_dir="${run_root}"
+  config="${CONFIG}"
 
 echo "[3/3] phase2_82 latest-model torque replay"
 uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py \
   config="${CONFIG}" \
-  run_dir="${run_root}" \
   overwrite=true
 
 echo "Outputs:"

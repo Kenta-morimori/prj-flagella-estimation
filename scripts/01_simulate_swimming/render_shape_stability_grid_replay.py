@@ -529,6 +529,16 @@ def _replay_defaults(config_path: Path | None) -> dict[str, Any]:
     return dict((_load_yaml(config_path).get("replay") or {}))
 
 
+def _config_run_dir(config_path: Path | None) -> Path | None:
+    if config_path is None:
+        return None
+    output_cfg = dict((_load_yaml(config_path).get("output") or {}))
+    if bool(output_cfg.get("timestamp_subdir", True)):
+        return None
+    base_dir = output_cfg.get("base_dir")
+    return Path(str(base_dir)) if base_dir else None
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     raw_argv = list(sys.argv[1:] if argv is None else argv)
     config_from_key, parser_argv = split_config_key(raw_argv)
@@ -554,10 +564,14 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     if args.input_dir is not None and args.run_dir is not None:
         parser.error("Use either run_dir=PATH or input_dir=PATH (not both)")
+    if args.input_dir is None and args.run_dir is None:
+        args.run_dir = _config_run_dir(args.config)
     if args.input_dir is None:
         args.input_dir = args.run_dir
     if args.input_dir is None:
-        parser.error("--input-dir or --run-dir is required")
+        parser.error(
+            "--input-dir or --run-dir is required when output.timestamp_subdir is true"
+        )
 
     replay_cfg = _replay_defaults(args.config)
     if args.mode is None:

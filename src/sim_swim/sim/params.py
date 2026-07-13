@@ -466,6 +466,7 @@ class OutputParams:
     """出力設定。"""
 
     base_dir: str = "outputs"
+    timestamp_subdir: bool = True
 
 
 @dataclass(frozen=True)
@@ -1064,7 +1065,10 @@ class SimulationConfig:
         )
 
         output_raw = raw.get("output", {}) or {}
-        output = OutputParams(base_dir=str(_get(output_raw, "base_dir", "outputs")))
+        output = OutputParams(
+            base_dir=str(_get(output_raw, "base_dir", "outputs")),
+            timestamp_subdir=bool(_get(output_raw, "timestamp_subdir", True)),
+        )
 
         stiffness_raw = raw.get("stiffness_scales", {}) or {}
         stiffness = StiffnessScaleParams(

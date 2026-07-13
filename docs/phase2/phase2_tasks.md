@@ -882,7 +882,7 @@
   - profile YAML は `metadata` に role / canonical / 推奨 sweep-heatmap 対応先を持ち，wrapper から canonical 一覧と個別 profile 説明を表示できる。
   - `run_multi_run.py` を追加し，`conf/phase2_multi_run/latest_model_torque_shape_stability.yaml` 1 枚で run / plot / replay metadata を共用できるようにした。
   - `plot_heatmap.py` は multi-run profile を読む場合は generic summary plot として動き，`shape_stability_grid` を読む場合は sweep 診断向け mode-specific heatmap として動く。
-  - 2026-07-13 追補として，`latest_model_torque_shape_stability.yaml` の `base_overrides` は `conf/sim_swim.yaml` との差分だけに整理し，`plot_heatmap.py config=... run_dir=...` と `render_shape_stability_grid_replay.py config=... run_dir=...` で同じ run root から `plots/` / `replay/` を作れるようにした。
+  - 2026-07-13 追補として，`output.timestamp_subdir` を共通 output config に追加した。`latest_model_torque_shape_stability.yaml` は `timestamp_subdir=false` とし，`output.base_dir` を固定 run root として `run_multi_run.py config=...`，`plot_heatmap.py config=...`，`render_shape_stability_grid_replay.py config=...` の3コマンドで実行・定量plot・replayを接続できるようにした。
   - `summary.csv`，`trajectory.csv`，`state_archive.npz`，`run_manifest.json` の replayable output contract は維持した。
 - acceptance criteria:
   - [x] `run_sweep.py` / `plot_heatmap.py` の現役導線を `shape_stability_grid` として説明できる。
