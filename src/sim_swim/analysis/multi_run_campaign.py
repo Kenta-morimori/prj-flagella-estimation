@@ -18,6 +18,7 @@ CAMPAIGN_OVERRIDE_ROOTS = {
     "sweep",
     "replay",
     "plot",
+    "dataset",
     "output",
 }
 
@@ -158,6 +159,7 @@ def normalize_campaign_config(raw_config: dict[str, Any]) -> dict[str, Any]:
     config["sweep"] = sweep
     config["replay"] = dict(config.get("replay", {}) or {})
     config["plot"] = dict(config.get("plot", {}) or {})
+    config["dataset"] = dict(config.get("dataset", {}) or {})
     config["output"] = dict(config.get("output", {}) or {})
     config["metadata"] = dict(config.get("metadata", {}) or {})
     return config

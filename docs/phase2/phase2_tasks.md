@@ -441,7 +441,7 @@
 - branch: `feature/phase2-73-feature-distributions`
 - goal: #72 の `summary.csv` dataset から，べん毛本数ごとの特徴量分布，QC偏り，NaN，簡易スクリーニングを確認できる分析出力を生成する。
 - tasks:
-  - [x] `scripts/02_phase2_analysis/plot_flagella_count_behavior_distributions.py` を追加する。
+  - [x] `scripts/02_phase2_analysis/plot_distributions.py` を追加する。
   - [x] `--dataset-dir` または `--dataset-id` で dataset directory を指定できるようにする。
   - [x] category別の sample点付き分布図を `plots/distributions/` に出力する。
   - [x] `quality_class` と `use_for_analysis` の違いを確認できる図を出力する。
@@ -461,10 +461,53 @@
   - `uv run pytest tests/test_flagella_count_behavior_dataset.py`
   - `uv run ruff check scripts/02_phase2_analysis tests/test_flagella_count_behavior_dataset.py`
   - `uv run ruff format --check scripts/02_phase2_analysis tests/test_flagella_count_behavior_dataset.py`
-  - `uv run python scripts/02_phase2_analysis/plot_flagella_count_behavior_distributions.py --dataset-id fc_nf1_2_3_6_seed1_dur0p5 --overwrite`
+  - `uv run python scripts/02_phase2_analysis/plot_distributions.py --dataset-id fc_nf1_2_3_6_seed1_dur0p5 --overwrite`
 - docs:
   - `scripts/README.md`
   - `docs/codex-runs/20260619_191237_phase2_73_feature_distributions/review_result.json`
+
+### P2-8-013: Issue #71 診断用 dataset v0 の条件を固定する
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
+- branch: `feature/phase2-71-diagnostic-dataset`
+- goal: 最新の basal freedom default を前提に，Phase3/4 本番訓練 dataset ではなく，RUN固定べん毛本数差の特徴分離性を確認する診断用 dataset v0 の実行条件を固定する。
+- result:
+  - 当初は `conf/phase2_analysis/flagella_count_behavior_dataset_torque2p0.yaml` で固定したが，Issue #112 で `conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml` へ移行した。
+  - `n_flagella=[1,2,3,6]`, `attach_seeds=[0,1,2]`, `phase_seeds=[0,1,2]` の 36 sample 条件とした。
+  - `motor.torque_Nm=2.0e-20`, `motor.force_distribution=root_torque_segment_couples`, `time.dt_star=1.0e-4`, `duration_s=1.0`, RUN固定，後方初期軸を使う。
+  - generic multi-run の axes を `attach_seed -> phase_seed -> n_flagella` 順に定義し，長時間実行時に本数条件が偏って後半へ固まらないようにした。
+  - dataset 固有情報は同じ multi-run profile の `dataset:` section に置き，`dataset.dataset_id` も config / override で指定する。
+- acceptance criteria:
+  - [x] 診断用 dataset config が追加されている。
+  - [x] 36 sample 条件が再現可能に生成できる。
+  - [x] `run_multi_run.py` / `plot_heatmap.py` / `render_shape_stability_grid_replay.py` / `build_dataset.py` / distribution plot CLI で扱える。
+  - [x] 本番訓練 dataset ではなく探索runであることが文書化されている。
+- verification:
+  - `uv run pytest tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff check conf scripts/02_phase2_analysis src/sim_swim/analysis tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff format --check conf scripts/02_phase2_analysis src/sim_swim/analysis tests/test_flagella_count_behavior_dataset.py`
+  - `/private/tmp` 出力で 1 sample smoke run / dataset build / distribution plot を確認する。
+- docs:
+  - `conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml`
+  - `docs/codex-runs/20260713_210000_phase2_71_diagnostic_dataset/review_result.json`
+
+### P2-8-014: Phase 2.8 dataset 作成を generic multi-run 出力へ統合する
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/112`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
+- branch: `feature/phase2-71-diagnostic-dataset`
+- goal: run / heatmap / replay / dataset 作成を同一 `conf/phase2_multi_run/*.yaml` で指定し，dataset は `run_multi_run.py` の出力から構築する。
+- result:
+  - `conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml` に `dataset:` section を追加し，`dataset_id`，feature schema，dataset output，sample id template を集約した。
+  - `build_dataset.py` は generic multi-run の `run_manifest.conditions` を読み，dataset summary / QC / timeseries / per-sample config を生成する。
+  - 旧 `run_flagella_count_behavior_sweep.py` と旧 `conf/phase2_analysis/flagella_count_behavior_dataset*.yaml` は削除した。
+- acceptance criteria:
+  - [x] dataset 作成情報が multi-run config に含まれている。
+  - [x] `dataset.dataset_id` を config / CLI override で指定できる。
+  - [x] multi-run raw output から dataset を作成できる。
+  - [x] heatmap / replay は同じ config を参照できる。
 
 ## Completed support task: 動画出力・サンプリング整備
 
@@ -497,7 +540,7 @@
   - `dt_star=1.0e-4`, `duration_s=0.5` 条件では archive state が約5000件になり，後出し3D描画を全stepで行うとファイル数と処理時間が大きくなる。
   - 既存の `output_sampling.out_all_steps_3d` / `fps_out_3d` / `fps_out_2d` を raw sample replay CLI から指定できる必要がある。
 - tasks:
-  - [x] `render_flagella_count_behavior_sample.py` に `--fps-out-3d` / `--fps-out-2d` を追加する。
+  - [x] `render_sample.py` に `--fps-out-3d` / `--fps-out-2d` を追加する。
   - [x] replay render のデフォルトを `out_all_steps_3d=false` とし，必要時のみ `--out-all-steps-3d` で全step描画できるようにする。
   - [x] `manifest.json` と `run.log` に effective な render sampling 条件を記録する。
   - [x] `conf/phase2_analysis/flagella_count_behavior_dataset.yaml` に標準 sampling 条件を明記する。
@@ -510,12 +553,12 @@
 - tests/checks:
   - `uv run pytest tests/test_flagella_count_behavior_dataset.py`
   - `uv run pytest tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
-  - `uv run ruff check scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_flagella_count_behavior_dataset.py`
-  - `uv run ruff check src/sim_swim/render scripts/01_simulate_swimming/01_simulate_swimming.py scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
-  - `uv run ruff format --check scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_flagella_count_behavior_dataset.py`
-  - `uv run ruff format --check src/sim_swim/render scripts/01_simulate_swimming/01_simulate_swimming.py scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
-  - `uv run python scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py --help`
-  - `uv run python scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py --sample-dir outputs/phase2_analysis/flagella_count_behavior/runs/fc_nf1_2_3_6_seed1_dur0p5/samples/nf03_seed000 --output-dir /private/tmp/phase2_codec_probe_nf03 --fps-out-3d 25 --fps-out-2d 25`
+  - `uv run ruff check scripts/02_phase2_analysis/render_sample.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff check src/sim_swim/render scripts/01_simulate_swimming/01_simulate_swimming.py scripts/02_phase2_analysis/render_sample.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff format --check scripts/02_phase2_analysis/render_sample.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff format --check src/sim_swim/render scripts/01_simulate_swimming/01_simulate_swimming.py scripts/02_phase2_analysis/render_sample.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run python scripts/02_phase2_analysis/render_sample.py --help`
+  - `uv run python scripts/02_phase2_analysis/render_sample.py --sample-dir outputs/phase2_analysis/flagella_count_behavior/runs/fc_nf1_2_3_6_seed1_dur0p5/samples/nf03_seed000 --output-dir /private/tmp/phase2_codec_probe_nf03 --fps-out-3d 25 --fps-out-2d 25`
   - `ffprobe -hide_banner /private/tmp/phase2_codec_probe_nf03/render/swim3d.mp4`
   - `ffprobe -hide_banner /private/tmp/phase2_codec_probe_nf03/render2d/projection.mp4`
 - docs:
@@ -560,7 +603,7 @@
   - `flagella.placement_mode` と `flagella.initial_phase_mode` の取りうる値をconfigコメントへ明記した。
   - `render.save_frames_3d` / `render.save_frames_2d` の default を `false` にし，mp4 と final image は維持した。
   - 3D render に RUN/TUMBLE，時刻，実効トルク，`follow_camera_3d` を併記するようにした。
-  - `render_flagella_count_behavior_sample.py --dataset-dir` で dataset 内の全raw sampleを `replays/<sample_id>/` へ一括再描画できるようにした。
+  - `render_sample.py --dataset-dir` で dataset 内の全raw sampleを `replays/<sample_id>/` へ一括再描画できるようにした。
 - acceptance criteria:
   - [x] `conf/sim_swim.yaml` と parser fallback default が一致する。
   - [x] `-1` sentinel と明示的な `motor.torque_Nm` override は維持される。
@@ -570,8 +613,8 @@
 - verification:
   - `uv run pytest tests/test_params.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
   - `uv run python -c "import yaml; yaml.safe_load(open('conf/sim_swim.yaml', encoding='utf-8'))"`
-  - `uv run ruff check src/sim_swim/sim/params.py src/sim_swim/render/render3d.py scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_params.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
-  - `uv run ruff format --check src/sim_swim/sim/params.py src/sim_swim/render/render3d.py scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py tests/test_params.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff check src/sim_swim/sim/params.py src/sim_swim/render/render3d.py scripts/02_phase2_analysis/render_sample.py tests/test_params.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff format --check src/sim_swim/sim/params.py src/sim_swim/render/render3d.py scripts/02_phase2_analysis/render_sample.py tests/test_params.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
   - `uv run python -m scripts.01_simulate_swimming time.duration_s=0.001 time.dt_star=1.0e-4 motor.torque_Nm=0 output.base_dir=/private/tmp/phase2_issue84_smoke`
 - docs:
   - `scripts/README.md`

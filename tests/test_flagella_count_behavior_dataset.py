@@ -15,6 +15,11 @@ from sim_swim.analysis.flagella_count_behavior import (
     load_state_archive,
     save_state_archive,
 )
+from sim_swim.analysis.multi_run_campaign import (
+    apply_campaign_cli_overrides,
+    build_campaign_conditions,
+    load_yaml,
+)
 from sim_swim.render.video_writer import VideoRenderResult
 from sim_swim.sim.core import SimulationState
 from sim_swim.sim.params import SimulationConfig
@@ -33,21 +38,17 @@ def _load_script(name: str, rel_path: str):
     return module
 
 
-run_sweep = _load_script(
-    "run_flagella_count_behavior_sweep",
-    "scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py",
-)
 build_dataset = _load_script(
-    "build_flagella_count_behavior_dataset",
-    "scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.py",
+    "build_dataset",
+    "scripts/02_phase2_analysis/build_dataset.py",
 )
 render_sample = _load_script(
-    "render_flagella_count_behavior_sample",
-    "scripts/02_phase2_analysis/render_flagella_count_behavior_sample.py",
+    "render_sample",
+    "scripts/02_phase2_analysis/render_sample.py",
 )
 plot_distributions = _load_script(
-    "plot_flagella_count_behavior_distributions",
-    "scripts/02_phase2_analysis/plot_flagella_count_behavior_distributions.py",
+    "plot_distributions",
+    "scripts/02_phase2_analysis/plot_distributions.py",
 )
 
 
@@ -64,467 +65,46 @@ def test_distribution_plot_uses_integer_n_flagella_ticks() -> None:
     assert plot_distributions._n_flagella_tick_labels(ticks) == ["1", "2", "3", "6"]
 
 
-def test_flagella_count_conditions_use_expected_sample_ids() -> None:
-    config = {
-        "sweep": {
-            "n_flagella": [1, 2],
-            "attach_seeds": [0, 1],
-            "phase_seeds": [0, 1, 2],
-        }
-    }
+def test_flagella_count_diagnostic_multi_run_config_generates_expected_conditions() -> (
+    None
+):
+    config_path = ROOT / "conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml"
+    config = apply_campaign_cli_overrides(load_yaml(config_path), [])
 
-    conditions = run_sweep.build_conditions(config)
+    conditions = build_campaign_conditions(config)
 
-    assert len(conditions) == 12
-    assert conditions[0] == {
-        "sample_id": "nf01_as000_ps000",
-        "condition_tag": "n_flagella=1,attach_seed=0,phase_seed=0",
-        "n_flagella": 1,
-        "seed": 0,
+    assert config["dataset"]["dataset_id"] == ("fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0")
+    assert config["base_overrides"]["motor"]["torque_Nm"] == pytest.approx(2.0e-20)
+    assert config["base_overrides"]["motor"]["force_distribution"] == (
+        "root_torque_segment_couples"
+    )
+    assert len(conditions) == 36
+    assert conditions[0]["condition_id"] == "as000__ps000__nf01"
+    assert conditions[0]["axis_values"] == {
         "attach_seed": 0,
         "phase_seed": 0,
+        "n_flagella": 1,
     }
-    assert conditions[-1]["sample_id"] == "nf02_as001_ps002"
+    assert conditions[-1]["condition_id"] == "as002__ps002__nf06"
 
 
-def test_flagella_count_conditions_can_use_center_priority_attach_seed_prefix() -> None:
-    config = {
-        "sweep": {
-            "n_flagella": [1, 2, 3, 6],
-            "attach_seed_mode": "center_priority_prefix",
-            "phase_seeds": [0],
-        }
-    }
-
-    conditions = run_sweep.build_conditions(config)
-
-    assert len(conditions) == 27
-    assert [condition["sample_id"] for condition in conditions[:3]] == [
-        "nf01_as000_ps000",
-        "nf01_as001_ps000",
-        "nf01_as002_ps000",
-    ]
-    assert conditions[6]["sample_id"] == "nf03_as000_ps000"
-    assert conditions[-1]["sample_id"] == "nf06_as019_ps000"
-    assert {
-        int(condition["attach_seed"])
-        for condition in conditions
-        if int(condition["n_flagella"]) == 6
-    } == set(range(20))
-
-
-def test_center_priority_dataset_config_generates_expected_conditions() -> None:
-    config_path = (
-        ROOT / "conf/phase2_analysis/flagella_count_behavior_dataset_center_prefix.yaml"
-    )
-    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-
-    conditions = run_sweep.build_conditions(config)
-
-    assert len(conditions) == 27
-    assert {int(condition["phase_seed"]) for condition in conditions} == {0}
-    assert conditions[-1]["sample_id"] == "nf06_as019_ps000"
-
-
-def test_center_priority_attach_seed_mode_rejects_explicit_attach_seeds() -> None:
-    config = {
-        "sweep": {
-            "n_flagella": [1],
-            "attach_seed_mode": "center_priority_prefix",
-            "attach_seeds": [0],
-            "phase_seeds": [0],
-        }
-    }
-
-    with pytest.raises(ValueError, match="attach_seed_mode cannot be used"):
-        run_sweep.build_conditions(config)
-
-
-def test_center_priority_attach_seed_mode_rejects_unsupported_n_flagella() -> None:
-    config = {
-        "sweep": {
-            "n_flagella": [10],
-            "attach_seed_mode": "center_priority_prefix",
-            "phase_seeds": [0],
-        }
-    }
-
-    with pytest.raises(ValueError, match="n_flagella in \\[0,9\\]"):
-        run_sweep.build_conditions(config)
-
-
-def test_flagella_count_legacy_seed_conditions_set_split_seeds() -> None:
-    config = {"sweep": {"n_flagella": [1], "seeds": [2]}}
-
-    conditions = run_sweep.build_conditions(config)
-
-    assert conditions == [
-        {
-            "sample_id": "nf01_seed002",
-            "condition_tag": "n_flagella=1,seed=2",
-            "n_flagella": 1,
-            "seed": 2,
-            "attach_seed": 2,
-            "phase_seed": 2,
-        }
-    ]
-
-
-def test_flagella_count_conditions_can_interleave_n_flagella() -> None:
-    config = {
-        "sweep": {
-            "n_flagella": [1, 2, 3, 6],
-            "attach_seeds": [0, 1],
-            "phase_seeds": [0, 1],
-        }
-    }
-    conditions = run_sweep.build_conditions(config)
-
-    ordered = run_sweep.order_conditions(
-        conditions,
-        sample_order="interleave_n_flagella",
-    )
-
-    assert [condition["sample_id"] for condition in ordered[:4]] == [
-        "nf01_as000_ps000",
-        "nf02_as000_ps000",
-        "nf03_as000_ps000",
-        "nf06_as000_ps000",
-    ]
-    assert ordered[4]["sample_id"] == "nf01_as000_ps001"
-
-
-def _minimal_analysis_config(tmp_path: Path) -> dict[str, object]:
-    return {
-        "dataset_id": "test_dataset",
-        "run_batch_id": "test_dataset",
-        "base_config": str(ROOT / "conf/sim_swim.yaml"),
-        "feature_schema": str(
-            ROOT / "conf/phase2_analysis/flagella_count_behavior_features.yaml"
-        ),
-        "sweep": {"n_flagella": [1], "seeds": [0]},
-        "base_overrides": {
-            "time.duration_s": 0.5,
-            "time.dt_star": 1.0e-4,
-            "motor.torque_Nm": 2.5e-20,
-            "motor.enable_switching": False,
-            "motor.force_distribution": "root_torque_segment_couples",
-            "flagella.initial_helix_axis_from_rear_deg": 0,
-        },
-        "output": {
-            "run_batch_dir": str(tmp_path / "runs/test_dataset"),
-            "dataset_dir": str(tmp_path / "datasets/test_dataset"),
-            "save_numeric_timeseries": True,
-            "timeseries_sampling": "all_steps",
-        },
-    }
-
-
-def test_flagella_count_dry_run_writes_manifest_and_configs(tmp_path: Path) -> None:
-    analysis_config = {
-        "dataset_id": "test_dataset",
-        "run_batch_id": "test_dataset",
-        "base_config": str(ROOT / "conf/sim_swim.yaml"),
-        "feature_schema": str(
-            ROOT / "conf/phase2_analysis/flagella_count_behavior_features.yaml"
-        ),
-        "sweep": {"n_flagella": [1, 2], "seeds": [0]},
-        "base_overrides": {
-            "time.duration_s": 0.5,
-            "time.dt_star": 1.0e-4,
-            "motor.torque_Nm": 2.5e-20,
-            "motor.enable_switching": False,
-            "motor.force_distribution": "root_torque_segment_couples",
-            "flagella.initial_helix_axis_from_rear_deg": 0,
-        },
-        "output": {
-            "run_batch_dir": str(tmp_path / "runs/test_dataset"),
-            "dataset_dir": str(tmp_path / "datasets/test_dataset"),
-            "save_numeric_timeseries": True,
-            "timeseries_sampling": "all_steps",
-        },
-    }
-    config_path = tmp_path / "analysis.yaml"
-    config_path.write_text(yaml.safe_dump(analysis_config), encoding="utf-8")
-
-    manifest_path = run_sweep.run_batch(
-        analysis_config_path=config_path,
-        dry_run=True,
-        overwrite=False,
-        stop_on_shape_fail=False,
-        sample_limit=None,
-        progress_interval=None,
-        cli_overrides=[
-            "dataset_id=cli_dataset",
-            "run_batch_id=cli_dataset",
-            f"output.run_batch_dir={tmp_path / 'runs/cli_dataset'}",
-            f"output.dataset_dir={tmp_path / 'datasets/cli_dataset'}",
+def test_flagella_count_dataset_overrides_live_under_campaign_dataset() -> None:
+    config_path = ROOT / "conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml"
+    config = apply_campaign_cli_overrides(
+        load_yaml(config_path),
+        [
+            "dataset.dataset_id=cli_dataset",
+            "dataset.output_dir=/tmp/cli_dataset",
             "time.duration_s=0.25",
-            "motor.torque_Nm=3.0e-20",
         ],
     )
+    conditions = build_campaign_conditions(config)
 
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert manifest_path == tmp_path / "runs/cli_dataset/run_manifest.json"
-    assert manifest["run_batch_id"] == "cli_dataset"
-    assert manifest["dataset_id"] == "cli_dataset"
-    assert manifest["cli_overrides"] == [
-        "dataset_id=cli_dataset",
-        "run_batch_id=cli_dataset",
-        f"output.run_batch_dir={tmp_path / 'runs/cli_dataset'}",
-        f"output.dataset_dir={tmp_path / 'datasets/cli_dataset'}",
-        "time.duration_s=0.25",
-        "motor.torque_Nm=3.0e-20",
-    ]
-    assert manifest["effective_analysis_config"]["dataset_id"] == "cli_dataset"
-    assert manifest["effective_analysis_config"]["output"]["run_batch_dir"] == str(
-        tmp_path / "runs/cli_dataset"
-    )
-    assert manifest["output"]["dataset_dir"] == str(tmp_path / "datasets/cli_dataset")
-    assert (tmp_path / "runs/cli_dataset/analysis_config_used.yaml").is_file()
-    assert len(manifest["samples"]) == 2
-    assert {sample["status"] for sample in manifest["samples"]} == {"planned"}
-    sample_config = yaml.safe_load(
-        (tmp_path / "runs/cli_dataset/configs/nf02_seed000.yaml").read_text(
-            encoding="utf-8"
-        )
-    )
-    assert sample_config["flagella"]["n_flagella"] == 2
-    assert sample_config["seed"]["global_seed"] == 0
-    assert sample_config["seed"]["attach_seed"] == 0
-    assert sample_config["seed"]["phase_seed"] == 0
-    assert sample_config["time"]["duration_s"] == 0.25
-    assert sample_config["motor"]["torque_Nm"] == 3.0e-20
-
-
-def test_flagella_count_runner_overrides_are_passed_to_sample_runner(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    analysis_config = _minimal_analysis_config(tmp_path)
-    config_path = tmp_path / "analysis.yaml"
-    config_path.write_text(yaml.safe_dump(analysis_config), encoding="utf-8")
-    captured: dict[str, object] = {}
-
-    def fake_run_sample(**kwargs):
-        captured.update(kwargs)
-        return {
-            "status": "completed",
-            "state_count": 2,
-            "timing": {
-                "simulation_elapsed_s": 0.0,
-                "archive_elapsed_s": 0.0,
-                "trajectory_elapsed_s": 0.0,
-            },
-            "outputs": {},
-        }
-
-    monkeypatch.setattr(run_sweep, "_run_sample", fake_run_sample)
-
-    manifest_path = run_sweep.run_batch(
-        analysis_config_path=config_path,
-        dry_run=False,
-        overwrite=False,
-        stop_on_shape_fail=False,
-        sample_limit=None,
-        progress_interval=None,
-        cli_overrides=[
-            "runner.flush_interval_steps=20",
-            "runner.sample_order=interleave_n_flagella",
-        ],
-    )
-
-    assert captured["flush_interval_steps"] == 20
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert manifest["runner"] == {
-        "flush_interval_steps": 20,
-        "sample_order": "interleave_n_flagella",
-    }
-    assert manifest["samples"][0]["elapsed_s"] >= 0.0
-    assert manifest["samples"][0]["started_at"]
-    assert manifest["samples"][0]["ended_at"]
-
-
-@pytest.mark.parametrize("runner_key", ["step_summary_stride", "state_stride"])
-def test_runner_stride_overrides_are_rejected(
-    tmp_path: Path,
-    runner_key: str,
-) -> None:
-    analysis_config = _minimal_analysis_config(tmp_path)
-    config_path = tmp_path / "analysis.yaml"
-    config_path.write_text(yaml.safe_dump(analysis_config), encoding="utf-8")
-
-    with pytest.raises(ValueError, match=f"runner.{runner_key}"):
-        run_sweep.run_batch(
-            analysis_config_path=config_path,
-            dry_run=True,
-            overwrite=False,
-            stop_on_shape_fail=False,
-            sample_limit=None,
-            progress_interval=None,
-            cli_overrides=[f"runner.{runner_key}=10"],
-        )
-
-
-def test_existing_raw_is_skipped_only_when_config_matches(tmp_path: Path) -> None:
-    analysis_config = _minimal_analysis_config(tmp_path)
-    config_path = tmp_path / "analysis.yaml"
-    config_path.write_text(yaml.safe_dump(analysis_config), encoding="utf-8")
-    run_sweep.run_batch(
-        analysis_config_path=config_path,
-        dry_run=True,
-        overwrite=False,
-        stop_on_shape_fail=False,
-        sample_limit=None,
-        progress_interval=None,
-    )
-    raw_dir = tmp_path / "runs/test_dataset/samples/nf01_seed000/raw"
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    (raw_dir / "step_summary.csv").write_text("step,t_s\n0,0.0\n", encoding="utf-8")
-
-    manifest_path = run_sweep.run_batch(
-        analysis_config_path=config_path,
-        dry_run=False,
-        overwrite=False,
-        stop_on_shape_fail=False,
-        sample_limit=None,
-        progress_interval=None,
-    )
-
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert manifest["samples"][0]["status"] == "skipped_existing"
-    assert (
-        tmp_path / "runs/test_dataset/samples/nf01_seed000/sample_config_used.yaml"
-    ).is_file()
-    assert manifest["samples"][0]["sample_config_fingerprint"]
-
-
-@pytest.mark.parametrize("dry_run", [True, False])
-def test_existing_raw_with_removed_runner_stride_requires_overwrite(
-    tmp_path: Path,
-    dry_run: bool,
-) -> None:
-    analysis_config = _minimal_analysis_config(tmp_path)
-    config_path = tmp_path / "analysis.yaml"
-    config_path.write_text(yaml.safe_dump(analysis_config), encoding="utf-8")
-    run_sweep.run_batch(
-        analysis_config_path=config_path,
-        dry_run=True,
-        overwrite=False,
-        stop_on_shape_fail=False,
-        sample_limit=None,
-        progress_interval=None,
-    )
-    sample_dir = tmp_path / "runs/test_dataset/samples/nf01_seed000"
-    raw_dir = sample_dir / "raw"
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    (raw_dir / "step_summary.csv").write_text("step,t_s\n0,0.0\n", encoding="utf-8")
-    (sample_dir / "sample_runner_config_used.yaml").write_text(
-        yaml.safe_dump({"step_summary_stride": 10, "state_stride": 1}),
-        encoding="utf-8",
-    )
-
-    with pytest.raises(RuntimeError, match="removed runner stride settings"):
-        run_sweep.run_batch(
-            analysis_config_path=config_path,
-            dry_run=dry_run,
-            overwrite=False,
-            stop_on_shape_fail=False,
-            sample_limit=None,
-            progress_interval=None,
-        )
-
-
-def test_existing_raw_with_legacy_unstrided_runner_config_can_be_reused(
-    tmp_path: Path,
-) -> None:
-    analysis_config = _minimal_analysis_config(tmp_path)
-    config_path = tmp_path / "analysis.yaml"
-    config_path.write_text(yaml.safe_dump(analysis_config), encoding="utf-8")
-    run_sweep.run_batch(
-        analysis_config_path=config_path,
-        dry_run=True,
-        overwrite=False,
-        stop_on_shape_fail=False,
-        sample_limit=None,
-        progress_interval=None,
-    )
-    sample_dir = tmp_path / "runs/test_dataset/samples/nf01_seed000"
-    raw_dir = sample_dir / "raw"
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    (raw_dir / "step_summary.csv").write_text("step,t_s\n0,0.0\n", encoding="utf-8")
-    (sample_dir / "sample_runner_config_used.yaml").write_text(
-        yaml.safe_dump({"step_summary_stride": 1, "state_stride": 1}),
-        encoding="utf-8",
-    )
-
-    manifest_path = run_sweep.run_batch(
-        analysis_config_path=config_path,
-        dry_run=False,
-        overwrite=False,
-        stop_on_shape_fail=False,
-        sample_limit=None,
-        progress_interval=None,
-    )
-
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert manifest["samples"][0]["status"] == "skipped_existing"
-
-
-def test_existing_raw_with_different_config_requires_overwrite_or_new_output(
-    tmp_path: Path,
-) -> None:
-    analysis_config = _minimal_analysis_config(tmp_path)
-    config_path = tmp_path / "analysis.yaml"
-    config_path.write_text(yaml.safe_dump(analysis_config), encoding="utf-8")
-    run_sweep.run_batch(
-        analysis_config_path=config_path,
-        dry_run=True,
-        overwrite=False,
-        stop_on_shape_fail=False,
-        sample_limit=None,
-        progress_interval=None,
-    )
-    raw_dir = tmp_path / "runs/test_dataset/samples/nf01_seed000/raw"
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    (raw_dir / "step_summary.csv").write_text("step,t_s\n0,0.0\n", encoding="utf-8")
-    batch_config_path = tmp_path / "runs/test_dataset/configs/nf01_seed000.yaml"
-    previous_batch_config = batch_config_path.read_text(encoding="utf-8")
-    analysis_config_used_path = tmp_path / "runs/test_dataset/analysis_config_used.yaml"
-    previous_analysis_config_used = analysis_config_used_path.read_text(
-        encoding="utf-8"
-    )
-
-    with pytest.raises(RuntimeError, match="different sample config"):
-        run_sweep.run_batch(
-            analysis_config_path=config_path,
-            dry_run=True,
-            overwrite=False,
-            stop_on_shape_fail=False,
-            sample_limit=None,
-            progress_interval=None,
-            cli_overrides=["time.duration_s=0.25"],
-        )
-    assert batch_config_path.read_text(encoding="utf-8") == previous_batch_config
-    assert (
-        analysis_config_used_path.read_text(encoding="utf-8")
-        == previous_analysis_config_used
-    )
-
-    with pytest.raises(RuntimeError, match="different sample config"):
-        run_sweep.run_batch(
-            analysis_config_path=config_path,
-            dry_run=False,
-            overwrite=False,
-            stop_on_shape_fail=False,
-            sample_limit=None,
-            progress_interval=None,
-            cli_overrides=["time.duration_s=0.25"],
-        )
-
-    assert batch_config_path.read_text(encoding="utf-8") == previous_batch_config
-    assert (
-        analysis_config_used_path.read_text(encoding="utf-8")
-        == previous_analysis_config_used
+    assert config["dataset"]["dataset_id"] == "cli_dataset"
+    assert config["dataset"]["output_dir"] == "/tmp/cli_dataset"
+    assert config["base_overrides"]["time"]["duration_s"] == pytest.approx(0.25)
+    assert conditions[0]["config_overrides"]["time"]["duration_s"] == pytest.approx(
+        0.25
     )
 
 
@@ -700,7 +280,7 @@ def test_render_sample_cli_passes_sampling_options(
         sys,
         "argv",
         [
-            "render_flagella_count_behavior_sample.py",
+            "render_sample.py",
             "--sample-dir",
             str(tmp_path / "sample"),
             "--output-dir",
@@ -873,7 +453,7 @@ def test_render_sample_cli_passes_dataset_dir_options(
         sys,
         "argv",
         [
-            "render_flagella_count_behavior_sample.py",
+            "render_sample.py",
             "--dataset-dir",
             str(tmp_path / "dataset"),
             "--output-dir",
@@ -930,8 +510,8 @@ def _write_step_summary(path: Path, rows: list[dict[str, object]]) -> None:
 def test_dataset_builder_outputs_summary_qc_and_timeseries(tmp_path: Path) -> None:
     run_dir = tmp_path / "runs/test_dataset"
     dataset_dir = tmp_path / "datasets/test_dataset"
-    raw_a = run_dir / "samples/nf01_seed000/raw"
-    raw_b = run_dir / "samples/nf02_seed000/raw"
+    raw_a = run_dir / "as000__ps000__nf01"
+    raw_b = run_dir / "as000__ps000__nf02"
     _write_step_summary(
         raw_a / "step_summary.csv",
         [
@@ -1014,45 +594,78 @@ def test_dataset_builder_outputs_summary_qc_and_timeseries(tmp_path: Path) -> No
 
     feature_schema = tmp_path / "features.yaml"
     feature_schema.write_text("feature_categories: {}\n", encoding="utf-8")
-    analysis_config = {
-        "dataset_id": "test_dataset",
-        "feature_schema": str(feature_schema),
-        "output": {
-            "run_batch_dir": str(run_dir),
-            "dataset_dir": str(dataset_dir),
+    campaign_config = {
+        "kind": "generic_multi_run",
+        "base_config": str(ROOT / "conf/sim_swim.yaml"),
+        "base_overrides": {
+            "time.duration_s": 0.1,
+            "time.dt_star": 1.0e-4,
+            "motor.torque_Nm": 2.5e-20,
+            "motor.force_distribution": "root_torque_segment_couples",
+        },
+        "sweep": {
+            "axes": {
+                "attach_seed": {
+                    "key": "seed.attach_seed",
+                    "values": [0],
+                    "ids": ["as000"],
+                },
+                "phase_seed": {
+                    "key": "seed.phase_seed",
+                    "values": [0],
+                    "ids": ["ps000"],
+                },
+                "n_flagella": {
+                    "key": "flagella.n_flagella",
+                    "values": [1, 2],
+                    "ids": ["nf01", "nf02"],
+                },
+            }
+        },
+        "dataset": {
+            "dataset_id": "test_dataset",
+            "feature_schema": str(feature_schema),
+            "output_dir": str(dataset_dir),
             "timeseries_sampling": "all_steps",
         },
+        "output": {
+            "base_dir": str(run_dir),
+            "timestamp_subdir": False,
+        },
     }
-    analysis_config_path = tmp_path / "analysis.yaml"
-    analysis_config_path.write_text(yaml.safe_dump(analysis_config), encoding="utf-8")
+    campaign_config_path = tmp_path / "campaign.yaml"
+    campaign_config_path.write_text(yaml.safe_dump(campaign_config), encoding="utf-8")
     run_manifest = {
-        "run_batch_id": "test_dataset",
-        "dataset_id": "test_dataset",
-        "feature_schema": str(feature_schema),
-        "samples": [
+        "kind": "generic_multi_run",
+        "output_root": str(run_dir),
+        "conditions": [
             {
-                "sample_id": "nf01_seed000",
-                "n_flagella": 1,
-                "seed": 0,
-                "duration_s": 0.1,
-                "dt_star": 1.0e-4,
-                "torque_Nm": 2.5e-20,
-                "force_distribution": "root_torque_segment_couples",
-                "condition_tag": "n_flagella=1,seed=0",
-                "status": "completed",
-                "raw_dir": str(raw_a),
+                "condition_id": "as000__ps000__nf01",
+                "condition_label": "as=0, ps=0, nf=1",
+                "output_dir": str(raw_a),
+                "axis_values": {
+                    "attach_seed": 0,
+                    "phase_seed": 0,
+                    "n_flagella": 1,
+                },
+                "config_overrides": {
+                    "flagella": {"n_flagella": 1},
+                    "seed": {"attach_seed": 0, "phase_seed": 0},
+                },
             },
             {
-                "sample_id": "nf02_seed000",
-                "n_flagella": 2,
-                "seed": 0,
-                "duration_s": 0.1,
-                "dt_star": 1.0e-4,
-                "torque_Nm": 2.5e-20,
-                "force_distribution": "root_torque_segment_couples",
-                "condition_tag": "n_flagella=2,seed=0",
-                "status": "completed",
-                "raw_dir": str(raw_b),
+                "condition_id": "as000__ps000__nf02",
+                "condition_label": "as=0, ps=0, nf=2",
+                "output_dir": str(raw_b),
+                "axis_values": {
+                    "attach_seed": 0,
+                    "phase_seed": 0,
+                    "n_flagella": 2,
+                },
+                "config_overrides": {
+                    "flagella": {"n_flagella": 2},
+                    "seed": {"attach_seed": 0, "phase_seed": 0},
+                },
             },
         ],
     }
@@ -1064,12 +677,13 @@ def test_dataset_builder_outputs_summary_qc_and_timeseries(tmp_path: Path) -> No
     )
 
     out_dir = build_dataset.build_dataset(
-        analysis_config_path=analysis_config_path,
+        campaign_config_path=campaign_config_path,
         run_manifest_path=run_manifest_path,
+        run_dir=None,
         overwrite=True,
         cli_overrides=[
-            "dataset_id=cli_dataset",
-            f"output.dataset_dir={tmp_path / 'datasets/cli_dataset'}",
+            "dataset.dataset_id=cli_dataset",
+            f"dataset.output_dir={tmp_path / 'datasets/cli_dataset'}",
         ],
     )
 
@@ -1081,16 +695,17 @@ def test_dataset_builder_outputs_summary_qc_and_timeseries(tmp_path: Path) -> No
     )
     assert dataset_manifest["dataset_id"] == "cli_dataset"
     assert dataset_manifest["cli_overrides"] == [
-        "dataset_id=cli_dataset",
-        f"output.dataset_dir={tmp_path / 'datasets/cli_dataset'}",
+        "dataset.dataset_id=cli_dataset",
+        f"dataset.output_dir={tmp_path / 'datasets/cli_dataset'}",
     ]
-    assert dataset_manifest["effective_analysis_config"]["output"][
-        "dataset_dir"
+    assert dataset_manifest["effective_campaign_config"]["dataset"][
+        "output_dir"
     ] == str(dataset_dir)
-    assert (dataset_dir / "analysis_config_used.yaml").is_file()
+    assert (dataset_dir / "campaign_config_used.yaml").is_file()
     assert (dataset_dir / "feature_schema_used.yaml").read_text(
         encoding="utf-8"
     ) == "feature_categories: {}\n"
+    assert (dataset_dir / "configs/nf01_as000_ps000.yaml").is_file()
     with (dataset_dir / "summary.csv").open(encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
     assert len(rows) == 2
@@ -1103,7 +718,7 @@ def test_dataset_builder_outputs_summary_qc_and_timeseries(tmp_path: Path) -> No
     assert rows[1]["quality_class"] == "relaxed_pass"
     assert rows[1]["hook_wrapped"] == "True"
     assert (dataset_dir / "qc_summary.csv").is_file()
-    with (dataset_dir / "timeseries/nf01_seed000.csv").open(
+    with (dataset_dir / "timeseries/nf01_as000_ps000.csv").open(
         encoding="utf-8", newline=""
     ) as handle:
         ts_rows = list(csv.DictReader(handle))

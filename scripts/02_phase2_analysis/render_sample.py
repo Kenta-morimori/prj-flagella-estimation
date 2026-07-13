@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render 3D/2D outputs from a flagella-count behavior raw sample archive."""
+"""Render 3D/2D outputs from a Phase 2.8 raw sample archive."""
 
 from __future__ import annotations
 
@@ -259,12 +259,13 @@ def render_dataset(
     dataset_manifest = _load_json(dataset_manifest_path)
     run_manifest_path = Path(str(dataset_manifest["run_manifest"])).resolve()
     run_manifest = _load_json(run_manifest_path)
+    samples = list(dataset_manifest.get("samples") or run_manifest.get("samples", []))
 
     replay_root = (output_dir or (dataset_dir / "replays")).resolve()
     replay_root.mkdir(parents=True, exist_ok=True)
 
     samples_out: list[dict[str, Any]] = []
-    for sample in run_manifest.get("samples", []):
+    for sample in samples:
         sample_id = str(sample.get("sample_id", ""))
         sample_output_dir = _resolve_sample_output_dir(replay_root, sample_id)
         if sample_output_dir.exists():

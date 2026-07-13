@@ -30,18 +30,20 @@ Git hook は commit 時に `ruff format --check .`、`ruff check .`、`pytest -q
 uv run python -m scripts.01_simulate_swimming
 ```
 
-Phase 2.8 の標準 4 samples dataset 作成:
+Phase 2.8 の診断用 dataset 作成:
 
 ```bash
-uv run python scripts/02_phase2_analysis/run_flagella_count_behavior_sweep.py
-uv run python scripts/02_phase2_analysis/build_flagella_count_behavior_dataset.py
+uv run python scripts/01_simulate_swimming/run_multi_run.py \
+  config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml
+uv run python scripts/02_phase2_analysis/build_dataset.py \
+  config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml
 ```
 
 CLI の詳細、override 例、後から 3D / 2D render を再生成する方法は `scripts/README.md` を参照してください。
 
 ## 主要ディレクトリ
 
-- `conf/`: 実行設定。Phase 2 simulation は `conf/sim_swim.yaml`、Phase 2 analysis は `conf/phase2_analysis/` を使います。
+- `conf/`: 実行設定。Phase 2 simulation は `conf/sim_swim.yaml`、複数条件 run / heatmap / replay / dataset 作成は `conf/phase2_multi_run/` を使います。
 - `scripts/`: ユーザー向け CLI entrypoints。詳細は `scripts/README.md` を参照してください。
 - `src/`: 再利用可能な実装本体。Phase 2 simulation は `src/sim_swim/` が中心です。
 - `docs/phase2/`: Phase 2 の現在地、task status、設計・検証記録。
@@ -52,12 +54,12 @@ CLI の詳細、override 例、後から 3D / 2D render を再生成する方法
 
 通常の simulation run は `outputs/YYYY-MM-DD/HHMMSS/` 配下に `run.log`、`manifest.json`、`step_summary.csv`、render 出力などを保存します。
 
-Phase 2 analysis dataset は標準で以下に出力します。
+Phase 2.8 diagnostic dataset は標準で以下に出力します。
 
-- `outputs/phase2_analysis/flagella_count_behavior/runs/<run_batch_id>/`
+- `outputs/phase2_multi_run/<profile>/`
 - `outputs/phase2_analysis/flagella_count_behavior/datasets/<dataset_id>/`
 
-Phase 2 analysis では、実行時の設定を `analysis_config_used.yaml` と manifest の `effective_analysis_config` に残します。raw sample には `trajectory.csv` と `state_archive.npz` を保存し、後から 3D / 2D render を再生成できます。
+Phase 2.8 dataset では、実行時の設定を `campaign_config_used.yaml` と manifest の `effective_campaign_config` に残します。raw condition には `trajectory.csv` と `state_archive.npz` を保存し、後から replay render を再生成できます。
 
 ## テストと品質確認
 

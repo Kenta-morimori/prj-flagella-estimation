@@ -173,6 +173,40 @@ def test_generic_multi_run_plot_outputs_line_plots(tmp_path: Path) -> None:
     assert (tmp_path / "plots" / "max_flag_bond_rel_err_vs_torque.png").is_file()
 
 
+def test_generic_multi_run_plot_filters_extra_axes(tmp_path: Path) -> None:
+    summary_csv = tmp_path / "summary.csv"
+    summary_csv.write_text(
+        "\n".join(
+            [
+                "condition_id,condition_label,axis_attach_seed_label,axis_attach_seed_index,axis_phase_seed_label,axis_phase_seed_value,axis_phase_seed_index,axis_n_flagella_label,axis_n_flagella_index,first_fail_t_s,hook_len_rel_err_max,max_flag_bond_rel_err,body_roll_net_abs_revolutions,axis_center_to_body_roll_ratio_mean",
+                "as000__ps000__nf01,as=0 ps=0 nf=1,0,0,0,0,0,1,0,0.5,0.1,0.2,0.0,120",
+                "as000__ps001__nf01,as=0 ps=1 nf=1,0,0,1,1,1,1,0,0.4,0.2,0.3,0.0,90",
+                "as001__ps000__nf02,as=1 ps=0 nf=2,1,1,0,0,0,2,1,0.3,0.3,0.4,0.0,80",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/plot_heatmap.py"),
+        "phase2_plot_heatmap_wrapper_generic_multi_filter_axes",
+    )
+
+    module.main(
+        [
+            "config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml",
+            f"summary_csv={summary_csv}",
+            f"output_dir={tmp_path / 'plots'}",
+        ]
+    )
+
+    plot_data = (tmp_path / "plots" / "plot_data.csv").read_text(encoding="utf-8")
+    assert "as000__ps000__nf01" in plot_data
+    assert "as001__ps000__nf02" in plot_data
+    assert "as000__ps001__nf01" not in plot_data
+    assert (tmp_path / "plots" / "first_fail_t_s_heatmap.png").is_file()
+
+
 def test_generic_multi_run_plot_labels_follow_summary_axis_overrides() -> None:
     module = _load_script(
         Path("src/sim_swim/analysis/heatmaps/generic_multi_run.py"),

@@ -96,6 +96,10 @@ def _axis_label_column(axis_name: str) -> str:
     return f"axis_{axis_name}_label"
 
 
+def _axis_value_column(axis_name: str) -> str:
+    return f"axis_{axis_name}_value"
+
+
 def _axis_index_column(axis_name: str) -> str:
     return f"axis_{axis_name}_index"
 
@@ -132,6 +136,47 @@ def _write_normalized_csv(rows: list[dict[str, str]], output_dir: Path) -> Path:
         writer.writeheader()
         writer.writerows(rows)
     return out_path
+
+
+def _matches_axis_filter(row: dict[str, str], axis_name: str, expected: Any) -> bool:
+    expected_text = str(expected)
+    return (
+        row.get(_axis_label_column(axis_name)) == expected_text
+        or row.get(_axis_value_column(axis_name)) == expected_text
+    )
+
+
+def _filter_extra_axes(
+    *,
+    rows: list[dict[str, str]],
+    axes: dict[str, dict[str, Any]],
+    x_axis_name: str,
+    y_axis_name: str | None,
+    campaign: dict[str, Any],
+) -> list[dict[str, str]]:
+    plot_cfg = dict(campaign.get("plot", {}) or {})
+    filter_axes = dict(plot_cfg.get("filter_axes", {}) or {})
+    plotted_axes = {x_axis_name}
+    if y_axis_name is not None:
+        plotted_axes.add(y_axis_name)
+    extra_axes = sorted(set(axes) - plotted_axes)
+    missing_filters = [
+        axis_name for axis_name in extra_axes if axis_name not in filter_axes
+    ]
+    if missing_filters:
+        raise ValueError(
+            "plot.filter_axes is required for axes not shown in the plot: "
+            + ", ".join(missing_filters)
+        )
+    filtered = rows
+    for axis_name in extra_axes:
+        expected = filter_axes[axis_name]
+        filtered = [
+            row for row in filtered if _matches_axis_filter(row, axis_name, expected)
+        ]
+    if not filtered:
+        raise ValueError("No rows remain after applying plot.filter_axes")
+    return filtered
 
 
 def _save_line_plot(
@@ -215,6 +260,13 @@ def main(argv: list[str] | None = None) -> None:
         raise ValueError(f"Unknown x-axis: {x_axis_name}")
     if y_axis_name is not None and y_axis_name not in axes:
         raise ValueError(f"Unknown y-axis: {y_axis_name}")
+    rows = _filter_extra_axes(
+        rows=rows,
+        axes=axes,
+        x_axis_name=x_axis_name,
+        y_axis_name=y_axis_name,
+        campaign=campaign,
+    )
 
     normalized_csv = _write_normalized_csv(rows, output_dir)
     generated = [normalized_csv]

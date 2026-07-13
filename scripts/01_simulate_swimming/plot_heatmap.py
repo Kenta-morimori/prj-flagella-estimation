@@ -94,7 +94,7 @@ def main(argv: list[str] | None = None) -> None:
         "--config",
         type=Path,
         default=None,
-        help="Heatmap profile YAML under conf/phase2_sweeps/.",
+        help="Heatmap profile YAML under conf/phase2_sweeps/ or conf/phase2_multi_run/.",
     )
     parser.add_argument(
         "--list-profiles",

@@ -1,0 +1,58 @@
+{
+    "status": "PASS",
+    "summary": "Issue #112 として，親Issue #71 の診断用 dataset v0 を generic multi-run 出力へ統合した。run / heatmap / replay / dataset 作成は同じ conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml を source of truth とし，dataset_id などの dataset 固有情報も同 config の dataset section で指定する。",
+    "blocking_issues": [],
+    "non_blocking_issues": [
+        "36 sample の本実行は長時間run扱いのため未実行。ユーザー実行後に summary / QC / distribution plot を読んで，seed拡張・評価時間延長・モデル改善のどれへ進むか判断する。",
+        "PR は Issue #112 を close し，親Issue #71は Refs #71 として関連付ける。"
+    ],
+    "tests_reviewed": [
+        {
+            "command": "uv run pytest -q",
+            "result": "PASS: 351 passed"
+        },
+        {
+            "command": "uv run pytest tests/test_phase2_generic_multi_run.py tests/test_flagella_count_behavior_dataset.py -q",
+            "result": "PASS: 30 passed"
+        },
+        {
+            "command": "uv run ruff check .",
+            "result": "PASS"
+        },
+        {
+            "command": "uv run ruff format --check .",
+            "result": "PASS: 82 files already formatted"
+        },
+        {
+            "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml dry_run=true sample_limit=5",
+            "result": "PASS: as000__ps000__nf01, as000__ps000__nf02, as000__ps000__nf03, as000__ps000__nf06, as000__ps001__nf01 を出力"
+        },
+        {
+            "command": "uv run python scripts/02_phase2_analysis/build_dataset.py --help",
+            "result": "PASS: config, run_manifest, run_dir, overwrite, dataset.* overrides を受ける CLI help を確認"
+        },
+        {
+            "command": "uv run python scripts/02_phase2_analysis/plot_distributions.py --help",
+            "result": "PASS"
+        },
+        {
+            "command": "uv run python scripts/02_phase2_analysis/render_sample.py --help",
+            "result": "PASS"
+        }
+    ],
+    "user_review_required": false,
+    "user_review_command": "",
+    "user_review_outputs": [],
+    "adr_required": false,
+    "adr_reason": "物理モデルの新規採用ではなく，既存 generic multi-run 契約へ Phase 2.8 dataset 作成導線を統合する workflow / output orchestration 変更である。",
+    "commit_type": "implementation",
+    "commit_hash": "see final response",
+    "push_status": "pending",
+    "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/111",
+    "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/112",
+    "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71",
+    "next_actions": [
+        "36 sample dataset を run_multi_run.py で実行し，build_dataset.py と plot_distributions.py の出力から特徴分離性と QC 偏りを評価する。",
+        "特徴差が QC / first_fail に支配される場合はモデル改善へ戻り，十分に分離する場合は seed 拡張または 2D 特徴評価へ進む。"
+    ]
+}
