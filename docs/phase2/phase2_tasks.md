@@ -883,6 +883,7 @@
   - `run_multi_run.py` を追加し，`conf/phase2_multi_run/latest_model_torque_shape_stability.yaml` 1 枚で run / plot / replay metadata を共用できるようにした。
   - `plot_heatmap.py` は multi-run profile を読む場合は generic summary plot として動き，`shape_stability_grid` を読む場合は sweep 診断向け mode-specific heatmap として動く。
   - 2026-07-13 追補として，`output.timestamp_subdir` を共通 output config に追加した。`latest_model_torque_shape_stability.yaml` は `timestamp_subdir=false` とし，`output.base_dir` を固定 run root として `run_multi_run.py config=...`，`plot_heatmap.py config=...`，`render_shape_stability_grid_replay.py config=...` の3コマンドで実行・定量plot・replayを接続できるようにした。
+  - 2026-07-13 追補として，config-only 3コマンド導線により tracked local wrapper `scripts/local/run_phase2_82_main_latest_torque_multi_run_1s.sh` は不要になったため削除した。`plot_heatmap.py` / `render_shape_stability_grid_replay.py` の log / manifest 強化は別PRの後続タスクとして扱う。
   - `summary.csv`，`trajectory.csv`，`state_archive.npz`，`run_manifest.json` の replayable output contract は維持した。
 - acceptance criteria:
   - [x] `run_sweep.py` / `plot_heatmap.py` の現役導線を `shape_stability_grid` として説明できる。

@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "summary": "config-only 3コマンド導線が成立したため、tracked local wrapper `scripts/local/run_phase2_82_main_latest_torque_multi_run_1s.sh` を削除し、plot / replay の log / manifest 強化は別PRの後続タスクとして docs に明記した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "plot_heatmap.py と render_shape_stability_grid_replay.py の log / manifest 強化は別PRで扱う。"
+  ],
+  "tests_reviewed": [
+    "git ls-files scripts/local",
+    "uv run pytest -q tests/test_phase2_generic_multi_run.py tests/test_phase2_sweep_profiles.py",
+    "uv run pytest -q tests/test_params.py tests/test_run_context.py tests/test_flagella_count_behavior_dataset.py",
+    "uv run ruff format --check .",
+    "uv run ruff check .",
+    "uv run pytest -q -m light"
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "local wrapper 削除とタスク記録更新であり、物理モデル・出力 schema・解析判断の新規方針変更ではない。",
+  "commit_type": "complete",
+  "commit_hash": "2594c0c874b148b811ae046a55f40bd55efad91f",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/107",
+  "next_actions": [
+    "plot_heatmap.py / render_shape_stability_grid_replay.py の log / manifest 強化を別PRで実施する。"
+  ]
+}
