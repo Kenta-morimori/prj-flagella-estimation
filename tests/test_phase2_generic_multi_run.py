@@ -12,6 +12,7 @@ from sim_swim.analysis.multi_run_campaign import (
     build_campaign_conditions,
     load_yaml,
 )
+from sim_swim.analysis.sweeps.generic_multi_run import _summary_fieldnames
 
 
 def _load_script(path: Path, name: str):
@@ -65,6 +66,7 @@ def test_generic_multi_run_profile_is_listed() -> None:
     paths = {entry["path"] for entry in entries}
 
     assert "conf/phase2_multi_run/latest_model_torque_shape_stability.yaml" in paths
+    assert "conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml" in paths
 
 
 def test_generic_multi_run_profile_exposes_metadata() -> None:
@@ -107,6 +109,31 @@ def test_generic_multi_run_builds_conditions_and_cli_override() -> None:
     ]
     assert conditions[0]["axis_values"]["torque"] == 1.0e-20
     assert conditions[1]["config_overrides"]["motor"]["torque_Nm"] == 2.0e-20
+
+
+def test_issue113_seed_fixed_profile_builds_three_boundary_conditions() -> None:
+    campaign = apply_campaign_cli_overrides(
+        load_yaml(
+            Path("conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml")
+        ),
+        None,
+    )
+
+    conditions = build_campaign_conditions(campaign)
+
+    assert [condition["condition_id"] for condition in conditions] == [
+        "nf04",
+        "nf05",
+        "nf06",
+    ]
+    assert [condition["axis_values"]["n_flagella"] for condition in conditions] == [
+        4,
+        5,
+        6,
+    ]
+    assert conditions[0]["config_overrides"]["seed"]["attach_seed"] == 0
+    assert conditions[0]["config_overrides"]["seed"]["phase_seed"] == 0
+    assert conditions[0]["config_overrides"]["motor"]["torque_Nm"] == 2.0e-20
 
 
 def test_run_multi_run_wrapper_lists_generic_multi_run_kind(capsys) -> None:
@@ -413,3 +440,80 @@ def test_replay_wrapper_uses_fixed_output_base_dir(tmp_path: Path) -> None:
     assert args.output_dir == run_dir / "replay"
     assert args.mode == "both"
     assert args.fps_out_3d == 10.0
+
+
+@pytest.mark.parametrize(
+    ("n_conditions", "expected_shape"),
+    [
+        (1, (1, 1)),
+        (2, (1, 2)),
+        (3, (2, 2)),
+        (4, (2, 2)),
+        (5, (2, 3)),
+        (9, (3, 3)),
+        (10, (3, 4)),
+        (36, (6, 6)),
+    ],
+)
+def test_replay_auto_grid_shape_is_near_square(
+    n_conditions: int,
+    expected_shape: tuple[int, int],
+) -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        f"phase2_replay_auto_grid_shape_{n_conditions}",
+    )
+
+    assert module._auto_grid_shape(n_conditions) == expected_shape
+
+
+def test_replay_auto_grid_layout_preserves_condition_order() -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_replay_auto_grid_layout_order",
+    )
+    rows = [{"condition_id": f"cond_{index}"} for index in range(5)]
+
+    n_rows, n_cols, positions = module._grid_layout_for_rows(rows)
+
+    assert (n_rows, n_cols) == (2, 3)
+    assert positions == [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1)]
+
+
+def test_replay_grid_layout_keeps_explicit_summary_positions() -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_replay_explicit_grid_layout",
+    )
+    rows = [
+        {"condition_id": "a", "grid_row_index": "1", "grid_col_index": "0"},
+        {"condition_id": "b", "grid_row_index": "0", "grid_col_index": "2"},
+    ]
+
+    n_rows, n_cols, positions = module._grid_layout_for_rows(rows)
+
+    assert (n_rows, n_cols) == (2, 3)
+    assert positions == [(1, 0), (0, 2)]
+
+
+def test_generic_multi_run_summary_fieldnames_include_body_shape_gate() -> None:
+    fields = _summary_fieldnames(
+        [
+            {
+                "condition_id": "nf04",
+                "body_shape_pass": True,
+                "body_fail_category": "none",
+                "body_spring_max_stretch_ratio": 0.1,
+                "body_bend_max_error_deg": 2.0,
+                "body_centerline_max_deviation_um": 0.05,
+                "body_triangle_area_ratio_min": 0.95,
+            }
+        ]
+    )
+
+    assert "body_shape_pass" in fields
+    assert "body_fail_category" in fields
+    assert "body_spring_max_stretch_ratio" in fields
+    assert "body_bend_max_error_deg" in fields
+    assert "body_centerline_max_deviation_um" in fields
+    assert "body_triangle_area_ratio_min" in fields

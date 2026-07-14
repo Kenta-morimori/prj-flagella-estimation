@@ -509,6 +509,31 @@
   - [x] multi-run raw output から dataset を作成できる。
   - [x] heatmap / replay は同じ config を参照できる。
 
+### P2-8-015: Issue #113 n>=4 seed固定破綻境界診断の導線を追加する
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/113`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
+- branch: `feature/phase2-71-diagnostic-dataset`
+- goal: dataset v0 の結果を受けて，`n_flagella>=4` の多べん毛破綻境界を seed固定で確認できる profile と replay layout を整える。
+- result:
+  - `render_shape_stability_grid_replay.py` の 3D grid movie fallback layout を near-square に変更し，36条件でも縦長になりすぎないようにした。
+  - `generic_multi_run` summary に body shape gate 指標を追加し，flag / hook failure と body deformation を同じ `summary.csv` で確認できるようにした。
+  - `conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml` を追加し，`attach_seed=0`, `phase_seed=0`, `n_flagella=[4,5,6]`, RUN固定，`duration_s=1.0`, `dt_star=1.0e-4`, `torque_Nm=2.0e-20` を再現可能にした。
+- acceptance criteria:
+  - [x] `grid_swim3d.mp4` が条件数に応じた near-square layout を使える。
+  - [x] 明示 `grid_row_index` / `grid_col_index` がある既存 replay は維持される。
+  - [x] `n=4,5,6` seed固定診断条件が dry-run で生成できる。
+  - [x] `summary.csv` に body shape gate 指標が含まれる。
+  - [ ] 実 multi-run と replay の目視評価は長時間 run のためユーザー実行待ち。
+- verification:
+  - `uv run pytest tests/test_phase2_generic_multi_run.py -q`
+  - `uv run pytest tests/test_phase2_sweep_profiles.py -q`
+  - `uv run pytest tests/test_flagella_count_behavior_dataset.py -q`
+  - `uv run ruff check scripts/01_simulate_swimming/render_shape_stability_grid_replay.py src/sim_swim/analysis/sweeps/generic_multi_run.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_phase2_generic_multi_run.py`
+  - `uv run ruff format --check scripts/01_simulate_swimming/render_shape_stability_grid_replay.py src/sim_swim/analysis/sweeps/generic_multi_run.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_phase2_generic_multi_run.py`
+  - `uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml dry_run=true`
+
 ## Completed support task: 動画出力・サンプリング整備
 
 ### P2-9-009: 3D/2D動画出力のレビュー向けサンプリングを整備する

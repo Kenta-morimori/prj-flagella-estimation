@@ -48,6 +48,12 @@ METRIC_FIELDS = (
     "axis_center_body_relative_net_abs_revolutions_mean",
     "axis_center_body_relative_direction_consistency_mean",
     "axis_center_to_body_roll_ratio_mean",
+    "body_shape_pass",
+    "body_fail_category",
+    "body_spring_max_stretch_ratio",
+    "body_bend_max_error_deg",
+    "body_centerline_max_deviation_um",
+    "body_triangle_area_ratio_min",
 )
 
 
@@ -144,6 +150,50 @@ def _fail_label(row: dict[str, str]) -> str:
     fail_t = row.get("first_fail_t_s", "")
     fail_c = row.get("first_fail_category_nonbody", "")
     return f"FAIL {fail_c}@{fail_t[:6]}"
+
+
+def _auto_grid_shape(n_conditions: int) -> tuple[int, int]:
+    if n_conditions <= 0:
+        raise ValueError("n_conditions must be positive")
+    n_cols = int(np.ceil(np.sqrt(n_conditions)))
+    n_rows = int(np.ceil(n_conditions / n_cols))
+    return n_rows, n_cols
+
+
+def _grid_layout_for_rows(
+    condition_rows: list[dict[str, str]],
+) -> tuple[int, int, list[tuple[int, int]]]:
+    row_indexes = [
+        int(float(row["grid_row_index"]))
+        for row in condition_rows
+        if str(row.get("grid_row_index", "")).strip() != ""
+    ]
+    col_indexes = [
+        int(float(row["grid_col_index"]))
+        for row in condition_rows
+        if str(row.get("grid_col_index", "")).strip() != ""
+    ]
+    if row_indexes and col_indexes:
+        n_rows = max(row_indexes) + 1
+        n_cols = max(col_indexes) + 1
+        return (
+            n_rows,
+            n_cols,
+            [
+                (
+                    int(float(row["grid_row_index"])),
+                    int(float(row["grid_col_index"])),
+                )
+                for row in condition_rows
+            ],
+        )
+
+    n_rows, n_cols = _auto_grid_shape(len(condition_rows))
+    return (
+        n_rows,
+        n_cols,
+        [divmod(plot_index, n_cols) for plot_index in range(len(condition_rows))],
+    )
 
 
 def _float_or_nan(value: str | None) -> float:
@@ -378,33 +428,7 @@ def _render_grid_movie(
     last_frame = None
     titles = [_label_for_row(row) for row in condition_rows]
     fail_labels = [_fail_label(row) for row in condition_rows]
-    n_conditions = len(condition_rows)
-    row_indexes = [
-        int(float(row["grid_row_index"]))
-        for row in condition_rows
-        if str(row.get("grid_row_index", "")).strip() != ""
-    ]
-    col_indexes = [
-        int(float(row["grid_col_index"]))
-        for row in condition_rows
-        if str(row.get("grid_col_index", "")).strip() != ""
-    ]
-    if row_indexes and col_indexes:
-        n_rows = max(row_indexes) + 1
-        n_cols = max(col_indexes) + 1
-        subplot_positions = [
-            (
-                int(float(row["grid_row_index"])),
-                int(float(row["grid_col_index"])),
-            )
-            for row in condition_rows
-        ]
-    else:
-        n_cols = min(3, max(1, int(np.ceil(np.sqrt(n_conditions)))))
-        n_rows = int(np.ceil(n_conditions / n_cols))
-        subplot_positions = [
-            divmod(plot_index, n_cols) for plot_index in range(n_conditions)
-        ]
+    n_rows, n_cols, subplot_positions = _grid_layout_for_rows(condition_rows)
 
     for frame_idx in range(frame_count):
         fig = plt.figure(figsize=(4.8 * n_cols, 4.8 * n_rows))

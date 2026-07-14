@@ -30,6 +30,7 @@ from sim_swim.analysis.sweeps.shape_stability_grid import (
     _summary_row,
 )
 from sim_swim.core.run_context import init_run
+from sim_swim.sim.body_shape_gate import summarize_body_shape_diagnostics_csv
 from sim_swim.sim.core import Simulator
 from sim_swim.sim.helix_retention_gate import summarize_single_flagellum_helix_retention
 from sim_swim.sim.params import SimulationConfig
@@ -90,6 +91,11 @@ def _condition_row(
         rows,
         helix_summary,
         axis_center_summary,
+    )
+    row.update(
+        summarize_body_shape_diagnostics_csv(
+            condition_dir / "body_constraint_diagnostics.csv"
+        )
     )
     row.update(summary_axis_fields(condition))
     return row
