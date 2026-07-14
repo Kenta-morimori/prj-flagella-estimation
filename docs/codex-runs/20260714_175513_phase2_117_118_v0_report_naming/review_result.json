@@ -38,7 +38,7 @@
   "adr_required": false,
   "adr_reason": "物理モデル、CSV schema、manifest schema、恒久的な pipeline I/O の変更ではなく、diagnostic dataset v0 の文書化と analysis dataset 命名規則の整理であるため。",
   "commit_type": "complete",
-  "commit_hash": "pending",
+  "commit_hash": "d0aa207a6d0564cd9dadc045dbacc267f1a9ac58",
   "push_status": "pending",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/120",
   "next_actions": [
