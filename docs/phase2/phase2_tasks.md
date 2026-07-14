@@ -511,10 +511,11 @@
 
 ### P2-8-015: Issue #113 n>=4 seed固定破綻境界診断の導線を追加する
 
-- status: complete
+- status: review_pending
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/113`
 - parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
-- branch: `feature/phase2-71-diagnostic-dataset`
+- pull request: `https://github.com/Kenta-morimori/prj-flagella-estimation/pull/114`
+- branch: `feature/phase2-113-failure-boundary-diagnostics`
 - goal: dataset v0 の結果を受けて，`n_flagella>=4` の多べん毛破綻境界を seed固定で確認できる profile と replay layout を整える。
 - result:
   - `render_shape_stability_grid_replay.py` の 3D grid movie fallback layout を near-square に変更し，36条件でも縦長になりすぎないようにした。
@@ -530,7 +531,9 @@
   - [x] `n=4,5,6` seed固定診断条件が dry-run で生成できる。
   - [x] `summary.csv` に body shape gate 指標が含まれる。
   - [x] 実 multi-run 結果から `n=4,5,6` の first fail / max flag bond を確認した。
+  - [ ] PR review を受け，Draft を解除できる状態にする。
   - [ ] body diagnostics 修正後の `n=4,5,6` 再実行と body deformation 自動判定はユーザー実行待ち。
+  - [ ] `flagella_count_behavior_diagnostic` の `grid_swim3d_page*.mp4` と seed固定 replay を目視確認する。
 - verification:
   - `uv run pytest tests/test_phase2_generic_multi_run.py -q`
   - `uv run pytest tests/test_phase2_sweep_profiles.py -q`
@@ -538,6 +541,85 @@
   - `uv run ruff check scripts/01_simulate_swimming/render_shape_stability_grid_replay.py src/sim_swim/analysis/sweeps/generic_multi_run.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_phase2_generic_multi_run.py`
   - `uv run ruff format --check scripts/01_simulate_swimming/render_shape_stability_grid_replay.py src/sim_swim/analysis/sweeps/generic_multi_run.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_phase2_generic_multi_run.py`
   - `uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml dry_run=true`
+- remaining commands before merge:
+  - `uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml overwrite=true`
+  - `uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml overwrite=true`
+- review outputs:
+  - `outputs/phase2_multi_run/flagella_count_failure_boundary_seed00/summary.csv`
+  - `outputs/phase2_multi_run/flagella_count_failure_boundary_seed00/replay/grid_swim3d.mp4`
+  - `outputs/phase2_multi_run/flagella_count_failure_boundary_seed00/replay/grid_swim3d_final.png`
+  - `outputs/phase2_multi_run/flagella_count_behavior_diagnostic/replay/grid_swim3d_page01.mp4` ... `grid_swim3d_page04.mp4`
+
+### P2-8-016: Issue #117 現状モデルの diagnostic dataset v0 統計レポートをまとめる
+
+- status: pending
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/117`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
+- blocked by: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/113`
+- goal: 現状モデルの dataset v0 を training dataset ではなく diagnostic baseline として整理し，`n=1,2,3` の特徴分離と `n>=4` 除外理由を記録する。
+- acceptance criteria:
+  - [ ] `n=1,2,3` の主要特徴量の分布傾向と要約統計が記録されている。
+  - [ ] `n>=4` を現状モデルの Phase3/4 training candidate から外す暫定理由が記録されている。
+  - [ ] transient fail を dataset QC にどう反映するかが整理されている。
+  - [ ] 改善モデル v1 再生成へ渡す未解決点が列挙されている。
+
+### P2-8-017: Issue #118 model_id ベースの analysis dataset config 命名規則を整理する
+
+- status: pending
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/118`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
+- can run in parallel with: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/117`
+- blocks: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/119`
+- goal: config filename / `dataset.dataset_id` / output path がモデル条件に対応して追跡できる命名規則を決める。
+- acceptance criteria:
+  - [ ] `model_id` に含める主要条件が文書化されている。
+  - [ ] v0 / v1 の dataset ID がモデル条件に対応して区別できる。
+  - [ ] 既存 diagnostic v0 config を historical alias として扱うか，rename するかが決まっている。
+  - [ ] #119 がこの命名規則を参照できる。
+
+### P2-8-018: Issue #115 n>=4多べん毛条件の flag bond 過伸長を安定化する
+
+- status: pending
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/115`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/10`
+- blocked by: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/113`
+- blocks:
+  - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/116`
+  - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/119`
+- goal: #113 で確定した `n>=4` failure mode に対して，hook ではなく flag bond / proximal bond / basal-root 周辺を主対象にモデル修正候補を比較する。
+- acceptance criteria:
+  - [ ] `n>=4` の主要 failure が body / hook / flag のどれか，body diagnostics ありで確認されている。
+  - [ ] 少なくとも1つのモデル修正候補について，`n=4,5,6` seed固定の改善/悪化が比較されている。
+  - [ ] 改善モデルとして dataset v1 再生成へ渡せる条件，または追加探索が必要な理由が記録されている。
+  - [ ] Phase3/4 training candidate に使える本数範囲について，現状モデルとの差分が明記されている。
+
+### P2-8-019: Issue #116 n>=4安定化候補の少数sweepとheatmap方針を決める
+
+- status: pending
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/116`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/10`
+- blocked by: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/115`
+- goal: #115 の修正候補が出た後，seed固定の少数 sweep で改善方向を確認し，広い heatmap へ進むか判断する。
+- acceptance criteria:
+  - [ ] sweep 軸・範囲・評価指標が明記されている。
+  - [ ] 少数 sweep の結果から，広い heatmap の必要性が判断されている。
+  - [ ] `n>=4` 安定化候補が `n=1,2,3` を壊していないか確認する方針がある。
+  - [ ] dataset v1 再生成 issue へ渡すモデル条件が決まっている，または未決理由が記録されている。
+
+### P2-8-020: Issue #119 改善モデルで analysis dataset v1 を再生成する
+
+- status: pending
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/119`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
+- blocked by:
+  - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/115`
+  - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/118`
+- goal: 改善モデルで analysis dataset v1 を再生成し，v0 と比較して Phase3/4 training dataset 作成へ渡せる範囲を判断する。
+- acceptance criteria:
+  - [ ] 改善モデル条件に対応する config / dataset ID / output path が記録されている。
+  - [ ] `n=1,2,3` の v1 統計が v0 と比較されている。
+  - [ ] `n>=4` を含めるか除外するかの判断が記録されている。
+  - [ ] Phase3/4 training dataset 作成へ進むための前提と未解決点が明記されている。
 
 ## Completed support task: 動画出力・サンプリング整備
 

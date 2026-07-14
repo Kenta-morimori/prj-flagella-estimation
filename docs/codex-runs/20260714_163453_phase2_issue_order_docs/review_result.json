@@ -1,0 +1,40 @@
+{
+  "status": "PASS",
+  "summary": "Issue #113 / PR #114 の残タスクと、#115-#119 の実装順を Phase 2 docs に記録した。PR #114 は Draft / review待ちとして扱い、body diagnostics ありの n=4,5,6 再実行と replay 目視確認を merge 前残タスクとして明記した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "本変更は docs / workflow 整理のみであり、PR #114 の code path や simulation output は変更していない。",
+    "PR #114 自体の merge 判断には、別途 review と user visual review が必要である。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff -- docs/phase2/phase2_current.md docs/phase2/phase2_tasks.md docs/codex-runs/20260714_163453_phase2_issue_order_docs/review_result.json",
+      "result": "PASS: docs-only diff reviewed"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_reason": "本変更はドキュメント上の順序整理と PR 残タスク明記のみで、動画・plot・物理挙動の新規判断を含まないため。",
+  "adr_required": false,
+  "adr_reason": "物理モデルや出力契約の採用判断ではなく、既存 issue relationship と実行順の文書化であるため。",
+  "commit_type": "documentation",
+  "commit_hash": "pending",
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/114",
+  "related_issue_urls": [
+    "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/113",
+    "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/115",
+    "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/116",
+    "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/117",
+    "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/118",
+    "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/119"
+  ],
+  "next_actions": [
+    "PR #114 の review を受け、Draft 解除可否を判断する。",
+    "PR #114 branch で flagella_count_failure_boundary_seed00 を再実行し、body_shape_pass / body_fail_category と replay を確認する。",
+    "#113 完了後、#117 と #118 を先行し、#115/#116/#119 の順に進める。"
+  ]
+}
