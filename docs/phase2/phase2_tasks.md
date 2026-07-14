@@ -547,30 +547,44 @@
 
 ### P2-8-016: Issue #117 現状モデルの diagnostic dataset v0 統計レポートをまとめる
 
-- status: pending
+- status: complete
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/117`
 - parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
 - blocked by: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/113`
 - goal: 現状モデルの dataset v0 を training dataset ではなく diagnostic baseline として整理し，`n=1,2,3` の特徴分離と `n>=4` 除外理由を記録する。
 - acceptance criteria:
-  - [ ] `n=1,2,3` の主要特徴量の分布傾向と要約統計が記録されている。
-  - [ ] `n>=4` を現状モデルの Phase3/4 training candidate から外す暫定理由が記録されている。
-  - [ ] transient fail を dataset QC にどう反映するかが整理されている。
-  - [ ] 改善モデル v1 再生成へ渡す未解決点が列挙されている。
+  - [x] `n=1,2,3` の主要特徴量の分布傾向と要約統計が記録されている。
+  - [x] `n>=4` を現状モデルの Phase3/4 training candidate から外す暫定理由が記録されている。
+  - [x] transient fail を dataset QC にどう反映するかが整理されている。
+  - [x] 改善モデル v1 再生成へ渡す未解決点が列挙されている。
+- completed in:
+  - `docs/phase2/phase2_8_diagnostic_dataset_v0_report.md`
+- summary:
+  - v0 は Phase3/4 training dataset ではなく diagnostic baseline として固定した。
+  - `n=1,2,3` は各9 sample がすべて `strict_pass` で，`cell_mean_speed`，`cell_straightness`，`cell_angular_velocity_rms`，`hook_drift` などに本数差が出た。
+  - `n=6` は v0 dataset で全9 sample が `flag` fail，#113 の seed固定 `n=4,5,6` はすべて `flag` failure と `body_spring` failure が併発したため，現状モデルでは `n>=4` を diagnostic-only とする。
 
 ### P2-8-017: Issue #118 model_id ベースの analysis dataset config 命名規則を整理する
 
-- status: pending
+- status: complete
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/118`
 - parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
 - can run in parallel with: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/117`
 - blocks: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/119`
 - goal: config filename / `dataset.dataset_id` / output path がモデル条件に対応して追跡できる命名規則を決める。
 - acceptance criteria:
-  - [ ] `model_id` に含める主要条件が文書化されている。
-  - [ ] v0 / v1 の dataset ID がモデル条件に対応して区別できる。
-  - [ ] 既存 diagnostic v0 config を historical alias として扱うか，rename するかが決まっている。
-  - [ ] #119 がこの命名規則を参照できる。
+  - [x] `model_id` に含める主要条件が文書化されている。
+  - [x] v0 / v1 の dataset ID がモデル条件に対応して区別できる。
+  - [x] 既存 diagnostic v0 config を historical alias として扱うか，rename するかが決まっている。
+  - [x] #119 がこの命名規則を参照できる。
+- completed in:
+  - `conf/phase2_multi_run/flagella_count_behavior_runfixed_rtseg_fp1p25_torque2p0_v0.yaml`
+  - `conf/phase2_multi_run/README.md`
+  - `docs/phase2/phase2_8_diagnostic_dataset_v0_report.md`
+- summary:
+  - canonical v0 config は `flagella_count_behavior_runfixed_rtseg_fp1p25_torque2p0_v0.yaml` とした。
+  - canonical v0 `dataset_id` は `fc_runfixed_rtseg_fp1p25_torque2p0_v0_nf1_2_3_6_as3_ps3_dur1p0` とした。
+  - 既存 `flagella_count_behavior_diagnostic.yaml` と `fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0` は historical alias として保持する。
 
 ### P2-8-018: Issue #115 n>=4多べん毛条件の flag bond 過伸長を安定化する
 
