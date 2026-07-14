@@ -1,35 +1,31 @@
 {
   "status": "PASS",
-  "summary": "Issue #113 に対して、先行要件の replay grid layout 改善を実装し、3D grid movie の fallback layout を条件数に応じた near-square 配置にした。続いて n=4,5,6 / attach_seed=0 / phase_seed=0 の seed固定診断 profile を追加し、generic multi-run summary に body shape gate 指標を含めて body deformation も CSV で確認できるようにした。",
+  "summary": "Issue #113 に対して、先行要件の replay grid layout 改善を実装し、3D grid movie の fallback layout を条件数に応じた near-square 配置にした。さらに条件数が多い場合は max_panels_per_grid に従って grid_swim3d_page*.mp4 へ分割するようにした。n=4,5,6 / attach_seed=0 / phase_seed=0 の seed固定診断 profile と body shape gate 指標を追加し、generic multi-run では長時間 run でも body diagnostics CSV を明示出力できるようにした。",
   "blocking_issues": [],
   "non_blocking_issues": [
-    "n=4,5,6 の実 multi-run、replay 生成、目視評価は長時間 run と visual review を含むため未実行。ユーザー実行後に summary.csv と grid_swim3d.mp4 を確認して n=7,8,9 へ拡張するか判断する。",
-    "既存 dataset v0 の 36条件 replay layout 再生成は未実行。既存出力に対して render_shape_stability_grid_replay.py を再実行すると 6x6 layout で確認できる。"
+    "n=4,5,6 の初回実行結果では body diagnostics CSV が未出力だったため、body deformation の自動判定は body diagnostics 修正後の再実行で確認する必要がある。",
+    "n=4,5,6 はすべて flag fail であり、現時点では n>=4 を Phase3/4 training candidate として進めるより、n=1,2,3 中心評価または Phase2 model 改善へ戻る判断が妥当。"
   ],
   "tests_reviewed": [
     {
-      "command": "uv run pytest tests/test_phase2_generic_multi_run.py -q",
-      "result": "PASS: 28 passed"
+      "command": "uv run pytest tests/test_phase2_generic_multi_run.py tests/test_phase2_sweep_profiles.py tests/test_flagella_count_behavior_dataset.py tests/test_simulation.py::test_simulator_run_can_force_body_diagnostics_for_long_run -q",
+      "result": "PASS: 77 passed"
     },
     {
-      "command": "uv run pytest tests/test_phase2_sweep_profiles.py -q",
-      "result": "PASS: 32 passed"
-    },
-    {
-      "command": "uv run pytest tests/test_flagella_count_behavior_dataset.py -q",
-      "result": "PASS: 14 passed"
-    },
-    {
-      "command": "uv run ruff check scripts/01_simulate_swimming/render_shape_stability_grid_replay.py src/sim_swim/analysis/sweeps/generic_multi_run.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_phase2_generic_multi_run.py",
+      "command": "uv run ruff check scripts/01_simulate_swimming/render_shape_stability_grid_replay.py src/sim_swim/sim/core.py src/sim_swim/analysis/sweeps/generic_multi_run.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_phase2_generic_multi_run.py tests/test_simulation.py",
       "result": "PASS"
     },
     {
-      "command": "uv run ruff format --check scripts/01_simulate_swimming/render_shape_stability_grid_replay.py src/sim_swim/analysis/sweeps/generic_multi_run.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_phase2_generic_multi_run.py",
-      "result": "PASS: 4 files already formatted"
+      "command": "uv run ruff format --check scripts/01_simulate_swimming/render_shape_stability_grid_replay.py src/sim_swim/sim/core.py src/sim_swim/analysis/sweeps/generic_multi_run.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_phase2_generic_multi_run.py tests/test_simulation.py",
+      "result": "PASS: 6 files already formatted"
     },
     {
       "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml dry_run=true",
       "result": "PASS: nf04, nf05, nf06 を出力"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml mode=render-only overwrite=true",
+      "result": "PASS: 36条件 replay を 4 page の grid_swim3d_page*.mp4 として生成"
     }
   ],
   "user_review_required": true,
@@ -37,19 +33,23 @@
   "user_review_outputs": [
     "outputs/phase2_multi_run/flagella_count_failure_boundary_seed00/summary.csv",
     "outputs/phase2_multi_run/flagella_count_failure_boundary_seed00/replay/grid_swim3d.mp4",
-    "outputs/phase2_multi_run/flagella_count_failure_boundary_seed00/replay/grid_swim3d_final.png"
+    "outputs/phase2_multi_run/flagella_count_failure_boundary_seed00/replay/grid_swim3d_final.png",
+    "outputs/phase2_multi_run/flagella_count_behavior_diagnostic/replay/grid_swim3d_page01.mp4",
+    "outputs/phase2_multi_run/flagella_count_behavior_diagnostic/replay/grid_swim3d_page02.mp4",
+    "outputs/phase2_multi_run/flagella_count_behavior_diagnostic/replay/grid_swim3d_page03.mp4",
+    "outputs/phase2_multi_run/flagella_count_behavior_diagnostic/replay/grid_swim3d_page04.mp4"
   ],
   "adr_required": false,
   "adr_reason": "物理モデルの採用判断ではなく、既存 replay layout、generic multi-run summary、診断 profile の workflow/output 追加であるため。",
   "commit_type": "implementation",
   "commit_hash": "see final response",
   "push_status": "see final response",
-  "pull_request_url": "",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/114",
   "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/113",
   "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71",
   "next_actions": [
-    "n=4,5,6 seed固定診断を本実行し、summary.csv の first_fail_t_s / first_fail_category_nonbody / max_flag_bond_rel_err / hook_len_rel_err_max / body shape gate 指標を確認する。",
-    "grid_swim3d.mp4 で body deformation と flag shape failure の見え方を目視確認する。",
-    "n=4,5,6 の結果から n=7,8,9 へ拡張するか、Phase2 モデル改善へ戻すかを判断する。"
+    "body diagnostics 修正後に n=4,5,6 seed固定診断を再実行し、body_shape_pass / body_fail_category を確認する。",
+    "36条件 replay の grid_swim3d_page*.mp4 を目視確認し、page分割後の可読性を判断する。",
+    "n>=4 は現時点で flag failure が支配的なため、#71 では n=1,2,3 中心に進めるか Phase2 model 改善へ戻すかを判断する。"
   ]
 }

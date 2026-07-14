@@ -196,6 +196,16 @@ def _grid_layout_for_rows(
     )
 
 
+def _page_index_groups(n_conditions: int, max_panels_per_grid: int) -> list[list[int]]:
+    if n_conditions <= 0:
+        raise ValueError("n_conditions must be positive")
+    max_panels = max(1, int(max_panels_per_grid))
+    return [
+        list(range(start, min(start + max_panels, n_conditions)))
+        for start in range(0, n_conditions, max_panels)
+    ]
+
+
 def _float_or_nan(value: str | None) -> float:
     try:
         return float(value)  # type: ignore[arg-type]
@@ -408,11 +418,12 @@ def _render_grid_movie(
     condition_rows: list[dict[str, str]],
     out_dir: Path,
     fps_out_3d: float,
+    max_panels_per_grid: int,
 ) -> Any:
     import cv2
 
     from sim_swim.render.render3d import _select_frames
-    from sim_swim.render.video_writer import open_mp4_writer
+    from sim_swim.render.video_writer import VideoRenderResult, open_mp4_writer
 
     render_states_by_condition = [
         _select_frames(states, out_all_steps_3d=False, fps_hint=fps_out_3d)
@@ -422,66 +433,102 @@ def _render_grid_movie(
     if frame_count <= 0:
         raise RuntimeError("No frames selected for grid render.")
 
-    movie_path = out_dir / "grid_swim3d.mp4"
-    writer = None
-    writer_selection = None
-    last_frame = None
     titles = [_label_for_row(row) for row in condition_rows]
     fail_labels = [_fail_label(row) for row in condition_rows]
-    n_rows, n_cols, subplot_positions = _grid_layout_for_rows(condition_rows)
-
-    for frame_idx in range(frame_count):
-        fig = plt.figure(figsize=(4.8 * n_cols, 4.8 * n_rows))
-        axes = {}
-        for row_index, col_index in subplot_positions:
-            axes[(row_index, col_index)] = fig.add_subplot(
-                n_rows,
-                n_cols,
-                row_index * n_cols + col_index + 1,
-                projection="3d",
-            )
-        for idx, (row_index, col_index) in enumerate(subplot_positions):
-            ax = axes[(row_index, col_index)]
-            _plot_cell(
-                ax,
-                st=render_states_by_condition[idx][frame_idx],
-                cfg=cfg_by_condition[idx],
-                rig=rig_by_condition[idx],
-                title=titles[idx],
-                fail_label=fail_labels[idx],
-            )
-        fig.tight_layout()
-        canvas = FigureCanvasAgg(fig)
-        canvas.draw()
-        buf = np.asarray(canvas.buffer_rgba())
-        frame = cv2.cvtColor(buf, cv2.COLOR_RGBA2BGR)
-        plt.close(fig)
-
-        if writer is None:
-            writer_selection = open_mp4_writer(
-                movie_path,
-                fps=fps_out_3d,
-                frame_size=(frame.shape[1], frame.shape[0]),
-            )
-            writer = writer_selection.writer
-        writer.write(frame)
-        last_frame = frame
-
-    writer.release()
-    if last_frame is not None:
-        cv2.imwrite(str(out_dir / "grid_swim3d_final.png"), last_frame)
-    if writer_selection is None or last_frame is None:
-        raise RuntimeError("Failed to initialize video writer.")
-    from sim_swim.render.video_writer import VideoRenderResult
-
-    return VideoRenderResult(
-        path=str(movie_path),
-        selected_codec=writer_selection.selected_codec,
-        attempted_codecs=writer_selection.attempted_codecs,
-        fps=fps_out_3d,
-        frame_size=(last_frame.shape[1], last_frame.shape[0]),
-        frame_count=frame_count,
+    page_index_groups = _page_index_groups(
+        len(condition_rows),
+        max_panels_per_grid=max_panels_per_grid,
     )
+    is_single_page = len(page_index_groups) == 1
+    cleanup_patterns = ["grid_swim3d_page*.mp4", "grid_swim3d_page*_final.png"]
+    if not is_single_page:
+        cleanup_patterns.extend(["grid_swim3d.mp4", "grid_swim3d_final.png"])
+    for pattern in cleanup_patterns:
+        for stale_path in out_dir.glob(pattern):
+            stale_path.unlink()
+    page_manifests: list[dict[str, Any]] = []
+
+    for page_number, page_indexes in enumerate(page_index_groups, start=1):
+        page_rows = [condition_rows[index] for index in page_indexes]
+        page_titles = [titles[index] for index in page_indexes]
+        page_fail_labels = [fail_labels[index] for index in page_indexes]
+        n_rows, n_cols, subplot_positions = _grid_layout_for_rows(page_rows)
+        stem = "grid_swim3d" if is_single_page else f"grid_swim3d_page{page_number:02d}"
+        movie_path = out_dir / f"{stem}.mp4"
+        final_png_path = out_dir / f"{stem}_final.png"
+        writer = None
+        writer_selection = None
+        last_frame = None
+
+        for frame_idx in range(frame_count):
+            fig = plt.figure(figsize=(4.8 * n_cols, 4.8 * n_rows))
+            axes = {}
+            for row_index, col_index in subplot_positions:
+                axes[(row_index, col_index)] = fig.add_subplot(
+                    n_rows,
+                    n_cols,
+                    row_index * n_cols + col_index + 1,
+                    projection="3d",
+                )
+            for page_idx, (row_index, col_index) in enumerate(subplot_positions):
+                condition_idx = page_indexes[page_idx]
+                ax = axes[(row_index, col_index)]
+                _plot_cell(
+                    ax,
+                    st=render_states_by_condition[condition_idx][frame_idx],
+                    cfg=cfg_by_condition[condition_idx],
+                    rig=rig_by_condition[condition_idx],
+                    title=page_titles[page_idx],
+                    fail_label=page_fail_labels[page_idx],
+                )
+            fig.tight_layout()
+            canvas = FigureCanvasAgg(fig)
+            canvas.draw()
+            buf = np.asarray(canvas.buffer_rgba())
+            frame = cv2.cvtColor(buf, cv2.COLOR_RGBA2BGR)
+            plt.close(fig)
+
+            if writer is None:
+                writer_selection = open_mp4_writer(
+                    movie_path,
+                    fps=fps_out_3d,
+                    frame_size=(frame.shape[1], frame.shape[0]),
+                )
+                writer = writer_selection.writer
+            writer.write(frame)
+            last_frame = frame
+
+        if writer is not None:
+            writer.release()
+        if last_frame is not None:
+            cv2.imwrite(str(final_png_path), last_frame)
+        if writer_selection is None or last_frame is None:
+            raise RuntimeError("Failed to initialize video writer.")
+        render_result = VideoRenderResult(
+            path=str(movie_path),
+            selected_codec=writer_selection.selected_codec,
+            attempted_codecs=writer_selection.attempted_codecs,
+            fps=fps_out_3d,
+            frame_size=(last_frame.shape[1], last_frame.shape[0]),
+            frame_count=frame_count,
+        )
+        page_manifests.append(
+            {
+                "page": page_number,
+                "conditions": [
+                    condition_rows[index]["condition_id"] for index in page_indexes
+                ],
+                "final_png": str(final_png_path),
+                "grid_shape": [n_rows, n_cols],
+                "video": render_result.to_manifest(),
+            }
+        )
+
+    return {
+        "max_panels_per_grid": max(1, int(max_panels_per_grid)),
+        "page_count": len(page_manifests),
+        "pages": page_manifests,
+    }
 
 
 def _write_metrics(
@@ -579,6 +626,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
     )
     parser.add_argument("--fps-out-3d", type=float, default=None)
+    parser.add_argument("--max-panels-per-grid", type=int, default=None)
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(parser_argv)
@@ -604,6 +652,9 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error(f"Invalid replay mode: {args.mode}")
     if args.fps_out_3d is None:
         args.fps_out_3d = float(replay_cfg.get("fps_out_3d") or 25.0)
+    if args.max_panels_per_grid is None:
+        args.max_panels_per_grid = int(replay_cfg.get("max_panels_per_grid") or 9)
+    args.max_panels_per_grid = max(1, int(args.max_panels_per_grid))
     if args.output_dir is None:
         if args.run_dir is not None:
             output_subdir = str(replay_cfg.get("output_subdir") or "replay")
@@ -664,8 +715,12 @@ def main(argv: list[str] | None = None) -> None:
             condition_rows=rows,
             out_dir=output_dir,
             fps_out_3d=args.fps_out_3d,
+            max_panels_per_grid=args.max_panels_per_grid,
         )
-        logger.info("Rendered video: %s", render_result.path)
+        logger.info(
+            "Rendered grid videos: pages=%d",
+            int(render_result["page_count"]),
+        )
 
     manifest = {
         "git": _git_info(),
@@ -675,6 +730,7 @@ def main(argv: list[str] | None = None) -> None:
             "base_config": str(base_cfg_path),
             "mode": args.mode,
             "fps_out_3d": args.fps_out_3d,
+            "max_panels_per_grid": args.max_panels_per_grid,
         },
         "conditions": [row["condition_id"] for row in rows],
         "outputs": {
@@ -687,7 +743,7 @@ def main(argv: list[str] | None = None) -> None:
         },
     }
     if render_result is not None:
-        manifest["render_video"] = {"grid_swim3d": render_result.to_manifest()}
+        manifest["render_video"] = {"grid_swim3d": render_result}
     (output_dir / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2),
         encoding="utf-8",

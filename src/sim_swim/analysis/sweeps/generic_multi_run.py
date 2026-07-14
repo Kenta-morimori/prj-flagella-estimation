@@ -199,6 +199,7 @@ def run_campaign(argv: list[str] | None = None) -> Path:
             step_summary_dir=condition_dir,
             stop_on_shape_fail=False,
             progress_interval=progress_interval,
+            record_body_diagnostics=True,
         )
         if save_state_archive_enabled:
             save_state_archive(condition_dir / "state_archive.npz", states)

@@ -422,6 +422,7 @@ def test_replay_wrapper_accepts_config_run_dir_defaults(tmp_path: Path) -> None:
     assert args.output_dir == tmp_path / "replay"
     assert args.mode == "both"
     assert args.fps_out_3d == 10.0
+    assert args.max_panels_per_grid == 9
     assert args.overwrite is True
 
 
@@ -440,6 +441,20 @@ def test_replay_wrapper_uses_fixed_output_base_dir(tmp_path: Path) -> None:
     assert args.output_dir == run_dir / "replay"
     assert args.mode == "both"
     assert args.fps_out_3d == 10.0
+    assert args.max_panels_per_grid == 9
+
+
+def test_replay_wrapper_reads_max_panels_per_grid_from_profile() -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_replay_max_panels_from_profile",
+    )
+
+    args = module._parse_args(
+        ["config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml"]
+    )
+
+    assert args.max_panels_per_grid == 9
 
 
 @pytest.mark.parametrize(
@@ -494,6 +509,21 @@ def test_replay_grid_layout_keeps_explicit_summary_positions() -> None:
 
     assert (n_rows, n_cols) == (2, 3)
     assert positions == [(1, 0), (0, 2)]
+
+
+def test_replay_page_index_groups_preserve_condition_order() -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_replay_page_index_groups",
+    )
+
+    assert module._page_index_groups(36, 9) == [
+        list(range(0, 9)),
+        list(range(9, 18)),
+        list(range(18, 27)),
+        list(range(27, 36)),
+    ]
+    assert module._page_index_groups(3, 9) == [list(range(3))]
 
 
 def test_generic_multi_run_summary_fieldnames_include_body_shape_gate() -> None:

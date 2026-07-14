@@ -306,6 +306,22 @@ def test_simulator_run_records_all_states_and_step_summary_rows(
     assert len(states) == total_steps + 1
 
 
+def test_simulator_run_can_force_body_diagnostics_for_long_run(
+    tmp_path: Path,
+) -> None:
+    cfg = _make_phase0a_cfg(duration_s=1.0).with_overrides({"time": {"dt_star": 0.25}})
+    sim = Simulator(cfg)
+
+    sim.run(
+        cfg.time.duration_s,
+        step_summary_dir=tmp_path / "sim",
+        record_body_diagnostics=True,
+    )
+
+    assert (tmp_path / "sim" / "body_constraint_diagnostics.csv").is_file()
+    assert (tmp_path / "sim" / "body_constraint_local_diagnostics.csv").is_file()
+
+
 def _run_and_summarize_body_shape(
     cfg: SimulationConfig, summary_dir: Path
 ) -> dict[str, float | bool | str]:

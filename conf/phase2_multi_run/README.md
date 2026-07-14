@@ -94,6 +94,8 @@ outputs/phase2_multi_run/latest_model_torque_shape_stability/
 ```
 
 `plots/` と `replay/` は，それぞれ plot / replay コマンドを実行したときに作られる。`run_multi_run.py` だけでは作られない。
+`replay.max_panels_per_grid` を指定すると，条件数が多い replay は `grid_swim3d_page01.mp4` のように複数ページへ分割される。
+1ページに収まる条件数では従来どおり `grid_swim3d.mp4` を出力する。
 
 `flagella_count_behavior_diagnostic.yaml` では run root と dataset 出力先を分ける。
 

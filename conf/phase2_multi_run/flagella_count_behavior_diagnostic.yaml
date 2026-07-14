@@ -50,6 +50,7 @@ dataset:
 replay:
   mode: both
   fps_out_3d: 10.0
+  max_panels_per_grid: 9
   output_subdir: replay
 
 plot:
