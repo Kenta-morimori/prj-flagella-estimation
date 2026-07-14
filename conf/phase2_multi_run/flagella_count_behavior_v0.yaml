@@ -1,9 +1,22 @@
 kind: generic_multi_run
 metadata:
   role: sweep
-  canonical: false
-  alias_of: conf/phase2_multi_run/flagella_count_behavior_v0.yaml
-  description: Historical alias of the Phase 2.8 flagella-count behavior diagnostic dataset v0 profile.
+  canonical: true
+  description: Phase 2.8 flagella-count behavior diagnostic dataset v0
+  model_id: current_v0
+  dataset_version: v0
+  dataset_revision: r0
+  dataset_scope: nf1_2_3_6_as3_ps3_dur1p0
+  model_revision: current_v0
+  version_role: diagnostic_baseline
+  training_candidate: false
+  canonical_output_status: not_generated
+  model_notes:
+    - RUN fixed with motor.enable_switching=false
+    - root_torque_segment_couples torque distribution
+    - basal freedom default keeps local_attach_frame_position_scale=1.25
+    - torque_Nm=2.0e-20
+  historical_alias: conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml
 
 base_config: conf/sim_swim.yaml
 
@@ -42,9 +55,9 @@ sweep:
       ids: [nf01, nf02, nf03, nf06]
 
 dataset:
-  dataset_id: fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0
+  dataset_id: v0
   feature_schema: conf/phase2_analysis/flagella_count_behavior_features.yaml
-  output_dir: outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0
+  output_dir: outputs/phase2_analysis/flagella_count_behavior/datasets/v0
   sample_id_template: "nf{n_flagella:02d}_as{attach_seed:03d}_ps{phase_seed:03d}"
   timeseries_sampling: all_steps
 
@@ -67,7 +80,7 @@ plot:
     - axis_center_to_body_roll_ratio_mean
 
 output:
-  base_dir: outputs/phase2_multi_run/flagella_count_behavior_diagnostic
+  base_dir: outputs/phase2_multi_run/flagella_count_behavior_v0
   timestamp_subdir: false
   save_state_archive: true
   progress_interval: 1000

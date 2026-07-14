@@ -1,0 +1,57 @@
+{
+  "status": "PASS",
+  "summary": "Issue #117/#118 に対して、現状モデルの diagnostic dataset v0 統計レポートを追加し、n=1,2,3 の特徴分離、n>=4 の diagnostic-only 扱い、transient fail の QC 方針、v1 へ渡す未解決点を記録した。さらに短い canonical v0 config `flagella_count_behavior_v0.yaml` と dataset version registry を追加し、canonical dataset_id / output を `v0` / `datasets/v0` に整理した。詳細条件は config / registry / manifest を source of truth とし、既存 `flagella_count_behavior_diagnostic.yaml` と `fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0` は historical alias として保持する方針を文書化した。PR review で指摘された canonical profile の二重表示は、旧 diagnostic profile を `canonical: false` / `alias_of: conf/phase2_multi_run/flagella_count_behavior_v0.yaml` にして解消した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "canonical v0 config は追加したが、canonical output は今回再生成していない。統計レポートは既存 historical alias dataset を source としている。",
+    "n>=4 の training candidate 復帰判断は #115 のモデル修正と #119 の v1 再生成後に行う。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml dry_run=true sample_limit=3",
+      "result": "PASS: as000__ps000__nf01, as000__ps000__nf02, as000__ps000__nf03 が列挙され、新規 canonical config を CLI が読めることを確認した。"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py list_canonical_profiles=true",
+      "result": "PASS: canonical multi-run 一覧に `flagella_count_behavior_v0.yaml` は表示され、historical alias の `flagella_count_behavior_diagnostic.yaml` は表示されないことを確認した。"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py describe_profile=true config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml",
+      "result": "PASS: 旧 diagnostic profile が status=alias と表示され、alias_of が `conf/phase2_multi_run/flagella_count_behavior_v0.yaml` を指すことを確認した。"
+    },
+    {
+      "command": "rg -n \"fc_v0|datasets/fc_v0|fc_v1|fc_<dataset_version>|dataset_scope|dataset_id: v0|datasets/v0|--dataset-id v0\" README.md scripts/README.md conf/phase2_multi_run docs/phase2 docs/codex-runs/20260714_175513_phase2_117_118_v0_report_naming/review_result.json",
+      "result": "PASS: canonical v0 は dataset_id=v0 / datasets/v0 へ揃え、dataset_scope は config と registry に記録し、旧 canonical fc_v0 / fc_v1 表記が残っていないことを確認した。"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS: 82 files already formatted"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS: 152 passed, 214 deselected"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [
+    "今回の変更は docs / config naming の整理であり、新規 simulation や動画生成は実行していない。",
+    "Phase 2 visual review は #113 / PR #114 で完了済みの結果を参照した。"
+  ],
+  "adr_required": false,
+  "adr_reason": "物理モデル、CSV schema、manifest schema、恒久的な pipeline I/O の変更ではなく、diagnostic dataset v0 の文書化と analysis dataset 命名規則の整理であるため。",
+  "commit_type": "complete",
+  "commit_hash": "45ca4a81d4508a2133c90e8d8cbd6029614b4baf",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/120",
+  "next_actions": [
+    "#115 で n>=4 の flag bond 過伸長と body_spring failure をモデル側で改善する。",
+    "#116 で #115 の候補に対する少数 sweep / heatmap 方針を決める。",
+    "#119 で改善モデル dataset v1 を canonical naming に従って再生成し、v0 baseline と比較する。"
+  ]
+}
