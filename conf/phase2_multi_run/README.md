@@ -11,6 +11,7 @@
 | --- | --- |
 | `conf/phase2_multi_run/latest_model_torque_shape_stability.yaml` | 最新モデルの torque 複数条件 shape stability 比較 |
 | `conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml` | Issue #71 の RUN 固定べん毛本数差 diagnostic dataset v0 |
+| `conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml` | Issue #113 の n=4,5,6 seed固定多べん毛破綻境界診断 |
 
 どちらも run / plot / replay の設定を 1 枚にまとめる。
 `flagella_count_behavior_diagnostic.yaml` はさらに `dataset:` section を持ち，dataset 作成にも同じ config を使う。
@@ -44,6 +45,20 @@ uv run python scripts/02_phase2_analysis/plot_distributions.py --dataset-id fc_n
 ```
 
 36 sample の本実行は長時間 run として扱う。確認だけなら `dry_run=true sample_limit=5` を使う。
+
+Issue #113 の n>=4 seed固定診断は，まず `n_flagella=4,5,6` の3条件だけを同じ seed で比較する。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml overwrite=true
+
+uv run python scripts/01_simulate_swimming/plot_heatmap.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml
+
+uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml overwrite=true
+
+uv run python scripts/02_phase2_analysis/build_dataset.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml overwrite=true
+```
+
+本実行は長時間 run として扱う。条件確認だけなら `dry_run=true` を使う。
 
 ## 出力先
 
@@ -79,6 +94,8 @@ outputs/phase2_multi_run/latest_model_torque_shape_stability/
 ```
 
 `plots/` と `replay/` は，それぞれ plot / replay コマンドを実行したときに作られる。`run_multi_run.py` だけでは作られない。
+`replay.max_panels_per_grid` を指定すると，条件数が多い replay は `grid_swim3d_page01.mp4` のように複数ページへ分割される。
+1ページに収まる条件数では従来どおり `grid_swim3d.mp4` を出力する。
 
 `flagella_count_behavior_diagnostic.yaml` では run root と dataset 出力先を分ける。
 

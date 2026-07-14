@@ -531,6 +531,7 @@ class Simulator:
         step_summary_dir: Path | None = None,
         stop_on_shape_fail: bool = False,
         flush_interval_steps: int = 1,
+        record_body_diagnostics: bool | None = None,
     ) -> List[SimulationState]:
         """与えた時間だけシミュレーションして状態列を返す。
 
@@ -542,6 +543,9 @@ class Simulator:
                 になった時点で早期停止する。sweep用の診断補助で、通常実行では
                 False のままにする。
             flush_interval_steps: CSV flush の記録 row 間隔。
+            record_body_diagnostics: True の場合、長時間runでも body constraint
+                diagnostics を記録する。None では従来互換として 0.05 s 以下だけ
+                記録する。
         """
 
         tau_s = self.config.tau_s
@@ -593,14 +597,19 @@ class Simulator:
                 logger.info(
                     "Saved initial geometry summary to %s", initial_summary_path
                 )
+        record_body_diag = (
+            duration_s <= 0.05
+            if record_body_diagnostics is None
+            else bool(record_body_diagnostics)
+        )
         body_diag_recorder = (
             BodyConstraintDiagnosticsRecorder(self.model, self.config, step_summary_dir)
-            if step_summary_dir is not None and duration_s <= 0.05
+            if step_summary_dir is not None and record_body_diag
             else None
         )
         body_local_diag_recorder = (
             BodyConstraintLocalDiagnosticsRecorder(self.model, step_summary_dir)
-            if (step_summary_dir is not None and duration_s <= 0.05)
+            if step_summary_dir is not None and record_body_diag
             else None
         )
 

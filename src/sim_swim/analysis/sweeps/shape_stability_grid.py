@@ -141,6 +141,12 @@ SUMMARY_FIELDS = (
     "axis_center_to_body_roll_ratio_mean",
     "axis_center_to_body_roll_ratio_min",
     "axis_center_to_body_roll_ratio_max",
+    "body_shape_pass",
+    "body_fail_category",
+    "body_spring_max_stretch_ratio",
+    "body_bend_max_error_deg",
+    "body_centerline_max_deviation_um",
+    "body_triangle_area_ratio_min",
 )
 
 
