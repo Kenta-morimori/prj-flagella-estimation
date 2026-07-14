@@ -1,0 +1,36 @@
+{
+  "status": "PASS",
+  "summary": "PR #114 の最後の残タスクだった 36条件 dataset v0 replay の grid_swim3d_page01.mp4 ... page04.mp4 のユーザー目視確認が完了し、追加追記項目なしと判断された。これにより Issue #113 本体の review_result を PASS に戻し、Phase 2 tasks でも P2-8-015 を complete に更新した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "n=4,5,6 は flag failure と body_spring failure が併発するため、モデル改善は #115 で扱う。",
+    "PR #114 の merge 操作はリポジトリルールに従いユーザー側で行う。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run python -m json.tool docs/codex-runs/20260714_140755_phase2_issue113_failure_boundary/review_result.json",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run python -m json.tool docs/codex-runs/20260714_173547_phase2_pr114_visual_complete/review_result.json",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_reason": "対象の 36条件 paged replay はユーザーが確認済みで、追加追記項目なしと判断されたため。",
+  "adr_required": false,
+  "adr_reason": "物理モデルや出力契約の新規採用判断ではなく、完了済み visual review の記録更新であるため。",
+  "commit_type": "review-fix",
+  "commit_hash": "pending",
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/114",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/113",
+  "next_actions": [
+    "PR #114 をユーザー側で merge する。",
+    "#117/#118 を先行し、その後 #115/#116/#119 の順で進める。"
+  ]
+}

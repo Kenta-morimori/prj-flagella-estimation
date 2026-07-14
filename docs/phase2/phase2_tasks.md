@@ -511,7 +511,7 @@
 
 ### P2-8-015: Issue #113 n>=4 seed固定破綻境界診断の導線を追加する
 
-- status: review_pending
+- status: complete
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/113`
 - parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
 - pull request: `https://github.com/Kenta-morimori/prj-flagella-estimation/pull/114`
@@ -534,7 +534,7 @@
   - [x] 実 multi-run 結果から `n=4,5,6` の first fail / max flag bond を確認した。
   - [x] body diagnostics 修正後の `n=4,5,6` 再実行で body deformation 自動判定を確認した。
   - [x] seed固定 replay を目視確認し，`n=4,5,6` の body 伸長を定性評価した。
-  - [ ] `flagella_count_behavior_diagnostic` の `grid_swim3d_page*.mp4` を目視確認する。
+  - [x] `flagella_count_behavior_diagnostic` の `grid_swim3d_page*.mp4` を目視確認し，追加追記項目なしと判断した。
 - verification:
   - `uv run pytest tests/test_phase2_generic_multi_run.py -q`
   - `uv run pytest tests/test_phase2_sweep_profiles.py -q`
@@ -542,9 +542,7 @@
   - `uv run ruff check scripts/01_simulate_swimming/render_shape_stability_grid_replay.py src/sim_swim/analysis/sweeps/generic_multi_run.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_phase2_generic_multi_run.py`
   - `uv run ruff format --check scripts/01_simulate_swimming/render_shape_stability_grid_replay.py src/sim_swim/analysis/sweeps/generic_multi_run.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_phase2_generic_multi_run.py`
   - `uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml dry_run=true`
-- remaining commands before merge:
-  - `uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml mode=render-only overwrite=true`
-- review outputs:
+- final review outputs:
   - `outputs/phase2_multi_run/flagella_count_behavior_diagnostic/replay/grid_swim3d_page01.mp4` ... `grid_swim3d_page04.mp4`
 
 ### P2-8-016: Issue #117 現状モデルの diagnostic dataset v0 統計レポートをまとめる
