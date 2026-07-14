@@ -24,6 +24,7 @@ Issue #118 以降の canonical v0 entrypoint は次にする:
 - dataset_id: `fc_v0_nf1_2_3_6_as3_ps3_dur1p0`
 - dataset output: `outputs/phase2_analysis/flagella_count_behavior/datasets/fc_v0_nf1_2_3_6_as3_ps3_dur1p0`
 - raw run root: `outputs/phase2_multi_run/flagella_count_behavior_v0`
+- version registry: `docs/phase2/phase2_8_dataset_version_registry.md`
 
 今回の統計レポートでは canonical v0 output は再生成していない。既存 output と docs/tests の互換性を保つため，historical alias は残す。
 
@@ -43,7 +44,7 @@ v0 の条件:
 - `flagella.initial_phase_mode=seeded`
 - `flagella.initial_helix_axis_from_rear_deg=0`
 
-`metadata.model_id` は `current_v0` とする。これは検索・対応表用の短い論理IDであり，詳細な物理・数値条件は config の `metadata.model_notes` と `base_overrides` を source of truth として読む。`n_flagella`，seed 数，duration は model ではなく dataset 条件として `dataset_id` の後半に置く。
+`metadata.model_id` / `metadata.model_revision` は `current_v0`，`metadata.dataset_revision` は `r0` とする。これは検索・対応表用の短い論理IDであり，詳細な物理・数値条件は config の `metadata.model_notes` と `base_overrides` を source of truth として読む。`n_flagella`，seed 数，duration は model ではなく dataset 条件として `dataset_id` の後半に置く。
 
 ## QC Summary
 
@@ -113,6 +114,8 @@ fc_<dataset_version>_nf<flagella-list>_as<attach-seed-count>_ps<phase-seed-count
 
 `model_id` は `current_v0` のような短い論理IDに留める。詳細条件は config の `metadata.model_notes` と `base_overrides` に置く。
 
+dataset version と revision の一覧は `docs/phase2/phase2_8_dataset_version_registry.md` に置く。`v0-1` / `v0.1` は使わず，同じ version の小修正・再生成は `dataset_revision: r1`, `r2` で扱う。
+
 v0 の主要条件:
 
 - RUN fixed: `motor.enable_switching=false`
@@ -127,7 +130,7 @@ dataset 条件として `dataset_id` に含めるもの:
 - `phase_seed`
 - `duration_s`
 
-v1 では `flagella_count_behavior_v1.yaml` / `fc_v1_...` を基本形にし，改善モデルの詳細条件は config と docs の対応表に記録する。v1 の `n_flagella` 範囲は #115/#119 の結果で決める。
+v1 では `flagella_count_behavior_v1.yaml` / `fc_v1_...` を基本形にし，改善モデルの詳細条件は config と registry に記録する。v1 の `n_flagella` 範囲は #115/#119 の結果で決める。torque 数値だけの diagnostic sweep，`duration_s` 延長，seed 数追加は原則として `dataset_version` を上げない。basal freedom scale，force distribution，failure 改善モデル，training candidate range が変わる場合は `dataset_version` を上げる。
 
 ## Next Actions
 

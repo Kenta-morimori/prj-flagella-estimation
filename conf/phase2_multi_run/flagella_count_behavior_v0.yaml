@@ -5,6 +5,11 @@ metadata:
   description: Phase 2.8 flagella-count behavior diagnostic dataset v0
   model_id: current_v0
   dataset_version: v0
+  dataset_revision: r0
+  model_revision: current_v0
+  version_role: diagnostic_baseline
+  training_candidate: false
+  canonical_output_status: not_generated
   model_notes:
     - RUN fixed with motor.enable_switching=false
     - root_torque_segment_couples torque distribution

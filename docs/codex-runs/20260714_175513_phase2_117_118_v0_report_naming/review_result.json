@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #117/#118 に対して、現状モデルの diagnostic dataset v0 統計レポートを追加し、n=1,2,3 の特徴分離、n>=4 の diagnostic-only 扱い、transient fail の QC 方針、v1 へ渡す未解決点を記録した。さらに短い canonical v0 config `flagella_count_behavior_v0.yaml` を追加し、詳細条件は config 本体を source of truth とする方針、既存 `flagella_count_behavior_diagnostic.yaml` と `fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0` は historical alias として保持する方針を文書化した。",
+  "summary": "Issue #117/#118 に対して、現状モデルの diagnostic dataset v0 統計レポートを追加し、n=1,2,3 の特徴分離、n>=4 の diagnostic-only 扱い、transient fail の QC 方針、v1 へ渡す未解決点を記録した。さらに短い canonical v0 config `flagella_count_behavior_v0.yaml` と dataset version registry を追加し、詳細条件は config 本体を source of truth とする方針、既存 `flagella_count_behavior_diagnostic.yaml` と `fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0` は historical alias として保持する方針を文書化した。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "canonical v0 config は追加したが、canonical output は今回再生成していない。統計レポートは既存 historical alias dataset を source としている。",
@@ -10,6 +10,10 @@
     {
       "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml dry_run=true sample_limit=3",
       "result": "PASS: as000__ps000__nf01, as000__ps000__nf02, as000__ps000__nf03 が列挙され、新規 canonical config を CLI が読めることを確認した。"
+    },
+    {
+      "command": "rg -n \"v0-1|v0\\.1|dataset_revision|version_role|phase2_8_dataset_version_registry|canonical_output_status|training_candidate\" docs conf README.md scripts/README.md",
+      "result": "PASS: registry 参照、dataset_revision / version_role / training_candidate / canonical_output_status の記録、および v0-1 / v0.1 を使わない方針の記述を確認した。"
     },
     {
       "command": "uv run ruff check .",
@@ -34,8 +38,8 @@
   "adr_required": false,
   "adr_reason": "物理モデル、CSV schema、manifest schema、恒久的な pipeline I/O の変更ではなく、diagnostic dataset v0 の文書化と analysis dataset 命名規則の整理であるため。",
   "commit_type": "complete",
-  "commit_hash": "bafda49f2f9d7a580ea2179c01055646f1e402e0",
-  "push_status": "pushed",
+  "commit_hash": "pending",
+  "push_status": "pending",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/120",
   "next_actions": [
     "#115 で n>=4 の flag bond 過伸長と body_spring failure をモデル側で改善する。",

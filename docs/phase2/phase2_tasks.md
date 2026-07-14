@@ -580,10 +580,12 @@
 - completed in:
   - `conf/phase2_multi_run/flagella_count_behavior_v0.yaml`
   - `conf/phase2_multi_run/README.md`
+  - `docs/phase2/phase2_8_dataset_version_registry.md`
   - `docs/phase2/phase2_8_diagnostic_dataset_v0_report.md`
 - summary:
   - canonical v0 config は `flagella_count_behavior_v0.yaml` とし，詳細条件は config の `metadata.model_notes` と `base_overrides` を source of truth にした。
   - canonical v0 `dataset_id` は `fc_v0_nf1_2_3_6_as3_ps3_dur1p0` とした。
+  - `dataset_version` と `dataset_revision` の責務を registry に整理し，`v0-1` / `v0.1` は使わず `r1`, `r2` で扱う方針にした。
   - 既存 `flagella_count_behavior_diagnostic.yaml` と `fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0` は historical alias として保持する。
 
 ### P2-8-018: Issue #115 n>=4多べん毛条件の flag bond 過伸長を安定化する

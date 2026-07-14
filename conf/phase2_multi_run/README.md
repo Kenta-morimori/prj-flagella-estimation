@@ -21,7 +21,7 @@
 
 Issue #118 以降の analysis dataset config は，config 本体をモデル条件の source of truth とし，config 名・`dataset.dataset_id`・出力先は短い dataset version を中心に付ける。
 
-現状 v0 の `metadata.model_id` は `current_v0` とする。`model_id` は検索・対応表用の短い論理IDであり，torque や basal freedom scale などの詳細条件は名前へ詰め込まない。詳細条件は config の `metadata.model_notes` と `base_overrides` を読む。
+version の正本索引は `docs/phase2/phase2_8_dataset_version_registry.md` とする。現状 v0 の `metadata.model_id` / `metadata.model_revision` は `current_v0`，`metadata.dataset_revision` は `r0` とする。`model_id` は検索・対応表用の短い論理IDであり，torque や basal freedom scale などの詳細条件は名前へ詰め込まない。詳細条件は config の `metadata.model_notes` と `base_overrides` を読む。
 
 v0 の主要条件:
 
@@ -31,6 +31,8 @@ v0 の主要条件:
 - `motor.torque_Nm=2.0e-20`
 
 `n_flagella`，`attach_seed`，`phase_seed`，`duration_s` は dataset 条件として `dataset_id` の後半に置く。
+
+`dataset_version` は主系列の比較単位にだけ使う。scale / basal freedom / force distribution / failure 改善モデルなど，モデル解釈が変わる変更は `v1`, `v2` に上げる。一方，torque 数値だけの diagnostic sweep，`duration_s` 延長，seed 数追加，同条件再実行，manifest/docs 整理は version を上げず，必要なら `dataset_revision: r1` などで扱う。`v0-1` / `v0.1` 表記は使わない。
 
 命名規則:
 
