@@ -140,6 +140,7 @@ class DynamicsEngine:
         # repo; we remove that hidden multiplier and drive behavior from
         # `SimulationConfig.stiffness_scales`.
         self.body_stiffness_scale = float(cfg.stiffness_scales.body)
+        self.flag_spring_stiffness_scale = float(cfg.stiffness_scales.flag_spring)
         self.flag_bend_stiffness_scale = float(cfg.stiffness_scales.flag_bend)
         self.flag_torsion_stiffness_scale = float(cfg.stiffness_scales.flag_torsion)
         self.theta0_ref_rad, self.phi0_ref_rad = self._initial_reference_angles_rad()
@@ -762,6 +763,7 @@ class DynamicsEngine:
                     self.flag_local_spring_rows
                 ],
                 h_const=self.spring_h
+                * self.flag_spring_stiffness_scale
                 * (first_second_spring_scale if motor_on else 1.0),
                 s_limit_m=self.spring_s_m,
                 clamp_eps=1e-3,
@@ -773,7 +775,7 @@ class DynamicsEngine:
                 spring_rest_lengths_m=self.model.spring_rest_lengths_m[
                     self.flag_nonlocal_spring_rows
                 ],
-                h_const=self.spring_h,
+                h_const=self.spring_h * self.flag_spring_stiffness_scale,
                 s_limit_m=self.spring_s_m,
                 clamp_eps=1e-3,
             )

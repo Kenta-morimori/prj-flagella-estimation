@@ -93,6 +93,34 @@ def test_latest_model_profile_base_overrides_only_intentional_diffs() -> None:
     assert profile["output"]["timestamp_subdir"] is False
 
 
+def test_flagella_count_stability_candidates_expand_stiffness_axes() -> None:
+    campaign = apply_campaign_cli_overrides(
+        load_yaml(
+            Path(
+                "conf/phase2_multi_run/flagella_count_stability_candidates_seed00.yaml"
+            )
+        ),
+        [],
+    )
+
+    conditions = build_campaign_conditions(campaign)
+
+    assert len(conditions) == 18
+    first = conditions[0]
+    assert first["config_overrides"]["flagella"]["n_flagella"] == 4
+    assert first["config_overrides"]["stiffness_scales"][
+        "flag_spring"
+    ] == pytest.approx(1.0)
+    assert first["config_overrides"]["stiffness_scales"]["body"] == pytest.approx(1.0)
+    assert any(
+        condition["config_overrides"]["stiffness_scales"]["flag_spring"]
+        == pytest.approx(2.0)
+        and condition["config_overrides"]["stiffness_scales"]["body"]
+        == pytest.approx(2.0)
+        for condition in conditions
+    )
+
+
 def test_generic_multi_run_builds_conditions_and_cli_override() -> None:
     campaign = apply_campaign_cli_overrides(
         load_yaml(

@@ -197,6 +197,9 @@ def test_default_motor_local_scales_are_unity_in_parser_defaults() -> None:
     assert sim_cfg.motor.local_bend_scale == pytest.approx(1.0)
     assert sim_cfg.motor.local_torsion_scale == pytest.approx(1.0)
     assert sim_cfg.motor_local_scale_deviations() == {}
+    assert sim_cfg.stiffness_scales.flag_spring == pytest.approx(1.0)
+    assert sim_cfg.stiffness_scales.flag_bend == pytest.approx(1.0)
+    assert sim_cfg.stiffness_scales.flag_torsion == pytest.approx(1.0)
 
 
 def test_default_config_sets_phase2_dt_star() -> None:
@@ -433,6 +436,23 @@ def test_motor_local_scales_can_be_configured() -> None:
     assert deviations["local_attach_frame_tangent_scale"] == pytest.approx(1.3)
     assert deviations["local_bend_scale"] == pytest.approx(0.75)
     assert deviations["local_torsion_scale"] == pytest.approx(0.5)
+
+
+def test_stiffness_scales_can_configure_flag_spring() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["stiffness_scales"] = {
+        "body": 2.0,
+        "flag_spring": 1.5,
+        "flag_bend": 1.25,
+        "flag_torsion": 1.75,
+    }
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.stiffness_scales.body == pytest.approx(2.0)
+    assert sim_cfg.stiffness_scales.flag_spring == pytest.approx(1.5)
+    assert sim_cfg.stiffness_scales.flag_bend == pytest.approx(1.25)
+    assert sim_cfg.stiffness_scales.flag_torsion == pytest.approx(1.75)
 
 
 def test_output_sampling_fps_out_3d_can_be_configured() -> None:

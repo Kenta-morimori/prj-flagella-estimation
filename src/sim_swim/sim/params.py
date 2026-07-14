@@ -474,6 +474,7 @@ class StiffnessScaleParams:
     """補助的な剛性スケール設定。論文再現性のためデフォルトは 1.0 とする。"""
 
     body: float = 1.0
+    flag_spring: float = 1.0
     flag_bend: float = 1.0
     flag_torsion: float = 1.0
 
@@ -1073,6 +1074,7 @@ class SimulationConfig:
         stiffness_raw = raw.get("stiffness_scales", {}) or {}
         stiffness = StiffnessScaleParams(
             body=float(_get(stiffness_raw, "body", 1.0)),
+            flag_spring=float(_get(stiffness_raw, "flag_spring", 1.0)),
             flag_bend=float(_get(stiffness_raw, "flag_bend", 1.0)),
             flag_torsion=float(_get(stiffness_raw, "flag_torsion", 1.0)),
         )

@@ -170,6 +170,17 @@ def test_phase2_hook_overstretch_scales_are_engine_localized() -> None:
     assert engine.hook_first_second_rest_lengths_m[0] > 0.0
 
 
+def test_flag_spring_stiffness_scale_is_engine_configured() -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=2.0e-20,
+        n_flagella=1,
+        stub_mode="full_flagella",
+    ).with_overrides({"stiffness_scales": {"flag_spring": 1.5}})
+    simulator = Simulator(cfg)
+
+    assert simulator.engine.flag_spring_stiffness_scale == pytest.approx(1.5)
+
+
 @pytest.mark.parametrize(
     "profile",
     [

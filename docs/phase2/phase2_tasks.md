@@ -603,6 +603,12 @@
   - [ ] 少なくとも1つのモデル修正候補について，`n=4,5,6` seed固定の改善/悪化が比較されている。
   - [ ] 改善モデルとして dataset v1 再生成へ渡せる条件，または追加探索が必要な理由が記録されている。
   - [ ] Phase3/4 training candidate に使える本数範囲について，現状モデルとの差分が明記されている。
+- implementation notes:
+  - #113 の body diagnostics あり baseline は，`n=4,5,6` すべてで flag failure と body_spring failure が併発すると確定済み。
+  - `stiffness_scales.flag_spring` を追加し，hook ではなく flag 内 spring へ適用する project-specific stabilizing extension として扱う。default は `1.0` で，既存 baseline config には明示しない。
+  - #115 用 candidate profile は `conf/phase2_multi_run/flagella_count_stability_candidates_seed00.yaml`。`n_flagella=[4,5,6]`，`stiffness_scales.flag_spring=[1.0,1.5,2.0]`，`stiffness_scales.body=[1.0,2.0]` を seed固定で比較する。
+  - 実行コマンドは `uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_candidates_seed00.yaml overwrite=true`。長時間 multi-run のため Codex 側では dry-run までとし，実結果比較はユーザー実行後に記録する。
+  - 評価指標は `first_fail_category_nonbody`，`first_fail_t_s`，`max_flag_bond_rel_err`，local bead pair，`body_shape_pass`，`body_fail_category`，`body_spring_max_stretch_ratio`，`body_centerline_max_deviation_um`。
 
 ### P2-8-019: Issue #116 n>=4安定化候補の少数sweepとheatmap方針を決める
 

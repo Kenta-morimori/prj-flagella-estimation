@@ -97,6 +97,14 @@ def _condition_row(
             condition_dir / "body_constraint_diagnostics.csv"
         )
     )
+    row.update(
+        {
+            "stiffness_body_scale": cfg.stiffness_scales.body,
+            "stiffness_flag_spring_scale": cfg.stiffness_scales.flag_spring,
+            "stiffness_flag_bend_scale": cfg.stiffness_scales.flag_bend,
+            "stiffness_flag_torsion_scale": cfg.stiffness_scales.flag_torsion,
+        }
+    )
     row.update(summary_axis_fields(condition))
     return row
 
