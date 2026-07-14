@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #117/#118 に対して、現状モデルの diagnostic dataset v0 統計レポートを追加し、n=1,2,3 の特徴分離、n>=4 の diagnostic-only 扱い、transient fail の QC 方針、v1 へ渡す未解決点を記録した。さらに短い canonical v0 config `flagella_count_behavior_v0.yaml` と dataset version registry を追加し、canonical dataset_id / output を `v0` / `datasets/v0` に整理した。詳細条件は config / registry / manifest を source of truth とし、既存 `flagella_count_behavior_diagnostic.yaml` と `fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0` は historical alias として保持する方針を文書化した。",
+  "summary": "Issue #117/#118 に対して、現状モデルの diagnostic dataset v0 統計レポートを追加し、n=1,2,3 の特徴分離、n>=4 の diagnostic-only 扱い、transient fail の QC 方針、v1 へ渡す未解決点を記録した。さらに短い canonical v0 config `flagella_count_behavior_v0.yaml` と dataset version registry を追加し、canonical dataset_id / output を `v0` / `datasets/v0` に整理した。詳細条件は config / registry / manifest を source of truth とし、既存 `flagella_count_behavior_diagnostic.yaml` と `fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0` は historical alias として保持する方針を文書化した。PR review で指摘された canonical profile の二重表示は、旧 diagnostic profile を `canonical: false` / `alias_of: conf/phase2_multi_run/flagella_count_behavior_v0.yaml` にして解消した。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "canonical v0 config は追加したが、canonical output は今回再生成していない。統計レポートは既存 historical alias dataset を source としている。",
@@ -10,6 +10,14 @@
     {
       "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml dry_run=true sample_limit=3",
       "result": "PASS: as000__ps000__nf01, as000__ps000__nf02, as000__ps000__nf03 が列挙され、新規 canonical config を CLI が読めることを確認した。"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py list_canonical_profiles=true",
+      "result": "PASS: canonical multi-run 一覧に `flagella_count_behavior_v0.yaml` は表示され、historical alias の `flagella_count_behavior_diagnostic.yaml` は表示されないことを確認した。"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py describe_profile=true config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml",
+      "result": "PASS: 旧 diagnostic profile が status=alias と表示され、alias_of が `conf/phase2_multi_run/flagella_count_behavior_v0.yaml` を指すことを確認した。"
     },
     {
       "command": "rg -n \"fc_v0|datasets/fc_v0|fc_v1|fc_<dataset_version>|dataset_scope|dataset_id: v0|datasets/v0|--dataset-id v0\" README.md scripts/README.md conf/phase2_multi_run docs/phase2 docs/codex-runs/20260714_175513_phase2_117_118_v0_report_naming/review_result.json",

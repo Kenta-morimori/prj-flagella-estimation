@@ -1,8 +1,9 @@
 kind: generic_multi_run
 metadata:
   role: sweep
-  canonical: true
-  description: Phase 2.8 flagella-count behavior diagnostic dataset multi-run
+  canonical: false
+  alias_of: conf/phase2_multi_run/flagella_count_behavior_v0.yaml
+  description: Historical alias of the Phase 2.8 flagella-count behavior diagnostic dataset v0 profile.
 
 base_config: conf/sim_swim.yaml
 
