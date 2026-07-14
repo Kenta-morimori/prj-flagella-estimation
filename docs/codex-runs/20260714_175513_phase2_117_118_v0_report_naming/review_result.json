@@ -34,9 +34,9 @@
   "adr_required": false,
   "adr_reason": "物理モデル、CSV schema、manifest schema、恒久的な pipeline I/O の変更ではなく、diagnostic dataset v0 の文書化と analysis dataset 命名規則の整理であるため。",
   "commit_type": "complete",
-  "commit_hash": "pending",
-  "push_status": "pending",
-  "pull_request_url": "pending",
+  "commit_hash": "bafda49f2f9d7a580ea2179c01055646f1e402e0",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/120",
   "next_actions": [
     "#115 で n>=4 の flag bond 過伸長と body_spring failure をモデル側で改善する。",
     "#116 で #115 の候補に対する少数 sweep / heatmap 方針を決める。",
