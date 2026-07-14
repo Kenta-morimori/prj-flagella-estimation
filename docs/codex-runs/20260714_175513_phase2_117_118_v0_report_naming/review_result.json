@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #117/#118 に対して、現状モデルの diagnostic dataset v0 統計レポートを追加し、n=1,2,3 の特徴分離、n>=4 の diagnostic-only 扱い、transient fail の QC 方針、v1 へ渡す未解決点を記録した。さらに短い canonical v0 config `flagella_count_behavior_v0.yaml` と dataset version registry を追加し、詳細条件は config 本体を source of truth とする方針、既存 `flagella_count_behavior_diagnostic.yaml` と `fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0` は historical alias として保持する方針を文書化した。",
+  "summary": "Issue #117/#118 に対して、現状モデルの diagnostic dataset v0 統計レポートを追加し、n=1,2,3 の特徴分離、n>=4 の diagnostic-only 扱い、transient fail の QC 方針、v1 へ渡す未解決点を記録した。さらに短い canonical v0 config `flagella_count_behavior_v0.yaml` と dataset version registry を追加し、canonical dataset_id / output を `v0` / `datasets/v0` に整理した。詳細条件は config / registry / manifest を source of truth とし、既存 `flagella_count_behavior_diagnostic.yaml` と `fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0` は historical alias として保持する方針を文書化した。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "canonical v0 config は追加したが、canonical output は今回再生成していない。統計レポートは既存 historical alias dataset を source としている。",
@@ -12,8 +12,8 @@
       "result": "PASS: as000__ps000__nf01, as000__ps000__nf02, as000__ps000__nf03 が列挙され、新規 canonical config を CLI が読めることを確認した。"
     },
     {
-      "command": "rg -n \"v0-1|v0\\.1|dataset_revision|version_role|phase2_8_dataset_version_registry|canonical_output_status|training_candidate\" docs conf README.md scripts/README.md",
-      "result": "PASS: registry 参照、dataset_revision / version_role / training_candidate / canonical_output_status の記録、および v0-1 / v0.1 を使わない方針の記述を確認した。"
+      "command": "rg -n \"fc_v0|datasets/fc_v0|fc_v1|fc_<dataset_version>|dataset_scope|dataset_id: v0|datasets/v0|--dataset-id v0\" README.md scripts/README.md conf/phase2_multi_run docs/phase2 docs/codex-runs/20260714_175513_phase2_117_118_v0_report_naming/review_result.json",
+      "result": "PASS: canonical v0 は dataset_id=v0 / datasets/v0 へ揃え、dataset_scope は config と registry に記録し、旧 canonical fc_v0 / fc_v1 表記が残っていないことを確認した。"
     },
     {
       "command": "uv run ruff check .",
@@ -38,8 +38,8 @@
   "adr_required": false,
   "adr_reason": "物理モデル、CSV schema、manifest schema、恒久的な pipeline I/O の変更ではなく、diagnostic dataset v0 の文書化と analysis dataset 命名規則の整理であるため。",
   "commit_type": "complete",
-  "commit_hash": "6e00c66d48cc97c022527e8b200cf83707b817bc",
-  "push_status": "pushed",
+  "commit_hash": "pending",
+  "push_status": "pending",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/120",
   "next_actions": [
     "#115 で n>=4 の flag bond 過伸長と body_spring failure をモデル側で改善する。",

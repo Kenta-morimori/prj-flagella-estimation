@@ -21,7 +21,7 @@
 
 Issue #118 以降の analysis dataset config は，config 本体をモデル条件の source of truth とし，config 名・`dataset.dataset_id`・出力先は短い dataset version を中心に付ける。
 
-version の正本索引は `docs/phase2/phase2_8_dataset_version_registry.md` とする。現状 v0 の `metadata.model_id` / `metadata.model_revision` は `current_v0`，`metadata.dataset_revision` は `r0` とする。`model_id` は検索・対応表用の短い論理IDであり，torque や basal freedom scale などの詳細条件は名前へ詰め込まない。詳細条件は config の `metadata.model_notes` と `base_overrides` を読む。
+version の正本索引は `docs/phase2/phase2_8_dataset_version_registry.md` とする。現状 v0 の `metadata.model_id` / `metadata.model_revision` は `current_v0`，`metadata.dataset_revision` は `r0`，`metadata.dataset_scope` は `nf1_2_3_6_as3_ps3_dur1p0` とする。`model_id` は検索・対応表用の短い論理IDであり，torque や basal freedom scale などの詳細条件は名前へ詰め込まない。詳細条件は config の `metadata.model_notes` と `base_overrides` を読む。
 
 v0 の主要条件:
 
@@ -30,7 +30,7 @@ v0 の主要条件:
 - `motor.local_attach_frame_position_scale=1.25`
 - `motor.torque_Nm=2.0e-20`
 
-`n_flagella`，`attach_seed`，`phase_seed`，`duration_s` は dataset 条件として `dataset_id` の後半に置く。
+`n_flagella`，`attach_seed`，`phase_seed`，`duration_s` は dataset 条件として `dataset_scope`，registry，config，manifest で管理する。`dataset_id` と path は dataset version だけにする。
 
 `dataset_version` は主系列の比較単位にだけ使う。scale / basal freedom / force distribution / failure 改善モデルなど，モデル解釈が変わる変更は `v1`, `v2` に上げる。一方，torque 数値だけの diagnostic sweep，`duration_s` 延長，seed 数追加，同条件再実行，manifest/docs 整理は version を上げず，必要なら `dataset_revision: r1` などで扱う。`v0-1` / `v0.1` 表記は使わない。
 
@@ -41,7 +41,7 @@ config:
   conf/phase2_multi_run/flagella_count_behavior_<dataset_version>.yaml
 
 dataset_id:
-  fc_<dataset_version>_nf<flagella-list>_as<attach-seed-count>_ps<phase-seed-count>_dur<duration>
+  <dataset_version>
 
 run root:
   outputs/phase2_multi_run/flagella_count_behavior_<dataset_version>
@@ -55,9 +55,9 @@ v0 の対応表:
 | 種別 | historical alias | canonical v0 |
 | --- | --- | --- |
 | config | `conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml` | `conf/phase2_multi_run/flagella_count_behavior_v0.yaml` |
-| `dataset.dataset_id` | `fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0` | `fc_v0_nf1_2_3_6_as3_ps3_dur1p0` |
+| `dataset.dataset_id` | `fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0` | `v0` |
 | run root | `outputs/phase2_multi_run/flagella_count_behavior_diagnostic` | `outputs/phase2_multi_run/flagella_count_behavior_v0` |
-| dataset output | `outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0` | `outputs/phase2_analysis/flagella_count_behavior/datasets/fc_v0_nf1_2_3_6_as3_ps3_dur1p0` |
+| dataset output | `outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0` | `outputs/phase2_analysis/flagella_count_behavior/datasets/v0` |
 
 既存 v0 統計レポートは historical alias 側の出力を source として読む。canonical v0 config は同じ条件を再実行・再生成するときの正規入口であり，今回の #117/#118 では canonical output の再生成は行わない。
 
@@ -86,7 +86,7 @@ uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py
 
 uv run python scripts/02_phase2_analysis/build_dataset.py config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml overwrite=true
 
-uv run python scripts/02_phase2_analysis/plot_distributions.py --dataset-id fc_v0_nf1_2_3_6_as3_ps3_dur1p0 --overwrite
+uv run python scripts/02_phase2_analysis/plot_distributions.py --dataset-id v0 --overwrite
 ```
 
 36 sample の本実行は長時間 run として扱う。確認だけなら `dry_run=true sample_limit=5` を使う。
@@ -150,8 +150,8 @@ output:
   timestamp_subdir: false
 
 dataset:
-  dataset_id: fc_v0_nf1_2_3_6_as3_ps3_dur1p0
-  output_dir: outputs/phase2_analysis/flagella_count_behavior/datasets/fc_v0_nf1_2_3_6_as3_ps3_dur1p0
+  dataset_id: v0
+  output_dir: outputs/phase2_analysis/flagella_count_behavior/datasets/v0
 ```
 
 ## plot 設定
@@ -227,9 +227,9 @@ plot:
 
 ```yaml
 dataset:
-  dataset_id: fc_v0_nf1_2_3_6_as3_ps3_dur1p0
+  dataset_id: v0
   feature_schema: conf/phase2_analysis/flagella_count_behavior_features.yaml
-  output_dir: outputs/phase2_analysis/flagella_count_behavior/datasets/fc_v0_nf1_2_3_6_as3_ps3_dur1p0
+  output_dir: outputs/phase2_analysis/flagella_count_behavior/datasets/v0
   sample_id_template: "nf{n_flagella:02d}_as{attach_seed:03d}_ps{phase_seed:03d}"
   timeseries_sampling: all_steps
 ```
