@@ -49,7 +49,6 @@ plot:
     - first_fail_t_s
     - hook_len_rel_err_max
     - max_flag_bond_rel_err
-    - body_shape_pass
     - body_spring_max_stretch_ratio
     - body_centerline_max_deviation_um
 

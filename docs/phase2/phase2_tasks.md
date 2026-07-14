@@ -524,6 +524,7 @@
   - `generic_multi_run` の長時間条件でも body diagnostics CSV を明示出力するようにした。
   - `conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml` を追加し，`attach_seed=0`, `phase_seed=0`, `n_flagella=[4,5,6]`, RUN固定，`duration_s=1.0`, `dt_star=1.0e-4`, `torque_Nm=2.0e-20` を再現可能にした。
   - seed固定実行結果では `n=4,5,6` がすべて `flag` fail となり，first fail は `0.3168..0.3505 s` に集中した。hook rel err は主因ではなく，現時点の `n>=4` は Phase3/4 training candidate として不安定である。
+  - body diagnostics 対応後の再実行では `n=4,5,6` がすべて `body_shape_pass=false`, `body_fail_category=body_spring` となり，ユーザー定性評価でも3条件とも body 伸長が見えると判断された。
 - acceptance criteria:
   - [x] `grid_swim3d.mp4` が条件数に応じた near-square layout を使える。
   - [x] 36条件 replay を複数 page の `grid_swim3d_page*.mp4` として出力できる。
@@ -531,9 +532,9 @@
   - [x] `n=4,5,6` seed固定診断条件が dry-run で生成できる。
   - [x] `summary.csv` に body shape gate 指標が含まれる。
   - [x] 実 multi-run 結果から `n=4,5,6` の first fail / max flag bond を確認した。
-  - [ ] PR review を受け，Draft を解除できる状態にする。
-  - [ ] body diagnostics 修正後の `n=4,5,6` 再実行と body deformation 自動判定はユーザー実行待ち。
-  - [ ] `flagella_count_behavior_diagnostic` の `grid_swim3d_page*.mp4` と seed固定 replay を目視確認する。
+  - [x] body diagnostics 修正後の `n=4,5,6` 再実行で body deformation 自動判定を確認した。
+  - [x] seed固定 replay を目視確認し，`n=4,5,6` の body 伸長を定性評価した。
+  - [ ] `flagella_count_behavior_diagnostic` の `grid_swim3d_page*.mp4` を目視確認する。
 - verification:
   - `uv run pytest tests/test_phase2_generic_multi_run.py -q`
   - `uv run pytest tests/test_phase2_sweep_profiles.py -q`
@@ -542,12 +543,8 @@
   - `uv run ruff format --check scripts/01_simulate_swimming/render_shape_stability_grid_replay.py src/sim_swim/analysis/sweeps/generic_multi_run.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_phase2_generic_multi_run.py`
   - `uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml dry_run=true`
 - remaining commands before merge:
-  - `uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml overwrite=true`
-  - `uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml overwrite=true`
+  - `uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml mode=render-only overwrite=true`
 - review outputs:
-  - `outputs/phase2_multi_run/flagella_count_failure_boundary_seed00/summary.csv`
-  - `outputs/phase2_multi_run/flagella_count_failure_boundary_seed00/replay/grid_swim3d.mp4`
-  - `outputs/phase2_multi_run/flagella_count_failure_boundary_seed00/replay/grid_swim3d_final.png`
   - `outputs/phase2_multi_run/flagella_count_behavior_diagnostic/replay/grid_swim3d_page01.mp4` ... `grid_swim3d_page04.mp4`
 
 ### P2-8-016: Issue #117 現状モデルの diagnostic dataset v0 統計レポートをまとめる

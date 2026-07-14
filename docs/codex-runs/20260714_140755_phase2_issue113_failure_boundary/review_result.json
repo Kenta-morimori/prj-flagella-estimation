@@ -1,10 +1,10 @@
 {
-  "status": "PASS",
-  "summary": "Issue #113 に対して、先行要件の replay grid layout 改善を実装し、3D grid movie の fallback layout を条件数に応じた near-square 配置にした。さらに条件数が多い場合は max_panels_per_grid に従って grid_swim3d_page*.mp4 へ分割するようにした。n=4,5,6 / attach_seed=0 / phase_seed=0 の seed固定診断 profile と body shape gate 指標を追加し、generic multi-run では長時間 run でも body diagnostics CSV を明示出力できるようにした。",
+  "status": "FAIL",
+  "summary": "Issue #113 に対して、先行要件の replay grid layout 改善を実装し、3D grid movie の fallback layout を条件数に応じた near-square 配置にした。さらに条件数が多い場合は max_panels_per_grid に従って grid_swim3d_page*.mp4 へ分割するようにした。n=4,5,6 / attach_seed=0 / phase_seed=0 の seed固定診断 profile と body shape gate 指標を追加し、generic multi-run では長時間 run でも body diagnostics CSV を明示出力できるようにした。body diagnostics 対応後の再実行では n=4,5,6 の全条件で body_shape_pass=false, body_fail_category=body_spring となり、ユーザー定性評価でも3条件とも body 伸長が見えると判断された。",
   "blocking_issues": [],
   "non_blocking_issues": [
-    "n=4,5,6 の初回実行結果では body diagnostics CSV が未出力だったため、body deformation の自動判定は body diagnostics 修正後の再実行で確認する必要がある。",
-    "n=4,5,6 はすべて flag fail であり、現時点では n>=4 を Phase3/4 training candidate として進めるより、n=1,2,3 中心評価または Phase2 model 改善へ戻る判断が妥当。"
+    "36条件 dataset v0 replay の grid_swim3d_page*.mp4 は page分割後の可読性についてユーザー目視確認が未完了であるため、Phase 2 visual review rule に従い review result は FAIL のままとする。",
+    "n=4,5,6 はすべて flag fail かつ body_spring fail であり、現時点では n>=4 を Phase3/4 training candidate として進めるより、n=1,2,3 中心評価または Phase2 model 改善へ戻る判断が妥当。"
   ],
   "tests_reviewed": [
     {
@@ -26,14 +26,19 @@
     {
       "command": "uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml mode=render-only overwrite=true",
       "result": "PASS: 36条件 replay を 4 page の grid_swim3d_page*.mp4 として生成"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml overwrite=true",
+      "result": "USER-RUN PASS: body diagnostics CSV が nf04/nf05/nf06 で出力され、summary.csv では全条件 body_shape_pass=false, body_fail_category=body_spring"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml overwrite=true",
+      "result": "USER-RUN PASS: replay/grid_swim3d.mp4 と replay/grid_swim3d_final.png を再生成。ユーザー定性評価では nf=4,5,6 のいずれも body 伸長が見える"
     }
   ],
   "user_review_required": true,
-  "user_review_command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml overwrite=true && uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml overwrite=true",
+  "user_review_command": "uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml mode=render-only overwrite=true",
   "user_review_outputs": [
-    "outputs/phase2_multi_run/flagella_count_failure_boundary_seed00/summary.csv",
-    "outputs/phase2_multi_run/flagella_count_failure_boundary_seed00/replay/grid_swim3d.mp4",
-    "outputs/phase2_multi_run/flagella_count_failure_boundary_seed00/replay/grid_swim3d_final.png",
     "outputs/phase2_multi_run/flagella_count_behavior_diagnostic/replay/grid_swim3d_page01.mp4",
     "outputs/phase2_multi_run/flagella_count_behavior_diagnostic/replay/grid_swim3d_page02.mp4",
     "outputs/phase2_multi_run/flagella_count_behavior_diagnostic/replay/grid_swim3d_page03.mp4",
@@ -48,8 +53,8 @@
   "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/113",
   "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71",
   "next_actions": [
-    "body diagnostics 修正後に n=4,5,6 seed固定診断を再実行し、body_shape_pass / body_fail_category を確認する。",
     "36条件 replay の grid_swim3d_page*.mp4 を目視確認し、page分割後の可読性を判断する。",
-    "n>=4 は現時点で flag failure が支配的なため、#71 では n=1,2,3 中心に進めるか Phase2 model 改善へ戻すかを判断する。"
+    "n>=4 は現時点で flag failure と body_spring failure が併発するため、#71 では n=1,2,3 中心に進めるか Phase2 model 改善へ戻すかを判断する。",
+    "n>=4 安定化は #115 で flag bond / proximal bond / basal-root 周辺のモデル修正として扱う。"
   ]
 }
