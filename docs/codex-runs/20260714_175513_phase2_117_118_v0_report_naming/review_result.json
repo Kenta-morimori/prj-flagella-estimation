@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #117/#118 に対して、現状モデルの diagnostic dataset v0 統計レポートを追加し、n=1,2,3 の特徴分離、n>=4 の diagnostic-only 扱い、transient fail の QC 方針、v1 へ渡す未解決点を記録した。さらに model_id ベースの canonical v0 config `flagella_count_behavior_runfixed_rtseg_fp1p25_torque2p0_v0.yaml` を追加し、既存 `flagella_count_behavior_diagnostic.yaml` と `fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0` は historical alias として保持する方針を文書化した。",
+  "summary": "Issue #117/#118 に対して、現状モデルの diagnostic dataset v0 統計レポートを追加し、n=1,2,3 の特徴分離、n>=4 の diagnostic-only 扱い、transient fail の QC 方針、v1 へ渡す未解決点を記録した。さらに短い canonical v0 config `flagella_count_behavior_v0.yaml` を追加し、詳細条件は config 本体を source of truth とする方針、既存 `flagella_count_behavior_diagnostic.yaml` と `fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0` は historical alias として保持する方針を文書化した。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "canonical v0 config は追加したが、canonical output は今回再生成していない。統計レポートは既存 historical alias dataset を source としている。",
@@ -8,7 +8,7 @@
   ],
   "tests_reviewed": [
     {
-      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_behavior_runfixed_rtseg_fp1p25_torque2p0_v0.yaml dry_run=true sample_limit=3",
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml dry_run=true sample_limit=3",
       "result": "PASS: as000__ps000__nf01, as000__ps000__nf02, as000__ps000__nf03 が列挙され、新規 canonical config を CLI が読めることを確認した。"
     },
     {

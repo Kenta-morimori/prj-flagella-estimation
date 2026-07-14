@@ -34,9 +34,9 @@ Phase 2.8 の診断用 dataset 作成:
 
 ```bash
 uv run python scripts/01_simulate_swimming/run_multi_run.py \
-  config=conf/phase2_multi_run/flagella_count_behavior_runfixed_rtseg_fp1p25_torque2p0_v0.yaml
+  config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
 uv run python scripts/02_phase2_analysis/build_dataset.py \
-  config=conf/phase2_multi_run/flagella_count_behavior_runfixed_rtseg_fp1p25_torque2p0_v0.yaml
+  config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
 ```
 
 CLI の詳細、override 例、後から 3D / 2D render を再生成する方法は `scripts/README.md` を参照してください。

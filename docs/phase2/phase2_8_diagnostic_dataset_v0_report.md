@@ -20,10 +20,10 @@ diagnostic dataset v0 は Phase3/4 学習用 dataset の凍結ではない。現
 
 Issue #118 以降の canonical v0 entrypoint は次にする:
 
-- config: `conf/phase2_multi_run/flagella_count_behavior_runfixed_rtseg_fp1p25_torque2p0_v0.yaml`
-- dataset_id: `fc_runfixed_rtseg_fp1p25_torque2p0_v0_nf1_2_3_6_as3_ps3_dur1p0`
-- dataset output: `outputs/phase2_analysis/flagella_count_behavior/datasets/fc_runfixed_rtseg_fp1p25_torque2p0_v0_nf1_2_3_6_as3_ps3_dur1p0`
-- raw run root: `outputs/phase2_multi_run/flagella_count_behavior_runfixed_rtseg_fp1p25_torque2p0_v0`
+- config: `conf/phase2_multi_run/flagella_count_behavior_v0.yaml`
+- dataset_id: `fc_v0_nf1_2_3_6_as3_ps3_dur1p0`
+- dataset output: `outputs/phase2_analysis/flagella_count_behavior/datasets/fc_v0_nf1_2_3_6_as3_ps3_dur1p0`
+- raw run root: `outputs/phase2_multi_run/flagella_count_behavior_v0`
 
 今回の統計レポートでは canonical v0 output は再生成していない。既存 output と docs/tests の互換性を保つため，historical alias は残す。
 
@@ -43,7 +43,7 @@ v0 の条件:
 - `flagella.initial_phase_mode=seeded`
 - `flagella.initial_helix_axis_from_rear_deg=0`
 
-`model_id` は `runfixed_rtseg_fp1p25_torque2p0` とする。`fp1p25` は #103 後の basal freedom default である `motor.local_attach_frame_position_scale=1.25` を指す。`n_flagella`，seed 数，duration は model ではなく dataset 条件として `dataset_id` の後半に置く。
+`metadata.model_id` は `current_v0` とする。これは検索・対応表用の短い論理IDであり，詳細な物理・数値条件は config の `metadata.model_notes` と `base_overrides` を source of truth として読む。`n_flagella`，seed 数，duration は model ではなく dataset 条件として `dataset_id` の後半に置く。
 
 ## QC Summary
 
@@ -102,30 +102,32 @@ Issue #113 / PR #114 の seed 固定診断では，`attach_seed=0`, `phase_seed=
 analysis dataset config は次の規則で命名する:
 
 ```text
-conf/phase2_multi_run/flagella_count_behavior_<model_id>_<dataset_version>.yaml
+conf/phase2_multi_run/flagella_count_behavior_<dataset_version>.yaml
 ```
 
 analysis dataset id は次の規則で命名する:
 
 ```text
-fc_<model_id>_<dataset_version>_nf<flagella-list>_as<attach-seed-count>_ps<phase-seed-count>_dur<duration>
+fc_<dataset_version>_nf<flagella-list>_as<attach-seed-count>_ps<phase-seed-count>_dur<duration>
 ```
 
-`model_id` に含める主要条件:
+`model_id` は `current_v0` のような短い論理IDに留める。詳細条件は config の `metadata.model_notes` と `base_overrides` に置く。
 
-- motor state: `runfixed`
-- torque force distribution: `rtseg`
-- basal freedom representative: `fp1p25`
-- torque: `torque2p0`
+v0 の主要条件:
 
-`model_id` に含めない dataset 条件:
+- RUN fixed: `motor.enable_switching=false`
+- torque force distribution: `motor.force_distribution=root_torque_segment_couples`
+- basal freedom representative: `motor.local_attach_frame_position_scale=1.25`
+- torque: `motor.torque_Nm=2.0e-20`
+
+dataset 条件として `dataset_id` に含めるもの:
 
 - `n_flagella`
 - `attach_seed`
 - `phase_seed`
 - `duration_s`
 
-v1 では改善モデルの主要変更を `model_id` に反映し，`dataset_version=v1` を使う。v1 の `n_flagella` 範囲は #115/#119 の結果で決める。
+v1 では `flagella_count_behavior_v1.yaml` / `fc_v1_...` を基本形にし，改善モデルの詳細条件は config と docs の対応表に記録する。v1 の `n_flagella` 範囲は #115/#119 の結果で決める。
 
 ## Next Actions
 

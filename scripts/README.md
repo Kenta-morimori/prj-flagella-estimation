@@ -164,45 +164,45 @@ Phase 2.8 の RUN 固定べん毛数差分析用 dataset 作成 CLI です。raw
 
 ```bash
 uv run python scripts/01_simulate_swimming/run_multi_run.py \
-  config=conf/phase2_multi_run/flagella_count_behavior_runfixed_rtseg_fp1p25_torque2p0_v0.yaml \
+  config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml \
   dry_run=true sample_limit=3
 uv run python scripts/01_simulate_swimming/run_multi_run.py \
-  config=conf/phase2_multi_run/flagella_count_behavior_runfixed_rtseg_fp1p25_torque2p0_v0.yaml
+  config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
 uv run python scripts/02_phase2_analysis/build_dataset.py \
-  config=conf/phase2_multi_run/flagella_count_behavior_runfixed_rtseg_fp1p25_torque2p0_v0.yaml
+  config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
 ```
 
 標準設定:
 
 | config | 用途 |
 | --- | --- |
-| `conf/phase2_multi_run/flagella_count_behavior_runfixed_rtseg_fp1p25_torque2p0_v0.yaml` | Issue #71 の診断用 dataset v0。run / heatmap / replay / dataset 作成で共通に使う |
+| `conf/phase2_multi_run/flagella_count_behavior_v0.yaml` | Issue #71 の診断用 dataset v0。run / heatmap / replay / dataset 作成で共通に使う |
 
 Issue #71 の診断用 dataset v0 は次で実行します。36 sample の長時間 run なので、まず `dry_run=true` や `sample_limit=1` で確認してください。
 
 ```bash
 uv run python scripts/01_simulate_swimming/run_multi_run.py \
-  config=conf/phase2_multi_run/flagella_count_behavior_runfixed_rtseg_fp1p25_torque2p0_v0.yaml
+  config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
 uv run python scripts/01_simulate_swimming/plot_heatmap.py \
-  config=conf/phase2_multi_run/flagella_count_behavior_runfixed_rtseg_fp1p25_torque2p0_v0.yaml
+  config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
 uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py \
-  config=conf/phase2_multi_run/flagella_count_behavior_runfixed_rtseg_fp1p25_torque2p0_v0.yaml
+  config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
 uv run python scripts/02_phase2_analysis/build_dataset.py \
-  config=conf/phase2_multi_run/flagella_count_behavior_runfixed_rtseg_fp1p25_torque2p0_v0.yaml
+  config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
 uv run python scripts/02_phase2_analysis/plot_distributions.py \
-  --dataset-id fc_runfixed_rtseg_fp1p25_torque2p0_v0_nf1_2_3_6_as3_ps3_dur1p0
+  --dataset-id fc_v0_nf1_2_3_6_as3_ps3_dur1p0
 ```
 
 raw condition は `step_summary.csv`、`trajectory.csv`、`state_archive.npz` を保存します。dataset directory から 3D / 2D render を作る場合は次を使います。
 
 ```bash
 uv run python scripts/02_phase2_analysis/render_sample.py \
-  --dataset-dir outputs/phase2_analysis/flagella_count_behavior/datasets/fc_runfixed_rtseg_fp1p25_torque2p0_v0_nf1_2_3_6_as3_ps3_dur1p0
+  --dataset-dir outputs/phase2_analysis/flagella_count_behavior/datasets/fc_v0_nf1_2_3_6_as3_ps3_dur1p0
 ```
 
 dataset の分布 plot は次で生成します。
 
 ```bash
 uv run python scripts/02_phase2_analysis/plot_distributions.py \
-  --dataset-id fc_runfixed_rtseg_fp1p25_torque2p0_v0_nf1_2_3_6_as3_ps3_dur1p0
+  --dataset-id fc_v0_nf1_2_3_6_as3_ps3_dur1p0
 ```
