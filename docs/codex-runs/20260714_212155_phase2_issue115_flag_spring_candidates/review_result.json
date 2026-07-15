@@ -38,9 +38,9 @@
   "adr_required": false,
   "adr_reason": "`stiffness_scales.flag_spring` はまだ採用済み dataset model ではなく候補比較用 extension として記録する段階。#116/#119 で採用条件が確定した時点で ADR または dataset registry に model_id と解釈を記録する。",
   "commit_type": "implementation",
-  "commit_hash": "see final response",
-  "push_status": "see final response",
-  "pull_request_url": "see final response",
+  "commit_hash": "46f9763a89c8907f58d2b7b68d8068eefe09080a",
+  "push_status": "pushed to origin/agent/phase2-115-flag-spring-candidates",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/121",
   "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/115",
   "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/10",
   "next_actions": [
