@@ -620,16 +620,28 @@
 
 ### P2-8-019: Issue #116 n>=4安定化候補の少数sweepとheatmap方針を決める
 
-- status: pending
+- status: complete
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/116`
 - parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/10`
 - goal: #115 の修正候補が出た後，seed固定の少数 sweep で改善方向を確認し，広い heatmap へ進むか判断する。
 - input from #115: `flag_spring=2.0` と `body=2.0` は有効な探索軸だが，`n=5,6` は未安定。次は `flag_spring/body` 近傍 sweep と local `1-2` を含む proximal flag bond 補強候補を比較する。
+- planned configs:
+  - `conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml`
+  - `conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml`
+- docs:
+  - `docs/phase2/phase2_8_issue116_stability_sweep_plan.md`
+- result:
+  - user実行済み `outputs/phase2_multi_run/flagella_count_stability_narrow_seed00/summary.csv` では，`n=4` のみ v1-ready 自動指標を満たした。
+  - `n=5` は `flag_spring=2.25`, `body=2.5` で body pass かつ `max_flag_bond_rel_err=1.0060` まで近づいたが，`t=0.9060 s` に `flag` fail が残った。
+  - `n=6` は `flag_spring=2.25`, `body=2.0` で body pass したが，`t=0.4955 s` に `flag` fail が残った。
+  - #119 へ渡す seed00 候補は `stiffness_scales.flag_spring=2.25`, `stiffness_scales.body=2.5`, `n=1..4` とし，`n=5,6` は現時点では training candidate から外す。
+  - #119 冒頭で `conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml` を候補値で実行し，`n=1,2,3` の v0 baseline を壊していないことを確認する。
+  - 広い `flag_spring/body` heatmap は優先せず，`n=5,6` を戻す場合は proximal local bond `1-2` 近傍の別補強候補を検討する。
 - acceptance criteria:
-  - [ ] sweep 軸・範囲・評価指標が明記されている。
-  - [ ] 少数 sweep の結果から，広い heatmap の必要性が判断されている。
-  - [ ] `n>=4` 安定化候補が `n=1,2,3` を壊していないか確認する方針がある。
-  - [ ] dataset v1 再生成 issue へ渡すモデル条件が決まっている，または未決理由が記録されている。
+  - [x] sweep 軸・範囲・評価指標が明記されている。
+  - [x] 少数 sweep の結果から，広い heatmap の必要性が判断されている。
+  - [x] `n>=4` 安定化候補が `n=1,2,3` を壊していないか確認する方針がある。
+  - [x] dataset v1 再生成 issue へ渡すモデル条件が決まっている，または未決理由が記録されている。
 
 ### P2-8-020: Issue #119 改善モデルで analysis dataset v1 を再生成する
 

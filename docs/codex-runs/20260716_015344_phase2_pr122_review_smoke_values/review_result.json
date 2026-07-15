@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "summary": "PR #122 の Codex review 指摘に対応し、`conf/phase2_multi_run/README.md` の Issue #116 smoke check 例を、#119 handoff 候補の `stiffness_scales.flag_spring=2.25` / `stiffness_scales.body=2.5` に更新した。これにより、README のコマンドをそのまま実行した場合に旧候補 `2.0/2.0` で固定 output を上書きするリスクを解消した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "GitHub review thread への reply / resolve は、明示依頼がないため実施していない。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml stiffness_scales.flag_spring=2.25 stiffness_scales.body=2.5 dry_run=true",
+      "result": "PASS: nf01, nf02, nf03"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_reason": "docs command example の修正のみで、Phase 2 simulation output の目視確認は不要。",
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "adr_required": false,
+  "adr_reason": "ドキュメント内の実行例を #116 採用候補値に合わせるだけで、物理モデルや dataset policy の新規判断はない。",
+  "commit_type": "complete",
+  "commit_hash": "see final response",
+  "push_status": "see final response",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/122",
+  "related_review_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/122#pullrequestreview-4706343228",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/116",
+  "next_actions": [
+    "必要なら GitHub review thread に、この commit で command example を `2.25/2.5` に更新した旨を返信する。"
+  ]
+}

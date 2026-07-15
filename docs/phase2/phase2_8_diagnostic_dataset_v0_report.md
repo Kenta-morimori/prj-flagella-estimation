@@ -96,7 +96,7 @@ Issue #113 / PR #114 の seed 固定診断では，`attach_seed=0`, `phase_seed=
 | 5 | 0.3168 | 1.5037 | `body_spring` | 1.3724 |
 | 6 | 0.3505 | 1.4889 | `body_spring` | 1.3863 |
 
-このため，現状モデルでは `n>=4` を Phase3/4 training candidate から外し，diagnostic-only とする。`n>=4` の復帰判断は #115 のモデル修正と #119 の改善モデル dataset v1 再生成後に行う。
+このため，現状モデルでは `n>=4` を Phase3/4 training candidate から外し，diagnostic-only とする。#115 では `flag_spring/body` が有効な探索軸であることは確認したが，v1-ready 条件は未確定である。`n>=4` の復帰判断は #116 の少数条件 sweep / heatmap 方針と #119 の改善モデル dataset v1 再生成後に行う。
 
 ## Naming Rule
 
@@ -130,10 +130,9 @@ dataset 条件として `metadata.dataset_scope` と registry に記録するも
 - `phase_seed`
 - `duration_s`
 
-v1 では `flagella_count_behavior_v1.yaml` / `dataset_id=v1` を基本形にし，改善モデルの詳細条件は config と registry に記録する。v1 の `n_flagella` 範囲は #115/#119 の結果で決める。torque 数値だけの diagnostic sweep，`duration_s` 延長，seed 数追加は原則として `dataset_version` を上げない。basal freedom scale，force distribution，failure 改善モデル，training candidate range が変わる場合は `dataset_version` を上げる。
+v1 では `flagella_count_behavior_v1.yaml` / `dataset_id=v1` を基本形にし，改善モデルの詳細条件は config と registry に記録する。v1 の `n_flagella` 範囲は #116/#119 の結果で決める。torque 数値だけの diagnostic sweep，`duration_s` 延長，seed 数追加は原則として `dataset_version` を上げない。basal freedom scale，force distribution，failure 改善モデル，training candidate range が変わる場合は `dataset_version` を上げる。
 
 ## Next Actions
 
-- #115: `n>=4` の flag bond 過伸長と body_spring failure をモデル側で改善する。
-- #116: #115 の候補が出た後，少数条件 sweep / heatmap 方針を決める。
+- #116: #115 の candidate 結果を受け，`flag_spring/body` 近傍と proximal local bond 補強の要否を含めて少数条件 sweep / heatmap 方針を決める。
 - #119: 改善モデルで analysis dataset v1 を再生成し，v0 の `n=1,2,3` baseline と比較する。

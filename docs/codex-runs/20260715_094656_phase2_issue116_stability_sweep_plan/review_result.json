@@ -1,0 +1,67 @@
+{
+  "status": "PASS",
+  "summary": "Issue #116 として、#115 の user-run summary を読み、n=4,5,6 seed固定の狭域 `flag_spring/body` sweep profile と、候補通過後の n=1,2,3 smoke check profile を追加した。user 実行済み `outputs/phase2_multi_run/flagella_count_stability_narrow_seed00` は root `summary.csv` が未生成だったため、Codex が既存 condition output から再シミュレーションなしで `summary.csv` と plots を再生成した。結果として、`n=4` のみ複数条件で v1-ready 自動指標を満たし、`n=5` は最良近傍 `flag_spring=2.25, body=2.5` でも `t=0.9060 s` に flag fail、`n=6` は `flag_spring=2.25, body=2.0` でも `t=0.4955 s` に flag fail した。#119 へ渡す seed00 候補は `stiffness_scales.flag_spring=2.25`, `stiffness_scales.body=2.5`, `n=1..4` とし、`n=5,6` は現時点では training candidate から外す。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "`max_flag_bond_rel_err` の最大 event は #115 summary では local `1-2` が目立つが、local `0-1`, `2-3`, `3-4`, `4-5` にも散る。既存 `motor.local_first_second_spring_scale` は #94 で主要 failure を改善していないため、#116 の第一 sweep では増強しない。",
+    "`n=5,6` は狭域 `flag_spring/body` sweep では v1-ready にならなかった。これらを戻す場合は、wide heatmap より先に proximal local bond `1-2` 近傍の別補強候補を設計する。",
+    "#119 冒頭で `conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml` を `stiffness_scales.flag_spring=2.25`, `stiffness_scales.body=2.5` で実行し、`n=1,2,3` の v0 baseline を壊していないことを確認する必要がある。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml dry_run=true",
+      "result": "PASS: 36 condition IDs were printed for nf04/nf05/nf06 x flag_spring 1.75/2.0/2.25 x body 1.0/1.5/2.0/2.5"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml stiffness_scales.flag_spring=2.25 stiffness_scales.body=1.5 dry_run=true",
+      "result": "PASS: 3 condition IDs were printed for nf01/nf02/nf03"
+    },
+    {
+      "command": "user-run: uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml overwrite=true",
+      "result": "USER-RUN PARTIAL OUTPUT: 36 condition directories and step_summary.csv files were generated under outputs/phase2_multi_run/flagella_count_stability_narrow_seed00, but root summary.csv was missing"
+    },
+    {
+      "command": "uv run python - <<'PY' ... existing condition output aggregation via sim_swim.analysis.sweeps.generic_multi_run._condition_row ... PY",
+      "result": "PASS: regenerated outputs/phase2_multi_run/flagella_count_stability_narrow_seed00/summary.csv with 36 rows without rerunning simulation"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/plot_heatmap.py config=conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml",
+      "result": "PASS: plot_data.csv and six heatmap PNGs generated under outputs/phase2_multi_run/flagella_count_stability_narrow_seed00/plots"
+    },
+    {
+      "command": "uv run pytest tests/test_phase2_generic_multi_run.py -k 'stability_narrow or stability_smoke' -q",
+      "result": "PASS: 2 passed, 31 deselected"
+    },
+    {
+      "command": "uv run ruff check tests/test_phase2_generic_multi_run.py src/sim_swim/analysis/multi_run_campaign.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check tests/test_phase2_generic_multi_run.py",
+      "result": "PASS: 1 file already formatted"
+    },
+    {
+      "command": "uv run python -m json.tool docs/codex-runs/20260715_094656_phase2_issue116_stability_sweep_plan/review_result.json",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_reason": "#116 の採否は summary 指標で判断できるため、visual review は必須にしない。#119 で dataset v1 を生成する前に、候補条件の replay を作り、body deformation, helical shape preservation, swimming-like propulsion を確認する。",
+  "user_review_command": "uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml overwrite=true",
+  "user_review_outputs": [
+    "outputs/phase2_multi_run/flagella_count_stability_narrow_seed00/replay/"
+  ],
+  "adr_required": false,
+  "adr_reason": "本変更は候補評価 profile と実行手順の追加であり、新しい物理モデル採用は行っていない。proximal local bond 専用補強を実装・採用する場合は別途 ADR または dataset registry に model_id と解釈を記録する。",
+  "commit_type": "complete",
+  "commit_hash": "see final response",
+  "push_status": "see final response",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/122",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/116",
+  "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/10",
+  "next_actions": [
+    "#119: run `conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml` with `stiffness_scales.flag_spring=2.25` and `stiffness_scales.body=2.5`.",
+    "#119: if n=1,2,3 smoke check passes, generate dataset v1 with candidate n range `n=1..4`.",
+    "Do not include `n=5,6` in v1 training candidate unless a separate proximal local bond stabilization candidate is implemented and passes."
+  ]
+}
