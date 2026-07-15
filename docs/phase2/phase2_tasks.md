@@ -590,7 +590,7 @@
 
 ### P2-8-018: Issue #115 n>=4多べん毛条件の flag bond 過伸長を安定化する
 
-- status: pending
+- status: complete
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/115`
 - parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/10`
 - blocked by: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/113`
@@ -599,24 +599,32 @@
   - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/119`
 - goal: #113 で確定した `n>=4` failure mode に対して，hook ではなく flag bond / proximal bond / basal-root 周辺を主対象にモデル修正候補を比較する。
 - acceptance criteria:
-  - [ ] `n>=4` の主要 failure が body / hook / flag のどれか，body diagnostics ありで確認されている。
-  - [ ] 少なくとも1つのモデル修正候補について，`n=4,5,6` seed固定の改善/悪化が比較されている。
-  - [ ] 改善モデルとして dataset v1 再生成へ渡せる条件，または追加探索が必要な理由が記録されている。
-  - [ ] Phase3/4 training candidate に使える本数範囲について，現状モデルとの差分が明記されている。
+  - [x] `n>=4` の主要 failure が body / hook / flag のどれか，body diagnostics ありで確認されている。
+  - [x] 少なくとも1つのモデル修正候補について，`n=4,5,6` seed固定の改善/悪化が比較されている。
+  - [x] 改善モデルとして dataset v1 再生成へ渡せる条件，または追加探索が必要な理由が記録されている。
+  - [x] Phase3/4 training candidate に使える本数範囲について，現状モデルとの差分が明記されている。
+- completed in:
+  - `conf/phase2_multi_run/flagella_count_stability_candidates_seed00.yaml`
+  - `outputs/phase2_multi_run/flagella_count_stability_candidates_seed00/summary.csv`
+  - `docs/codex-runs/20260714_212155_phase2_issue115_flag_spring_candidates/review_result.json`
 - implementation notes:
   - #113 の body diagnostics あり baseline は，`n=4,5,6` すべてで flag failure と body_spring failure が併発すると確定済み。
   - `stiffness_scales.flag_spring` を追加し，hook ではなく flag 内 spring へ適用する project-specific stabilizing extension として扱う。default は `1.0` で，既存 baseline config には明示しない。
   - #115 用 candidate profile は `conf/phase2_multi_run/flagella_count_stability_candidates_seed00.yaml`。`n_flagella=[4,5,6]`，`stiffness_scales.flag_spring=[1.0,1.5,2.0]`，`stiffness_scales.body=[1.0,2.0]` を seed固定で比較する。
-  - 実行コマンドは `uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_candidates_seed00.yaml overwrite=true`。長時間 multi-run のため Codex 側では dry-run までとし，実結果比較はユーザー実行後に記録する。
+  - user実行コマンドは `uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_candidates_seed00.yaml overwrite=true`。
   - 評価指標は `first_fail_category_nonbody`，`first_fail_t_s`，`max_flag_bond_rel_err`，local bead pair，`body_shape_pass`，`body_fail_category`，`body_spring_max_stretch_ratio`，`body_centerline_max_deviation_um`。
+  - baseline `flag_spring=1.0, body=1.0` は `n=4,5,6` すべてで flag failure と body_spring failure が併発した。
+  - `n=4` は `flag_spring=2.0, body=1.0` で first fail なし，`max_flag_bond_rel_err=0.9075`, `body_spring_max_stretch_ratio=0.9605` まで改善した。
+  - `n=5` の best score は `flag_spring=2.0, body=1.0` で nonbody pass だが body fail，`n=6` の best score は `flag_spring=2.0, body=2.0` で body pass だが `t=0.4891 s` に flag fail した。
+  - したがって dataset v1 へ直接渡せる `n>=4` 安定条件は未確定であり，現時点では `n>=4` を Phase3/4 training candidate に戻さない。#116 では `flag_spring/body` 近傍 sweep と proximal local bond 補強の要否を検討する。
 
 ### P2-8-019: Issue #116 n>=4安定化候補の少数sweepとheatmap方針を決める
 
 - status: pending
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/116`
 - parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/10`
-- blocked by: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/115`
 - goal: #115 の修正候補が出た後，seed固定の少数 sweep で改善方向を確認し，広い heatmap へ進むか判断する。
+- input from #115: `flag_spring=2.0` と `body=2.0` は有効な探索軸だが，`n=5,6` は未安定。次は `flag_spring/body` 近傍 sweep と local `1-2` を含む proximal flag bond 補強候補を比較する。
 - acceptance criteria:
   - [ ] sweep 軸・範囲・評価指標が明記されている。
   - [ ] 少数 sweep の結果から，広い heatmap の必要性が判断されている。
@@ -629,7 +637,7 @@
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/119`
 - parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
 - blocked by:
-  - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/115`
+  - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/116`
   - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/118`
 - goal: 改善モデルで analysis dataset v1 を再生成し，v0 と比較して Phase3/4 training dataset 作成へ渡せる範囲を判断する。
 - acceptance criteria:

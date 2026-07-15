@@ -1,11 +1,10 @@
 {
-  "status": "FAIL",
-  "summary": "Issue #115 の実行導線として、`stiffness_scales.flag_spring` を追加し、hook ではなく flag 内 spring を強める project-specific stabilizing extension を candidate 比較できるようにした。`conf/phase2_multi_run/flagella_count_stability_candidates_seed00.yaml` を追加し、`n_flagella=4,5,6`、`flag_spring=1.0,1.5,2.0`、`body=1.0,2.0` の seed固定 18条件を展開できることを dry-run で確認した。長時間 multi-run はリポジトリ方針に従い Codex 側では未実行のため、#115 の受け入れ条件である改善/悪化比較は未完了。",
-  "blocking_issues": [
-    "candidate multi-run の実行結果が未生成。`summary.csv` による first fail / flag bond / body_spring 比較がまだないため、dataset v1 へ渡せる改善候補は未判断。"
-  ],
+  "status": "PASS",
+  "summary": "Issue #115 として、`stiffness_scales.flag_spring` を追加し、hook ではなく flag 内 spring を強める project-specific stabilizing extension を candidate 比較できるようにした。user実行済み `outputs/phase2_multi_run/flagella_count_stability_candidates_seed00/summary.csv` では、baseline `flag_spring=1.0, body=1.0` が `n=4,5,6` すべてで flag failure と body_spring failure を併発することを再確認した。`n=4` は `flag_spring=2.0, body=1.0` で first fail なしまで改善したが、`n=5` は body fail が残り、`n=6` は `flag_spring=2.0, body=2.0` でも `t=0.4891 s` に flag fail した。したがって #115 では有効な探索軸を確認したものの、dataset v1 へ直接渡せる `n>=4` 安定条件は未確定とし、#116 で `flag_spring/body` 近傍 sweep と proximal local bond 補強の要否を検討する。",
+  "blocking_issues": [],
   "non_blocking_issues": [
-    "`stiffness_scales.flag_spring` は論文モデルそのものではなく project-specific stabilizing extension。採用候補になった場合は #116/#119 側で物理解釈と model_id を明記する必要がある。"
+    "`stiffness_scales.flag_spring` は論文モデルそのものではなく project-specific stabilizing extension。採用候補になった場合は #116/#119 側で物理解釈と model_id を明記する必要がある。",
+    "現時点では `n>=4` を Phase3/4 training candidate に戻さない。v1 生成は #116 の追加 sweep 後に判断する。"
   ],
   "tests_reviewed": [
     {
@@ -23,28 +22,30 @@
     {
       "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_candidates_seed00.yaml dry_run=true",
       "result": "PASS: 18 condition IDs were printed for nf04/nf05/nf06 x flag_spring 1.0/1.5/2.0 x body 1.0/2.0"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_candidates_seed00.yaml overwrite=true",
+      "result": "USER-RUN PASS: 18 condition summary generated at outputs/phase2_multi_run/flagella_count_stability_candidates_seed00/summary.csv on commit 5a21d091b433d8bb8b5341a5fe88a728c4246af4"
     }
   ],
-  "user_review_required": true,
-  "user_review_reason": "自動 candidate comparison の長時間 multi-run が未実行で、`n>=4` の改善/悪化は summary 指標なしに判断できないため。",
-  "user_review_command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_candidates_seed00.yaml overwrite=true",
+  "user_review_required": false,
+  "user_review_reason": "candidate comparison は user-run summary 指標で評価済み。replay visual review は次の #116 方針検討では有用だが、#115 merge の必須条件にはしない。",
+  "user_review_command": "optional: uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_stability_candidates_seed00.yaml overwrite=true",
   "user_review_outputs": [
-    "outputs/phase2_multi_run/flagella_count_stability_candidates_seed00/summary.csv",
-    "outputs/phase2_multi_run/flagella_count_stability_candidates_seed00/run_manifest.json",
-    "outputs/phase2_multi_run/flagella_count_stability_candidates_seed00/<condition_id>/step_summary.csv",
-    "outputs/phase2_multi_run/flagella_count_stability_candidates_seed00/<condition_id>/body_constraint_diagnostics.csv"
+    "outputs/phase2_multi_run/flagella_count_stability_candidates_seed00/replay/grid_swim3d_page01.mp4",
+    "outputs/phase2_multi_run/flagella_count_stability_candidates_seed00/replay/grid_swim3d_page02.mp4"
   ],
   "adr_required": false,
-  "adr_reason": "`stiffness_scales.flag_spring` は採用済みモデルではなく候補比較用の extension として task docs に記録した段階であり、採用判断が出た時点で ADR または dataset registry に model_id と解釈を記録する。",
+  "adr_reason": "`stiffness_scales.flag_spring` はまだ採用済み dataset model ではなく候補比較用 extension として記録する段階。#116/#119 で採用条件が確定した時点で ADR または dataset registry に model_id と解釈を記録する。",
   "commit_type": "implementation",
   "commit_hash": "see final response",
   "push_status": "see final response",
-  "pull_request_url": null,
+  "pull_request_url": "see final response",
   "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/115",
   "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/10",
   "next_actions": [
-    "ユーザー側で candidate multi-run を実行し、`summary.csv` の `first_fail_category_nonbody`, `first_fail_t_s`, `max_flag_bond_rel_err`, `body_shape_pass`, `body_fail_category`, `body_spring_max_stretch_ratio`, `body_centerline_max_deviation_um` を比較する。",
-    "改善候補が出た場合は #116 で少数 sweep / heatmap 方針を決め、#119 の dataset v1 model_id へ渡す。",
-    "全候補が fail の場合は、`flag_spring` / `body` の単純剛性倍率では不十分な理由を #115 に記録し、次の basal-root または force distribution 探索へ戻す。"
+    "#116 で `flag_spring=[1.75,2.0,2.25]` と `body=[2.0,2.5,3.0]` 近傍の seed固定少数 sweep を検討する。",
+    "simple global `flag_spring` だけで不十分な場合、local `1-2` を含む proximal flag bond 補強候補を設計する。",
+    "#119 の dataset v1 は #116 で v1-ready 条件が出るまで実行しない。"
   ]
 }
