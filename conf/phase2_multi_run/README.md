@@ -11,12 +11,13 @@
 | --- | --- |
 | `conf/phase2_multi_run/latest_model_torque_shape_stability.yaml` | 最新モデルの torque 複数条件 shape stability 比較 |
 | `conf/phase2_multi_run/flagella_count_behavior_v0.yaml` | Issue #71 / #117 / #118 の RUN 固定べん毛本数差 diagnostic dataset v0 canonical config |
+| `conf/phase2_multi_run/flagella_count_behavior_v1.yaml` | Issue #119 の改善モデル analysis dataset v1 canonical config |
 | `conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml` | Issue #113 の n=4,5,6 seed固定多べん毛破綻境界診断 |
 | `conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml` | Issue #116 の n=4,5,6 seed固定 `flag_spring/body` 狭域 sweep |
 | `conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml` | Issue #116 の候補通過後に使う n=1,2,3 seed固定 smoke check |
 
 各 profile は run / plot / replay の設定を 1 枚にまとめる。
-`flagella_count_behavior_v0.yaml` はさらに `dataset:` section を持ち，dataset 作成にも同じ config を使う。
+`flagella_count_behavior_v0.yaml` と `flagella_count_behavior_v1.yaml` はさらに `dataset:` section を持ち，dataset 作成にも同じ config を使う。
 旧 `flagella_count_behavior_diagnostic.yaml` は既存出力との互換用 historical alias として残す。
 
 ## analysis dataset naming
@@ -33,6 +34,18 @@ v0 の主要条件:
 - `motor.torque_Nm=2.0e-20`
 
 `n_flagella`，`attach_seed`，`phase_seed`，`duration_s` は dataset 条件として `dataset_scope`，registry，config，manifest で管理する。`dataset_id` と path は dataset version だけにする。
+
+v1 の主要条件:
+
+- `motor.enable_switching=false`
+- `motor.force_distribution=root_torque_segment_couples`
+- `motor.local_attach_frame_position_scale=1.25`
+- `stiffness_scales.flag_spring=2.25`
+- `stiffness_scales.body=2.5`
+- `motor.torque_Nm=2.0e-20`
+- `n_flagella=[1,2,3,4]`
+
+`n=5,6` は Issue #116 の狭域 sweep で v1-ready 条件が出ていないため，v1 training candidate から外す。
 
 `dataset_version` は主系列の比較単位にだけ使う。scale / basal freedom / force distribution / failure 改善モデルなど，モデル解釈が変わる変更は `v1`, `v2` に上げる。一方，torque 数値だけの diagnostic sweep，`duration_s` 延長，seed 数追加，同条件再実行，manifest/docs 整理は version を上げず，必要なら `dataset_revision: r1` などで扱う。`v0-1` / `v0.1` 表記は使わない。
 
@@ -63,6 +76,15 @@ v0 の対応表:
 
 既存 v0 統計レポートは historical alias 側の出力を source として読む。canonical v0 config は同じ条件を再実行・再生成するときの正規入口であり，今回の #117/#118 では canonical output の再生成は行わない。
 
+v1 の対応表:
+
+| 種別 | canonical v1 |
+| --- | --- |
+| config | `conf/phase2_multi_run/flagella_count_behavior_v1.yaml` |
+| `dataset.dataset_id` | `v1` |
+| run root | `outputs/phase2_multi_run/flagella_count_behavior_v1` |
+| dataset output | `outputs/phase2_analysis/flagella_count_behavior/datasets/v1` |
+
 ## 標準実行コマンド
 
 multi-run，plot，replay は 3 コマンドに分けて実行する。
@@ -92,6 +114,22 @@ uv run python scripts/02_phase2_analysis/plot_distributions.py --dataset-id v0 -
 ```
 
 36 sample の本実行は長時間 run として扱う。確認だけなら `dry_run=true sample_limit=5` を使う。
+
+Issue #119 の改善モデル dataset v1 も，同じ profile から dataset 作成と分布分析まで続ける。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_behavior_v1.yaml overwrite=true
+
+uv run python scripts/01_simulate_swimming/plot_heatmap.py config=conf/phase2_multi_run/flagella_count_behavior_v1.yaml
+
+uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_behavior_v1.yaml overwrite=true
+
+uv run python scripts/02_phase2_analysis/build_dataset.py config=conf/phase2_multi_run/flagella_count_behavior_v1.yaml overwrite=true
+
+uv run python scripts/02_phase2_analysis/plot_distributions.py --dataset-id v1 --overwrite
+```
+
+36 sample の本実行と replay は長時間 run として扱う。確認だけなら `dry_run=true sample_limit=5` を使う。
 
 Issue #113 の n>=4 seed固定診断は，まず `n_flagella=4,5,6` の3条件だけを同じ seed で比較する。
 

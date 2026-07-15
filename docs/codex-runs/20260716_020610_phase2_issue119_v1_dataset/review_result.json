@@ -1,0 +1,87 @@
+{
+  "status": "FAIL",
+  "summary": "Issue #119 として、改善モデル analysis dataset v1 の canonical config `conf/phase2_multi_run/flagella_count_behavior_v1.yaml` を追加し、`dataset_id=v1`、raw run root、dataset output、model metadata を registry/docs に記録した。既存 smoke output `outputs/phase2_multi_run/flagella_count_stability_smoke_seed00/summary.csv` では、#116 handoff 候補 `stiffness_scales.flag_spring=2.25`, `stiffness_scales.body=2.5` の `n=1,2,3` がすべて `final_shape_pass_nonbody=True`, `body_shape_pass=True`, `first_fail_category_nonbody=none` だった。ただし full v1 36 sample raw generation と dataset build は長時間 run として未実行のため、#119 は完了扱いにしない。",
+  "blocking_issues": [
+    "full v1 raw output `outputs/phase2_multi_run/flagella_count_behavior_v1` が未生成である。",
+    "dataset output `outputs/phase2_analysis/flagella_count_behavior/datasets/v1` が未生成である。",
+    "v0 vs v1 の full seed expansion 比較と `n=4` の training candidate 可否判断が未完了である。",
+    "v1 replay の user visual review が未完了である。"
+  ],
+  "non_blocking_issues": [
+    "既存 smoke output は commit `b308998` 上の実行であり、現在ブランチでの再実行は長時間 run 回避のため行っていない。",
+    "canonical v0 dataset output `outputs/phase2_analysis/flagella_count_behavior/datasets/v0` は未生成のままで、既存 v0 統計は historical alias output を source として読む。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "git fetch origin && git checkout main && git merge origin/main && git checkout -b agent/phase2-119-v1-dataset",
+      "result": "PASS: local main was fast-forwarded to origin/main before creating the Issue #119 branch"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml dry_run=true",
+      "result": "PASS: existing v0 profile prints 36 condition IDs"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml stiffness_scales.flag_spring=2.25 stiffness_scales.body=2.5 dry_run=true",
+      "result": "PASS: smoke profile prints nf01, nf02, nf03"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_behavior_v1.yaml dry_run=true",
+      "result": "PASS: v1 profile prints 36 condition IDs for attach_seed 0..2 x phase_seed 0..2 x n_flagella 1..4"
+    },
+    {
+      "command": "read existing outputs/phase2_multi_run/flagella_count_stability_smoke_seed00/summary.csv",
+      "result": "PASS: nf01, nf02, nf03 all had final_shape_pass_nonbody=True, body_shape_pass=True, and first_fail_category_nonbody=none"
+    },
+    {
+      "command": "uv run pytest tests/test_flagella_count_behavior_dataset.py tests/test_phase2_generic_multi_run.py -q",
+      "result": "PASS: 48 passed"
+    },
+    {
+      "command": "uv run python -m json.tool docs/codex-runs/20260716_020610_phase2_issue119_v1_dataset/review_result.json",
+      "result": "PASS"
+    },
+    {
+      "command": "./scripts/check.sh",
+      "result": "NOT RUN: script does not exist in this checkout"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS: 82 files already formatted"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS: 153 passed, 219 deselected"
+    }
+  ],
+  "user_review_required": true,
+  "user_review_reason": "Phase 2 dataset v1 の `n=4` training candidate 可否は自動指標だけでは確定しない。body deformation, helical shape preservation, swimming-like propulsion, pseudo-microscopy usability を visual review する必要がある。",
+  "user_run_commands": [
+    "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_behavior_v1.yaml overwrite=true",
+    "uv run python scripts/02_phase2_analysis/build_dataset.py config=conf/phase2_multi_run/flagella_count_behavior_v1.yaml overwrite=true",
+    "uv run python scripts/02_phase2_analysis/plot_distributions.py --dataset-id v1 --overwrite",
+    "uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_behavior_v1.yaml overwrite=true"
+  ],
+  "user_review_outputs": [
+    "outputs/phase2_multi_run/flagella_count_behavior_v1/replay/",
+    "outputs/phase2_analysis/flagella_count_behavior/datasets/v1/analysis/",
+    "outputs/phase2_analysis/flagella_count_behavior/datasets/v1/plots/"
+  ],
+  "adr_required": false,
+  "adr_reason": "本変更は #116 で既に選定された stabilizing extension 候補を dataset v1 config として登録するもので、新しい物理モデル実装や採用判断は行っていない。full v1 の結果で `n=4` を training candidate として採用する場合は registry/report への追記で足りる見込み。",
+  "commit_type": "handoff",
+  "commit_hash": "see final response",
+  "push_status": "see final response",
+  "pull_request_url": "see final response",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/119",
+  "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71",
+  "next_actions": [
+    "User: run full v1 raw generation with `conf/phase2_multi_run/flagella_count_behavior_v1.yaml`.",
+    "Codex/user: build dataset v1 and plot distributions.",
+    "Codex/user: compare v0 vs v1 for n=1,2,3 and judge n=4 training candidate status.",
+    "Codex/user: update this review result to PASS only after required automated checks and visual review are complete."
+  ]
+}

@@ -88,6 +88,33 @@ def test_flagella_count_diagnostic_multi_run_config_generates_expected_condition
     assert conditions[-1]["condition_id"] == "as002__ps002__nf06"
 
 
+def test_flagella_count_behavior_v1_config_generates_expected_conditions() -> None:
+    config_path = ROOT / "conf/phase2_multi_run/flagella_count_behavior_v1.yaml"
+    config = apply_campaign_cli_overrides(load_yaml(config_path), [])
+
+    conditions = build_campaign_conditions(config)
+
+    assert config["dataset"]["dataset_id"] == "v1"
+    assert config["dataset"]["output_dir"] == (
+        "outputs/phase2_analysis/flagella_count_behavior/datasets/v1"
+    )
+    assert config["metadata"]["model_id"] == "flag_spring2p25_body2p5_candidate"
+    assert config["metadata"]["dataset_version"] == "v1"
+    assert config["metadata"]["dataset_scope"] == "nf1_2_3_4_as3_ps3_dur1p0"
+    assert config["base_overrides"]["stiffness_scales"]["flag_spring"] == (
+        pytest.approx(2.25)
+    )
+    assert config["base_overrides"]["stiffness_scales"]["body"] == pytest.approx(2.5)
+    assert len(conditions) == 36
+    assert conditions[0]["condition_id"] == "as000__ps000__nf01"
+    assert conditions[0]["axis_values"] == {
+        "attach_seed": 0,
+        "phase_seed": 0,
+        "n_flagella": 1,
+    }
+    assert conditions[-1]["condition_id"] == "as002__ps002__nf04"
+
+
 def test_flagella_count_dataset_overrides_live_under_campaign_dataset() -> None:
     config_path = ROOT / "conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml"
     config = apply_campaign_cli_overrides(
