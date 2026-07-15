@@ -115,10 +115,10 @@ uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_m
 uv run python scripts/01_simulate_swimming/plot_heatmap.py config=conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml
 ```
 
-この本実行も長時間 run として扱う。条件確認だけなら `dry_run=true` を使う。候補が出た場合は，n=1,2,3 smoke check を実行して v0 baseline を壊していないか確認する。候補値が default と異なる場合は `stiffness_scales.flag_spring=...` と `stiffness_scales.body=...` を明示する。
+この本実行も長時間 run として扱う。条件確認だけなら `dry_run=true` を使う。候補が出た場合は，n=1,2,3 smoke check を実行して v0 baseline を壊していないか確認する。Issue #116 の handoff 候補は `stiffness_scales.flag_spring=2.25` と `stiffness_scales.body=2.5` を明示して実行する。
 
 ```bash
-uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml stiffness_scales.flag_spring=2.0 stiffness_scales.body=2.0 overwrite=true
+uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml stiffness_scales.flag_spring=2.25 stiffness_scales.body=2.5 overwrite=true
 ```
 
 ## 出力先
