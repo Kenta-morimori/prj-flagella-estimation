@@ -1,0 +1,72 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: true
+  description: Issue #115 n>=4 flag bond and body spring stability candidate diagnostic
+  source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/115
+  model_notes:
+    - Seed-fixed n>=4 diagnostic for candidate stabilization before dataset v1.
+    - Sweeps project-specific stiffness_scales.flag_spring and stiffness_scales.body.
+    - local_first_second_spring_scale remains default because #94 did not improve the main failure.
+
+base_config: conf/sim_swim.yaml
+
+base_overrides:
+  time.duration_s: 1.0
+  time.dt_star: 1.0e-4
+  motor.torque_Nm: 2.0e-20
+  motor.enable_switching: false
+  motor.force_distribution: root_torque_segment_couples
+  flagella.placement_mode: seeded_surface
+  flagella.initial_phase_mode: seeded
+  flagella.initial_helix_axis_from_rear_deg: 0
+  seed.attach_seed: 0
+  seed.phase_seed: 0
+  output_sampling.out_all_steps_3d: false
+  output_sampling.fps_out_3d: 25.0
+  output_sampling.fps_out_2d: 25.0
+
+sweep:
+  axes:
+    n_flagella:
+      key: flagella.n_flagella
+      short_name: nf
+      values: [4, 5, 6]
+      labels: ["4", "5", "6"]
+      ids: [nf04, nf05, nf06]
+    flag_spring:
+      key: stiffness_scales.flag_spring
+      short_name: fspring
+      values: [1.0, 1.5, 2.0]
+      labels: ["1.0", "1.5", "2.0"]
+      ids: [fspring1p0, fspring1p5, fspring2p0]
+    body_stiffness:
+      key: stiffness_scales.body
+      short_name: body
+      values: [1.0, 2.0]
+      labels: ["1.0", "2.0"]
+      ids: [body1p0, body2p0]
+
+replay:
+  mode: both
+  fps_out_3d: 10.0
+  max_panels_per_grid: 9
+  output_subdir: replay
+
+plot:
+  default_x_axis: flag_spring
+  default_y_axis: body_stiffness
+  filter_axes:
+    n_flagella: "4"
+  metrics:
+    - first_fail_t_s
+    - hook_len_rel_err_max
+    - max_flag_bond_rel_err
+    - body_spring_max_stretch_ratio
+    - body_centerline_max_deviation_um
+
+output:
+  base_dir: outputs/phase2_multi_run/flagella_count_stability_candidates_seed00
+  timestamp_subdir: false
+  save_state_archive: true
+  progress_interval: 1000

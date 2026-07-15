@@ -1,0 +1,51 @@
+{
+  "status": "PASS",
+  "summary": "Issue #115 として、`stiffness_scales.flag_spring` を追加し、hook ではなく flag 内 spring を強める project-specific stabilizing extension を candidate 比較できるようにした。user実行済み `outputs/phase2_multi_run/flagella_count_stability_candidates_seed00/summary.csv` では、baseline `flag_spring=1.0, body=1.0` が `n=4,5,6` すべてで flag failure と body_spring failure を併発することを再確認した。`n=4` は `flag_spring=2.0, body=1.0` で first fail なしまで改善したが、`n=5` は body fail が残り、`n=6` は `flag_spring=2.0, body=2.0` でも `t=0.4891 s` に flag fail した。したがって #115 では有効な探索軸を確認したものの、dataset v1 へ直接渡せる `n>=4` 安定条件は未確定とし、#116 で `flag_spring/body` 近傍 sweep と proximal local bond 補強の要否を検討する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "`stiffness_scales.flag_spring` は論文モデルそのものではなく project-specific stabilizing extension。採用候補になった場合は #116/#119 側で物理解釈と model_id を明記する必要がある。",
+    "現時点では `n>=4` を Phase3/4 training candidate に戻さない。v1 生成は #116 の追加 sweep 後に判断する。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_params.py tests/test_simulation.py::test_flag_spring_stiffness_scale_is_engine_configured tests/test_phase2_generic_multi_run.py::test_flagella_count_stability_candidates_expand_stiffness_axes -q",
+      "result": "PASS: 63 passed"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/sim/params.py src/sim_swim/dynamics/engine.py src/sim_swim/analysis/sweeps/generic_multi_run.py tests/test_params.py tests/test_simulation.py tests/test_phase2_generic_multi_run.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/sim/params.py src/sim_swim/dynamics/engine.py src/sim_swim/analysis/sweeps/generic_multi_run.py tests/test_params.py tests/test_simulation.py tests/test_phase2_generic_multi_run.py",
+      "result": "PASS: 6 files already formatted"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_candidates_seed00.yaml dry_run=true",
+      "result": "PASS: 18 condition IDs were printed for nf04/nf05/nf06 x flag_spring 1.0/1.5/2.0 x body 1.0/2.0"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_candidates_seed00.yaml overwrite=true",
+      "result": "USER-RUN PASS: 18 condition summary generated at outputs/phase2_multi_run/flagella_count_stability_candidates_seed00/summary.csv on commit 5a21d091b433d8bb8b5341a5fe88a728c4246af4"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_reason": "candidate comparison は user-run summary 指標で評価済み。replay visual review は次の #116 方針検討では有用だが、#115 merge の必須条件にはしない。",
+  "user_review_command": "optional: uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_stability_candidates_seed00.yaml overwrite=true",
+  "user_review_outputs": [
+    "outputs/phase2_multi_run/flagella_count_stability_candidates_seed00/replay/grid_swim3d_page01.mp4",
+    "outputs/phase2_multi_run/flagella_count_stability_candidates_seed00/replay/grid_swim3d_page02.mp4"
+  ],
+  "adr_required": false,
+  "adr_reason": "`stiffness_scales.flag_spring` はまだ採用済み dataset model ではなく候補比較用 extension として記録する段階。#116/#119 で採用条件が確定した時点で ADR または dataset registry に model_id と解釈を記録する。",
+  "commit_type": "implementation",
+  "commit_hash": "46f9763a89c8907f58d2b7b68d8068eefe09080a",
+  "push_status": "pushed to origin/agent/phase2-115-flag-spring-candidates",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/121",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/115",
+  "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/10",
+  "next_actions": [
+    "#116 で `flag_spring=[1.75,2.0,2.25]` と `body=[2.0,2.5,3.0]` 近傍の seed固定少数 sweep を検討する。",
+    "simple global `flag_spring` だけで不十分な場合、local `1-2` を含む proximal flag bond 補強候補を設計する。",
+    "#119 の dataset v1 は #116 で v1-ready 条件が出るまで実行しない。"
+  ]
+}
