@@ -6,7 +6,7 @@
 
 Issue #115 の seed 固定 candidate 結果を受け，`n>=4` を dataset v1 (#119) に戻せるか判断するための少数 sweep と判定基準を固定する。
 
-本ドキュメントは長時間 simulation の実行結果ではない。Codex は #116 の実行用 config と評価手順を追加したが，36 条件の simulation はユーザー実行に回す。
+本ドキュメントは，#116 の実行用 config，評価手順，および user 実行済み seed 固定狭域 sweep の結果を記録する。
 
 ## #115 からの入力
 
@@ -64,6 +64,8 @@ uv run python scripts/01_simulate_swimming/plot_heatmap.py config=conf/phase2_mu
 - `outputs/phase2_multi_run/flagella_count_stability_narrow_seed00/summary.csv`
 - `outputs/phase2_multi_run/flagella_count_stability_narrow_seed00/plots/`
 
+2026-07-15 の user 実行では，36 condition directory と `step_summary.csv` は生成済みだったが，root `summary.csv` が未生成だった。Codex は再シミュレーションせず，既存 condition output から generic multi-run の集約ロジックで `summary.csv` を再生成し，`plot_heatmap.py` で plots を生成した。
+
 ## 評価指標
 
 優先して読む列:
@@ -108,16 +110,31 @@ smoke pass の条件:
 - `body_shape_pass=true`。
 - v0 と同じ seed00 条件で，明らかな body deformation または flag bond 悪化がない。
 
+## 結果
+
+v1-ready 最低条件を `first_fail_category_nonbody=none` かつ `body_shape_pass=true` とすると，狭域 sweep の結果は次である。
+
+| n | v1-ready conditions | best / nearest condition | result |
+| ---: | ---: | --- | --- |
+| 4 | 5 | `flag_spring=2.25`, `body=2.5` | first fail なし，`max_flag_bond_rel_err=0.9145`, `body_spring_max_stretch_ratio=0.4700`, `body_centerline_max_deviation_um=0.0672` |
+| 5 | 0 | `flag_spring=2.25`, `body=2.5` | `flag` fail at `t=0.9060 s`, `max_flag_bond_rel_err=1.0060`, body pass |
+| 6 | 0 | `flag_spring=2.25`, `body=2.0` | `flag` fail at `t=0.4955 s`, `max_flag_bond_rel_err=1.3012`, body pass |
+
+`n=4` は複数条件で自動指標 pass した。`n=5` は `flag_spring=2.25`, `body=2.5` で body pass かつ `max_flag_bond_rel_err=1.0060` まで近づいたが，`t=0.9060 s` に flag fail が残った。`n=6` は `body=2.0` 付近で body pass する一方，flag fail が `t=0.49 s` 付近に残った。
+
+`n=5,6` の nearest condition でも最大 flag bond event は local `1-2` が支配的である。したがって，同じ `flag_spring/body` 軸を単純に広げる wide heatmap は優先しない。`n=5,6` を戻すには，proximal local bond `1-2` 近傍を含む別補強候補の設計が必要である。
+
 ## 判定
 
-現時点では #119 へ渡す v1-ready モデル条件は未決である。#115 だけでは `n=5,6` の failure が残っているため，#119 の dataset v1 再生成はまだ実行しない。
+#119 へ渡す seed00 時点の候補は次とする。
 
-少数 sweep 後の分岐:
+- model condition: `stiffness_scales.flag_spring=2.25`, `stiffness_scales.body=2.5`
+- candidate n range: `n=1..4`
+- excluded for v1 training candidate at this stage: `n=5,6`
 
-- `n=4,5,6` すべてが v1-ready なら，wide heatmap は省略し，`n=1,2,3` smoke check 後に #119 へ `n=1..6` training candidate として渡す。
-- `n=4` だけが v1-ready なら，#119 へ渡す候補は `n=1..4` までに制限し，`n=5,6` は diagnostic-only とする。
-- `n>=4` の v1-ready 条件が出ない場合，#119 へは進まず，proximal local bond 専用補強を別実装候補として設計する。
-- failure が local `1-2` に集中し続ける場合，既存 `local_first_second_spring_scale` の再利用ではなく，flag 内 proximal bond を限定的に扱う project-specific extension を検討する。
+この条件は `n=4` の seed00 自動指標で pass し，`n=5` の nearest condition でも最も pass に近い。ただし `n=1,2,3` smoke check は未実行であるため，#119 の最初の作業として `conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml` を `stiffness_scales.flag_spring=2.25`, `stiffness_scales.body=2.5` で実行し，v0 baseline を壊していないことを確認する。
+
+広い heatmap は現時点では不要である。理由は，狭域 sweep で `n=5,6` の failure が同じ proximal flag bond 周辺に残り，`flag_spring/body` の単純な追加探索だけでは v1-ready 条件に届いていないためである。`n=5,6` を Phase3/4 training candidate に戻す場合は，wide heatmap より先に proximal local bond 専用補強を別 task として扱う。
 
 ## Visual review
 
@@ -130,4 +147,3 @@ uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py
 確認対象:
 
 - `outputs/phase2_multi_run/flagella_count_stability_narrow_seed00/replay/`
-
