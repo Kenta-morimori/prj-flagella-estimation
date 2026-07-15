@@ -1,0 +1,58 @@
+{
+  "status": "FAIL",
+  "summary": "Issue #116 の実行準備として、#115 の user-run summary を読み、n=4,5,6 seed固定の狭域 `flag_spring/body` sweep profile と、候補通過後の n=1,2,3 smoke check profile を追加した。評価指標、v1-ready 判定、#119 へ進める条件、未決時の proximal local bond 補強方針を `docs/phase2/phase2_8_issue116_stability_sweep_plan.md` に記録した。ただし 36 条件の Phase 2 simulation は長時間 run のため Codex では実行しておらず、少数 sweep 結果に基づく #119 handoff 条件は未確定である。",
+  "blocking_issues": [
+    "`uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml overwrite=true` の user実行結果がまだないため、広い heatmap が必要か、#119 へ進めるかを確定できない。",
+    "n=1,2,3 smoke check は、n>=4 の候補が出た後に candidate 値を指定して実行する必要がある。"
+  ],
+  "non_blocking_issues": [
+    "`max_flag_bond_rel_err` の最大 event は #115 summary では local `1-2` が目立つが、local `0-1`, `2-3`, `3-4`, `4-5` にも散る。既存 `motor.local_first_second_spring_scale` は #94 で主要 failure を改善していないため、#116 の第一 sweep では増強しない。",
+    "proximal local bond 専用補強は、狭域 sweep 後も local `1-2` 近傍の failure が支配的な場合に別実装候補として設計する。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml dry_run=true",
+      "result": "PASS: 36 condition IDs were printed for nf04/nf05/nf06 x flag_spring 1.75/2.0/2.25 x body 1.0/1.5/2.0/2.5"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml stiffness_scales.flag_spring=2.25 stiffness_scales.body=1.5 dry_run=true",
+      "result": "PASS: 3 condition IDs were printed for nf01/nf02/nf03"
+    },
+    {
+      "command": "uv run pytest tests/test_phase2_generic_multi_run.py -k 'stability_narrow or stability_smoke' -q",
+      "result": "PASS: 2 passed, 31 deselected"
+    },
+    {
+      "command": "uv run ruff check tests/test_phase2_generic_multi_run.py src/sim_swim/analysis/multi_run_campaign.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check tests/test_phase2_generic_multi_run.py",
+      "result": "PASS: 1 file already formatted"
+    },
+    {
+      "command": "uv run python -m json.tool docs/codex-runs/20260715_094656_phase2_issue116_stability_sweep_plan/review_result.json",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_reason": "現時点では simulation output が未生成のため、動画目視レビュー以前に user-run summary が必要である。候補が v1-ready 指標を満たした場合だけ replay visual review を行う。",
+  "user_review_command": "uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml overwrite=true",
+  "user_review_outputs": [
+    "outputs/phase2_multi_run/flagella_count_stability_narrow_seed00/replay/"
+  ],
+  "adr_required": false,
+  "adr_reason": "本変更は候補評価 profile と実行手順の追加であり、新しい物理モデル採用は行っていない。proximal local bond 専用補強を実装・採用する場合は別途 ADR または dataset registry に model_id と解釈を記録する。",
+  "commit_type": "diagnostic",
+  "commit_hash": "see final response",
+  "push_status": "see final response",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/122",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/116",
+  "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/10",
+  "next_actions": [
+    "User-run: `uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml overwrite=true`",
+    "User-run: `uv run python scripts/01_simulate_swimming/plot_heatmap.py config=conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml`",
+    "If an n>=4 candidate passes, run `conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml` with the selected `stiffness_scales.flag_spring` and `stiffness_scales.body` overrides.",
+    "Only after #116 user-run summary and smoke check pass, decide whether #119 can generate dataset v1 and which n range is training-candidate."
+  ]
+}

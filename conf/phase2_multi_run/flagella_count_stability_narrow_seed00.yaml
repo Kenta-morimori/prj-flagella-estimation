@@ -1,0 +1,76 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: true
+  description: Issue #116 seed-fixed narrow n>=4 stability sweep before dataset v1
+  source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/116
+  model_id: stability_narrow_seed00
+  model_notes:
+    - Seed-fixed n>=4 diagnostic after Issue #115 flag_spring/body candidate results.
+    - Keeps attach_seed=0 and phase_seed=0.
+    - Narrows around flag_spring=2.0 and body stiffness 1.0..2.5.
+    - Does not strengthen local_first_second_spring_scale by default because prior results did not improve the main proximal flag bond failure.
+
+base_config: conf/sim_swim.yaml
+
+base_overrides:
+  time.duration_s: 1.0
+  time.dt_star: 1.0e-4
+  motor.torque_Nm: 2.0e-20
+  motor.enable_switching: false
+  motor.force_distribution: root_torque_segment_couples
+  motor.local_first_second_spring_scale: 1.0
+  flagella.placement_mode: seeded_surface
+  flagella.initial_phase_mode: seeded
+  flagella.initial_helix_axis_from_rear_deg: 0
+  seed.attach_seed: 0
+  seed.phase_seed: 0
+  output_sampling.out_all_steps_3d: false
+  output_sampling.fps_out_3d: 25.0
+  output_sampling.fps_out_2d: 25.0
+
+sweep:
+  axes:
+    n_flagella:
+      key: flagella.n_flagella
+      short_name: nf
+      values: [4, 5, 6]
+      labels: ["4", "5", "6"]
+      ids: [nf04, nf05, nf06]
+    flag_spring:
+      key: stiffness_scales.flag_spring
+      short_name: fspring
+      values: [1.75, 2.0, 2.25]
+      labels: ["1.75", "2.0", "2.25"]
+      ids: [fspring1p75, fspring2p0, fspring2p25]
+    body_stiffness:
+      key: stiffness_scales.body
+      short_name: body
+      values: [1.0, 1.5, 2.0, 2.5]
+      labels: ["1.0", "1.5", "2.0", "2.5"]
+      ids: [body1p0, body1p5, body2p0, body2p5]
+
+replay:
+  mode: both
+  fps_out_3d: 10.0
+  max_panels_per_grid: 9
+  output_subdir: replay
+
+plot:
+  default_x_axis: flag_spring
+  default_y_axis: body_stiffness
+  filter_axes:
+    n_flagella: "6"
+  metrics:
+    - first_fail_t_s
+    - max_flag_bond_rel_err
+    - flag_bond_rel_err_max
+    - local_first_second_rel_err
+    - body_spring_max_stretch_ratio
+    - body_centerline_max_deviation_um
+
+output:
+  base_dir: outputs/phase2_multi_run/flagella_count_stability_narrow_seed00
+  timestamp_subdir: false
+  save_state_archive: true
+  progress_interval: 1000

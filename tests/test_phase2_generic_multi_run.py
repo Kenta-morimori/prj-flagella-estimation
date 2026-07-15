@@ -67,6 +67,7 @@ def test_generic_multi_run_profile_is_listed() -> None:
 
     assert "conf/phase2_multi_run/latest_model_torque_shape_stability.yaml" in paths
     assert "conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml" in paths
+    assert "conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml" in paths
 
 
 def test_generic_multi_run_profile_exposes_metadata() -> None:
@@ -117,6 +118,66 @@ def test_flagella_count_stability_candidates_expand_stiffness_axes() -> None:
         == pytest.approx(2.0)
         and condition["config_overrides"]["stiffness_scales"]["body"]
         == pytest.approx(2.0)
+        for condition in conditions
+    )
+
+
+def test_flagella_count_stability_narrow_seed00_profile_contract() -> None:
+    campaign = apply_campaign_cli_overrides(
+        load_yaml(
+            Path("conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml")
+        ),
+        [],
+    )
+
+    conditions = build_campaign_conditions(campaign)
+
+    assert len(conditions) == 36
+    assert campaign["base_overrides"]["seed"]["attach_seed"] == 0
+    assert campaign["base_overrides"]["seed"]["phase_seed"] == 0
+    assert campaign["base_overrides"]["motor"]["local_first_second_spring_scale"] == (
+        pytest.approx(1.0)
+    )
+    assert campaign["plot"]["metrics"] == [
+        "first_fail_t_s",
+        "max_flag_bond_rel_err",
+        "flag_bond_rel_err_max",
+        "local_first_second_rel_err",
+        "body_spring_max_stretch_ratio",
+        "body_centerline_max_deviation_um",
+    ]
+    assert any(
+        condition["config_overrides"]["flagella"]["n_flagella"] == 6
+        and condition["config_overrides"]["stiffness_scales"]["flag_spring"]
+        == pytest.approx(2.25)
+        and condition["config_overrides"]["stiffness_scales"]["body"]
+        == pytest.approx(2.5)
+        for condition in conditions
+    )
+
+
+def test_flagella_count_stability_smoke_seed00_accepts_candidate_overrides() -> None:
+    campaign = apply_campaign_cli_overrides(
+        load_yaml(
+            Path("conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml")
+        ),
+        ["stiffness_scales.flag_spring=2.25", "stiffness_scales.body=1.5"],
+    )
+
+    conditions = build_campaign_conditions(campaign)
+
+    assert [condition["condition_id"] for condition in conditions] == [
+        "nf01",
+        "nf02",
+        "nf03",
+    ]
+    assert all(
+        condition["config_overrides"]["stiffness_scales"]["flag_spring"]
+        == pytest.approx(2.25)
+        for condition in conditions
+    )
+    assert all(
+        condition["config_overrides"]["stiffness_scales"]["body"] == pytest.approx(1.5)
         for condition in conditions
     )
 

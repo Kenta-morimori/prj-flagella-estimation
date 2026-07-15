@@ -625,6 +625,11 @@
 - parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/10`
 - goal: #115 の修正候補が出た後，seed固定の少数 sweep で改善方向を確認し，広い heatmap へ進むか判断する。
 - input from #115: `flag_spring=2.0` と `body=2.0` は有効な探索軸だが，`n=5,6` は未安定。次は `flag_spring/body` 近傍 sweep と local `1-2` を含む proximal flag bond 補強候補を比較する。
+- planned configs:
+  - `conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml`
+  - `conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml`
+- docs:
+  - `docs/phase2/phase2_8_issue116_stability_sweep_plan.md`
 - acceptance criteria:
   - [ ] sweep 軸・範囲・評価指標が明記されている。
   - [ ] 少数 sweep の結果から，広い heatmap の必要性が判断されている。

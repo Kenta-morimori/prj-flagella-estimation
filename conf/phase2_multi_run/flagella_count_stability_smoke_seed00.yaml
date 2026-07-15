@@ -1,0 +1,62 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: true
+  description: Issue #116 n=1,2,3 smoke check for a selected n>=4 stability candidate
+  source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/116
+  model_id: stability_candidate_smoke_seed00
+  model_notes:
+    - Smoke check profile for verifying that a selected Issue #116 model candidate does not break the v0 n=1,2,3 baseline.
+    - Default candidate values are flag_spring=2.0 and body=2.0, but the selected sweep winner should be passed as KEY=VALUE overrides if different.
+    - Keeps attach_seed=0 and phase_seed=0 for the first smoke check before seed expansion in Issue #119.
+
+base_config: conf/sim_swim.yaml
+
+base_overrides:
+  time.duration_s: 1.0
+  time.dt_star: 1.0e-4
+  motor.torque_Nm: 2.0e-20
+  motor.enable_switching: false
+  motor.force_distribution: root_torque_segment_couples
+  motor.local_first_second_spring_scale: 1.0
+  stiffness_scales.flag_spring: 2.0
+  stiffness_scales.body: 2.0
+  flagella.placement_mode: seeded_surface
+  flagella.initial_phase_mode: seeded
+  flagella.initial_helix_axis_from_rear_deg: 0
+  seed.attach_seed: 0
+  seed.phase_seed: 0
+  output_sampling.out_all_steps_3d: false
+  output_sampling.fps_out_3d: 25.0
+  output_sampling.fps_out_2d: 25.0
+
+sweep:
+  axes:
+    n_flagella:
+      key: flagella.n_flagella
+      short_name: nf
+      values: [1, 2, 3]
+      labels: ["1", "2", "3"]
+      ids: [nf01, nf02, nf03]
+
+replay:
+  mode: both
+  fps_out_3d: 10.0
+  max_panels_per_grid: 9
+  output_subdir: replay
+
+plot:
+  default_x_axis: n_flagella
+  default_y_axis: null
+  metrics:
+    - first_fail_t_s
+    - max_flag_bond_rel_err
+    - body_spring_max_stretch_ratio
+    - body_centerline_max_deviation_um
+    - axis_center_to_body_roll_ratio_mean
+
+output:
+  base_dir: outputs/phase2_multi_run/flagella_count_stability_smoke_seed00
+  timestamp_subdir: false
+  save_state_archive: true
+  progress_interval: 1000

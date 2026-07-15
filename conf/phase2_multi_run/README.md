@@ -12,6 +12,8 @@
 | `conf/phase2_multi_run/latest_model_torque_shape_stability.yaml` | 最新モデルの torque 複数条件 shape stability 比較 |
 | `conf/phase2_multi_run/flagella_count_behavior_v0.yaml` | Issue #71 / #117 / #118 の RUN 固定べん毛本数差 diagnostic dataset v0 canonical config |
 | `conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml` | Issue #113 の n=4,5,6 seed固定多べん毛破綻境界診断 |
+| `conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml` | Issue #116 の n=4,5,6 seed固定 `flag_spring/body` 狭域 sweep |
+| `conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml` | Issue #116 の候補通過後に使う n=1,2,3 seed固定 smoke check |
 
 各 profile は run / plot / replay の設定を 1 枚にまとめる。
 `flagella_count_behavior_v0.yaml` はさらに `dataset:` section を持ち，dataset 作成にも同じ config を使う。
@@ -104,6 +106,20 @@ uv run python scripts/02_phase2_analysis/build_dataset.py config=conf/phase2_mul
 ```
 
 本実行は長時間 run として扱う。条件確認だけなら `dry_run=true` を使う。
+
+Issue #116 の n>=4 安定化候補は，#115 の改善域周辺だけを seed 固定で比較する。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml overwrite=true
+
+uv run python scripts/01_simulate_swimming/plot_heatmap.py config=conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml
+```
+
+この本実行も長時間 run として扱う。条件確認だけなら `dry_run=true` を使う。候補が出た場合は，n=1,2,3 smoke check を実行して v0 baseline を壊していないか確認する。候補値が default と異なる場合は `stiffness_scales.flag_spring=...` と `stiffness_scales.body=...` を明示する。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml stiffness_scales.flag_spring=2.0 stiffness_scales.body=2.0 overwrite=true
+```
 
 ## 出力先
 
