@@ -1,0 +1,48 @@
+{
+  "status": "PASS",
+  "summary": "PR #123 の Codex review 指摘に対応し、shape stability metrics の n_flagella 専用plotを axis_n_flagella_value が明示されたcampaignだけで使用するよう修正した。simulation config由来のn_flagella列を持つtorque / stiffness等のgeneric campaignは従来のcondition別bar plotを維持する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_phase2_generic_multi_run.py -q",
+      "result": "PASS: 40 passed"
+    },
+    {
+      "command": "uv run pytest tests/test_phase2_sweep_profiles.py -q",
+      "result": "PASS: 32 passed"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS: 380 passed in 92.82 s"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS: 82 files already formatted"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_reason": "既存のn_flagella専用plotの表示内容は変更せず、campaign axisに基づくplot routingだけを修正した。n_flagella campaignとgeneric campaignの分岐は回帰testで確認できるため、追加の動画・画像目視確認は不要。",
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "物理モデル、dataset schema、Phase 2の採用条件は変更せず、既存plotのcampaign判定を修正する局所的なreview対応であるため。",
+  "commit_type": "complete",
+  "commit_hash": "included in the review-fix commit; see final response",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/123",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/119",
+  "next_actions": [
+    "PR #123 の未解決review threadは、ユーザーが明示的に依頼した場合に返信・resolveする。",
+    "PR #123のchecksと最終review結果を確認してmerge判断へ進む。"
+  ]
+}

@@ -717,6 +717,7 @@ def test_replay_n_flagella_metrics_plot_has_explanatory_labels(
             {
                 "duration_s": "1.0",
                 "n_flagella": str(n_flagella),
+                "axis_n_flagella_value": str(n_flagella),
                 "axis_attach_seed_value": str(attach_seed),
                 "axis_phase_seed_value": str(phase_seed),
                 "final_shape_pass_nonbody": "True",
@@ -747,6 +748,45 @@ def test_replay_n_flagella_metrics_plot_has_explanatory_labels(
     assert any("attach_seed=0" in text.get_text() for text in fig.axes[0].texts)
     assert any(line.get_linestyle() == "--" for line in fig.axes[1].lines)
     original_close(fig)
+
+
+def test_replay_generic_campaign_with_n_flagella_column_uses_bar_plot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_replay_generic_campaign_metrics_plot",
+    )
+    rows = [
+        {
+            "condition_id": "torque_1p5e20",
+            "condition_label": "torque=1.5e-20",
+            "axis_torque_value": "1.5e-20",
+            "n_flagella": "3",
+        },
+        {
+            "condition_id": "torque_2p0e20",
+            "condition_label": "torque=2.0e-20",
+            "axis_torque_value": "2.0e-20",
+            "n_flagella": "3",
+        },
+    ]
+    calls: list[str] = []
+    monkeypatch.setattr(
+        module,
+        "_plot_metrics_by_n_flagella",
+        lambda **_kwargs: calls.append("n_flagella"),
+    )
+    monkeypatch.setattr(
+        module,
+        "_plot_metrics_as_bars",
+        lambda **_kwargs: calls.append("bars"),
+    )
+
+    out_path = module._plot_metrics(rows=rows, out_dir=tmp_path)
+
+    assert out_path == tmp_path / "shape_stability_metrics.png"
+    assert calls == ["bars"]
 
 
 def test_generic_multi_run_summary_fieldnames_include_body_shape_gate() -> None:

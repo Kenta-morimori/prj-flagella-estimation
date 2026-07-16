@@ -587,8 +587,12 @@ def _metric_series(rows: list[dict[str, str]], field: str) -> list[float]:
     return [_float_or_nan(row.get(field)) for row in rows]
 
 
-def _n_flagella_value(row: dict[str, str]) -> float:
-    return _float_or_nan(row.get("axis_n_flagella_value") or row.get("n_flagella"))
+def _axis_n_flagella_value(row: dict[str, str]) -> float:
+    return _float_or_nan(row.get("axis_n_flagella_value"))
+
+
+def _is_n_flagella_axis_campaign(rows: list[dict[str, str]]) -> bool:
+    return bool(rows) and all(np.isfinite(_axis_n_flagella_value(row)) for row in rows)
 
 
 def _seed_value(row: dict[str, str], name: str) -> float:
@@ -668,13 +672,13 @@ def _plot_metrics_by_n_flagella(
     ]
     seed_offsets = _seed_offsets(rows)
     x_values = [
-        _n_flagella_value(row)
+        _axis_n_flagella_value(row)
         + seed_offsets[
             (_seed_value(row, "attach_seed"), _seed_value(row, "phase_seed"))
         ]
         for row in rows
     ]
-    n_values = sorted({_n_flagella_value(row) for row in rows})
+    n_values = sorted({_axis_n_flagella_value(row) for row in rows})
     pass_color = "#2f855a"
     fail_color = "#c05621"
 
@@ -824,7 +828,7 @@ def _plot_metrics(
     out_dir: Path,
 ) -> Path:
     out_path = out_dir / "shape_stability_metrics.png"
-    if rows and all(np.isfinite(_n_flagella_value(row)) for row in rows):
+    if _is_n_flagella_axis_campaign(rows):
         _plot_metrics_by_n_flagella(rows=rows, out_path=out_path)
     else:
         _plot_metrics_as_bars(rows=rows, out_path=out_path)
