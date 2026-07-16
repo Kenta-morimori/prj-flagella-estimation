@@ -128,10 +128,25 @@ def _short_distribution_label(value: str) -> str:
     return mapping.get(value, value)
 
 
+def _display_condition_label(condition_label: str) -> str:
+    replacements = {
+        "as": "attach_seed",
+        "ps": "phase_seed",
+        "nf": "n_flagella",
+    }
+    parts = []
+    for part in condition_label.split(","):
+        stripped = part.strip()
+        name, separator, value = stripped.partition("=")
+        display_name = replacements.get(name, name)
+        parts.append(f"{display_name}{separator}{value}" if separator else stripped)
+    return ", ".join(parts)
+
+
 def _label_for_row(row: dict[str, str]) -> str:
     condition_label = str(row.get("condition_label", "")).strip()
     if condition_label:
-        return condition_label
+        return _display_condition_label(condition_label)
     condition_id = row.get("condition_id", "")
     if condition_id in CANONICAL_TORQUE_DISTRIBUTION_CONDITION_IDS:
         return (
@@ -144,12 +159,36 @@ def _label_for_row(row: dict[str, str]) -> str:
     return condition_id
 
 
+def _has_first_fail(row: dict[str, str]) -> bool:
+    fail_t = str(row.get("first_fail_t_s", "")).strip().lower()
+    return fail_t not in {"", "nan", "none"}
+
+
+def _row_passes_nonbody(row: dict[str, str]) -> bool:
+    return row.get("final_shape_pass_nonbody", "") == "True" and not _has_first_fail(
+        row
+    )
+
+
 def _fail_label(row: dict[str, str]) -> str:
-    if row.get("final_shape_pass_nonbody", "") == "True":
+    fail_t = str(row.get("first_fail_t_s", ""))
+    fail_c = str(row.get("first_fail_category_nonbody", ""))
+    if _has_first_fail(row):
+        return f"FAIL {fail_c}@{fail_t[:6]}"
+    if _row_passes_nonbody(row):
         return "PASS"
-    fail_t = row.get("first_fail_t_s", "")
-    fail_c = row.get("first_fail_category_nonbody", "")
     return f"FAIL {fail_c}@{fail_t[:6]}"
+
+
+def _replay_status_lines(st: Any, cfg: Any, fail_label: str) -> list[str]:
+    from sim_swim.render.render3d import _run_tumble_label
+
+    return [
+        _run_tumble_label(st, cfg),
+        f"t = {st.t:.3f} s",
+        f"motor torque / flag = {cfg.motor_torque_Nm:.2e} N m",
+        fail_label,
+    ]
 
 
 def _auto_grid_shape(n_conditions: int) -> tuple[int, int]:
@@ -340,7 +379,6 @@ def _plot_cell(
         _plot_flagella_helix_axis_3d,
         _plot_segments_3d,
         _resolve_view_range_um,
-        _run_tumble_label,
     )
 
     ax.set_facecolor("white")
@@ -403,7 +441,7 @@ def _plot_cell(
     ax.text2D(
         0.02,
         0.96,
-        "\n".join([_run_tumble_label(st, cfg), f"t = {st.t:.3f} s", fail_label]),
+        "\n".join(_replay_status_lines(st, cfg, fail_label)),
         transform=ax.transAxes,
         va="top",
         fontsize=8,
@@ -549,48 +587,251 @@ def _metric_series(rows: list[dict[str, str]], field: str) -> list[float]:
     return [_float_or_nan(row.get(field)) for row in rows]
 
 
-def _plot_metrics(
+def _axis_n_flagella_value(row: dict[str, str]) -> float:
+    return _float_or_nan(row.get("axis_n_flagella_value"))
+
+
+def _is_n_flagella_axis_campaign(rows: list[dict[str, str]]) -> bool:
+    return bool(rows) and all(np.isfinite(_axis_n_flagella_value(row)) for row in rows)
+
+
+def _seed_value(row: dict[str, str], name: str) -> float:
+    value = _float_or_nan(row.get(f"axis_{name}_value") or row.get(name))
+    return value if np.isfinite(value) else 0.0
+
+
+def _seed_offsets(rows: list[dict[str, str]]) -> dict[tuple[float, float], float]:
+    seed_keys = sorted(
+        {
+            (_seed_value(row, "attach_seed"), _seed_value(row, "phase_seed"))
+            for row in rows
+        }
+    )
+    if len(seed_keys) <= 1:
+        return {key: 0.0 for key in seed_keys}
+    offsets = np.linspace(-0.24, 0.24, len(seed_keys))
+    return {key: float(offset) for key, offset in zip(seed_keys, offsets)}
+
+
+def _plot_metrics_by_n_flagella(
     *,
     rows: list[dict[str, str]],
-    out_dir: Path,
-) -> Path:
-    labels = [_label_for_row(row) for row in rows]
-    colors = [
-        "#2f855a" if row.get("final_shape_pass_nonbody", "") == "True" else "#c05621"
+    out_path: Path,
+) -> None:
+    from matplotlib.lines import Line2D
+
+    duration_s = max(_float_or_nan(row.get("duration_s")) for row in rows)
+    metric_values = {
+        "qc_time": [
+            duration_s
+            if _row_passes_nonbody(row)
+            else _float_or_nan(row.get("first_fail_t_s"))
+            for row in rows
+        ],
+        "max_flag_bond": [
+            _float_or_nan(row.get("max_flag_bond_rel_err")) for row in rows
+        ],
+        "axis_lab": _metric_series(rows, "axis_center_net_abs_revolutions_mean"),
+        "axis_body": _metric_series(
+            rows, "axis_center_body_relative_net_abs_revolutions_mean"
+        ),
+        "body_roll": _metric_series(rows, "body_roll_net_abs_revolutions"),
+        "axis_body_ratio": _metric_series(rows, "axis_center_to_body_roll_ratio_mean"),
+    }
+    panels = [
+        (
+            "QC duration",
+            "Time to first QC failure or run end [s]",
+            metric_values["qc_time"],
+        ),
+        (
+            "Flagellar bond deformation",
+            "Maximum flagellar bond relative error [-]",
+            metric_values["max_flag_bond"],
+        ),
+        (
+            "Helix-axis rotation in lab frame",
+            "Mean rotation [revolutions]",
+            metric_values["axis_lab"],
+        ),
+        (
+            "Helix-axis rotation relative to body",
+            "Mean body-relative rotation [revolutions]",
+            metric_values["axis_body"],
+        ),
+        (
+            "Body roll",
+            "Body roll [revolutions]",
+            metric_values["body_roll"],
+        ),
+        (
+            "Flagella-to-body rotation ratio",
+            "Mean helix-axis rotation / body roll [-]",
+            metric_values["axis_body_ratio"],
+        ),
+    ]
+    seed_offsets = _seed_offsets(rows)
+    x_values = [
+        _axis_n_flagella_value(row)
+        + seed_offsets[
+            (_seed_value(row, "attach_seed"), _seed_value(row, "phase_seed"))
+        ]
         for row in rows
     ]
+    n_values = sorted({_axis_n_flagella_value(row) for row in rows})
+    pass_color = "#2f855a"
+    fail_color = "#c05621"
+
+    fig, axes = plt.subplots(2, 3, figsize=(15, 9))
+    for panel_index, (ax, (title, y_label, values)) in enumerate(
+        zip(axes.flat, panels)
+    ):
+        for row, x_value, value in zip(rows, x_values, values):
+            if _row_passes_nonbody(row):
+                ax.scatter(
+                    x_value,
+                    value,
+                    color=pass_color,
+                    marker="o",
+                    s=28,
+                    zorder=3,
+                )
+            else:
+                ax.scatter(
+                    x_value,
+                    value,
+                    color=fail_color,
+                    marker="x",
+                    s=48,
+                    linewidths=1.8,
+                    zorder=4,
+                )
+                if panel_index == 0:
+                    attach_seed = _seed_value(row, "attach_seed")
+                    phase_seed = _seed_value(row, "phase_seed")
+                    ax.annotate(
+                        f"attach_seed={attach_seed:g}, phase_seed={phase_seed:g}",
+                        (x_value, value),
+                        xytext=(-4, 6),
+                        textcoords="offset points",
+                        ha="right",
+                        va="bottom",
+                        fontsize=7,
+                    )
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel("Number of flagella (n_flagella)")
+        ax.set_ylabel(y_label)
+        ax.set_xticks(n_values)
+        ax.grid(axis="y", alpha=0.25)
+
+    bond_ax = axes.flat[1]
+    bond_ax.axhline(1.0, color="#555555", linestyle="--", linewidth=1.0)
+    bond_ax.text(
+        0.98,
+        1.0,
+        "QC limit = 1.0",
+        transform=bond_ax.get_yaxis_transform(),
+        ha="right",
+        va="bottom",
+        fontsize=8,
+        color="#444444",
+    )
+    fig.suptitle("Shape stability across flagella counts and seed conditions")
+    fig.legend(
+        handles=[
+            Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="none",
+                markerfacecolor=pass_color,
+                markeredgecolor=pass_color,
+                label="PASS: no QC failure during run",
+            ),
+            Line2D(
+                [0],
+                [0],
+                marker="x",
+                color=fail_color,
+                linestyle="none",
+                markeredgewidth=1.8,
+                label="FAIL: QC threshold exceeded at least once",
+            ),
+        ],
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.955),
+        ncol=2,
+        frameon=False,
+    )
+    fig.text(
+        0.5,
+        0.015,
+        "Each marker is one attach_seed x phase_seed condition; horizontal offsets separate seed combinations.",
+        ha="center",
+        fontsize=9,
+    )
+    fig.tight_layout(rect=(0.0, 0.05, 1.0, 0.91))
+    fig.savefig(out_path, dpi=160)
+    plt.close(fig)
+
+
+def _plot_metrics_as_bars(
+    *,
+    rows: list[dict[str, str]],
+    out_path: Path,
+) -> None:
+    labels = [_label_for_row(row) for row in rows]
+    colors = ["#2f855a" if _row_passes_nonbody(row) else "#c05621" for row in rows]
     duration_s = max(_float_or_nan(row.get("duration_s")) for row in rows)
     first_fail = [
         duration_s
-        if row.get("final_shape_pass_nonbody", "") == "True"
+        if _row_passes_nonbody(row)
         else _float_or_nan(row.get("first_fail_t_s"))
         for row in rows
     ]
-    max_flag_bond = [_float_or_nan(row.get("max_flag_bond_rel_err")) for row in rows]
-    axis_rev = _metric_series(rows, "axis_center_net_abs_revolutions_mean")
-    axis_relative_rev = _metric_series(
-        rows, "axis_center_body_relative_net_abs_revolutions_mean"
-    )
-    body_roll_rev = _metric_series(rows, "body_roll_net_abs_revolutions")
-    axis_body_ratio = _metric_series(rows, "axis_center_to_body_roll_ratio_mean")
-
-    fig, axes = plt.subplots(2, 3, figsize=(14, 8))
     panels = [
         ("first_fail_t_s_or_duration", first_fail),
-        ("max_flag_bond_rel_err", max_flag_bond),
-        ("axis_center_net_abs_revolutions_mean", axis_rev),
-        ("axis_center_body_relative_net_abs_revolutions_mean", axis_relative_rev),
-        ("body_roll_net_abs_revolutions", body_roll_rev),
-        ("axis_center_to_body_roll_ratio_mean", axis_body_ratio),
+        (
+            "max_flag_bond_rel_err",
+            [_float_or_nan(row.get("max_flag_bond_rel_err")) for row in rows],
+        ),
+        (
+            "axis_center_net_abs_revolutions_mean",
+            _metric_series(rows, "axis_center_net_abs_revolutions_mean"),
+        ),
+        (
+            "axis_center_body_relative_net_abs_revolutions_mean",
+            _metric_series(rows, "axis_center_body_relative_net_abs_revolutions_mean"),
+        ),
+        (
+            "body_roll_net_abs_revolutions",
+            _metric_series(rows, "body_roll_net_abs_revolutions"),
+        ),
+        (
+            "axis_center_to_body_roll_ratio_mean",
+            _metric_series(rows, "axis_center_to_body_roll_ratio_mean"),
+        ),
     ]
+    fig, axes = plt.subplots(2, 3, figsize=(14, 8))
     for ax, (title, values) in zip(axes.flat, panels):
         ax.bar(labels, values, color=colors)
         ax.set_title(title, fontsize=10)
         ax.tick_params(axis="x", labelrotation=15)
     fig.tight_layout()
-    out_path = out_dir / "shape_stability_metrics.png"
     fig.savefig(out_path, dpi=160)
     plt.close(fig)
+
+
+def _plot_metrics(
+    *,
+    rows: list[dict[str, str]],
+    out_dir: Path,
+) -> Path:
+    out_path = out_dir / "shape_stability_metrics.png"
+    if _is_n_flagella_axis_campaign(rows):
+        _plot_metrics_by_n_flagella(rows=rows, out_path=out_path)
+    else:
+        _plot_metrics_as_bars(rows=rows, out_path=out_path)
     return out_path
 
 

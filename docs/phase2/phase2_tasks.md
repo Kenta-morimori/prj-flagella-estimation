@@ -645,7 +645,7 @@
 
 ### P2-8-020: Issue #119 改善モデルで analysis dataset v1 を再生成する
 
-- status: pending
+- status: complete
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/119`
 - parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
 - blocked by:
@@ -653,10 +653,19 @@
   - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/118`
 - goal: 改善モデルで analysis dataset v1 を再生成し，v0 と比較して Phase3/4 training dataset 作成へ渡せる範囲を判断する。
 - acceptance criteria:
-  - [ ] 改善モデル条件に対応する config / dataset ID / output path が記録されている。
-  - [ ] `n=1,2,3` の v1 統計が v0 と比較されている。
-  - [ ] `n>=4` を含めるか除外するかの判断が記録されている。
-  - [ ] Phase3/4 training dataset 作成へ進むための前提と未解決点が明記されている。
+  - [x] 改善モデル条件に対応する config / dataset ID / output path が記録されている。
+  - [x] `n=1,2,3` の v1 統計が v0 と比較されている。
+  - [x] `n>=4` を含めるか除外するかの判断が記録されている。
+  - [x] Phase3/4 training dataset 作成へ進むための前提と未解決点が明記されている。
+- current result:
+  - `conf/phase2_multi_run/flagella_count_behavior_v1.yaml` を追加し，`dataset_id=v1`，raw run root `outputs/phase2_multi_run/flagella_count_behavior_v1`，dataset output `outputs/phase2_analysis/flagella_count_behavior/datasets/v1` を記録した。
+  - model condition は #116 handoff の `stiffness_scales.flag_spring=2.25`, `stiffness_scales.body=2.5` とし，candidate n range は `n=1..4` とした。
+  - full v1 raw output 36 sampleとcanonical dataset / 分布分析を生成した。全step QCでは `n=1,2,3` が27/27 strict pass，`n=4` は6/9 strict pass，3/9 `flag` failだった。
+  - dataset builderは最終stepだけでなく全stepのstrict / relaxed gateを評価し，途中failure後に回復したsampleもML候補へ戻さないよう修正した。
+  - v0比で `n=1,2` の主要特徴変化は比較的小さい。`n=3` は `cell_mean_speed=+2.2%`, `cell_straightness=-16.0%`, `cell_angular_velocity_rms=+24.2%` だった。
+  - training candidate範囲は `n=1,2,3` とし，`n=4` はdiagnostic-only，`n=5,6` は対象外とする。
+  - 2026-07-16 のuser visual reviewで `n=1,2,3` の定性判断を承認し，Phase3/4 training candidateとして確定した。
+  - `n=4` は大きな形状崩壊はないが，3/9 strict QC failureと非等速回転が残るためdiagnostic-onlyを維持する。入力torqueは各べん毛で一定であり，形状依存のelastic / hydrodynamic load，`diffusive` torque作用位置，局所変形の複合要因と推測する。改善は #124 で扱う。
 
 ## Completed support task: 動画出力・サンプリング整備
 
