@@ -128,10 +128,25 @@ def _short_distribution_label(value: str) -> str:
     return mapping.get(value, value)
 
 
+def _display_condition_label(condition_label: str) -> str:
+    replacements = {
+        "as": "attach_seed",
+        "ps": "phase_seed",
+        "nf": "n_flagella",
+    }
+    parts = []
+    for part in condition_label.split(","):
+        stripped = part.strip()
+        name, separator, value = stripped.partition("=")
+        display_name = replacements.get(name, name)
+        parts.append(f"{display_name}{separator}{value}" if separator else stripped)
+    return ", ".join(parts)
+
+
 def _label_for_row(row: dict[str, str]) -> str:
     condition_label = str(row.get("condition_label", "")).strip()
     if condition_label:
-        return condition_label
+        return _display_condition_label(condition_label)
     condition_id = row.get("condition_id", "")
     if condition_id in CANONICAL_TORQUE_DISTRIBUTION_CONDITION_IDS:
         return (
@@ -144,11 +159,24 @@ def _label_for_row(row: dict[str, str]) -> str:
     return condition_id
 
 
+def _has_first_fail(row: dict[str, str]) -> bool:
+    fail_t = str(row.get("first_fail_t_s", "")).strip().lower()
+    return fail_t not in {"", "nan", "none"}
+
+
+def _row_passes_nonbody(row: dict[str, str]) -> bool:
+    return row.get("final_shape_pass_nonbody", "") == "True" and not _has_first_fail(
+        row
+    )
+
+
 def _fail_label(row: dict[str, str]) -> str:
-    if row.get("final_shape_pass_nonbody", "") == "True":
+    fail_t = str(row.get("first_fail_t_s", ""))
+    fail_c = str(row.get("first_fail_category_nonbody", ""))
+    if _has_first_fail(row):
+        return f"FAIL {fail_c}@{fail_t[:6]}"
+    if _row_passes_nonbody(row):
         return "PASS"
-    fail_t = row.get("first_fail_t_s", "")
-    fail_c = row.get("first_fail_category_nonbody", "")
     return f"FAIL {fail_c}@{fail_t[:6]}"
 
 
@@ -555,14 +583,11 @@ def _plot_metrics(
     out_dir: Path,
 ) -> Path:
     labels = [_label_for_row(row) for row in rows]
-    colors = [
-        "#2f855a" if row.get("final_shape_pass_nonbody", "") == "True" else "#c05621"
-        for row in rows
-    ]
+    colors = ["#2f855a" if _row_passes_nonbody(row) else "#c05621" for row in rows]
     duration_s = max(_float_or_nan(row.get("duration_s")) for row in rows)
     first_fail = [
         duration_s
-        if row.get("final_shape_pass_nonbody", "") == "True"
+        if _row_passes_nonbody(row)
         else _float_or_nan(row.get("first_fail_t_s"))
         for row in rows
     ]

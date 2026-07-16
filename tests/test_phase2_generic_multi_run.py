@@ -615,6 +615,49 @@ def test_replay_page_index_groups_preserve_condition_order() -> None:
     assert module._page_index_groups(3, 9) == [list(range(3))]
 
 
+def test_replay_expands_flagella_count_condition_labels() -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_replay_expanded_condition_labels",
+    )
+
+    label = module._label_for_row(
+        {"condition_label": "as=2, ps=1, nf=4", "condition_id": "nf04"}
+    )
+
+    assert label == "attach_seed=2, phase_seed=1, n_flagella=4"
+
+
+def test_replay_marks_transient_first_fail_as_failure() -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_replay_transient_first_fail",
+    )
+    row = {
+        "final_shape_pass_nonbody": "True",
+        "first_fail_t_s": "0.3259",
+        "first_fail_category_nonbody": "flag",
+    }
+
+    assert module._fail_label(row) == "FAIL flag@0.3259"
+    assert module._row_passes_nonbody(row) is False
+
+
+def test_replay_marks_no_first_fail_as_pass() -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_replay_no_first_fail",
+    )
+    row = {
+        "final_shape_pass_nonbody": "True",
+        "first_fail_t_s": "",
+        "first_fail_category_nonbody": "",
+    }
+
+    assert module._fail_label(row) == "PASS"
+    assert module._row_passes_nonbody(row) is True
+
+
 def test_generic_multi_run_summary_fieldnames_include_body_shape_gate() -> None:
     fields = _summary_fieldnames(
         [
