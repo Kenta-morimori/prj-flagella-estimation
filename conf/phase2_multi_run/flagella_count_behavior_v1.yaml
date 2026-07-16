@@ -10,8 +10,8 @@ metadata:
   dataset_scope: nf1_2_3_4_as3_ps3_dur1p0
   model_revision: flag_spring2p25_body2p5_candidate
   version_role: training_candidate
-  training_candidate: TBD after full v1 generation and visual review
-  canonical_output_status: not_generated
+  training_candidate: n=1,2,3
+  canonical_output_status: generated
   model_notes:
     - RUN fixed with motor.enable_switching=false
     - root_torque_segment_couples torque distribution

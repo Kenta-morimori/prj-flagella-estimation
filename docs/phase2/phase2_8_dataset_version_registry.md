@@ -42,7 +42,7 @@ config と manifest が実行条件の source of truth であり，この regist
 | dataset_version | dataset_revision | dataset_scope | status | version_role | training_candidate | model_revision | canonical config | canonical dataset_id | canonical output status | source output | interpretation |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `v0` | `r0` | `nf1_2_3_6_as3_ps3_dur1p0` | current diagnostic baseline | `diagnostic_baseline` | false | `current_v0` | `conf/phase2_multi_run/flagella_count_behavior_v0.yaml` | `v0` | `not_generated` | `outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0` | 現状モデルの diagnostic baseline。`n=1,2,3` は特徴分離を見る baseline，`n>=4` は diagnostic-only。 |
-| `v1` | `r0` | `nf1_2_3_4_as3_ps3_dur1p0` | full generation complete; visual review pending | `training_candidate` | `n=1,2,3` after visual review; `n=4` diagnostic-only | `flag_spring2p25_body2p5_candidate` | `conf/phase2_multi_run/flagella_count_behavior_v1.yaml` | `v1` | `generated` | `outputs/phase2_multi_run/flagella_count_behavior_v1` | `n=1,2,3` は27/27 strict pass。`n=4` は3/9でtransientを含む `flag` failがありtraining対象外。`n=5,6` も対象外。 |
+| `v1` | `r0` | `nf1_2_3_4_as3_ps3_dur1p0` | complete; visual review approved | `training_candidate` | `n=1,2,3`; `n=4` diagnostic-only | `flag_spring2p25_body2p5_candidate` | `conf/phase2_multi_run/flagella_count_behavior_v1.yaml` | `v1` | `generated` | `outputs/phase2_multi_run/flagella_count_behavior_v1` | `n=1,2,3` は27/27 strict passかつvisual review承認済み。`n=4` は3/9でtransientを含む `flag` failと非等速回転がありtraining対象外。`n=5,6` も対象外。 |
 
 ## v0 details
 
@@ -76,7 +76,7 @@ v1 は #115/#116 のモデル改善結果を受けて #119 で作成する。v1 
 
 #116 seed00 の結果では，`stiffness_scales.flag_spring=2.25`, `stiffness_scales.body=2.5` を #119 へ渡す候補条件とし，candidate n range は `n=1..4` とする。`n=5,6` は狭域 sweep 内で v1-ready 条件が出ていないため training candidate から外す。#119 冒頭では，この候補値で `n=1,2,3` smoke check を行い，v0 baseline を壊していないことを確認してから dataset v1 を再生成する。
 
-2026-07-16 にfull v1 raw output 36 sampleとcanonical dataset `outputs/phase2_analysis/flagella_count_behavior/datasets/v1` を生成した。全step QCでは `n=1,2,3` が各9/9 strict pass，`n=4` は6/9 strict pass，3/9 `flag` failだった。`n=4` のうち2件は最終stepで回復していたが，`first_fail_t_s` を優先してfailとした。したがってtraining candidate範囲は `n=1,2,3`，`n=4` はdiagnostic-onlyとする。training datasetへの最終handoffは `n=1,2,3` のvisual review完了後とする。
+2026-07-16 にfull v1 raw output 36 sampleとcanonical dataset `outputs/phase2_analysis/flagella_count_behavior/datasets/v1` を生成した。全step QCでは `n=1,2,3` が各9/9 strict pass，`n=4` は6/9 strict pass，3/9 `flag` failだった。`n=4` のうち2件は最終stepで回復していたが，`first_fail_t_s` を優先してfailとした。同日のuser visual reviewで `n=1,2,3` の定性判断が承認されたため，training candidateを `n=1,2,3` に確定する。`n=4` は全体形状が良好でも非等速回転とstrict QC failureが残るためdiagnostic-onlyとし，改善はIssue #124で扱う。
 
 v1 に上げるか，v0 の `dataset_revision` として扱うかは次で判断する。
 

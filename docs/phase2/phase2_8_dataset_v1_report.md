@@ -22,9 +22,9 @@ dataset QCは全stepを対象にstrict / relaxed gateを評価する。途中で
 
 | n_flagella | samples | strict_pass | fail | body pass | training interpretation |
 | ---: | ---: | ---: | ---: | ---: | --- |
-| 1 | 9 | 9 | 0 | 9 | visual review後のtraining candidate |
-| 2 | 9 | 9 | 0 | 9 | visual review後のtraining candidate |
-| 3 | 9 | 9 | 0 | 9 | visual review後のtraining candidate |
+| 1 | 9 | 9 | 0 | 9 | training candidate |
+| 2 | 9 | 9 | 0 | 9 | training candidate |
+| 3 | 9 | 9 | 0 | 9 | training candidate |
 | 4 | 9 | 6 | 3 | 9 | diagnostic-only |
 
 `n=4` のfailureはすべて `flag` categoryである。
@@ -53,11 +53,11 @@ dataset QCは全stepを対象にstrict / relaxed gateを評価する。途中で
 | 3 | `cell_straightness` | 0.1559 | 0.1309 | -16.0% |
 | 3 | `cell_angular_velocity_rms` | 5.7270 | 7.1107 | +24.2% |
 
-`n=1,2` は主要特徴の変化が比較的小さい。`n=3` は平均速度を維持する一方，直進性低下と角速度増加が大きいため，training dataとしての自然さはvisual reviewで確認する。
+`n=1,2` は主要特徴の変化が比較的小さい。`n=3` は平均速度を維持する一方，直進性低下と角速度増加が大きいため，training dataとしての自然さをvisual reviewで重点確認した。
 
-## Visual Review Pending
+## Visual Review Result
 
-自動QCではbody deformation，螺旋形状の見え方，swimming-like propulsionを最終判断できない。次をユーザー実行する。
+2026-07-16 にユーザーが次のreplayを確認し，`n=1,2,3` の定性判断を承認した。
 
 ```bash
 uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_behavior_v1.yaml overwrite=true
@@ -69,8 +69,27 @@ uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py
 - 各 `grid_swim3d_page*_final.png`
 - `shape_stability_metrics.csv` と `shape_stability_metrics.png`
 
-`n=1,2,3` のbody deformation，helical shape preservation，swimming-like propulsionを確認し，特にv0との差が大きい `n=3` を重点確認する。`n=4` はtraining対象へ戻さず，除外判断の定性確認だけを行う。
+確認結果:
+
+- `n=1,2,3`: body deformation，helical shape preservation，swimming-like propulsionにtraining candidateから外す問題は見られなかった。
+- `n=3`: v0比の直進性低下と角速度増加を踏まえて重点確認し，定性判断は問題なしとした。
+- `n=4`: 大きな形状崩壊はなく全体形状は良好だが，べん毛回転が滑らかな等速回転に見えない。strict QC failureも3/9に残るためdiagnostic-onlyを維持する。
+
+## n=4 Rotation Smoothness
+
+v1は `motor.enable_switching=false`，Brownian motion無効，torque ramp無効であり，各べん毛へ与える `motor_torque_Nm` は全stepで `2.0e-20 N m` だった。したがって，`n=4` の非等速回転は入力torque値の時間変動ではない。
+
+`flag_helix_spin_phase_deg`を0.1 s以降に20 ms区間で差分し，回転速度の絶対値に対する変動係数と回転方向整合率を比較した。
+
+| n_flagella | mean rate variation coefficient | mean direction consistency | max flag bond rel err | max torsion err |
+| ---: | ---: | ---: | ---: | ---: |
+| 1 | 0.219 | 1.000 | 0.174 | 12.3 deg |
+| 2 | 0.595 | 0.970 | 0.409 | 17.6 deg |
+| 3 | 1.293 | 0.927 | 0.853 | 34.8 deg |
+| 4 | 1.746 | 0.848 | 1.151 | 157.8 deg |
+
+入力torque総量は各べん毛で一定でも，`diffusive` profileによる作用位置，RPY mobility，spring / bend / torsion，body反作用は時々刻々の形状に依存する。べん毛数の増加に伴ってこれらのelastic / hydrodynamic load変動と局所変形が増え，回転速度変動が大きくなったと推測する。`n=4` の `flag_helix_spin_fit_r2` は平均0.937，最小0.401まで低下しているため，一部には螺旋変形による位相推定不安定も含まれる。寄与の切り分けと改善はIssue #124で扱う。
 
 ## Interpretation
 
-full v1 raw datasetとanalysis datasetは生成済みであり，training candidateの数値範囲は `n=1,2,3` に確定した。ただしvisual reviewが未完了のため，Issue #119の `review_result.json` は `FAIL` のままとする。目視で問題がなければreview resultを `PASS` に更新し，Phase3/4 training dataset作成へhandoffする。
+full v1 raw datasetとanalysis datasetは生成済みであり，自動QCとuser visual reviewの両方に基づいてtraining candidateを `n=1,2,3` に確定した。`n=4` はdiagnostic-only，`n=5,6` は対象外とする。Issue #119の完了条件を満たしたため，Phase3/4 training dataset作成へhandoffする。

@@ -1,12 +1,9 @@
 {
-  "status": "FAIL",
-  "summary": "Issue #119 の full v1 raw output 36 sample と canonical analysis dataset / 分布分析を生成した。全step QCでは n=1,2,3 が27/27 strict pass、n=4 は6/9 strict pass、3/9 flag failだった。途中failure後に最終stepで回復したsampleを誤ってstrict passへ戻さないようdataset builderを全時系列判定へ修正し、training candidate範囲をn=1,2,3、n=4をdiagnostic-onlyとした。自動チェックは完了したが、n=1,2,3のreplay visual reviewが未完了のためPASSにはしない。",
-  "blocking_issues": [
-    "v1 replayによるn=1,2,3のbody deformation、helical shape preservation、swimming-like propulsionのuser visual reviewが未完了である。"
-  ],
+  "status": "PASS",
+  "summary": "Issue #119 の full v1 raw output 36 sample と canonical analysis dataset / 分布分析を生成した。全step QCでは n=1,2,3 が27/27 strict pass、n=4 は6/9 strict pass、3/9 flag failだった。dataset builderは全時系列判定へ修正し、replayは設定torqueと全時系列PASS/FAILを表示する。2026-07-16 のuser visual reviewでn=1,2,3の定性判断が承認されたため、training candidateをn=1,2,3に確定し、n=4をdiagnostic-onlyとした。",
+  "blocking_issues": [],
   "non_blocking_issues": [
-    "n=3はv0比でcell_mean_speed +2.2%、cell_straightness -16.0%、cell_angular_velocity_rms +24.2%であり、visual reviewでは重点確認する。",
-    "n=4は3/9でflag failureを検出したためtraining candidateから除外済みであり、追加安定化探索はIssue #119のblockerにしない。",
+    "n=4は全体形状が良好でも3/9 strict QC failureと非等速回転が残る。入力torqueは各べん毛で一定であり、形状依存のelastic / hydrodynamic load、diffusive torque作用位置、局所変形の切り分けと改善はIssue #124で扱う。",
     "canonical v0 dataset output datasets/v0は未生成で、v0比較にはhistorical alias datasetを使用した。"
   ],
   "tests_reviewed": [
@@ -27,8 +24,16 @@
       "result": "PASS: n=1,2,3 are 27/27 strict_pass; n=4 has 6 strict_pass and 3 flag failures at t=0.3259, 0.8971, and 0.9299 s; body_shape_pass is 36/36"
     },
     {
+      "command": "uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_behavior_v1.yaml overwrite=true",
+      "result": "PASS: regenerated four replay pages and the n_flagella-grouped metrics plot from existing archives without rerunning simulation"
+    },
+    {
+      "command": "inspect grid_swim3d_page02_final.png and shape_stability_metrics.png",
+      "result": "PASS: replay shows RUN, time, per-flag motor torque, and full-series PASS/FAIL; metrics plot has readable axes, units, legend, QC limit, and no incoherent overlap"
+    },
+    {
       "command": "uv run pytest tests/test_flagella_count_behavior_dataset.py tests/test_phase2_generic_multi_run.py -q",
-      "result": "PASS: 49 passed"
+      "result": "PASS: 55 passed"
     },
     {
       "command": "uv run ruff format --check .",
@@ -40,11 +45,12 @@
     },
     {
       "command": "uv run pytest -q",
-      "result": "PASS: 373 passed in 87.75 s"
+      "result": "PASS: 379 passed in 91.07 s"
     }
   ],
-  "user_review_required": true,
-  "user_review_reason": "n=1,2,3をPhase3/4 training candidateとして確定する前に、body deformation、helical shape preservation、swimming-like propulsionを3D replayで確認する必要がある。特にv0との差が大きいn=3を重点確認する。",
+  "user_review_required": false,
+  "user_review_reason": "2026-07-16 にn=1,2,3のbody deformation、helical shape preservation、swimming-like propulsionを3D replayで確認し、ユーザーが定性判断を承認した。n=4は非等速回転が見られるためdiagnostic-onlyを維持する。",
+  "user_review_command": "uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_behavior_v1.yaml overwrite=true",
   "user_run_commands": [
     "uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py config=conf/phase2_multi_run/flagella_count_behavior_v1.yaml overwrite=true"
   ],
@@ -53,19 +59,24 @@
     "outputs/phase2_multi_run/flagella_count_behavior_v1/replay/grid_swim3d_page02.mp4",
     "outputs/phase2_multi_run/flagella_count_behavior_v1/replay/grid_swim3d_page03.mp4",
     "outputs/phase2_multi_run/flagella_count_behavior_v1/replay/grid_swim3d_page04.mp4",
-    "outputs/phase2_multi_run/flagella_count_behavior_v1/replay/shape_stability_metrics.csv"
+    "outputs/phase2_multi_run/flagella_count_behavior_v1/replay/shape_stability_metrics.csv",
+    "outputs/phase2_multi_run/flagella_count_behavior_v1/replay/shape_stability_metrics.png"
+  ],
+  "user_review_points": [
+    "n=1,2,3のbody deformation、helical shape preservation、swimming-like propulsion",
+    "v0比で直進性低下と角速度増加が大きいn=3の自然さ",
+    "n=4の全体形状、局所QC failure、回転の滑らかさ"
   ],
   "adr_required": false,
-  "adr_reason": "物理モデル条件は#116で選定済みであり、本対応はdataset生成、既存QC判定の時間方向修正、採用範囲の記録である。新しいモデル解釈やarchitecture decisionは追加していない。",
-  "commit_type": "implementation_and_handoff",
-  "commit_hash": "see final response",
-  "push_status": "see final response",
+  "adr_reason": "物理モデル条件は#116で選定済みであり、本対応はdataset生成、既存QC判定の時間方向修正、replay可読性改善、採用範囲の記録である。n=4の新しいモデル変更はIssue #124へ分離したためADRは追加しない。",
+  "commit_type": "complete",
+  "commit_hash": "included in the completion commit; see final response",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/123",
   "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/119",
   "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71",
   "next_actions": [
-    "User: generate and review the v1 replay, focusing on n=3 naturalness and n=1,2,3 shape preservation.",
-    "Codex: after user visual approval, update review_result.json to PASS, mark P2-8-020 complete, and update PR #123 to close Issue #119.",
-    "Future optional task: explore additional n=4 stabilization only if Phase3/4 later requires n=4 training data."
+    "Phase3/4: use canonical dataset v1 with n=1,2,3 as the training-candidate range.",
+    "Issue #124: diagnose and improve n=4,5,6 proximal deformation and rotation smoothness without blocking Issue #119."
   ]
 }

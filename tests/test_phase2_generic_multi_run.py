@@ -658,6 +658,97 @@ def test_replay_marks_no_first_fail_as_pass() -> None:
     assert module._row_passes_nonbody(row) is True
 
 
+def test_replay_status_lines_include_motor_torque_after_time() -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_replay_status_motor_torque",
+    )
+    state = type("State", (), {"t": 0.125, "reverse_flagella": (), "flag_states": ()})()
+    cfg = type(
+        "Config",
+        (),
+        {
+            "motor_torque_Nm": 2.0e-20,
+            "motor": type("Motor", (), {"enable_switching": False})(),
+        },
+    )()
+
+    assert module._replay_status_lines(state, cfg, "PASS") == [
+        "RUN",
+        "t = 0.125 s",
+        "motor torque / flag = 2.00e-20 N m",
+        "PASS",
+    ]
+
+
+def test_replay_seed_offsets_are_deterministic() -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_replay_seed_offsets",
+    )
+    rows = [
+        {"axis_attach_seed_value": "1", "axis_phase_seed_value": "0"},
+        {"axis_attach_seed_value": "0", "axis_phase_seed_value": "1"},
+        {"axis_attach_seed_value": "0", "axis_phase_seed_value": "0"},
+    ]
+
+    offsets = module._seed_offsets(rows)
+
+    assert list(offsets) == [(0.0, 0.0), (0.0, 1.0), (1.0, 0.0)]
+    assert offsets[(0.0, 0.0)] == pytest.approx(-0.24)
+    assert offsets[(1.0, 0.0)] == pytest.approx(0.24)
+    assert module._seed_offsets([{}]) == {(0.0, 0.0): 0.0}
+
+
+def test_replay_n_flagella_metrics_plot_has_explanatory_labels(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_replay_explanatory_metrics_plot",
+    )
+    rows = []
+    for n_flagella, attach_seed, phase_seed, fail_t in [
+        (1, 0, 0, ""),
+        (1, 0, 1, ""),
+        (4, 0, 2, "0.8971"),
+    ]:
+        rows.append(
+            {
+                "duration_s": "1.0",
+                "n_flagella": str(n_flagella),
+                "axis_attach_seed_value": str(attach_seed),
+                "axis_phase_seed_value": str(phase_seed),
+                "final_shape_pass_nonbody": "True",
+                "first_fail_t_s": fail_t,
+                "first_fail_category_nonbody": "flag" if fail_t else "none",
+                "max_flag_bond_rel_err": "1.08" if fail_t else "0.2",
+                "axis_center_net_abs_revolutions_mean": "2.0",
+                "axis_center_body_relative_net_abs_revolutions_mean": "1.8",
+                "body_roll_net_abs_revolutions": "0.2",
+                "axis_center_to_body_roll_ratio_mean": "10.0",
+            }
+        )
+    original_close = module.plt.close
+    monkeypatch.setattr(module.plt, "close", lambda _fig: None)
+
+    out_path = module._plot_metrics(rows=rows, out_dir=tmp_path)
+    fig = module.plt.gcf()
+
+    assert out_path.is_file()
+    assert len(fig.axes) == 6
+    assert all(ax.get_xlabel() == "Number of flagella (n_flagella)" for ax in fig.axes)
+    assert fig.axes[0].get_ylabel() == "Time to first QC failure or run end [s]"
+    assert fig.axes[1].get_ylabel() == "Maximum flagellar bond relative error [-]"
+    assert [text.get_text() for text in fig.legends[0].get_texts()] == [
+        "PASS: no QC failure during run",
+        "FAIL: QC threshold exceeded at least once",
+    ]
+    assert any("attach_seed=0" in text.get_text() for text in fig.axes[0].texts)
+    assert any(line.get_linestyle() == "--" for line in fig.axes[1].lines)
+    original_close(fig)
+
+
 def test_generic_multi_run_summary_fieldnames_include_body_shape_gate() -> None:
     fields = _summary_fieldnames(
         [

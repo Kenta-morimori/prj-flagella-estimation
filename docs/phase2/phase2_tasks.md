@@ -645,7 +645,7 @@
 
 ### P2-8-020: Issue #119 改善モデルで analysis dataset v1 を再生成する
 
-- status: in progress; visual review pending
+- status: complete
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/119`
 - parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
 - blocked by:
@@ -664,7 +664,8 @@
   - dataset builderは最終stepだけでなく全stepのstrict / relaxed gateを評価し，途中failure後に回復したsampleもML候補へ戻さないよう修正した。
   - v0比で `n=1,2` の主要特徴変化は比較的小さい。`n=3` は `cell_mean_speed=+2.2%`, `cell_straightness=-16.0%`, `cell_angular_velocity_rms=+24.2%` だった。
   - training candidate範囲は `n=1,2,3` とし，`n=4` はdiagnostic-only，`n=5,6` は対象外とする。
-  - Phase3/4 handoffの残条件は `n=1,2,3` replayのuser visual reviewであり，完了までは #119 のreview resultを `FAIL` とする。
+  - 2026-07-16 のuser visual reviewで `n=1,2,3` の定性判断を承認し，Phase3/4 training candidateとして確定した。
+  - `n=4` は大きな形状崩壊はないが，3/9 strict QC failureと非等速回転が残るためdiagnostic-onlyを維持する。入力torqueは各べん毛で一定であり，形状依存のelastic / hydrodynamic load，`diffusive` torque作用位置，局所変形の複合要因と推測する。改善は #124 で扱う。
 
 ## Completed support task: 動画出力・サンプリング整備
 
