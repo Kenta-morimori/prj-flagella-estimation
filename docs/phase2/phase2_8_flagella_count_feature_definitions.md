@@ -45,7 +45,9 @@ feature_categories:
 
 `n_flagella=1` では，べん毛軸同士のpair angleやspreadなど，複数べん毛を前提にする特徴量は定義できない。このような特徴量は `NaN` として出力する。summaryやplotでは，`NaN` の除外数と定義不能である理由を記録する。
 
-`use_for_analysis` と `use_for_ml_candidate` は分けて扱う。hook wrapped や relaxed pass を含むsampleは分析対象に残せる場合があるが，ML候補として使うかは後続の品質基準で判断する。
+`quality_class` は最終stepだけでなく全stepを対象に判定する。途中でstrict gateを外れて最終stepで回復したsampleも `strict_pass` には戻さず，`first_fail_t_s` と `first_fail_category` に最初のfailureを保持する。
+
+`use_for_analysis` と `use_for_ml_candidate` は分けて扱う。全step relaxed pass のsampleは分析対象に残せるが，`use_for_ml_candidate=true` は全step strict pass に限定する。dataset全体で特定の `n_flagella` をtraining対象外と判断した場合は，sample単位フラグに加えてdataset report / registryの採用範囲を優先する。
 
 ## 出力仕様
 

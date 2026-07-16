@@ -645,7 +645,7 @@
 
 ### P2-8-020: Issue #119 改善モデルで analysis dataset v1 を再生成する
 
-- status: in progress; user-run pending
+- status: in progress; visual review pending
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/119`
 - parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
 - blocked by:
@@ -654,14 +654,17 @@
 - goal: 改善モデルで analysis dataset v1 を再生成し，v0 と比較して Phase3/4 training dataset 作成へ渡せる範囲を判断する。
 - acceptance criteria:
   - [x] 改善モデル条件に対応する config / dataset ID / output path が記録されている。
-  - [ ] `n=1,2,3` の v1 統計が v0 と比較されている。
-  - [ ] `n>=4` を含めるか除外するかの判断が記録されている。
-  - [ ] Phase3/4 training dataset 作成へ進むための前提と未解決点が明記されている。
+  - [x] `n=1,2,3` の v1 統計が v0 と比較されている。
+  - [x] `n>=4` を含めるか除外するかの判断が記録されている。
+  - [x] Phase3/4 training dataset 作成へ進むための前提と未解決点が明記されている。
 - current result:
   - `conf/phase2_multi_run/flagella_count_behavior_v1.yaml` を追加し，`dataset_id=v1`，raw run root `outputs/phase2_multi_run/flagella_count_behavior_v1`，dataset output `outputs/phase2_analysis/flagella_count_behavior/datasets/v1` を記録した。
   - model condition は #116 handoff の `stiffness_scales.flag_spring=2.25`, `stiffness_scales.body=2.5` とし，candidate n range は `n=1..4` とした。
-  - 既存 smoke output `outputs/phase2_multi_run/flagella_count_stability_smoke_seed00/summary.csv` では `n=1,2,3` がすべて `final_shape_pass_nonbody=True`, `body_shape_pass=True`, `first_fail_category_nonbody=none` だった。
-  - full v1 36 sample raw generation と dataset build は長時間 run としてユーザー実行待ちであり，#119 は未完了である。
+  - full v1 raw output 36 sampleとcanonical dataset / 分布分析を生成した。全step QCでは `n=1,2,3` が27/27 strict pass，`n=4` は6/9 strict pass，3/9 `flag` failだった。
+  - dataset builderは最終stepだけでなく全stepのstrict / relaxed gateを評価し，途中failure後に回復したsampleもML候補へ戻さないよう修正した。
+  - v0比で `n=1,2` の主要特徴変化は比較的小さい。`n=3` は `cell_mean_speed=+2.2%`, `cell_straightness=-16.0%`, `cell_angular_velocity_rms=+24.2%` だった。
+  - training candidate範囲は `n=1,2,3` とし，`n=4` はdiagnostic-only，`n=5,6` は対象外とする。
+  - Phase3/4 handoffの残条件は `n=1,2,3` replayのuser visual reviewであり，完了までは #119 のreview resultを `FAIL` とする。
 
 ## Completed support task: 動画出力・サンプリング整備
 

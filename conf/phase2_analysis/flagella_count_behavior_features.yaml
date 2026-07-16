@@ -25,6 +25,7 @@ feature_categories:
       - use_for_analysis  # 分析利用フラグ
       - use_for_ml_candidate  # ML候補利用フラグ
       - review_required  # 目視レビュー要否
+      - first_fail_t_s  # 最初にstrict判定を外れた時刻
       - valid_duration_s  # 有効評価時間
 
   cell_translation:

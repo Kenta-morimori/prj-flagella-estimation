@@ -115,6 +115,36 @@ def test_flagella_count_behavior_v1_config_generates_expected_conditions() -> No
     assert conditions[-1]["condition_id"] == "as002__ps002__nf04"
 
 
+def test_quality_keeps_transient_strict_failure_out_of_ml_candidates() -> None:
+    rows = [
+        {
+            "t_s": "0.2",
+            "finite_pass": "True",
+            "shape_pass_nonbody_strict": "False",
+            "shape_pass_nonbody_hook_len_relaxed": "True",
+            "first_fail_category_nonbody_strict": "flag",
+        },
+        {
+            "t_s": "1.0",
+            "finite_pass": "True",
+            "shape_pass_nonbody_strict": "True",
+            "shape_pass_nonbody_hook_len_relaxed": "True",
+            "first_fail_category_nonbody_strict": "none",
+        },
+    ]
+
+    quality = build_dataset._quality(rows[-1], rows)
+
+    assert quality["quality_class"] == "relaxed_pass"
+    assert quality["shape_pass"] is False
+    assert quality["relaxed_pass"] is True
+    assert quality["use_for_analysis"] is True
+    assert quality["use_for_ml_candidate"] is False
+    assert quality["review_required"] is True
+    assert quality["first_fail_t_s"] == pytest.approx(0.2)
+    assert quality["first_fail_category"] == "flag"
+
+
 def test_flagella_count_dataset_overrides_live_under_campaign_dataset() -> None:
     config_path = ROOT / "conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml"
     config = apply_campaign_cli_overrides(
@@ -743,6 +773,9 @@ def test_dataset_builder_outputs_summary_qc_and_timeseries(tmp_path: Path) -> No
     assert math.isnan(float(rows[0]["cell_flagella_axis_angle"]))
     assert int(rows[0]["missing_value_count"]) >= 8
     assert rows[1]["quality_class"] == "relaxed_pass"
+    assert rows[1]["use_for_ml_candidate"] == "False"
+    assert float(rows[1]["first_fail_t_s"]) == pytest.approx(0.0)
+    assert rows[1]["first_fail_category"] == "hook"
     assert rows[1]["hook_wrapped"] == "True"
     assert (dataset_dir / "qc_summary.csv").is_file()
     with (dataset_dir / "timeseries/nf01_as000_ps000.csv").open(

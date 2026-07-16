@@ -47,6 +47,7 @@ QUALITY_FIELDS = [
     "use_for_analysis",
     "use_for_ml_candidate",
     "review_required",
+    "first_fail_t_s",
     "valid_duration_s",
 ]
 
@@ -200,12 +201,36 @@ def _quality(last: dict[str, str] | None, rows: list[dict[str, str]]) -> dict[st
             "use_for_analysis": False,
             "use_for_ml_candidate": False,
             "review_required": False,
+            "first_fail_t_s": float("nan"),
+            "first_fail_category": "missing_raw",
             "valid_duration_s": float("nan"),
         }
 
-    finite_pass = _to_bool(last.get("finite_pass"))
-    shape_pass = _to_bool(last.get("shape_pass_nonbody_strict"))
-    relaxed_pass = _to_bool(last.get("shape_pass_nonbody_hook_len_relaxed"))
+    finite_pass = all(_to_bool(row.get("finite_pass")) for row in rows)
+    shape_pass = finite_pass and all(
+        _to_bool(row.get("shape_pass_nonbody_strict")) for row in rows
+    )
+    relaxed_pass = finite_pass and all(
+        _to_bool(row.get("shape_pass_nonbody_hook_len_relaxed")) for row in rows
+    )
+    first_fail = next(
+        (
+            row
+            for row in rows
+            if not _to_bool(row.get("finite_pass"))
+            or not _to_bool(row.get("shape_pass_nonbody_strict"))
+        ),
+        None,
+    )
+    first_fail_category = "none"
+    first_fail_t_s = float("nan")
+    if first_fail is not None:
+        first_fail_t_s = _to_float(first_fail.get("t_s"))
+        first_fail_category = str(
+            first_fail.get("first_fail_category_nonbody_strict")
+            or first_fail.get("first_fail_category_nonbody")
+            or "unknown"
+        ).strip()
     if not finite_pass:
         quality_class = "invalid_numeric"
     elif shape_pass:
@@ -220,8 +245,10 @@ def _quality(last: dict[str, str] | None, rows: list[dict[str, str]]) -> dict[st
         "shape_pass": shape_pass,
         "relaxed_pass": relaxed_pass,
         "use_for_analysis": use_for_analysis,
-        "use_for_ml_candidate": use_for_analysis,
+        "use_for_ml_candidate": bool(finite_pass and shape_pass),
         "review_required": bool(finite_pass and not shape_pass),
+        "first_fail_t_s": first_fail_t_s,
+        "first_fail_category": first_fail_category,
         "valid_duration_s": _to_float(last.get("t_s")),
     }
 
@@ -345,18 +372,11 @@ def summarize_sample(
         "hook_drift": _to_float(last.get("hook_len_rel_err_max"))
         if last
         else float("nan"),
-        "hook_wrapped": (
-            str(last.get("first_fail_category_nonbody", "")).strip() == "hook"
-            if last
-            else False
-        ),
+        "hook_wrapped": (str(quality["first_fail_category"]).strip() == "hook"),
         "flyaway": not bool(quality["shape_pass"])
-        and str(last.get("first_fail_category_nonbody", "") if last else "").strip()
-        in {"finite", "nan", "inf"},
+        and str(quality["first_fail_category"]).strip() in {"finite", "nan", "inf"},
         "abnormal_rotation": False,
-        "first_fail_category": (
-            last.get("first_fail_category_nonbody", "") if last else "missing_raw"
-        ),
+        "first_fail_category": quality["first_fail_category"],
     }
 
     n_flagella = int(_to_float(metadata["n_flagella"], default=0.0))
@@ -600,7 +620,9 @@ def build_dataset(
                 "shape_pass": summary["shape_pass"],
                 "relaxed_pass": summary["relaxed_pass"],
                 "use_for_analysis": summary["use_for_analysis"],
+                "use_for_ml_candidate": summary["use_for_ml_candidate"],
                 "review_required": summary["review_required"],
+                "first_fail_t_s": summary["first_fail_t_s"],
                 "first_fail_category": summary["first_fail_category"],
                 "step_count": summary["step_count"],
                 "missing_value_count": summary["missing_value_count"],
@@ -621,7 +643,9 @@ def build_dataset(
             "shape_pass",
             "relaxed_pass",
             "use_for_analysis",
+            "use_for_ml_candidate",
             "review_required",
+            "first_fail_t_s",
             "first_fail_category",
             "step_count",
             "missing_value_count",
