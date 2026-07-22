@@ -20,6 +20,7 @@ Codex review の実行は引き続き Cloud connector に任せる。repository 
 - `OPENAI_API_KEY` や `openai/codex-action` は使わない。
 - workflow は PR head SHA に commit status `codex-review-gate` を付与する。
 - review request comment 自体にも現在の head SHA を含むことを要求する。
+- connector response は review request comment の更新時刻以後の response だけを有効とする。
 - Cloud connector の login は `chatgpt-codex-connector` / `chatgpt-codex-connector[bot]` の完全一致allowlistだけを許可する。
 - Cloud connector response は，PR review の対象commit，または comment / review body / thumbs-up対象requestに含まれる head SHA で現在の head を確認する。
 - thumbs-up reaction は review request comment の更新時刻以後の reaction だけを有効とする。

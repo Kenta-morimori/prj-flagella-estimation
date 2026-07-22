@@ -157,17 +157,20 @@ jobs:
               let description = `Run @codex review ${headSha.slice(0, 10)} after the latest commit.`;
 
               if (latestRequest) {
+                const latestRequestAt = new Date(
+                  latestRequest.updated_at || latestRequest.created_at
+                );
                 const connectorComments = comments
                   .filter((comment) =>
                     isConnector(comment.user?.login) &&
-                    new Date(comment.created_at) >= new Date(latestRequest.created_at) &&
+                    new Date(comment.created_at) >= latestRequestAt &&
                     commentTargetsHead(comment)
                   )
                   .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
                 const connectorReviews = reviews
                   .filter((review) =>
                     isConnector(review.user?.login) &&
-                    new Date(review.submitted_at) >= new Date(latestRequest.created_at) &&
+                    new Date(review.submitted_at) >= latestRequestAt &&
                     reviewTargetsHead(review)
                   )
                   .sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
