@@ -12,13 +12,16 @@ Accepted
 
 ## Decision
 
-Codex review の実行は引き続き Cloud connector に任せる。repository 側には，最新 commit 後に `@codex review` が要求され，`chatgpt-codex-connector` が反応したことだけを検査する lightweight gate を置く。
+Codex review の実行は引き続き Cloud connector に任せる。repository 側には，最新 commit 後に head SHA を含む `@codex review <head-short-sha>` が要求され，`chatgpt-codex-connector` が現在の head SHA に対して反応したことだけを検査する lightweight gate を置く。
 
 - `.github/workflows/codex-review-gate.yml` を追加する。
 - workflow は checkout せず，PR metadata / comments / reviews / reactions だけを読む。
 - `OPENAI_API_KEY` や `openai/codex-action` は使わない。
 - workflow は PR head SHA に commit status `codex-review-gate` を付与する。
+- Cloud connector の login は `chatgpt-codex-connector` の完全一致だけを許可する。
+- Cloud connector response は，PR review の対象commit，または comment / review body / thumbs-up対象requestに含まれる head SHA で現在の head を確認する。
 - Cloud connector が問題なしを `👍` reaction だけで返す場合があるため，`schedule` と `workflow_dispatch` でも再評価できるようにする。
+- `schedule` 再評価では open PR をページネーションして走査する。
 - `main` ruleset では `test` と `codex-review-gate` を required status checks にする。
 - ruleset `main-required-ci-and-codex-review` は，workflow が default branch に入るまで `disabled` で作成し，merge後に `active` へ切り替える。
 

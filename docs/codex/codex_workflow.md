@@ -146,6 +146,10 @@ If no ADR is created, record the reason in `review_result.json`.
 
 PR comments may trigger a Codex Cloud / ChatGPT connector review when the comment contains `@codex review`.
 
+For merge-gated PRs, request review after the latest push with the current head SHA included:
+
+`@codex review <head-short-sha>`
+
 This connector review is a PR review assistant, not the source of truth for task completion. Its `PASS` / `FAIL` verdict does not replace the required local `docs/codex-runs/<run-id>/review_result.json`.
 
 Codex Cloud review comments should:
@@ -159,7 +163,7 @@ Codex Cloud review comments should:
 
 Do not add repository-managed `openai/codex-action` workflows for PR review unless a new ADR explicitly reintroduces that approach.
 
-The repository-managed `codex-review-gate` workflow is allowed because it does not run Codex. It only verifies that a Cloud connector review was requested after the latest commit and that the connector responded through a PR review, PR comment, or thumbs-up reaction. Because a no-finding connector review may appear only as a thumbs-up reaction, the gate also re-evaluates open PRs on a short schedule and can be re-run manually with `workflow_dispatch`. After the workflow is merged to `main`, repository rulesets should require both `test` and `codex-review-gate` before merging to `main`.
+The repository-managed `codex-review-gate` workflow is allowed because it does not run Codex. It only verifies that a Cloud connector review was requested for the current head SHA and that the exact `chatgpt-codex-connector` account responded through a PR review, PR comment, or thumbs-up reaction targeting that head SHA. Because a no-finding connector review may appear only as a thumbs-up reaction, the gate also re-evaluates open PRs on a short schedule and can be re-run manually with `workflow_dispatch`. After the workflow is merged to `main`, repository rulesets should require both `test` and `codex-review-gate` before merging to `main`.
 
 ## Reporting and decision gates
 

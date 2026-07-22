@@ -53,23 +53,34 @@ jobs:
               }
             }
             if (context.eventName === "schedule" || prNumbers.length === 0) {
-              const { data: pulls } = await github.rest.pulls.list({
-                owner,
-                repo,
-                state: "open",
-                per_page: 50,
-              });
-              for (const pull of pulls) {
-                prNumbers.push(pull.number);
+              for (let page = 1; ; page += 1) {
+                const { data: pulls } = await github.rest.pulls.list({
+                  owner,
+                  repo,
+                  state: "open",
+                  per_page: 100,
+                  page,
+                });
+                if (pulls.length === 0) {
+                  break;
+                }
+                for (const pull of pulls) {
+                  prNumbers.push(pull.number);
+                }
               }
             }
 
+            const CODEX_CONNECTOR_LOGIN = "chatgpt-codex-connector";
             const isConnector = (login) =>
               typeof login === "string" &&
-              login.toLowerCase().startsWith("chatgpt-codex-connector");
+              login.toLowerCase() === CODEX_CONNECTOR_LOGIN;
             const isReviewRequest = (comment) =>
               comment.body.toLowerCase().includes("@codex review");
-            const connectorThumbsUp = (comment) =>
+            const bodyMentionsHead = (body, headSha) =>
+              typeof body === "string" &&
+              (body.includes(headSha) || body.includes(headSha.slice(0, 10)));
+            const connectorThumbsUp = (comment, headSha) =>
+              bodyMentionsHead(comment.body, headSha) &&
               comment.reactionGroups.some((group) =>
                 group.content === "THUMBS_UP" &&
                 group.users.nodes.some((user) => isConnector(user.login))
@@ -84,13 +95,6 @@ jobs:
                   pullRequest(number: $prNumber) {
                     url
                     headRefOid
-                    commits(last: 1) {
-                      nodes {
-                        commit {
-                          committedDate
-                        }
-                      }
-                    }
                     comments(last: 100) {
                       nodes {
                         author {
@@ -118,6 +122,9 @@ jobs:
                         createdAt
                         state
                         url
+                        commit {
+                          oid
+                        }
                       }
                     }
                   }
@@ -127,35 +134,37 @@ jobs:
 
               const pr = repository.pullRequest;
               const headSha = pr.headRefOid;
-              const headCommittedAt = new Date(
-                pr.commits.nodes[0].commit.committedDate
-              );
               const comments = pr.comments.nodes;
-              const afterHeadCommit = (comment) =>
-                new Date(comment.createdAt) >= headCommittedAt;
+              const reviewTargetsHead = (review) =>
+                review.commit?.oid === headSha ||
+                bodyMentionsHead(review.body, headSha);
+              const commentTargetsHead = (comment) =>
+                bodyMentionsHead(comment.body, headSha);
 
               const latestRequest = comments
-                .filter((comment) => isReviewRequest(comment) && afterHeadCommit(comment))
+                .filter((comment) => isReviewRequest(comment))
                 .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
 
               let state = "failure";
-              let description = "Run @codex review after the latest commit.";
+              let description = `Run @codex review ${headSha.slice(0, 10)} after the latest commit.`;
 
               if (latestRequest) {
                 const connectorComments = comments
                   .filter((comment) =>
                     isConnector(comment.author?.login) &&
-                    new Date(comment.createdAt) >= new Date(latestRequest.createdAt)
+                    new Date(comment.createdAt) >= new Date(latestRequest.createdAt) &&
+                    commentTargetsHead(comment)
                   )
                   .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
                 const connectorReviews = pr.reviews.nodes
                   .filter((review) =>
                     isConnector(review.author?.login) &&
-                    new Date(review.createdAt) >= new Date(latestRequest.createdAt)
+                    new Date(review.createdAt) >= new Date(latestRequest.createdAt) &&
+                    reviewTargetsHead(review)
                   )
                   .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-                if (connectorThumbsUp(latestRequest)) {
+                if (connectorThumbsUp(latestRequest, headSha)) {
                   state = "success";
                   description = "Codex review completed with thumbs-up.";
                 } else if (connectorReviews.length > 0) {
@@ -178,7 +187,7 @@ jobs:
                     description = "Codex review produced feedback; address it and rerun @codex review.";
                   }
                 } else {
-                  description = "Waiting for Codex connector response.";
+                  description = `Waiting for Codex connector response for ${headSha.slice(0, 10)}.`;
                 }
               }
 
