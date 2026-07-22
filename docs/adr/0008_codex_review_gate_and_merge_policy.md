@@ -21,6 +21,7 @@ Codex review の実行は引き続き Cloud connector に任せる。repository 
 - workflow は PR head SHA に commit status `codex-review-gate` を付与する。
 - Cloud connector の login は `chatgpt-codex-connector` の完全一致だけを許可する。
 - Cloud connector response は，PR review の対象commit，または comment / review body / thumbs-up対象requestに含まれる head SHA で現在の head を確認する。
+- Cloud connector が PR review だけで応答した場合に備え，`pull_request_review` event でも再評価する。
 - Cloud connector が問題なしを `👍` reaction だけで返す場合があるため，`schedule` と `workflow_dispatch` でも再評価できるようにする。
 - `schedule` 再評価では open PR をページネーションして走査する。
 - `main` ruleset では `test` と `codex-review-gate` を required status checks にする。

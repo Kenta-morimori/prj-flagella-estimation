@@ -7,6 +7,10 @@ on:
       - reopened
       - synchronize
       - ready_for_review
+  pull_request_review:
+    types:
+      - submitted
+      - edited
   issue_comment:
     types:
       - created
@@ -30,6 +34,7 @@ jobs:
     name: evaluate codex review gate
     if: >-
       github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request_review' ||
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
       (github.event_name == 'issue_comment' && github.event.issue.pull_request)
@@ -43,6 +48,8 @@ jobs:
             const repo = context.repo.repo;
             const prNumbers = [];
             if (context.eventName === "pull_request_target") {
+              prNumbers.push(context.payload.pull_request.number);
+            } else if (context.eventName === "pull_request_review") {
               prNumbers.push(context.payload.pull_request.number);
             } else if (context.eventName === "issue_comment") {
               prNumbers.push(context.payload.issue.number);
