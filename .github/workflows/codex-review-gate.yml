@@ -77,10 +77,13 @@ jobs:
               }
             }
 
-            const CODEX_CONNECTOR_LOGIN = "chatgpt-codex-connector";
+            const CODEX_CONNECTOR_LOGINS = new Set([
+              "chatgpt-codex-connector",
+              "chatgpt-codex-connector[bot]",
+            ]);
             const isConnector = (login) =>
               typeof login === "string" &&
-              login.toLowerCase() === CODEX_CONNECTOR_LOGIN;
+              CODEX_CONNECTOR_LOGINS.has(login.toLowerCase());
             const isReviewRequest = (comment) =>
               typeof comment.body === "string" &&
               comment.body.toLowerCase().includes("@codex review");
