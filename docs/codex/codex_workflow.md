@@ -159,7 +159,7 @@ Codex Cloud review comments should:
 
 Do not add repository-managed `openai/codex-action` workflows for PR review unless a new ADR explicitly reintroduces that approach.
 
-The repository-managed `codex-review-gate` workflow is allowed because it does not run Codex. It only verifies that a Cloud connector review was requested after the latest commit and that the connector responded. Because a no-finding connector review may appear only as a thumbs-up reaction, the gate also re-evaluates open PRs on a short schedule and can be re-run manually with `workflow_dispatch`. After the workflow is merged to `main`, repository rulesets should require both `test` and `codex-review-gate` before merging to `main`.
+The repository-managed `codex-review-gate` workflow is allowed because it does not run Codex. It only verifies that a Cloud connector review was requested after the latest commit and that the connector responded through a PR review, PR comment, or thumbs-up reaction. Because a no-finding connector review may appear only as a thumbs-up reaction, the gate also re-evaluates open PRs on a short schedule and can be re-run manually with `workflow_dispatch`. After the workflow is merged to `main`, repository rulesets should require both `test` and `codex-review-gate` before merging to `main`.
 
 ## Reporting and decision gates
 

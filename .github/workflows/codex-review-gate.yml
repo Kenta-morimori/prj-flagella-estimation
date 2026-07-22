@@ -109,6 +109,17 @@ jobs:
                         }
                       }
                     }
+                    reviews(last: 50) {
+                      nodes {
+                        author {
+                          login
+                        }
+                        body
+                        createdAt
+                        state
+                        url
+                      }
+                    }
                   }
                 }
               }
@@ -137,10 +148,27 @@ jobs:
                     new Date(comment.createdAt) >= new Date(latestRequest.createdAt)
                   )
                   .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                const connectorReviews = pr.reviews.nodes
+                  .filter((review) =>
+                    isConnector(review.author?.login) &&
+                    new Date(review.createdAt) >= new Date(latestRequest.createdAt)
+                  )
+                  .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
                 if (connectorThumbsUp(latestRequest)) {
                   state = "success";
                   description = "Codex review completed with thumbs-up.";
+                } else if (connectorReviews.length > 0) {
+                  const latestConnectorReview = connectorReviews[0];
+                  if (
+                    latestConnectorReview.state === "APPROVED" ||
+                    hasPassVerdict(latestConnectorReview.body)
+                  ) {
+                    state = "success";
+                    description = "Codex PR review completed with PASS.";
+                  } else {
+                    description = "Codex PR review produced feedback; address it and rerun @codex review.";
+                  }
                 } else if (connectorComments.length > 0) {
                   const latestConnectorComment = connectorComments[0];
                   if (hasPassVerdict(latestConnectorComment.body)) {
