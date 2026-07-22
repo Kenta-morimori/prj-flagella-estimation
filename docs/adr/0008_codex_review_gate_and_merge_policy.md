@@ -16,6 +16,7 @@ Codex review の実行は引き続き Cloud connector に任せる。repository 
 
 - `.github/workflows/codex-review-gate.yml` を追加する。
 - workflow は checkout せず，PR metadata / comments / reviews / reactions だけを読む。
+- PR comments と PR reviews はページネーションして全件走査する。
 - `OPENAI_API_KEY` や `openai/codex-action` は使わない。
 - workflow は PR head SHA に commit status `codex-review-gate` を付与する。
 - Cloud connector の login は `chatgpt-codex-connector` の完全一致だけを許可する。

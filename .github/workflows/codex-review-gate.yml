@@ -75,75 +75,66 @@ jobs:
               typeof login === "string" &&
               login.toLowerCase() === CODEX_CONNECTOR_LOGIN;
             const isReviewRequest = (comment) =>
+              typeof comment.body === "string" &&
               comment.body.toLowerCase().includes("@codex review");
             const bodyMentionsHead = (body, headSha) =>
               typeof body === "string" &&
               (body.includes(headSha) || body.includes(headSha.slice(0, 10)));
-            const connectorThumbsUp = (comment, headSha) =>
-              bodyMentionsHead(comment.body, headSha) &&
-              comment.reactionGroups.some((group) =>
-                group.content === "THUMBS_UP" &&
-                group.users.nodes.some((user) => isConnector(user.login))
-              );
             const hasPassVerdict = (body) =>
               /final verdict[\s\S]{0,200}\bpass\b/i.test(body);
 
             async function evaluatePullRequest(prNumber) {
-              const { repository } = await github.graphql(`
-              query($owner: String!, $repo: String!, $prNumber: Int!) {
-                repository(owner: $owner, name: $repo) {
-                  pullRequest(number: $prNumber) {
-                    url
-                    headRefOid
-                    comments(last: 100) {
-                      nodes {
-                        author {
-                          login
-                        }
-                        body
-                        createdAt
-                        url
-                        reactionGroups {
-                          content
-                          users(first: 20) {
-                            nodes {
-                              login
-                            }
-                          }
-                        }
-                      }
-                    }
-                    reviews(last: 50) {
-                      nodes {
-                        author {
-                          login
-                        }
-                        body
-                        createdAt
-                        state
-                        url
-                        commit {
-                          oid
-                        }
-                      }
-                    }
-                  }
+              const { data: pull } = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: prNumber,
+              });
+              const headSha = pull.head.sha;
+              const comments = await github.paginate(
+                github.rest.issues.listComments,
+                {
+                  owner,
+                  repo,
+                  issue_number: prNumber,
+                  per_page: 100,
                 }
-              }
-            `, { owner, repo, prNumber });
-
-              const pr = repository.pullRequest;
-              const headSha = pr.headRefOid;
-              const comments = pr.comments.nodes;
+              );
+              const reviews = await github.paginate(
+                github.rest.pulls.listReviews,
+                {
+                  owner,
+                  repo,
+                  pull_number: prNumber,
+                  per_page: 100,
+                }
+              );
               const reviewTargetsHead = (review) =>
-                review.commit?.oid === headSha ||
+                review.commit_id === headSha ||
                 bodyMentionsHead(review.body, headSha);
               const commentTargetsHead = (comment) =>
                 bodyMentionsHead(comment.body, headSha);
+              const connectorThumbsUp = async (comment, headSha) => {
+                if (!bodyMentionsHead(comment.body, headSha)) {
+                  return false;
+                }
+                const reactions = await github.paginate(
+                  github.rest.reactions.listForIssueComment,
+                  {
+                    owner,
+                    repo,
+                    comment_id: comment.id,
+                    content: "+1",
+                    per_page: 100,
+                  }
+                );
+                return reactions.some((reaction) =>
+                  isConnector(reaction.user?.login)
+                );
+              };
 
               const latestRequest = comments
                 .filter((comment) => isReviewRequest(comment))
-                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
 
               let state = "failure";
               let description = `Run @codex review ${headSha.slice(0, 10)} after the latest commit.`;
@@ -151,20 +142,20 @@ jobs:
               if (latestRequest) {
                 const connectorComments = comments
                   .filter((comment) =>
-                    isConnector(comment.author?.login) &&
-                    new Date(comment.createdAt) >= new Date(latestRequest.createdAt) &&
+                    isConnector(comment.user?.login) &&
+                    new Date(comment.created_at) >= new Date(latestRequest.created_at) &&
                     commentTargetsHead(comment)
                   )
-                  .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-                const connectorReviews = pr.reviews.nodes
+                  .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                const connectorReviews = reviews
                   .filter((review) =>
-                    isConnector(review.author?.login) &&
-                    new Date(review.createdAt) >= new Date(latestRequest.createdAt) &&
+                    isConnector(review.user?.login) &&
+                    new Date(review.submitted_at) >= new Date(latestRequest.created_at) &&
                     reviewTargetsHead(review)
                   )
-                  .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                  .sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
 
-                if (connectorThumbsUp(latestRequest, headSha)) {
+                if (await connectorThumbsUp(latestRequest, headSha)) {
                   state = "success";
                   description = "Codex review completed with thumbs-up.";
                 } else if (connectorReviews.length > 0) {
@@ -198,9 +189,9 @@ jobs:
                 state,
                 context: "codex-review-gate",
                 description,
-                target_url: pr.url,
+                target_url: pull.html_url,
               });
-              return { prNumber, url: pr.url, headSha, state, description };
+              return { prNumber, url: pull.html_url, headSha, state, description };
             }
 
             const results = [];
