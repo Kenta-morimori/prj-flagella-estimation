@@ -70,6 +70,12 @@ uv run python scripts/02_phase2_analysis/analyze_2d_separability.py \
 
 この初期結果では，XY投影後も `n_flagella` による運動分布差は残っている。ただし，まだ `trajectory.csv` ベースの幾何特徴であり，実際の2D pseudo-microscopy frameから抽出できる画像特徴や短いclip窓での識別性は未評価である。
 
+## Observation Scale
+
+今回の解析単位は dataset v1 の各 raw condition 全体であり，source run duration は `1.0 s` である。同一 run 由来の frame / clip は独立sampleとして数えず，`attach_seed` / `phase_seed` の組を group として扱う。
+
+Issue #126 の完了判断は「1.0 s run 全体のXY投影特徴量で本数差が残るか」の初期確認までとする。Phase 4 の入力clip長は別設計値であり，`0.25 s` / `0.5 s` / `1.0 s` の短時間窓比較と必要な独立run数は #129 へ引き渡す。
+
 ## Handoff
 
 次の確認対象:

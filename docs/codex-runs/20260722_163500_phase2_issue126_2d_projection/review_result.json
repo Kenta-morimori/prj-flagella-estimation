@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #126 の初期対応として、dataset v1 の RUN 固定 n_flagella=1,2,3 について、raw trajectory.csv からXY投影特徴量を抽出し、attach_seed / phase_seed group leave-out の最近傍centroid baselineで2D投影後の本数差を確認するCLIを追加した。実データ27 sampleでは grouped baseline accuracy が 26/27 = 0.963 となり、2D投影後も初期運動特徴量上の差は残ると判断した。ただし画像frame由来特徴と短時間clip長評価は未完了のため、Issue #126 は in_progress のままとする。",
+  "summary": "Issue #126 の初期対応として、dataset v1 の RUN 固定 n_flagella=1,2,3 について、raw trajectory.csv からXY投影特徴量を抽出し、attach_seed / phase_seed group leave-out の最近傍centroid baselineで2D投影後の本数差を確認するCLIを追加した。実データ27 sampleでは grouped baseline accuracy が 26/27 = 0.963 となり、2D投影後も初期運動特徴量上の差は残ると判断した。今回の観測時間スケールは source run 全体 1.0 s とし、画像frame由来特徴と短時間clip長評価は #127 / #129 へ移管するため、Issue #126 は完了可能と判断する。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "現時点の特徴量は trajectory.csv のXY投影に基づくため、実際の projection.mp4 / frame sequence から同じ傾向を抽出できるかは未評価である。",
