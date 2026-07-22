@@ -336,6 +336,7 @@ def analyze_2d_separability(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     rows: list[dict[str, Any]] = []
+    missing_trajectories: list[tuple[str, Path]] = []
     for sample in _read_csv(summary_csv):
         n = int(_to_float(sample.get("n_flagella"), default=-1.0))
         if n not in n_flagella:
@@ -345,6 +346,9 @@ def analyze_2d_separability(
         raw_dir = Path(str(sample.get("raw_dir", "")))
         trajectory_csv = raw_dir / "trajectory.csv"
         if not trajectory_csv.is_file():
+            missing_trajectories.append(
+                (str(sample.get("sample_id", "")), trajectory_csv)
+            )
             continue
         rows.append(
             {
@@ -359,6 +363,14 @@ def analyze_2d_separability(
                 "trajectory_csv": str(trajectory_csv),
                 **summarize_trajectory_2d(trajectory_csv),
             }
+        )
+    if missing_trajectories:
+        missing = ", ".join(
+            f"{sample_id or '<missing sample_id>'}: {path}"
+            for sample_id, path in missing_trajectories
+        )
+        raise FileNotFoundError(
+            "Missing trajectory.csv for eligible samples: " + missing
         )
     if not rows:
         raise ValueError(f"No matching trajectory rows found under {dataset_dir}")

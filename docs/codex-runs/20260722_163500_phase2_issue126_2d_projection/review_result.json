@@ -14,7 +14,7 @@
     },
     {
       "command": "uv run pytest tests/test_flagella_count_behavior_dataset.py -q",
-      "result": "PASS: 17 passed。新規 analyze_2d_separability の synthetic trajectory fixture と既存 dataset helper を確認した。"
+      "result": "PASS: 18 passed。新規 analyze_2d_separability の synthetic trajectory fixture、eligible trajectory 欠損時の明示失敗、既存 dataset helper を確認した。"
     },
     {
       "command": "uv run ruff check scripts/02_phase2_analysis/analyze_2d_separability.py tests/test_flagella_count_behavior_dataset.py",
@@ -38,7 +38,7 @@
     },
     {
       "command": "uv run pytest -q -m light",
-      "result": "PASS: 153 passed, 228 deselected。"
+      "result": "PASS: 153 passed, 229 deselected。"
     }
   ],
   "user_review_required": false,

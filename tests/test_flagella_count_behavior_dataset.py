@@ -255,6 +255,45 @@ def test_analyze_2d_separability_writes_features_and_grouped_baseline(
     assert manifest["grouped_nearest_centroid_accuracy"] == pytest.approx(1.0)
 
 
+def test_analyze_2d_separability_fails_on_missing_eligible_trajectory(
+    tmp_path: Path,
+) -> None:
+    dataset_dir = tmp_path / "dataset"
+    raw_dir = tmp_path / "raw" / "nf01_as000_ps000"
+    build_dataset._write_csv(
+        dataset_dir / "summary.csv",
+        [
+            {
+                "sample_id": "nf01_as000_ps000",
+                "dataset_id": "toy",
+                "n_flagella": 1,
+                "attach_seed": 0,
+                "phase_seed": 0,
+                "quality_class": "strict_pass",
+                "use_for_ml_candidate": "True",
+                "raw_dir": str(raw_dir),
+            }
+        ],
+        [
+            "sample_id",
+            "dataset_id",
+            "n_flagella",
+            "attach_seed",
+            "phase_seed",
+            "quality_class",
+            "use_for_ml_candidate",
+            "raw_dir",
+        ],
+    )
+
+    with pytest.raises(FileNotFoundError, match="nf01_as000_ps000"):
+        analyze_2d_separability.analyze_2d_separability(
+            dataset_dir=dataset_dir,
+            output_dir=tmp_path / "analysis_2d",
+            overwrite=True,
+        )
+
+
 def test_flagella_count_dataset_overrides_live_under_campaign_dataset() -> None:
     config_path = ROOT / "conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml"
     config = apply_campaign_cli_overrides(
