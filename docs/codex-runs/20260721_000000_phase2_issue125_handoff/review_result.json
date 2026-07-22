@@ -1,0 +1,52 @@
+{
+  "status": "PASS",
+  "summary": "Issue #125 として、Phase 2 dataset v1 を Phase 3 へ渡す baseline と対象外条件を整理した。handoff baseline は RUN固定 dataset v1 の n_flagella=1,2,3 とし、n=4 は diagnostic-only、n>=5 は対象外、TUMBLE / Brownian項 / torque variation / model変更は baseline外として後続Issueへ分離した。run/source_video/track/clip/frame の単位、model_id/run_id/render_id/track_id/clip_id などの責務、実動画 detection 経路と擬似動画 GT passthrough 経路を共通 clip / metadata schema へ収束させる方針を文書化した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "2D動画上で n_flagella=1,2,3 の差が残るかは Issue #126 で評価する。",
+    "共通 clip / metadata schema の詳細は Issue #127 で確定する。",
+    "augmentation、domain variation、dataset version変更の混在規則は Issue #128 で整理する。",
+    "clip時間長と必要な独立run数は Issue #129 で評価する。",
+    "n_flagella>=4 の物理改善は Issue #124 で継続し、Phase 3 MVP は block しない。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "gh issue view 125 --repo Kenta-morimori/prj-flagella-estimation --json number,title,body,state,url,updatedAt",
+      "result": "PASS: Issue #125 の完了条件とblocking方針を確認した。"
+    },
+    {
+      "command": "gh issue view 126 127 128 129 124 71 6 --repo Kenta-morimori/prj-flagella-estimation --json number,title,body,state,url,updatedAt",
+      "result": "PASS: 後続Issueの役割、依存関係、Phase 3 MVPをblockしない項目を確認した。"
+    },
+    {
+      "command": "rg -n \"Phase 2→3|Issue #125|phase2_8_phase2_to_phase3_handoff|n_flagella=1,2,3|#126|#127|#128|#129\" docs/phase2 docs/PROJECT_PLAN.md",
+      "result": "PASS: handoff文書と参照更新が関連docsに存在することを確認した。"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS: docs-only変更だが、既定の軽量format checkとして実行した。"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS: docs-only変更だが、既定の軽量lint checkとして実行した。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_reason": "本対応はPhase 2→3の移行文書とIssue境界整理であり、新しい動画・物理条件・2D renderを生成していない。長期実行とvisual reviewは #126 / #129 / #6 の各実装・評価タスクで扱う。",
+  "user_run_commands": [],
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "物理モデル、dataset生成条件、出力schema実装を変更していない。Phase 3 handoffの運用境界整理であり、ADRではなくhandoff文書に記録する。",
+  "commit_type": "complete",
+  "commit_hash": "included in the completion commit; see final response",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/130",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/125",
+  "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71",
+  "next_actions": [
+    "Issue #71: #119 / #125 の結果を反映し、3D RUN本数差分析の親Issueを完了整理する。",
+    "Issue #126: dataset v1 n=1,2,3 から2D特徴量を抽出し、投影後の識別性を確認する。",
+    "Issue #127: 実動画と擬似動画の共通 clip / metadata schema を確定する。"
+  ]
+}

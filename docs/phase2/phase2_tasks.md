@@ -667,6 +667,41 @@
   - 2026-07-16 のuser visual reviewで `n=1,2,3` の定性判断を承認し，Phase3/4 training candidateとして確定した。
   - `n=4` は大きな形状崩壊はないが，3/9 strict QC failureと非等速回転が残るためdiagnostic-onlyを維持する。入力torqueは各べん毛で一定であり，形状依存のelastic / hydrodynamic load，`diffusive` torque作用位置，局所変形の複合要因と推測する。改善は #124 で扱う。
 
+### P2-8-021: Issue #125 Phase 2からPhase 3への動画データ引き渡し条件を整理する
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/125`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
+- blocks:
+  - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/6`
+  - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/126`
+  - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/127`
+  - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/128`
+  - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/129`
+- goal: #119で確定したdataset v1を前提に，Phase 3へ渡すbaseline，対象外条件，データ単位，ID責務，実動画・擬似動画の入力経路を整理する。
+- scope:
+  - 本タスクは移行計画と境界確定を完了範囲とする。
+  - 2D識別性評価，大量2D render，個体clip実装，learning curve，長時間runは後続Issueへ分離する。
+- result:
+  - Phase 3 MVP の handoff baseline を dataset v1 の RUN固定 `n_flagella=1,2,3` とした。
+  - `n_flagella=4` は diagnostic-only，`n_flagella>=5` は対象外とし，改善は #124 へ分離した。
+  - TUMBLE / Brownian項 / torque variation / model変更は baseline外とし，#69 / #15 / #128 で扱う。
+  - `run`, `source_video`, `track`, `clip`, `frame` の単位を定義した。
+  - `model_id`, `dataset_id`, `run_id`, `render_id`, `source_video_id`, `track_id`, `clip_id`, `frame_id` の責務を整理した。
+  - 実顕微鏡動画は detection / tracking 経路，Phase 2擬似動画は GT bbox / track passthrough 経路とし，両者を共通 clip / metadata schema へ収束させる方針にした。
+- acceptance criteria:
+  - [x] Phase 2からPhase 3へ渡すbaselineと対象外条件が文書化されている。
+  - [x] Phase 3の実動画・擬似動画入力経路と共通出力境界が文書化されている。
+  - [x] 再利用する既存Issueと新規Issueの役割が重複なく整理されている。
+  - [x] 後続Issueが未完了でも，本Issueを完了できることが明記されている。
+  - [x] local `review_result.json` が `PASS` で記録されている。
+- docs:
+  - `docs/phase2/phase2_8_phase2_to_phase3_handoff.md`
+  - `docs/phase2/phase2_current.md`
+  - `docs/phase2/phase2_tasks.md`
+  - `docs/PROJECT_PLAN.md`
+  - `docs/codex-runs/20260721_000000_phase2_issue125_handoff/review_result.json`
+
 ## Completed support task: 動画出力・サンプリング整備
 
 ### P2-9-009: 3D/2D動画出力のレビュー向けサンプリングを整備する
