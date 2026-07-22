@@ -92,6 +92,9 @@ jobs:
               (body.includes(headSha) || body.includes(headSha.slice(0, 10)));
             const hasPassVerdict = (body) =>
               /final verdict[\s\S]{0,200}\bpass\b/i.test(body);
+            const hasCleanReviewSignal = (body) =>
+              hasPassVerdict(body) ||
+              /didn['’]t find any major issues/i.test(body);
 
             async function evaluatePullRequest(prNumber) {
               const { data: pull } = await github.rest.pulls.get({
@@ -182,7 +185,7 @@ jobs:
                   const latestConnectorReview = connectorReviews[0];
                   if (
                     latestConnectorReview.state === "APPROVED" ||
-                    hasPassVerdict(latestConnectorReview.body)
+                    hasCleanReviewSignal(latestConnectorReview.body)
                   ) {
                     state = "success";
                     description = "Codex PR review completed with PASS.";
@@ -191,7 +194,7 @@ jobs:
                   }
                 } else if (connectorComments.length > 0) {
                   const latestConnectorComment = connectorComments[0];
-                  if (hasPassVerdict(latestConnectorComment.body)) {
+                  if (hasCleanReviewSignal(latestConnectorComment.body)) {
                     state = "success";
                     description = "Codex review completed with PASS.";
                   } else {

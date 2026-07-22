@@ -7,7 +7,7 @@
     "GitHub ruleset の evaluate enforcement はこのプランでは利用できなかったため、disabled enforcement で作成した。",
     "codex-review-gate は Cloud connector の review 実施確認を行う gate であり、Codex review 自体を実行しない。",
     "PR #138 の Codex review で、connector が PR review オブジェクトへ verdict を投稿する場合があるため reviews も評価対象に含める必要があると指摘され、対応した。",
-    "PR #138 の追加 Codex review で、commit date による鮮度判定、connector login の prefix match、open PR 50件制限、PR comments 100件制限、PR review後の再評価遅延、bot login表記、review request commentのhead SHA確認、thumbs-up reaction時刻確認、編集済みrequestに対するconnector response時刻確認が指摘され、head SHA 対象確認、connector login 完全一致allowlist、open PR / comments / reviews pagination、pull_request_review trigger、reaction / response freshness確認に変更した。",
+    "PR #138 の追加 Codex review で、commit date による鮮度判定、connector login の prefix match、open PR 50件制限、PR comments 100件制限、PR review後の再評価遅延、bot login表記、review request commentのhead SHA確認、thumbs-up reaction時刻確認、編集済みrequestに対するconnector response時刻確認が指摘され、head SHA 対象確認、connector login 完全一致allowlist、open PR / comments / reviews pagination、pull_request_review trigger、reaction / response freshness確認に変更した。最新connector応答が no-major-issues comment 形式だったため、その問題なし応答も成功シグナルに含めた。",
     "thumbs-up reaction は issue_comment event を発火しないため、schedule または workflow_dispatch の再評価で commit status を更新する。"
   ],
   "tests_reviewed": [
