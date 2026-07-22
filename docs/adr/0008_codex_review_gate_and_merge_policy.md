@@ -1,0 +1,40 @@
+# ADR 0008: Codex review gate and scoped merge policy
+
+## Status
+
+Accepted
+
+## Context
+
+`main` には branch protection / ruleset がなく，CI や `@codex review` は merge 条件として強制されていなかった。
+
+一方，ADR 0006 により Codex review 自体は ChatGPT/Codex Cloud connector へ一本化しており，repository-managed `openai/codex-action` workflow は再導入しない方針である。
+
+## Decision
+
+Codex review の実行は引き続き Cloud connector に任せる。repository 側には，最新 commit 後に `@codex review` が要求され，`chatgpt-codex-connector` が反応したことだけを検査する lightweight gate を置く。
+
+- `.github/workflows/codex-review-gate.yml` を追加する。
+- workflow は checkout せず，PR metadata / comments / reactions だけを読む。
+- `OPENAI_API_KEY` や `openai/codex-action` は使わない。
+- workflow は PR head SHA に commit status `codex-review-gate` を付与する。
+- Cloud connector が問題なしを `👍` reaction だけで返す場合があるため，`schedule` と `workflow_dispatch` でも再評価できるようにする。
+- `main` ruleset では `test` と `codex-review-gate` を required status checks にする。
+- ruleset `main-required-ci-and-codex-review` は，workflow が default branch に入るまで `disabled` で作成し，merge後に `active` へ切り替える。
+
+Codex は，小タスクに限り以下を満たす場合だけ merge してよい。
+
+- `docs/codex-runs/<run-id>/review_result.json` が `PASS`
+- CI が pass
+- `codex-review-gate` が pass
+- ユーザー定性評価や重大な設計判断が不要
+
+重大判断やユーザー定性評価が必要な場合は，`review_result.json` を `FAIL` とし，必要な実行コマンド，出力先，評価観点，未判断点を提示して止める。
+
+## Consequences
+
+小さな docs / workflow / test補強 / 狭いbug fix は，CI と Codex review gate が通れば短い報告単位で進められる。
+
+物理モデル，dataset採用条件，Phase境界，ML学習条件，動画の自然さなどの判断は自動mergeしない。
+
+`codex-review-gate` workflow は default branch に入るまで required check として安定運用できないため，ruleset の有効化はこのADRを含むPRのmerge後に行う。

@@ -1,0 +1,198 @@
+name: codex-review-gate
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+  issue_comment:
+    types:
+      - created
+      - edited
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Optional PR number to re-evaluate
+        required: false
+  schedule:
+    - cron: "*/10 * * * *"
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  statuses: write
+
+jobs:
+  evaluate:
+    name: evaluate codex review gate
+    if: >-
+      github.event_name == 'pull_request_target' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check latest Codex review signal
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const prNumbers = [];
+            if (context.eventName === "pull_request_target") {
+              prNumbers.push(context.payload.pull_request.number);
+            } else if (context.eventName === "issue_comment") {
+              prNumbers.push(context.payload.issue.number);
+            } else if (context.eventName === "workflow_dispatch") {
+              const input = context.payload.inputs?.pr_number;
+              if (input) {
+                prNumbers.push(Number(input));
+              }
+            }
+            if (context.eventName === "schedule" || prNumbers.length === 0) {
+              const { data: pulls } = await github.rest.pulls.list({
+                owner,
+                repo,
+                state: "open",
+                per_page: 50,
+              });
+              for (const pull of pulls) {
+                prNumbers.push(pull.number);
+              }
+            }
+
+            const isConnector = (login) =>
+              typeof login === "string" &&
+              login.toLowerCase().startsWith("chatgpt-codex-connector");
+            const isReviewRequest = (comment) =>
+              comment.body.toLowerCase().includes("@codex review");
+            const connectorThumbsUp = (comment) =>
+              comment.reactionGroups.some((group) =>
+                group.content === "THUMBS_UP" &&
+                group.users.nodes.some((user) => isConnector(user.login))
+              );
+            const hasPassVerdict = (body) =>
+              /final verdict[\s\S]{0,200}\bpass\b/i.test(body);
+
+            async function evaluatePullRequest(prNumber) {
+              const { repository } = await github.graphql(`
+              query($owner: String!, $repo: String!, $prNumber: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $prNumber) {
+                    url
+                    headRefOid
+                    commits(last: 1) {
+                      nodes {
+                        commit {
+                          committedDate
+                        }
+                      }
+                    }
+                    comments(last: 100) {
+                      nodes {
+                        author {
+                          login
+                        }
+                        body
+                        createdAt
+                        url
+                        reactionGroups {
+                          content
+                          users(first: 20) {
+                            nodes {
+                              login
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `, { owner, repo, prNumber });
+
+              const pr = repository.pullRequest;
+              const headSha = pr.headRefOid;
+              const headCommittedAt = new Date(
+                pr.commits.nodes[0].commit.committedDate
+              );
+              const comments = pr.comments.nodes;
+              const afterHeadCommit = (comment) =>
+                new Date(comment.createdAt) >= headCommittedAt;
+
+              const latestRequest = comments
+                .filter((comment) => isReviewRequest(comment) && afterHeadCommit(comment))
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+
+              let state = "failure";
+              let description = "Run @codex review after the latest commit.";
+
+              if (latestRequest) {
+                const connectorComments = comments
+                  .filter((comment) =>
+                    isConnector(comment.author?.login) &&
+                    new Date(comment.createdAt) >= new Date(latestRequest.createdAt)
+                  )
+                  .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+                if (connectorThumbsUp(latestRequest)) {
+                  state = "success";
+                  description = "Codex review completed with thumbs-up.";
+                } else if (connectorComments.length > 0) {
+                  const latestConnectorComment = connectorComments[0];
+                  if (hasPassVerdict(latestConnectorComment.body)) {
+                    state = "success";
+                    description = "Codex review completed with PASS.";
+                  } else {
+                    description = "Codex review produced feedback; address it and rerun @codex review.";
+                  }
+                } else {
+                  description = "Waiting for Codex connector response.";
+                }
+              }
+
+              await github.rest.repos.createCommitStatus({
+                owner,
+                repo,
+                sha: headSha,
+                state,
+                context: "codex-review-gate",
+                description,
+                target_url: pr.url,
+              });
+              return { prNumber, url: pr.url, headSha, state, description };
+            }
+
+            const results = [];
+            for (const prNumber of [...new Set(prNumbers)]) {
+              results.push(await evaluatePullRequest(prNumber));
+            }
+
+            const failed = results.filter((result) => result.state !== "success");
+            const table = results.map((result) => [
+              `#${result.prNumber}`,
+              result.state,
+              result.description,
+              result.url,
+            ]);
+            await core.summary
+              .addHeading("Codex Review Gate")
+              .addTable([
+                [
+                  { data: "PR", header: true },
+                  { data: "State", header: true },
+                  { data: "Description", header: true },
+                  { data: "URL", header: true },
+                ],
+                ...table,
+              ])
+              .write();
+
+            if (failed.length > 0 && context.eventName !== "schedule") {
+              core.setFailed(
+                failed.map((result) => `#${result.prNumber}: ${result.description}`).join("; ")
+              );
+            }

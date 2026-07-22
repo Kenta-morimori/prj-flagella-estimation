@@ -112,10 +112,11 @@ Rules:
 * Push the feature branch when remote access is available.
 * Send the final user report only after the final task state has been committed and pushed when remote access is available.
 * Create a PR after pushing a feature branch when GitHub remote access is available.
+* Create GitHub issues when they are needed to track an accepted task, split follow-up work, or keep Project items structured.
 * Link the PR to the original source issue in the PR body. Use `Closes #<issue>` / `Fixes #<issue>` only when the PR is intended to complete that issue.
 * Target the branch specified by the task or issue. If no target branch is specified, target the repository default branch.
-* Do not merge PRs.
-* Do not create GitHub issues unless explicitly requested.
+* Merge only small, non-judgment PRs when `review_result.json` is `PASS`, CI passes, `codex-review-gate` passes, and no user visual review or major design decision is pending.
+* Do not merge PRs that change physical interpretation, dataset adoption, phase boundaries, ML training policy, output contracts, or qualitative acceptance without explicit user approval.
 
 ## Phase 2 CLI command convention
 
@@ -157,6 +158,14 @@ Codex Cloud review comments should:
 * avoid exposing API keys, tokens, secrets, private data, or generated credentials.
 
 Do not add repository-managed `openai/codex-action` workflows for PR review unless a new ADR explicitly reintroduces that approach.
+
+The repository-managed `codex-review-gate` workflow is allowed because it does not run Codex. It only verifies that a Cloud connector review was requested after the latest commit and that the connector responded. Because a no-finding connector review may appear only as a thumbs-up reaction, the gate also re-evaluates open PRs on a short schedule and can be re-run manually with `workflow_dispatch`. After the workflow is merged to `main`, repository rulesets should require both `test` and `codex-review-gate` before merging to `main`.
+
+## Reporting and decision gates
+
+Use small reporting units for docs, workflow, tests, narrow bug fixes, and bounded CLI helpers. Report summary, changed files, checks, review result, PR, commit, and remaining issues after each pushed PR.
+
+When a task needs user visual review or a major decision, continue any independent implementation or documentation work, but stop the acceptance decision with `review_result.json` set to `FAIL`. Report the exact command, output directory, files to inspect, evaluation points, checks already passed, and the decision that is blocked.
 
 ## Task progress updates
 
