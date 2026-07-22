@@ -206,3 +206,12 @@ dataset の分布 plot は次で生成します。
 uv run python scripts/02_phase2_analysis/plot_distributions.py \
   --dataset-id v0
 ```
+
+dataset v1 の `n_flagella=1,2,3` について，2D投影後の運動特徴量と grouped baseline を確認する場合は次を使います。
+
+```bash
+uv run python scripts/02_phase2_analysis/analyze_2d_separability.py \
+  --dataset-dir outputs/phase2_analysis/flagella_count_behavior/datasets/v1 \
+  --output-dir outputs/phase2_analysis/flagella_count_behavior/datasets/v1/analysis/projection_2d \
+  --overwrite
+```
