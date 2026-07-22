@@ -137,8 +137,12 @@ jobs:
                     per_page: 100,
                   }
                 );
+                const requestUpdatedAt = new Date(
+                  comment.updated_at || comment.created_at
+                );
                 return reactions.some((reaction) =>
-                  isConnector(reaction.user?.login)
+                  isConnector(reaction.user?.login) &&
+                  new Date(reaction.created_at) >= requestUpdatedAt
                 );
               };
 
