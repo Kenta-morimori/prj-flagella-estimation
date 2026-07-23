@@ -57,8 +57,9 @@ There is no `prompts/` source of truth in the current repository. Do not recreat
 * Do not add dependencies without explaining why they are necessary.
 * Do not commit secrets, API keys, tokens, private data, or generated credentials.
 * Do not run remote scripts directly, such as `curl ... | sh`, unless explicitly approved by the user.
-* Do not create GitHub issues unless explicitly requested.
-* Do not merge pull requests.
+* GitHub issues may be created when needed to track an accepted task, split follow-up work, or keep Project items structured.
+* Small PRs may be merged by Codex only when `review_result.json` is `PASS`, CI passes, `codex-review-gate` passes, and no user visual review or major design decision is pending.
+* Do not merge PRs that change physical interpretation, dataset adoption, phase boundaries, ML training policy, output contracts, or qualitative acceptance without explicit user approval.
 * When creating a PR for an issue, link the original source issue in the PR body using an issue-closing keyword when the PR is intended to complete it.
 * Target the branch specified by the task or issue. If no target branch is specified, target the repository default branch.
 * Do not mark a task complete without a local `review_result.json` with `"status": "PASS"`.

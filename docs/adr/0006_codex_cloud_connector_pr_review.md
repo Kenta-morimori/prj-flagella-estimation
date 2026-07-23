@@ -31,3 +31,7 @@ GitHub Actions上のAPI quota failureと二重レビューを避けられる。
 
 一方で、Cloud connectorの細かなprompt、出力schema、inline suggestion投稿ロジックはrepository内で完全には制御しない。
 レビュー運用の安定性はChatGPT/Codex Cloud側の設定と権限に依存する。
+
+## Amendment
+
+ADR 0008 により，repository 側には Cloud connector review の実施確認だけを行う `codex-review-gate` を追加する。この gate は Codex review を実行せず，`OPENAI_API_KEY` や `openai/codex-action` も使わない。

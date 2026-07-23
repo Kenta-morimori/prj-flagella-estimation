@@ -7,6 +7,13 @@
 ## 詳細
 <!-- 仕様、実装方針、変更内容など -->
 
+## 完了条件
+- [ ] `docs/codex-runs/<run-id>/review_result.json` が `PASS`
+- [ ] CI が pass
+- [ ] `@codex review <head-short-sha>` を最新commit後に実施し，指摘があれば対応済み
+- [ ] ユーザー定性評価が不要，または必要な評価結果を記録済み
+- [ ] 小タスクとしてCodex merge可能，またはユーザー判断待ちであることを明記
+
 ## 関連項目
 - 関連Issue:
 - 関連PR:

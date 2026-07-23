@@ -1,0 +1,249 @@
+name: codex-review-gate
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+  pull_request_review:
+    types:
+      - submitted
+      - edited
+  issue_comment:
+    types:
+      - created
+      - edited
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Optional PR number to re-evaluate
+        required: false
+  schedule:
+    - cron: "*/10 * * * *"
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  statuses: write
+
+jobs:
+  evaluate:
+    name: evaluate codex review gate
+    if: >-
+      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request_review' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check latest Codex review signal
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const prNumbers = [];
+            if (context.eventName === "pull_request_target") {
+              prNumbers.push(context.payload.pull_request.number);
+            } else if (context.eventName === "pull_request_review") {
+              prNumbers.push(context.payload.pull_request.number);
+            } else if (context.eventName === "issue_comment") {
+              prNumbers.push(context.payload.issue.number);
+            } else if (context.eventName === "workflow_dispatch") {
+              const input = context.payload.inputs?.pr_number;
+              if (input) {
+                prNumbers.push(Number(input));
+              }
+            }
+            if (context.eventName === "schedule" || prNumbers.length === 0) {
+              for (let page = 1; ; page += 1) {
+                const { data: pulls } = await github.rest.pulls.list({
+                  owner,
+                  repo,
+                  state: "open",
+                  per_page: 100,
+                  page,
+                });
+                if (pulls.length === 0) {
+                  break;
+                }
+                for (const pull of pulls) {
+                  prNumbers.push(pull.number);
+                }
+              }
+            }
+
+            const CODEX_CONNECTOR_LOGINS = new Set([
+              "chatgpt-codex-connector",
+              "chatgpt-codex-connector[bot]",
+            ]);
+            const isConnector = (login) =>
+              typeof login === "string" &&
+              CODEX_CONNECTOR_LOGINS.has(login.toLowerCase());
+            const isReviewRequest = (comment) =>
+              typeof comment.body === "string" &&
+              comment.body.toLowerCase().includes("@codex review");
+            const bodyMentionsHead = (body, headSha) =>
+              typeof body === "string" &&
+              (body.includes(headSha) || body.includes(headSha.slice(0, 10)));
+            const hasPassVerdict = (body) =>
+              /final verdict[\s\S]{0,200}\bpass\b/i.test(body);
+            const hasCleanReviewSignal = (body) =>
+              hasPassVerdict(body) ||
+              /didn['’]t find any major issues/i.test(body);
+
+            async function evaluatePullRequest(prNumber) {
+              const { data: pull } = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: prNumber,
+              });
+              const headSha = pull.head.sha;
+              const comments = await github.paginate(
+                github.rest.issues.listComments,
+                {
+                  owner,
+                  repo,
+                  issue_number: prNumber,
+                  per_page: 100,
+                }
+              );
+              const reviews = await github.paginate(
+                github.rest.pulls.listReviews,
+                {
+                  owner,
+                  repo,
+                  pull_number: prNumber,
+                  per_page: 100,
+                }
+              );
+              const reviewTargetsHead = (review) =>
+                review.commit_id === headSha ||
+                bodyMentionsHead(review.body, headSha);
+              const commentTargetsHead = (comment) =>
+                bodyMentionsHead(comment.body, headSha);
+              const connectorThumbsUp = async (comment, headSha) => {
+                if (!bodyMentionsHead(comment.body, headSha)) {
+                  return false;
+                }
+                const reactions = await github.paginate(
+                  github.rest.reactions.listForIssueComment,
+                  {
+                    owner,
+                    repo,
+                    comment_id: comment.id,
+                    content: "+1",
+                    per_page: 100,
+                  }
+                );
+                const requestUpdatedAt = new Date(
+                  comment.updated_at || comment.created_at
+                );
+                return reactions.some((reaction) =>
+                  isConnector(reaction.user?.login) &&
+                  new Date(reaction.created_at) >= requestUpdatedAt
+                );
+              };
+
+              const latestRequest = comments
+                .filter((comment) =>
+                  isReviewRequest(comment) &&
+                  bodyMentionsHead(comment.body, headSha)
+                )
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+
+              let state = "failure";
+              let description = `Run @codex review ${headSha.slice(0, 10)} after the latest commit.`;
+
+              if (latestRequest) {
+                const latestRequestAt = new Date(
+                  latestRequest.updated_at || latestRequest.created_at
+                );
+                const connectorComments = comments
+                  .filter((comment) =>
+                    isConnector(comment.user?.login) &&
+                    new Date(comment.created_at) >= latestRequestAt &&
+                    commentTargetsHead(comment)
+                  )
+                  .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                const connectorReviews = reviews
+                  .filter((review) =>
+                    isConnector(review.user?.login) &&
+                    new Date(review.submitted_at) >= latestRequestAt &&
+                    reviewTargetsHead(review)
+                  )
+                  .sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
+
+                if (await connectorThumbsUp(latestRequest, headSha)) {
+                  state = "success";
+                  description = "Codex review completed with thumbs-up.";
+                } else if (connectorReviews.length > 0) {
+                  const latestConnectorReview = connectorReviews[0];
+                  if (
+                    latestConnectorReview.state === "APPROVED" ||
+                    hasCleanReviewSignal(latestConnectorReview.body)
+                  ) {
+                    state = "success";
+                    description = "Codex PR review completed with PASS.";
+                  } else {
+                    description = "Codex PR review produced feedback; address it and rerun @codex review.";
+                  }
+                } else if (connectorComments.length > 0) {
+                  const latestConnectorComment = connectorComments[0];
+                  if (hasCleanReviewSignal(latestConnectorComment.body)) {
+                    state = "success";
+                    description = "Codex review completed with PASS.";
+                  } else {
+                    description = "Codex review produced feedback; address it and rerun @codex review.";
+                  }
+                } else {
+                  description = `Waiting for Codex connector response for ${headSha.slice(0, 10)}.`;
+                }
+              }
+
+              await github.rest.repos.createCommitStatus({
+                owner,
+                repo,
+                sha: headSha,
+                state,
+                context: "codex-review-gate",
+                description,
+                target_url: pull.html_url,
+              });
+              return { prNumber, url: pull.html_url, headSha, state, description };
+            }
+
+            const results = [];
+            for (const prNumber of [...new Set(prNumbers)]) {
+              results.push(await evaluatePullRequest(prNumber));
+            }
+
+            const failed = results.filter((result) => result.state !== "success");
+            const table = results.map((result) => [
+              `#${result.prNumber}`,
+              result.state,
+              result.description,
+              result.url,
+            ]);
+            await core.summary
+              .addHeading("Codex Review Gate")
+              .addTable([
+                [
+                  { data: "PR", header: true },
+                  { data: "State", header: true },
+                  { data: "Description", header: true },
+                  { data: "URL", header: true },
+                ],
+                ...table,
+              ])
+              .write();
+
+            if (failed.length > 0 && context.eventName !== "schedule") {
+              core.setFailed(
+                failed.map((result) => `#${result.prNumber}: ${result.description}`).join("; ")
+              );
+            }
