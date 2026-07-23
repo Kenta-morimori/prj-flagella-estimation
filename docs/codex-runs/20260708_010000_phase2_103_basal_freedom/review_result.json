@@ -99,7 +99,7 @@
   "adr_required": true,
   "adr_reason": "`basal_bearing` は新しい物理近似であり，output interpretation に body roll / body-relative spin 指標を追加するため。",
   "adr_path": "docs/adr/0007_phase2_basal_bearing_attach_frame.md",
-  "commit_type": "implementation",
+  "commit_type": "complete",
   "commit_hash": "5951e020563b53d22a0979bd82183c3f5395db07",
   "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/104",
