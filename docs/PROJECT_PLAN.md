@@ -15,7 +15,9 @@
 * Repository-wide rules: `AGENTS.md`
 * Current Phase 2 entry point: `docs/phase2/phase2_current.md`
 * Accepted task status: `docs/phase2/phase2_tasks.md`
+* Active roadmap and issue hierarchy: `docs/ROADMAP.md`
 * Overall project map: `docs/PROJECT_PLAN.md`
+* Current Phase 3 entry point: `docs/phase3/phase3_current.md`
 * Historical context: Git history, issue/PR history, and Codex run records
 
 ---
