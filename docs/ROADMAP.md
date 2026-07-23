@@ -75,7 +75,7 @@ Project MVP
 | #118 | closed | #71 | `model_id` / dataset config命名 |
 | #119 | closed | #71 | 改善モデル dataset v1生成 |
 | #125 | closed | #71 | Phase 2→3 handoff baseline |
-| #126 | open | #71 | 2D投影後の識別性確認 |
+| #126 | closed | #71 | 2D投影後の初期識別性確認 |
 
 Current baseline:
 
@@ -97,9 +97,9 @@ Current baseline:
 
 Recommended order:
 
-1. #126: trajectory / frame / clip の2D識別性を確認する。
-2. #127: common clip / metadata schema を固定する。
-3. #129: clip時間長と独立run数を評価する。
+1. #127: common clip / metadata schema を固定する。
+2. #129: clip時間長と独立run数を評価する。
+3. #126 の初期2D投影特徴量解析を受け，frame由来特徴量の確認を #127 / #129 に接続する。
 4. #128: augmentation / domain variation / dataset version規則を固定する。
 5. #6: Phase 3 clip pipeline を実装する。
 
