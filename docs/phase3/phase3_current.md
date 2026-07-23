@@ -15,7 +15,7 @@ Phase 3 は common clip schema の固定を #127 / PR #142 で完了し，clip d
 - #127: closed / merged。実動画 detection 経路と擬似動画 GT passthrough 経路を，共通clip / metadata schemaへ収束させた。schema 正本は `docs/phase3/phase3_1_clip_metadata_schema.md`，機械可読schemaは `schemas/phase3_clip_metadata.schema.json`。
 - #129: 1 clip の時間長と必要な独立run数を決める。
 - #128: 学習datasetへ混ぜてよい条件変更を整理する。
-- #6: 共通clip生成pipelineの実装親Issue。
+- #6: 共通clip生成pipelineの実装親Issue。最初の実装PRでは Phase 2 擬似動画 GT passthrough の `.npy` clip / metadata / grouped split / QC 出力から着手する。
 
 MVP 固定方針（2026-07-23 のユーザー判断に基づく）:
 
@@ -56,9 +56,10 @@ dataset splitでは，同一 `run_id` / `source_video_id` / `track_id` 由来の
 
 ## Next Actions
 
-1. #129 の設計に従い，`0.5 s` non-overlap default と，`0.25 s` / `1.0 s` 比較条件の軽量 fixture を実装する。
-2. #128 の設計に従い，torque variation を MVP freeze check で除外し，小範囲 render augmentation と dataset version 規則を Phase 4 dataset freeze checklist へ接続する。
-3. #6 で擬似動画 GT passthrough から最小pipeline実装に入る。実動画 detection / tracking は #8 / #9 の入力条件整理後に本格化する。
+1. #6 の最小 GT passthrough pipeline を draft PR で検証し，`conf/phase3/gt_passthrough_v1.yaml` を使った v1 pilot をユーザー実行に渡す。
+2. #129 の設計に従い，pilot 出力から `0.5 s` non-overlap default と `0.25 s` / `1.0 s` 比較条件の clip 数・group 数を評価する。
+3. #128 の設計に従い，torque variation を MVP freeze check で除外し，小範囲 render augmentation と dataset version 規則を Phase 4 dataset freeze checklist へ接続する。
+4. 実動画 detection / tracking は #8 / #9 の入力条件整理後に本格化する。
 
 ## Key references
 

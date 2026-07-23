@@ -19,6 +19,22 @@ Phase 2 dataset v1
   -> grouped split summary / QC summary
 ```
 
+## Implemented First PR Scope
+
+最初の #6 実装PRでは，実動画経路を確定せず，Phase 2 pseudo GT passthrough のみを実装する。
+
+実装単位:
+
+- package: `src/flagella_estimation/phase3/`
+- CLI: `scripts/03_phase3/build_clip_dataset.py`
+- config: `conf/phase3/gt_passthrough_v1.yaml`
+- clip artifact: `clips/<clip_id>.npy`，`uint8` grayscale，shape `(T, H, W)`
+- default: `clip.duration_s=0.5`，`clip.window_policy=non_overlap`，`frame_rate_hz=25.0`
+- MVP filter: `n_flagella=1,2,3`，`use_for_ml_candidate=True`，baseline torque only
+- output metadata: `schemas/phase3_clip_metadata.schema.json` compatible JSONL
+
+この実装は `state_archive.npz` を軽量 rasterize するため，Phase 2 の重い simulation / render を再実行しない。Phase 2 dataset v1 全体への pilot 実行は手元の実データ出力を読むため，Codex は自動実行せずユーザー実行に渡す。
+
 ## Work Breakdown
 
 | step | scope | output | test boundary |
@@ -65,17 +81,15 @@ outputs/YYYY-MM-DD/HHMMSS/phase3_common_clip/
 
 ## Library Interfaces
 
-Initial module candidates under `src/flagella_estimation/phase3/`:
+Initial modules under `src/flagella_estimation/phase3/`:
 
-- `inventory.py`: read source descriptors and provenance.
-- `tracks.py`: normalize GT / detection track records into a common track object.
 - `windows.py`: generate frame windows from fps, source frame count, duration, and policy.
-- `crops.py`: compute crop windows and padding.
+- `render.py`: rasterize Phase 2 `SimulationState` frames into grayscale `.npy` clips.
 - `metadata.py`: build #127 metadata objects.
 - `splits.py`: grouped split helper by `track.group_key`.
-- `cli.py`: orchestration boundary for scripts.
+- `pipeline.py`: read Phase 2 dataset summary, apply MVP freeze filters, write clips / metadata / summaries / manifest.
 
-Implementation should keep real-video detection behind an adapter interface so that pseudo GT passthrough can land first.
+Future real-video detection should be added behind an adapter interface so that pseudo GT passthrough and detection / tracking both feed the same metadata builder.
 
 ## Real Video Boundary
 

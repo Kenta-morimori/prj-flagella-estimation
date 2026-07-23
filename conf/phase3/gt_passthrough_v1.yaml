@@ -1,0 +1,16 @@
+dataset_id: phase3_gt_passthrough_v1
+input_dataset: outputs/phase2_analysis/flagella_count_behavior/datasets/v1
+output_dir:
+clip:
+  duration_s: 0.5
+  window_policy: non_overlap
+  overlap_stride_fraction: 0.5
+  frame_rate_hz: 25.0
+  crop_size_px: 96
+  pixel_size_um: 0.1
+filters:
+  allowed_n_flagella: [1, 2, 3]
+  require_use_for_ml_candidate: true
+  max_per_class: 3
+freeze:
+  baseline_torque_Nm: 2.0e-20

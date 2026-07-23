@@ -1,0 +1,47 @@
+{
+  "status": "PASS",
+  "summary": "Implemented the first Phase 3 Issue #6 pseudo-GT passthrough pipeline. The new code reads Phase 2 dataset summaries and state_archive.npz files, filters the MVP baseline to n_flagella=1,2,3 with use_for_ml_candidate=True and baseline torque, renders lightweight uint8 .npy clips, writes #127-compatible metadata JSONL, records grouped split summaries without group_key leakage, and emits QC summaries, manifest.json, and run.log. Real-video detection/tracking remains intentionally out of scope for #8/#9.",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "The real Phase 2 dataset v1 pilot was not run by Codex because the user requested v1 pilot execution to remain manual.",
+    "The current renderer is a lightweight state_archive rasterizer for GT passthrough; pseudo-microscopy domain tuning and render variation remain under #17/#128.",
+    "Real-video detection/tracking and scale-normalization choices remain blocked on #8/#9."
+  ],
+  "tests_reviewed": [
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase3_clip_metadata_schema.py",
+      "result": "PASS (12 passed)"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS (394 passed)"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "This PR implements the already documented #127/#143 Phase 3 GT passthrough boundary without changing the physical model, adding dependencies, or changing the accepted schema. Real-video and dataset-adoption decisions remain separate issues.",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "User-run the Phase 2 dataset v1 pilot command and inspect the generated manifest, metadata JSONL, split summary, QC summary, and clips.",
+    "Use the pilot output to evaluate #129 clip counts and grouped split sufficiency for 0.5 s non-overlap, then compare 0.25 s / 1.0 s variants.",
+    "Keep real-video detection/tracking out of this PR and continue it after #8/#9 input and scale-normalization decisions."
+  ]
+}
