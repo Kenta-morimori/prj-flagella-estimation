@@ -702,6 +702,39 @@
   - `docs/PROJECT_PLAN.md`
   - `docs/codex-runs/20260721_000000_phase2_issue125_handoff/review_result.json`
 
+### P2-8-022: Issue #126 2D動画でもべん毛数差が残るか確認する
+
+- status: done
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/126`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71`
+- goal: dataset v1 の RUN固定 `n_flagella=1,2,3` について，3Dで確認した本数差がXY投影後の運動特徴量にも残るかを確認する。
+- scope:
+  - 初期実装では2D画像そのものではなく，各 raw condition の `trajectory.csv` から renderer の body-centered camera frame に合わせた2D投影特徴量を作る。
+  - 同一 simulation run 由来の frame / clip を独立sampleとして数えない。
+  - 短時間clip長やframe画像由来特徴は #129 / #127 へ接続する。
+- result:
+  - `scripts/02_phase2_analysis/analyze_2d_separability.py` を追加した。
+  - 出力は `features_2d.csv`, `feature_summary_by_n_flagella.csv`, `grouped_nearest_centroid_baseline.csv`, `manifest.json` とする。
+  - dataset v1 の `use_for_ml_candidate=True` かつ `n=1,2,3` の27 sampleを対象に，`attach_seed` / `phase_seed` の組を group とした leave-one-group-out 最近傍centroid baselineを実行した。
+  - grouped baseline accuracy は `19/27 = 0.704` だった。body center translation は `render.center_body_in_2d=true` の動画では見えないためゼロとして扱った。
+  - 主要平均は `xy_body_axis_angular_velocity_rms_rad_s` が `n=1: 0.9550`, `n=2: 1.7708`, `n=3: 5.2037`，`xy_body_axis_angle_std_deg` が `n=1: 9.7087`, `n=2: 13.2245`, `n=3: 13.0673` で，body-centered 2D camera frame でも向き変化には本数差が一部残る初期結果となった。
+  - 今回の観測時間スケールは dataset v1 の raw condition 全体 `1.0 s` とし，短時間clip窓 `0.25 s` / `0.5 s` / `1.0 s` の比較と必要独立run数は #129 へ引き渡す。
+- acceptance criteria:
+  - [x] 2Dで利用できる特徴量の初期定義が文書化されている。
+  - [x] 同一run由来のframe / clipを独立sampleとして数えない評価になっている。
+  - [x] `n_flagella=1,2,3` について2D上の分布傾向が記録されている。
+  - [x] 2D動画をtraining candidateとして使えるかの初期判断が記録されている。
+  - [x] clip時間長・データ数の後続評価へ渡す観測時間スケールが整理されている。
+- verification:
+  - `uv run python scripts/02_phase2_analysis/analyze_2d_separability.py --dataset-dir outputs/phase2_analysis/flagella_count_behavior/datasets/v1 --output-dir outputs/phase2_analysis/flagella_count_behavior/datasets/v1/analysis/projection_2d --overwrite`
+  - `uv run pytest tests/test_flagella_count_behavior_dataset.py -q`
+  - `uv run ruff check scripts/02_phase2_analysis/analyze_2d_separability.py tests/test_flagella_count_behavior_dataset.py`
+  - `uv run ruff format --check scripts/02_phase2_analysis/analyze_2d_separability.py tests/test_flagella_count_behavior_dataset.py`
+- docs:
+  - `docs/phase2/phase2_8_2d_projection_separability.md`
+  - `docs/phase2/phase2_current.md`
+  - `docs/phase2/phase2_tasks.md`
+
 ## Completed support task: 動画出力・サンプリング整備
 
 ### P2-9-009: 3D/2D動画出力のレビュー向けサンプリングを整備する

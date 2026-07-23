@@ -1,0 +1,69 @@
+{
+  "status": "PASS",
+  "summary": "Issue #126 の初期対応として、dataset v1 の RUN 固定 n_flagella=1,2,3 について、raw trajectory.csv から renderer の body-centered camera frame に合わせた2D投影特徴量を抽出し、attach_seed / phase_seed group leave-out の最近傍centroid baselineで2D投影後の本数差を確認するCLIを追加した。実データ27 sampleでは grouped baseline accuracy が 19/27 = 0.704 となり、body center translation を除いても body axis の向き変化には本数差が一部残ると判断した。今回の観測時間スケールは source run 全体 1.0 s とし、画像frame由来特徴と短時間clip長評価は #127 / #129 へ移管するため、Issue #126 は完了可能と判断する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "現時点の特徴量は trajectory.csv から renderer の body-centered camera frame に合わせた2D投影に基づくため、実際の projection.mp4 / frame sequence から同じ傾向を抽出できるかは未評価である。",
+    "0.25 s / 0.5 s / 1.0 s clip での安定性と必要独立run数は Issue #129 へ接続する。",
+    "Phase 3 共通 clip / metadata schema の group key は Issue #127 で確定する。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run python scripts/02_phase2_analysis/analyze_2d_separability.py --dataset-dir outputs/phase2_analysis/flagella_count_behavior/datasets/v1 --output-dir outputs/phase2_analysis/flagella_count_behavior/datasets/v1/analysis/projection_2d --overwrite",
+      "result": "PASS: dataset v1 の n=1,2,3 ML candidate 27 sampleから body-centered 2D特徴量、n別summary、grouped baseline、manifest を生成した。grouped nearest-centroid accuracy は 0.7037037037037037。"
+    },
+    {
+      "command": "uv run pytest tests/test_flagella_count_behavior_dataset.py -q",
+      "result": "PASS: 18 passed。新規 analyze_2d_separability の synthetic trajectory fixture、eligible trajectory 欠損時の明示失敗、既存 dataset helper を確認した。"
+    },
+    {
+      "command": "uv run ruff check scripts/02_phase2_analysis/analyze_2d_separability.py tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS: 対象Pythonファイルのlintが通過した。"
+    },
+    {
+      "command": "uv run ruff format --check scripts/02_phase2_analysis/analyze_2d_separability.py tests/test_flagella_count_behavior_dataset.py",
+      "result": "PASS: 対象Pythonファイルのformat checkが通過した。"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS: whitespace errorなし。"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS: 83 files already formatted。"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS: All checks passed。"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS: 153 passed, 229 deselected。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_reason": "本対応は既存 trajectory.csv の数値解析であり、新しい動画・画像レンダリングや物理条件変更を含まない。renderer の body-centered camera frame に合わせたため、2D動画の目視や短時間clip評価は後続作業で扱う。",
+  "user_run_commands": [
+    "uv run python scripts/02_phase2_analysis/analyze_2d_separability.py --dataset-dir outputs/phase2_analysis/flagella_count_behavior/datasets/v1 --output-dir outputs/phase2_analysis/flagella_count_behavior/datasets/v1/analysis/projection_2d --overwrite"
+  ],
+  "user_review_outputs": [
+    "outputs/phase2_analysis/flagella_count_behavior/datasets/v1/analysis/projection_2d/features_2d.csv",
+    "outputs/phase2_analysis/flagella_count_behavior/datasets/v1/analysis/projection_2d/feature_summary_by_n_flagella.csv",
+    "outputs/phase2_analysis/flagella_count_behavior/datasets/v1/analysis/projection_2d/grouped_nearest_centroid_baseline.csv",
+    "outputs/phase2_analysis/flagella_count_behavior/datasets/v1/analysis/projection_2d/manifest.json"
+  ],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "物理モデル、dataset schema実装、Phase 3 schemaを変更していない。Issue #126 の初期解析導線と結果文書化であり、ADRではなく Phase 2 docs に記録した。",
+  "commit_type": "complete",
+  "commit_hash": "included in the branch commit; see final response",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/131",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/126",
+  "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/71",
+  "next_actions": [
+    "projection.mp4 / frame sequence 由来で同様の2D特徴量を抽出できるか確認する。",
+    "0.25 s / 0.5 s / 1.0 s clip 窓での特徴量安定性を #129 と接続して評価する。",
+    "Phase 3 共通 clip / metadata schema の group key を #127 で確定する。"
+  ]
+}
