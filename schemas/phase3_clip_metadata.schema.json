@@ -1,0 +1,418 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Kenta-morimori/prj-flagella-estimation/schemas/phase3_clip_metadata.schema.json",
+  "title": "Phase 3 common clip metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "dataset_id",
+    "source_video",
+    "processing_mode",
+    "provenance",
+    "track",
+    "clip",
+    "normalization",
+    "frames",
+    "labels",
+    "qc"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "phase3_clip_metadata/v0"
+    },
+    "dataset_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_video": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_video_id",
+        "source_kind",
+        "source_path",
+        "frame_rate_hz",
+        "width_px",
+        "height_px"
+      ],
+      "properties": {
+        "source_video_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_kind": {
+          "type": "string",
+          "enum": [
+            "real_microscopy",
+            "phase2_pseudo",
+            "future_pseudo_multi"
+          ]
+        },
+        "source_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "frame_rate_hz": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "width_px": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height_px": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "duration_s": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "processing_mode": {
+      "type": "string",
+      "enum": [
+        "detection_tracking",
+        "gt_passthrough"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pipeline_name",
+        "pipeline_version"
+      ],
+      "properties": {
+        "pipeline_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pipeline_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dataset_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "run_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "render_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "condition_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "raw_run_dir": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "track": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "track_id",
+        "group_key",
+        "source_frame_start",
+        "source_frame_end",
+        "t_start_s",
+        "t_end_s"
+      ],
+      "properties": {
+        "track_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "group_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_track_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_frame_start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_frame_end": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "t_start_s": {
+          "type": "number",
+          "minimum": 0
+        },
+        "t_end_s": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "clip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clip_id",
+        "clip_index",
+        "window_policy",
+        "output_path",
+        "frame_count",
+        "frame_rate_hz",
+        "duration_s",
+        "source_frame_start",
+        "source_frame_end",
+        "t_start_s",
+        "t_end_s"
+      ],
+      "properties": {
+        "clip_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "clip_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "window_policy": {
+          "type": "string",
+          "enum": [
+            "non_overlap",
+            "overlap",
+            "full_run",
+            "manual"
+          ]
+        },
+        "output_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "frame_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "frame_rate_hz": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "duration_s": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "source_frame_start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_frame_end": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "t_start_s": {
+          "type": "number",
+          "minimum": 0
+        },
+        "t_end_s": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "normalization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "crop_size_px",
+        "centering_mode",
+        "scale_mode",
+        "rotation_mode"
+      ],
+      "properties": {
+        "crop_size_px": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "centering_mode": {
+          "type": "string",
+          "enum": [
+            "bbox_center",
+            "body_center",
+            "track_center",
+            "manual"
+          ]
+        },
+        "scale_mode": {
+          "type": "string",
+          "enum": [
+            "fixed_um_per_px",
+            "bbox_long_axis",
+            "body_length",
+            "none"
+          ]
+        },
+        "rotation_mode": {
+          "type": "string",
+          "enum": [
+            "none",
+            "body_axis_align",
+            "track_velocity_align"
+          ]
+        },
+        "pixel_size_um": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "frames": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "frame_id",
+          "clip_frame_index",
+          "source_frame_index",
+          "t_s",
+          "bbox_xywh_px"
+        ],
+        "properties": {
+          "frame_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "clip_frame_index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "source_frame_index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "t_s": {
+            "type": "number",
+            "minimum": 0
+          },
+          "bbox_xywh_px": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "number"
+            }
+          },
+          "crop_xywh_px": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "number"
+            }
+          },
+          "center_xy_px": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "number"
+            }
+          },
+          "qc_status": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "review",
+              "fail"
+            ]
+          }
+        }
+      }
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "n_flagella",
+        "label_source"
+      ],
+      "properties": {
+        "n_flagella": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "label_source": {
+          "type": "string",
+          "enum": [
+            "phase2_gt",
+            "manual",
+            "unavailable"
+          ]
+        }
+      }
+    },
+    "qc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "exclusion_reason"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "review",
+            "fail"
+          ]
+        },
+        "exclusion_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}
+
