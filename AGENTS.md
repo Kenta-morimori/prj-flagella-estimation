@@ -25,10 +25,12 @@ Priority:
 1. Repository-wide rules: `AGENTS.md`
 2. Current Phase 2 entry point: `docs/phase2/phase2_current.md`
 3. Accepted task status: `docs/phase2/phase2_tasks.md`
-4. Overall project map: `docs/PROJECT_PLAN.md`
-5. Codex workflow details: `docs/codex/codex_workflow.md`
-6. ADRs and task-specific docs under `docs/`
-7. Historical context: Git history, issue/PR history, and `docs/codex-runs/*/review_result.json`
+4. Active project roadmap and issue hierarchy: `docs/ROADMAP.md`
+5. Overall project map: `docs/PROJECT_PLAN.md`
+6. Current Phase 3 entry point when working on Phase 3: `docs/phase3/phase3_current.md`
+7. Codex workflow details: `docs/codex/codex_workflow.md`
+8. ADRs and task-specific docs under `docs/`
+9. Historical context: Git history, issue/PR history, and `docs/codex-runs/*/review_result.json`
 
 There is no `prompts/` source of truth in the current repository. Do not recreate prompt-based workflow files unless a new task explicitly reintroduces them.
 
