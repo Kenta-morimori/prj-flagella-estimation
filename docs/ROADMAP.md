@@ -47,7 +47,7 @@ Project MVP
 
 | PR | State | Purpose | Next |
 | ---: | --- | --- | --- |
-| #132 | open | プロジェクト roadmap と issue hierarchy 整理 | review gate / CI 通過後に merge |
+| - | - | 現時点で roadmap 上に固定して追跡する active PR はない | #127 / #129 の順に進める |
 
 ## Issue Hierarchy
 
