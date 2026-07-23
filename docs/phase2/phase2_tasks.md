@@ -1146,7 +1146,7 @@
 
 ### P2-8-103: attach-frame補強による剛体回転を診断しbasal自由度を分離する
 
-- status: in_progress
+- status: complete
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/103`
 - parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/82`
 - goal: #94 の attach-frame補強が hook過伸長を抑える一方で，body/root/flagella の相対運動を抑えすぎて剛体回転様の挙動を作っていないかを診断し，hook安定化と軸中心回転を両立する basal 自由度の扱いを分離する。
@@ -1159,7 +1159,7 @@
   - [x] 補強なし / 補強ありの側方・後方条件を同じ torque, duration, output contract で比較できる `basal-freedom-grid` profile を追加する。
   - [x] body roll と flag helix axis-centered spin を分離し，summary と per-flag diagnostics に記録する。
   - [x] hook長安定性を維持しつつ body-root 相対回転を許す候補として `motor.local_attach_frame_tangent_mode=basal_bearing` を追加する。
-  - [ ] attach-frame補強のうち，位置拘束，接線拘束，basal/root自由度のどれが一体回転を誘発しているかをユーザー実行結果で切り分ける。
+  - [x] attach-frame補強のうち，位置拘束，接線拘束，basal/root自由度のどれが一体回転を誘発しているかをユーザー実行結果で切り分ける。
   - 破綻条件も再現可能な出力として保持し，#82 の最終候補選定に使えるようにする。
 - implementation notes:
   - `motor.local_attach_frame_tangent_mode` を追加した。default `vector` は従来互換で，`basal_bearing` は `attach -> first` 軸まわりの方位角を拘束せず，`first -> second` の軸方向成分と垂直半径だけを保つ。
@@ -1175,7 +1175,7 @@
   - [x] 補強なし側方，補強なし後方，補強あり側方，補強あり後方の比較条件が再現可能な command/profile として記録される。
   - [x] body剛体回転と flagella螺旋軸中心回転を分離する指標が summary で比較できる。
   - [x] attach-frame補強のどの成分が body-root 一体化に寄与するかを説明できる。
-  - [ ] hook安定性と軸中心回転を両立する次候補，または両立しない理由を #82 へ返せる。
+  - [x] hook安定性と軸中心回転を両立する次候補，または両立しない理由を #82 へ返せる。
 - verification:
   - `uv run pytest tests/test_params.py tests/test_motor_forces.py tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py::test_run_writes_step_summary_csv_without_projection_columns -q`
   - `uv run ruff check src/sim_swim/dynamics/forces.py src/sim_swim/dynamics/engine.py src/sim_swim/sim/params.py src/sim_swim/sim/debug_summary.py src/sim_swim/analysis/sweeps/shape_stability_grid.py tests/test_params.py tests/test_motor_forces.py tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py`

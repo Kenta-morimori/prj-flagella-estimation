@@ -4,7 +4,7 @@
   "blocking_issues": [],
   "non_blocking_issues": [
     "`basal_bearing` は参照論文モデルではなく，現行 bead-spring 実装で hook安定化と root axial spin 自由度を分離するための project-specific extension として扱う。",
-    "`fp1p25` は posterior の best compromise だが `first_fail_category_nonbody=flag`, `first_fail_t_s=0.3295 s` であり，完全 pass ではない。#82 へ返す代表候補にするには `fp1p5` との最終比較整理が残る。"
+    "`fp1p25` は #82 へ返す posterior 代表候補としたが，`first_fail_category_nonbody=flag`, `first_fail_t_s=0.3295 s` であり，完全 pass ではない。`fp1p5` は次点として保持し，`n_flagella>=4` の追加安定化は Issue #124 で扱う。"
   ],
   "tests_reviewed": [
     {
@@ -100,12 +100,11 @@
   "adr_reason": "`basal_bearing` は新しい物理近似であり，output interpretation に body roll / body-relative spin 指標を追加するため。",
   "adr_path": "docs/adr/0007_phase2_basal_bearing_attach_frame.md",
   "commit_type": "implementation",
-  "commit_hash": "pending",
-  "push_status": "pending",
+  "commit_hash": "5951e020563b53d22a0979bd82183c3f5395db07",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/104",
   "next_actions": [
-    "`fp1p25` と `fp1p5` のどちらを #82 へ返す posterior 代表候補にするか，定性所見と `first_fail_*` を優先して最終判断する。",
-    "必要なら `fp1p25` 近傍の finer position-only sweep か，`flag` fail の局所 bead pair 診断を追加する。",
-    "PR #104 に latest main の lightweight pre-commit 方針反映後の review 結果を反映する。"
+    "#103 は PR #104 merge と Issue close 済み。posterior 代表候補は `fp1p25`，次点は `fp1p5` として #82 へ返した。",
+    "`n_flagella>=4` の追加安定化は Issue #124 で扱う。"
   ]
 }
