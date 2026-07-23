@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "summary": "通常commitでは軽量pre-commitを維持し，merge直前のfinal candidateだけセルフチェックを厚くする運用を文書化した。Codex Cloud reviewはfinal candidateで原則1回だけ要求し，指摘が出た場合は全actionable threadを一括修正して1回だけfollow-up reviewする方針へ整理した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "この変更は運用文書のみであり，codex-review-gate workflow の判定ロジック自体は変更していない。",
+    "Cloud reviewが実際に問題を検出した場合は，品質優先で1回のfollow-up reviewを許容する。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "git diff --check",
+      "result": "PASS: whitespace errorなし。"
+    },
+    {
+      "command": "rg -n \"Merge-final|final candidate|軽量|lightweight|one follow-up|一括|Cloud review\" AGENTS.md docs/codex/codex_workflow.md .github/PULL_REQUEST_TEMPLATE.md docs/adr/0008_codex_review_gate_and_merge_policy.md",
+      "result": "PASS: 軽量commit維持，merge-final self-check，final candidate review運用の文言が反映済み。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": true,
+  "adr_reason": "Codex review gate と merge policy の既存判断を補足するため，新規ADRではなく ADR 0008 を更新した。",
+  "commit_type": "complete",
+  "commit_hash": "not_applicable",
+  "push_status": "not_applicable",
+  "pull_request_url": "",
+  "next_actions": [
+    "PR-level の CI，codex-review-gate，最終head SHA，PR URL はPR本文と最終報告で確認する。",
+    "今後のPRでは，tracked review_result へPR作成後の動的情報を後追い同期するだけのcommitを作らない。"
+  ]
+}
