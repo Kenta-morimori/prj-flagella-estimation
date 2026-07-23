@@ -173,7 +173,7 @@ For merge-gated PRs, request review only after the PR is a merge-ready final can
 
 This connector review is a PR review assistant, not the source of truth for task completion. Its `PASS` / `FAIL` verdict does not replace the required local `docs/codex-runs/<run-id>/review_result.json`.
 
-Do not use Cloud review as an iterative lint loop. The normal target is one review request immediately before merge. If Cloud review produces feedback, fetch all unresolved actionable review threads at once, fix them as a batch, rerun local checks, then request one follow-up review for the new final candidate. Avoid one-review-per-small-fix cycles.
+Do not use Cloud review as an iterative lint loop. The normal target is one review request immediately before merge. If Cloud review produces feedback, fetch all unresolved actionable review threads at once, fix them as a batch, rerun merge-final self-checks, and resolve every current actionable thread before merge. If a thread needs no code or doc change, leave the reason in the thread before resolving it. Avoid one-review-per-small-fix cycles.
 
 Codex Cloud review comments should:
 
