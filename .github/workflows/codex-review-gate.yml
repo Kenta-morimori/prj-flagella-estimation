@@ -103,6 +103,7 @@ jobs:
               hasPassVerdict(body) ||
               /didn['’]t find any major issues/i.test(body);
             const hasConnectorFeedback = (reviewOrComment) =>
+              reviewOrComment?.state !== "APPROVED" &&
               typeof reviewOrComment?.body === "string" &&
               !hasCleanReviewSignal(reviewOrComment.body);
 
@@ -207,6 +208,9 @@ jobs:
               const unresolvedCurrentCodexThreads = currentCodexThreads.filter(
                 (thread) => !thread.isResolved && !thread.isOutdated
               );
+              const allCurrentCodexThreadsAddressed =
+                currentCodexThreads.length > 0 &&
+                unresolvedCurrentCodexThreads.length === 0;
               const connectorThumbsUp = async (comment, headSha) => {
                 if (!bodyMentionsHead(comment.body, headSha)) {
                   return false;
@@ -274,7 +278,7 @@ jobs:
                   ) {
                     state = "success";
                     description = "Codex PR review completed with PASS.";
-                  } else if (unresolvedCurrentCodexThreads.length === 0) {
+                  } else if (allCurrentCodexThreadsAddressed) {
                     state = "success";
                     description = "Codex review feedback addressed; all current threads resolved or outdated.";
                   } else {
@@ -285,7 +289,7 @@ jobs:
                   if (hasCleanReviewSignal(latestConnectorComment.body)) {
                     state = "success";
                     description = "Codex review completed with PASS.";
-                  } else if (unresolvedCurrentCodexThreads.length === 0) {
+                  } else if (allCurrentCodexThreadsAddressed) {
                     state = "success";
                     description = "Codex review feedback addressed; all current threads resolved or outdated.";
                   } else {
@@ -316,7 +320,7 @@ jobs:
                   description = `Waiting for Codex connector response for ${requestedSha}.`;
                 } else if (
                   feedbackSeen &&
-                  unresolvedCurrentCodexThreads.length === 0
+                  allCurrentCodexThreadsAddressed
                 ) {
                   state = "success";
                   description = "Codex review feedback addressed; all current threads resolved or outdated.";

@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "codex-review-gate を、Codex review feedback 後の修正では最新 head 再reviewだけを必須にせず、connector-authored review threads がすべて resolved または outdated なら pass できるように更新した。運用文書には、修正不要で resolve する場合の理由コメント必須化と、PR 後の動的状態を tracked review_result.json に同期するだけの commit を作らない方針を追記した。",
+  "summary": "codex-review-gate を、Codex review feedback 後の修正では最新 head 再reviewだけを必須にせず、connector-authored review threads が実在し，すべて resolved または outdated なら pass できるように更新した。APPROVED review を feedback と誤判定しないようにし、運用文書には、修正不要で resolve する場合の理由コメント必須化と、PR 後の動的状態を tracked review_result.json に同期するだけの commit を作らない方針を追記した。",
   "blocking_issues": [],
   "non_blocking_issues": [],
   "tests_reviewed": [
@@ -23,6 +23,11 @@
       "command": "uv run pytest -q -m light",
       "status": "PASS",
       "notes": "153 passed, 227 deselected。"
+    },
+    {
+      "command": "Codex review thread PRRT_kwDOQ9ZAzs6TK1pe",
+      "status": "PASS",
+      "notes": "APPROVED review を feedback として扱わず、resolved/outdated パスには connector-authored review thread の実在を要求するよう修正。"
     }
   ],
   "user_review_required": false,
