@@ -105,6 +105,8 @@ Option-style arguments such as `--config`, `--duration-s`, and `--fps-out` remai
 * If tests or simulations cannot run, record what was not run, why, and what alternative checks were performed.
 * When changing models, physics, geometry, output schema, manifest, or pipeline behavior, run full pytest or record why it was not run in `review_result.json`.
 * Request Codex Cloud review only for the merge-ready final candidate by default. If it finds issues, batch all actionable fixes, rerun merge-final self-checks, and resolve all current actionable review threads before merge.
+* After Codex Cloud feedback has been addressed, do not request another Codex review solely because the fix commit changed the PR head. Re-evaluate `codex-review-gate` instead.
+* Do not close/reopen PRs to refresh Codex review or gate state. Use normal push, wait for GitHub to sync the PR head, then use scheduled/manual `codex-review-gate` re-evaluation when needed.
 * Do not run long Phase 2 simulation, sweep, or render commands unless the user explicitly asks Codex to execute them. For long runs, provide the exact command, output directory, files to inspect, evaluation points, and checks already passed; treat the long run as user-executed.
 * Completion, review_result schema, commit, push, PR, ADR, and Cloud review details live in `docs/codex/codex_workflow.md`.
 

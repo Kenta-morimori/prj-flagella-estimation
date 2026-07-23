@@ -173,9 +173,13 @@ For merge-gated PRs, request review only after the PR is a merge-ready final can
 
 Codex Cloud review は原則1回の final-candidate review とする。指摘が出た場合は actionable thread を一括修正し，対象チェックを再実行してから thread を resolve する。修正不要と判断して resolve する場合は，該当 thread に理由コメントを残す。
 
+Codex Cloud feedback 修正後は，修正commitで PR head が変わっても再度 `@codex review <new-head-sha>` を投げない。品質担保は merge-final self-check，CI，thread への理由コメント，thread resolve で行い，merge gate は `codex-review-gate` の再評価で通す。
+
 This connector review is a PR review assistant, not the source of truth for task completion. Its `PASS` / `FAIL` verdict does not replace the required local `docs/codex-runs/<run-id>/review_result.json`.
 
 Do not use Cloud review as an iterative lint loop. The normal target is one review request immediately before merge. If Cloud review produces feedback, fetch all unresolved actionable review threads at once, fix them as a batch, rerun merge-final self-checks, and resolve every current actionable thread before merge. If a thread needs no code or doc change, leave the reason in the thread before resolving it. Avoid one-review-per-small-fix cycles.
+
+Do not close/reopen a PR to refresh PR head metadata, CI, or Codex gate state. After a normal push, wait for GitHub to sync the PR head. If the gate status is stale after comments or thread resolution, use `workflow_dispatch` for `codex-review-gate.yml` with the PR number, or wait for the scheduled open-PR scan. Close/reopen is reserved only for an explicit user-approved recovery case.
 
 Codex Cloud review comments should:
 
@@ -188,7 +192,7 @@ Codex Cloud review comments should:
 
 Do not add repository-managed `openai/codex-action` workflows for PR review unless a new ADR explicitly reintroduces that approach.
 
-The repository-managed `codex-review-gate` workflow is allowed because it does not run Codex. It verifies that a Cloud connector review was requested by `@codex review <sha>` for a PR commit and that an exact allowlisted connector login, `chatgpt-codex-connector` or `chatgpt-codex-connector[bot]`, responded through a PR review, PR comment, or thumbs-up reaction. A clean connector response on the current head passes the gate. If the connector produced feedback, the gate passes once all current connector-authored review threads are resolved or outdated; it does not require another review solely because the fix changed the head SHA. CI status，thread resolve 状態，PR URL，final head SHA など PR 作成後に変わる状態を tracked `review_result.json` に同期するためだけの commit は作らない。PR comments, PR reviews, review threads, and scheduled open-PR scans are paginated. The gate runs on PR updates, issue comments, PR review submissions, manual dispatch, and schedule. Because a no-finding connector review may appear only as a thumbs-up reaction, the gate also re-evaluates open PRs on a short schedule and can be re-run manually with `workflow_dispatch`. After the workflow is merged to `main`, repository rulesets should require both `test` and `codex-review-gate` before merging to `main`.
+The repository-managed `codex-review-gate` workflow is allowed because it does not run Codex. It verifies that a Cloud connector review was requested by `@codex review <sha>` for a PR commit and that an exact allowlisted connector login, `chatgpt-codex-connector` or `chatgpt-codex-connector[bot]`, responded through a PR review, PR comment, or thumbs-up reaction. A clean connector response on the current head passes the gate. If the connector produced feedback, the gate passes once all current connector-authored review threads are resolved or outdated, both for the originally reviewed head and for later fix commits; it does not require another review solely because the fix changed the head SHA. CI status，thread resolve 状態，PR URL，final head SHA など PR 作成後に変わる状態を tracked `review_result.json` に同期するためだけの commit は作らない。PR comments, PR reviews, review threads, and scheduled open-PR scans are paginated. The gate runs on PR updates, issue comments, PR review submissions, manual dispatch, and schedule. Because a no-finding connector review may appear only as a thumbs-up reaction, the gate also re-evaluates open PRs on a short schedule and can be re-run manually with `workflow_dispatch`. After the workflow is merged to `main`, repository rulesets should require both `test` and `codex-review-gate` before merging to `main`.
 
 ## Reporting and decision gates
 
