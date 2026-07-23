@@ -90,11 +90,68 @@ jobs:
             const bodyMentionsHead = (body, headSha) =>
               typeof body === "string" &&
               (body.includes(headSha) || body.includes(headSha.slice(0, 10)));
+            const extractReviewSha = (body) => {
+              if (typeof body !== "string") {
+                return "";
+              }
+              const match = body.match(/@codex\s+review\s+([0-9a-f]{10,40})/i);
+              return match ? match[1].toLowerCase() : "";
+            };
             const hasPassVerdict = (body) =>
               /final verdict[\s\S]{0,200}\bpass\b/i.test(body);
             const hasCleanReviewSignal = (body) =>
               hasPassVerdict(body) ||
               /didn['’]t find any major issues/i.test(body);
+            const hasConnectorFeedback = (reviewOrComment) =>
+              reviewOrComment?.state !== "APPROVED" &&
+              typeof reviewOrComment?.body === "string" &&
+              !hasCleanReviewSignal(reviewOrComment.body);
+
+            async function listCodexReviewThreads(prNumber) {
+              const query = `
+                query($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
+                  repository(owner: $owner, name: $repo) {
+                    pullRequest(number: $number) {
+                      reviewThreads(first: 100, after: $cursor) {
+                        pageInfo {
+                          hasNextPage
+                          endCursor
+                        }
+                        nodes {
+                          id
+                          isResolved
+                          isOutdated
+                          comments(first: 100) {
+                            nodes {
+                              author {
+                                login
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }`;
+              const threads = [];
+              let cursor = null;
+              for (;;) {
+                const result = await github.graphql(query, {
+                  owner,
+                  repo,
+                  number: prNumber,
+                  cursor,
+                });
+                const reviewThreads =
+                  result.repository.pullRequest.reviewThreads;
+                threads.push(...reviewThreads.nodes);
+                if (!reviewThreads.pageInfo.hasNextPage) {
+                  break;
+                }
+                cursor = reviewThreads.pageInfo.endCursor;
+              }
+              return threads;
+            }
 
             async function evaluatePullRequest(prNumber) {
               const { data: pull } = await github.rest.pulls.get({
@@ -126,6 +183,34 @@ jobs:
                 bodyMentionsHead(review.body, headSha);
               const commentTargetsHead = (comment) =>
                 bodyMentionsHead(comment.body, headSha);
+              const prCommits = await github.paginate(
+                github.rest.pulls.listCommits,
+                {
+                  owner,
+                  repo,
+                  pull_number: prNumber,
+                  per_page: 100,
+                }
+              );
+              const prCommitShas = prCommits.map((commit) =>
+                commit.sha.toLowerCase()
+              );
+              const shaBelongsToPr = (sha) =>
+                sha &&
+                prCommitShas.some((commitSha) => commitSha.startsWith(sha));
+              const currentCodexThreads = (
+                await listCodexReviewThreads(prNumber)
+              ).filter((thread) =>
+                thread.comments.nodes.some((comment) =>
+                  isConnector(comment.author?.login)
+                )
+              );
+              const unresolvedCurrentCodexThreads = currentCodexThreads.filter(
+                (thread) => !thread.isResolved && !thread.isOutdated
+              );
+              const allCurrentCodexThreadsAddressed =
+                currentCodexThreads.length > 0 &&
+                unresolvedCurrentCodexThreads.length === 0;
               const connectorThumbsUp = async (comment, headSha) => {
                 if (!bodyMentionsHead(comment.body, headSha)) {
                   return false;
@@ -149,12 +234,16 @@ jobs:
                 );
               };
 
+              const reviewRequests = comments
+                .filter((comment) => isReviewRequest(comment))
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
               const latestRequest = comments
                 .filter((comment) =>
                   isReviewRequest(comment) &&
                   bodyMentionsHead(comment.body, headSha)
                 )
                 .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+              const latestAnyRequest = reviewRequests[0];
 
               let state = "failure";
               let description = `Run @codex review ${headSha.slice(0, 10)} after the latest commit.`;
@@ -190,7 +279,7 @@ jobs:
                     state = "success";
                     description = "Codex PR review completed with PASS.";
                   } else {
-                    description = "Codex PR review produced feedback; address it and rerun @codex review.";
+                    description = `Codex PR review produced feedback; resolve ${unresolvedCurrentCodexThreads.length} current thread(s).`;
                   }
                 } else if (connectorComments.length > 0) {
                   const latestConnectorComment = connectorComments[0];
@@ -198,10 +287,39 @@ jobs:
                     state = "success";
                     description = "Codex review completed with PASS.";
                   } else {
-                    description = "Codex review produced feedback; address it and rerun @codex review.";
+                    description = `Codex review produced feedback; resolve ${unresolvedCurrentCodexThreads.length} current thread(s).`;
                   }
                 } else {
                   description = `Waiting for Codex connector response for ${headSha.slice(0, 10)}.`;
+                }
+              } else if (latestAnyRequest) {
+                const latestRequestAt = new Date(
+                  latestAnyRequest.updated_at || latestAnyRequest.created_at
+                );
+                const requestedSha = extractReviewSha(latestAnyRequest.body);
+                const connectorResponses = [
+                  ...comments.filter((comment) =>
+                    isConnector(comment.user?.login) &&
+                    new Date(comment.created_at) >= latestRequestAt
+                  ),
+                  ...reviews.filter((review) =>
+                    isConnector(review.user?.login) &&
+                    new Date(review.submitted_at) >= latestRequestAt
+                  ),
+                ];
+                const feedbackSeen = connectorResponses.some(hasConnectorFeedback);
+                if (!shaBelongsToPr(requestedSha)) {
+                  description = `Run @codex review ${headSha.slice(0, 10)} with a PR commit SHA.`;
+                } else if (connectorResponses.length === 0) {
+                  description = `Waiting for Codex connector response for ${requestedSha}.`;
+                } else if (
+                  feedbackSeen &&
+                  allCurrentCodexThreadsAddressed
+                ) {
+                  state = "success";
+                  description = "Codex review feedback addressed; all current threads resolved or outdated.";
+                } else if (feedbackSeen) {
+                  description = `Codex review produced feedback; resolve ${unresolvedCurrentCodexThreads.length} current thread(s).`;
                 }
               }
 
