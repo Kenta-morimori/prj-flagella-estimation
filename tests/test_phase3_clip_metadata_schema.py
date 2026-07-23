@@ -89,3 +89,35 @@ def test_phase3_real_video_label_state_is_representable() -> None:
     assert "real_microscopy" in source_kind_enum
     assert "unavailable" in label_schema["label_source"]["enum"]
     assert "null" in label_schema["n_flagella"]["type"]
+
+
+def test_phase3_real_video_audit_fields_are_representable() -> None:
+    schema = _load_json(SCHEMA_PATH)
+    source_video_properties = schema["properties"]["source_video"]["properties"]
+    frame_properties = schema["properties"]["frames"]["items"]["properties"]
+    qc_properties = schema["properties"]["qc"]["properties"]
+
+    for field_name in (
+        "frame_count",
+        "codec_fourcc",
+        "file_size_bytes",
+    ):
+        assert field_name in source_video_properties
+
+    for field_name in (
+        "body_axis_angle_rad",
+        "body_length_px",
+        "body_width_px",
+        "detection_confidence",
+    ):
+        assert field_name in frame_properties
+
+    assert frame_properties["detection_confidence"]["minimum"] == 0
+    assert frame_properties["detection_confidence"]["maximum"] == 1
+
+    for field_name in (
+        "detection_confidence_min",
+        "tracking_gap_count",
+        "notes",
+    ):
+        assert field_name in qc_properties

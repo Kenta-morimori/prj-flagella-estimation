@@ -80,8 +80,10 @@ top-level required fields:
 - bbox は `[x, y, width, height]` の `bbox_xywh_px` で表す。
 - `t_s` / `duration_s` は秒単位。
 - `frame_rate_hz` は Hz。
+- `source_video.frame_count`，`source_video.codec_fourcc`，`source_video.file_size_bytes` は実動画入力の再現性確認用の任意 field である。
 - crop 後画像列のサイズは `normalization.crop_size_px = [width, height]` とする。
 - scale が未確定または未使用の場合は `scale_mode=none` とし、`pixel_size_um` は省略してよい。
+- 実動画 detection では，bbox だけでなく `frames[].body_axis_angle_rad`，`frames[].body_length_px`，`frames[].body_width_px`，`frames[].detection_confidence` を任意で保持してよい。低コントラストの楕円/桿状候補を後で監査し，`body_axis_align` や `body_length` normalization の妥当性を確認するためである。
 
 ## Labels
 
@@ -96,9 +98,26 @@ Phase 3 は clip ごとに少なくとも次を記録する。
 - `qc.status`: `pass`, `review`, `fail`
 - `qc.exclusion_reason`: 除外理由。通過時は `null`
 
-実動画では detection confidence / tracking gap、擬似動画では GT bbox / render availability など、mode 固有の詳細は追加 field で拡張してよい。ただし共通 required field は変えない。
+実動画では `qc.detection_confidence_min`，`qc.tracking_gap_count`，`qc.notes` を任意で保持してよい。擬似動画では GT bbox / render availability などを同じ `qc.status` / `qc.exclusion_reason` へ畳み込む。共通 required field は変えない。
+
+## Real AVI Initial Analysis Notes
+
+2026-07-23 に `data/20250716data1.avi` と `data/20250716data2.avi` を使って，Otsu + connected components の初期確認を行った。
+
+- 2本とも 512x512, 128 frames で，OpenCV/file 上の reported fps は `20250716data1.avi` が 25.0 Hz，`20250716data2.avi` が 20.0 Hz だった。
+- `candidate_count_mean` は約 43-46/frame で，単純な dark connected component は小さい黒点，背景ノイズ，リング状アーチファクトを多く拾った。
+- 菌体らしい低コントラスト楕円/桿状構造を後で選別できるように，frame-level の body axis / 長短径 / confidence と clip-level QC を任意 field として残す。
+- AVI 本体は `data/` 配下で git 管理外とし，metadata には入力パスや動画要約だけを記録する。
+
+## Issue #127 Close Checklist
+
+- [x] 実動画・擬似動画の共通 required field を固定する。
+- [x] Phase 2 GT passthrough と実動画 `label_source=unavailable` の両方を表現できる。
+- [x] split leakage 防止用の `track.group_key` を必須にする。
+- [x] 実AVI初期分析から，実動画source metadataと検出候補QCに必要な任意fieldを確認する。
+- [x] 実 detector / tracker / crop CLI，clip window評価，dataset mixing判断は #6 / #129 / #128 へ分離する。
+- [ ] PR上で CI / review gate が通ることを確認する。
 
 ## Implementation Boundary
 
 Issue #127 の実装は schema / fixture / contract test までとする。実際の detection、tracking、crop生成 CLI、短時間 clip 評価、learning curve は #6 / #129 に分離する。
-

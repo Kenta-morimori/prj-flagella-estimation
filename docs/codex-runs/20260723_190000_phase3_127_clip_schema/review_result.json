@@ -1,15 +1,16 @@
 {
   "status": "PASS",
-  "summary": "Issue #127 の範囲で、実動画 detection / tracking 経路と Phase 2 擬似動画 GT passthrough 経路が共通利用する Phase 3 clip / metadata schema を固定した。schema 正本、機械可読 JSON schema、最小 fixture、contract test、Phase 3 issue map を追加し、#129 / #128 / #6 へ残す判断点を明確化した。",
+  "summary": "Issue #127 の範囲で、実動画 detection / tracking 経路と Phase 2 擬似動画 GT passthrough 経路が共通利用する Phase 3 clip / metadata schema を固定した。実AVI初期分析を踏まえ、source video の再現性確認項目と frame-level body geometry / detection confidence / clip-level QC の任意fieldを追加し、#129 / #128 / #6 へ残す判断点を明確化した。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "GitHub Issue #127 は PR / merge 完了までは open のまま追跡する。",
-    "Phase 3 本体 package 構成、detection / tracking / crop CLI、clip時間長評価、learning curve、dataset混在規則は後続 Issue #6 / #129 / #128 で扱う。"
+    "Phase 3 本体 package 構成、detection / tracking / crop CLI、clip時間長評価、learning curve、dataset混在規則は後続 Issue #6 / #129 / #128 で扱う。",
+    "実AVIの Otsu + connected components 初期確認では小さい黒点や背景ノイズを多く拾ったため、検出器採用判断は #6 へ残す。"
   ],
   "tests_reviewed": [
     {
       "command": "uv run pytest tests/test_phase3_clip_metadata_schema.py -q",
-      "result": "PASS: 3 passed。schema required field、最小 fixture、実動画 label unavailable 状態を確認。"
+      "result": "PASS: 4 passed。schema required field、最小 fixture、実動画 label unavailable 状態、実動画監査用任意fieldを確認。"
     },
     {
       "command": "uv run ruff format --check .",
@@ -21,7 +22,7 @@
     },
     {
       "command": "uv run pytest -q -m light",
-      "result": "PASS: 153 passed, 232 deselected。"
+      "result": "PASS: 153 passed, 233 deselected。"
     },
     {
       "command": "git diff --check",
@@ -47,4 +48,3 @@
     "#6 で #127 schema に沿った最小 Phase 3 clip pipeline を実装する。"
   ]
 }
-
