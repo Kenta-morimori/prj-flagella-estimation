@@ -19,6 +19,24 @@ def _check_required(schema: dict[str, Any], instance: dict[str, Any]) -> None:
     assert not missing
 
 
+def _conditional_for_label_source(
+    schema: dict[str, Any], label_source: str
+) -> dict[str, Any]:
+    for conditional in schema["allOf"]:
+        label_source_schema = (
+            conditional.get("if", {})
+            .get("properties", {})
+            .get("labels", {})
+            .get("properties", {})
+            .get("label_source", {})
+        )
+        if label_source_schema.get("const") == label_source:
+            return conditional
+        if label_source in label_source_schema.get("enum", []):
+            return conditional
+    raise AssertionError(f"missing conditional for label_source={label_source}")
+
+
 def test_phase3_clip_metadata_schema_keeps_common_required_contract() -> None:
     schema = _load_json(SCHEMA_PATH)
 
@@ -121,3 +139,46 @@ def test_phase3_real_video_audit_fields_are_representable() -> None:
         "notes",
     ):
         assert field_name in qc_properties
+
+
+def test_phase3_gt_passthrough_requires_non_null_run_id() -> None:
+    schema = _load_json(SCHEMA_PATH)
+    gt_passthrough_condition = next(
+        conditional
+        for conditional in schema["allOf"]
+        if conditional["if"]["properties"].get("processing_mode", {}).get("const")
+        == "gt_passthrough"
+    )
+    pseudo_source_condition = next(
+        conditional
+        for conditional in schema["allOf"]
+        if "source_video" in conditional["if"].get("properties", {})
+    )
+
+    for conditional in (gt_passthrough_condition, pseudo_source_condition):
+        provenance_then = conditional["then"]["properties"]["provenance"]
+        assert "run_id" in provenance_then["required"]
+        assert provenance_then["properties"]["run_id"] == {
+            "type": "string",
+            "minLength": 1,
+        }
+
+
+def test_phase3_label_source_and_n_flagella_are_conditionally_consistent() -> None:
+    schema = _load_json(SCHEMA_PATH)
+
+    unavailable_condition = _conditional_for_label_source(schema, "unavailable")
+    unavailable_n_flagella = unavailable_condition["then"]["properties"]["labels"][
+        "properties"
+    ]["n_flagella"]
+    assert unavailable_n_flagella == {"type": "null"}
+
+    phase2_gt_condition = _conditional_for_label_source(schema, "phase2_gt")
+    labeled_n_flagella = phase2_gt_condition["then"]["properties"]["labels"][
+        "properties"
+    ]["n_flagella"]
+    assert labeled_n_flagella == {
+        "type": "integer",
+        "minimum": 0,
+    }
+    assert _conditional_for_label_source(schema, "manual") is phase2_gt_condition

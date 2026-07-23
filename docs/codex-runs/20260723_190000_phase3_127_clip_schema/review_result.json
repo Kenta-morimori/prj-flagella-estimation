@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #127 の範囲で、実動画 detection / tracking 経路と Phase 2 擬似動画 GT passthrough 経路が共通利用する Phase 3 clip / metadata schema を固定した。実AVI初期分析を踏まえ、source video の再現性確認項目と frame-level body geometry / detection confidence / clip-level QC の任意fieldを追加し、#129 / #128 / #6 へ残す判断点を明確化した。",
+  "summary": "Issue #127 の範囲で、実動画 detection / tracking 経路と Phase 2 擬似動画 GT passthrough 経路が共通利用する Phase 3 clip / metadata schema を固定した。実AVI初期分析を踏まえ、source video の再現性確認項目と frame-level body geometry / detection confidence / clip-level QC の任意fieldを追加した。Codex review 指摘を受け、GT passthrough / pseudo source の non-null run_id と label_source / n_flagella の整合性も conditional schema で固定した。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "GitHub Issue #127 は PR / merge 完了までは open のまま追跡する。",
@@ -10,7 +10,7 @@
   "tests_reviewed": [
     {
       "command": "uv run pytest tests/test_phase3_clip_metadata_schema.py -q",
-      "result": "PASS: 4 passed。schema required field、最小 fixture、実動画 label unavailable 状態、実動画監査用任意fieldを確認。"
+      "result": "PASS: 6 passed。schema required field、最小 fixture、実動画 label unavailable 状態、実動画監査用任意field、GT run_id conditional、label_source / n_flagella conditional を確認。"
     },
     {
       "command": "uv run ruff format --check .",
@@ -22,7 +22,7 @@
     },
     {
       "command": "uv run pytest -q -m light",
-      "result": "PASS: 153 passed, 233 deselected。"
+      "result": "PASS: 153 passed, 235 deselected。"
     },
     {
       "command": "git diff --check",

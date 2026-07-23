@@ -56,6 +56,8 @@
 
 `clip_id` や `render_id` だけを split group に使ってはいけない。
 
+機械可読 schema では，`processing_mode=gt_passthrough` または `source_video.source_kind` が pseudo 系の場合に，non-null の `provenance.run_id` を要求する。
+
 ## Metadata Schema
 
 機械可読 schema は `schemas/phase3_clip_metadata.schema.json` に置く。最小例は `examples/phase3/clip_metadata_minimal.json` である。
@@ -91,6 +93,8 @@ top-level required fields:
 
 実動画では `labels.n_flagella` は原則 `null` とし、`label_source=unavailable` にする。手動ラベルが将来入る場合は `label_source=manual` とする。
 
+機械可読 schema では，`label_source=unavailable` のとき `n_flagella=null`，`label_source=phase2_gt` または `manual` のとき `n_flagella` は0以上の整数であることを要求する。
+
 ## QC
 
 Phase 3 は clip ごとに少なくとも次を記録する。
@@ -113,6 +117,7 @@ Phase 3 は clip ごとに少なくとも次を記録する。
 
 - [x] 実動画・擬似動画の共通 required field を固定する。
 - [x] Phase 2 GT passthrough と実動画 `label_source=unavailable` の両方を表現できる。
+- [x] GT passthrough の `provenance.run_id` と，`label_source` / `n_flagella` の整合性を schema で強制する。
 - [x] split leakage 防止用の `track.group_key` を必須にする。
 - [x] 実AVI初期分析から，実動画source metadataと検出候補QCに必要な任意fieldを確認する。
 - [x] 実 detector / tracker / crop CLI，clip window評価，dataset mixing判断は #6 / #129 / #128 へ分離する。

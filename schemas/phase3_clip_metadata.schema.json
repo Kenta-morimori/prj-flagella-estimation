@@ -17,6 +17,136 @@
     "labels",
     "qc"
   ],
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "processing_mode"
+        ],
+        "properties": {
+          "processing_mode": {
+            "const": "gt_passthrough"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "provenance": {
+            "required": [
+              "run_id"
+            ],
+            "properties": {
+              "run_id": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "source_video"
+        ],
+        "properties": {
+          "source_video": {
+            "required": [
+              "source_kind"
+            ],
+            "properties": {
+              "source_kind": {
+                "enum": [
+                  "phase2_pseudo",
+                  "future_pseudo_multi"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "provenance": {
+            "required": [
+              "run_id"
+            ],
+            "properties": {
+              "run_id": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "labels"
+        ],
+        "properties": {
+          "labels": {
+            "required": [
+              "label_source"
+            ],
+            "properties": {
+              "label_source": {
+                "const": "unavailable"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "labels": {
+            "properties": {
+              "n_flagella": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "labels"
+        ],
+        "properties": {
+          "labels": {
+            "required": [
+              "label_source"
+            ],
+            "properties": {
+              "label_source": {
+                "enum": [
+                  "phase2_gt",
+                  "manual"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "labels": {
+            "properties": {
+              "n_flagella": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
   "properties": {
     "schema_version": {
       "type": "string",
