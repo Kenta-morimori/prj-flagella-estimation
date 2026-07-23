@@ -50,6 +50,10 @@ plot_distributions = _load_script(
     "plot_distributions",
     "scripts/02_phase2_analysis/plot_distributions.py",
 )
+analyze_2d_separability = _load_script(
+    "analyze_2d_separability",
+    "scripts/02_phase2_analysis/analyze_2d_separability.py",
+)
 
 
 def test_distribution_plot_uses_integer_n_flagella_ticks() -> None:
@@ -143,6 +147,153 @@ def test_quality_keeps_transient_strict_failure_out_of_ml_candidates() -> None:
     assert quality["review_required"] is True
     assert quality["first_fail_t_s"] == pytest.approx(0.2)
     assert quality["first_fail_category"] == "flag"
+
+
+def _write_toy_trajectory(path: Path, *, speed_um_s: float) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "t",
+                "x",
+                "y",
+                "z",
+                "qx",
+                "qy",
+                "qz",
+                "qw",
+                "vx",
+                "vy",
+                "vz",
+                "wx",
+                "wy",
+                "wz",
+            ],
+        )
+        writer.writeheader()
+        for idx in range(5):
+            t_s = idx * 0.25
+            angle_rad = speed_um_s * t_s
+            writer.writerow(
+                {
+                    "t": t_s,
+                    "x": speed_um_s * t_s,
+                    "y": 0.1 * idx,
+                    "z": 0.0,
+                    "qx": 0.0,
+                    "qy": 0.0,
+                    "qz": math.sin(angle_rad / 2.0),
+                    "qw": math.cos(angle_rad / 2.0),
+                    "vx": speed_um_s,
+                    "vy": 0.4,
+                    "vz": 0.0,
+                    "wx": 0.0,
+                    "wy": 0.0,
+                    "wz": 0.0,
+                }
+            )
+
+
+def test_analyze_2d_separability_writes_features_and_grouped_baseline(
+    tmp_path: Path,
+) -> None:
+    dataset_dir = tmp_path / "dataset"
+    raw_root = tmp_path / "raw"
+    summary_rows = []
+    for attach_seed in (0, 1):
+        for phase_seed in (0, 1):
+            for n_flagella in (1, 2, 3):
+                sample_id = f"nf{n_flagella:02d}_as{attach_seed:03d}_ps{phase_seed:03d}"
+                raw_dir = raw_root / sample_id
+                _write_toy_trajectory(
+                    raw_dir / "trajectory.csv",
+                    speed_um_s=float(n_flagella),
+                )
+                summary_rows.append(
+                    {
+                        "sample_id": sample_id,
+                        "dataset_id": "toy",
+                        "n_flagella": n_flagella,
+                        "attach_seed": attach_seed,
+                        "phase_seed": phase_seed,
+                        "quality_class": "strict_pass",
+                        "use_for_ml_candidate": "True",
+                        "raw_dir": str(raw_dir),
+                    }
+                )
+    build_dataset._write_csv(
+        dataset_dir / "summary.csv",
+        summary_rows,
+        [
+            "sample_id",
+            "dataset_id",
+            "n_flagella",
+            "attach_seed",
+            "phase_seed",
+            "quality_class",
+            "use_for_ml_candidate",
+            "raw_dir",
+        ],
+    )
+
+    output_dir = analyze_2d_separability.analyze_2d_separability(
+        dataset_dir=dataset_dir,
+        output_dir=tmp_path / "analysis_2d",
+        overwrite=True,
+    )
+
+    features = list(csv.DictReader((output_dir / "features_2d.csv").open()))
+    baseline = list(
+        csv.DictReader((output_dir / "grouped_nearest_centroid_baseline.csv").open())
+    )
+    manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert len(features) == 12
+    assert len(baseline) == 12
+    assert float(features[0]["xy_mean_speed_um_s"]) == pytest.approx(0.0)
+    assert float(features[0]["xy_body_axis_angular_velocity_rms_rad_s"]) > 0.0
+    assert all(row["correct"] == "True" for row in baseline)
+    assert manifest["sample_count"] == 12
+    assert manifest["grouped_nearest_centroid_accuracy"] == pytest.approx(1.0)
+
+
+def test_analyze_2d_separability_fails_on_missing_eligible_trajectory(
+    tmp_path: Path,
+) -> None:
+    dataset_dir = tmp_path / "dataset"
+    raw_dir = tmp_path / "raw" / "nf01_as000_ps000"
+    build_dataset._write_csv(
+        dataset_dir / "summary.csv",
+        [
+            {
+                "sample_id": "nf01_as000_ps000",
+                "dataset_id": "toy",
+                "n_flagella": 1,
+                "attach_seed": 0,
+                "phase_seed": 0,
+                "quality_class": "strict_pass",
+                "use_for_ml_candidate": "True",
+                "raw_dir": str(raw_dir),
+            }
+        ],
+        [
+            "sample_id",
+            "dataset_id",
+            "n_flagella",
+            "attach_seed",
+            "phase_seed",
+            "quality_class",
+            "use_for_ml_candidate",
+            "raw_dir",
+        ],
+    )
+
+    with pytest.raises(FileNotFoundError, match="nf01_as000_ps000"):
+        analyze_2d_separability.analyze_2d_separability(
+            dataset_dir=dataset_dir,
+            output_dir=tmp_path / "analysis_2d",
+            overwrite=True,
+        )
 
 
 def test_flagella_count_dataset_overrides_live_under_campaign_dataset() -> None:

@@ -3,13 +3,12 @@
   "summary": "プロジェクト全体の流れとIssue階層を追いやすくするため、docs/ROADMAP.md を追加した。報告単位、ユーザー実行が必要な場合の報告形式、Project / Phase parents、#10 / #71 / #6 の扱い、主要な過去Issueの位置づけ、Phase 3/4 handoff順序を整理した。併せて Phase 3 の入口として docs/phase3/phase3_current.md を追加し、PROJECT_PLAN から参照できるようにした。",
   "blocking_issues": [],
   "non_blocking_issues": [
-    "GitHub issue本文・label・milestone自体はまだ変更していない。",
-    "PR #131 は別ブランチの #126 初期解析PRとして残っている。"
+    "GitHub issue本文・label・milestone自体はまだ変更していない。"
   ],
   "tests_reviewed": [
     {
       "command": "uv run ruff format --check .",
-      "result": "PASS: 82 files already formatted。docs-only変更の軽量format check。"
+      "result": "PASS: docs-only変更の軽量format check。"
     },
     {
       "command": "uv run ruff check .",
@@ -19,9 +18,9 @@
             "command": "git diff --check",
             "result": "PASS: whitespace errorなし。"
         },
-        {
-            "command": "uv run pytest -q -m light",
-            "result": "PASS: 153 passed, 227 deselected。"
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS: 153 passed, 229 deselected。"
         }
   ],
   "user_review_required": false,
@@ -39,7 +38,7 @@
   "parent_issue_url": "",
   "next_actions": [
     "必要なら GitHub labels / milestones を ROADMAP の分類に合わせて追加する。",
-    "PR #131 を #126 初期解析PRとしてready化するか、frame / clip評価を追加するか判断する。",
-    "#127 の共通clip / metadata schema整理へ進む。"
+    "#127 の共通clip / metadata schema整理へ進む。",
+    "#129 で短時間clip窓の評価計画と独立run数の数え方を決める。"
   ]
 }

@@ -47,7 +47,7 @@ Project MVP
 
 | PR | State | Purpose | Next |
 | ---: | --- | --- | --- |
-| #131 | draft | Issue #126 の初期2D投影特徴量解析 | frame / clip 評価を足すか，初期解析PRとしてready化する |
+| #132 | open | プロジェクト roadmap と issue hierarchy 整理 | review gate / CI 通過後に merge |
 
 ## Issue Hierarchy
 
@@ -184,6 +184,6 @@ helical shape が保たれているか
 
 ## Next Three Actions
 
-1. PR #131 を #126 の初期解析PRとしてready化するか，frame / clip評価を追加してからready化するか判断する。
-2. #127 で `source_video` / `track` / `clip` / `frame` のschemaとgroup keyを固定する。
-3. #129 で `0.25 s`, `0.5 s`, `1.0 s` clip の評価計画と独立run数の数え方を決める。
+1. #127 で `source_video` / `track` / `clip` / `frame` のschemaとgroup keyを固定する。
+2. #129 で `0.25 s`, `0.5 s`, `1.0 s` clip の評価計画と独立run数の数え方を決める。
+3. #126 の初期2D投影特徴量解析を受けて，frame由来特徴量で同じ傾向が抽出できるか評価する。
