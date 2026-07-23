@@ -1,0 +1,90 @@
+{
+  "schema_version": "phase3_clip_metadata/v0",
+  "dataset_id": "phase3_v0_smoke",
+  "source_video": {
+    "source_video_id": "v1_as000_ps000_nf01_render_default",
+    "source_kind": "phase2_pseudo",
+    "source_path": "outputs/phase2_multi_run/flagella_count_behavior_v1/replay/as000__ps000__nf01/projection.mp4",
+    "frame_rate_hz": 30.0,
+    "width_px": 256,
+    "height_px": 256,
+    "duration_s": 1.0
+  },
+  "processing_mode": "gt_passthrough",
+  "provenance": {
+    "pipeline_name": "phase3_common_clip",
+    "pipeline_version": "v0",
+    "model_id": "flag_spring2p25_body2p5_candidate",
+    "dataset_version": "v1",
+    "run_id": "as000__ps000__nf01",
+    "render_id": "render_default",
+    "condition_id": "as000__ps000__nf01",
+    "raw_run_dir": "outputs/phase2_multi_run/flagella_count_behavior_v1/as000__ps000__nf01"
+  },
+  "track": {
+    "track_id": "v1_as000_ps000_nf01_track000",
+    "group_key": "phase2:v1:as000__ps000__nf01",
+    "source_track_id": "gt_body",
+    "source_frame_start": 0,
+    "source_frame_end": 29,
+    "t_start_s": 0.0,
+    "t_end_s": 0.9666666667
+  },
+  "clip": {
+    "clip_id": "v1_as000_ps000_nf01_clip000",
+    "clip_index": 0,
+    "window_policy": "full_run",
+    "output_path": "clips/v1_as000_ps000_nf01_clip000.npy",
+    "frame_count": 30,
+    "frame_rate_hz": 30.0,
+    "duration_s": 1.0,
+    "source_frame_start": 0,
+    "source_frame_end": 29,
+    "t_start_s": 0.0,
+    "t_end_s": 0.9666666667
+  },
+  "normalization": {
+    "crop_size_px": [
+      96,
+      96
+    ],
+    "centering_mode": "body_center",
+    "scale_mode": "none",
+    "rotation_mode": "none",
+    "pixel_size_um": null
+  },
+  "frames": [
+    {
+      "frame_id": "v1_as000_ps000_nf01_clip000_f000",
+      "clip_frame_index": 0,
+      "source_frame_index": 0,
+      "t_s": 0.0,
+      "bbox_xywh_px": [
+        110.0,
+        118.0,
+        36.0,
+        20.0
+      ],
+      "crop_xywh_px": [
+        80.0,
+        80.0,
+        96.0,
+        96.0
+      ],
+      "center_xy_px": [
+        128.0,
+        128.0
+      ],
+      "qc_status": "pass"
+    }
+  ],
+  "labels": {
+    "n_flagella": 1,
+    "label_source": "phase2_gt"
+  },
+  "qc": {
+    "status": "pass",
+    "exclusion_reason": null
+  }
+}
+

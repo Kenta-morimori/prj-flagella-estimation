@@ -47,7 +47,7 @@ Project MVP
 
 | PR | State | Purpose | Next |
 | ---: | --- | --- | --- |
-| - | - | 現時点で roadmap 上に固定して追跡する active PR はない | #127 / #129 の順に進める |
+| - | - | 現時点で roadmap 上に固定して追跡する active PR はない | #127 schema 実装後，#129 / #128 の順に進める |
 
 ## Issue Hierarchy
 
@@ -97,11 +97,12 @@ Current baseline:
 
 Recommended order:
 
-1. #127: common clip / metadata schema を固定する。
-2. #129: clip時間長と独立run数を評価する。
-3. #126 の初期2D投影特徴量解析を受け，frame由来特徴量の確認を #127 / #129 に接続する。
-4. #128: augmentation / domain variation / dataset version規則を固定する。
-5. #6: Phase 3 clip pipeline を実装する。
+1. #129: clip時間長と独立run数を評価する。
+2. #126 の初期2D投影特徴量解析を受け，frame由来特徴量の確認を #129 に接続する。
+3. #128: augmentation / domain variation / dataset version規則を固定する。
+4. #6: Phase 3 clip pipeline を実装する。
+
+#127 の common clip / metadata schema は `docs/phase3/phase3_1_clip_metadata_schema.md` と `schemas/phase3_clip_metadata.schema.json` に固定した。PR / merge 完了までは GitHub Issue は open のまま追跡する。
 
 ### Phase 2 Physics Extensions
 
@@ -184,6 +185,6 @@ helical shape が保たれているか
 
 ## Next Three Actions
 
-1. #127 で `source_video` / `track` / `clip` / `frame` のschemaとgroup keyを固定する。
-2. #129 で `0.25 s`, `0.5 s`, `1.0 s` clip の評価計画と独立run数の数え方を決める。
-3. #126 の初期2D投影特徴量解析を受けて，frame由来特徴量で同じ傾向が抽出できるか評価する。
+1. #129 で `0.25 s`, `0.5 s`, `1.0 s` clip の評価計画と独立run数の数え方を決める。
+2. #128 で augmentation / domain variation / dataset version 規則を固定する。
+3. #6 で #127 schema に沿った最小 clip pipeline 実装へ進む。

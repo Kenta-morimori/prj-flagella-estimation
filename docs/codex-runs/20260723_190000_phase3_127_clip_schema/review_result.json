@@ -1,0 +1,50 @@
+{
+  "status": "PASS",
+  "summary": "Issue #127 の範囲で、実動画 detection / tracking 経路と Phase 2 擬似動画 GT passthrough 経路が共通利用する Phase 3 clip / metadata schema を固定した。実AVI初期分析を踏まえ、source video の再現性確認項目と frame-level body geometry / detection confidence / clip-level QC の任意fieldを追加した。Codex review 指摘を受け、GT passthrough / pseudo source の non-null run_id と label_source / n_flagella の整合性も conditional schema で固定した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "GitHub Issue #127 は PR / merge 完了までは open のまま追跡する。",
+    "Phase 3 本体 package 構成、detection / tracking / crop CLI、clip時間長評価、learning curve、dataset混在規則は後続 Issue #6 / #129 / #128 で扱う。",
+    "実AVIの Otsu + connected components 初期確認では小さい黒点や背景ノイズを多く拾ったため、検出器採用判断は #6 へ残す。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_phase3_clip_metadata_schema.py -q",
+      "result": "PASS: 6 passed。schema required field、最小 fixture、実動画 label unavailable 状態、実動画監査用任意field、GT run_id conditional、label_source / n_flagella conditional を確認。"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS: 84 files already formatted。"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS: All checks passed。"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS: 153 passed, 235 deselected。"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS: whitespace errorなし。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_reason": "schema / fixture / docs / lightweight contract test の変更であり、動画品質、物理挙動、dataset採用判断、長時間simulationを含まない。",
+  "user_run_commands": [],
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "Phase 3 入出力schemaのタスク内仕様固定であり、物理モデル、dataset採用境界、長期運用方針を変更していない。",
+  "commit_type": "complete",
+  "commit_hash": "included in the branch commit; see final response",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/142",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/127",
+  "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/6",
+  "next_actions": [
+    "#129 で 0.25 s / 0.5 s / 1.0 s clip の grouped split 評価計画と必要独立run数を決める。",
+    "#128 で augmentation / domain variation / dataset version 規則を固定する。",
+    "#6 で #127 schema に沿った最小 Phase 3 clip pipeline を実装する。"
+  ]
+}
