@@ -38,8 +38,8 @@
   "adr_reason": "Phase 3 入出力schemaのタスク内仕様固定であり、物理モデル、dataset採用境界、長期運用方針を変更していない。",
   "commit_type": "complete",
   "commit_hash": "included in the branch commit; see final response",
-  "push_status": "not_pushed",
-  "pull_request_url": "",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/142",
   "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/127",
   "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/6",
   "next_actions": [
