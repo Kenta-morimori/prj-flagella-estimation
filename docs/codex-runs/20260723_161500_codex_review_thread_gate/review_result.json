@@ -1,0 +1,49 @@
+{
+  "status": "PASS",
+  "summary": "codex-review-gate を、Codex review feedback 後の修正では最新 head 再reviewだけを必須にせず、connector-authored review threads が実在し，すべて resolved または outdated なら pass できるように更新した。APPROVED review を feedback と誤判定しないようにし、運用文書には、修正不要で resolve する場合の理由コメント必須化と、PR 後の動的状態を tracked review_result.json に同期するだけの commit を作らない方針を追記した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    {
+      "command": "git diff --check",
+      "status": "PASS",
+      "notes": "差分に whitespace error がないことを確認。"
+    },
+    {
+      "command": "uv run python -c \"import yaml, pathlib; yaml.safe_load(pathlib.Path('.github/workflows/codex-review-gate.yml').read_text())\"",
+      "status": "PASS",
+      "notes": "codex-review-gate workflow YAML を構文確認。"
+    },
+    {
+      "command": "python3 -m json.tool docs/codex-runs/20260723_161500_codex_review_thread_gate/review_result.json",
+      "status": "PASS",
+      "notes": "完了記録 JSON を構文確認。"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "status": "PASS",
+      "notes": "153 passed, 227 deselected。"
+    },
+    {
+      "command": "Codex review thread PRRT_kwDOQ9ZAzs6TK1pe",
+      "status": "PASS",
+      "notes": "APPROVED review を feedback として扱わず、resolved/outdated パスには connector-authored review thread の実在を要求するよう修正。"
+    },
+    {
+      "command": "Codex review thread PRRT_kwDOQ9ZAzs6TK-rT",
+      "status": "PASS",
+      "notes": "現在 head への非clean review応答では過去の resolved thread による addressed パスを使わず、修正commit後の fallback 評価だけで resolved/outdated パスを使うよう修正。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "既に導入済みの codex-review-gate の判定条件を、ユーザー承認済みの review-once 運用へ小さく調整する変更であり、詳細な方針整理は #140 側の ADR 更新で扱う。",
+  "commit_type": "complete",
+  "commit_hash": "not_applicable",
+  "push_status": "not_applicable",
+  "pull_request_url": "",
+  "next_actions": []
+}

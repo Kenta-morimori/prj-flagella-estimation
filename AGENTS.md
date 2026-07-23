@@ -57,8 +57,9 @@ There is no `prompts/` source of truth in the current repository. Do not recreat
 * Do not add dependencies without explaining why they are necessary.
 * Do not commit secrets, API keys, tokens, private data, or generated credentials.
 * Do not run remote scripts directly, such as `curl ... | sh`, unless explicitly approved by the user.
-* Do not create GitHub issues unless explicitly requested.
-* Do not merge pull requests.
+* GitHub issues may be created when needed to track an accepted task, split follow-up work, or keep Project items structured.
+* Small PRs may be merged by Codex only when `review_result.json` is `PASS`, CI passes, `codex-review-gate` passes, and no user visual review or major design decision is pending.
+* Do not merge PRs that change physical interpretation, dataset adoption, phase boundaries, ML training policy, output contracts, or qualitative acceptance without explicit user approval.
 * When creating a PR for an issue, link the original source issue in the PR body using an issue-closing keyword when the PR is intended to complete it.
 * Target the branch specified by the task or issue. If no target branch is specified, target the repository default branch.
 * Do not mark a task complete without a local `review_result.json` with `"status": "PASS"`.
@@ -95,6 +96,7 @@ Option-style arguments such as `--config`, `--duration-s`, and `--fps-out` remai
 ## Testing And Review
 
 * The default pre-commit hook should stay lightweight: `ruff format --check .`, `ruff check .`, and `pytest -q -m light`.
+* Keep per-commit checks lightweight for development speed. Do heavier self-checks only for the merge-ready final candidate.
 * Do not require full pytest for docs-only, planning-only, or workflow-only changes.
 * Add or update pytest tests when changing physics, geometry, output format, or pipeline behavior.
 * Prefer library-level tests over slow subprocess-based CLI tests.
@@ -102,6 +104,7 @@ Option-style arguments such as `--config`, `--duration-s`, and `--fps-out` remai
 * Do not rely only on manual video inspection.
 * If tests or simulations cannot run, record what was not run, why, and what alternative checks were performed.
 * When changing models, physics, geometry, output schema, manifest, or pipeline behavior, run full pytest or record why it was not run in `review_result.json`.
+* Request Codex Cloud review only for the merge-ready final candidate by default. If it finds issues, batch all actionable fixes, rerun merge-final self-checks, and resolve all current actionable review threads before merge.
 * Do not run long Phase 2 simulation, sweep, or render commands unless the user explicitly asks Codex to execute them. For long runs, provide the exact command, output directory, files to inspect, evaluation points, and checks already passed; treat the long run as user-executed.
 * Completion, review_result schema, commit, push, PR, ADR, and Cloud review details live in `docs/codex/codex_workflow.md`.
 
