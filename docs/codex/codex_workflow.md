@@ -171,13 +171,13 @@ For merge-gated PRs, request review only after the PR is a merge-ready final can
 
 `@codex review <head-short-sha>`
 
-Codex Cloud review は原則1回の final-candidate review とする。指摘が出た場合は actionable thread を一括修正し，対象チェックを再実行してから thread を resolve する。修正不要と判断して resolve する場合は，該当 thread に理由コメントを残す。
+Codex Cloud review は原則1回の final-candidate review とする。指摘が出た場合は actionable thread を一括修正し，対象チェックを再実行してから thread を resolve する。Codex が Codex Cloud feedback に対応した場合，current thread を resolved にするかどうかの判断は Codex が行い，対応済み thread をユーザー判断待ちのまま残してはいけない。修正不要と判断して resolve する場合は，該当 thread に理由コメントを残す。
 
-Codex Cloud feedback 修正後は，修正commitで PR head が変わっても再度 `@codex review <new-head-sha>` を投げない。品質担保は merge-final self-check，CI，thread への理由コメント，thread resolve で行い，merge gate は `codex-review-gate` の再評価で通す。
+Codex Cloud feedback 修正後は，修正commitで PR head が変わっても再度 `@codex review <new-head-sha>` を投げない。品質担保は merge-final self-check，CI，必要な thread への理由コメント，current thread resolve で行い，merge gate は `codex-review-gate` の再評価で通す。
 
 This connector review is a PR review assistant, not the source of truth for task completion. Its `PASS` / `FAIL` verdict does not replace the required local `docs/codex-runs/<run-id>/review_result.json`.
 
-Do not use Cloud review as an iterative lint loop. The normal target is one review request immediately before merge. If Cloud review produces feedback, fetch all unresolved actionable review threads at once, fix them as a batch, rerun merge-final self-checks, and resolve every current actionable thread before merge. If a thread needs no code or doc change, leave the reason in the thread before resolving it. Avoid one-review-per-small-fix cycles.
+Do not use Cloud review as an iterative lint loop. The normal target is one review request immediately before merge. If Cloud review produces feedback, fetch all unresolved actionable review threads at once, fix them as a batch, rerun merge-final self-checks, and resolve every current actionable thread before merge. If a thread needs no code or doc change, leave the reason in the thread before resolving it. Codex should perform this resolve decision itself after addressing feedback; addressed current threads must not be left open merely for user confirmation, because `codex-review-gate` cannot pass while they remain unresolved. Avoid one-review-per-small-fix cycles.
 
 Do not close/reopen a PR to refresh PR head metadata, CI, or Codex gate state. After a normal push, wait for GitHub to sync the PR head. If the gate status is stale after comments or thread resolution, use `workflow_dispatch` for `codex-review-gate.yml` with the PR number, or wait for the scheduled open-PR scan. Close/reopen is reserved only for an explicit user-approved recovery case.
 
