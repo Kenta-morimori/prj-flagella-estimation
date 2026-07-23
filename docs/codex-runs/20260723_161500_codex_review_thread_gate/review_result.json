@@ -28,6 +28,11 @@
       "command": "Codex review thread PRRT_kwDOQ9ZAzs6TK1pe",
       "status": "PASS",
       "notes": "APPROVED review を feedback として扱わず、resolved/outdated パスには connector-authored review thread の実在を要求するよう修正。"
+    },
+    {
+      "command": "Codex review thread PRRT_kwDOQ9ZAzs6TK-rT",
+      "status": "PASS",
+      "notes": "現在 head への非clean review応答では過去の resolved thread による addressed パスを使わず、修正commit後の fallback 評価だけで resolved/outdated パスを使うよう修正。"
     }
   ],
   "user_review_required": false,

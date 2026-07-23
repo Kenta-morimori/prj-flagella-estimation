@@ -278,9 +278,6 @@ jobs:
                   ) {
                     state = "success";
                     description = "Codex PR review completed with PASS.";
-                  } else if (allCurrentCodexThreadsAddressed) {
-                    state = "success";
-                    description = "Codex review feedback addressed; all current threads resolved or outdated.";
                   } else {
                     description = `Codex PR review produced feedback; resolve ${unresolvedCurrentCodexThreads.length} current thread(s).`;
                   }
@@ -289,9 +286,6 @@ jobs:
                   if (hasCleanReviewSignal(latestConnectorComment.body)) {
                     state = "success";
                     description = "Codex review completed with PASS.";
-                  } else if (allCurrentCodexThreadsAddressed) {
-                    state = "success";
-                    description = "Codex review feedback addressed; all current threads resolved or outdated.";
                   } else {
                     description = `Codex review produced feedback; resolve ${unresolvedCurrentCodexThreads.length} current thread(s).`;
                   }
