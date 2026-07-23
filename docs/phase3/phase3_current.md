@@ -17,6 +17,15 @@ Phase 3 は common clip schema の固定を #127 / PR #142 で完了し，clip d
 - #128: 学習datasetへ混ぜてよい条件変更を整理する。
 - #6: 共通clip生成pipelineの実装親Issue。
 
+MVP 固定方針:
+
+- Phase 3 / 4 MVP の標準 clip duration は `0.5 s` とする。`0.25 s` / `1.0 s` は比較条件に残す。
+- torque variation は MVP training baseline に混ぜず，diagnostic / robustness dataset として分離する。
+- Brownian は当面含めない。
+- RUN-TUMBLE は v2 以降で，論文の状態遷移構造を使いつつ短縮 profile を別定義する。
+- render variation は軽い観測 augmentation のみ training に含める。
+- `n_flagella=4` は v1/MVP では diagnostic-only のまま，v2 で再検討する。
+
 ## Input Paths
 
 Phase 2擬似動画:
@@ -47,8 +56,8 @@ dataset splitでは，同一 `run_id` / `source_video_id` / `track_id` 由来の
 
 ## Next Actions
 
-1. #129 の設計に従い，`0.25 s` / `0.5 s` / `1.0 s`，non-overlap / overlap の軽量 fixture と grouped learning curve 実行計画を用意する。
-2. #128 の設計に従い，augmentation / domain variation / dataset version 規則を Phase 4 dataset freeze checklist へ接続する。
+1. #129 の設計に従い，`0.5 s` non-overlap default と，`0.25 s` / `1.0 s` 比較条件の軽量 fixture を実装する。
+2. #128 の設計に従い，torque variation を MVP freeze check で除外し，小範囲 render augmentation と dataset version 規則を Phase 4 dataset freeze checklist へ接続する。
 3. #6 で擬似動画 GT passthrough から最小pipeline実装に入る。実動画 detection / tracking は #8 / #9 の入力条件整理後に本格化する。
 
 ## Key references

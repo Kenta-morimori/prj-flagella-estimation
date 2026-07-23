@@ -5,8 +5,11 @@
 ## Fixed Decisions
 
 - Phase 3 handoff baseline は Phase 2 dataset v1 の RUN固定 `n_flagella=1,2,3` とする。
-- `n_flagella=4` は diagnostic-only とし，`n_flagella>=5` は対象外とする。
-- TUMBLE / Brownian / torque variation / model変更は baseline 外とする。
+- Phase 3 / 4 MVP の標準 clip duration は `0.5 s` とする。`0.25 s` / `1.0 s` は比較条件とする。
+- `n_flagella=4` は v1/MVP では diagnostic-only とし，v2 で再検討する。`n_flagella>=5` は対象外とする。
+- TUMBLE / Brownian / torque variation / model変更は MVP baseline 外とする。
+- RUN-TUMBLE は v2以降の別 dataset とし，論文例の `1200 s` scale ではなく dataset 用短縮 profile を定義する。
+- render variation は軽い観測 augmentation のみ training に含める。
 - 同一 `run_id` / `source_video_id` / `track_id` 由来 clip は train / validation / test をまたがせない。
 
 ## Map

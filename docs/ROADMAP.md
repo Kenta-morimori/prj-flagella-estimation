@@ -81,8 +81,10 @@ Current baseline:
 
 - dataset: `outputs/phase2_analysis/flagella_count_behavior/datasets/v1`
 - training candidate: RUN固定 `n_flagella=1,2,3`
-- diagnostic-only: `n_flagella=4`
+- default clip duration: `0.5 s`
+- diagnostic-only for v1/MVP: `n_flagella=4`; v2 で再検討
 - out of scope for MVP: `n_flagella>=5`, TUMBLE, Brownian, torque variation, model changes
+- v2 candidate: RUN-TUMBLE with a shortened dataset-generation profile, not the paper example `run_tau=1200`, `tumble_tau=800` scale as-is
 
 ### Phase 3 / Phase 4 Handoff
 
@@ -185,6 +187,6 @@ helical shape が保たれているか
 
 ## Next Three Actions
 
-1. #129 の `docs/phase3/phase3_2_clip_duration_run_count.md` に沿って，`0.25 s`, `0.5 s`, `1.0 s` clip の軽量 window / grouped split fixture を実装する。
-2. #128 の `docs/phase3/phase3_3_dataset_mixing_versioning.md` に沿って，Phase 4 dataset freeze checklist と provenance audit を実装へ接続する。
+1. #129 の `docs/phase3/phase3_2_clip_duration_run_count.md` に沿って，`0.5 s` default と `0.25 s` / `1.0 s` 比較用の軽量 window / grouped split fixture を実装する。
+2. #128 の `docs/phase3/phase3_3_dataset_mixing_versioning.md` に沿って，torque variation 除外，軽い render augmentation，Phase 4 dataset freeze checklist と provenance audit を実装へ接続する。
 3. #6 の `docs/phase3/phase3_4_common_clip_pipeline_plan.md` に沿って，#127 schema 対応の最小 GT passthrough pipeline 実装へ進む。

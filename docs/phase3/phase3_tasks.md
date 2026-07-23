@@ -46,6 +46,7 @@
   - #129 の用語，`track.group_key` による grouped split，`0.25 s` / `0.5 s` / `1.0 s` と non-overlap / overlap の評価設計を `docs/phase3/phase3_2_clip_duration_run_count.md` に整理した。
   - #128 の観測augmentation，独立run，domain variation，dataset version変更の分類と，`model_id` / `render_id` / `dataset_version` / `group_key` の扱いを `docs/phase3/phase3_3_dataset_mixing_versioning.md` に整理した。
   - #6 の最小実装を擬似動画 GT passthrough から始める作業分解，入出力，test境界を `docs/phase3/phase3_4_common_clip_pipeline_plan.md` に整理した。
+  - 追加判断として，MVP default clip duration を `0.5 s`，torque variation を diagnostic-only，render variation を軽い augmentation のみ，Brownian を当面対象外，RUN-TUMBLE を v2以降の短縮 profile，`n_flagella=4` をv2再検討対象として固定した。
   - 重い learning curve / pilot clip dataset 実行は未実行とし，draft exact command，出力先，判断ポイントを docs に残した。
 - acceptance criteria:
   - [x] #127 の closed / merged 状態が docs と整合している。
