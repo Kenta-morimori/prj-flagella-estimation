@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "summary": "Phase 3 roadmap housekeeping after #127 / PR #142 merge was completed. Issues #129, #128, and #6 were advanced with docs-only design for clip duration, grouped split leakage prevention, dataset mixing/versioning, and the minimal GT passthrough common clip pipeline boundary.",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "The learning curve and pilot clip dataset commands are draft interfaces because the Phase 3 / Phase 4 CLIs are not implemented yet.",
+    "Final adoption of clip duration, torque/domain variation mixing, Brownian/RUN-TUMBLE inclusion, render variation usage, and n_flagella=4 training status remains user decision territory."
+  ],
+  "tests_reviewed": [
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "Docs-only planning and roadmap housekeeping. No physical model, data format schema, directory architecture, dependency, or testing strategy contract was changed.",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "Implement lightweight Phase 3 window generation and grouped split helpers from docs/phase3/phase3_2_clip_duration_run_count.md.",
+    "Connect dataset mixing rules from docs/phase3/phase3_3_dataset_mixing_versioning.md to a Phase 4 dataset freeze checklist.",
+    "Start #6 with pseudo GT passthrough metadata generation before real-video detection/tracking."
+  ]
+}
