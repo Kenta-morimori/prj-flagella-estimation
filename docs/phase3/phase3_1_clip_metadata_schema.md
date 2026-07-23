@@ -121,7 +121,7 @@ Phase 3 は clip ごとに少なくとも次を記録する。
 - [x] split leakage 防止用の `track.group_key` を必須にする。
 - [x] 実AVI初期分析から，実動画source metadataと検出候補QCに必要な任意fieldを確認する。
 - [x] 実 detector / tracker / crop CLI，clip window評価，dataset mixing判断は #6 / #129 / #128 へ分離する。
-- [ ] PR上で CI / review gate が通ることを確認する。
+- [x] PR #142 で merge 済み。
 
 ## Implementation Boundary
 

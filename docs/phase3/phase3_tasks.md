@@ -30,3 +30,40 @@
   - `docs/phase3/phase3_1_clip_metadata_schema.md`
   - `docs/phase3/phase3_issue_map.md`
 
+## Phase 3.2: clip duration / dataset mixing / pipeline prep
+
+### P3-2-001: Issues #129 / #128 / #6 Phase 3 schema後続設計を整理する
+
+- status: complete
+- source issues:
+  - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/129`
+  - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/128`
+  - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/6`
+- branch: `docs/phase3-roadmap-housekeeping-129-128`
+- goal: #127 / PR #142 merge後の roadmap housekeeping を行い，clip duration，dataset mixing / versioning，最小 common clip pipeline 実装準備を #127 schema と接続する。
+- result:
+  - #127 が closed / merged 済みであり，active PR がないことを `docs/ROADMAP.md`，`docs/phase3/phase3_current.md`，`docs/phase3/phase3_issue_map.md` に反映した。
+  - #129 の用語，`track.group_key` による grouped split，`0.25 s` / `0.5 s` / `1.0 s` と non-overlap / overlap の評価設計を `docs/phase3/phase3_2_clip_duration_run_count.md` に整理した。
+  - #128 の観測augmentation，独立run，domain variation，dataset version変更の分類と，`model_id` / `render_id` / `dataset_version` / `group_key` の扱いを `docs/phase3/phase3_3_dataset_mixing_versioning.md` に整理した。
+  - #6 の最小実装を擬似動画 GT passthrough から始める作業分解，入出力，test境界を `docs/phase3/phase3_4_common_clip_pipeline_plan.md` に整理した。
+  - 追加判断として，MVP default clip duration を `0.5 s`，torque variation を diagnostic-only，render variation を軽い augmentation のみ，Brownian を当面対象外，RUN-TUMBLE を v2以降の短縮 profile，`n_flagella=4` をv2再検討対象として固定した。
+  - 重い learning curve / pilot clip dataset 実行は未実行とし，draft exact command，出力先，判断ポイントを docs に残した。
+- acceptance criteria:
+  - [x] #127 の closed / merged 状態が docs と整合している。
+  - [x] clip duration / source duration / simulation run / track / window の用語が整理されている。
+  - [x] grouped split と leakage 防止規則が #127 schema の `group_key` と接続されている。
+  - [x] `0.25 s` / `0.5 s` / `1.0 s`，non-overlap / overlap の評価設計がある。
+  - [x] augmentation / domain variation / dataset version 規則が #127 schema provenance と接続されている。
+  - [x] #6 の最小 GT passthrough pipeline 実装境界が整理されている。
+- verification:
+  - `git diff --check`
+  - `uv run ruff format --check .`
+  - `uv run ruff check .`
+- docs:
+  - `docs/ROADMAP.md`
+  - `docs/phase3/phase3_current.md`
+  - `docs/phase3/phase3_issue_map.md`
+  - `docs/phase3/phase3_1_clip_metadata_schema.md`
+  - `docs/phase3/phase3_2_clip_duration_run_count.md`
+  - `docs/phase3/phase3_3_dataset_mixing_versioning.md`
+  - `docs/phase3/phase3_4_common_clip_pipeline_plan.md`

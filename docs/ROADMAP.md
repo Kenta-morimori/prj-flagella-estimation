@@ -47,7 +47,7 @@ Project MVP
 
 | PR | State | Purpose | Next |
 | ---: | --- | --- | --- |
-| - | - | 現時点で roadmap 上に固定して追跡する active PR はない | #127 schema 実装後，#129 / #128 の順に進める |
+| - | - | 現時点で roadmap 上に固定して追跡する active PR はない | #129 / #128 の設計を固め，#6 の最小 GT passthrough pipeline へ進める |
 
 ## Issue Hierarchy
 
@@ -81,8 +81,10 @@ Current baseline:
 
 - dataset: `outputs/phase2_analysis/flagella_count_behavior/datasets/v1`
 - training candidate: RUN固定 `n_flagella=1,2,3`
-- diagnostic-only: `n_flagella=4`
+- default clip duration: `0.5 s`
+- diagnostic-only for v1/MVP: `n_flagella=4`; v2 で再検討
 - out of scope for MVP: `n_flagella>=5`, TUMBLE, Brownian, torque variation, model changes
+- v2 candidate: RUN-TUMBLE with a shortened dataset-generation profile, not the paper example `run_tau=1200`, `tumble_tau=800` scale as-is
 
 ### Phase 3 / Phase 4 Handoff
 
@@ -91,7 +93,7 @@ Current baseline:
 | #8 | open | #6 context | 実顕微鏡動画の取得・入力条件 |
 | #9 | open | #6 context | 実顕微鏡像から菌体長さ特徴を分析 |
 | #17 | open | Phase 2→3 context | 実顕微鏡像に合わせた擬似顕微鏡描画条件 |
-| #127 | open | #6 | 実動画・擬似動画の共通clip / metadata schema |
+| #127 | closed | #6 | 実動画・擬似動画の共通clip / metadata schema。PR #142 merged |
 | #128 | open | Phase 2→4 context | 学習datasetへ混ぜてよい条件変更 |
 | #129 | open | Phase 3→4 context | 1 clip時間長と必要な独立run数 |
 
@@ -102,7 +104,7 @@ Recommended order:
 3. #128: augmentation / domain variation / dataset version規則を固定する。
 4. #6: Phase 3 clip pipeline を実装する。
 
-#127 の common clip / metadata schema は `docs/phase3/phase3_1_clip_metadata_schema.md` と `schemas/phase3_clip_metadata.schema.json` に固定した。PR / merge 完了までは GitHub Issue は open のまま追跡する。
+#127 の common clip / metadata schema は `docs/phase3/phase3_1_clip_metadata_schema.md` と `schemas/phase3_clip_metadata.schema.json` に固定し，PR #142 で merge 済み。次は #129 / #128 の設計と #6 の最小 GT passthrough pipeline 実装準備を進める。
 
 ### Phase 2 Physics Extensions
 
@@ -185,6 +187,6 @@ helical shape が保たれているか
 
 ## Next Three Actions
 
-1. #129 で `0.25 s`, `0.5 s`, `1.0 s` clip の評価計画と独立run数の数え方を決める。
-2. #128 で augmentation / domain variation / dataset version 規則を固定する。
-3. #6 で #127 schema に沿った最小 clip pipeline 実装へ進む。
+1. #129 の `docs/phase3/phase3_2_clip_duration_run_count.md` に沿って，`0.5 s` default と `0.25 s` / `1.0 s` 比較用の軽量 window / grouped split fixture を実装する。
+2. #128 の `docs/phase3/phase3_3_dataset_mixing_versioning.md` に沿って，torque variation 除外，軽い render augmentation，Phase 4 dataset freeze checklist と provenance audit を実装へ接続する。
+3. #6 の `docs/phase3/phase3_4_common_clip_pipeline_plan.md` に沿って，#127 schema 対応の最小 GT passthrough pipeline 実装へ進む。

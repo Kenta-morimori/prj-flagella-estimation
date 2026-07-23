@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "summary": "The Phase 3 / 4 dataset decision plan was implemented as docs-only updates. The MVP default clip duration is fixed at 0.5 s; torque variation remains diagnostic/robustness only; Brownian is excluded for now; RUN-TUMBLE is deferred to v2+ with a shortened dataset-generation profile; light render variation is allowed as training augmentation; and n_flagella=4 stays diagnostic-only for v1/MVP with v2 reconsideration.",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "The exact shortened RUN-TUMBLE v2 profile values remain intentionally undecided until Issue #69 implementation and validation.",
+    "The numeric range for light render augmentation remains dependent on Issue #8 and Issue #17 real-video/render-condition work."
+  ],
+  "tests_reviewed": [
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "Docs-only dataset planning decisions. No schema, implementation behavior, physical model, dependency, or output contract was changed. The user made the dataset-policy decisions in the 2026-07-23 conversation before implementation, so no additional visual or experimental user review is required for this docs update.",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/143",
+  "next_actions": [
+    "Implement Phase 3 window generation with 0.5 s non-overlap as the default and 0.25 s / 1.0 s comparison support.",
+    "Add an MVP dataset freeze check that rejects torque variation, RUN-TUMBLE, and Brownian from the v1 training baseline.",
+    "Define the shortened RUN-TUMBLE v2 profile after Issue #69 implementation work."
+  ]
+}
