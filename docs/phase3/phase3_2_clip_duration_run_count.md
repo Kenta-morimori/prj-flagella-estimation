@@ -64,10 +64,10 @@ real:<source_video_id>:<track_id>
 | policy | stride | purpose | independent count |
 | --- | --- | --- | --- |
 | `non_overlap` | `clip_duration_s` | 評価の基本。track 内相関を抑えた window 切り出し | 追加しない |
-| `overlap_50pct` | `clip_duration_s / 2` | inference-time の頑健性や反復観測として比較 | 追加しない |
+| `overlap` | `clip_duration_s / 2` for the initial comparison | inference-time の頑健性や反復観測として比較 | 追加しない |
 | `full_run` | source 全体 | 後方互換 smoke / 1.0 s baseline | 追加しない |
 
-overlap window は，情報量や安定性の比較には使えるが，learning curve の x 軸には足さない。learning curve の x 軸は `n_flagella` ごとの unique `group_key` 数にする。
+overlap window は，情報量や安定性の比較には使えるが，learning curve の x 軸には足さない。metadata の `clip.window_policy` は #127 schema に合わせて `overlap` とし，50% stride は config / manifest 側の window stride 設定で表す。learning curve の x 軸は `n_flagella` ごとの unique `group_key` 数にする。
 
 ## Initial Evaluation Matrix
 
@@ -106,14 +106,15 @@ Exact command draft:
 uv run python scripts/03_phase3/build_clip_dataset.py \
   config=conf/phase3/clip_duration_pilot.yaml \
   input_dataset=outputs/phase2_analysis/flagella_count_behavior/datasets/v1 \
-  output_dir=outputs/2026-07-23/phase3_clip_duration_pilot \
+  output_dir=outputs/YYYY-MM-DD/HHMMSS/phase3_clip_duration_pilot \
   clip_durations_s='[0.25,0.5,1.0]' \
-  window_policies='[non_overlap,overlap_50pct]' \
+  window_policies='[non_overlap,overlap]' \
+  window.overlap_stride_fraction=0.5 \
   split.group_key_field=track.group_key
 
 uv run python scripts/04_train_flagella_count/evaluate_learning_curve.py \
-  dataset_dir=outputs/2026-07-23/phase3_clip_duration_pilot \
-  output_dir=outputs/2026-07-23/phase4_grouped_learning_curve_clip_duration \
+  dataset_dir=outputs/YYYY-MM-DD/HHMMSS/phase3_clip_duration_pilot \
+  output_dir=outputs/YYYY-MM-DD/HHMMSS/phase4_grouped_learning_curve_clip_duration \
   group_key_field=track.group_key \
   class_field=labels.n_flagella
 ```
@@ -121,13 +122,13 @@ uv run python scripts/04_train_flagella_count/evaluate_learning_curve.py \
 Expected output files:
 
 ```text
-outputs/2026-07-23/phase3_clip_duration_pilot/manifest.json
-outputs/2026-07-23/phase3_clip_duration_pilot/clip_metadata.jsonl
-outputs/2026-07-23/phase3_clip_duration_pilot/split_summary.csv
-outputs/2026-07-23/phase4_grouped_learning_curve_clip_duration/learning_curve.csv
-outputs/2026-07-23/phase4_grouped_learning_curve_clip_duration/metrics_by_duration.csv
-outputs/2026-07-23/phase4_grouped_learning_curve_clip_duration/confusion_by_duration.csv
-outputs/2026-07-23/phase4_grouped_learning_curve_clip_duration/manifest.json
+outputs/YYYY-MM-DD/HHMMSS/phase3_clip_duration_pilot/manifest.json
+outputs/YYYY-MM-DD/HHMMSS/phase3_clip_duration_pilot/clip_metadata.jsonl
+outputs/YYYY-MM-DD/HHMMSS/phase3_clip_duration_pilot/split_summary.csv
+outputs/YYYY-MM-DD/HHMMSS/phase4_grouped_learning_curve_clip_duration/learning_curve.csv
+outputs/YYYY-MM-DD/HHMMSS/phase4_grouped_learning_curve_clip_duration/metrics_by_duration.csv
+outputs/YYYY-MM-DD/HHMMSS/phase4_grouped_learning_curve_clip_duration/confusion_by_duration.csv
+outputs/YYYY-MM-DD/HHMMSS/phase4_grouped_learning_curve_clip_duration/manifest.json
 ```
 
 Decision points:

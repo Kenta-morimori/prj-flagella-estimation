@@ -19,6 +19,8 @@
 
 ## Fixed Decisions
 
+この節は 2026-07-23 のユーザー判断に基づく。
+
 - MVP training baseline は Phase 2 dataset v1 の RUN固定 `n_flagella=1,2,3` を維持する。
 - torque variation は MVP training baseline に混ぜず，diagnostic / robustness dataset として分離する。
 - Brownian は当面含めない。現時点では `n_flagella=0` や thermal fluctuation の検証に効く条件であり，MVP の `n_flagella=1,2,3` 範囲外とする。

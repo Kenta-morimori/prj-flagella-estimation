@@ -113,7 +113,7 @@ Exact command draft:
 uv run python scripts/03_phase3/build_clip_dataset.py \
   config=conf/phase3/gt_passthrough_v1.yaml \
   input_dataset=outputs/phase2_analysis/flagella_count_behavior/datasets/v1 \
-  output_dir=outputs/2026-07-23/phase3_gt_passthrough_v1 \
+  output_dir=outputs/YYYY-MM-DD/HHMMSS/phase3_gt_passthrough_v1 \
   clip.duration_s=0.5 \
   clip.window_policy=non_overlap
 ```
@@ -121,12 +121,12 @@ uv run python scripts/03_phase3/build_clip_dataset.py \
 Expected outputs:
 
 ```text
-outputs/2026-07-23/phase3_gt_passthrough_v1/run.log
-outputs/2026-07-23/phase3_gt_passthrough_v1/manifest.json
-outputs/2026-07-23/phase3_gt_passthrough_v1/clip_metadata.jsonl
-outputs/2026-07-23/phase3_gt_passthrough_v1/split_summary.csv
-outputs/2026-07-23/phase3_gt_passthrough_v1/qc_summary.csv
-outputs/2026-07-23/phase3_gt_passthrough_v1/clips/
+outputs/YYYY-MM-DD/HHMMSS/phase3_gt_passthrough_v1/run.log
+outputs/YYYY-MM-DD/HHMMSS/phase3_gt_passthrough_v1/manifest.json
+outputs/YYYY-MM-DD/HHMMSS/phase3_gt_passthrough_v1/clip_metadata.jsonl
+outputs/YYYY-MM-DD/HHMMSS/phase3_gt_passthrough_v1/split_summary.csv
+outputs/YYYY-MM-DD/HHMMSS/phase3_gt_passthrough_v1/qc_summary.csv
+outputs/YYYY-MM-DD/HHMMSS/phase3_gt_passthrough_v1/clips/
 ```
 
 Decision points:

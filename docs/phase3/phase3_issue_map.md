@@ -4,6 +4,8 @@
 
 ## Fixed Decisions
 
+2026-07-23 のユーザー判断に基づき，次を固定する。
+
 - Phase 3 handoff baseline は Phase 2 dataset v1 の RUN固定 `n_flagella=1,2,3` とする。
 - Phase 3 / 4 MVP の標準 clip duration は `0.5 s` とする。`0.25 s` / `1.0 s` は比較条件とする。
 - `n_flagella=4` は v1/MVP では diagnostic-only とし，v2 で再検討する。`n_flagella>=5` は対象外とする。

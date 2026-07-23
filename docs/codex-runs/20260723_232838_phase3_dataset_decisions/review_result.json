@@ -25,7 +25,7 @@
   "user_review_outputs": [],
   "user_review_points": [],
   "adr_required": false,
-  "adr_reason": "Docs-only dataset planning decisions. No schema, implementation behavior, physical model, dependency, or output contract was changed.",
+  "adr_reason": "Docs-only dataset planning decisions. No schema, implementation behavior, physical model, dependency, or output contract was changed. The user made the dataset-policy decisions in the 2026-07-23 conversation before implementation, so no additional visual or experimental user review is required for this docs update.",
   "commit_type": "complete",
   "commit_hash": null,
   "push_status": "not_pushed",

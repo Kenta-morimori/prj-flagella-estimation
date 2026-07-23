@@ -17,7 +17,7 @@ Phase 3 は common clip schema の固定を #127 / PR #142 で完了し，clip d
 - #128: 学習datasetへ混ぜてよい条件変更を整理する。
 - #6: 共通clip生成pipelineの実装親Issue。
 
-MVP 固定方針:
+MVP 固定方針（2026-07-23 のユーザー判断に基づく）:
 
 - Phase 3 / 4 MVP の標準 clip duration は `0.5 s` とする。`0.25 s` / `1.0 s` は比較条件に残す。
 - torque variation は MVP training baseline に混ぜず，diagnostic / robustness dataset として分離する。
