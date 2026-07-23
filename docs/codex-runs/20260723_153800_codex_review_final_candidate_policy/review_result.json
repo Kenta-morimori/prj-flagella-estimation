@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "summary": "通常commitでは軽量pre-commitを維持し，merge直前のfinal candidateだけセルフチェックを厚くする運用を文書化した。Codex Cloud reviewはfinal candidateで原則1回だけ要求し，指摘が出た場合は全actionable threadを一括修正し，merge-final self-check 後に全 current actionable thread を resolve する方針へ整理した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "codex-review-gate workflow の判定ロジック自体は #141 で最小変更として先に扱う。",
+    "Cloud reviewが実際に問題を検出した場合は，品質優先で修正，理由コメント，thread resolve を完了してからmergeする。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "git diff --check",
+      "result": "PASS: whitespace errorなし。"
+    },
+    {
+      "command": "rg -n \"Merge-final|final candidate|軽量|lightweight|resolve|一括|Cloud review\" AGENTS.md docs/codex/codex_workflow.md .github/PULL_REQUEST_TEMPLATE.md docs/adr/0008_codex_review_gate_and_merge_policy.md",
+      "result": "PASS: 軽量commit維持，merge-final self-check，final candidate review，thread resolve 運用の文言が反映済み。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": true,
+  "adr_reason": "Codex review gate と merge policy の既存判断を補足するため，新規ADRではなく ADR 0008 を更新した。",
+  "commit_type": "complete",
+  "commit_hash": "not_applicable",
+  "push_status": "not_applicable",
+  "pull_request_url": "",
+  "next_actions": []
+}
