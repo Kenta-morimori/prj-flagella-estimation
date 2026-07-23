@@ -4,7 +4,7 @@
 
 ## Summary
 
-Issue #126 では，Phase 2 dataset v1 の RUN 固定 `n_flagella=1,2,3` について，3Dで見えていた本数差がXY投影後の運動特徴量にも残るかを初期確認した。
+Issue #126 では，Phase 2 dataset v1 の RUN 固定 `n_flagella=1,2,3` について，3Dで見えていた本数差が2D投影後の運動特徴量にも残るかを初期確認した。
 
 - source dataset: `outputs/phase2_analysis/flagella_count_behavior/datasets/v1`
 - target samples: `use_for_ml_candidate=True` かつ `n_flagella=1,2,3`
@@ -30,7 +30,7 @@ uv run python scripts/02_phase2_analysis/analyze_2d_separability.py \
 
 ## Feature Scope
 
-初期実装では，2D動画そのものの画像特徴ではなく，`trajectory.csv` からXY投影で観測できる運動特徴量を抽出する。
+初期実装では，2D動画そのものの画像特徴ではなく，`trajectory.csv` から2D投影で観測できる運動特徴量を抽出する。dataset v1 の2D rendererは `render.center_body_in_2d=true` で各frameを body center に合わせるため，body center の raw XY translation は `projection.mp4` では見えない。したがって baseline では renderer camera frame に合わせ，body center translation 由来の特徴量はゼロとして扱い，body axis のXY投影角度特徴を主な情報として使う。
 
 - `xy_displacement_um`
 - `xy_path_length_um`
@@ -51,30 +51,38 @@ uv run python scripts/02_phase2_analysis/analyze_2d_separability.py \
 
 ## Initial Result
 
-`n_flagella=1,2,3` の27 sampleでは，grouped nearest-centroid baseline の accuracy は `26/27 = 0.963` だった。
+`n_flagella=1,2,3` の27 sampleでは，renderer camera frame に合わせた grouped nearest-centroid baseline の accuracy は `19/27 = 0.704` だった。
 
-唯一の誤分類:
+誤分類:
 
 | sample_id | actual | predicted |
 | --- | ---: | ---: |
-| `nf02_as001_ps002` | 2 | 3 |
+| `nf01_as001_ps000` | 1 | 2 |
+| `nf02_as001_ps000` | 2 | 1 |
+| `nf03_as001_ps000` | 3 | 2 |
+| `nf01_as001_ps001` | 1 | 2 |
+| `nf02_as001_ps002` | 2 | 1 |
+| `nf03_as001_ps002` | 3 | 2 |
+| `nf02_as002_ps000` | 2 | 1 |
+| `nf02_as002_ps002` | 2 | 1 |
 
 主な2D特徴量の平均:
 
 | feature | n=1 | n=2 | n=3 |
 | --- | ---: | ---: | ---: |
-| `xy_displacement_um` | 0.1507 | 0.2550 | 0.3381 |
-| `xy_path_length_um` | 0.4660 | 1.7896 | 2.8266 |
-| `xy_mean_speed_um_s` | 0.1507 | 0.2550 | 0.3381 |
-| `xy_straightness` | 0.3259 | 0.1390 | 0.1288 |
+| `xy_displacement_um` | 0.0000 | 0.0000 | 0.0000 |
+| `xy_path_length_um` | 0.0000 | 0.0000 | 0.0000 |
+| `xy_mean_speed_um_s` | 0.0000 | 0.0000 | 0.0000 |
+| `xy_body_axis_angle_std_deg` | 9.7087 | 13.2245 | 13.0673 |
+| `xy_body_axis_angular_velocity_rms_rad_s` | 0.9550 | 1.7708 | 5.2037 |
 
-この初期結果では，XY投影後も `n_flagella` による運動分布差は残っている。ただし，まだ `trajectory.csv` ベースの幾何特徴であり，実際の2D pseudo-microscopy frameから抽出できる画像特徴や短いclip窓での識別性は未評価である。
+この初期結果では，body center を固定した2D camera frameでも body axis の向き変化には `n_flagella` による差が一部残る。ただし raw translation を除くと識別性は `26/27` から `19/27` へ下がるため，実際の2D pseudo-microscopy frameから抽出できる画像特徴や短いclip窓での識別性を #127 / #129 で評価する必要がある。
 
 ## Observation Scale
 
 今回の解析単位は dataset v1 の各 raw condition 全体であり，source run duration は `1.0 s` である。同一 run 由来の frame / clip は独立sampleとして数えず，`attach_seed` / `phase_seed` の組を group として扱う。
 
-Issue #126 の完了判断は「1.0 s run 全体のXY投影特徴量で本数差が残るか」の初期確認までとする。Phase 4 の入力clip長は別設計値であり，`0.25 s` / `0.5 s` / `1.0 s` の短時間窓比較と必要な独立run数は #129 へ引き渡す。
+Issue #126 の完了判断は「1.0 s run 全体の body-centered 2D camera frame で，本数差が初期特徴量にどの程度残るか」の確認までとする。Phase 4 の入力clip長は別設計値であり，`0.25 s` / `0.5 s` / `1.0 s` の短時間窓比較と必要な独立run数は #129 へ引き渡す。
 
 ## Handoff
 

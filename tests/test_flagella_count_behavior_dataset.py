@@ -174,6 +174,7 @@ def _write_toy_trajectory(path: Path, *, speed_um_s: float) -> None:
         writer.writeheader()
         for idx in range(5):
             t_s = idx * 0.25
+            angle_rad = speed_um_s * t_s
             writer.writerow(
                 {
                     "t": t_s,
@@ -182,8 +183,8 @@ def _write_toy_trajectory(path: Path, *, speed_um_s: float) -> None:
                     "z": 0.0,
                     "qx": 0.0,
                     "qy": 0.0,
-                    "qz": 0.0,
-                    "qw": 1.0,
+                    "qz": math.sin(angle_rad / 2.0),
+                    "qw": math.cos(angle_rad / 2.0),
                     "vx": speed_um_s,
                     "vy": 0.4,
                     "vz": 0.0,
@@ -249,7 +250,8 @@ def test_analyze_2d_separability_writes_features_and_grouped_baseline(
     manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
     assert len(features) == 12
     assert len(baseline) == 12
-    assert float(features[0]["xy_mean_speed_um_s"]) > 0.0
+    assert float(features[0]["xy_mean_speed_um_s"]) == pytest.approx(0.0)
+    assert float(features[0]["xy_body_axis_angular_velocity_rms_rad_s"]) > 0.0
     assert all(row["correct"] == "True" for row in baseline)
     assert manifest["sample_count"] == 12
     assert manifest["grouped_nearest_centroid_accuracy"] == pytest.approx(1.0)

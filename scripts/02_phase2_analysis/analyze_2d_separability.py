@@ -136,8 +136,11 @@ def summarize_trajectory_2d(trajectory_csv: Path) -> dict[str, float | int]:
         }
 
     t = t[valid]
-    x = x[valid]
-    y = y[valid]
+    # The v1 2D renderer centers each frame on the body.  Body-center
+    # translation is therefore absent from projection.mp4, so evaluate body
+    # motion features in that camera frame instead of raw world XY.
+    x = np.zeros_like(x[valid])
+    y = np.zeros_like(y[valid])
     dx = np.diff(x)
     dy = np.diff(y)
     dt = np.diff(t)
@@ -151,7 +154,6 @@ def summarize_trajectory_2d(trajectory_csv: Path) -> dict[str, float | int]:
     )
     path_length = float(np.nansum(segment))
     displacement = float(math.hypot(float(x[-1] - x[0]), float(y[-1] - y[0])))
-    duration = float(t[-1] - t[0])
 
     q_valid = valid
     angle = np.asarray(
@@ -191,9 +193,7 @@ def summarize_trajectory_2d(trajectory_csv: Path) -> dict[str, float | int]:
         "trajectory_step_count": len(rows),
         "xy_displacement_um": displacement,
         "xy_path_length_um": path_length,
-        "xy_mean_speed_um_s": displacement / duration
-        if duration > 0.0
-        else float("nan"),
+        "xy_mean_speed_um_s": speed_mean,
         "xy_speed_std_um_s": speed_std,
         "xy_speed_cv": speed_std / speed_mean
         if math.isfinite(speed_std) and abs(speed_mean) > 1.0e-30
@@ -229,11 +229,20 @@ def _group_id(row: dict[str, Any]) -> str:
 
 
 def _standardize(train: np.ndarray, test: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    mean = np.nanmean(train, axis=0)
-    std = np.nanstd(train, axis=0, ddof=0)
-    std[~np.isfinite(std) | (std <= 0.0)] = 1.0
-    mean[~np.isfinite(mean)] = 0.0
-    return (train - mean) / std, (test - mean) / std
+    mean = np.zeros(train.shape[1], dtype=float)
+    std = np.ones(train.shape[1], dtype=float)
+    for col_idx in range(train.shape[1]):
+        finite = _finite(train[:, col_idx])
+        if finite.size:
+            mean[col_idx] = float(np.mean(finite))
+            raw_std = float(np.std(finite, ddof=0))
+            if math.isfinite(raw_std) and raw_std > 0.0:
+                std[col_idx] = raw_std
+    train_out = (train - mean) / std
+    test_out = (test - mean) / std
+    train_out[~np.isfinite(train_out)] = 0.0
+    test_out[~np.isfinite(test_out)] = 0.0
+    return train_out, test_out
 
 
 def grouped_nearest_centroid(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -259,7 +268,7 @@ def grouped_nearest_centroid(rows: list[dict[str, Any]]) -> list[dict[str, Any]]
         train_x, test_x = _standardize(train_x, test_x)
         labels = sorted({int(float(row["n_flagella"])) for row in train_rows})
         centroids = {
-            label: np.nanmean(
+            label: np.mean(
                 train_x[
                     np.asarray(
                         [int(float(row["n_flagella"])) == label for row in train_rows]
