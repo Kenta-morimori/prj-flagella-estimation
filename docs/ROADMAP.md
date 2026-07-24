@@ -47,7 +47,7 @@ Project MVP
 
 | PR | State | Purpose | Next |
 | ---: | --- | --- | --- |
-| #149 | draft | #148 Phase 4 baseline classifier | Cloud review / CI後にmergeし，#129 grouped learning curveへ進む |
+| #151 | draft | #150 grouped learning curve evaluator | Cloud review / CI後にmergeし，#128 freeze gateへ進む |
 
 ## Issue Hierarchy
 
@@ -97,17 +97,18 @@ Current baseline:
 | #128 | open | Phase 2→4 context | 学習datasetへ混ぜてよい条件変更 |
 | #129 | open | Phase 3→4 context | 1 clip時間長と必要な独立run数 |
 | #146 | closed | #133 | Phase 3 common clip dataset loader smoke test。PR #147 merged |
-| #148 | open | #133 | common clip baseline classifier |
+| #148 | closed | #133 | common clip baseline classifier。PR #149 merged |
+| #150 | open | #133 | grouped learning curve evaluator |
 | #145 | open | #133 | RUN-TUMBLE dataset v2。Project Status TODO / 後回し |
 
 Recommended order:
 
-1. #148: Phase 4 baseline classifierで最小学習・metrics・artifact導線を固定する。
-2. #129: grouped learning curve CLIを実装し，必要独立run数を評価する。
-3. #128: augmentation / domain variation / dataset version規則を Phase 4 freeze gate へ接続する。
+1. #150: grouped learning curve evaluatorを固定し，全27 v1 candidateの診断結果を #129 へ渡す。
+2. #128: augmentation / domain variation / dataset version規則を Phase 4 freeze gate へ接続する。
+3. #129: `k=4`をMVP下限として採択するか，protected評価用run追加後に決める。
 4. #145: RUN-TUMBLE dataset v2はProject `TODO`のままMVP後へ残す。
 
-#127 の common clip / metadata schema は `docs/phase3/phase3_1_clip_metadata_schema.md` と `schemas/phase3_clip_metadata.schema.json` に固定し，PR #142 で merge 済み。#6 の最小 GT passthrough pipeline は PR #144，#146 loader smoke testはPR #147でmerge済み。現在は #148 baseline classifierを進める。
+#127 common clip schemaはPR #142，#6 GT passthroughはPR #144，#146 loader smokeはPR #147，#148 baseline classifierはPR #149でmerge済み。現在は #150 grouped learning curve evaluatorを進める。
 
 ### Phase 2 Physics Extensions
 
@@ -190,6 +191,6 @@ helical shape が保たれているか
 
 ## Next Three Actions
 
-1. #148 の Phase 4 baseline classifierをreview / mergeする。
-2. #129 grouped learning curveの実行可能CLIとartifact contractを実装する。
-3. #128 dataset freeze checklistをmachine-readable audit gateへ接続する。
+1. #150 grouped learning curve evaluatorをreview / mergeする。
+2. #128 dataset freeze checklistをmachine-readable audit gateへ接続する。
+3. #129のMVP必要run数判断を記録する。

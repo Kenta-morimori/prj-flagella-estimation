@@ -1,0 +1,14 @@
+dataset_dir:
+output_dir:
+seed: 0
+freeze:
+  allowed_n_flagella: [1, 2, 3]
+  dataset_version: v1
+  clip_duration_s: 0.5
+  window_policy: non_overlap
+learning_curve:
+  development_splits: [train, val]
+  protected_split: test
+  holdout_groups_per_class: 2
+  train_groups_per_class: []
+  repeats: 20

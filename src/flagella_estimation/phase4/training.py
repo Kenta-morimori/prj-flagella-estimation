@@ -87,7 +87,7 @@ def train_baseline_classifier(cfg: Phase4BaselineConfig) -> Path:
     )
     samples = load_phase3_common_clip_dataset(cfg.dataset_dir)
     audit = audit_phase4_clip_dataset(samples)
-    _validate_frozen_dataset(samples, source_manifest, cfg)
+    validate_frozen_dataset(samples, source_manifest, cfg)
     cfg.output_dir.mkdir(parents=True, exist_ok=True)
 
     features = np.stack(
@@ -133,7 +133,7 @@ def train_baseline_classifier(cfg: Phase4BaselineConfig) -> Path:
     return cfg.output_dir
 
 
-def _validate_frozen_dataset(
+def validate_frozen_dataset(
     samples: list[Phase4ClipSample],
     source_manifest: dict[str, Any],
     cfg: Phase4BaselineConfig,

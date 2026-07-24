@@ -1,0 +1,59 @@
+{
+  "status": "PASS",
+  "summary": "Implemented Issue #150 as a deterministic grouped learning curve evaluator for the Phase 4 diagnostic baseline. Clips from the same track.group_key are averaged into one independent group feature. The evaluator creates class-balanced, disjoint train and holdout partitions inside the train+val development pool, leaves the Phase 3 test split protected, records group-level metrics and class recall, and writes repeat-level curves, summaries, confusion data, manifest, and run log. The lightweight full-candidate run evaluated all 27 accepted v1 groups without additional simulation.",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "The current pseudo v1 diagnostic baseline reaches a macro-F1 plateau at four training groups per class, but this does not establish a general run-count requirement.",
+    "The protected test split has only one group per class and was not used by the learning curve. Issue #129 must decide whether to adopt k=4 as an MVP lower bound or generate additional protected evaluation runs.",
+    "Real-video track-count requirements remain separate because no real-video labels or domain-generalization evaluation were used."
+  ],
+  "tests_reviewed": [
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS (105 files)"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase4_learning_curve.py tests/test_phase4_baseline_classifier.py tests/test_phase4_clip_dataset_loader.py",
+      "result": "PASS (13 passed)"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS (408 passed)"
+    },
+    {
+      "command": "Codex Cloud review feedback",
+      "result": "PASS (reused the Phase 4 baseline freeze validator, exposed the v1 freeze in grouped learning curve config, and added a v2 rejection regression test)"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1.yaml input_dataset=outputs/phase2_analysis/flagella_count_behavior/datasets/v1 output_dir=outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates filters.max_per_class=null clip.duration_s=0.5 clip.window_policy=non_overlap",
+      "result": "PASS (27 independent groups, 54 clips)"
+    },
+    {
+      "command": "uv run python scripts/04_phase4/evaluate_learning_curve.py config=conf/phase4/grouped_learning_curve_v1.yaml dataset_dir=outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates output_dir=outputs/2026-07-24/144032/phase4_grouped_learning_curve_full_candidates learning_curve.repeats=100",
+      "result": "PASS (k=1..6, 100 grouped partitions per k)"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "This evaluator follows the accepted group_key split policy and existing diagnostic baseline. It adds no dependency, does not change the physical model or dataset schema, and does not make the final independent-run-count adoption decision.",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "Review and merge Issue #150, then connect the machine-readable dataset freeze gate to Issue #128.",
+    "Decide in Issue #129 whether k=4 is accepted as the pseudo-v1 MVP training lower bound or whether additional protected evaluation groups are required.",
+    "Keep RUN-TUMBLE dataset v2 deferred in Issue #145 with Project Status TODO."
+  ]
+}
