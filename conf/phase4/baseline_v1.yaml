@@ -1,0 +1,8 @@
+dataset_dir:
+output_dir:
+seed: 0
+freeze:
+  allowed_n_flagella: [1, 2, 3]
+  dataset_version: v1
+  clip_duration_s: 0.5
+  window_policy: non_overlap

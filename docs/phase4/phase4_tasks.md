@@ -27,3 +27,30 @@
 - docs:
   - `docs/phase4/phase4_current.md`
   - `docs/phase4/phase4_tasks.md`
+
+## Phase 4.2: diagnostic baseline
+
+### P4-2-001: Issue #148 common clip baseline classifier
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/148`
+- branch: `feature/phase4-148-baseline-classifier`
+- goal: Phase 3 common clip datasetを入力に，既存 grouped splitを維持した最小baseline学習・評価導線を実装する。
+- result:
+  - 時空間統計特徴量と standardization付き nearest-centroid classifierを `src/flagella_estimation/phase4/` に追加した。
+  - `dataset v1`, `n_flagella=1,2,3`, `0.5 s`, `non_overlap`, `qc.status=pass` のfreeze条件を検査する。
+  - `model.npz`, `metrics.json`, `predictions.csv`, `confusion_matrix.csv`, `manifest.json`, `run.log` を保存する。
+  - 実pilot 18 clips / 9 groupsでCLI smokeを実行し，train / validation / testのartifactを確認した。
+  - baseline性能は診断値であり，最終モデル採択や必要独立run数決定には使わない。
+- acceptance criteria:
+  - [x] Phase 3 common clip datasetからbaselineを学習・評価できる。
+  - [x] Phase 3の `group_key` splitを再分割せず維持する。
+  - [x] metrics，predictions，confusion matrix，model，manifestを保存する。
+  - [x] dataset freeze外のversionを拒否する。
+  - [x] library-level testsと実pilot CLI smokeがPASSする。
+- verification:
+  - `uv run pytest -q tests/test_phase4_baseline_classifier.py tests/test_phase4_clip_dataset_loader.py`
+  - `uv run python scripts/04_phase4/train_baseline_classifier.py config=conf/phase4/baseline_v1.yaml dataset_dir=outputs/2026-07-24/001500/phase3_gt_passthrough_v1 output_dir=outputs/2026-07-24/142055/phase4_baseline_v1`
+- docs:
+  - `docs/phase4/phase4_current.md`
+  - `docs/phase4/phase4_tasks.md`
