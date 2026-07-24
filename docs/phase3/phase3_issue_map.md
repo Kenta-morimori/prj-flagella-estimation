@@ -30,9 +30,9 @@ Phase 3 / 4 MVP
 | order | issue | state | purpose | deliverable |
 | ---: | --- | --- | --- | --- |
 | 1 | #127 | closed; PR #142 merged | 実動画・擬似動画の共通 clip / metadata schema を固定する | `docs/phase3/phase3_1_clip_metadata_schema.md`, `schemas/phase3_clip_metadata.schema.json`, 最小 fixture |
-| 2 | #129 | in design | clip時間長と必要独立run数を評価する | `docs/phase3/phase3_2_clip_duration_run_count.md`，grouped split 評価計画，learning curve 実行案 |
-| 3 | #128 | implementation complete | 学習datasetへ混ぜてよい条件変更を分類する | `docs/phase3/phase3_3_dataset_mixing_versioning.md`，Phase 4 machine-readable freeze gate |
-| 4 | #6 | first implementation | Phase 3 pipeline を実装する | Phase 2 pseudo GT passthrough CLI，`.npy` clip，#127 metadata JSONL，grouped split / QC summaries |
+| 2 | #129 | decision ready | `0.5 s`決定済み。pseudo-v1必要独立run数の採用範囲を決める | `docs/phase3/phase3_2_clip_duration_run_count.md`，#150 grouped learning curve |
+| 3 | #128 | closed; PR #152 merged | 学習datasetへ混ぜてよい条件変更を分類する | `docs/phase3/phase3_3_dataset_mixing_versioning.md`，Phase 4 machine-readable freeze gate |
+| 4 | #6 | GT passthrough implemented | Phase 3 pipeline を実装する | Phase 2 pseudo GT passthrough CLI，`.npy` clip，#127 metadata JSONL，grouped split / QC summaries |
 
 ## Supporting Issues
 
