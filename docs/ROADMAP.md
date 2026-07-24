@@ -47,7 +47,7 @@ Project MVP
 
 | PR | State | Purpose | Next |
 | ---: | --- | --- | --- |
-| - | - | 現時点で roadmap 上に固定して追跡する active PR はない | #129 / #128 の設計を固め，#6 の最小 GT passthrough pipeline へ進める |
+| - | - | 現時点で roadmap 上に固定して追跡する active PR はない | #146 の Phase 4 loader smoke test から進める |
 
 ## Issue Hierarchy
 
@@ -96,15 +96,17 @@ Current baseline:
 | #127 | closed | #6 | 実動画・擬似動画の共通clip / metadata schema。PR #142 merged |
 | #128 | open | Phase 2→4 context | 学習datasetへ混ぜてよい条件変更 |
 | #129 | open | Phase 3→4 context | 1 clip時間長と必要な独立run数 |
+| #146 | open | #133 | Phase 3 common clip dataset loader smoke test |
+| #145 | open | #133 | RUN-TUMBLE dataset v2。Project Status TODO / 後回し |
 
 Recommended order:
 
-1. #129: clip時間長と独立run数を評価する。
-2. #126 の初期2D投影特徴量解析を受け，frame由来特徴量の確認を #129 に接続する。
-3. #128: augmentation / domain variation / dataset version規則を固定する。
-4. #6: Phase 3 clip pipeline を実装する。
+1. #146: Phase 4 loader smoke test で Phase 3 output を再検出なしに読めることを確認する。
+2. Phase 4 baseline classifier の小Issueを #133 配下に作成する。
+3. #129: grouped learning curve で必要独立run数を評価する。
+4. #128: augmentation / domain variation / dataset version規則を Phase 4 freeze gate へ接続する。
 
-#127 の common clip / metadata schema は `docs/phase3/phase3_1_clip_metadata_schema.md` と `schemas/phase3_clip_metadata.schema.json` に固定し，PR #142 で merge 済み。次は #129 / #128 の設計と #6 の最小 GT passthrough pipeline 実装準備を進める。
+#127 の common clip / metadata schema は `docs/phase3/phase3_1_clip_metadata_schema.md` と `schemas/phase3_clip_metadata.schema.json` に固定し，PR #142 で merge 済み。#6 の最小 GT passthrough pipeline は PR #144 で merge 済み。次は #146 で Phase 4 loader smoke test を進める。
 
 ### Phase 2 Physics Extensions
 
@@ -187,6 +189,6 @@ helical shape が保たれているか
 
 ## Next Three Actions
 
-1. #129 の `docs/phase3/phase3_2_clip_duration_run_count.md` に沿って，`0.5 s` default と `0.25 s` / `1.0 s` 比較用の軽量 window / grouped split fixture を実装する。
-2. #128 の `docs/phase3/phase3_3_dataset_mixing_versioning.md` に沿って，torque variation 除外，軽い render augmentation，Phase 4 dataset freeze checklist と provenance audit を実装へ接続する。
-3. #6 の `docs/phase3/phase3_4_common_clip_pipeline_plan.md` に沿って，#127 schema 対応の最小 GT passthrough pipeline 実装へ進む。
+1. #146 の Phase 4 loader smoke test を実装し，`.npy` clip / `clip_metadata.jsonl` / `split_summary.csv` の contract を loader 側で検査する。
+2. Phase 4 baseline classifier の小Issueを #133 配下に作成し，training loop / metrics / artifacts を最小実装する。
+3. #129 の grouped learning curve へ接続し，`n_flagella` ごとの必要独立run数を評価する。
