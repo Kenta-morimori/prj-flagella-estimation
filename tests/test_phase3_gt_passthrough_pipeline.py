@@ -14,7 +14,10 @@ from flagella_estimation.phase3.pipeline import (
     validate_training_candidate,
 )
 from flagella_estimation.phase3.render import render_clip_array
-from flagella_estimation.phase3.splits import assert_no_group_leakage
+from flagella_estimation.phase3.splits import (
+    assign_grouped_splits,
+    assert_no_group_leakage,
+)
 from flagella_estimation.phase3.windows import FrameWindow, generate_windows
 from sim_swim.analysis.flagella_count_behavior import save_state_archive
 from sim_swim.sim.core import SimulationState
@@ -91,6 +94,28 @@ def test_phase3_grouped_split_rejects_cross_split_group_key() -> None:
                 {"group_key": "phase2:v1:run-a", "split": "val"},
             ]
         )
+
+
+@pytest.mark.light
+def test_phase3_grouped_split_can_stratify_by_n_flagella() -> None:
+    group_labels = {
+        f"phase2:v1:nf{n_flagella:02d}_run{run_index}": n_flagella
+        for n_flagella in (1, 2, 3)
+        for run_index in range(3)
+    }
+
+    assignments = assign_grouped_splits(
+        group_labels.keys(),
+        group_labels=group_labels,
+    )
+
+    for n_flagella in (1, 2, 3):
+        label_splits = {
+            assignments[group_key]
+            for group_key, label in group_labels.items()
+            if label == n_flagella
+        }
+        assert label_splits == {"train", "val", "test"}
 
 
 @pytest.mark.light

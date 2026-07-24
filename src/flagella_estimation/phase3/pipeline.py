@@ -198,8 +198,14 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
     qc_rows: list[dict[str, Any]] = []
     split_rows: list[dict[str, Any]] = []
 
-    group_keys = [f"phase2:v1:{row['sample_id']}" for row in selected_rows]
-    split_by_group = assign_grouped_splits(group_keys)
+    group_labels = {
+        f"phase2:v1:{row['sample_id']}": int(_to_float(row["n_flagella"]))
+        for row in selected_rows
+    }
+    split_by_group = assign_grouped_splits(
+        group_labels.keys(),
+        group_labels=group_labels,
+    )
 
     for row in selected_rows:
         sample_id = str(row["sample_id"])

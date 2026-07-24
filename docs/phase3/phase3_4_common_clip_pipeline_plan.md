@@ -32,8 +32,9 @@ Phase 2 dataset v1
 - default: `clip.duration_s=0.5`，`clip.window_policy=non_overlap`，`frame_rate_hz=25.0`
 - MVP filter: `n_flagella=1,2,3`，`use_for_ml_candidate=True`，baseline torque only
 - output metadata: `schemas/phase3_clip_metadata.schema.json` compatible JSONL
+- split policy: `group_key` leakage を禁止し，MVP label (`n_flagella=1,2,3`) ごとに grouped split を割り当てる
 
-この実装は `state_archive.npz` を軽量 rasterize するため，Phase 2 の重い simulation / render を再実行しない。Phase 2 dataset v1 全体への pilot 実行は手元の実データ出力を読むため，Codex は自動実行せずユーザー実行に渡す。
+この実装は `state_archive.npz` を軽量 rasterize するため，Phase 2 の重い simulation / render を再実行しない。Phase 2 dataset v1 全体への pilot 実行は手元の実データ出力を読むため，ユーザー実行に渡す。
 
 ## Work Breakdown
 
