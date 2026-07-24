@@ -47,7 +47,7 @@ Project MVP
 
 | PR | State | Purpose | Next |
 | ---: | --- | --- | --- |
-| #152 | draft | #128 machine-readable dataset freeze gate | Cloud review / CI後にmergeし，#129判断へ進む |
+| none | - | - | #129 のMVP必要run数判断へ進む |
 
 ## Issue Hierarchy
 
@@ -94,20 +94,19 @@ Current baseline:
 | #9 | open | #6 context | 実顕微鏡像から菌体長さ特徴を分析 |
 | #17 | open | Phase 2→3 context | 実顕微鏡像に合わせた擬似顕微鏡描画条件 |
 | #127 | closed | #6 | 実動画・擬似動画の共通clip / metadata schema。PR #142 merged |
-| #128 | open | #133 | 学習datasetへ混ぜてよい条件変更とPhase 4 freeze gate |
+| #128 | closed | #133 | 学習datasetへ混ぜてよい条件変更とPhase 4 freeze gate。PR #152 merged |
 | #129 | open | Phase 3→4 context | 1 clip時間長と必要な独立run数 |
 | #146 | closed | #133 | Phase 3 common clip dataset loader smoke test。PR #147 merged |
 | #148 | closed | #133 | common clip baseline classifier。PR #149 merged |
-| #150 | open | #133 | grouped learning curve evaluator |
+| #150 | closed | #133 | grouped learning curve evaluator。PR #151 merged |
 | #145 | open | #133 | RUN-TUMBLE dataset v2。Project Status TODO / 後回し |
 
 Recommended order:
 
-1. #128: augmentation / domain variation / dataset version規則をmachine-readable freeze gateへ接続する。
-2. #129: `k=4`をMVP下限として採択するか，protected評価用run追加後に決める。
-3. #145: RUN-TUMBLE dataset v2はProject `TODO`のままMVP後へ残す。
+1. #129: `k=4`をpseudo-v1 MVP下限として採択するか，protected評価用run追加後に決める。
+2. #145: RUN-TUMBLE dataset v2はProject `TODO`のままMVP後へ残す。
 
-#127 common clip schemaはPR #142，#6 GT passthroughはPR #144，#146 loader smokeはPR #147，#148 baseline classifierはPR #149でmerge済み。現在は #150 grouped learning curve evaluatorを進める。
+#127 common clip schemaはPR #142，#6 GT passthroughはPR #144，#146 loader smokeはPR #147，#148 baseline classifierはPR #149，#150 grouped learning curveはPR #151，#128 freeze gateはPR #152でmerge済み。現在の直近判断は #129 である。
 
 ### Phase 2 Physics Extensions
 
@@ -190,6 +189,6 @@ helical shape が保たれているか
 
 ## Next Three Actions
 
-1. #128 machine-readable dataset freeze gateをreview / mergeする。
-2. #129のMVP必要run数判断を記録する。
+1. #129で`4 training groups/class`をpseudo-v1 MVP lower boundとして採用するか判断する。
+2. 一般的な必要run数を主張する場合はprotected評価用runの追加条件を決める。
 3. #145 dataset v2はProject `TODO`のまま後回しにする。
