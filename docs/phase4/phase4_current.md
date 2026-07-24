@@ -61,6 +61,8 @@ Loader は次の contract を検査する:
 
 #150 evaluatorは同一 `group_key` のclip特徴を平均し，1 independent groupを1 feature vectorとして扱う。Phase 3のtest splitは最終評価用に保護し，train+val pool内でclassごとに固定数をholdoutして，残りから`k` groupsを学習する。
 
+実行前に#148と同じdataset freezeを検査し，dataset v1，`n_flagella=1,2,3`，`0.5 s`，`non_overlap`，`qc.status=pass`から外れる入力を拒否する。
+
 全27 v1 candidateの軽量pilot:
 
 - Phase 3 output: `outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates`

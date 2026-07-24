@@ -7,7 +7,9 @@ from pathlib import Path
 import numpy as np
 
 
-def write_phase4_fixture_dataset(dataset_dir: Path) -> None:
+def write_phase4_fixture_dataset(
+    dataset_dir: Path, *, dataset_version: str = "v1"
+) -> None:
     clips_dir = dataset_dir / "clips"
     clips_dir.mkdir(parents=True)
     split_rows: list[dict[str, object]] = []
@@ -15,7 +17,7 @@ def write_phase4_fixture_dataset(dataset_dir: Path) -> None:
     for n_flagella in (1, 2, 3):
         for split_index, split in enumerate(("train", "val", "test")):
             clip_id = f"nf{n_flagella:02d}_{split}"
-            group_key = f"phase2:v1:{clip_id}"
+            group_key = f"phase2:{dataset_version}:{clip_id}"
             clip = np.zeros((13, 16, 16), dtype=np.uint8)
             for frame_index in range(13):
                 offset = (frame_index + split_index) % 2
@@ -39,7 +41,7 @@ def write_phase4_fixture_dataset(dataset_dir: Path) -> None:
                     "schema_version": "phase3_clip_metadata/v0",
                     "dataset_id": "phase4_learning_curve_fixture",
                     "provenance": {
-                        "dataset_version": "v1",
+                        "dataset_version": dataset_version,
                         "model_id": "phase2_flagella_count_behavior_v1",
                         "render_id": "state_archive_numpy_v1",
                     },

@@ -116,6 +116,22 @@ def test_grouped_learning_curve_is_deterministic_for_seed(tmp_path: Path) -> Non
 
 
 @pytest.mark.light
+def test_grouped_learning_curve_rejects_dataset_outside_freeze(
+    tmp_path: Path,
+) -> None:
+    dataset_dir = tmp_path / "phase3_dataset"
+    write_phase4_fixture_dataset(dataset_dir, dataset_version="v2")
+
+    with pytest.raises(ValueError, match="dataset_version is outside freeze"):
+        evaluate_grouped_learning_curve(
+            Phase4LearningCurveConfig(
+                dataset_dir=dataset_dir,
+                output_dir=tmp_path / "learning_curve",
+            )
+        )
+
+
+@pytest.mark.light
 def test_group_set_validation_rejects_development_evaluation_leakage() -> None:
     group = GroupFeature(
         group_key="phase2:v1:run0",

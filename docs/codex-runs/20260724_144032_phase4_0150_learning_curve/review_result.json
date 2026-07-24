@@ -22,11 +22,15 @@
     },
     {
       "command": "uv run pytest -q tests/test_phase4_learning_curve.py tests/test_phase4_baseline_classifier.py tests/test_phase4_clip_dataset_loader.py",
-      "result": "PASS (12 passed)"
+      "result": "PASS (13 passed)"
     },
     {
       "command": "uv run pytest -q",
-      "result": "PASS (407 passed)"
+      "result": "PASS (408 passed)"
+    },
+    {
+      "command": "Codex Cloud review feedback",
+      "result": "PASS (reused the Phase 4 baseline freeze validator, exposed the v1 freeze in grouped learning curve config, and added a v2 rejection regression test)"
     },
     {
       "command": "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1.yaml input_dataset=outputs/phase2_analysis/flagella_count_behavior/datasets/v1 output_dir=outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates filters.max_per_class=null clip.duration_s=0.5 clip.window_policy=non_overlap",

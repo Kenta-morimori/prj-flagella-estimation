@@ -30,6 +30,10 @@ from flagella_estimation.phase4.dataset import (
     audit_phase4_clip_dataset,
     load_phase3_common_clip_dataset,
 )
+from flagella_estimation.phase4.training import (
+    Phase4BaselineConfig,
+    validate_frozen_dataset,
+)
 
 
 @dataclass(frozen=True)
@@ -39,6 +43,9 @@ class Phase4LearningCurveConfig:
     config_path: Path | None = None
     cli_overrides: tuple[str, ...] = ()
     allowed_n_flagella: tuple[int, ...] = (1, 2, 3)
+    required_dataset_version: str = "v1"
+    required_clip_duration_s: float = 0.5
+    required_window_policy: str = "non_overlap"
     development_splits: tuple[str, ...] = ("train", "val")
     protected_split: str = "test"
     holdout_groups_per_class: int = 1
@@ -74,6 +81,7 @@ def load_learning_curve_config(
         raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     data = _apply_overrides(raw, overrides or [])
     curve = dict(data.get("learning_curve", {}) or {})
+    freeze = dict(data.get("freeze", {}) or {})
     requested_sizes = curve.get("train_groups_per_class", []) or []
     return Phase4LearningCurveConfig(
         dataset_dir=Path(str(data.get("dataset_dir", ""))),
@@ -81,8 +89,11 @@ def load_learning_curve_config(
         config_path=path,
         cli_overrides=tuple(overrides or ()),
         allowed_n_flagella=tuple(
-            int(value) for value in data.get("allowed_n_flagella", [1, 2, 3])
+            int(value) for value in freeze.get("allowed_n_flagella", [1, 2, 3])
         ),
+        required_dataset_version=str(freeze.get("dataset_version", "v1")),
+        required_clip_duration_s=float(freeze.get("clip_duration_s", 0.5)),
+        required_window_policy=str(freeze.get("window_policy", "non_overlap")),
         development_splits=tuple(
             str(value) for value in curve.get("development_splits", ["train", "val"])
         ),
@@ -130,8 +141,24 @@ def evaluate_grouped_learning_curve(cfg: Phase4LearningCurveConfig) -> Path:
 
     if cfg.repeats < 1:
         raise ValueError("repeats must be at least 1")
+    source_manifest = json.loads(
+        (cfg.dataset_dir / "manifest.json").read_text(encoding="utf-8")
+    )
     samples = load_phase3_common_clip_dataset(cfg.dataset_dir)
     audit_phase4_clip_dataset(samples)
+    validate_frozen_dataset(
+        samples,
+        source_manifest,
+        Phase4BaselineConfig(
+            dataset_dir=cfg.dataset_dir,
+            output_dir=cfg.output_dir,
+            allowed_n_flagella=cfg.allowed_n_flagella,
+            required_dataset_version=cfg.required_dataset_version,
+            required_clip_duration_s=cfg.required_clip_duration_s,
+            required_window_policy=cfg.required_window_policy,
+            seed=cfg.seed,
+        ),
+    )
     groups = aggregate_group_features(samples)
     classes = np.asarray(sorted(cfg.allowed_n_flagella), dtype=np.int64)
     development = [group for group in groups if group.split in cfg.development_splits]
@@ -403,6 +430,12 @@ def _write_manifest(
         "input_dataset": str(cfg.dataset_dir),
         "output_dir": str(cfg.output_dir),
         "classes": [int(value) for value in classes],
+        "freeze": {
+            "allowed_n_flagella": list(cfg.allowed_n_flagella),
+            "dataset_version": cfg.required_dataset_version,
+            "clip_duration_s": cfg.required_clip_duration_s,
+            "window_policy": cfg.required_window_policy,
+        },
         "group_count": len(groups),
         "group_counts_by_split": split_counts,
         "learning_curve": {
