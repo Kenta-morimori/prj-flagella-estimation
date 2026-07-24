@@ -49,7 +49,6 @@ def load_freeze_audit_config(
         raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     data = _apply_overrides(raw, overrides or [])
     freeze = dict(data.get("freeze", {}) or {})
-    assertions = dict(freeze.get("registry_assertions", {}) or {})
     policy = DatasetFreezePolicy(
         allowed_n_flagella=tuple(
             int(value) for value in freeze.get("allowed_n_flagella", [1, 2, 3])
@@ -58,6 +57,12 @@ def load_freeze_audit_config(
         model_ids=tuple(
             str(value)
             for value in freeze.get("model_ids", ["phase2_flagella_count_behavior_v1"])
+        ),
+        source_model_ids=tuple(
+            str(value)
+            for value in freeze.get(
+                "source_model_ids", ["flag_spring2p25_body2p5_candidate"]
+            )
         ),
         render_ids=tuple(
             str(value) for value in freeze.get("render_ids", ["state_archive_numpy_v1"])
@@ -74,10 +79,6 @@ def load_freeze_audit_config(
             freeze.get("require_use_for_ml_candidate", True)
         ),
         group_key_prefix=str(freeze.get("group_key_prefix", "phase2:v1:")),
-        behavior_regime=str(assertions.get("behavior_regime", "RUN_fixed")),
-        brownian_policy=str(assertions.get("brownian", "excluded")),
-        torque_variation_policy=str(assertions.get("torque_variation", "excluded")),
-        n_flagella_4_policy=str(assertions.get("n_flagella_4", "diagnostic_only")),
     )
     return Phase4FreezeAuditConfig(
         dataset_dir=Path(str(data.get("dataset_dir", ""))),

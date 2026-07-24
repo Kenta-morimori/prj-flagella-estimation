@@ -119,7 +119,9 @@ Phase 4 training dataset を凍結する前に確認する:
 - `source_kind`, `processing_mode`, `label_source`
 - `qc.status=pass`
 - `group_key` prefixとsplit leakage
-- registry assertionとしてRUN固定，Brownian除外，torque variation除外，`n_flagella=4` diagnostic-only
+- Phase 2 source manifestの`dataset_id`, `dataset_version`, `model_id`
+- 選択された全`run_id`の解決済みsource config
+- source configのSHA-256，RUN固定，Brownian除外，baseline torque，`n_flagella`一致
 
 実行済みcommand:
 
@@ -127,12 +129,12 @@ Phase 4 training dataset を凍結する前に確認する:
 uv run python scripts/04_phase4/audit_dataset_freeze.py \
   config=conf/phase4/dataset_freeze_v1.yaml \
   dataset_dir=outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates \
-  output_dir=outputs/2026-07-24/150403/phase4_dataset_freeze_audit
+  output_dir=outputs/2026-07-24/153000/phase4_dataset_freeze_audit_source_verified
 ```
 
-`54 clips / 27 groups`でPASSした。出力は`freeze_audit.json`, `manifest.json`, `run.log`である。
+`54 clips / 27 groups / 27 source configs`を検証し，0 errors / 0 warningsでPASSした。出力は`freeze_audit.json`, `manifest.json`, `run.log`である。
 
-Phase 3 manifestはraw Phase 2 config hashをまだ埋め込んでいない。そのため，RUN固定・Brownian除外などの物理regimeは`dataset_version/model_id` registry assertionへ依存する。この制約はaudit warningとして常に保存する。
+Phase 3 manifest自体にraw Phase 2 config hashは埋め込まない。audit時に`input_dataset`を辿ってPhase 2 `dataset_manifest.json`と各runの解決済みconfigを読み，使用したファイルのSHA-256を`freeze_audit.json`へ固定する。source manifestまたはconfigを解決できないdatasetはFAILとする。
 
 ## Remaining Decision Points
 

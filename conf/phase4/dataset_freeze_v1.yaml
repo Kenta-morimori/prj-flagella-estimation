@@ -4,6 +4,7 @@ freeze:
   allowed_n_flagella: [1, 2, 3]
   dataset_version: v1
   model_ids: [phase2_flagella_count_behavior_v1]
+  source_model_ids: [flag_spring2p25_body2p5_candidate]
   render_ids: [state_archive_numpy_v1]
   pipeline_name: phase3_gt_passthrough
   schema_version: phase3_clip_metadata/v0
@@ -15,8 +16,3 @@ freeze:
   baseline_torque_Nm: 2.0e-20
   require_use_for_ml_candidate: true
   group_key_prefix: "phase2:v1:"
-  registry_assertions:
-    behavior_regime: RUN_fixed
-    brownian: excluded
-    torque_variation: excluded
-    n_flagella_4: diagnostic_only

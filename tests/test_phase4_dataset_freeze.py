@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
+import yaml
 
 from phase4_test_utils import write_phase4_fixture_dataset
 from flagella_estimation.phase4.freeze import DatasetFreezePolicy
@@ -33,7 +34,17 @@ def test_dataset_freeze_audit_writes_pass_artifacts(tmp_path: Path) -> None:
     assert audit.errors == ()
     assert audit.observed["n_flagella"] == [1, 2, 3]
     assert audit.observed["group_count"] == 9
-    assert len(audit.warnings) == 1
+    assert audit.warnings == ()
+    provenance = audit.observed["source_provenance"]
+    assert provenance["selected_run_count"] == 9
+    assert provenance["resolved_config_count"] == 9
+    assert provenance["motor_enable_switching"] == [False]
+    assert provenance["brownian_enabled"] == [False]
+    assert provenance["torque_Nm"] == [2.0e-20]
+    assert len(provenance["dataset_manifest_sha256"]) == 64
+    assert all(
+        len(digest) == 64 for digest in provenance["resolved_config_sha256"].values()
+    )
     assert {path.name for path in output_dir.iterdir()} == {
         "freeze_audit.json",
         "manifest.json",
@@ -41,8 +52,7 @@ def test_dataset_freeze_audit_writes_pass_artifacts(tmp_path: Path) -> None:
     }
     saved = json.loads((output_dir / "freeze_audit.json").read_text(encoding="utf-8"))
     assert saved["status"] == "PASS"
-    assert saved["policy"]["behavior_regime"] == "RUN_fixed"
-    assert saved["policy"]["brownian_policy"] == "excluded"
+    assert saved["policy"]["source_model_ids"] == ["flag_spring2p25_body2p5_candidate"]
 
 
 @pytest.mark.light
@@ -73,7 +83,52 @@ def test_dataset_freeze_audit_records_all_policy_failures(tmp_path: Path) -> Non
 
 
 @pytest.mark.light
-def test_load_freeze_audit_config_supports_registry_assertions(
+def test_dataset_freeze_audit_rejects_brownian_source_config(
+    tmp_path: Path,
+) -> None:
+    dataset_dir = tmp_path / "phase3_dataset"
+    write_phase4_fixture_dataset(dataset_dir)
+    source_dir = dataset_dir.parent / f"{dataset_dir.name}_phase2_source"
+    config_path = source_dir / "configs" / "nf01_train.yaml"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    config["brownian"]["enabled"] = True
+    config_path.write_text(yaml.safe_dump(config), encoding="utf-8")
+
+    _, audit = run_freeze_audit(
+        Phase4FreezeAuditConfig(
+            dataset_dir=dataset_dir,
+            output_dir=tmp_path / "freeze_audit",
+            policy=DatasetFreezePolicy(),
+        )
+    )
+
+    assert audit.status == "FAIL"
+    assert any("brownian.enabled" in error for error in audit.errors)
+
+
+@pytest.mark.light
+def test_dataset_freeze_audit_rejects_missing_source_manifest(
+    tmp_path: Path,
+) -> None:
+    dataset_dir = tmp_path / "phase3_dataset"
+    write_phase4_fixture_dataset(dataset_dir)
+    source_dir = dataset_dir.parent / f"{dataset_dir.name}_phase2_source"
+    (source_dir / "dataset_manifest.json").unlink()
+
+    _, audit = run_freeze_audit(
+        Phase4FreezeAuditConfig(
+            dataset_dir=dataset_dir,
+            output_dir=tmp_path / "freeze_audit",
+            policy=DatasetFreezePolicy(),
+        )
+    )
+
+    assert audit.status == "FAIL"
+    assert any("source provenance unavailable" in error for error in audit.errors)
+
+
+@pytest.mark.light
+def test_load_freeze_audit_config_supports_source_model_ids(
     tmp_path: Path,
 ) -> None:
     config_path = tmp_path / "freeze.yaml"
@@ -86,11 +141,9 @@ def test_load_freeze_audit_config_supports_registry_assertions(
         [
             "dataset_dir=override_input",
             "output_dir=override_output",
-            "freeze.registry_assertions.behavior_regime=RUN_fixed",
-            "freeze.registry_assertions.brownian=excluded",
+            "freeze.source_model_ids=[model_a, model_b]",
         ],
     )
     assert cfg.dataset_dir == Path("override_input")
     assert cfg.output_dir == Path("override_output")
-    assert cfg.policy.behavior_regime == "RUN_fixed"
-    assert cfg.policy.brownian_policy == "excluded"
+    assert cfg.policy.source_model_ids == ("model_a", "model_b")

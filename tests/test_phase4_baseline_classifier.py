@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import yaml
 
 from flagella_estimation.phase4.baseline import (
     FEATURE_NAMES,
@@ -26,6 +27,7 @@ def _write_fixture_dataset(dataset_dir: Path, *, dataset_version: str = "v1") ->
     clips_dir.mkdir(parents=True)
     split_rows: list[dict[str, object]] = []
     metadata_records = []
+    source_records = []
     split_names = ("train", "val", "test")
     for n_flagella in (1, 2, 3):
         for split_index, split in enumerate(split_names):
@@ -59,6 +61,7 @@ def _write_fixture_dataset(dataset_dir: Path, *, dataset_version: str = "v1") ->
                         "dataset_version": dataset_version,
                         "model_id": "phase2_flagella_count_behavior_v1",
                         "render_id": "state_archive_numpy_v1",
+                        "run_id": clip_id,
                     },
                     "track": {"group_key": group_key},
                     "clip": {
@@ -77,6 +80,49 @@ def _write_fixture_dataset(dataset_dir: Path, *, dataset_version: str = "v1") ->
                     "qc": {"status": "pass", "exclusion_reason": None},
                 }
             )
+            source_records.append({"sample_id": clip_id, "n_flagella": n_flagella})
+
+    source_dir = dataset_dir.parent / f"{dataset_dir.name}_phase2_source"
+    configs_dir = source_dir / "configs"
+    configs_dir.mkdir(parents=True)
+    source_samples = []
+    for record in source_records:
+        sample_id = str(record["sample_id"])
+        n_flagella = int(record["n_flagella"])
+        config_path = configs_dir / f"{sample_id}.yaml"
+        config_path.write_text(
+            yaml.safe_dump(
+                {
+                    "motor": {"torque_Nm": 2.0e-20, "enable_switching": False},
+                    "brownian": {"enabled": False},
+                    "flagella": {"n_flagella": n_flagella},
+                }
+            ),
+            encoding="utf-8",
+        )
+        source_samples.append(
+            {
+                "sample_id": sample_id,
+                "n_flagella": n_flagella,
+                "status": "completed",
+                "config_path": str(config_path),
+            }
+        )
+    (source_dir / "dataset_manifest.json").write_text(
+        json.dumps(
+            {
+                "dataset_id": dataset_version,
+                "effective_campaign_config": {
+                    "metadata": {
+                        "dataset_version": dataset_version,
+                        "model_id": "flag_spring2p25_body2p5_candidate",
+                    }
+                },
+                "samples": source_samples,
+            }
+        ),
+        encoding="utf-8",
+    )
 
     (dataset_dir / "manifest.json").write_text(
         json.dumps(
@@ -84,6 +130,7 @@ def _write_fixture_dataset(dataset_dir: Path, *, dataset_version: str = "v1") ->
                 "pipeline_name": "phase3_gt_passthrough",
                 "schema_version": "phase3_clip_metadata/v0",
                 "dataset_id": "phase4_baseline_fixture",
+                "input_dataset": str(source_dir),
                 "clip_count": len(metadata_records),
                 "clip": {"duration_s": 0.5, "window_policy": "non_overlap"},
                 "filters": {

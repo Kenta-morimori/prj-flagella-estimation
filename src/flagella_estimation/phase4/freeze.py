@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+import yaml
 
 from flagella_estimation.phase4.dataset import (
     Phase4ClipSample,
@@ -21,6 +23,7 @@ class DatasetFreezePolicy:
     allowed_n_flagella: tuple[int, ...] = (1, 2, 3)
     dataset_version: str = "v1"
     model_ids: tuple[str, ...] = ("phase2_flagella_count_behavior_v1",)
+    source_model_ids: tuple[str, ...] = ("flag_spring2p25_body2p5_candidate",)
     render_ids: tuple[str, ...] = ("state_archive_numpy_v1",)
     pipeline_name: str = "phase3_gt_passthrough"
     schema_version: str = "phase3_clip_metadata/v0"
@@ -32,10 +35,6 @@ class DatasetFreezePolicy:
     baseline_torque_Nm: float = 2.0e-20
     require_use_for_ml_candidate: bool = True
     group_key_prefix: str = "phase2:v1:"
-    behavior_regime: str = "RUN_fixed"
-    brownian_policy: str = "excluded"
-    torque_variation_policy: str = "excluded"
-    n_flagella_4_policy: str = "diagnostic_only"
 
 
 @dataclass(frozen=True)
@@ -105,10 +104,7 @@ def audit_loaded_dataset_freeze(
     """Audit already-loaded samples against one accepted freeze policy."""
 
     errors: list[str] = []
-    warnings = [
-        "Phase 3 manifest does not embed the raw Phase 2 config hash; "
-        "physical-regime exclusions rely on dataset_version/model_id registry assertions."
-    ]
+    warnings: list[str] = []
     manifest_clip = manifest.get("clip", {})
     manifest_filters = manifest.get("filters", {})
     _expect(
@@ -189,14 +185,13 @@ def audit_loaded_dataset_freeze(
             f"found={sorted(set(invalid_group_keys))}"
         )
 
-    required_assertions = {
-        "behavior_regime": (policy.behavior_regime, "RUN_fixed"),
-        "brownian_policy": (policy.brownian_policy, "excluded"),
-        "torque_variation_policy": (policy.torque_variation_policy, "excluded"),
-        "n_flagella_4_policy": (policy.n_flagella_4_policy, "diagnostic_only"),
-    }
-    for name, (actual, expected) in required_assertions.items():
-        _expect(errors, f"registry_assertion.{name}", actual, expected)
+    observed["source_provenance"] = _audit_source_provenance(
+        dataset_dir=Path(dataset_dir),
+        phase3_manifest=manifest,
+        samples=samples,
+        policy=policy,
+        errors=errors,
+    )
 
     return DatasetFreezeAudit(
         status="PASS" if not errors else "FAIL",
@@ -253,6 +248,198 @@ def _observed_values(
         "qc_statuses": values(("qc", "status")),
         "splits": sorted({sample.split for sample in samples}),
     }
+
+
+def _audit_source_provenance(
+    *,
+    dataset_dir: Path,
+    phase3_manifest: dict[str, Any],
+    samples: list[Phase4ClipSample],
+    policy: DatasetFreezePolicy,
+    errors: list[str],
+) -> dict[str, Any]:
+    observed: dict[str, Any] = {}
+    source_dir = _resolve_existing_path(
+        phase3_manifest.get("input_dataset"), relative_to=dataset_dir
+    )
+    if source_dir is None:
+        errors.append(
+            "source provenance unavailable: manifest.input_dataset does not exist"
+        )
+        return observed
+
+    source_manifest_path = source_dir / "dataset_manifest.json"
+    if not source_manifest_path.is_file():
+        errors.append(
+            f"source provenance unavailable: {source_manifest_path} does not exist"
+        )
+        return observed
+    try:
+        source_manifest = json.loads(source_manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        errors.append(f"source dataset manifest is invalid: {exc}")
+        return observed
+
+    effective_campaign = source_manifest.get("effective_campaign_config")
+    if not isinstance(effective_campaign, dict):
+        effective_campaign = {}
+    effective_metadata = effective_campaign.get("metadata")
+    if not isinstance(effective_metadata, dict):
+        effective_metadata = {}
+    observed.update(
+        {
+            "dataset_dir": str(source_dir),
+            "dataset_manifest_path": str(source_manifest_path),
+            "dataset_manifest_sha256": _sha256(source_manifest_path),
+            "dataset_id": source_manifest.get("dataset_id"),
+            "dataset_version": effective_metadata.get("dataset_version"),
+            "model_id": effective_metadata.get("model_id"),
+        }
+    )
+    _expect(
+        errors,
+        "source.dataset_id",
+        source_manifest.get("dataset_id"),
+        policy.dataset_version,
+    )
+    _expect(
+        errors,
+        "source.dataset_version",
+        effective_metadata.get("dataset_version"),
+        policy.dataset_version,
+    )
+    source_model_id = effective_metadata.get("model_id")
+    if source_model_id not in policy.source_model_ids:
+        errors.append(
+            "source.model_id: "
+            f"expected one of {sorted(policy.source_model_ids)!r}, "
+            f"observed={source_model_id!r}"
+        )
+
+    raw_source_samples = source_manifest.get("samples")
+    if not isinstance(raw_source_samples, list):
+        errors.append("source.samples: expected a list in dataset_manifest.json")
+        raw_source_samples = []
+    source_samples = {
+        record.get("sample_id"): record
+        for record in raw_source_samples
+        if isinstance(record, dict) and record.get("sample_id")
+    }
+    run_to_label: dict[str, int] = {}
+    for sample in samples:
+        run_id = sample.metadata.get("provenance", {}).get("run_id")
+        if not isinstance(run_id, str) or not run_id:
+            errors.append(f"clip {sample.clip_id}: provenance.run_id is required")
+            continue
+        previous = run_to_label.setdefault(run_id, sample.n_flagella)
+        if previous != sample.n_flagella:
+            errors.append(
+                f"source run {run_id}: conflicting Phase 3 labels "
+                f"{previous!r} and {sample.n_flagella!r}"
+            )
+
+    config_hashes: dict[str, str] = {}
+    torques: set[float] = set()
+    switching_values: set[bool] = set()
+    brownian_values: set[bool] = set()
+    source_classes: set[int] = set()
+    for run_id, phase3_label in sorted(run_to_label.items()):
+        record = source_samples.get(run_id)
+        if record is None:
+            errors.append(f"source run {run_id}: not found in dataset_manifest.json")
+            continue
+        _expect(
+            errors, f"source run {run_id}.status", record.get("status"), "completed"
+        )
+        config_path = _resolve_existing_path(
+            record.get("config_path"), relative_to=source_dir
+        )
+        if config_path is None or not config_path.is_file():
+            errors.append(f"source run {run_id}: resolved config is unavailable")
+            continue
+        try:
+            config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError) as exc:
+            errors.append(f"source run {run_id}: resolved config is invalid: {exc}")
+            continue
+        if not isinstance(config, dict):
+            errors.append(
+                f"source run {run_id}: resolved config must contain a mapping"
+            )
+            continue
+
+        config_hashes[run_id] = _sha256(config_path)
+        switching = config.get("motor", {}).get("enable_switching")
+        brownian = config.get("brownian", {}).get("enabled")
+        torque = config.get("motor", {}).get("torque_Nm")
+        source_n_flagella = config.get("flagella", {}).get("n_flagella")
+        if isinstance(switching, bool):
+            switching_values.add(switching)
+        if isinstance(brownian, bool):
+            brownian_values.add(brownian)
+        try:
+            torques.add(float(torque))
+        except (TypeError, ValueError):
+            pass
+        try:
+            source_classes.add(int(source_n_flagella))
+        except (TypeError, ValueError):
+            pass
+
+        _expect(errors, f"source run {run_id}.motor.enable_switching", switching, False)
+        _expect(errors, f"source run {run_id}.brownian.enabled", brownian, False)
+        _expect_float(
+            errors,
+            f"source run {run_id}.motor.torque_Nm",
+            torque,
+            policy.baseline_torque_Nm,
+        )
+        _expect(
+            errors,
+            f"source run {run_id}.flagella.n_flagella",
+            source_n_flagella,
+            phase3_label,
+        )
+        _expect(
+            errors,
+            f"source run {run_id}.manifest.n_flagella",
+            record.get("n_flagella"),
+            phase3_label,
+        )
+
+    observed.update(
+        {
+            "selected_run_count": len(run_to_label),
+            "resolved_config_count": len(config_hashes),
+            "resolved_config_sha256": config_hashes,
+            "torque_Nm": sorted(torques),
+            "motor_enable_switching": sorted(switching_values),
+            "brownian_enabled": sorted(brownian_values),
+            "n_flagella": sorted(source_classes),
+        }
+    )
+    return observed
+
+
+def _resolve_existing_path(value: Any, *, relative_to: Path) -> Path | None:
+    if not isinstance(value, str) or not value:
+        return None
+    path = Path(value).expanduser()
+    candidates = (
+        [path] if path.is_absolute() else [Path.cwd() / path, relative_to / path]
+    )
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate.resolve()
+    return None
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _expect(errors: list[str], field: str, actual: Any, expected: Any) -> None:

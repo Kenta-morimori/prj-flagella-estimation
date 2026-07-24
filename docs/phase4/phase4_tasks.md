@@ -91,10 +91,11 @@
 - result:
   - `DatasetFreezePolicy`と全違反を集約するaudit APIを追加した。
   - manifest，metadata，loader auditを使い，version / model / render / torque / class / clip / QC / group provenanceを検査する。
+  - Phase 3 manifestの`input_dataset`からPhase 2 `dataset_manifest.json`と選択runの解決済みconfigを辿り，SHA-256と物理regimeを検査する。
   - baseline trainingとgrouped learning curveが同じstrict freeze validatorを通るようにした。
   - PASS / FAILどちらでも`freeze_audit.json`, `manifest.json`, `run.log`を保存するCLIを追加した。
   - 全27 v1 candidate (`54 clips`) のauditがPASSした。
-  - raw Phase 2 config hash未収録によるregistry assertion依存をwarningとして保存する。
+  - 全27 runのsource configを検証し，0 errors / 0 warningsでPASSした。
 - acceptance criteria:
   - [x] 主要条件変更の4分類とmixing規則が文書化されている。
   - [x] `model_id`, `render_id`, `dataset_version`, `group_key`のMVP規則を自動検査する。
@@ -103,4 +104,4 @@
   - [x] PASS / FAIL regression testsと実dataset CLI smokeがPASSする。
 - verification:
   - `uv run pytest -q tests/test_phase4_dataset_freeze.py tests/test_phase4_learning_curve.py tests/test_phase4_baseline_classifier.py tests/test_phase4_clip_dataset_loader.py`
-  - `uv run python scripts/04_phase4/audit_dataset_freeze.py config=conf/phase4/dataset_freeze_v1.yaml dataset_dir=outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates output_dir=outputs/2026-07-24/150403/phase4_dataset_freeze_audit`
+  - `uv run python scripts/04_phase4/audit_dataset_freeze.py config=conf/phase4/dataset_freeze_v1.yaml dataset_dir=outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates output_dir=outputs/2026-07-24/153000/phase4_dataset_freeze_audit_source_verified`
