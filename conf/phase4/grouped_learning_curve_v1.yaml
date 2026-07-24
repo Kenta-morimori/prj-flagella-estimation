@@ -1,0 +1,10 @@
+dataset_dir:
+output_dir:
+allowed_n_flagella: [1, 2, 3]
+seed: 0
+learning_curve:
+  development_splits: [train, val]
+  protected_split: test
+  holdout_groups_per_class: 2
+  train_groups_per_class: []
+  repeats: 20

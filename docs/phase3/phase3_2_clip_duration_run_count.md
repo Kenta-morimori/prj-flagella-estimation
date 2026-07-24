@@ -96,48 +96,56 @@ overlap window は，情報量や安定性の比較には使えるが，learning
 - split helper は `track.group_key` 単位で split し，同じ group が複数 split に入らないことを test する。
 - 実動画の detection / tracking は fixture では mock track を使い，実AVI解析や detector 採用判断を含めない。
 
-## User-Run Required: Grouped Learning Curve
+## Implemented Grouped Learning Curve
 
-次の段階では，Phase 2 dataset v1 の既存 pseudo dataset から clip duration 比較用 dataset を作り，grouped learning curve を評価する必要がある。これは重い実行・採用判断を含むため，Codex は勝手に実行しない。
+#150 で軽量なgrouped learning curve evaluatorを実装した。Phase 2 dataset v1の既存state archiveから`n_flagella=1,2,3`全27 candidateを`0.5 s` non-overlap clipへ変換する処理は追加simulationを伴わないため，実行済みである。
 
-Exact command draft:
+実行command:
 
 ```bash
 uv run python scripts/03_phase3/build_clip_dataset.py \
-  config=conf/phase3/clip_duration_pilot.yaml \
+  config=conf/phase3/gt_passthrough_v1.yaml \
   input_dataset=outputs/phase2_analysis/flagella_count_behavior/datasets/v1 \
-  output_dir=outputs/YYYY-MM-DD/HHMMSS/phase3_clip_duration_pilot \
-  clip_durations_s='[0.25,0.5,1.0]' \
-  window_policies='[non_overlap,overlap]' \
-  window.overlap_stride_fraction=0.5 \
-  split.group_key_field=track.group_key
+  output_dir=outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates \
+  filters.max_per_class=null \
+  clip.duration_s=0.5 \
+  clip.window_policy=non_overlap
 
-uv run python scripts/04_train_flagella_count/evaluate_learning_curve.py \
-  dataset_dir=outputs/YYYY-MM-DD/HHMMSS/phase3_clip_duration_pilot \
-  output_dir=outputs/YYYY-MM-DD/HHMMSS/phase4_grouped_learning_curve_clip_duration \
-  group_key_field=track.group_key \
-  class_field=labels.n_flagella
+uv run python scripts/04_phase4/evaluate_learning_curve.py \
+  config=conf/phase4/grouped_learning_curve_v1.yaml \
+  dataset_dir=outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates \
+  output_dir=outputs/2026-07-24/144032/phase4_grouped_learning_curve_full_candidates \
+  learning_curve.repeats=100
 ```
 
-Expected output files:
+出力:
 
 ```text
-outputs/YYYY-MM-DD/HHMMSS/phase3_clip_duration_pilot/manifest.json
-outputs/YYYY-MM-DD/HHMMSS/phase3_clip_duration_pilot/clip_metadata.jsonl
-outputs/YYYY-MM-DD/HHMMSS/phase3_clip_duration_pilot/split_summary.csv
-outputs/YYYY-MM-DD/HHMMSS/phase4_grouped_learning_curve_clip_duration/learning_curve.csv
-outputs/YYYY-MM-DD/HHMMSS/phase4_grouped_learning_curve_clip_duration/metrics_by_duration.csv
-outputs/YYYY-MM-DD/HHMMSS/phase4_grouped_learning_curve_clip_duration/confusion_by_duration.csv
-outputs/YYYY-MM-DD/HHMMSS/phase4_grouped_learning_curve_clip_duration/manifest.json
+outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates/manifest.json
+outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates/clip_metadata.jsonl
+outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates/split_summary.csv
+outputs/2026-07-24/144032/phase4_grouped_learning_curve_full_candidates/learning_curve.csv
+outputs/2026-07-24/144032/phase4_grouped_learning_curve_full_candidates/learning_curve_summary.csv
+outputs/2026-07-24/144032/phase4_grouped_learning_curve_full_candidates/confusion.csv
+outputs/2026-07-24/144032/phase4_grouped_learning_curve_full_candidates/manifest.json
 ```
 
-Decision points:
+評価設計:
 
-- `0.5 s` default が `0.25 s` と比べて class confusion を抑え，`1.0 s` と比べて source duration 要求を抑えられるか。
-- `0.25 s` が短い実trackへの耐性を上げる一方で class confusion を増やしすぎないか。
-- `1.0 s` が性能を上げる一方で独立 group 数不足や source duration 要求を大きくしすぎないか。
-- overlap window が評価安定化に効くか。ただし独立 sample 数として数えない前提を守れるか。
-- `n_flagella=1,2,3` の各 class で追加 run がどの程度必要か。
-- 実動画 track 長の想定と矛盾しない clip duration か。
+- x軸は`n_flagella`ごとのunique `group_key`数とする。
+- train+val poolは各class 8 groupsで，そのうち2 groups/classを各repeatのholdoutにする。
+- test splitの1 group/classはlearning curveに使わず，protected splitとして残す。
+- 同じ`group_key`の複数clipは特徴量を平均し，独立数を増やさない。
+- `k=1..6`を各100 repeatで評価する。
 
-上記 command は現時点では設計上の draft であり，#6 / Phase 4 側の CLI 実装後に実コマンドとして確定する。
+結果:
+
+- macro F1 meanは`k=1: 0.846`, `k=2: 0.964`, `k=3: 0.987`, `k=4..6: 1.0`。
+- empirical 2.5%点は`k=1: 0.467`, `k=2..3: 0.822`, `k=4..6: 1.0`。
+- 現行pseudo v1と診断baseline内では`k=4`でplateauした。
+
+Remaining decision points:
+
+- `k=4 training groups/class`をMVP dataset-size下限として採用するか。
+- protected testが1 group/classのみのため，追加runを生成してprotected評価を厚くしてから一般的な必要run数を決めるか。
+- 今回のplateauをpseudo v1内のdiagnostic resultに限定し，実動画domainの必要track数は別途判断することを明記するか。

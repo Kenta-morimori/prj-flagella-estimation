@@ -54,3 +54,28 @@
 - docs:
   - `docs/phase4/phase4_current.md`
   - `docs/phase4/phase4_tasks.md`
+
+## Phase 4.3: grouped learning curve
+
+### P4-3-001: Issue #150 grouped learning curve evaluator
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/150`
+- branch: `feature/phase4-150-grouped-learning-curve`
+- goal: `track.group_key`を独立sample単位とするclass-balanced learning curve evaluatorを実装し，#129の必要run数判断へartifactを渡す。
+- result:
+  - 同一groupのclip特徴を平均し，1 groupを1 feature vectorとして扱う。
+  - train+val pool内でclassごとにdisjointなtrain / holdout groupsを作り，test splitを最終評価用に保護する。
+  - seed固定のbalanced group subsampling，group-level metrics，class recall，empirical percentileを出力する。
+  - 全27 v1 candidateで`k=1..6`，各class 2 holdout，100 repeatsを評価した。
+  - 現行pseudo v1 / diagnostic baselineでは`k>=4`でmacro F1 meanとempirical intervalが`1.0`になった。
+  - 一般的な必要run数の採択は #129 に残し，protected test各class 1 groupという制約を明記した。
+- acceptance criteria:
+  - [x] x軸がclassごとのunique `group_key` 数である。
+  - [x] train / holdout / protected testのgroup leakageを許さない。
+  - [x] deterministic seedで再現できる。
+  - [x] curve，summary，confusion，manifest，run logを保存する。
+  - [x] fixture testsと全27 candidate CLI smokeがPASSする。
+- verification:
+  - `uv run pytest -q tests/test_phase4_learning_curve.py tests/test_phase4_baseline_classifier.py tests/test_phase4_clip_dataset_loader.py`
+  - `uv run python scripts/04_phase4/evaluate_learning_curve.py config=conf/phase4/grouped_learning_curve_v1.yaml dataset_dir=outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates output_dir=outputs/2026-07-24/144032/phase4_grouped_learning_curve_full_candidates learning_curve.repeats=100`
