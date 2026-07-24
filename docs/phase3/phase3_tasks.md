@@ -67,3 +67,32 @@
   - `docs/phase3/phase3_2_clip_duration_run_count.md`
   - `docs/phase3/phase3_3_dataset_mixing_versioning.md`
   - `docs/phase3/phase3_4_common_clip_pipeline_plan.md`
+
+## Phase 3.3: common clip pipeline MVP
+
+### P3-3-001: Issue #6 Phase 2 pseudo GT passthrough の最小実装
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/6`
+- branch: `feature/phase3-6-gt-passthrough`
+- goal: Phase 2 dataset v1 の擬似動画 GT を再検出せず，共通 clip / metadata schema へ変換する最小 pipeline を実装する。
+- result:
+  - `src/flagella_estimation/phase3/` に window generation，state archive rasterize，metadata builder，grouped split，pipeline orchestration を追加した。
+  - `scripts/03_phase3/build_clip_dataset.py` で `config=...` と `KEY=VALUE` override を受ける CLI を追加した。
+  - `conf/phase3/gt_passthrough_v1.yaml` に v1 pilot 用 default を追加した。
+  - MVP freeze として `n_flagella=1,2,3`，`use_for_ml_candidate=True`，baseline torque only を固定した。
+  - 出力は `run.log`，`manifest.json`，`clip_metadata.jsonl`，`split_summary.csv`，`qc_summary.csv`，`clips/<clip_id>.npy` とした。
+  - 実動画 detection / tracking は #8 / #9 後の別実装へ残した。
+- acceptance criteria:
+  - [x] `src/flagella_estimation/`のPhase 3 package構成がある。
+  - [x] 擬似動画のGround Truth passthroughを実装する。
+  - [x] 個体clipとmetadataを出力する。
+  - [x] 同一run / track由来データをgroup化できる。
+  - [x] library-level testを追加する。
+  - [ ] 実動画のdetection / trackingを実装する。
+  - [ ] 実動画・擬似動画を同じCLI / library境界から処理できる。
+- verification:
+  - `uv run pytest -q tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase3_clip_metadata_schema.py`
+- docs:
+  - `docs/phase3/phase3_current.md`
+  - `docs/phase3/phase3_4_common_clip_pipeline_plan.md`

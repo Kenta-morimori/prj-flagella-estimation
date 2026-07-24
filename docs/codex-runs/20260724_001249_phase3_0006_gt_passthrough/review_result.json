@@ -1,0 +1,69 @@
+{
+  "status": "PASS",
+  "summary": "Implemented the first Phase 3 Issue #6 pseudo-GT passthrough pipeline. The new code reads Phase 2 dataset summaries and state_archive.npz files, filters the MVP baseline to n_flagella=1,2,3 with use_for_ml_candidate=True and baseline torque, renders lightweight uint8 .npy clips, writes #127-compatible metadata JSONL, records stratified grouped split summaries without group_key leakage, and emits QC summaries, manifest.json, and run.log. The user-run v1 pilots generated 27 clips at 0.25 s, 18 clips at 0.5 s, and 9 clips at 1.0 s, with each n_flagella class represented in train/val/test and no group_key leakage. Codex review feedback was addressed by making frame-end metadata inclusive and preserving config path, CLI overrides, max_per_class, and environment details in the manifest. Real-video detection/tracking remains intentionally out of scope for #8/#9.",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "The current renderer is a lightweight state_archive rasterizer for GT passthrough; pseudo-microscopy domain tuning and render variation remain under #17/#128.",
+    "Real-video detection/tracking and scale-normalization choices remain blocked on #8/#9."
+  ],
+  "tests_reviewed": [
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase3_clip_metadata_schema.py",
+      "result": "PASS (13 passed)"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS (395 passed)"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1.yaml input_dataset=outputs/phase2_analysis/flagella_count_behavior/datasets/v1 output_dir=outputs/2026-07-24/001500/phase3_gt_passthrough_v1 clip.duration_s=0.5 clip.window_policy=non_overlap",
+      "result": "PASS (sample_count=9, clip_count=18)"
+    },
+    {
+      "command": "pilot split audit",
+      "result": "PASS (no group_key leakage; n_flagella=1,2,3 each have 2 train, 2 val, and 2 test clips)"
+    },
+    {
+      "command": "pilot metadata/provenance audit after Codex review fixes",
+      "result": "PASS (clip.source_frame_end=12, clip.t_end_s=0.48 for 13 frames at 25 Hz; manifest records config_path, CLI overrides, environment, and max_per_class)"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1.yaml input_dataset=outputs/phase2_analysis/flagella_count_behavior/datasets/v1 output_dir=outputs/2026-07-24/phase3_compare_0p25/phase3_gt_passthrough_v1 clip.duration_s=0.25 clip.window_policy=non_overlap",
+      "result": "PASS (sample_count=9, clip_count=27, clip shape=(7, 96, 96), no group_key leakage)"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1.yaml input_dataset=outputs/phase2_analysis/flagella_count_behavior/datasets/v1 output_dir=outputs/2026-07-24/phase3_compare_1p0/phase3_gt_passthrough_v1 clip.duration_s=1.0 clip.window_policy=non_overlap",
+      "result": "PASS (sample_count=9, clip_count=9, clip shape=(25, 96, 96), no group_key leakage)"
+    },
+    {
+      "command": "comparison pilot split audit",
+      "result": "PASS (0.25 s has 3 train / 3 val / 3 test clips per n_flagella class; 1.0 s has 1 train / 1 val / 1 test clip per n_flagella class)"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "This PR implements the already documented #127/#143 Phase 3 GT passthrough boundary without changing the physical model, adding dependencies, or changing the accepted schema. Real-video and dataset-adoption decisions remain separate issues.",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "Use the 0.25 s / 0.5 s / 1.0 s pilot outputs to evaluate #129 clip-count sufficiency and downstream Phase 4 readiness.",
+    "Keep real-video detection/tracking out of this PR and continue it after #8/#9 input and scale-normalization decisions."
+  ]
+}

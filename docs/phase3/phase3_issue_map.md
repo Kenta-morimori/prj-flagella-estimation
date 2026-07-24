@@ -32,7 +32,7 @@ Phase 3 / 4 MVP
 | 1 | #127 | closed; PR #142 merged | 実動画・擬似動画の共通 clip / metadata schema を固定する | `docs/phase3/phase3_1_clip_metadata_schema.md`, `schemas/phase3_clip_metadata.schema.json`, 最小 fixture |
 | 2 | #129 | in design | clip時間長と必要独立run数を評価する | `docs/phase3/phase3_2_clip_duration_run_count.md`，grouped split 評価計画，learning curve 実行案 |
 | 3 | #128 | in design | 学習datasetへ混ぜてよい条件変更を分類する | `docs/phase3/phase3_3_dataset_mixing_versioning.md`，augmentation / domain variation / dataset version規則 |
-| 4 | #6 | implementation prep | Phase 3 pipeline を実装する | `docs/phase3/phase3_4_common_clip_pipeline_plan.md`，GT passthrough / crop / metadata 出力 |
+| 4 | #6 | first implementation | Phase 3 pipeline を実装する | Phase 2 pseudo GT passthrough CLI，`.npy` clip，#127 metadata JSONL，grouped split / QC summaries |
 
 ## Supporting Issues
 
@@ -47,4 +47,4 @@ Phase 3 / 4 MVP
 
 ## Implementation Boundary
 
-#127 は schema と contract test までで完了した。重い動画生成，長時間 simulation，clip時間長の採用判断，training dataset への条件混在判断は #129 / #128 / #6 へ残す。
+#127 は schema と contract test までで完了した。#6 の最初の実装は Phase 2 pseudo GT passthrough に限定し，実動画 detection / tracking は #8 / #9 後に分離する。重い動画生成，長時間 simulation，clip時間長の最終評価，training dataset への条件混在判断は #129 / #128 / Phase 4 へ残す。
