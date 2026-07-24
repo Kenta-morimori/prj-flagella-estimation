@@ -156,6 +156,47 @@ def test_phase4_loader_rejects_group_key_leakage(tmp_path: Path) -> None:
 
 
 @pytest.mark.light
+def test_phase4_loader_rejects_split_rows_without_metadata(tmp_path: Path) -> None:
+    input_dataset = tmp_path / "phase2_dataset"
+    raw_dir = tmp_path / "raw" / "nf01_run0"
+    raw_dir.mkdir(parents=True)
+    save_state_archive(raw_dir / "state_archive.npz", [_state(i) for i in range(26)])
+    _write_phase2_summary(
+        input_dataset,
+        [
+            {
+                "sample_id": "nf01_run0",
+                "n_flagella": "1",
+                "torque_Nm": "2e-20",
+                "use_for_ml_candidate": "True",
+                "raw_dir": str(raw_dir),
+            }
+        ],
+    )
+    dataset_dir = build_clip_dataset(
+        Phase3Config(
+            dataset_id="phase4_loader_fixture",
+            input_dataset=input_dataset,
+            output_dir=tmp_path / "phase3_clips",
+            crop_size_px=32,
+        )
+    )
+
+    split_path = dataset_dir / "split_summary.csv"
+    rows = list(csv.DictReader(split_path.open("r", encoding="utf-8", newline="")))
+    extra = dict(rows[0])
+    extra["clip_id"] = "missing_metadata_clip"
+    rows.append(extra)
+    with split_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(rows)
+
+    with pytest.raises(ValueError, match="missing_from_metadata"):
+        load_phase3_common_clip_dataset(dataset_dir)
+
+
+@pytest.mark.light
 def test_phase4_loader_rejects_clip_shape_mismatch(tmp_path: Path) -> None:
     input_dataset = tmp_path / "phase2_dataset"
     raw_dir = tmp_path / "raw" / "nf01_run0"

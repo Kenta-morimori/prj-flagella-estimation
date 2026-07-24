@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Implemented the Phase 4 Issue #146 dataset loader smoke test. The new Phase 4 loader reads Phase 3 common clip datasets without running training, checks manifest/metadata/split consistency, loads uint8 .npy clips, verifies clip frame count and crop shape, validates labels and splits, and audits group_key leakage. Phase 4 docs now record the loader contract and the next step toward a baseline classifier.",
+  "summary": "Implemented the Phase 4 Issue #146 dataset loader smoke test. The new Phase 4 loader reads Phase 3 common clip datasets without running training, checks manifest/metadata/split consistency, requires metadata and split_summary clip_id sets to match exactly, loads uint8 .npy clips, verifies clip frame count and crop shape, validates labels and splits, and audits group_key leakage. Phase 4 docs now record the loader contract and the next step toward a baseline classifier.",
   "blocking_issues": [],
   "non_blocking_issues": [
     "Baseline classifier, training metrics, artifacts, and grouped learning curves are intentionally left for follow-up issues under #133.",
@@ -21,11 +21,15 @@
     },
     {
       "command": "uv run pytest -q tests/test_phase4_clip_dataset_loader.py tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase3_clip_metadata_schema.py",
-      "result": "PASS (16 passed)"
+      "result": "PASS (17 passed)"
     },
     {
       "command": "uv run pytest -q",
-      "result": "PASS (398 passed)"
+      "result": "PASS (399 passed)"
+    },
+    {
+      "command": "Codex review feedback",
+      "result": "PASS (added exact metadata/split_summary clip_id set matching and regression test)"
     }
   ],
   "user_review_required": false,

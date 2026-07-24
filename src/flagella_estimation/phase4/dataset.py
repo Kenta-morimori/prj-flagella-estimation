@@ -53,6 +53,19 @@ def load_phase3_common_clip_dataset(dataset_dir: Path) -> list[Phase4ClipSample]
     if len(split_by_clip_id) != len(split_rows):
         raise ValueError("split_summary.csv contains duplicate clip_id values")
 
+    metadata_clip_ids = {
+        str(_required_mapping(record, "clip")["clip_id"]) for record in records
+    }
+    split_clip_ids = set(split_by_clip_id)
+    if metadata_clip_ids != split_clip_ids:
+        missing_from_split = sorted(metadata_clip_ids - split_clip_ids)
+        missing_from_metadata = sorted(split_clip_ids - metadata_clip_ids)
+        raise ValueError(
+            "metadata and split_summary clip_id sets differ: "
+            f"missing_from_split={missing_from_split}, "
+            f"missing_from_metadata={missing_from_metadata}"
+        )
+
     samples: list[Phase4ClipSample] = []
     seen_clip_ids: set[str] = set()
     for record in records:
