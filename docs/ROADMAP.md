@@ -47,7 +47,7 @@ Project MVP
 
 | PR | State | Purpose | Next |
 | ---: | --- | --- | --- |
-| pending | local implementation | #150 grouped learning curve evaluator | checks後にPR作成し，#128 freeze gateへ進む |
+| #151 | draft | #150 grouped learning curve evaluator | Cloud review / CI後にmergeし，#128 freeze gateへ進む |
 
 ## Issue Hierarchy
 
