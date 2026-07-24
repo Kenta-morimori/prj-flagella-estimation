@@ -1,0 +1,51 @@
+{
+  "status": "PASS",
+  "summary": "Implemented Issue #148 as a deterministic Phase 4 diagnostic baseline for Phase 3 common clip datasets. The workflow preserves the Phase 3 grouped splits, validates the accepted dataset v1 freeze, extracts compact spatial and temporal features, fits a standardized nearest-centroid classifier, and writes model, metrics, predictions, confusion matrix, manifest, and run log artifacts. A lightweight run against the existing 18-clip pilot completed successfully.",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "The pilot contains only three independent groups per n_flagella class, so its metric values are diagnostic and are not sufficient for model adoption or independent-run-count decisions.",
+    "Grouped learning curve execution and n_flagella-specific run-count decisions remain under Issue #129.",
+    "RUN-TUMBLE dataset v2 remains deferred in Issue #145 with Project Status TODO."
+  ],
+  "tests_reviewed": [
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase4_baseline_classifier.py tests/test_phase4_clip_dataset_loader.py",
+      "result": "PASS (8 passed)"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS (403 passed)"
+    },
+    {
+      "command": "uv run python scripts/04_phase4/train_baseline_classifier.py config=conf/phase4/baseline_v1.yaml dataset_dir=outputs/2026-07-24/001500/phase3_gt_passthrough_v1 output_dir=outputs/2026-07-24/142055/phase4_baseline_v1",
+      "result": "PASS (18 clips, 9 groups; expected six artifacts plus run.log)"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "This is a bounded diagnostic baseline that follows the accepted Phase 3 schema, dataset v1 freeze, and grouped split policy. It adds no dependency and does not select a final ML model or change dataset adoption policy.",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "Create and implement a grouped learning curve sub-issue under #133 and connect its outputs to #129.",
+    "Implement the #128 dataset freeze checklist as a machine-readable audit gate.",
+    "Do not interpret the 18-clip pilot metrics as a final model or dataset-size decision."
+  ]
+}

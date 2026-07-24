@@ -47,7 +47,7 @@ Project MVP
 
 | PR | State | Purpose | Next |
 | ---: | --- | --- | --- |
-| - | - | 現時点で roadmap 上に固定して追跡する active PR はない | #146 の Phase 4 loader smoke test から進める |
+| #149 | draft | #148 Phase 4 baseline classifier | Cloud review / CI後にmergeし，#129 grouped learning curveへ進む |
 
 ## Issue Hierarchy
 
@@ -96,17 +96,18 @@ Current baseline:
 | #127 | closed | #6 | 実動画・擬似動画の共通clip / metadata schema。PR #142 merged |
 | #128 | open | Phase 2→4 context | 学習datasetへ混ぜてよい条件変更 |
 | #129 | open | Phase 3→4 context | 1 clip時間長と必要な独立run数 |
-| #146 | open | #133 | Phase 3 common clip dataset loader smoke test |
+| #146 | closed | #133 | Phase 3 common clip dataset loader smoke test。PR #147 merged |
+| #148 | open | #133 | common clip baseline classifier |
 | #145 | open | #133 | RUN-TUMBLE dataset v2。Project Status TODO / 後回し |
 
 Recommended order:
 
-1. #146: Phase 4 loader smoke test で Phase 3 output を再検出なしに読めることを確認する。
-2. Phase 4 baseline classifier の小Issueを #133 配下に作成する。
-3. #129: grouped learning curve で必要独立run数を評価する。
-4. #128: augmentation / domain variation / dataset version規則を Phase 4 freeze gate へ接続する。
+1. #148: Phase 4 baseline classifierで最小学習・metrics・artifact導線を固定する。
+2. #129: grouped learning curve CLIを実装し，必要独立run数を評価する。
+3. #128: augmentation / domain variation / dataset version規則を Phase 4 freeze gate へ接続する。
+4. #145: RUN-TUMBLE dataset v2はProject `TODO`のままMVP後へ残す。
 
-#127 の common clip / metadata schema は `docs/phase3/phase3_1_clip_metadata_schema.md` と `schemas/phase3_clip_metadata.schema.json` に固定し，PR #142 で merge 済み。#6 の最小 GT passthrough pipeline は PR #144 で merge 済み。次は #146 で Phase 4 loader smoke test を進める。
+#127 の common clip / metadata schema は `docs/phase3/phase3_1_clip_metadata_schema.md` と `schemas/phase3_clip_metadata.schema.json` に固定し，PR #142 で merge 済み。#6 の最小 GT passthrough pipeline は PR #144，#146 loader smoke testはPR #147でmerge済み。現在は #148 baseline classifierを進める。
 
 ### Phase 2 Physics Extensions
 
@@ -189,6 +190,6 @@ helical shape が保たれているか
 
 ## Next Three Actions
 
-1. #146 の Phase 4 loader smoke test を実装し，`.npy` clip / `clip_metadata.jsonl` / `split_summary.csv` の contract を loader 側で検査する。
-2. Phase 4 baseline classifier の小Issueを #133 配下に作成し，training loop / metrics / artifacts を最小実装する。
-3. #129 の grouped learning curve へ接続し，`n_flagella` ごとの必要独立run数を評価する。
+1. #148 の Phase 4 baseline classifierをreview / mergeする。
+2. #129 grouped learning curveの実行可能CLIとartifact contractを実装する。
+3. #128 dataset freeze checklistをmachine-readable audit gateへ接続する。
