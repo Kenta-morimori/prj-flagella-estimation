@@ -47,7 +47,7 @@ Project MVP
 
 | PR | State | Purpose | Next |
 | ---: | --- | --- | --- |
-| #151 | draft | #150 grouped learning curve evaluator | Cloud review / CI後にmergeし，#128 freeze gateへ進む |
+| #152 | draft | #128 machine-readable dataset freeze gate | Cloud review / CI後にmergeし，#129判断へ進む |
 
 ## Issue Hierarchy
 
@@ -94,7 +94,7 @@ Current baseline:
 | #9 | open | #6 context | 実顕微鏡像から菌体長さ特徴を分析 |
 | #17 | open | Phase 2→3 context | 実顕微鏡像に合わせた擬似顕微鏡描画条件 |
 | #127 | closed | #6 | 実動画・擬似動画の共通clip / metadata schema。PR #142 merged |
-| #128 | open | Phase 2→4 context | 学習datasetへ混ぜてよい条件変更 |
+| #128 | open | #133 | 学習datasetへ混ぜてよい条件変更とPhase 4 freeze gate |
 | #129 | open | Phase 3→4 context | 1 clip時間長と必要な独立run数 |
 | #146 | closed | #133 | Phase 3 common clip dataset loader smoke test。PR #147 merged |
 | #148 | closed | #133 | common clip baseline classifier。PR #149 merged |
@@ -103,10 +103,9 @@ Current baseline:
 
 Recommended order:
 
-1. #150: grouped learning curve evaluatorを固定し，全27 v1 candidateの診断結果を #129 へ渡す。
-2. #128: augmentation / domain variation / dataset version規則を Phase 4 freeze gate へ接続する。
-3. #129: `k=4`をMVP下限として採択するか，protected評価用run追加後に決める。
-4. #145: RUN-TUMBLE dataset v2はProject `TODO`のままMVP後へ残す。
+1. #128: augmentation / domain variation / dataset version規則をmachine-readable freeze gateへ接続する。
+2. #129: `k=4`をMVP下限として採択するか，protected評価用run追加後に決める。
+3. #145: RUN-TUMBLE dataset v2はProject `TODO`のままMVP後へ残す。
 
 #127 common clip schemaはPR #142，#6 GT passthroughはPR #144，#146 loader smokeはPR #147，#148 baseline classifierはPR #149でmerge済み。現在は #150 grouped learning curve evaluatorを進める。
 
@@ -191,6 +190,6 @@ helical shape が保たれているか
 
 ## Next Three Actions
 
-1. #150 grouped learning curve evaluatorをreview / mergeする。
-2. #128 dataset freeze checklistをmachine-readable audit gateへ接続する。
-3. #129のMVP必要run数判断を記録する。
+1. #128 machine-readable dataset freeze gateをreview / mergeする。
+2. #129のMVP必要run数判断を記録する。
+3. #145 dataset v2はProject `TODO`のまま後回しにする。

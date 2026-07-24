@@ -122,7 +122,7 @@ def test_grouped_learning_curve_rejects_dataset_outside_freeze(
     dataset_dir = tmp_path / "phase3_dataset"
     write_phase4_fixture_dataset(dataset_dir, dataset_version="v2")
 
-    with pytest.raises(ValueError, match="dataset_version is outside freeze"):
+    with pytest.raises(ValueError, match="dataset_versions"):
         evaluate_grouped_learning_curve(
             Phase4LearningCurveConfig(
                 dataset_dir=dataset_dir,
