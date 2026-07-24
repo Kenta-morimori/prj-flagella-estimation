@@ -106,9 +106,37 @@ Phase 4 training dataset を凍結する前に確認する:
 - `qc.status=fail` の扱いと除外理由が固定されている。
 - 実動画を含む場合，label source と利用目的が `unavailable`, `manual`, `phase2_gt` のどれかとして明確である。
 
+## Machine-readable Freeze Gate
+
+#128 のMVP規則は `conf/phase4/dataset_freeze_v1.yaml` と `scripts/04_phase4/audit_dataset_freeze.py` へ接続した。
+
+検査対象:
+
+- manifestのpipeline / schema / clip duration / window policy
+- training candidateの`n_flagella=1,2,3`
+- `baseline_torque_Nm=2.0e-20`と`require_use_for_ml_candidate=true`
+- 全clipの`dataset_version`, `model_id`, `render_id`
+- `source_kind`, `processing_mode`, `label_source`
+- `qc.status=pass`
+- `group_key` prefixとsplit leakage
+- registry assertionとしてRUN固定，Brownian除外，torque variation除外，`n_flagella=4` diagnostic-only
+
+実行済みcommand:
+
+```bash
+uv run python scripts/04_phase4/audit_dataset_freeze.py \
+  config=conf/phase4/dataset_freeze_v1.yaml \
+  dataset_dir=outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates \
+  output_dir=outputs/2026-07-24/150403/phase4_dataset_freeze_audit
+```
+
+`54 clips / 27 groups`でPASSした。出力は`freeze_audit.json`, `manifest.json`, `run.log`である。
+
+Phase 3 manifestはraw Phase 2 config hashをまだ埋め込んでいない。そのため，RUN固定・Brownian除外などの物理regimeは`dataset_version/model_id` registry assertionへ依存する。この制約はaudit warningとして常に保存する。
+
 ## Remaining Decision Points
 
-現時点で未決定として残す項目:
+次の項目はMVP v1 freezeの未完了条件ではなく，#145 dataset v2または実動画domainの後続判断として残す:
 
 1. v2 の短縮 RUN-TUMBLE profile の具体的な `run_tau`, `tumble_tau`, `semicoiled_tau`, `curly1_tau`。
 2. v2 で `n_flagella=4` を再検討するとき，#124 の物理改善完了を必須にするか。

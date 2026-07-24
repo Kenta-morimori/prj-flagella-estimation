@@ -40,6 +40,8 @@ def write_phase4_fixture_dataset(
                 {
                     "schema_version": "phase3_clip_metadata/v0",
                     "dataset_id": "phase4_learning_curve_fixture",
+                    "source_video": {"source_kind": "phase2_pseudo"},
+                    "processing_mode": "gt_passthrough",
                     "provenance": {
                         "dataset_version": dataset_version,
                         "model_id": "phase2_flagella_count_behavior_v1",
@@ -54,7 +56,10 @@ def write_phase4_fixture_dataset(
                         "window_policy": "non_overlap",
                     },
                     "normalization": {"crop_size_px": [16, 16]},
-                    "labels": {"n_flagella": n_flagella},
+                    "labels": {
+                        "n_flagella": n_flagella,
+                        "label_source": "phase2_gt",
+                    },
                     "frames": [{"clip_frame_index": index} for index in range(13)],
                     "qc": {"status": "pass", "exclusion_reason": None},
                 }
@@ -68,6 +73,11 @@ def write_phase4_fixture_dataset(
                 "dataset_id": "phase4_learning_curve_fixture",
                 "clip_count": len(metadata_records),
                 "clip": {"duration_s": 0.5, "window_policy": "non_overlap"},
+                "filters": {
+                    "allowed_n_flagella": [1, 2, 3],
+                    "require_use_for_ml_candidate": True,
+                    "baseline_torque_Nm": 2.0e-20,
+                },
             }
         ),
         encoding="utf-8",

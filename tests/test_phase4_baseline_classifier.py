@@ -53,6 +53,8 @@ def _write_fixture_dataset(dataset_dir: Path, *, dataset_version: str = "v1") ->
                 {
                     "schema_version": "phase3_clip_metadata/v0",
                     "dataset_id": "phase4_baseline_fixture",
+                    "source_video": {"source_kind": "phase2_pseudo"},
+                    "processing_mode": "gt_passthrough",
                     "provenance": {
                         "dataset_version": dataset_version,
                         "model_id": "phase2_flagella_count_behavior_v1",
@@ -67,7 +69,10 @@ def _write_fixture_dataset(dataset_dir: Path, *, dataset_version: str = "v1") ->
                         "window_policy": "non_overlap",
                     },
                     "normalization": {"crop_size_px": [16, 16]},
-                    "labels": {"n_flagella": n_flagella},
+                    "labels": {
+                        "n_flagella": n_flagella,
+                        "label_source": "phase2_gt",
+                    },
                     "frames": [{"clip_frame_index": index} for index in range(13)],
                     "qc": {"status": "pass", "exclusion_reason": None},
                 }
@@ -81,6 +86,11 @@ def _write_fixture_dataset(dataset_dir: Path, *, dataset_version: str = "v1") ->
                 "dataset_id": "phase4_baseline_fixture",
                 "clip_count": len(metadata_records),
                 "clip": {"duration_s": 0.5, "window_policy": "non_overlap"},
+                "filters": {
+                    "allowed_n_flagella": [1, 2, 3],
+                    "require_use_for_ml_candidate": True,
+                    "baseline_torque_Nm": 2.0e-20,
+                },
             }
         ),
         encoding="utf-8",
@@ -170,7 +180,7 @@ def test_baseline_rejects_dataset_outside_freeze(tmp_path: Path) -> None:
     dataset_dir = tmp_path / "phase3_dataset"
     _write_fixture_dataset(dataset_dir, dataset_version="v2")
 
-    with pytest.raises(ValueError, match="dataset_version is outside freeze"):
+    with pytest.raises(ValueError, match="dataset_versions"):
         train_baseline_classifier(
             Phase4BaselineConfig(
                 dataset_dir=dataset_dir,

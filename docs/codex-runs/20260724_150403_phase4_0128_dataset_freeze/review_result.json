@@ -1,0 +1,59 @@
+{
+  "status": "PASS",
+  "summary": "Completed Issue #128 for the Phase 3/4 MVP by connecting the accepted dataset mixing and versioning rules to a machine-readable Phase 4 freeze gate. The gate audits the Phase 3 manifest, all clip metadata, loader structure, grouped split integrity, version/model/render provenance, torque, class scope, clip policy, QC, and registry-backed physical-regime assertions. Baseline training and grouped learning curves now reuse the same strict validator. The full 27-group dataset v1 candidate set passed the audit and both downstream workflows.",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "The Phase 3 manifest does not embed the raw Phase 2 config hash. RUN-fixed, Brownian exclusion, torque-variation exclusion, and n_flagella=4 diagnostic-only policy therefore rely on the reviewed dataset_version/model_id registry assertion; the audit records this as a warning.",
+    "RUN-TUMBLE profile values, n_flagella=4 reconsideration, and broad render-domain ranges remain deferred to dataset v2 in Issue #145.",
+    "The final independent-run-count adoption decision remains in Issue #129."
+  ],
+  "tests_reviewed": [
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS (109 files)"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase4_dataset_freeze.py tests/test_phase4_learning_curve.py tests/test_phase4_baseline_classifier.py tests/test_phase4_clip_dataset_loader.py",
+      "result": "PASS (16 passed)"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS (411 passed)"
+    },
+    {
+      "command": "uv run python scripts/04_phase4/audit_dataset_freeze.py config=conf/phase4/dataset_freeze_v1.yaml dataset_dir=outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates output_dir=outputs/2026-07-24/150403/phase4_dataset_freeze_audit",
+      "result": "PASS (54 clips, 27 groups, 0 errors, 1 documented provenance warning)"
+    },
+    {
+      "command": "uv run python scripts/04_phase4/train_baseline_classifier.py config=conf/phase4/baseline_v1.yaml dataset_dir=outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates output_dir=outputs/2026-07-24/150403/phase4_baseline_v1_strict_freeze",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run python scripts/04_phase4/evaluate_learning_curve.py config=conf/phase4/grouped_learning_curve_v1.yaml dataset_dir=outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates output_dir=outputs/2026-07-24/150403/phase4_grouped_learning_curve_strict_freeze learning_curve.repeats=20",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "This gate implements already accepted Issue #128 MVP rules without changing the dataset schema, physical model, dataset adoption, dependencies, or phase boundaries. Remaining v2 policy changes are explicitly deferred.",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "Review and merge the Issue #128 freeze gate.",
+    "Decide Issue #129: adopt four training groups per class as the pseudo-v1 MVP lower bound or require additional protected evaluation groups.",
+    "Keep RUN-TUMBLE dataset v2 deferred in Issue #145 with Project Status TODO."
+  ]
+}

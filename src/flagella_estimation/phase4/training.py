@@ -31,6 +31,10 @@ from flagella_estimation.phase4.dataset import (
     audit_phase4_clip_dataset,
     load_phase3_common_clip_dataset,
 )
+from flagella_estimation.phase4.freeze import (
+    DatasetFreezePolicy,
+    assert_phase4_dataset_freeze,
+)
 
 
 @dataclass(frozen=True)
@@ -138,37 +142,18 @@ def validate_frozen_dataset(
     source_manifest: dict[str, Any],
     cfg: Phase4BaselineConfig,
 ) -> None:
-    if not samples:
-        raise ValueError("dataset has no clips")
-    actual_classes = {sample.n_flagella for sample in samples}
-    required_classes = set(cfg.allowed_n_flagella)
-    if actual_classes != required_classes:
-        raise ValueError(
-            f"dataset classes={sorted(actual_classes)} "
-            f"but required={sorted(required_classes)}"
-        )
-
-    manifest_clip = source_manifest.get("clip", {})
-    if not np.isclose(
-        float(manifest_clip.get("duration_s")),
-        cfg.required_clip_duration_s,
-        rtol=0.0,
-        atol=1.0e-9,
-    ):
-        raise ValueError("manifest clip duration is outside freeze")
-    if manifest_clip.get("window_policy") != cfg.required_window_policy:
-        raise ValueError("manifest window policy is outside freeze")
-
-    for sample in samples:
-        provenance = sample.metadata.get("provenance", {})
-        clip = sample.metadata.get("clip", {})
-        qc = sample.metadata.get("qc", {})
-        if provenance.get("dataset_version") != cfg.required_dataset_version:
-            raise ValueError(f"{sample.clip_id} dataset_version is outside freeze")
-        if clip.get("window_policy") != cfg.required_window_policy:
-            raise ValueError(f"{sample.clip_id} window policy is outside freeze")
-        if qc.get("status") != "pass":
-            raise ValueError(f"{sample.clip_id} qc.status must be pass")
+    assert_phase4_dataset_freeze(
+        dataset_dir=cfg.dataset_dir,
+        manifest=source_manifest,
+        samples=samples,
+        policy=DatasetFreezePolicy(
+            allowed_n_flagella=cfg.allowed_n_flagella,
+            dataset_version=cfg.required_dataset_version,
+            clip_duration_s=cfg.required_clip_duration_s,
+            window_policy=cfg.required_window_policy,
+            group_key_prefix=f"phase2:{cfg.required_dataset_version}:",
+        ),
+    )
 
 
 def _write_outputs(
