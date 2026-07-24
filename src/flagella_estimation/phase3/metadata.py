@@ -40,7 +40,9 @@ def build_gt_passthrough_metadata(
 
     frame_count = window.frame_count
     t_start_s = window.start / frame_rate_hz
-    t_end_s = window.end / frame_rate_hz
+    inclusive_clip_end = window.end - 1
+    inclusive_track_end = source_frame_count - 1
+    t_end_s = inclusive_clip_end / frame_rate_hz
     frames = []
     for local_index, geometry in enumerate(frame_geometries):
         source_frame_index = window.start + local_index
@@ -94,9 +96,9 @@ def build_gt_passthrough_metadata(
             "group_key": group_key,
             "source_track_id": track_id,
             "source_frame_start": 0,
-            "source_frame_end": source_frame_count,
+            "source_frame_end": inclusive_track_end,
             "t_start_s": 0.0,
-            "t_end_s": source_duration_s,
+            "t_end_s": inclusive_track_end / frame_rate_hz,
         },
         "clip": {
             "clip_id": clip_id,
@@ -107,7 +109,7 @@ def build_gt_passthrough_metadata(
             "frame_rate_hz": frame_rate_hz,
             "duration_s": frame_count / frame_rate_hz,
             "source_frame_start": window.start,
-            "source_frame_end": window.end,
+            "source_frame_end": inclusive_clip_end,
             "t_start_s": t_start_s,
             "t_end_s": t_end_s,
         },

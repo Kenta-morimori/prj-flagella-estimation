@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Implemented the first Phase 3 Issue #6 pseudo-GT passthrough pipeline. The new code reads Phase 2 dataset summaries and state_archive.npz files, filters the MVP baseline to n_flagella=1,2,3 with use_for_ml_candidate=True and baseline torque, renders lightweight uint8 .npy clips, writes #127-compatible metadata JSONL, records stratified grouped split summaries without group_key leakage, and emits QC summaries, manifest.json, and run.log. The user-run v1 pilot generated 9 samples and 18 clips with each n_flagella class represented in train/val/test. Real-video detection/tracking remains intentionally out of scope for #8/#9.",
+  "summary": "Implemented the first Phase 3 Issue #6 pseudo-GT passthrough pipeline. The new code reads Phase 2 dataset summaries and state_archive.npz files, filters the MVP baseline to n_flagella=1,2,3 with use_for_ml_candidate=True and baseline torque, renders lightweight uint8 .npy clips, writes #127-compatible metadata JSONL, records stratified grouped split summaries without group_key leakage, and emits QC summaries, manifest.json, and run.log. The user-run v1 pilot generated 9 samples and 18 clips with each n_flagella class represented in train/val/test. Codex review feedback was addressed by making frame-end metadata inclusive and preserving config path, CLI overrides, max_per_class, and environment details in the manifest. Real-video detection/tracking remains intentionally out of scope for #8/#9.",
   "blocking_issues": [],
   "non_blocking_issues": [
     "The current renderer is a lightweight state_archive rasterizer for GT passthrough; pseudo-microscopy domain tuning and render variation remain under #17/#128.",
@@ -34,6 +34,10 @@
     {
       "command": "pilot split audit",
       "result": "PASS (no group_key leakage; n_flagella=1,2,3 each have 2 train, 2 val, and 2 test clips)"
+    },
+    {
+      "command": "pilot metadata/provenance audit after Codex review fixes",
+      "result": "PASS (clip.source_frame_end=12, clip.t_end_s=0.48 for 13 frames at 25 Hz; manifest records config_path, CLI overrides, environment, and max_per_class)"
     }
   ],
   "user_review_required": false,

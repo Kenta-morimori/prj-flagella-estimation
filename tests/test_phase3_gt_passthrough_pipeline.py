@@ -160,7 +160,11 @@ def test_phase3_gt_passthrough_metadata_matches_required_schema_fields(
     assert metadata["labels"] == {"n_flagella": 1, "label_source": "phase2_gt"}
     assert metadata["provenance"]["run_id"] == "nf01_as000_ps000"
     assert metadata["track"]["group_key"] == "phase2:v1:nf01_as000_ps000"
+    assert metadata["track"]["source_frame_end"] == 12
+    assert metadata["track"]["t_end_s"] == 12 / 25.0
     assert metadata["clip"]["frame_count"] == 13
+    assert metadata["clip"]["source_frame_end"] == 12
+    assert metadata["clip"]["t_end_s"] == 12 / 25.0
     assert len(metadata["frames"]) == 13
 
 
@@ -230,6 +234,8 @@ def test_phase3_pipeline_writes_clips_manifest_and_summaries(tmp_path: Path) -> 
         dataset_id="phase3_fixture",
         input_dataset=input_dataset,
         output_dir=output_dir,
+        config_path=Path("conf/phase3/fixture.yaml"),
+        cli_overrides=("clip.duration_s=0.5",),
         crop_size_px=32,
     )
     result_dir = build_clip_dataset(cfg)
@@ -242,6 +248,12 @@ def test_phase3_pipeline_writes_clips_manifest_and_summaries(tmp_path: Path) -> 
     clip = np.load(output_dir / "clips" / "nf01_as000_ps000_c0000.npy")
 
     assert manifest["schema_version"] == "phase3_clip_metadata/v0"
+    assert manifest["invocation"] == {
+        "config_path": "conf/phase3/fixture.yaml",
+        "cli_overrides": ["clip.duration_s=0.5"],
+    }
+    assert manifest["filters"]["max_per_class"] is None
+    assert "python" in manifest["environment"]
     assert manifest["sample_count"] == 1
     assert manifest["clip_count"] == 2
     assert len(metadata_lines) == 2

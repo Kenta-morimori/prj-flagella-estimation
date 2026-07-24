@@ -7,7 +7,9 @@ from dataclasses import dataclass
 from datetime import datetime
 import json
 from pathlib import Path
+import platform
 import subprocess
+import sys
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -32,6 +34,8 @@ class Phase3Config:
     dataset_id: str
     input_dataset: Path
     output_dir: Path
+    config_path: Path | None = None
+    cli_overrides: tuple[str, ...] = ()
     duration_s: float = 0.5
     window_policy: str = "non_overlap"
     overlap_stride_fraction: float = 0.5
@@ -100,6 +104,14 @@ def _git_info() -> dict[str, Any]:
         }
 
 
+def _environment_info() -> dict[str, Any]:
+    return {
+        "python": sys.version.split()[0],
+        "platform": platform.platform(),
+        "numpy": np.__version__,
+    }
+
+
 def load_config(path: Path | None, overrides: list[str] | None = None) -> Phase3Config:
     raw: dict[str, Any] = {}
     if path is not None:
@@ -112,6 +124,8 @@ def load_config(path: Path | None, overrides: list[str] | None = None) -> Phase3
         dataset_id=str(data.get("dataset_id", "phase3_gt_passthrough_v1")),
         input_dataset=Path(str(data.get("input_dataset", ""))),
         output_dir=Path(str(data.get("output_dir") or default_output_dir())),
+        config_path=path,
+        cli_overrides=tuple(overrides or ()),
         duration_s=float(clip.get("duration_s", 0.5)),
         window_policy=str(clip.get("window_policy", "non_overlap")),
         overlap_stride_fraction=float(clip.get("overlap_stride_fraction", 0.5)),
@@ -321,6 +335,13 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
             "allowed_n_flagella": list(cfg.allowed_n_flagella),
             "require_use_for_ml_candidate": cfg.require_use_for_ml_candidate,
             "baseline_torque_Nm": cfg.baseline_torque_Nm,
+            "max_per_class": cfg.max_per_class,
+        },
+        "invocation": {
+            "config_path": str(cfg.config_path)
+            if cfg.config_path is not None
+            else None,
+            "cli_overrides": list(cfg.cli_overrides),
         },
         "outputs": {
             "clip_metadata_jsonl": str(metadata_path),
@@ -331,6 +352,7 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
         "sample_count": len(selected_rows),
         "clip_count": len(metadata_records),
         "git": _git_info(),
+        "environment": _environment_info(),
     }
     (cfg.output_dir / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2),

@@ -80,6 +80,8 @@ outputs/YYYY-MM-DD/HHMMSS/phase3_common_clip/
 
 `clip_metadata.jsonl` contains one #127-compatible metadata object per clip. `manifest.json` records config path, overrides, input paths, output paths, git commit, environment, and schema version when available.
 
+Frame end metadata follows the inclusive source-frame convention: for a 13-frame clip covering source frames `0..12`, `clip.source_frame_end=12` and `clip.t_end_s` is the timestamp of frame `12`.
+
 ## Library Interfaces
 
 Initial modules under `src/flagella_estimation/phase3/`:
