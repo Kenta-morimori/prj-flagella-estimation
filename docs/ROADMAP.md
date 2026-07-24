@@ -47,7 +47,7 @@ Project MVP
 
 | PR | State | Purpose | Next |
 | ---: | --- | --- | --- |
-| pending | local implementation | #128 machine-readable dataset freeze gate | checks後にPR作成し，#129判断へ進む |
+| #152 | draft | #128 machine-readable dataset freeze gate | Cloud review / CI後にmergeし，#129判断へ進む |
 
 ## Issue Hierarchy
 
