@@ -47,7 +47,7 @@ Project MVP
 
 | PR | State | Purpose | Next |
 | ---: | --- | --- | --- |
-| pending | local implementation | #148 Phase 4 baseline classifier | checks後にPR作成し，#129 grouped learning curveへ進む |
+| #149 | draft | #148 Phase 4 baseline classifier | Cloud review / CI後にmergeし，#129 grouped learning curveへ進む |
 
 ## Issue Hierarchy
 
