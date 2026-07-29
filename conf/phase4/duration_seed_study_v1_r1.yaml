@@ -1,0 +1,10 @@
+dataset_dir: outputs/phase2_analysis/flagella_count_behavior/datasets/v1_r1_duration_3s
+output_dir:
+overwrite: false
+study:
+  allowed_n_flagella: [1, 2, 3]
+  durations_s: [0.25, 0.5, 1.0]
+clip:
+  frame_rate_hz: 25.0
+  crop_size_px: 96
+  pixel_size_um: 0.1

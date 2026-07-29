@@ -16,7 +16,8 @@ Phase 3 / 4 MVP の標準 clip duration は `0.5 s` に固定する。必要独�
 - #148: common clip baseline classifier。PR #149 で完了した。
 - #150: grouped learning curve evaluator。PR #151 で完了した。
 - #128: 学習datasetへ混ぜてよい条件変更をmachine-readable freeze gateへ接続し，PR #152 で完了した。
-- #129: 1 clip の時間長と必要な独立run数を決める。`0.5 s` defaultとlearning curve評価は完了し，`k=4`の採用範囲を判断する。
+- #129: 1 clip の時間長と必要な独立run数を決める。`0.5 s` defaultとlearning curve評価に加え，v1 r1の3 s full-factorial duration / seed studyをユーザー実行して採用範囲を判断する。
+- #155: 初期過渡状態とattach / phase seed差がべん毛数識別性へ与える影響を評価し，`warmup_s`とearly clipの用途を決める。
 - #145: RUN-TUMBLE を含む dataset v2。Project Status は `TODO` だが，Phase 3 / 4 MVP 後に後回し。
 
 ## Input Contract
@@ -88,9 +89,38 @@ macro F1 mean:
 
 ## Next Actions
 
-1. #129で`k=4`をpseudo-v1 MVP dataset-size下限として採用するか判断する。
-2. 一般的な必要run数を主張する場合はprotected評価用runを追加する。
-3. #145 RUN-TUMBLE dataset v2はProject `TODO`のまま後回しにする。
+1. #129の3 s studyを`probe`後にユーザー実行し，3D / 2D window特徴，attach / phase seed寄与，window QCを確認する。
+2. `0.5 s`相当windowの採択基準と`k=4`のpseudo-v1 MVP適用範囲を判断する。
+3. 一般的な必要run数を主張するための新規protected run条件を別途決める。
+4. #145 RUN-TUMBLE dataset v2はProject `TODO`のまま後回しにする。
+
+## Duration And Seed Study
+
+#129の追加評価は，dataset v1と同じ物理条件を`dataset_revision=r1`として3 sへ延長し，`n_flagella=1,2,3`，`attach_seed=0,1,2`，`phase_seed=0,1,2`のfull factorial 27 runを対象とする。dataset v2には上げない。
+
+3D特徴はraw all-step state / `step_summary.csv`を各windowで再集計し，2D特徴は25 Hzへdownsampleしたbody-centered clipから抽出する。各windowは`run_id` / `group_key`，attach / phase seed，requested / actual duration，開始・終了時刻，run全体とwindow個別のshape/QC labelを保持する。同一run内windowは独立run数へ加えない。
+
+25 Hzではrequested durationがframeへ量子化され，`0.25 s -> 7 frames / 0.28 s`，`0.5 s -> 13 frames / 0.52 s`，`1.0 s -> 25 frames / 1.0 s`となる。CSVとplotではrequested値とactual値を分ける。
+
+実行:
+
+```bash
+./scripts/04_phase4/run_duration_seed_study.sh probe
+./scripts/04_phase4/run_duration_seed_study.sh full
+```
+
+本実行は長時間simulationのためユーザー実行とする。既存出力を確認の上で再生成する場合だけ`OVERWRITE=true`を指定する。
+
+主要artifact:
+
+```text
+outputs/YYYY-MM-DD/HHMMSS/phase4_duration_seed_study/window_features_3d.csv
+outputs/YYYY-MM-DD/HHMMSS/phase4_duration_seed_study/window_features_2d.csv
+outputs/YYYY-MM-DD/HHMMSS/phase4_duration_seed_study/run_feature_means.csv
+outputs/YYYY-MM-DD/HHMMSS/phase4_duration_seed_study/seed_effects.csv
+outputs/YYYY-MM-DD/HHMMSS/phase4_duration_seed_study/plots/
+outputs/YYYY-MM-DD/HHMMSS/phase4_duration_seed_study/manifest.json
+```
 
 ## Key References
 
@@ -98,5 +128,6 @@ macro F1 mean:
 - Loader smoke test issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/146`
 - Baseline classifier issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/148`
 - Grouped learning curve issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/150`
+- Initial transient evaluation issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/155`
 - Phase 3 metadata schema: `schemas/phase3_clip_metadata.schema.json`
 - Phase 3 GT passthrough pipeline: `src/flagella_estimation/phase3/`

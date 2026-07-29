@@ -1,0 +1,53 @@
+{
+  "status": "PASS",
+  "summary": "Issue #129の3 s duration / seed study実行導線を実装した。dataset v1と同じ物理条件をdataset_revision r1として延長し、n_flagella=1,2,3、attach_seed=0,1,2、phase_seed=0,1,2のfull factorial 27 runを生成できる。解析CLIは同じ時間窓についてraw all-step 3D特徴と25 Hz body-centered 2D clip特徴を出力し、run全体とwindow個別のshape/QC label、attach×phase run平均、seed分散寄与、時間推移plot、seed heatmapを保存する。長時間simulationはrepository方針に従いユーザー実行へ渡した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "3 s full-factorial 27 runは長時間simulationのため未実行であり、科学的な時間長・run数判断はartifact生成後に行う。",
+    "0.5 s採択時の許容性能差は未決定であり、Issue #129で実データplotを確認してから決める。",
+    "初期過渡状態、warmup_s、early clipの用途はIssue #155で判断する。",
+    "最終評価用protected runsは今回の27 runと分離するが、具体的なseed / condition差は未決定である。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase4_duration_study.py tests/test_phase4_baseline_classifier.py tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase2_generic_multi_run.py",
+      "result": "PASS (53 passed)"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS (415 passed)"
+    },
+    {
+      "command": "./scripts/04_phase4/run_duration_seed_study.sh probe",
+      "result": "PASS (n_flagella=1,2,3 at attach_seed=0, phase_seed=0; full profile dry-run separately expanded all 27 conditions)"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "物理モデル、dataset version、Phase境界、学習採択基準は変更していない。既存v1条件のsource duration延長をr1として記録し、承認済みのgroup_key独立性とbody-centered描画方針に従う解析導線の追加である。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "./scripts/04_phase4/run_duration_seed_study.sh fullをユーザーが実行する。",
+    "window_features_3d.csv、window_features_2d.csv、run_feature_means.csv、seed_effects.csv、plotsを確認し、Issue #129で0.5 sと必要run数の採用範囲を決める。",
+    "Issue #155で初期過渡状態とwarmup_sを判断する。",
+    "最終評価用protected runsのseed / condition設計を別途決める。"
+  ]
+}

@@ -96,6 +96,7 @@ Current baseline:
 | #127 | closed | #6 | 実動画・擬似動画の共通clip / metadata schema。PR #142 merged |
 | #128 | closed | #133 | 学習datasetへ混ぜてよい条件変更とPhase 4 freeze gate。PR #152 merged |
 | #129 | open | Phase 3→4 context | 1 clip時間長と必要な独立run数 |
+| #155 | open | #133 | 初期過渡状態とattach / phase seed差が識別性へ与える影響 |
 | #146 | closed | #133 | Phase 3 common clip dataset loader smoke test。PR #147 merged |
 | #148 | closed | #133 | common clip baseline classifier。PR #149 merged |
 | #150 | closed | #133 | grouped learning curve evaluator。PR #151 merged |
@@ -103,8 +104,9 @@ Current baseline:
 
 Recommended order:
 
-1. #129: `k=4`をpseudo-v1 MVP下限として採択するか，protected評価用run追加後に決める。
-2. #145: RUN-TUMBLE dataset v2はProject `TODO`のままMVP後へ残す。
+1. #129: v1 r1の3 s full-factorial duration / seed studyを実行し，`0.5 s`と必要run数を判断する。
+2. #155: 初期過渡状態とseed差から`warmup_s`とearly clipの用途を判断する。
+3. #145: RUN-TUMBLE dataset v2はProject `TODO`のままMVP後へ残す。
 
 #127 common clip schemaはPR #142，#6 GT passthroughはPR #144，#146 loader smokeはPR #147，#148 baseline classifierはPR #149，#150 grouped learning curveはPR #151，#128 freeze gateはPR #152でmerge済み。現在の直近判断は #129 である。
 
