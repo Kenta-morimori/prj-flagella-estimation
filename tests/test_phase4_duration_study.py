@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 from pathlib import Path
+import subprocess
 
 import numpy as np
 import pytest
@@ -209,3 +211,43 @@ def test_duration_study_config_accepts_key_value_overrides(tmp_path: Path) -> No
     assert cfg.durations_s == (0.25, 0.5, 1.0)
     assert cfg.frame_rate_hz == pytest.approx(20.0)
     assert cfg.overwrite is True
+
+
+@pytest.mark.light
+def test_duration_study_shell_full_path_supports_empty_overwrite(
+    tmp_path: Path,
+) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    command_log = tmp_path / "commands.log"
+    fake_uv = fake_bin / "uv"
+    fake_uv.write_text(
+        '#!/usr/bin/env bash\nprintf \'%s\\n\' "$*" >> "${COMMAND_LOG}"\n',
+        encoding="utf-8",
+    )
+    fake_uv.chmod(0o755)
+    env = {
+        **os.environ,
+        "PATH": f"{fake_bin}:{os.environ['PATH']}",
+        "COMMAND_LOG": str(command_log),
+    }
+    script = (
+        Path(__file__).parents[1]
+        / "scripts"
+        / "04_phase4"
+        / "run_duration_seed_study.sh"
+    )
+
+    completed = subprocess.run(
+        ["bash", str(script), "full"],
+        cwd=tmp_path,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    commands = command_log.read_text(encoding="utf-8").splitlines()
+    assert len(commands) == 3
+    assert all("overwrite=true" not in command for command in commands)

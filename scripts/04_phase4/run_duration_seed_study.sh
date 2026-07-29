@@ -20,23 +20,29 @@ if [[ "${mode}" == "probe" ]]; then
   exit 0
 fi
 
-overwrite_args=()
+overwrite_requested="${OVERWRITE:-false}"
 if [[ -e "${run_dir}" || -e "${dataset_dir}" ]]; then
-  if [[ "${OVERWRITE:-false}" != "true" ]]; then
+  if [[ "${overwrite_requested}" != "true" ]]; then
     printf 'Existing output found. Re-run with OVERWRITE=true after inspection.\n' >&2
     exit 2
   fi
-  overwrite_args=(overwrite=true)
 fi
 
-uv run python scripts/01_simulate_swimming/run_multi_run.py \
-  config="${campaign_config}" \
-  "${overwrite_args[@]}"
-
-uv run python scripts/02_phase2_analysis/build_dataset.py \
-  config="${campaign_config}" \
-  run_dir="${run_dir}" \
-  "${overwrite_args[@]}"
+if [[ "${overwrite_requested}" == "true" ]]; then
+  uv run python scripts/01_simulate_swimming/run_multi_run.py \
+    config="${campaign_config}" \
+    overwrite=true
+  uv run python scripts/02_phase2_analysis/build_dataset.py \
+    config="${campaign_config}" \
+    run_dir="${run_dir}" \
+    overwrite=true
+else
+  uv run python scripts/01_simulate_swimming/run_multi_run.py \
+    config="${campaign_config}"
+  uv run python scripts/02_phase2_analysis/build_dataset.py \
+    config="${campaign_config}" \
+    run_dir="${run_dir}"
+fi
 
 run_timestamp="$(TZ=Asia/Tokyo date +%Y-%m-%d/%H%M%S)"
 output_dir="outputs/${run_timestamp}/phase4_duration_seed_study"

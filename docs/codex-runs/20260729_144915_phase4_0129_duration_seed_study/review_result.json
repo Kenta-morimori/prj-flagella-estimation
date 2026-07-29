@@ -32,6 +32,10 @@
     {
       "command": "./scripts/04_phase4/run_duration_seed_study.sh probe",
       "result": "PASS (n_flagella=1,2,3 at attach_seed=0, phase_seed=0; full profile dry-run separately expanded all 27 conditions)"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase4_duration_study.py",
+      "result": "PASS (3 passed; includes shell full-path regression without OVERWRITE)"
     }
   ],
   "user_review_required": false,
