@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #129の3 s duration / seed study実行導線を実装し、ユーザー実行によるfull factorial 27 runの完了後に解析plotを改善した。dataset v1と同じ物理条件をdataset_revision r1として延長し、n_flagella=1,2,3、attach_seed=0,1,2、phase_seed=0,1,2を評価する。時間推移plotは同一特徴量の0.25/0.5/1.0 sパネルで共通y軸を使い、seed heatmapはduration 3行 x n_flagella 3列へ統合しつつdurationごとの独立color scaleとQC fail labelを保持する。既存raw runから再解析するCLIと、PASSまたはFAIL category@first_fail_t_sを表示する既存3D replayコマンドをscripts/README.mdへ記載した。",
+  "summary": "Issue #129の3 s duration / seed study実行導線を実装し、ユーザー実行によるfull factorial 27 runの完了後に解析plotと出力配置を改善した。dataset v1と同じ物理条件をdataset_revision r1として延長し、n_flagella=1,2,3、attach_seed=0,1,2、phase_seed=0,1,2を評価する。時間推移plotは同一特徴量の0.25/0.5/1.0 sパネルで共通y軸を使い、seed heatmapはduration 3行 x n_flagella 3列へ統合しつつdurationごとの独立color scaleとQC fail labelを保持する。raw run、dataset revision、Phase 4解析、replayをoutputs/phase2_multi_run/flagella_count_duration_3s_r1配下へ集約し、既存raw runからsimulationなしで再構築するCLIをscripts/README.mdへ記載した。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "0.5 s採択時の許容性能差は未決定であり、Issue #129で実データplotを確認してから決める。",
@@ -42,6 +42,10 @@
       "result": "PASS (181 passed, 235 deselected)"
     },
     {
+      "command": "bash -n scripts/04_phase4/run_duration_seed_study.sh && ./scripts/04_phase4/run_duration_seed_study.sh probe",
+      "result": "PASS (shell syntax valid; n_flagella=1,2,3 probe expanded)"
+    },
+    {
       "command": "uv run python scripts/04_phase4/evaluate_duration_seed_study.py config=conf/phase4/duration_seed_study_v1_r1.yaml output_dir=outputs/2026-07-30/111006/phase4_duration_seed_study",
       "result": "PASS (27 user-generated runs reanalyzed; 12 plots generated and representative time/heatmap PNGs visually checked)"
     }
@@ -51,13 +55,13 @@
   "user_review_outputs": [],
   "user_review_points": [],
   "adr_required": false,
-  "adr_reason": "物理モデル、dataset version、Phase境界、dataset v2の採択条件全体は変更していない。既存のduration / seed解析plotと利用手順の改善である。",
+  "adr_reason": "物理モデル、dataset version、Phase境界、dataset v2の採択条件全体は変更していない。既存のduration / seed解析plot、campaign内の出力配置、利用手順の改善である。",
   "commit_type": "complete",
   "commit_hash": null,
   "push_status": "not_pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/156",
   "next_actions": [
-    "outputs/2026-07-30/111006/phase4_duration_seed_studyのCSVとplotを確認し、Issue #129で0.5 sと必要run数の採用範囲を決める。",
+    "既存27 runからcampaign配下のdataset revisionとanalysisを再生成し、CSVとplotを確認してIssue #129で0.5 sと必要run数の採用範囲を決める。",
     "既存replay CLIで27条件をrenderし、n_flagella=3の4 fail条件を定性評価する。",
     "n_flagella=3のflag strict QC failをPhase 2側で診断し、dataset v2の形状・QC採択条件の一部として9/9 strict passを確認する。",
     "Issue #155で初期過渡状態とwarmup_sを判断する。",

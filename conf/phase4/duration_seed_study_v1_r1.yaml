@@ -1,5 +1,5 @@
-dataset_dir: outputs/phase2_analysis/flagella_count_behavior/datasets/v1_r1_duration_3s
-output_dir:
+dataset_dir: outputs/phase2_multi_run/flagella_count_duration_3s_r1/dataset/v1_r1_duration_3s
+output_dir: outputs/phase2_multi_run/flagella_count_duration_3s_r1/analysis/phase4_duration_seed_study
 overwrite: false
 study:
   allowed_n_flagella: [1, 2, 3]

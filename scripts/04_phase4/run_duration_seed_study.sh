@@ -10,7 +10,8 @@ fi
 campaign_config="conf/phase2_multi_run/flagella_count_duration_3s_r1.yaml"
 study_config="conf/phase4/duration_seed_study_v1_r1.yaml"
 run_dir="outputs/phase2_multi_run/flagella_count_duration_3s_r1"
-dataset_dir="outputs/phase2_analysis/flagella_count_behavior/datasets/v1_r1_duration_3s"
+dataset_dir="${run_dir}/dataset/v1_r1_duration_3s"
+study_dir="${run_dir}/analysis/phase4_duration_seed_study"
 
 if [[ "${mode}" == "probe" ]]; then
   uv run python scripts/01_simulate_swimming/run_multi_run.py \
@@ -44,10 +45,7 @@ else
     run_dir="${run_dir}"
 fi
 
-run_timestamp="$(TZ=Asia/Tokyo date +%Y-%m-%d/%H%M%S)"
-output_dir="outputs/${run_timestamp}/phase4_duration_seed_study"
 uv run python scripts/04_phase4/evaluate_duration_seed_study.py \
-  config="${study_config}" \
-  output_dir="${output_dir}"
+  config="${study_config}"
 
-printf 'Study output: %s\n' "${output_dir}"
+printf 'Study output: %s\n' "${study_dir}"

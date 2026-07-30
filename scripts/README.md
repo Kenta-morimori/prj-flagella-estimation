@@ -227,15 +227,26 @@ Issue #129 のサンプル時間長・run数検討では、3秒raw run、dataset
 caffeinate -i ./scripts/04_phase4/run_duration_seed_study.sh full
 ```
 
-3秒raw runとdataset revisionがすでに存在する場合は、シミュレーションを再実行せず解析だけを新しい出力先へ生成できます。
+raw run、dataset revision、duration / seed解析は、同じcampaign rootの `dataset/`、`analysis/` 配下へ保存されます。
 
-```bash
-uv run python scripts/04_phase4/evaluate_duration_seed_study.py \
-  config=conf/phase4/duration_seed_study_v1_r1.yaml \
-  output_dir=outputs/YYYY-MM-DD/HHMMSS/phase4_duration_seed_study
+```text
+outputs/phase2_multi_run/flagella_count_duration_3s_r1/
+├── dataset/v1_r1_duration_3s/
+├── analysis/phase4_duration_seed_study/
+└── replay/
 ```
 
 同一特徴量のtime plotは `0.25 / 0.5 / 1.0 s` で共通y軸を使います。seed heatmapはdurationを行、`n_flagella` を列とする1枚にまとめ、durationごとに独立したcolor scaleを使います。`x` と `!` はそれぞれQC fail windowとQC fail runを示します。
+
+3秒raw runがすでに存在する場合は、シミュレーションを再実行せずdataset revisionと解析結果だけを生成できます。
+
+```bash
+uv run python scripts/02_phase2_analysis/build_dataset.py \
+  config=conf/phase2_multi_run/flagella_count_duration_3s_r1.yaml \
+  run_dir=outputs/phase2_multi_run/flagella_count_duration_3s_r1
+uv run python scripts/04_phase4/evaluate_duration_seed_study.py \
+  config=conf/phase4/duration_seed_study_v1_r1.yaml
+```
 
 3秒raw runを再シミュレーションせず3D比較renderする場合:
 

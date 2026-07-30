@@ -256,3 +256,4 @@ def test_duration_study_shell_full_path_supports_empty_overwrite(
     commands = command_log.read_text(encoding="utf-8").splitlines()
     assert len(commands) == 3
     assert all("overwrite=true" not in command for command in commands)
+    assert "output_dir=" not in commands[2]
