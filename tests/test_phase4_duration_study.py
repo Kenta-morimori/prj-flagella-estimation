@@ -180,6 +180,11 @@ def test_duration_study_writes_window_qc_and_seed_artifacts(tmp_path: Path) -> N
     assert manifest["dataset_revision"] == "r1"
     assert manifest["within_run_windows_are_independent"] is False
     assert len(manifest["outputs"]["plots"]) >= 6
+    plot_names = {Path(path).name for path in manifest["outputs"]["plots"]}
+    assert "2d_centroid_step_mean_seed_heatmap.png" in plot_names
+    assert not any(
+        name.startswith("2d_centroid_step_mean_seed_heatmap_") for name in plot_names
+    )
 
 
 @pytest.mark.light

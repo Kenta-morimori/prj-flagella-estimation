@@ -516,13 +516,19 @@ def _plot_seed_heatmaps(
             durations = sorted(
                 {float(row["requested_duration_s"]) for row in matching_feature}
             )
-            for duration in durations:
+            classes = sorted({int(row["n_flagella"]) for row in matching_feature})
+            figure, axes = plt.subplots(
+                len(durations),
+                len(classes),
+                figsize=(4.2 * len(classes), 3.6 * len(durations)),
+                squeeze=False,
+            )
+            for duration_index, duration in enumerate(durations):
                 duration_rows = [
                     row
                     for row in matching_feature
                     if float(row["requested_duration_s"]) == duration
                 ]
-                classes = sorted({int(row["n_flagella"]) for row in duration_rows})
                 observed = np.asarray(
                     [float(row["run_mean"]) for row in duration_rows], dtype=float
                 )
@@ -530,19 +536,17 @@ def _plot_seed_heatmaps(
                 vmax = float(np.max(observed))
                 if math.isclose(vmin, vmax):
                     vmax = vmin + 1.0
-                figure, axes = plt.subplots(
-                    1,
-                    len(classes),
-                    figsize=(4.2 * len(classes), 3.8),
-                    squeeze=False,
-                )
                 image = None
-                for axis, n_flagella in zip(axes[0], classes, strict=True):
+                for class_index, n_flagella in enumerate(classes):
+                    axis = axes[duration_index, class_index]
                     class_rows = [
                         row
                         for row in duration_rows
                         if int(row["n_flagella"]) == n_flagella
                     ]
+                    if not class_rows:
+                        axis.set_visible(False)
+                        continue
                     attach_levels = sorted(
                         {int(row["attach_seed"]) for row in class_rows}
                     )
@@ -579,16 +583,19 @@ def _plot_seed_heatmaps(
                     axis.set_yticks(range(len(attach_levels)), attach_levels)
                     axis.set_xlabel("phase seed")
                     axis.set_ylabel("attach seed")
-                    axis.set_title(f"n={n_flagella}")
+                    axis.set_title(f"requested {duration:g} s, n={n_flagella}")
                 if image is not None:
-                    figure.colorbar(image, ax=list(axes[0]), shrink=0.8)
-                figure.suptitle(f"{feature}, requested {duration:g} s (! = QC fail)")
-                path = output_dir / (
-                    f"{domain}_{feature}_seed_heatmap_{duration:g}s.png"
-                )
-                figure.savefig(path, dpi=150, bbox_inches="tight")
-                plt.close(figure)
-                paths.append(str(path))
+                    figure.colorbar(
+                        image,
+                        ax=list(axes[duration_index]),
+                        shrink=0.8,
+                        label=f"{duration:g} s scale",
+                    )
+            figure.suptitle(f"{feature} by duration and seed (! = QC fail)")
+            path = output_dir / f"{domain}_{feature}_seed_heatmap.png"
+            figure.savefig(path, dpi=150, bbox_inches="tight")
+            plt.close(figure)
+            paths.append(str(path))
     return paths
 
 
@@ -604,7 +611,11 @@ def _plot_time_features(
     colors = {1: "#0072B2", 2: "#D55E00", 3: "#009E73"}
     for feature in features:
         figure, axes = plt.subplots(
-            1, len(durations), figsize=(5.0 * len(durations), 4.0), squeeze=False
+            1,
+            len(durations),
+            figsize=(5.0 * len(durations), 4.0),
+            squeeze=False,
+            sharey=True,
         )
         for axis, duration in zip(axes[0], durations, strict=True):
             duration_rows = [

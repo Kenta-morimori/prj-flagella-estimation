@@ -215,3 +215,36 @@ uv run python scripts/02_phase2_analysis/analyze_2d_separability.py \
   --output-dir outputs/phase2_analysis/flagella_count_behavior/datasets/v1/analysis/projection_2d \
   --overwrite
 ```
+
+## 04_phase4
+
+### Duration / Seed Study
+
+Issue #129 のサンプル時間長・run数検討では、3秒raw run、dataset revision、duration / seed解析を順番に実行します。条件だけを確認する場合は `probe`、full factorial 27 runを実行する場合は `full` を指定します。
+
+```bash
+./scripts/04_phase4/run_duration_seed_study.sh probe
+caffeinate -i ./scripts/04_phase4/run_duration_seed_study.sh full
+```
+
+3秒raw runとdataset revisionがすでに存在する場合は、シミュレーションを再実行せず解析だけを新しい出力先へ生成できます。
+
+```bash
+uv run python scripts/04_phase4/evaluate_duration_seed_study.py \
+  config=conf/phase4/duration_seed_study_v1_r1.yaml \
+  output_dir=outputs/YYYY-MM-DD/HHMMSS/phase4_duration_seed_study
+```
+
+同一特徴量のtime plotは `0.25 / 0.5 / 1.0 s` で共通y軸を使います。seed heatmapはdurationを行、`n_flagella` を列とする1枚にまとめ、durationごとに独立したcolor scaleを使います。`x` と `!` はそれぞれQC fail windowとQC fail runを示します。
+
+3秒raw runを再シミュレーションせず3D比較renderする場合:
+
+```bash
+uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py \
+  config=conf/phase2_multi_run/flagella_count_duration_3s_r1.yaml \
+  mode=render-only \
+  max_panels_per_grid=9 \
+  overwrite=true
+```
+
+27条件は最大9条件ずつ複数pageへ出力されます。各パネルにはconditionとともに `PASS`、または `FAIL <category>@<first_fail_t_s>` が表示されます。
