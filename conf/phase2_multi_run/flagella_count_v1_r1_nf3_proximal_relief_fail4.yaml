@@ -1,0 +1,110 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  description: Issue 158 proximal flag bond relief diagnostic for the four v1 r1 nf3 failures
+  source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/158
+  model_id: flag_spring2p25_body2p5_candidate_proximal_relief_diagnostic
+  dataset_version: v1
+  dataset_revision: r1
+  dataset_scope: nf3_fail4_dur3p0_proximal_relief
+  model_revision: diagnostic_only_proximal_flag_spring
+  version_role: failure_cause_probe
+  training_candidate: false
+  model_notes:
+    - Physical and rendering conditions match dataset v1 r1 except stiffness_scales.proximal_flag_spring.
+    - proximal_flag_spring scales only flag local bonds 1-2 and 2-3, where Issue 158 failures concentrate.
+    - This is a diagnostic comparison profile, not dataset v2 generation.
+
+base_config: conf/sim_swim.yaml
+
+base_overrides:
+  time.duration_s: 3.0
+  time.dt_star: 1.0e-4
+  motor.torque_Nm: 2.0e-20
+  motor.enable_switching: false
+  motor.force_distribution: root_torque_segment_couples
+  motor.local_first_second_spring_scale: 1.0
+  stiffness_scales.flag_spring: 2.25
+  stiffness_scales.body: 2.5
+  flagella.placement_mode: seeded_surface
+  flagella.initial_phase_mode: seeded
+  flagella.initial_helix_axis_from_rear_deg: 0
+  output_sampling.out_all_steps_3d: false
+  output_sampling.fps_out_3d: 25.0
+  output_sampling.fps_out_2d: 25.0
+
+sweep:
+  include_condition_ids:
+    - as001__ps001__nf03__pfs1
+    - as001__ps001__nf03__pfs1p25
+    - as001__ps001__nf03__pfs1p5
+    - as001__ps001__nf03__pfs2
+    - as002__ps000__nf03__pfs1
+    - as002__ps000__nf03__pfs1p25
+    - as002__ps000__nf03__pfs1p5
+    - as002__ps000__nf03__pfs2
+    - as002__ps001__nf03__pfs1
+    - as002__ps001__nf03__pfs1p25
+    - as002__ps001__nf03__pfs1p5
+    - as002__ps001__nf03__pfs2
+    - as002__ps002__nf03__pfs1
+    - as002__ps002__nf03__pfs1p25
+    - as002__ps002__nf03__pfs1p5
+    - as002__ps002__nf03__pfs2
+  axes:
+    attach_seed:
+      key: seed.attach_seed
+      short_name: as
+      values: [1, 2]
+      labels: ["1", "2"]
+      ids: [as001, as002]
+    phase_seed:
+      key: seed.phase_seed
+      short_name: ps
+      values: [0, 1, 2]
+      labels: ["0", "1", "2"]
+      ids: [ps000, ps001, ps002]
+    n_flagella:
+      key: flagella.n_flagella
+      short_name: nf
+      values: [3]
+      labels: ["3"]
+      ids: [nf03]
+    proximal_flag_spring:
+      key: stiffness_scales.proximal_flag_spring
+      short_name: pfs
+      values: [1.0, 1.25, 1.5, 2.0]
+      labels: ["1.0", "1.25", "1.5", "2.0"]
+      ids: [pfs1, pfs1p25, pfs1p5, pfs2]
+
+dataset:
+  dataset_id: v1_r1_nf3_fail4_proximal_relief
+  dataset_version: v1
+  dataset_revision: r1
+  feature_schema: conf/phase2_analysis/flagella_count_behavior_features.yaml
+  output_dir: outputs/phase2_multi_run/flagella_count_v1_r1_nf3_proximal_relief_fail4/dataset/v1_r1_nf3_fail4_proximal_relief
+  sample_id_template: "nf{n_flagella:02d}_as{attach_seed:03d}_ps{phase_seed:03d}_pfs{proximal_flag_spring}"
+  timeseries_sampling: all_steps
+
+replay:
+  mode: swim3d
+  fps_out_3d: 10.0
+  max_panels_per_grid: 8
+  output_subdir: replay
+
+plot:
+  default_x_axis: proximal_flag_spring
+  default_y_axis: phase_seed
+  filter_axes:
+    n_flagella: "3"
+  metrics:
+    - first_fail_t_s
+    - max_flag_bond_rel_err
+    - body_spring_max_stretch_ratio
+
+output:
+  base_dir: outputs/phase2_multi_run/flagella_count_v1_r1_nf3_proximal_relief_fail4
+  timestamp_subdir: false
+  save_state_archive: false
+  progress_interval: 1000

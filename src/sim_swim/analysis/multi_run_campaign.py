@@ -151,6 +151,12 @@ def normalize_campaign_config(raw_config: dict[str, Any]) -> dict[str, Any]:
         config.get("base_overrides", {}) or {}
     )
     sweep = dict(config.get("sweep", {}) or {})
+    include_condition_ids = [
+        str(condition_id) for condition_id in (sweep.get("include_condition_ids") or [])
+    ]
+    if len(set(include_condition_ids)) != len(include_condition_ids):
+        raise ValueError("sweep.include_condition_ids must be unique")
+    sweep["include_condition_ids"] = include_condition_ids
     raw_axes = dict(sweep.get("axes", {}) or {})
     if not raw_axes:
         raise ValueError("sweep.axes is required")
@@ -296,6 +302,24 @@ def build_campaign_conditions(config: dict[str, Any]) -> list[dict[str, Any]]:
             condition["grid_col_index"] = axis_order[col_axis_name]
             condition["grid_col_label"] = axis_labels[col_axis_name]
         conditions.append(condition)
+    include_condition_ids = list(config["sweep"].get("include_condition_ids") or [])
+    if include_condition_ids:
+        condition_by_id = {
+            condition["condition_id"]: condition for condition in conditions
+        }
+        missing = [
+            condition_id
+            for condition_id in include_condition_ids
+            if condition_id not in condition_by_id
+        ]
+        if missing:
+            raise ValueError(
+                "sweep.include_condition_ids contains unknown condition IDs: "
+                + ", ".join(missing)
+            )
+        conditions = [
+            condition_by_id[condition_id] for condition_id in include_condition_ids
+        ]
     return conditions
 
 

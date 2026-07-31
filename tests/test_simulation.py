@@ -181,6 +181,36 @@ def test_flag_spring_stiffness_scale_is_engine_configured() -> None:
     assert simulator.engine.flag_spring_stiffness_scale == pytest.approx(1.5)
 
 
+def test_proximal_flag_spring_rows_are_engine_configured() -> None:
+    cfg = _make_cfg(
+        motor_torque_Nm=2.0e-20,
+        n_flagella=1,
+        stub_mode="full_flagella",
+    ).with_overrides({"stiffness_scales": {"proximal_flag_spring": 1.75}})
+    simulator = Simulator(cfg)
+    engine = simulator.engine
+    flag_indices = simulator.model.flagella_indices[0]
+    spring_pairs = {
+        tuple(sorted(map(int, simulator.model.spring_pairs[row])))
+        for row in engine.flag_proximal_spring_rows
+    }
+    expected_pairs = {
+        tuple(sorted((int(flag_indices[1]), int(flag_indices[2])))),
+        tuple(sorted((int(flag_indices[2]), int(flag_indices[3])))),
+    }
+
+    assert engine.proximal_flag_spring_stiffness_scale == pytest.approx(1.75)
+    assert spring_pairs == expected_pairs
+    assert not np.intersect1d(
+        engine.flag_proximal_spring_rows,
+        engine.flag_local_spring_rows,
+    ).size
+    assert not np.intersect1d(
+        engine.flag_proximal_spring_rows,
+        engine.flag_nonlocal_spring_rows,
+    ).size
+
+
 @pytest.mark.parametrize(
     "profile",
     [
