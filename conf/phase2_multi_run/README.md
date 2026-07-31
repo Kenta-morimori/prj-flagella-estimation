@@ -12,6 +12,7 @@
 | `conf/phase2_multi_run/latest_model_torque_shape_stability.yaml` | 最新モデルの torque 複数条件 shape stability 比較 |
 | `conf/phase2_multi_run/flagella_count_behavior_v0.yaml` | Issue #71 / #117 / #118 の RUN 固定べん毛本数差 diagnostic dataset v0 canonical config |
 | `conf/phase2_multi_run/flagella_count_behavior_v1.yaml` | Issue #119 の改善モデル analysis dataset v1 canonical config |
+| `conf/phase2_multi_run/flagella_count_duration_3s_r1.yaml` | Issue #129 のv1 r1 3 s duration / seed study |
 | `conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml` | Issue #113 の n=4,5,6 seed固定多べん毛破綻境界診断 |
 | `conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml` | Issue #116 の n=4,5,6 seed固定 `flag_spring/body` 狭域 sweep |
 | `conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml` | Issue #116 の候補通過後に使う n=1,2,3 seed固定 smoke check |
@@ -19,6 +20,8 @@
 各 profile は run / plot / replay の設定を 1 枚にまとめる。
 `flagella_count_behavior_v0.yaml` と `flagella_count_behavior_v1.yaml` はさらに `dataset:` section を持ち，dataset 作成にも同じ config を使う。
 旧 `flagella_count_behavior_diagnostic.yaml` は既存出力との互換用 historical alias として残す。
+
+`flagella_count_duration_3s_r1.yaml`はcanonical dataset更新ではなく，v1と同じ物理条件のsource durationを3 sへ延長した比較用revisionである。`n_flagella=1,2,3`とattach / phase seed各3のfull factorial 27 runを生成し，#129 / #155のwindow時間長・seed差・初期過渡状態評価へ渡す。
 
 ## analysis dataset naming
 

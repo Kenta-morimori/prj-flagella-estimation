@@ -100,6 +100,14 @@ overlap window は，情報量や安定性の比較には使えるが，learning
 
 #150 で軽量なgrouped learning curve evaluatorを実装した。Phase 2 dataset v1の既存state archiveから`n_flagella=1,2,3`全27 candidateを`0.5 s` non-overlap clipへ変換する処理は追加simulationを伴わないため，実行済みである。
 
+## Planned 3 s Duration / Seed Study
+
+既存1 s sourceだけではwindow開始時刻と初期過渡状態を十分に比較できないため，#129ではdataset v1と同じ物理条件を`dataset_revision=r1`として3 sへ延長する。対象は`n_flagella=1,2,3`，`attach_seed=0,1,2`，`phase_seed=0,1,2`のfull factorial 27 independent runsとする。
+
+各duration / time windowについて，3D raw all-step特徴，25 Hz body-centered 2D clip特徴，run / window shape QCを記録する。attach / phase seed差は同一run内windowを独立sampleとして扱わず，run平均へ集約して主効果と残差を比較する。
+
+初期過渡状態の採用可否は別Issueで扱い，early / middle / late windowのclass分離性から`warmup_s`とearly clipの用途を判断する。最終性能評価にはこの27 runとは別のprotected runsを用意する。
+
 実行command:
 
 ```bash

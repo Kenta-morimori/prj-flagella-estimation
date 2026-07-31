@@ -1,0 +1,10 @@
+dataset_dir: outputs/phase2_multi_run/flagella_count_duration_3s_r1/dataset/v1_r1_duration_3s
+output_dir: outputs/phase2_multi_run/flagella_count_duration_3s_r1/analysis/phase4_duration_seed_study
+overwrite: false
+study:
+  allowed_n_flagella: [1, 2, 3]
+  durations_s: [0.25, 0.5, 1.0]
+clip:
+  frame_rate_hz: 25.0
+  crop_size_px: 96
+  pixel_size_um: 0.1

@@ -105,3 +105,25 @@
 - verification:
   - `uv run pytest -q tests/test_phase4_dataset_freeze.py tests/test_phase4_learning_curve.py tests/test_phase4_baseline_classifier.py tests/test_phase4_clip_dataset_loader.py`
   - `uv run python scripts/04_phase4/audit_dataset_freeze.py config=conf/phase4/dataset_freeze_v1.yaml dataset_dir=outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates output_dir=outputs/2026-07-24/153000/phase4_dataset_freeze_audit_source_verified`
+
+## Phase 4.5: duration and seed study
+
+### P4-5-001: Issue #129 3 s full-factorial解析導線
+
+- status: implementation complete / user long run pending
+- branch: `feature/phase4-129-duration-seed-study`
+- goal: dataset v1の物理条件を3 sへ延長したr1について，clip時間長，開始時刻，attach / phase seed差，shape/QCを同じwindow contractで比較できるようにする。
+- implementation:
+  - `conf/phase2_multi_run/flagella_count_duration_3s_r1.yaml`で`n_flagella=1,2,3`，attach / phase seed各3の27 runを固定した。
+  - 3D all-step特徴と25 Hz body-centered 2D clip特徴を同一windowへ対応付けるduration study evaluatorを追加した。
+  - run全体とwindow個別のstrict / relaxed shape/QC labelをCSVへ記録する。
+  - windowをrun単位へ集約し，attach×phaseセル平均を`run_feature_means.csv`，attach / phase seedの分散寄与と残差を`seed_effects.csv`へ記録する。全label付きとstrict-pass限定を分ける。
+  - 時間推移plotではQC failを印で示し，主要特徴量はattach×phase seed heatmapも保存する。
+  - 長時間simulationをユーザーが`probe` / `full`の2段階で実行するshellを追加した。
+- verification:
+  - `uv run pytest -q tests/test_phase4_duration_study.py`
+  - `./scripts/04_phase4/run_duration_seed_study.sh probe`
+- remaining decision:
+  - `0.5 s`相当windowの許容性能差は本実行結果を見て別途決める。
+  - 最終評価用protected runのseed / condition差は別途決める。
+  - 初期過渡状態，`warmup_s`，early clipの用途はIssue #155で判断する。
