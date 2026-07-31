@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from sim_swim.render.body2d import (
-    RENDER_MODE_BODY_CAPSULE_RIGID,
+    RENDER_MODE_BODY_CAPSULE_ORTHOGRAPHIC,
     BodyCapsuleRenderConfig,
     render_body_capsule_clip,
     render_body_capsule_frame,
@@ -115,4 +115,4 @@ def render_clip_array(
     return clip, geometries
 
 
-RENDER_MODE = RENDER_MODE_BODY_CAPSULE_RIGID
+RENDER_MODE = RENDER_MODE_BODY_CAPSULE_ORTHOGRAPHIC

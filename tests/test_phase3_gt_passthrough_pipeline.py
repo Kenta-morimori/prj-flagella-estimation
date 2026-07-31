@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+from dataclasses import replace
 import json
 from pathlib import Path
 
@@ -244,7 +245,7 @@ def test_phase3_gt_passthrough_metadata_matches_required_schema_fields(
     assert metadata["processing_mode"] == "gt_passthrough"
     assert metadata["labels"] == {"n_flagella": 1, "label_source": "phase2_gt"}
     assert metadata["provenance"]["run_id"] == "nf01_as000_ps000"
-    assert metadata["provenance"]["render_id"] == "body_capsule_rigid_v1"
+    assert metadata["provenance"]["render_id"] == "body_capsule_orthographic_v1"
     assert metadata["provenance"]["dataset_revision"] is None
     assert metadata["track"]["group_key"] == "phase2:v1:nf01_as000_ps000"
     assert metadata["track"]["source_frame_end"] == 12
@@ -278,6 +279,32 @@ def test_phase3_render_uses_body_only_rigid_capsule() -> None:
     assert np.all(clip_array[:, 48:, 48:] == 255)
     assert {geometry.body_length_px for geometry in geometries} == {20.0}
     assert {geometry.body_width_px for geometry in geometries} == {10.0}
+
+
+@pytest.mark.light
+def test_phase3_render_orthographic_capsule_foreshortening() -> None:
+    base = _state_with_flagella_far_from_body(0)
+    parallel = replace(base, quaternion=(0.0, 0.0, 0.0, 1.0))
+    tilt_60_deg = replace(base, quaternion=(0.0, 0.5, 0.0, 3**0.5 / 2.0))
+    end_on = replace(
+        base,
+        quaternion=(0.0, 2**0.5 / 2.0, 0.0, 2**0.5 / 2.0),
+    )
+
+    _, geometries = render_clip_array(
+        [parallel, tilt_60_deg, end_on],
+        image_size_px=64,
+        pixel_size_um=0.1,
+        body_length_um=2.0,
+        body_width_um=1.0,
+    )
+
+    assert geometries[0].body_length_px == pytest.approx(20.0)
+    assert geometries[1].body_length_px == pytest.approx(15.0)
+    assert geometries[2].body_length_px == pytest.approx(10.0)
+    assert geometries[0].bbox_xywh_px[2:] == pytest.approx((20.0, 10.0))
+    assert geometries[2].bbox_xywh_px[2:] == pytest.approx((10.0, 10.0))
+    assert geometries[2].body_axis_angle_rad is None
 
 
 @pytest.mark.light
@@ -384,11 +411,13 @@ def test_phase3_pipeline_writes_clips_manifest_and_summaries(tmp_path: Path) -> 
     }
     assert manifest["output_sampling"] == {"fps_out": 25.0}
     assert manifest["render"] == {
-        "render_mode": "body_capsule_rigid_v1",
+        "render_mode": "body_capsule_orthographic_v1",
+        "projection": "orthographic",
         "body_deformation_rendered": False,
         "rendered_objects": ["body"],
         "excluded_objects": ["flagella"],
         "body_shape": "capsule",
+        "body_length_definition": "end_to_end",
         "image_size_px": 32,
         "pixel_size_um": 0.1,
         "body_length_um": 2.0,

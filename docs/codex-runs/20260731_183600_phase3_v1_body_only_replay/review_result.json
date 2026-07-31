@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Phase 3 v1 r1 clip dataset の canonical `.npy` render を body-only rigid capsule に変更し、Phase 3 config を `output_sampling.fps_out` / `render.*` へ統一した。MP4 grid replay は Phase 2 共通3D rendererを使う `3d+2d` / `3d` / `2d` 選択式にし、defaultでは3Dがflagella-visible、2Dがbody-onlyになる。diagnostic表示には first-fail 時刻と before/after first-fail status を追加した。`--max-clips` 省略時はfilter後の全clipを処理し、default 12 clipずつ複数MP4へ分割する。",
+  "summary": "Phase 3 v1 r1 clip dataset の canonical `.npy` render を body-only rigid capsule に変更し、Phase 3 config を `output_sampling.fps_out` / `render.*` へ統一した。canonical render `body_capsule_orthographic_v1` は全長2.0 µm・幅1.0 µmの剛体capsuleを並行投影し、斜め姿勢のforeshorteningとz正対時の円形silhouetteを反映する。MP4 grid replay は Phase 2 共通3D rendererを使う `3d+2d` / `3d` / `2d` 選択式にし、defaultでは3Dがflagella-visible、2Dがbody-onlyになる。diagnostic表示には first-fail 時刻と before/after first-fail status を追加した。`--max-clips` 省略時はfilter後の全clipを処理し、default 12 clipずつ複数MP4へ分割する。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "merge 前にユーザーによる full dataset build と MP4 grid replay の定性評価が必要。"
@@ -20,7 +20,23 @@
     },
     {
       "command": "uv run pytest -q",
-      "result": "PASS: MP4分割回帰テスト追加後のfull suiteが終了コード0。"
+      "result": "PASS: 並行投影回帰テスト追加後のfull suiteが終了コード0。"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase3_gt_passthrough_pipeline.py tests/test_render_state_and_projection.py tests/test_phase4_dataset_freeze.py",
+      "result": "PASS: 33 passed。XY平行20 px、60度傾斜15 px、z正対10 pxと角度nullを検証。"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml filters.max_per_class=1",
+      "result": "PASS: outputs/2026-07-31/205818/phase3_v1_r1_clip_dataset を生成。"
+    },
+    {
+      "command": "uv run python scripts/04_phase4/audit_dataset_freeze.py config=conf/phase4/dataset_freeze_v1_r1.yaml dataset_dir=outputs/2026-07-31/205818/phase3_v1_r1_clip_dataset",
+      "result": "PASS: body_capsule_orthographic_v1を直接監査しerror_count=0。"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --run-id nf02_as000_ps001 --clip-index 4",
+      "result": "PASS: outputs/phase3_common_clip/datasets/v1/replay/20260731_205825/3d_2d_grid.mp4。見かけ全長が15.35 -> 10.95 -> 15.07 pxと変化。"
     },
     {
       "command": "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml filters.max_per_class=1",
@@ -75,18 +91,18 @@
     "MP4 grid が 13 frames / 25 fps / 約0.52 s で、0s表示問題が解消していること。",
     "filterなしのreplayで全135 clipがdefault 12 clipずつ12本のMP4に分割され、manifest.jsonのclip_count=135 / video_count=12になること。",
     "3D status textに shape first-fail 時刻と before/after first-fail status が表示されること。",
-    "diagnostic replayでfirst-failを含む/以後のwindowがtraining_excludedとして分かること。"
+    "diagnostic replayでfirst-failを含む/以後のwindowがtraining_excludedとして分かること。",
+    "nf02_as000_ps001_c0004で、2D capsuleがz正対付近に向けて円形化し、その後別方向へ伸び、一定長の見かけ上一回転にならないこと。"
   ],
   "adr_required": false,
-  "adr_reason": "既存Phase 2 renderer / output_sampling方針にPhase 3 dataset replayを揃える変更であり、新しい物理モデルや横断的運用方針は追加していない。",
+  "adr_reason": "物理simulation modelは変更せず、既存の固定カメラ並行投影方針をbody-only canonical renderへ適用した観測モデル変更であるため。render差分はrender_idとmanifestへ記録する。",
   "commit_type": "complete",
   "commit_hash": "included in the branch commits; see final response",
-  "push_status": "not_pushed",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/161",
   "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/159",
   "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/160",
   "next_actions": [
-    "branch を push し、draft PR #161 を更新する。",
     "ユーザーが full dataset build と MP4 grid replay を評価し、merge 可否を判断する。"
   ]
 }

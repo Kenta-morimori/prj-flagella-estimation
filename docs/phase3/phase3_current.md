@@ -18,7 +18,7 @@ Phase 3 は common clip schemaを#127 / PR #142，pseudo GT passthroughを#6 / P
 - #159: dataset v1 r1 の3秒run 27件を，5 clips/run のPhase 3共通clip datasetへ変換するCLI/config，window QC，grouped split，body-only rigid capsule `.npy` render，3D/2D MP4 grid replay，Phase 4 warmup filter / run-balanced weighting / freeze audit接続を追加した。
 - #6: 共通clip生成pipelineの実装親Issue。Phase 2 擬似動画 GT passthrough は実装済みで，実動画 detection / tracking は #8 / #9 後に進める。
 
-Phase 3 v1 r1 clip dataset configでは，出力fpsは `output_sampling.fps_out`，画像条件は `render.image_size_px` / `render.pixel_size_um` を正本とする。`diagnostic` clip は Phase 2 shape QC の `first_fail_t_s` を含む，またはそれ以後のためtrainingから除外した診断用clipであり，全frameで形状崩壊が目視できることを意味しない。
+Phase 3 v1 r1 clip dataset configでは，出力fpsは `output_sampling.fps_out`，画像条件は `render.image_size_px` / `render.pixel_size_um` を正本とする。canonical body-only画像は `body_capsule_orthographic_v1` とし，全長2.0 µm，幅1.0 µmの剛体capsuleを固定カメラへ並行投影する。斜め姿勢では見かけの長さを短縮し，z方向への正対時は円形にする。実動画条件が未確定のblur / noise / defocusはv1に含めない。`diagnostic` clip は Phase 2 shape QC の `first_fail_t_s` を含む，またはそれ以後のためtrainingから除外した診断用clipであり，全frameで形状崩壊が目視できることを意味しない。
 
 MVP 固定方針（2026-07-23 のユーザー判断に基づく）:
 

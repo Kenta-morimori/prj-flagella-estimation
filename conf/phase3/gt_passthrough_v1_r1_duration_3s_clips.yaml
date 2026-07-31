@@ -12,7 +12,7 @@ clip:
 output_sampling:
   fps_out: 25.0
 render:
-  mode: body_capsule_rigid_v1
+  mode: body_capsule_orthographic_v1
   image_size_px: 96
   pixel_size_um: 0.1
   body_length_um: 2.0

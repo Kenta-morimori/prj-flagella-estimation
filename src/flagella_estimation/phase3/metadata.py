@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from flagella_estimation.phase3.render import FrameGeometry
-from sim_swim.render.body2d import RENDER_MODE_BODY_CAPSULE_RIGID
+from sim_swim.render.body2d import RENDER_MODE_BODY_CAPSULE_ORTHOGRAPHIC
 from flagella_estimation.phase3.windows import FrameWindow
 
 
@@ -100,7 +100,7 @@ def build_gt_passthrough_metadata(
             "dataset_version": dataset_version,
             "dataset_revision": dataset_revision,
             "run_id": run_id,
-            "render_id": RENDER_MODE_BODY_CAPSULE_RIGID,
+            "render_id": RENDER_MODE_BODY_CAPSULE_ORTHOGRAPHIC,
             "condition_id": run_id,
             "raw_run_dir": str(raw_run_dir),
         },

@@ -11,7 +11,7 @@ import numpy as np
 from sim_swim.sim.core import SimulationState
 
 
-RENDER_MODE_BODY_CAPSULE_RIGID = "body_capsule_rigid_v1"
+RENDER_MODE_BODY_CAPSULE_ORTHOGRAPHIC = "body_capsule_orthographic_v1"
 
 
 @dataclass(frozen=True)
@@ -30,13 +30,13 @@ class BodyCapsuleGeometry:
     bbox_xywh_px: tuple[float, float, float, float]
     crop_xywh_px: tuple[float, float, float, float]
     center_xy_px: tuple[float, float]
-    body_axis_angle_rad: float
+    body_axis_angle_rad: float | None
     body_length_px: float
     body_width_px: float
 
 
-def body_axis_xy_from_state(state: SimulationState) -> np.ndarray:
-    """Return the projected body long-axis direction in image x/y coordinates."""
+def body_axis_3d_from_state(state: SimulationState) -> np.ndarray:
+    """Return the rigid body long-axis direction in world coordinates."""
 
     q = np.asarray(state.quaternion, dtype=float)
     if q.shape == (4,) and np.isfinite(q).all():
@@ -47,6 +47,7 @@ def body_axis_xy_from_state(state: SimulationState) -> np.ndarray:
                 [
                     1.0 - 2.0 * (y * y + z * z),
                     2.0 * (x * y + z * w),
+                    2.0 * (x * z - y * w),
                 ],
                 dtype=float,
             )
@@ -55,21 +56,30 @@ def body_axis_xy_from_state(state: SimulationState) -> np.ndarray:
                 return axis / axis_norm
 
     beads = np.asarray(state.bead_positions_um, dtype=float)
-    if beads.ndim == 2 and beads.shape[0] >= 2 and beads.shape[1] >= 2:
-        xy = beads[:, :2]
-        centered = xy - np.mean(xy, axis=0)
+    if beads.ndim == 2 and beads.shape[0] >= 2 and beads.shape[1] >= 3:
+        centered = beads[:, :3] - np.mean(beads[:, :3], axis=0)
         try:
             _, singular_values, vh = np.linalg.svd(centered, full_matrices=False)
         except np.linalg.LinAlgError:
             singular_values = np.zeros(1, dtype=float)
-            vh = np.asarray([[1.0, 0.0]], dtype=float)
+            vh = np.asarray([[1.0, 0.0, 0.0]], dtype=float)
         if float(singular_values[0]) > 1.0e-12:
             axis = np.asarray(vh[0], dtype=float)
             axis_norm = float(np.linalg.norm(axis))
             if axis_norm > 1.0e-12:
                 return axis / axis_norm
 
-    return np.asarray([1.0, 0.0], dtype=float)
+    return np.asarray([1.0, 0.0, 0.0], dtype=float)
+
+
+def body_axis_xy_from_state(state: SimulationState) -> np.ndarray:
+    """Return the normalized image-plane direction of the body long axis."""
+
+    axis_xy = body_axis_3d_from_state(state)[:2]
+    axis_xy_norm = float(np.linalg.norm(axis_xy))
+    if axis_xy_norm <= 1.0e-12:
+        return np.asarray([1.0, 0.0], dtype=float)
+    return axis_xy / axis_xy_norm
 
 
 def render_body_capsule_frame(
@@ -86,6 +96,8 @@ def render_body_capsule_frame(
         raise ValueError("body_length_um must be > 0")
     if cfg.body_width_um <= 0.0:
         raise ValueError("body_width_um must be > 0")
+    if cfg.body_length_um < cfg.body_width_um:
+        raise ValueError("body_length_um must be >= body_width_um")
 
     image_size = int(cfg.image_size_px)
     frame = np.full(
@@ -94,7 +106,7 @@ def render_body_capsule_frame(
         dtype=np.uint8,
     )
     px_per_um = 1.0 / cfg.pixel_size_um
-    body_length_px = float(cfg.body_length_um * px_per_um)
+    intrinsic_body_length_px = float(cfg.body_length_um * px_per_um)
     body_width_px = float(cfg.body_width_um * px_per_um)
     center_um = (
         np.asarray(state.position_um[:2], dtype=float)
@@ -104,21 +116,43 @@ def render_body_capsule_frame(
     state_center_um = np.asarray(state.position_um[:2], dtype=float)
     center_px = (state_center_um - center_um) * px_per_um + image_size / 2.0
 
-    axis_xy = body_axis_xy_from_state(state)
-    angle_rad = float(math.atan2(axis_xy[1], axis_xy[0]))
-    half_axis = axis_xy * (body_length_px / 2.0)
+    axis_xy = body_axis_3d_from_state(state)[:2]
+    projection_scale = float(np.clip(np.linalg.norm(axis_xy), 0.0, 1.0))
+    projected_centerline_px = (
+        intrinsic_body_length_px - body_width_px
+    ) * projection_scale
+    body_length_px = body_width_px + projected_centerline_px
+    angle_is_observable = projected_centerline_px >= 0.5
+    if projection_scale > 1.0e-12:
+        axis_xy = axis_xy / projection_scale
+    else:
+        axis_xy = np.asarray([1.0, 0.0], dtype=float)
+    angle_rad = (
+        float(math.atan2(axis_xy[1], axis_xy[0])) if angle_is_observable else None
+    )
+    half_axis = axis_xy * (projected_centerline_px / 2.0)
     p0 = center_px - half_axis
     p1 = center_px + half_axis
     thickness = max(1, int(round(body_width_px)))
     color = int(np.clip(cfg.body_intensity, 0, 255))
-    cv2.line(
-        frame,
-        tuple(np.rint(p0).astype(int)),
-        tuple(np.rint(p1).astype(int)),
-        color,
-        thickness,
-        cv2.LINE_AA,
-    )
+    if angle_is_observable:
+        cv2.line(
+            frame,
+            tuple(np.rint(p0).astype(int)),
+            tuple(np.rint(p1).astype(int)),
+            color,
+            thickness,
+            cv2.LINE_AA,
+        )
+    else:
+        cv2.circle(
+            frame,
+            tuple(np.rint(center_px).astype(int)),
+            max(1, int(round(body_width_px / 2.0))),
+            color,
+            -1,
+            cv2.LINE_AA,
+        )
 
     radius = body_width_px / 2.0
     min_xy = np.minimum(p0, p1) - radius

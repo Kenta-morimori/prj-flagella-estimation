@@ -520,10 +520,12 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
         },
         "render": {
             "render_mode": RENDER_MODE,
+            "projection": "orthographic",
             "body_deformation_rendered": False,
             "rendered_objects": ["body"],
             "excluded_objects": ["flagella"],
             "body_shape": "capsule",
+            "body_length_definition": "end_to_end",
             "image_size_px": cfg.image_size_px,
             "pixel_size_um": cfg.pixel_size_um,
             "body_length_um": cfg.body_length_um,
