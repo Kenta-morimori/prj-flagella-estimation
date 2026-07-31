@@ -217,6 +217,8 @@ def test_train_baseline_classifier_writes_reproducible_artifacts(
         "allowed_n_flagella": [1, 2, 3],
         "clip_duration_s": 0.5,
         "dataset_version": "v1",
+        "run_balanced_weighting": True,
+        "warmup_s": 0.0,
         "window_policy": "non_overlap",
     }
     assert manifest["dataset_audit"]["group_count"] == 9

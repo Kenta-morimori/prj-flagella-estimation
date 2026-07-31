@@ -147,3 +147,30 @@ def test_load_freeze_audit_config_supports_source_model_ids(
     assert cfg.dataset_dir == Path("override_input")
     assert cfg.output_dir == Path("override_output")
     assert cfg.policy.source_model_ids == ("model_a", "model_b")
+
+
+@pytest.mark.light
+def test_load_freeze_audit_config_supports_revision_source_ids_and_warmup(
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / "freeze.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "dataset_dir: input",
+                "output_dir: output",
+                "freeze:",
+                "  dataset_revision: r1",
+                "  source_dataset_ids: [v1_r1_duration_3s]",
+                "  warmup_s: 0.5",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    cfg = load_freeze_audit_config(config_path)
+
+    assert cfg.policy.dataset_revision == "r1"
+    assert cfg.policy.source_dataset_ids == ("v1_r1_duration_3s",)
+    assert cfg.policy.warmup_s == 0.5

@@ -96,3 +96,41 @@
 - docs:
   - `docs/phase3/phase3_current.md`
   - `docs/phase3/phase3_4_common_clip_pipeline_plan.md`
+
+### P3-3-002: Issue #159 dataset v1 r1 3秒runを0.5秒clip datasetへ変換する
+
+- status: complete
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/159`
+- branch: `feature/phase3-v1-r1-clip-dataset`
+- goal: 既存dataset v1 r1の3秒run 27件を，0.5秒non-overlap clipへ変換し，window QC，grouped split，replay，freeze auditを備えたPhase 3共通clip datasetとしてPhase 4 MLへ渡せる状態にする。
+- result:
+  - `conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml` を追加し，既存 `outputs/phase2_multi_run/flagella_count_duration_3s_r1/dataset/v1_r1_duration_3s` から5 clips/runを生成できるようにした。
+  - 最終採択済みの Phase 3 common clip dataset v1 は `outputs/phase3_common_clip/datasets/v1/` を canonical path とし，probe / staging の timestamp output と分離する。
+  - clip metadataへ `dataset_revision`，`clip.time_band`，run/window QC，first-fail時刻，pre-first-fail，training_candidate，diagnostic-only，exclusion_reasonを伝搬した。
+  - first-failを含むwindowとそれ以降を diagnostic-only とし，early clipは削除せず Phase 4 の `warmup_s=0.0/0.5/1.0` 選択条件として扱う。
+  - Phase 4 loader / freeze audit / baseline trainingを，training candidate選択とrun-balanced sample weightへ接続した。
+  - `scripts/03_phase3/replay_clip_dataset.py` で `.npy` clipからcontact sheetを再生成し，titleにclass/run/clip/time band/QC labelを表示できるようにした。
+  - stacked PR #161 でcanonical 2D renderを `body_capsule_orthographic_v1` へ更新し，全長2.0 µm・幅1.0 µmの剛体capsuleについて斜め姿勢のforeshorteningとz正対時の円形silhouetteを反映した。2026-07-31のユーザー定性評価で，`nf02_as000_ps001_c0004`を含む3D/2D replayを採択した。
+  - replayはfilter後の全clipをdefault対象とし，1本あたり12 clipで複数MP4へ分割する。
+  - `scripts/README.md` に probe，full build，replay，freeze audit の exact command と確認点を追加した。
+- acceptance criteria:
+  - [x] 27 run全てから0.5秒clip artifactを生成できる実装がある。
+  - [x] clip数，class数，独立group数，QC別数をsummaryへ保存する。
+  - [x] pre-first-failとdiagnostic-onlyの境界がfirst-fail時刻と一致する。
+  - [x] group leakageがない。
+  - [x] clip replayでデータ内容とQC labelを確認できる。
+  - [x] freeze audit，tests，review_resultがPASSする。
+  - [x] Phase 4 MLが同じdatasetを再検出なしで読み込める。
+- verification:
+  - `uv run ruff check .`
+  - `uv run pytest -q tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase4_clip_dataset_loader.py tests/test_phase4_dataset_freeze.py tests/test_phase4_baseline_classifier.py tests/test_phase4_learning_curve.py`
+  - `uv run pytest -q`
+  - `uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml filters.max_per_class=1`
+  - full build user command: `uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml output_dir=outputs/phase3_common_clip/datasets/v1`
+  - `uv run python scripts/04_phase4/audit_dataset_freeze.py config=conf/phase4/dataset_freeze_v1_r1.yaml dataset_dir=outputs/2026-07-31/163726/phase3_v1_r1_clip_dataset`
+  - `uv run python scripts/03_phase3/replay_clip_dataset.py outputs/2026-07-31/163726/phase3_v1_r1_clip_dataset --max-clips 3 --frames-per-clip 2`
+  - `uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --run-id nf02_as000_ps001 --clip-index 4`
+  - `uv run python scripts/04_phase4/audit_dataset_freeze.py config=conf/phase4/dataset_freeze_v1_r1.yaml dataset_dir=outputs/2026-07-31/205818/phase3_v1_r1_clip_dataset` -> PASS
+- docs:
+  - `docs/phase3/phase3_current.md`
+  - `scripts/README.md`

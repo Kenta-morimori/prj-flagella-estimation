@@ -15,6 +15,7 @@ from flagella_estimation.phase4.dataset import (
     Phase4ClipSample,
     audit_phase4_clip_dataset,
     load_phase3_common_clip_dataset,
+    select_phase4_training_candidates,
 )
 
 
@@ -22,6 +23,8 @@ from flagella_estimation.phase4.dataset import (
 class DatasetFreezePolicy:
     allowed_n_flagella: tuple[int, ...] = (1, 2, 3)
     dataset_version: str = "v1"
+    dataset_revision: str | None = None
+    source_dataset_ids: tuple[str, ...] = ("v1",)
     model_ids: tuple[str, ...] = ("phase2_flagella_count_behavior_v1",)
     source_model_ids: tuple[str, ...] = ("flag_spring2p25_body2p5_candidate",)
     render_ids: tuple[str, ...] = ("state_archive_numpy_v1",)
@@ -35,6 +38,7 @@ class DatasetFreezePolicy:
     baseline_torque_Nm: float = 2.0e-20
     require_use_for_ml_candidate: bool = True
     group_key_prefix: str = "phase2:v1:"
+    warmup_s: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -150,30 +154,68 @@ def audit_loaded_dataset_freeze(
         policy.baseline_torque_Nm,
     )
 
-    observed = _observed_values(samples, group_count=group_count)
+    candidate_samples = (
+        select_phase4_training_candidates(samples, warmup_s=policy.warmup_s)
+        if policy.require_use_for_ml_candidate
+        else samples
+    )
+    if not candidate_samples:
+        errors.append("training selection is empty")
+    observed = _observed_values(
+        samples, group_count=group_count, selected_samples=candidate_samples
+    )
     _expect(
-        errors, "classes", observed["n_flagella"], sorted(policy.allowed_n_flagella)
+        errors,
+        "selected_classes",
+        observed["selected_n_flagella"],
+        sorted(policy.allowed_n_flagella),
     )
     _expect(
         errors,
         "dataset_versions",
-        observed["dataset_versions"],
+        observed["selected_dataset_versions"],
         [policy.dataset_version],
     )
-    _expect(errors, "model_ids", observed["model_ids"], sorted(policy.model_ids))
-    _expect(errors, "render_ids", observed["render_ids"], sorted(policy.render_ids))
-    _expect(errors, "source_kinds", observed["source_kinds"], [policy.source_kind])
+    if policy.dataset_revision is not None:
+        _expect(
+            errors,
+            "selected_dataset_revisions",
+            observed["selected_dataset_revisions"],
+            [policy.dataset_revision],
+        )
+    _expect(
+        errors, "model_ids", observed["selected_model_ids"], sorted(policy.model_ids)
+    )
+    _expect(
+        errors, "render_ids", observed["selected_render_ids"], sorted(policy.render_ids)
+    )
+    _expect(
+        errors, "source_kinds", observed["selected_source_kinds"], [policy.source_kind]
+    )
     _expect(
         errors,
         "processing_modes",
-        observed["processing_modes"],
+        observed["selected_processing_modes"],
         [policy.processing_mode],
     )
-    _expect(errors, "label_sources", observed["label_sources"], [policy.label_source])
     _expect(
-        errors, "window_policies", observed["window_policies"], [policy.window_policy]
+        errors,
+        "label_sources",
+        observed["selected_label_sources"],
+        [policy.label_source],
     )
-    _expect(errors, "qc_statuses", observed["qc_statuses"], ["pass"])
+    _expect(
+        errors,
+        "window_policies",
+        observed["selected_window_policies"],
+        [policy.window_policy],
+    )
+    _expect(
+        errors,
+        "training_candidate_values",
+        observed["selected_training_candidate_values"],
+        [True],
+    )
     invalid_group_keys = [
         sample.group_key
         for sample in samples
@@ -188,7 +230,7 @@ def audit_loaded_dataset_freeze(
     observed["source_provenance"] = _audit_source_provenance(
         dataset_dir=Path(dataset_dir),
         phase3_manifest=manifest,
-        samples=samples,
+        samples=candidate_samples,
         policy=policy,
         errors=errors,
     )
@@ -221,14 +263,19 @@ def assert_phase4_dataset_freeze(
 
 
 def _observed_values(
-    samples: list[Phase4ClipSample], *, group_count: int | None
+    samples: list[Phase4ClipSample],
+    *,
+    group_count: int | None,
+    selected_samples: list[Phase4ClipSample],
 ) -> dict[str, Any]:
-    def values(path: tuple[str, ...]) -> list[Any]:
+    def values(source: list[Phase4ClipSample], path: tuple[str, ...]) -> list[Any]:
         observed = set()
-        for sample in samples:
+        for sample in source:
             value: Any = sample.metadata
             for key in path:
                 value = value.get(key) if isinstance(value, dict) else None
+            if path == ("qc", "training_candidate") and value is None:
+                value = True
             observed.add(value)
         return sorted(observed, key=lambda item: str(item))
 
@@ -237,15 +284,39 @@ def _observed_values(
         "group_count": group_count
         if group_count is not None
         else len({sample.group_key for sample in samples}),
+        "selected_sample_count": len(selected_samples),
+        "selected_group_count": len({sample.group_key for sample in selected_samples}),
         "n_flagella": sorted({sample.n_flagella for sample in samples}),
-        "dataset_versions": values(("provenance", "dataset_version")),
-        "model_ids": values(("provenance", "model_id")),
-        "render_ids": values(("provenance", "render_id")),
-        "source_kinds": values(("source_video", "source_kind")),
-        "processing_modes": values(("processing_mode",)),
-        "label_sources": values(("labels", "label_source")),
-        "window_policies": values(("clip", "window_policy")),
-        "qc_statuses": values(("qc", "status")),
+        "dataset_versions": values(samples, ("provenance", "dataset_version")),
+        "dataset_revisions": values(samples, ("provenance", "dataset_revision")),
+        "model_ids": values(samples, ("provenance", "model_id")),
+        "render_ids": values(samples, ("provenance", "render_id")),
+        "source_kinds": values(samples, ("source_video", "source_kind")),
+        "processing_modes": values(samples, ("processing_mode",)),
+        "label_sources": values(samples, ("labels", "label_source")),
+        "window_policies": values(samples, ("clip", "window_policy")),
+        "qc_statuses": values(samples, ("qc", "status")),
+        "training_candidate_values": values(samples, ("qc", "training_candidate")),
+        "selected_n_flagella": sorted(
+            {sample.n_flagella for sample in selected_samples}
+        ),
+        "selected_dataset_versions": values(
+            selected_samples, ("provenance", "dataset_version")
+        ),
+        "selected_dataset_revisions": values(
+            selected_samples, ("provenance", "dataset_revision")
+        ),
+        "selected_model_ids": values(selected_samples, ("provenance", "model_id")),
+        "selected_render_ids": values(selected_samples, ("provenance", "render_id")),
+        "selected_source_kinds": values(
+            selected_samples, ("source_video", "source_kind")
+        ),
+        "selected_processing_modes": values(selected_samples, ("processing_mode",)),
+        "selected_label_sources": values(selected_samples, ("labels", "label_source")),
+        "selected_window_policies": values(selected_samples, ("clip", "window_policy")),
+        "selected_training_candidate_values": values(
+            selected_samples, ("qc", "training_candidate")
+        ),
         "splits": sorted({sample.split for sample in samples}),
     }
 
@@ -293,21 +364,30 @@ def _audit_source_provenance(
             "dataset_manifest_sha256": _sha256(source_manifest_path),
             "dataset_id": source_manifest.get("dataset_id"),
             "dataset_version": effective_metadata.get("dataset_version"),
+            "dataset_revision": effective_metadata.get("dataset_revision"),
             "model_id": effective_metadata.get("model_id"),
         }
     )
-    _expect(
-        errors,
-        "source.dataset_id",
-        source_manifest.get("dataset_id"),
-        policy.dataset_version,
-    )
+    source_dataset_id = source_manifest.get("dataset_id")
+    if source_dataset_id not in policy.source_dataset_ids:
+        errors.append(
+            "source.dataset_id: "
+            f"expected one of {sorted(policy.source_dataset_ids)!r}, "
+            f"observed={source_dataset_id!r}"
+        )
     _expect(
         errors,
         "source.dataset_version",
         effective_metadata.get("dataset_version"),
         policy.dataset_version,
     )
+    if policy.dataset_revision is not None:
+        _expect(
+            errors,
+            "source.dataset_revision",
+            effective_metadata.get("dataset_revision"),
+            policy.dataset_revision,
+        )
     source_model_id = effective_metadata.get("model_id")
     if source_model_id not in policy.source_model_ids:
         errors.append(

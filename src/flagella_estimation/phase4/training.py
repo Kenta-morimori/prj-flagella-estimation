@@ -30,6 +30,8 @@ from flagella_estimation.phase4.dataset import (
     Phase4DatasetAudit,
     audit_phase4_clip_dataset,
     load_phase3_common_clip_dataset,
+    run_balanced_sample_weights,
+    select_phase4_training_candidates,
 )
 from flagella_estimation.phase4.freeze import (
     DatasetFreezePolicy,
@@ -48,6 +50,8 @@ class Phase4BaselineConfig:
     required_clip_duration_s: float = 0.5
     required_window_policy: str = "non_overlap"
     seed: int = 0
+    warmup_s: float = 0.0
+    run_balanced_weighting: bool = True
 
 
 def default_output_dir() -> Path:
@@ -80,6 +84,8 @@ def load_baseline_config(
         required_clip_duration_s=float(freeze.get("clip_duration_s", 0.5)),
         required_window_policy=str(freeze.get("window_policy", "non_overlap")),
         seed=int(data.get("seed", 0)),
+        warmup_s=float(freeze.get("warmup_s", 0.0)),
+        run_balanced_weighting=bool(freeze.get("run_balanced_weighting", True)),
     )
 
 
@@ -90,15 +96,22 @@ def train_baseline_classifier(cfg: Phase4BaselineConfig) -> Path:
         (cfg.dataset_dir / "manifest.json").read_text(encoding="utf-8")
     )
     samples = load_phase3_common_clip_dataset(cfg.dataset_dir)
-    audit = audit_phase4_clip_dataset(samples)
+    audit_phase4_clip_dataset(samples)
     validate_frozen_dataset(samples, source_manifest, cfg)
+    selected_samples = select_phase4_training_candidates(samples, warmup_s=cfg.warmup_s)
+    selected_audit = audit_phase4_clip_dataset(selected_samples)
     cfg.output_dir.mkdir(parents=True, exist_ok=True)
 
     features = np.stack(
-        [extract_clip_features(np.load(sample.clip_path)) for sample in samples]
+        [
+            extract_clip_features(np.load(sample.clip_path))
+            for sample in selected_samples
+        ]
     )
-    labels = np.asarray([sample.n_flagella for sample in samples], dtype=np.int64)
-    train_mask = np.asarray([sample.split == "train" for sample in samples])
+    labels = np.asarray(
+        [sample.n_flagella for sample in selected_samples], dtype=np.int64
+    )
+    train_mask = np.asarray([sample.split == "train" for sample in selected_samples])
     train_classes = set(int(value) for value in labels[train_mask])
     required_classes = set(cfg.allowed_n_flagella)
     if train_classes != required_classes:
@@ -107,12 +120,19 @@ def train_baseline_classifier(cfg: Phase4BaselineConfig) -> Path:
             f"but required={sorted(required_classes)}"
         )
 
-    model = fit_nearest_centroid(features[train_mask], labels[train_mask])
+    train_weights = (
+        run_balanced_sample_weights(selected_samples)[train_mask]
+        if cfg.run_balanced_weighting
+        else None
+    )
+    model = fit_nearest_centroid(
+        features[train_mask], labels[train_mask], sample_weights=train_weights
+    )
     predictions = predict_nearest_centroid(model, features)
     metrics_by_split: dict[str, dict[str, float | int]] = {}
     matrices: dict[str, np.ndarray] = {}
     for split in ("train", "val", "test"):
-        split_mask = np.asarray([sample.split == split for sample in samples])
+        split_mask = np.asarray([sample.split == split for sample in selected_samples])
         if not split_mask.any():
             raise ValueError(f"dataset has no samples in required split: {split}")
         metrics_by_split[split] = classification_metrics(
@@ -124,14 +144,14 @@ def train_baseline_classifier(cfg: Phase4BaselineConfig) -> Path:
 
     _write_outputs(
         cfg=cfg,
-        samples=samples,
+        samples=selected_samples,
         features=features,
         labels=labels,
         predictions=predictions,
         model=model,
         metrics_by_split=metrics_by_split,
         matrices=matrices,
-        audit=audit,
+        audit=selected_audit,
         source_manifest=source_manifest,
     )
     return cfg.output_dir
@@ -152,6 +172,7 @@ def validate_frozen_dataset(
             clip_duration_s=cfg.required_clip_duration_s,
             window_policy=cfg.required_window_policy,
             group_key_prefix=f"phase2:{cfg.required_dataset_version}:",
+            warmup_s=cfg.warmup_s,
         ),
     )
 
@@ -233,6 +254,8 @@ def _write_outputs(
             "dataset_version": cfg.required_dataset_version,
             "clip_duration_s": cfg.required_clip_duration_s,
             "window_policy": cfg.required_window_policy,
+            "warmup_s": cfg.warmup_s,
+            "run_balanced_weighting": cfg.run_balanced_weighting,
         },
         "dataset_audit": {
             "sample_count": audit.sample_count,

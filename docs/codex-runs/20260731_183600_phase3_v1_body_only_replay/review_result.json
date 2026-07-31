@@ -1,0 +1,125 @@
+{
+  "status": "PASS",
+  "summary": "Phase 3 v1 r1 clip dataset の canonical `.npy` render を body-only rigid capsule に変更し、Phase 3 config を `output_sampling.fps_out` / `render.*` へ統一した。canonical render `body_capsule_orthographic_v1` は全長2.0 µm・幅1.0 µmの剛体capsuleを並行投影し、斜め姿勢のforeshorteningとz正対時の円形silhouetteを反映する。MP4 grid replay は Phase 2 共通3D rendererを使う `3d+2d` / `3d` / `2d` 選択式にし、defaultでは3Dがflagella-visible、2Dがbody-onlyになる。diagnostic表示には first-fail 時刻と before/after first-fail status を追加した。`--max-clips` 省略時はfilter後の全clipを処理し、default 12 clipずつ複数MP4へ分割する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS: 116 files already formatted。"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS: All checks passed。"
+    },
+    {
+      "command": "uv run pytest -q tests/test_render_state_and_projection.py tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase3_clip_metadata_schema.py tests/test_phase4_clip_dataset_loader.py tests/test_phase4_dataset_freeze.py",
+      "result": "PASS: 41 passed。"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS: 並行投影回帰テスト追加後のfull suiteが終了コード0。"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase3_gt_passthrough_pipeline.py tests/test_render_state_and_projection.py tests/test_phase4_dataset_freeze.py",
+      "result": "PASS: 33 passed。XY平行20 px、60度傾斜15 px、z正対10 pxと角度nullを検証。"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml filters.max_per_class=1",
+      "result": "PASS: outputs/2026-07-31/205818/phase3_v1_r1_clip_dataset を生成。"
+    },
+    {
+      "command": "uv run python scripts/04_phase4/audit_dataset_freeze.py config=conf/phase4/dataset_freeze_v1_r1.yaml dataset_dir=outputs/2026-07-31/205818/phase3_v1_r1_clip_dataset",
+      "result": "PASS: body_capsule_orthographic_v1を直接監査しerror_count=0。"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --run-id nf02_as000_ps001 --clip-index 4",
+      "result": "PASS: outputs/phase3_common_clip/datasets/v1/replay/20260731_205825/3d_2d_grid.mp4。見かけ全長が15.35 -> 10.95 -> 15.07 pxと変化。"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml filters.max_per_class=1",
+      "result": "PASS: probe output outputs/2026-07-31/201401/phase3_v1_r1_clip_dataset, 15 clips / 3 groups / 3 classes。"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/2026-07-31/201401/phase3_v1_r1_clip_dataset --max-clips 2 --panel-layout 3d+2d",
+      "result": "PASS: 13 frames / 25 fps / 0.52 s の probe MP4 を生成。"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/2026-07-31/201401/phase3_v1_r1_clip_dataset --max-clips 1 --panel-layout 3d",
+      "result": "PASS: 3D-only panel layout を生成。"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/2026-07-31/201401/phase3_v1_r1_clip_dataset --max-clips 1 --panel-layout 2d",
+      "result": "PASS: 2D-only panel layout を生成。"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --qc-label diagnostic --max-clips 1 --panel-layout 3d+2d",
+      "result": "PASS: diagnostic filter replay を生成し、13 frames / 25 fps を確認。"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --max-clips 1 --panel-layout 3d+2d",
+      "result": "PASS: replay state 時刻が 0.00, 0.04, ..., 0.48 s になることを確認。"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase3_gt_passthrough_pipeline.py",
+      "result": "PASS: 14 passed。raw archive index と sampled frame index の取り違え、および全clipの複数MP4分割を検証。"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS: whitespace errorなし。"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase4_dataset_freeze.py",
+      "result": "PASS: 21 passed。dataset manifestの描画overrideをreplayへ復元し、保存済み.npy frameとの完全一致を検証。"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml filters.max_per_class=1 render.body_length_um=2.5",
+      "result": "PASS: variant render_id body_capsule_orthographic_v1-variant-4d6829408e62を生成。"
+    },
+    {
+      "command": "uv run python scripts/04_phase4/audit_dataset_freeze.py config=conf/phase4/dataset_freeze_v1_r1.yaml dataset_dir=outputs/2026-07-31/212011/phase3_v1_r1_clip_dataset",
+      "result": "PASS: 非canonical variantを期待どおりstatus=FAILで拒否。"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase4_learning_curve.py tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase4_dataset_freeze.py tests/test_phase4_baseline_classifier.py",
+      "result": "PASS: 31 passed。learning curveからdiagnostic clipを除外し、replay manifestのGit/environment記録を検証。"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS: PR #160 Codex review P1/P2対応後のfull suiteが終了コード0。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_reason": "2026-07-31にユーザーがfull replayとnf02_as000_ps001_c0004の並行投影挙動を確認し、定性評価PASSと判断した。",
+  "user_review_result": "PASS",
+  "user_run_commands": [
+    "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml output_dir=outputs/phase3_common_clip/datasets/v1",
+    "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1",
+    "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --qc-label diagnostic",
+    "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --panel-layout 3d --max-clips 12",
+    "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --panel-layout 2d --max-clips 12"
+  ],
+  "user_review_outputs": [
+    "outputs/phase3_common_clip/datasets/v1/dataset_summary.csv",
+    "outputs/phase3_common_clip/datasets/v1/qc_summary.csv",
+    "outputs/phase3_common_clip/datasets/v1/replay/<timestamp>/3d_2d_grid_*.mp4"
+  ],
+  "user_review_points": [
+    "dataset_summary.csv が 135 clips / 27 groups / 3 classes / training_candidate 129 / diagnostic 6 を示すこと。",
+    "default MP4 gridで3D側はべん毛を含むPhase 2共通3D表示、2D側はflagellaなしのbody-only capsuleであること。",
+    "MP4 grid が 13 frames / 25 fps / 約0.52 s で、0s表示問題が解消していること。",
+    "filterなしのreplayで全135 clipがdefault 12 clipずつ12本のMP4に分割され、manifest.jsonのclip_count=135 / video_count=12になること。",
+    "3D status textに shape first-fail 時刻と before/after first-fail status が表示されること。",
+    "diagnostic replayでfirst-failを含む/以後のwindowがtraining_excludedとして分かること。",
+    "nf02_as000_ps001_c0004で、2D capsuleがz正対付近に向けて円形化し、その後別方向へ伸び、一定長の見かけ上一回転にならないこと。"
+  ],
+  "adr_required": false,
+  "adr_reason": "物理simulation modelは変更せず、既存の固定カメラ並行投影方針をbody-only canonical renderへ適用した観測モデル変更であるため。render差分はrender_idとmanifestへ記録する。",
+  "commit_type": "complete",
+  "commit_hash": "included in the branch commits; see final response",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/161",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/159",
+  "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/160",
+  "next_actions": []
+}

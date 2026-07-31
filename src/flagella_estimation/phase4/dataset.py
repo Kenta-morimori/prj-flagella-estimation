@@ -25,6 +25,14 @@ class Phase4ClipSample:
     frame_shape: tuple[int, int]
     metadata: dict[str, Any]
 
+    @property
+    def t_start_s(self) -> float:
+        return float(self.metadata.get("clip", {}).get("t_start_s", 0.0))
+
+    @property
+    def training_candidate(self) -> bool:
+        return bool(self.metadata.get("qc", {}).get("training_candidate", True))
+
 
 @dataclass(frozen=True)
 class Phase4DatasetAudit:
@@ -158,6 +166,31 @@ def audit_phase4_clip_dataset(samples: list[Phase4ClipSample]) -> Phase4DatasetA
         class_counts=class_counts,
         split_class_counts=split_class_counts,
         group_count=len(split_by_group),
+    )
+
+
+def select_phase4_training_candidates(
+    samples: list[Phase4ClipSample], *, warmup_s: float = 0.0
+) -> list[Phase4ClipSample]:
+    """Select clips for Phase 4 training without deleting early/diagnostic artifacts."""
+
+    if warmup_s < 0.0:
+        raise ValueError("warmup_s must be >= 0")
+    return [
+        sample
+        for sample in samples
+        if sample.training_candidate and sample.t_start_s + 1.0e-12 >= warmup_s
+    ]
+
+
+def run_balanced_sample_weights(samples: list[Phase4ClipSample]) -> np.ndarray:
+    """Return weights whose total contribution is one per group_key."""
+
+    counts: dict[str, int] = {}
+    for sample in samples:
+        counts[sample.group_key] = counts.get(sample.group_key, 0) + 1
+    return np.asarray(
+        [1.0 / counts[sample.group_key] for sample in samples], dtype=float
     )
 
 

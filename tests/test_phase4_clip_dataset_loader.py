@@ -9,8 +9,11 @@ import pytest
 
 from flagella_estimation.phase3.pipeline import Phase3Config, build_clip_dataset
 from flagella_estimation.phase4.dataset import (
+    Phase4ClipSample,
     audit_phase4_clip_dataset,
     load_phase3_common_clip_dataset,
+    run_balanced_sample_weights,
+    select_phase4_training_candidates,
 )
 from sim_swim.analysis.flagella_count_behavior import save_state_archive
 from sim_swim.sim.core import SimulationState
@@ -86,7 +89,7 @@ def test_phase4_loader_reads_phase3_common_clip_dataset(tmp_path: Path) -> None:
             dataset_id="phase4_loader_fixture",
             input_dataset=input_dataset,
             output_dir=tmp_path / "phase3_clips",
-            crop_size_px=32,
+            image_size_px=32,
             max_per_class=3,
         )
     )
@@ -138,7 +141,7 @@ def test_phase4_loader_rejects_group_key_leakage(tmp_path: Path) -> None:
             dataset_id="phase4_loader_fixture",
             input_dataset=input_dataset,
             output_dir=tmp_path / "phase3_clips",
-            crop_size_px=32,
+            image_size_px=32,
         )
     )
 
@@ -178,7 +181,7 @@ def test_phase4_loader_rejects_split_rows_without_metadata(tmp_path: Path) -> No
             dataset_id="phase4_loader_fixture",
             input_dataset=input_dataset,
             output_dir=tmp_path / "phase3_clips",
-            crop_size_px=32,
+            image_size_px=32,
         )
     )
 
@@ -219,7 +222,7 @@ def test_phase4_loader_rejects_clip_shape_mismatch(tmp_path: Path) -> None:
             dataset_id="phase4_loader_fixture",
             input_dataset=input_dataset,
             output_dir=tmp_path / "phase3_clips",
-            crop_size_px=32,
+            image_size_px=32,
         )
     )
 
@@ -235,3 +238,37 @@ def test_phase4_loader_rejects_clip_shape_mismatch(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="frame_count mismatch"):
         load_phase3_common_clip_dataset(dataset_dir)
+
+
+@pytest.mark.light
+def test_phase4_loader_selects_warmup_candidates_and_run_balanced_weights() -> None:
+    samples = []
+    for index, (group_key, t_start_s, candidate) in enumerate(
+        [
+            ("run-a", 0.0, True),
+            ("run-a", 0.52, True),
+            ("run-a", 1.04, False),
+            ("run-b", 0.52, True),
+        ]
+    ):
+        samples.append(
+            Phase4ClipSample(
+                clip_id=f"clip-{index}",
+                clip_path=Path(f"clip-{index}.npy"),
+                split="train",
+                n_flagella=1,
+                group_key=group_key,
+                frame_count=13,
+                frame_shape=(16, 16),
+                metadata={
+                    "clip": {"t_start_s": t_start_s},
+                    "qc": {"training_candidate": candidate},
+                },
+            )
+        )
+
+    selected = select_phase4_training_candidates(samples, warmup_s=0.5)
+    weights = run_balanced_sample_weights(selected)
+
+    assert [sample.clip_id for sample in selected] == ["clip-1", "clip-3"]
+    assert weights.tolist() == [1.0, 1.0]

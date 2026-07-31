@@ -1,0 +1,98 @@
+{
+  "status": "PASS",
+  "summary": "Issue #159: dataset v1 r1 の3秒runを0.5秒non-overlap Phase 3 common clip datasetへ変換する config / pipeline metadata / replay contact sheet / Phase 4 warmup filter・run-balanced weighting・freeze audit接続を実装した。Codexはprobe build、probe freeze audit、probe replay、ruff、full pytestまで確認した。ユーザー実行結果で source use_for_ml_candidate=False の first-fail run が除外される不具合を検出し、source selection と Phase 4 training candidate policy を分離した。修正後は /private/tmp full build で 135 clips / 27 groups / diagnostic=6 を確認した。canonical full replay はユーザー実行待ち。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "full dataset build / replay は長時間・視覚確認を含むためユーザー実行用commandを scripts/README.md と最終報告に残す。",
+    "Phase 3 replay は contact sheet PNG 生成を実装した。MP4 replay は必要になった時点で追加可能。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run ruff format --check .",
+      "status": "PASS"
+    },
+    {
+      "command": "uv run ruff check .",
+      "status": "PASS"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase4_clip_dataset_loader.py tests/test_phase4_dataset_freeze.py tests/test_phase4_baseline_classifier.py tests/test_phase4_learning_curve.py",
+      "status": "PASS",
+      "result": "29 passed in 1.30s"
+    },
+    {
+      "command": "uv run pytest -q",
+      "status": "PASS",
+      "result": "420 passed in 95.12s"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml filters.max_per_class=1",
+      "status": "PASS",
+      "result": "outputs/2026-07-31/163726/phase3_v1_r1_clip_dataset"
+    },
+    {
+      "command": "uv run python scripts/04_phase4/audit_dataset_freeze.py config=conf/phase4/dataset_freeze_v1_r1.yaml dataset_dir=outputs/2026-07-31/163726/phase3_v1_r1_clip_dataset",
+      "status": "PASS",
+      "result": "outputs/2026-07-31/163738/phase4_dataset_freeze_audit"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/2026-07-31/163726/phase3_v1_r1_clip_dataset --max-clips 3 --frames-per-clip 2",
+      "status": "PASS",
+      "result": "outputs/2026-07-31/163726/phase3_v1_r1_clip_dataset/replay/20260731_163753"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase4_dataset_freeze.py tests/test_phase4_clip_dataset_loader.py",
+      "status": "PASS",
+      "result": "20 passed in 1.25s"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml output_dir=/private/tmp/phase3_v1_r1_clip_dataset_fix_check",
+      "status": "PASS",
+      "result": "dataset_summary.csv: clip_count=135, group_count=27, training_candidate_clip_count=129, diagnostic_clip_count=6"
+    },
+    {
+      "command": "uv run python scripts/04_phase4/audit_dataset_freeze.py config=conf/phase4/dataset_freeze_v1_r1.yaml dataset_dir=/private/tmp/phase3_v1_r1_clip_dataset_fix_check output_dir=/private/tmp/phase3_v1_r1_clip_dataset_fix_audit",
+      "status": "PASS",
+      "result": "/private/tmp/phase3_v1_r1_clip_dataset_fix_audit"
+    },
+    {
+      "command": "uv run pytest -q",
+      "status": "PASS",
+      "result": "420 passed in 99.77s"
+    },
+    {
+      "command": "git diff --check",
+      "status": "PASS"
+    },
+    {
+      "command": "uv run python -c \"import json, yaml; from pathlib import Path; json.load(open('schemas/phase3_clip_metadata.schema.json')); [yaml.safe_load(Path(p).read_text()) for p in ['conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml','conf/phase4/dataset_freeze_v1_r1.yaml']]\"",
+      "status": "PASS"
+    }
+  ],
+  "user_review_required": true,
+  "user_review_command": "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml output_dir=outputs/phase3_common_clip/datasets/v1 && uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --max-clips 12 && uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --qc-label diagnostic --max-clips 12",
+  "user_review_outputs": [
+    "outputs/phase3_common_clip/datasets/v1/dataset_summary.csv",
+    "outputs/phase3_common_clip/datasets/v1/qc_summary.csv",
+    "outputs/phase3_common_clip/datasets/v1/split_summary.csv",
+    "outputs/phase3_common_clip/datasets/v1/clip_metadata.jsonl",
+    "outputs/phase3_common_clip/datasets/v1/replay/*/contact_sheet.png"
+  ],
+  "user_review_points": [
+    "full buildで clip_count=135、group_count=27、class_count=3 になっていること。",
+    "first-failを持つ n_flagella=3 run で、first-failを含むwindowと以降が diagnostic-only になっていること。",
+    "split_summary.csv で同一 group_key が train / val / test をまたがないこと。",
+    "contact sheet の title に class、run、clip index、time band、QC label が表示され、early/middle/late と pre-fail/diagnostic の代表clipが破綻していないこと。"
+  ],
+  "adr_required": false,
+  "adr_reason": "既存の Phase 3 common clip schema / Phase 4 freeze policy への拡張であり、物理解釈・dataset version方針・phase境界を新しく変更していないためADRは作成しない。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "commit後に feature/phase3-v1-r1-clip-dataset を push する。",
+    "Issue #159 に紐づく main 向け draft PR を作成する。",
+    "ユーザーが full dataset build / replay / warmup別 freeze audit を実行し、定性確認する。"
+  ]
+}
