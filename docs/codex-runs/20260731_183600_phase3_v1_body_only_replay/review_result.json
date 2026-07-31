@@ -43,6 +43,14 @@
       "result": "PASS: diagnostic filter replay を生成し、13 frames / 25 fps を確認。"
     },
     {
+      "command": "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --max-clips 1 --panel-layout 3d+2d",
+      "result": "PASS: replay state 時刻が 0.00, 0.04, ..., 0.48 s になることを確認。"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase3_gt_passthrough_pipeline.py",
+      "result": "PASS: 13 passed。raw archive index と sampled frame index の取り違えを防ぐ回帰テストを追加。"
+    },
+    {
       "command": "git diff --check",
       "result": "PASS: whitespace errorなし。"
     }

@@ -18,6 +18,7 @@ import cv2
 import numpy as np
 
 from sim_swim.analysis.flagella_count_behavior import load_state_archive
+from flagella_estimation.phase3.render import select_frames
 from sim_swim.render.body2d import BodyCapsuleRenderConfig, render_body_capsule_frame
 from sim_swim.render.grid_movie import (
     auto_grid_layout,
@@ -264,7 +265,8 @@ def _filters_dict(cfg: ReplayConfig) -> dict[str, Any]:
 def _load_replay_clip(record: dict[str, Any], cfg: ReplayConfig) -> dict[str, Any]:
     clip = record["clip"]
     source_path = _resolve_path(cfg.dataset_dir, record["source_video"]["source_path"])
-    states = load_state_archive(source_path)
+    frame_rate_hz = float(clip.get("frame_rate_hz") or 25.0)
+    states = select_frames(load_state_archive(source_path), frame_rate_hz)
     start = int(clip["source_frame_start"])
     end_inclusive = int(clip["source_frame_end"])
     clip_states = states[start : end_inclusive + 1]
@@ -279,8 +281,8 @@ def _load_replay_clip(record: dict[str, Any], cfg: ReplayConfig) -> dict[str, An
         {
             "output_sampling": {
                 "out_all_steps_3d": False,
-                "fps_out_3d": float(clip.get("frame_rate_hz") or 25.0),
-                "fps_out_2d": float(clip.get("frame_rate_hz") or 25.0),
+                "fps_out_3d": frame_rate_hz,
+                "fps_out_2d": frame_rate_hz,
             },
             "render": {
                 "render_flagella": True,

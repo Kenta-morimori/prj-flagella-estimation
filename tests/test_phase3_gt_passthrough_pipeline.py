@@ -16,6 +16,7 @@ from flagella_estimation.phase3.pipeline import (
 )
 from flagella_estimation.phase3.replay import (
     ReplayConfig,
+    _load_replay_clip,
     render_3d_2d_grid_mp4,
     render_contact_sheet,
 )
@@ -70,6 +71,27 @@ def _state_with_flagella_far_from_body(index: int) -> SimulationState:
         velocity_um_s=state.velocity_um_s,
         omega_rad_s=state.omega_rad_s,
         bead_positions_um=beads,
+        flag_states=(),
+        reverse_flagella=(),
+    )
+
+
+def _raw_state(index: int) -> SimulationState:
+    t_s = index * 0.0001
+    return SimulationState(
+        t=t_s,
+        position_um=(t_s, 0.0, 0.0),
+        quaternion=(0.0, 0.0, 0.0, 1.0),
+        velocity_um_s=(1.0, 0.0, 0.0),
+        omega_rad_s=(0.0, 0.0, 0.0),
+        bead_positions_um=np.asarray(
+            [
+                [t_s - 0.2, -0.05, 0.0],
+                [t_s, 0.0, 0.0],
+                [t_s + 0.2, 0.05, 0.0],
+            ],
+            dtype=float,
+        ),
         flag_states=(),
         reverse_flagella=(),
     )
@@ -572,3 +594,60 @@ def test_phase3_replay_writes_3d_2d_mp4_grid_and_manifest(tmp_path: Path) -> Non
     assert manifest["video"]["fps"] == 25.0
     assert manifest["video"]["frame_count"] == 13
     assert manifest["outputs"]["mp4_grid"].endswith("3d_2d_grid.mp4")
+
+
+@pytest.mark.light
+def test_phase3_replay_maps_clip_indices_to_sampled_frames(tmp_path: Path) -> None:
+    input_dataset = tmp_path / "dataset"
+    raw_dir = tmp_path / "raw" / "nf01_as000_ps000"
+    raw_dir.mkdir(parents=True)
+    save_state_archive(
+        raw_dir / "state_archive.npz", [_raw_state(i) for i in range(6001)]
+    )
+    input_dataset.mkdir()
+    with (input_dataset / "summary.csv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "sample_id",
+                "n_flagella",
+                "torque_Nm",
+                "use_for_ml_candidate",
+                "raw_dir",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "sample_id": "nf01_as000_ps000",
+                "n_flagella": "1",
+                "torque_Nm": "2e-20",
+                "use_for_ml_candidate": "True",
+                "raw_dir": str(raw_dir),
+            }
+        )
+    dataset_dir = build_clip_dataset(
+        Phase3Config(
+            dataset_id="phase3_fixture",
+            input_dataset=input_dataset,
+            output_dir=tmp_path / "clips",
+            image_size_px=32,
+        )
+    )
+    record = json.loads(
+        (dataset_dir / "clip_metadata.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()[0]
+    )
+
+    replay_clip = _load_replay_clip(
+        record,
+        ReplayConfig(dataset_dir=dataset_dir, max_clips=1),
+    )
+
+    assert [round(state.t, 2) for state in replay_clip["states"]] == [
+        round(frame["t_s"], 2) for frame in record["frames"]
+    ]
+    assert replay_clip["states"][-1].t == pytest.approx(0.48)
