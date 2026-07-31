@@ -15,6 +15,7 @@ clip:
 filters:
   allowed_n_flagella: [1, 2, 3]
   require_use_for_ml_candidate: true
+  source_require_use_for_ml_candidate: false
   max_per_class:
 freeze:
   baseline_torque_Nm: 2.0e-20

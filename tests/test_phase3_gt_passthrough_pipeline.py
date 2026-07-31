@@ -201,6 +201,18 @@ def test_phase3_training_freeze_rejects_torque_variation_for_mvp(
         False,
         "n_flagella_not_in_mvp_scope",
     )
+    cfg_with_diagnostics = Phase3Config(
+        dataset_id="phase3_fixture",
+        input_dataset=tmp_path,
+        output_dir=tmp_path / "out_with_diagnostics",
+        source_require_use_for_ml_candidate=False,
+    )
+    diagnostic_source_row = dict(baseline)
+    diagnostic_source_row["use_for_ml_candidate"] = "False"
+    assert validate_training_candidate(diagnostic_source_row, cfg_with_diagnostics) == (
+        True,
+        None,
+    )
 
 
 @pytest.mark.light
@@ -300,7 +312,7 @@ def test_phase3_pipeline_marks_first_fail_windows_diagnostic(tmp_path: Path) -> 
                 "sample_id": "nf03_as001_ps001",
                 "n_flagella": "3",
                 "torque_Nm": "2e-20",
-                "use_for_ml_candidate": "True",
+                "use_for_ml_candidate": "False",
                 "shape_pass": "False",
                 "first_fail_t_s": "1.78",
                 "raw_dir": str(raw_dir),
@@ -315,6 +327,7 @@ def test_phase3_pipeline_marks_first_fail_windows_diagnostic(tmp_path: Path) -> 
             output_dir=output_dir,
             crop_size_px=32,
             dataset_revision="r1",
+            source_require_use_for_ml_candidate=False,
         )
     )
     records = [

@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #159: dataset v1 r1 の3秒runを0.5秒non-overlap Phase 3 common clip datasetへ変換する config / pipeline metadata / replay contact sheet / Phase 4 warmup filter・run-balanced weighting・freeze audit接続を実装した。Codexはprobe build、probe freeze audit、probe replay、ruff、full pytestまで確認した。full dataset build と full replay はユーザー実行待ち。",
+  "summary": "Issue #159: dataset v1 r1 の3秒runを0.5秒non-overlap Phase 3 common clip datasetへ変換する config / pipeline metadata / replay contact sheet / Phase 4 warmup filter・run-balanced weighting・freeze audit接続を実装した。Codexはprobe build、probe freeze audit、probe replay、ruff、full pytestまで確認した。ユーザー実行結果で source use_for_ml_candidate=False の first-fail run が除外される不具合を検出し、source selection と Phase 4 training candidate policy を分離した。修正後は /private/tmp full build で 135 clips / 27 groups / diagnostic=6 を確認した。canonical full replay はユーザー実行待ち。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "full dataset build / replay は長時間・視覚確認を含むためユーザー実行用commandを scripts/README.md と最終報告に残す。",
@@ -39,6 +39,26 @@
       "command": "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/2026-07-31/163726/phase3_v1_r1_clip_dataset --max-clips 3 --frames-per-clip 2",
       "status": "PASS",
       "result": "outputs/2026-07-31/163726/phase3_v1_r1_clip_dataset/replay/20260731_163753"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase4_dataset_freeze.py tests/test_phase4_clip_dataset_loader.py",
+      "status": "PASS",
+      "result": "20 passed in 1.25s"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml output_dir=/private/tmp/phase3_v1_r1_clip_dataset_fix_check",
+      "status": "PASS",
+      "result": "dataset_summary.csv: clip_count=135, group_count=27, training_candidate_clip_count=129, diagnostic_clip_count=6"
+    },
+    {
+      "command": "uv run python scripts/04_phase4/audit_dataset_freeze.py config=conf/phase4/dataset_freeze_v1_r1.yaml dataset_dir=/private/tmp/phase3_v1_r1_clip_dataset_fix_check output_dir=/private/tmp/phase3_v1_r1_clip_dataset_fix_audit",
+      "status": "PASS",
+      "result": "/private/tmp/phase3_v1_r1_clip_dataset_fix_audit"
+    },
+    {
+      "command": "uv run pytest -q",
+      "status": "PASS",
+      "result": "420 passed in 99.77s"
     },
     {
       "command": "git diff --check",

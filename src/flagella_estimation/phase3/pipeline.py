@@ -46,6 +46,7 @@ class Phase3Config:
     max_per_class: int | None = None
     baseline_torque_Nm: float = 2.0e-20
     require_use_for_ml_candidate: bool = True
+    source_require_use_for_ml_candidate: bool = True
     dataset_version: str = "v1"
     dataset_revision: str | None = None
     output_name: str = "phase3_gt_passthrough_v1"
@@ -223,6 +224,12 @@ def load_config(path: Path | None, overrides: list[str] | None = None) -> Phase3
         require_use_for_ml_candidate=bool(
             filters.get("require_use_for_ml_candidate", True)
         ),
+        source_require_use_for_ml_candidate=bool(
+            filters.get(
+                "source_require_use_for_ml_candidate",
+                filters.get("require_use_for_ml_candidate", True),
+            )
+        ),
         dataset_version=str(metadata.get("dataset_version", "v1")),
         dataset_revision=(
             None
@@ -256,7 +263,7 @@ def validate_training_candidate(
     n_flagella = int(_to_float(row.get("n_flagella", "0")))
     if n_flagella not in cfg.allowed_n_flagella:
         return False, "n_flagella_not_in_mvp_scope"
-    if cfg.require_use_for_ml_candidate and not _to_bool(
+    if cfg.source_require_use_for_ml_candidate and not _to_bool(
         row.get("use_for_ml_candidate")
     ):
         return False, "not_use_for_ml_candidate"
@@ -499,6 +506,9 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
         "filters": {
             "allowed_n_flagella": list(cfg.allowed_n_flagella),
             "require_use_for_ml_candidate": cfg.require_use_for_ml_candidate,
+            "source_require_use_for_ml_candidate": (
+                cfg.source_require_use_for_ml_candidate
+            ),
             "baseline_torque_Nm": cfg.baseline_torque_Nm,
             "max_per_class": cfg.max_per_class,
         },

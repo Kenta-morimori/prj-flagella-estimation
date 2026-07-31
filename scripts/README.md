@@ -241,6 +241,7 @@ uv run python scripts/03_phase3/build_clip_dataset.py \
 `outputs/YYYY-MM-DD/HHMMSS/phase3_v1_r1_clip_dataset/` はstaging / probe用途の実行ログ付き出力です。最終採択済みの Phase 4 入力 dataset は `outputs/phase3_common_clip/datasets/v1/` を参照します。`data/` は外部入力や手元データ置き場として残し、今回の生成済み共通clip dataset正本には使いません。
 
 QC確認対象は `dataset_summary.csv`、`qc_summary.csv`、`split_summary.csv`、`clip_metadata.jsonl` です。`n_flagella=3` の first-fail run では、first-failを含むwindowとそれ以降のwindowが `qc_label=diagnostic` / `training_candidate=false` になります。early clipは削除せず、Phase 4側の `freeze.warmup_s=0.0/0.5/1.0` で選択します。
+v1 r1 では source summary の `use_for_ml_candidate=false` run も除外せず、clip artifact を作成したうえで window QC により diagnostic-only として扱います。
 
 contact sheet replay は `.npy` clip から再生成します。titleには `n_flagella`、`run_id`、`clip_index`、time band、QC label が入ります。
 
