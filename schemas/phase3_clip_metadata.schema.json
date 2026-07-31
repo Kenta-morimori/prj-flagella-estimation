@@ -257,6 +257,12 @@
             "null"
           ]
         },
+        "dataset_revision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "run_id": {
           "type": [
             "string",
@@ -392,6 +398,10 @@
         "t_end_s": {
           "type": "number",
           "minimum": 0
+        },
+        "time_band": {
+          "type": "string",
+          "minLength": 1
         }
       }
     },
@@ -608,6 +618,36 @@
           "type": [
             "string",
             "null"
+          ]
+        },
+        "run_shape_pass": {
+          "type": "boolean"
+        },
+        "window_shape_pass": {
+          "type": "boolean"
+        },
+        "run_first_fail_t_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "is_pre_first_fail": {
+          "type": "boolean"
+        },
+        "training_candidate": {
+          "type": "boolean"
+        },
+        "diagnostic_only": {
+          "type": "boolean"
+        },
+        "qc_label": {
+          "type": "string",
+          "enum": [
+            "pre_first_fail",
+            "diagnostic",
+            "run_fail"
           ]
         }
       }

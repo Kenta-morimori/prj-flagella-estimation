@@ -35,11 +35,22 @@ def build_gt_passthrough_metadata(
     crop_size_px: int,
     pixel_size_um: float,
     frame_geometries: list[FrameGeometry],
+    dataset_version: str = "v1",
+    dataset_revision: str | None = None,
+    run_shape_pass: bool = True,
+    run_first_fail_t_s: float | None = None,
+    window_shape_pass: bool = True,
+    is_pre_first_fail: bool = True,
+    training_candidate: bool = True,
+    diagnostic_only: bool = False,
+    exclusion_reason: str | None = None,
+    qc_label: str = "pre_first_fail",
 ) -> dict[str, Any]:
     """Build a #127-compatible metadata object for one pseudo-GT clip."""
 
     frame_count = window.frame_count
     t_start_s = window.start / frame_rate_hz
+    t_end_boundary_s = window.end / frame_rate_hz
     inclusive_clip_end = window.end - 1
     inclusive_track_end = source_frame_count - 1
     t_end_s = inclusive_clip_end / frame_rate_hz
@@ -85,7 +96,8 @@ def build_gt_passthrough_metadata(
             "pipeline_name": PIPELINE_NAME,
             "pipeline_version": PIPELINE_VERSION,
             "model_id": "phase2_flagella_count_behavior_v1",
-            "dataset_version": "v1",
+            "dataset_version": dataset_version,
+            "dataset_revision": dataset_revision,
             "run_id": run_id,
             "render_id": "state_archive_numpy_v1",
             "condition_id": run_id,
@@ -112,6 +124,7 @@ def build_gt_passthrough_metadata(
             "source_frame_end": inclusive_clip_end,
             "t_start_s": t_start_s,
             "t_end_s": t_end_s,
+            "time_band": f"{t_start_s:.2f}-{t_end_boundary_s:.2f}s",
         },
         "normalization": {
             "crop_size_px": [crop_size_px, crop_size_px],
@@ -126,10 +139,17 @@ def build_gt_passthrough_metadata(
             "label_source": "phase2_gt",
         },
         "qc": {
-            "status": "pass",
-            "exclusion_reason": None,
+            "status": "pass" if training_candidate else "review",
+            "exclusion_reason": exclusion_reason,
             "detection_confidence_min": 1.0,
             "tracking_gap_count": 0,
+            "run_shape_pass": run_shape_pass,
+            "window_shape_pass": window_shape_pass,
+            "run_first_fail_t_s": run_first_fail_t_s,
+            "is_pre_first_fail": is_pre_first_fail,
+            "training_candidate": training_candidate,
+            "diagnostic_only": diagnostic_only,
+            "qc_label": qc_label,
             "notes": "pseudo GT passthrough from Phase 2 state archive",
         },
     }

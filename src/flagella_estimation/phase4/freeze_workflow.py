@@ -54,6 +54,14 @@ def load_freeze_audit_config(
             int(value) for value in freeze.get("allowed_n_flagella", [1, 2, 3])
         ),
         dataset_version=str(freeze.get("dataset_version", "v1")),
+        dataset_revision=(
+            None
+            if freeze.get("dataset_revision") in (None, "")
+            else str(freeze.get("dataset_revision"))
+        ),
+        source_dataset_ids=tuple(
+            str(value) for value in freeze.get("source_dataset_ids", ["v1"])
+        ),
         model_ids=tuple(
             str(value)
             for value in freeze.get("model_ids", ["phase2_flagella_count_behavior_v1"])
@@ -79,6 +87,7 @@ def load_freeze_audit_config(
             freeze.get("require_use_for_ml_candidate", True)
         ),
         group_key_prefix=str(freeze.get("group_key_prefix", "phase2:v1:")),
+        warmup_s=float(freeze.get("warmup_s", 0.0)),
     )
     return Phase4FreezeAuditConfig(
         dataset_dir=Path(str(data.get("dataset_dir", ""))),

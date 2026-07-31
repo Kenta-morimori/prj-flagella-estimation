@@ -71,7 +71,7 @@ def extract_clip_features(clip: np.ndarray) -> np.ndarray:
 
 
 def fit_nearest_centroid(
-    features: np.ndarray, labels: np.ndarray
+    features: np.ndarray, labels: np.ndarray, sample_weights: np.ndarray | None = None
 ) -> NearestCentroidModel:
     """Fit a standardized nearest-centroid classifier."""
 
@@ -81,16 +81,31 @@ def fit_nearest_centroid(
         raise ValueError("features must be a non-empty 2D array aligned with labels")
     if not np.isfinite(features).all():
         raise ValueError("features contain non-finite values")
+    weights = (
+        np.ones(len(features), dtype=np.float64)
+        if sample_weights is None
+        else np.asarray(sample_weights, dtype=np.float64)
+    )
+    if weights.shape != (len(features),) or np.any(weights <= 0.0):
+        raise ValueError("sample_weights must be positive and aligned with features")
 
     classes = np.unique(labels)
     if len(classes) < 2:
         raise ValueError("training data must contain at least two classes")
-    feature_mean = features.mean(axis=0)
-    feature_scale = features.std(axis=0)
+    feature_mean = np.average(features, axis=0, weights=weights)
+    feature_var = np.average((features - feature_mean) ** 2, axis=0, weights=weights)
+    feature_scale = np.sqrt(feature_var)
     feature_scale = np.where(feature_scale < 1.0e-12, 1.0, feature_scale)
     standardized = (features - feature_mean) / feature_scale
     centroids = np.stack(
-        [standardized[labels == class_id].mean(axis=0) for class_id in classes]
+        [
+            np.average(
+                standardized[labels == class_id],
+                axis=0,
+                weights=weights[labels == class_id],
+            )
+            for class_id in classes
+        ]
     )
     return NearestCentroidModel(
         classes=classes,

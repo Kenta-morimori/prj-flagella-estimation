@@ -216,6 +216,64 @@ uv run python scripts/02_phase2_analysis/analyze_2d_separability.py \
   --overwrite
 ```
 
+## 03_phase3
+
+### v1 r1 3秒runから0.5秒clip datasetを作成
+
+Issue #159 の Phase 3 common clip dataset は、既存の3秒 state archive から生成します。長時間の Phase 2 simulation は再実行しません。
+
+probe は1 classあたり1 runだけ処理します。
+
+```bash
+uv run python scripts/03_phase3/build_clip_dataset.py \
+  config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml \
+  filters.max_per_class=1
+```
+
+full build は27 runすべてを処理し、`outputs/YYYY-MM-DD/HHMMSS/phase3_v1_r1_clip_dataset/` に出力します。期待値は5 clips/run、合計135 clips、独立group 27です。
+
+```bash
+uv run python scripts/03_phase3/build_clip_dataset.py \
+  config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml
+```
+
+QC確認対象は `dataset_summary.csv`、`qc_summary.csv`、`split_summary.csv`、`clip_metadata.jsonl` です。`n_flagella=3` の first-fail run では、first-failを含むwindowとそれ以降のwindowが `qc_label=diagnostic` / `training_candidate=false` になります。early clipは削除せず、Phase 4側の `freeze.warmup_s=0.0/0.5/1.0` で選択します。
+
+contact sheet replay は `.npy` clip から再生成します。titleには `n_flagella`、`run_id`、`clip_index`、time band、QC label が入ります。
+
+```bash
+uv run python scripts/03_phase3/replay_clip_dataset.py \
+  outputs/YYYY-MM-DD/HHMMSS/phase3_v1_r1_clip_dataset \
+  --max-clips 12
+uv run python scripts/03_phase3/replay_clip_dataset.py \
+  outputs/YYYY-MM-DD/HHMMSS/phase3_v1_r1_clip_dataset \
+  --qc-label diagnostic \
+  --max-clips 12
+uv run python scripts/03_phase3/replay_clip_dataset.py \
+  outputs/YYYY-MM-DD/HHMMSS/phase3_v1_r1_clip_dataset \
+  --training-candidate true \
+  --n-flagella 3 \
+  --max-clips 12
+```
+
+定性確認点は、early/middle/late clipでbody-centered cropが破綻していないこと、pre-first-failとdiagnosticの境界表示がmetadataと一致すること、class/run/time bandが期待どおり見分けられることです。
+
+Phase 4 freeze audit は同じ Phase 3 dataset を直接読みます。`warmup_s` は比較条件として切り替えます。
+
+```bash
+uv run python scripts/04_phase4/audit_dataset_freeze.py \
+  config=conf/phase4/dataset_freeze_v1_r1.yaml \
+  dataset_dir=outputs/YYYY-MM-DD/HHMMSS/phase3_v1_r1_clip_dataset
+uv run python scripts/04_phase4/audit_dataset_freeze.py \
+  config=conf/phase4/dataset_freeze_v1_r1.yaml \
+  dataset_dir=outputs/YYYY-MM-DD/HHMMSS/phase3_v1_r1_clip_dataset \
+  freeze.warmup_s=0.5
+uv run python scripts/04_phase4/audit_dataset_freeze.py \
+  config=conf/phase4/dataset_freeze_v1_r1.yaml \
+  dataset_dir=outputs/YYYY-MM-DD/HHMMSS/phase3_v1_r1_clip_dataset \
+  freeze.warmup_s=1.0
+```
+
 ## 04_phase4
 
 ### Duration / Seed Study

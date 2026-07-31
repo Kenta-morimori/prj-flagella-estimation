@@ -8,13 +8,14 @@ Phase 3 の目的は，実顕微鏡動画と Phase 2 擬似動画を，Phase 4 �
 
 ## Current Status
 
-Phase 3 は common clip schemaを#127 / PR #142，pseudo GT passthroughを#6 / PR #144で実装済みである。Phase 2 dataset v1 の RUN固定 `n_flagella=1,2,3` がtraining candidateとしてPhase 4 loader / baseline / learning curve / freeze gateまで接続されている。
+Phase 3 は common clip schemaを#127 / PR #142，pseudo GT passthroughを#6 / PR #144で実装済みである。Phase 2 dataset v1 の RUN固定 `n_flagella=1,2,3` がtraining candidateとしてPhase 4 loader / baseline / learning curve / freeze gateまで接続されている。dataset v1 r1 の3秒runは #159 で0.5秒 non-overlap common clip datasetとして生成できるようになった。
 
 現在の主対象:
 
 - #127: closed / merged。実動画 detection 経路と擬似動画 GT passthrough 経路を，共通clip / metadata schemaへ収束させた。schema 正本は `docs/phase3/phase3_1_clip_metadata_schema.md`，機械可読schemaは `schemas/phase3_clip_metadata.schema.json`。
 - #129: `0.5 s` defaultとgrouped learning curveは完了し，pseudo-v1で`k=4`を採用する範囲を判断する。
 - #128: closed / PR #152 merged。Phase 4 machine-readable freeze gateへ接続した。
+- #159: dataset v1 r1 の3秒run 27件を，5 clips/run のPhase 3共通clip datasetへ変換するCLI/config，window QC，grouped split，replay contact sheet，Phase 4 warmup filter / run-balanced weighting / freeze audit接続を追加した。
 - #6: 共通clip生成pipelineの実装親Issue。Phase 2 擬似動画 GT passthrough は実装済みで，実動画 detection / tracking は #8 / #9 後に進める。
 
 MVP 固定方針（2026-07-23 のユーザー判断に基づく）:
@@ -32,6 +33,7 @@ Phase 2擬似動画:
 
 - raw simulation: `outputs/phase2_multi_run/flagella_count_behavior_v1`
 - analysis dataset: `outputs/phase2_analysis/flagella_count_behavior/datasets/v1`
+- duration/revision dataset: `outputs/phase2_multi_run/flagella_count_duration_3s_r1/dataset/v1_r1_duration_3s`
 - current training candidate: `n_flagella=1,2,3`
 
 実顕微鏡動画:

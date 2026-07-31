@@ -46,6 +46,9 @@ class Phase3Config:
     max_per_class: int | None = None
     baseline_torque_Nm: float = 2.0e-20
     require_use_for_ml_candidate: bool = True
+    dataset_version: str = "v1"
+    dataset_revision: str | None = None
+    output_name: str = "phase3_gt_passthrough_v1"
 
 
 def _now_jst() -> datetime:
@@ -53,13 +56,12 @@ def _now_jst() -> datetime:
 
 
 def default_output_dir() -> Path:
+    return default_named_output_dir("phase3_gt_passthrough_v1")
+
+
+def default_named_output_dir(name: str) -> Path:
     now = _now_jst()
-    return (
-        Path("outputs")
-        / now.strftime("%Y-%m-%d")
-        / now.strftime("%H%M%S")
-        / "phase3_gt_passthrough_v1"
-    )
+    return Path("outputs") / now.strftime("%Y-%m-%d") / now.strftime("%H%M%S") / name
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
@@ -82,6 +84,79 @@ def _to_bool(value: Any) -> bool:
 
 def _to_float(value: Any) -> float:
     return float(str(value).strip())
+
+
+def _optional_float(value: Any) -> float | None:
+    try:
+        parsed = float(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+    if np.isnan(parsed):
+        return None
+    return parsed
+
+
+def _window_qc(
+    *,
+    window_end_s: float,
+    run_shape_pass: bool,
+    run_first_fail_t_s: float | None,
+) -> tuple[bool, bool, bool, bool, str | None, str]:
+    if run_first_fail_t_s is None:
+        if run_shape_pass:
+            return True, True, True, False, None, "pre_first_fail"
+        return False, False, False, True, "run_shape_fail", "run_fail"
+    is_pre_first_fail = window_end_s <= run_first_fail_t_s + 1.0e-12
+    if is_pre_first_fail:
+        return True, True, True, False, None, "pre_first_fail"
+    return False, False, False, True, "post_or_contains_first_fail", "diagnostic"
+
+
+def _load_source_manifest(input_dataset: Path) -> dict[str, Any]:
+    path = input_dataset / "dataset_manifest.json"
+    if not path.is_file():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+
+
+def _source_metadata(source_manifest: dict[str, Any]) -> dict[str, Any]:
+    effective_campaign = source_manifest.get("effective_campaign_config")
+    if not isinstance(effective_campaign, dict):
+        return {}
+    metadata = effective_campaign.get("metadata")
+    return metadata if isinstance(metadata, dict) else {}
+
+
+def _dataset_summary(
+    metadata_records: list[dict[str, Any]], split_rows: list[dict[str, Any]]
+) -> dict[str, Any]:
+    groups = {record["track"]["group_key"] for record in metadata_records}
+    classes = sorted(
+        {int(record["labels"]["n_flagella"]) for record in metadata_records}
+    )
+    qc_labels = sorted({str(record["qc"]["qc_label"]) for record in metadata_records})
+    split_groups: dict[str, set[str]] = {}
+    for row in split_rows:
+        split_groups.setdefault(str(row["split"]), set()).add(str(row["group_key"]))
+    return {
+        "clip_count": len(metadata_records),
+        "group_count": len(groups),
+        "class_count": len(classes),
+        "classes": json.dumps(classes),
+        "qc_labels": json.dumps(qc_labels),
+        "training_candidate_clip_count": sum(
+            1 for record in metadata_records if record["qc"]["training_candidate"]
+        ),
+        "diagnostic_clip_count": sum(
+            1 for record in metadata_records if record["qc"]["diagnostic_only"]
+        ),
+        "train_group_count": len(split_groups.get("train", set())),
+        "val_group_count": len(split_groups.get("val", set())),
+        "test_group_count": len(split_groups.get("test", set())),
+    }
 
 
 def _git_info() -> dict[str, Any]:
@@ -120,10 +195,14 @@ def load_config(path: Path | None, overrides: list[str] | None = None) -> Phase3
     clip = dict(data.get("clip", {}) or {})
     filters = dict(data.get("filters", {}) or {})
     freeze = dict(data.get("freeze", {}) or {})
+    metadata = dict(data.get("metadata", {}) or {})
+    output_name = str(data.get("output_name", "phase3_gt_passthrough_v1"))
     return Phase3Config(
         dataset_id=str(data.get("dataset_id", "phase3_gt_passthrough_v1")),
         input_dataset=Path(str(data.get("input_dataset", ""))),
-        output_dir=Path(str(data.get("output_dir") or default_output_dir())),
+        output_dir=Path(
+            str(data.get("output_dir") or default_named_output_dir(output_name))
+        ),
         config_path=path,
         cli_overrides=tuple(overrides or ()),
         duration_s=float(clip.get("duration_s", 0.5)),
@@ -144,6 +223,13 @@ def load_config(path: Path | None, overrides: list[str] | None = None) -> Phase3
         require_use_for_ml_candidate=bool(
             filters.get("require_use_for_ml_candidate", True)
         ),
+        dataset_version=str(metadata.get("dataset_version", "v1")),
+        dataset_revision=(
+            None
+            if metadata.get("dataset_revision") in (None, "")
+            else str(metadata.get("dataset_revision"))
+        ),
+        output_name=output_name,
     )
 
 
@@ -207,13 +293,23 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
     clips_dir.mkdir(parents=True, exist_ok=True)
 
     all_rows = _read_csv(summary_path)
+    source_manifest = _load_source_manifest(cfg.input_dataset)
+    source_metadata = _source_metadata(source_manifest)
+    dataset_version = str(
+        cfg.dataset_version or source_metadata.get("dataset_version") or "v1"
+    )
+    dataset_revision = cfg.dataset_revision
+    if dataset_revision is None and source_metadata.get("dataset_revision") is not None:
+        dataset_revision = str(source_metadata["dataset_revision"])
     selected_rows = select_samples(all_rows, cfg)
     metadata_records: list[dict[str, Any]] = []
     qc_rows: list[dict[str, Any]] = []
     split_rows: list[dict[str, Any]] = []
 
     group_labels = {
-        f"phase2:v1:{row['sample_id']}": int(_to_float(row["n_flagella"]))
+        f"phase2:{dataset_version}:{row['sample_id']}": int(
+            _to_float(row["n_flagella"])
+        )
         for row in selected_rows
     }
     split_by_group = assign_grouped_splits(
@@ -246,8 +342,12 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
             policy=cfg.window_policy,
             overlap_stride_fraction=cfg.overlap_stride_fraction,
         )
-        group_key = f"phase2:v1:{sample_id}"
+        group_key = f"phase2:{dataset_version}:{sample_id}"
         source_duration_s = len(states) / cfg.frame_rate_hz
+        run_shape_pass = _to_bool(row.get("shape_pass", "true"))
+        run_first_fail_t_s = _optional_float(row.get("first_fail_t_s"))
+        run_training_count = 0
+        run_diagnostic_count = 0
         for clip_index, window in enumerate(windows):
             clip_id = f"{sample_id}_c{clip_index:04d}"
             output_path = clips_dir / f"{clip_id}.npy"
@@ -256,6 +356,20 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
                 image_size_px=cfg.crop_size_px,
                 pixel_size_um=cfg.pixel_size_um,
             )
+            (
+                window_shape_pass,
+                is_pre_first_fail,
+                training_candidate,
+                diagnostic_only,
+                exclusion_reason,
+                qc_label,
+            ) = _window_qc(
+                window_end_s=window.end / cfg.frame_rate_hz,
+                run_shape_pass=run_shape_pass,
+                run_first_fail_t_s=run_first_fail_t_s,
+            )
+            run_training_count += int(training_candidate)
+            run_diagnostic_count += int(diagnostic_only)
             np.save(output_path, clip_array)
             metadata = build_gt_passthrough_metadata(
                 dataset_id=cfg.dataset_id,
@@ -277,6 +391,16 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
                 crop_size_px=cfg.crop_size_px,
                 pixel_size_um=cfg.pixel_size_um,
                 frame_geometries=geometries,
+                dataset_version=dataset_version,
+                dataset_revision=dataset_revision,
+                run_shape_pass=run_shape_pass,
+                run_first_fail_t_s=run_first_fail_t_s,
+                window_shape_pass=window_shape_pass,
+                is_pre_first_fail=is_pre_first_fail,
+                training_candidate=training_candidate,
+                diagnostic_only=diagnostic_only,
+                exclusion_reason=exclusion_reason,
+                qc_label=qc_label,
             )
             metadata_records.append(metadata)
             split_rows.append(
@@ -286,6 +410,12 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
                     "group_key": group_key,
                     "split": split_by_group[group_key],
                     "n_flagella": n_flagella,
+                    "clip_index": clip_index,
+                    "t_start_s": window.start / cfg.frame_rate_hz,
+                    "t_end_s": window.end / cfg.frame_rate_hz,
+                    "qc_label": qc_label,
+                    "training_candidate": training_candidate,
+                    "exclusion_reason": exclusion_reason,
                 }
             )
         qc_rows.append(
@@ -295,6 +425,10 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
                 "status": "pass" if windows else "fail",
                 "exclusion_reason": None if windows else "no_complete_window",
                 "clip_count": len(windows),
+                "run_shape_pass": run_shape_pass,
+                "run_first_fail_t_s": run_first_fail_t_s,
+                "training_candidate_clip_count": run_training_count,
+                "diagnostic_clip_count": run_diagnostic_count,
             }
         )
 
@@ -309,19 +443,50 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
     _write_csv(
         cfg.output_dir / "split_summary.csv",
         split_rows,
-        ["clip_id", "sample_id", "group_key", "split", "n_flagella"],
+        [
+            "clip_id",
+            "sample_id",
+            "group_key",
+            "split",
+            "n_flagella",
+            "clip_index",
+            "t_start_s",
+            "t_end_s",
+            "qc_label",
+            "training_candidate",
+            "exclusion_reason",
+        ],
     )
     _write_csv(
         cfg.output_dir / "qc_summary.csv",
         qc_rows,
-        ["sample_id", "n_flagella", "status", "exclusion_reason", "clip_count"],
+        [
+            "sample_id",
+            "n_flagella",
+            "status",
+            "exclusion_reason",
+            "clip_count",
+            "run_shape_pass",
+            "run_first_fail_t_s",
+            "training_candidate_clip_count",
+            "diagnostic_clip_count",
+        ],
+    )
+    dataset_summary = _dataset_summary(metadata_records, split_rows)
+    _write_csv(
+        cfg.output_dir / "dataset_summary.csv",
+        [dataset_summary],
+        list(dataset_summary),
     )
     manifest = {
         "pipeline_name": "phase3_gt_passthrough",
         "schema_version": SCHEMA_VERSION,
         "created_at": _now_jst().isoformat(),
         "dataset_id": cfg.dataset_id,
+        "dataset_version": dataset_version,
+        "dataset_revision": dataset_revision,
         "input_dataset": str(cfg.input_dataset),
+        "source_dataset_manifest": str(cfg.input_dataset / "dataset_manifest.json"),
         "output_dir": str(cfg.output_dir),
         "clip": {
             "duration_s": cfg.duration_s,
@@ -337,6 +502,17 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
             "baseline_torque_Nm": cfg.baseline_torque_Nm,
             "max_per_class": cfg.max_per_class,
         },
+        "window_qc_policy": {
+            "first_fail_policy": "strict_pre_first_fail",
+            "training_candidate_rule": (
+                "window_end_s <= run_first_fail_t_s or no run first-fail"
+            ),
+            "diagnostic_rule": (
+                "first-fail-containing and later windows are diagnostic-only"
+            ),
+            "warmup_s": [0.0, 0.5, 1.0],
+            "early_clips_kept": True,
+        },
         "invocation": {
             "config_path": str(cfg.config_path)
             if cfg.config_path is not None
@@ -348,9 +524,11 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
             "clips_dir": str(clips_dir),
             "split_summary_csv": str(cfg.output_dir / "split_summary.csv"),
             "qc_summary_csv": str(cfg.output_dir / "qc_summary.csv"),
+            "dataset_summary_csv": str(cfg.output_dir / "dataset_summary.csv"),
         },
         "sample_count": len(selected_rows),
         "clip_count": len(metadata_records),
+        "dataset_summary": dataset_summary,
         "git": _git_info(),
         "environment": _environment_info(),
     }
@@ -366,6 +544,9 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
                 f"output_dir={cfg.output_dir}",
                 f"sample_count={len(selected_rows)}",
                 f"clip_count={len(metadata_records)}",
+                "training_candidate_clip_count="
+                f"{dataset_summary['training_candidate_clip_count']}",
+                f"diagnostic_clip_count={dataset_summary['diagnostic_clip_count']}",
             ]
         )
         + "\n",
