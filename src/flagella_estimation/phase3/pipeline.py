@@ -31,6 +31,7 @@ from flagella_estimation.phase3.splits import (
 )
 from flagella_estimation.phase3.windows import generate_windows
 from sim_swim.analysis.flagella_count_behavior import load_state_archive
+from sim_swim.render.body2d import BodyCapsuleRenderConfig, body_capsule_render_id
 
 
 @dataclass(frozen=True)
@@ -320,6 +321,15 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
     dataset_revision = cfg.dataset_revision
     if dataset_revision is None and source_metadata.get("dataset_revision") is not None:
         dataset_revision = str(source_metadata["dataset_revision"])
+    render_config = BodyCapsuleRenderConfig(
+        image_size_px=cfg.image_size_px,
+        pixel_size_um=cfg.pixel_size_um,
+        body_length_um=cfg.body_length_um,
+        body_width_um=cfg.body_width_um,
+        body_intensity=cfg.body_intensity,
+        tracking_center=True,
+    )
+    render_id = body_capsule_render_id(render_config)
     selected_rows = select_samples(all_rows, cfg)
     metadata_records: list[dict[str, Any]] = []
     qc_rows: list[dict[str, Any]] = []
@@ -413,6 +423,7 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
                 crop_size_px=cfg.image_size_px,
                 pixel_size_um=cfg.pixel_size_um,
                 frame_geometries=geometries,
+                render_id=render_id,
                 dataset_version=dataset_version,
                 dataset_revision=dataset_revision,
                 run_shape_pass=run_shape_pass,
@@ -520,6 +531,7 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
         },
         "render": {
             "render_mode": RENDER_MODE,
+            "render_id": render_id,
             "projection": "orthographic",
             "body_deformation_rendered": False,
             "rendered_objects": ["body"],

@@ -222,6 +222,8 @@ uv run python scripts/02_phase2_analysis/analyze_2d_separability.py \
 
 Issue #159 の Phase 3 common clip dataset は、既存の3秒 state archive から生成します。長時間の Phase 2 simulation は再実行しません。canonical `.npy` clip は、べん毛を描画せず、菌体のみを `body_capsule_orthographic_v1` のtracking cropで描画します。菌体は全長2.0 µm、幅1.0 µmの剛体capsuleとして扱い、固定カメラへの並行投影により斜め姿勢では見かけの長さを短縮し、z方向への正対時は円形にします。菌体変形はML入力へ反映せず、QC確認対象として扱います。blur / noise / defocusは実動画条件が未確定のためcanonical v1には含めません。Phase 3 configでは、出力fpsは `output_sampling.fps_out`、画像条件は `render.image_size_px` / `render.pixel_size_um` を正本とします。
 
+画像サイズ、pixel scale、body寸法、intensity等をoverrideした場合は描画条件から決定的なvariant `render_id`を生成します。canonical freeze auditはvariant IDを拒否します。MP4 replayはdataset manifestの描画条件を復元するため、保存済み`.npy`と同じsilhouetteを表示します。
+
 probe は1 classあたり1 runだけ処理します。probe 出力は実行ごとの timestamp path に置き、最終 dataset v1 には使いません。
 
 ```bash

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
+import json
 import math
 
 import cv2
@@ -33,6 +35,34 @@ class BodyCapsuleGeometry:
     body_axis_angle_rad: float | None
     body_length_px: float
     body_width_px: float
+
+
+def body_capsule_render_id(cfg: BodyCapsuleRenderConfig) -> str:
+    """Return a stable render ID, preserving the canonical v1 identifier."""
+
+    parameters = {
+        "background_intensity": cfg.background_intensity,
+        "body_intensity": cfg.body_intensity,
+        "body_length_um": cfg.body_length_um,
+        "body_width_um": cfg.body_width_um,
+        "image_size_px": cfg.image_size_px,
+        "pixel_size_um": cfg.pixel_size_um,
+        "tracking_center": cfg.tracking_center,
+    }
+    canonical = {
+        "background_intensity": 255,
+        "body_intensity": 60,
+        "body_length_um": 2.0,
+        "body_width_um": 1.0,
+        "image_size_px": 96,
+        "pixel_size_um": 0.1,
+        "tracking_center": True,
+    }
+    if parameters == canonical:
+        return RENDER_MODE_BODY_CAPSULE_ORTHOGRAPHIC
+    encoded = json.dumps(parameters, sort_keys=True, separators=(",", ":")).encode()
+    digest = hashlib.sha256(encoded).hexdigest()[:12]
+    return f"{RENDER_MODE_BODY_CAPSULE_ORTHOGRAPHIC}-variant-{digest}"
 
 
 def body_axis_3d_from_state(state: SimulationState) -> np.ndarray:

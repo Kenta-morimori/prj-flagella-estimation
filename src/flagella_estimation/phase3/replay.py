@@ -150,6 +150,7 @@ def render_3d_2d_grid_mp4(cfg: ReplayConfig) -> Path:
         raise ValueError("clips_per_video must be positive")
     output_dir = cfg.output_dir or default_replay_output_dir(cfg.dataset_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    dataset_render = _load_dataset_render(cfg.dataset_dir)
 
     record_batches = [
         records[start : start + cfg.clips_per_video]
@@ -157,7 +158,9 @@ def render_3d_2d_grid_mp4(cfg: ReplayConfig) -> Path:
     ]
     video_entries = []
     for batch_index, record_batch in enumerate(record_batches, start=1):
-        clips = [_load_replay_clip(record, cfg) for record in record_batch]
+        clips = [
+            _load_replay_clip(record, cfg, dataset_render) for record in record_batch
+        ]
         layout = auto_grid_layout(
             len(clips),
             cell_width_px=cfg.panel_width_px,
@@ -187,8 +190,7 @@ def render_3d_2d_grid_mp4(cfg: ReplayConfig) -> Path:
                             clip["rig"],
                             cell_w=layout.cell_width_px,
                             cell_h=layout.cell_height_px,
-                            image_size_px=clip["image_size_px"],
-                            pixel_size_um=clip["pixel_size_um"],
+                            body_render_cfg=clip["body_render_cfg"],
                             panel_layout=cfg.panel_layout,
                         )
                     )
@@ -295,7 +297,11 @@ def _filters_dict(cfg: ReplayConfig) -> dict[str, Any]:
     }
 
 
-def _load_replay_clip(record: dict[str, Any], cfg: ReplayConfig) -> dict[str, Any]:
+def _load_replay_clip(
+    record: dict[str, Any],
+    cfg: ReplayConfig,
+    dataset_render: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     clip = record["clip"]
     source_path = _resolve_path(cfg.dataset_dir, record["source_video"]["source_path"])
     frame_rate_hz = float(clip.get("frame_rate_hz") or 25.0)
@@ -309,6 +315,16 @@ def _load_replay_clip(record: dict[str, Any], cfg: ReplayConfig) -> dict[str, An
     crop_size = normalization.get("crop_size_px", [96, 96])
     image_size_px = int(crop_size[0] if isinstance(crop_size, list) else crop_size)
     pixel_size_um = float(normalization.get("pixel_size_um") or 0.1)
+    render = dataset_render or _load_dataset_render(cfg.dataset_dir)
+    body_render_cfg = BodyCapsuleRenderConfig(
+        image_size_px=image_size_px,
+        pixel_size_um=pixel_size_um,
+        body_length_um=float(render.get("body_length_um", 2.0)),
+        body_width_um=float(render.get("body_width_um", 1.0)),
+        body_intensity=int(render.get("body_intensity", 60)),
+        background_intensity=int(render.get("background_intensity", 255)),
+        tracking_center=bool(render.get("tracking_center", True)),
+    )
     sim_cfg = _load_simulation_config_for_record(record, cfg.dataset_dir)
     sim_cfg = sim_cfg.with_overrides(
         {
@@ -328,8 +344,7 @@ def _load_replay_clip(record: dict[str, Any], cfg: ReplayConfig) -> dict[str, An
     return {
         "record": record,
         "states": clip_states,
-        "image_size_px": image_size_px,
-        "pixel_size_um": pixel_size_um,
+        "body_render_cfg": body_render_cfg,
         "sim_cfg": sim_cfg,
         "rig": rig,
     }
@@ -343,8 +358,7 @@ def _render_clip_pair_panel(
     *,
     cell_w: int,
     cell_h: int,
-    image_size_px: int,
-    pixel_size_um: float,
+    body_render_cfg: BodyCapsuleRenderConfig,
     panel_layout: str,
 ) -> np.ndarray:
     label_h = 34
@@ -377,8 +391,7 @@ def _render_clip_pair_panel(
         panel_layout=panel_layout,
         total_width_px=cell_w,
         height_px=sub_h,
-        image_size_px=image_size_px,
-        pixel_size_um=pixel_size_um,
+        body_render_cfg=body_render_cfg,
     )
     x0 = 0
     for content_index, content in enumerate(panels):
@@ -398,8 +411,7 @@ def _render_content_panels(
     panel_layout: str,
     total_width_px: int,
     height_px: int,
-    image_size_px: int,
-    pixel_size_um: float,
+    body_render_cfg: BodyCapsuleRenderConfig,
 ) -> list[np.ndarray]:
     modes = panel_layout.split("+")
     if modes not in (["3d", "2d"], ["3d"], ["2d"]):
@@ -422,11 +434,7 @@ def _render_content_panels(
         else:
             frame2d_gray, _ = render_body_capsule_frame(
                 state,
-                BodyCapsuleRenderConfig(
-                    image_size_px=image_size_px,
-                    pixel_size_um=pixel_size_um,
-                    tracking_center=True,
-                ),
+                body_render_cfg,
             )
             frame2d = cv2.cvtColor(frame2d_gray, cv2.COLOR_GRAY2BGR)
             panels.append(
@@ -513,6 +521,15 @@ def _load_metadata_jsonl(path: Path) -> list[dict[str, Any]]:
         if line.strip():
             records.append(json.loads(line))
     return records
+
+
+def _load_dataset_render(dataset_dir: Path) -> dict[str, Any]:
+    manifest_path = dataset_dir / "manifest.json"
+    if not manifest_path.is_file():
+        return {}
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    render = manifest.get("render", {})
+    return render if isinstance(render, dict) else {}
 
 
 def _resolve_path(dataset_dir: Path, raw_path: str) -> Path:

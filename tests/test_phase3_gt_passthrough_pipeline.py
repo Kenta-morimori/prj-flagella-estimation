@@ -28,6 +28,7 @@ from flagella_estimation.phase3.splits import (
 )
 from flagella_estimation.phase3.windows import FrameWindow, generate_windows
 from sim_swim.analysis.flagella_count_behavior import save_state_archive
+from sim_swim.render.body2d import render_body_capsule_frame
 from sim_swim.sim.core import SimulationState
 
 
@@ -412,6 +413,7 @@ def test_phase3_pipeline_writes_clips_manifest_and_summaries(tmp_path: Path) -> 
     assert manifest["output_sampling"] == {"fps_out": 25.0}
     assert manifest["render"] == {
         "render_mode": "body_capsule_orthographic_v1",
+        "render_id": manifest["render"]["render_id"],
         "projection": "orthographic",
         "body_deformation_rendered": False,
         "rendered_objects": ["body"],
@@ -433,6 +435,11 @@ def test_phase3_pipeline_writes_clips_manifest_and_summaries(tmp_path: Path) -> 
     assert manifest["dataset_revision"] is None
     assert manifest["dataset_summary"]["training_candidate_clip_count"] == 2
     assert len(metadata_lines) == 2
+    render_id = manifest["render"]["render_id"]
+    assert render_id.startswith("body_capsule_orthographic_v1-variant-")
+    assert {json.loads(line)["provenance"]["render_id"] for line in metadata_lines} == {
+        render_id
+    }
     assert clip.shape == (13, 32, 32)
     assert clip.dtype == np.uint8
     assert (output_dir / "run.log").is_file()
@@ -542,8 +549,29 @@ def test_phase3_replay_writes_contact_sheet_and_manifest(tmp_path: Path) -> None
             input_dataset=input_dataset,
             output_dir=tmp_path / "clips",
             image_size_px=32,
+            body_length_um=2.5,
+            body_width_um=0.8,
+            body_intensity=90,
         )
     )
+
+    first_record = json.loads(
+        (dataset_dir / "clip_metadata.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()[0]
+    )
+    loaded_clip = _load_replay_clip(
+        first_record,
+        ReplayConfig(dataset_dir=dataset_dir),
+    )
+    assert loaded_clip["body_render_cfg"].body_length_um == pytest.approx(2.5)
+    assert loaded_clip["body_render_cfg"].body_width_um == pytest.approx(0.8)
+    assert loaded_clip["body_render_cfg"].body_intensity == 90
+    replay_frame, _ = render_body_capsule_frame(
+        loaded_clip["states"][0], loaded_clip["body_render_cfg"]
+    )
+    saved_clip = np.load(dataset_dir / first_record["clip"]["output_path"])
+    assert np.array_equal(replay_frame, saved_clip[0])
 
     replay_dir = render_contact_sheet(
         ReplayConfig(
@@ -638,11 +666,10 @@ def test_phase3_replay_splits_all_matching_clips_across_mp4_grids(
     )
     monkeypatch.setattr(
         "flagella_estimation.phase3.replay._load_replay_clip",
-        lambda record, _cfg: {
+        lambda record, *_args: {
             "record": record,
             "states": [object()],
-            "image_size_px": 32,
-            "pixel_size_um": 0.1,
+            "body_render_cfg": object(),
             "sim_cfg": object(),
             "rig": object(),
         },
