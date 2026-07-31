@@ -1308,6 +1308,29 @@
   - `docs/phase2/phase2_tasks.md`
   - `docs/codex-runs/20260630_195819_phase2_96_script_cleanup/review_result.json`
 
+### P2-8-023: Issue #158 n=3長時間非定常回転とproximal failureを診断する
+
+- status: accepted
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/158`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/157`
+- branch: `feature/phase2-158-v1-r1-nf3-proximal-diagnostics`
+- goal: dataset v1 r1 の 3.0 s RUN 固定 `n_flagella=3` で発生した非定常回転と proximal flag bond failure の原因を，既存 raw output から再simulationなしで診断し，dataset v2 生成前の解決策候補を整理する。
+- scope:
+  - dataset v2 生成，5 s x 27 run quality gate，Phase 4 ML MVP 実装は行わない。
+  - 初期PRでは診断基盤，既存データ分析，原因仮説分類，解決策候補の整理までを対象にする。
+  - 物理解釈を変えるモデル修正は，ユーザー確認後の後続作業にする。
+- acceptance criteria:
+  - [ ] 27 run の PASS/FAIL と first-fail 時刻が同一形式で出力される。
+  - [ ] 4 fail条件の first-fail 前後同期plotまたはevent tableが生成される。
+  - [ ] flag ID，local bond，attach seed，phase seed別にfailureが整理されている。
+  - [ ] angular velocity，speed，axis alignment，proximal bond error，torque/contact proxy が時間同期されている。
+  - [ ] flag-flag / flag-body接触・貫通 proxy との時間関係が確認されている。
+  - [ ] 仮説ごとの support / reject / inconclusive が根拠付きで記録されている。
+  - [ ] 最有力原因，未確定事項，次の最小比較条件，解決策候補が文書化されている。
+  - [ ] tests，ruff，probe，review_resultが記録されている。
+- docs:
+  - `docs/phase2/phase2_158_v1_r1_nf3_proximal_diagnostics.md`
+
 ## Phase 2.9: Tumble状態の段階実装
 
 ### P2-9-010: Tumble状態を段階実装する

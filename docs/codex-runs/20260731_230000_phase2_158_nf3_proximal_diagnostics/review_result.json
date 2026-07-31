@@ -1,0 +1,75 @@
+{
+  "status": "FAIL",
+  "summary": "Issue #158 dataset v1 r1 3.0 s run の n_flagella=3 proximal failure を、既存 step_summary.csv / state_archive.npz から再simulationなしで診断するCLIを追加した。27 run summary、4 fail条件のfirst-fail前後event table、同期plot、仮説分類、原因・解決策候補を出力する。probeでは n=1: 9/9, n=2: 9/9, n=3: 5/9 strict-pass を再現し、4 failすべての first-fail local bond が proximal 1-2 または 2-3 であることを確認した。最有力原因は attach geometry と basal load transfer による proximal flag bond への局所負荷集中と整理し、dataset v2生成は行わない。",
+  "blocking_issues": [
+    "merge前にユーザーが outputs/2026-07-31/phase2_158_probe/plots/*.png と必要なreplayを定性確認する必要がある。",
+    "proximal flag bond 専用 load relief / stiffness profile など物理解釈を変える修正は、ユーザー確認前には実装しない。"
+  ],
+  "non_blocking_issues": [
+    "flag-body接触は bead center distance minus 2a のproxyであり、連続capsule bodyに対する厳密な貫通判定ではない。",
+    "flag-flag contactは同期表へ入れたが、4 fail中3条件ではfirst-fail前0であり、現時点では主因とは判定しない。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest -q tests/test_phase2_158_diagnostics.py",
+      "result": "PASS: 1 passed。診断CLI本体がsummary/event table/plot/manifestを生成し、local bondをglobal bead IDから復元することを検証。"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/analysis/phase2_158_diagnostics.py scripts/02_phase2_analysis/diagnose_v1_r1_nf3_failures.py tests/test_phase2_158_diagnostics.py",
+      "result": "PASS: All checks passed。"
+    },
+    {
+      "command": "uv run python scripts/02_phase2_analysis/diagnose_v1_r1_nf3_failures.py --output-dir outputs/2026-07-31/phase2_158_probe --overwrite",
+      "result": "PASS: 27 runの診断出力を生成。run_diagnostic_summary.csv, failure_event_table.csv, 4同期plot, hypothesis_assessment, manifest.json, run.log を確認。"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS: 119 files already formatted。"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS: All checks passed。"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS: 193 passed, 235 deselected。"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS: whitespace errorなし。"
+    }
+  ],
+  "user_review_required": true,
+  "user_review_reason": "Issue #158の元方針でmerge前にplot/replayの定性評価が必要。今回のPRは原因診断であり、dataset v2生成や物理モデル修正は含めない。",
+  "user_review_command": "uv run python scripts/02_phase2_analysis/diagnose_v1_r1_nf3_failures.py --output-dir outputs/2026-07-31/phase2_158_probe --overwrite",
+  "user_review_outputs": [
+    "outputs/2026-07-31/phase2_158_probe/run_diagnostic_summary.csv",
+    "outputs/2026-07-31/phase2_158_probe/failure_event_table.csv",
+    "outputs/2026-07-31/phase2_158_probe/plots/as001__ps001__nf03_first_fail_sync.png",
+    "outputs/2026-07-31/phase2_158_probe/plots/as002__ps000__nf03_first_fail_sync.png",
+    "outputs/2026-07-31/phase2_158_probe/plots/as002__ps001__nf03_first_fail_sync.png",
+    "outputs/2026-07-31/phase2_158_probe/plots/as002__ps002__nf03_first_fail_sync.png",
+    "outputs/2026-07-31/phase2_158_probe/hypothesis_assessment.md"
+  ],
+  "user_review_points": [
+    "4 fail条件のfirst-fail直前で flag_bond_rel_err_max がstrict limit付近へ滑らかに近づくか。",
+    "body angular velocity / speed の変動が proximal bond growth と同期しているか。",
+    "flag-flag repulsion と flag-body proxy gap が failureの先行主因に見えるか、それとも副次的相関に見えるか。",
+    "原因整理を proximal flag bond load concentration として扱ってよいか。",
+    "次の修正候補を proximal flag bond 専用 load relief / stiffness profile と attach geometry QC に絞ってよいか。"
+  ],
+  "user_review_result": "PENDING",
+  "adr_required": false,
+  "adr_reason": "今回のPRは診断CLIと文書整理のみで、物理モデル・dataset採用境界・出力契約を変更しないため。proximal bond stiffness profile 等を採用する場合は別途ADRまたは同等の設計記録が必要。",
+  "commit_type": "diagnostic",
+  "commit_hash": "pending",
+  "push_status": "not_pushed",
+  "pull_request_url": "",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/158",
+  "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/157",
+  "next_actions": [
+    "ユーザーが同期plotと必要replayを確認する。",
+    "ユーザー確認後、review_resultをPASSへ更新するか、proximal load reliefの設計・最小比較へ進む。",
+    "dataset v2生成と5 s x 27 run quality gateは他要件と合わせて後続PRで扱う。"
+  ]
+}
