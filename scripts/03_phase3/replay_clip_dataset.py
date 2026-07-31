@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render a contact sheet from Phase 3 common clip `.npy` artifacts."""
+"""Replay Phase 3 common clip datasets for visual review."""
 
 from __future__ import annotations
 
@@ -9,7 +9,11 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from flagella_estimation.phase3.replay import ReplayConfig, render_contact_sheet
+from flagella_estimation.phase3.replay import (
+    ReplayConfig,
+    render_3d_2d_grid_mp4,
+    render_contact_sheet,
+)
 
 
 def _optional_bool(value: str | None) -> bool | None:
@@ -35,20 +39,31 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--training-candidate", type=_optional_bool, default=None)
     parser.add_argument("--max-clips", type=int, default=12)
     parser.add_argument("--frames-per-clip", type=int, default=4)
+    parser.add_argument(
+        "--mode",
+        choices=("mp4-grid", "contact-sheet"),
+        default="mp4-grid",
+        help="visual replay artifact to create",
+    )
+    parser.add_argument("--mp4-fps", type=float, default=5.0)
     args = parser.parse_args(argv)
-    output_dir = render_contact_sheet(
-        ReplayConfig(
-            dataset_dir=args.dataset_dir,
-            output_dir=args.output_dir,
-            n_flagella=args.n_flagella,
-            run_id=args.run_id,
-            clip_index=args.clip_index,
-            time_band=args.time_band,
-            qc_label=args.qc_label,
-            training_candidate=args.training_candidate,
-            max_clips=args.max_clips,
-            frames_per_clip=args.frames_per_clip,
-        )
+    cfg = ReplayConfig(
+        dataset_dir=args.dataset_dir,
+        output_dir=args.output_dir,
+        n_flagella=args.n_flagella,
+        run_id=args.run_id,
+        clip_index=args.clip_index,
+        time_band=args.time_band,
+        qc_label=args.qc_label,
+        training_candidate=args.training_candidate,
+        max_clips=args.max_clips,
+        frames_per_clip=args.frames_per_clip,
+        mp4_fps=args.mp4_fps,
+    )
+    output_dir = (
+        render_contact_sheet(cfg)
+        if args.mode == "contact-sheet"
+        else render_3d_2d_grid_mp4(cfg)
     )
     print(output_dir)
 

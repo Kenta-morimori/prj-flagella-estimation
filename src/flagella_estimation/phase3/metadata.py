@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from flagella_estimation.phase3.render import FrameGeometry
+from sim_swim.render.body2d import RENDER_MODE_BODY_CAPSULE_RIGID
 from flagella_estimation.phase3.windows import FrameWindow
 
 
@@ -99,7 +100,7 @@ def build_gt_passthrough_metadata(
             "dataset_version": dataset_version,
             "dataset_revision": dataset_revision,
             "run_id": run_id,
-            "render_id": "state_archive_numpy_v1",
+            "render_id": RENDER_MODE_BODY_CAPSULE_RIGID,
             "condition_id": run_id,
             "raw_run_dir": str(raw_run_dir),
         },
@@ -150,6 +151,9 @@ def build_gt_passthrough_metadata(
             "training_candidate": training_candidate,
             "diagnostic_only": diagnostic_only,
             "qc_label": qc_label,
-            "notes": "pseudo GT passthrough from Phase 2 state archive",
+            "notes": (
+                "pseudo GT passthrough from Phase 2 state archive; "
+                "canonical frames render body-only rigid capsule silhouettes"
+            ),
         },
     }

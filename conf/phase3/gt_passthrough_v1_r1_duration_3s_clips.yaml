@@ -12,6 +12,11 @@ clip:
   frame_rate_hz: 25.0
   crop_size_px: 96
   pixel_size_um: 0.1
+render:
+  mode: body_capsule_rigid_v1
+  body_length_um: 2.0
+  body_width_um: 1.0
+  body_intensity: 60
 filters:
   allowed_n_flagella: [1, 2, 3]
   require_use_for_ml_candidate: true

@@ -20,7 +20,11 @@ from flagella_estimation.phase3.metadata import (
     SCHEMA_VERSION,
     build_gt_passthrough_metadata,
 )
-from flagella_estimation.phase3.render import render_clip_array, select_frames
+from flagella_estimation.phase3.render import (
+    RENDER_MODE,
+    render_clip_array,
+    select_frames,
+)
 from flagella_estimation.phase3.splits import (
     assign_grouped_splits,
     assert_no_group_leakage,
@@ -42,6 +46,9 @@ class Phase3Config:
     frame_rate_hz: float = 25.0
     crop_size_px: int = 96
     pixel_size_um: float = 0.1
+    body_length_um: float = 2.0
+    body_width_um: float = 1.0
+    body_intensity: int = 60
     allowed_n_flagella: tuple[int, ...] = (1, 2, 3)
     max_per_class: int | None = None
     baseline_torque_Nm: float = 2.0e-20
@@ -194,6 +201,7 @@ def load_config(path: Path | None, overrides: list[str] | None = None) -> Phase3
         raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     data = _apply_overrides(raw, overrides or [])
     clip = dict(data.get("clip", {}) or {})
+    render = dict(data.get("render", {}) or {})
     filters = dict(data.get("filters", {}) or {})
     freeze = dict(data.get("freeze", {}) or {})
     metadata = dict(data.get("metadata", {}) or {})
@@ -212,6 +220,9 @@ def load_config(path: Path | None, overrides: list[str] | None = None) -> Phase3
         frame_rate_hz=float(clip.get("frame_rate_hz", 25.0)),
         crop_size_px=int(clip.get("crop_size_px", 96)),
         pixel_size_um=float(clip.get("pixel_size_um", 0.1)),
+        body_length_um=float(render.get("body_length_um", 2.0)),
+        body_width_um=float(render.get("body_width_um", 1.0)),
+        body_intensity=int(render.get("body_intensity", 60)),
         allowed_n_flagella=tuple(
             int(v) for v in filters.get("allowed_n_flagella", [1, 2, 3])
         ),
@@ -362,6 +373,9 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
                 states[window.start : window.end],
                 image_size_px=cfg.crop_size_px,
                 pixel_size_um=cfg.pixel_size_um,
+                body_length_um=cfg.body_length_um,
+                body_width_um=cfg.body_width_um,
+                body_intensity=cfg.body_intensity,
             )
             (
                 window_shape_pass,
@@ -502,6 +516,18 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
             "frame_rate_hz": cfg.frame_rate_hz,
             "crop_size_px": cfg.crop_size_px,
             "pixel_size_um": cfg.pixel_size_um,
+        },
+        "render": {
+            "render_mode": RENDER_MODE,
+            "body_deformation_rendered": False,
+            "rendered_objects": ["body"],
+            "excluded_objects": ["flagella"],
+            "body_shape": "capsule",
+            "body_length_um": cfg.body_length_um,
+            "body_width_um": cfg.body_width_um,
+            "body_intensity": cfg.body_intensity,
+            "background_intensity": 255,
+            "tracking_center": True,
         },
         "filters": {
             "allowed_n_flagella": list(cfg.allowed_n_flagella),

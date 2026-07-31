@@ -15,7 +15,7 @@ Phase 3 は common clip schemaを#127 / PR #142，pseudo GT passthroughを#6 / P
 - #127: closed / merged。実動画 detection 経路と擬似動画 GT passthrough 経路を，共通clip / metadata schemaへ収束させた。schema 正本は `docs/phase3/phase3_1_clip_metadata_schema.md`，機械可読schemaは `schemas/phase3_clip_metadata.schema.json`。
 - #129: `0.5 s` defaultとgrouped learning curveは完了し，pseudo-v1で`k=4`を採用する範囲を判断する。
 - #128: closed / PR #152 merged。Phase 4 machine-readable freeze gateへ接続した。
-- #159: dataset v1 r1 の3秒run 27件を，5 clips/run のPhase 3共通clip datasetへ変換するCLI/config，window QC，grouped split，replay contact sheet，Phase 4 warmup filter / run-balanced weighting / freeze audit接続を追加した。
+- #159: dataset v1 r1 の3秒run 27件を，5 clips/run のPhase 3共通clip datasetへ変換するCLI/config，window QC，grouped split，body-only rigid capsule `.npy` render，3D/2D MP4 grid replay，Phase 4 warmup filter / run-balanced weighting / freeze audit接続を追加した。
 - #6: 共通clip生成pipelineの実装親Issue。Phase 2 擬似動画 GT passthrough は実装済みで，実動画 detection / tracking は #8 / #9 後に進める。
 
 MVP 固定方針（2026-07-23 のユーザー判断に基づく）:

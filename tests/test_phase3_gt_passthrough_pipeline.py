@@ -13,7 +13,11 @@ from flagella_estimation.phase3.pipeline import (
     build_clip_dataset,
     validate_training_candidate,
 )
-from flagella_estimation.phase3.replay import ReplayConfig, render_contact_sheet
+from flagella_estimation.phase3.replay import (
+    ReplayConfig,
+    render_3d_2d_grid_mp4,
+    render_contact_sheet,
+)
 from flagella_estimation.phase3.render import render_clip_array
 from flagella_estimation.phase3.splits import (
     assign_grouped_splits,
@@ -41,6 +45,29 @@ def _state(index: int) -> SimulationState:
         quaternion=(0.0, 0.0, 0.0, 1.0),
         velocity_um_s=(1.0, 0.0, 0.0),
         omega_rad_s=(0.0, 0.0, 0.0),
+        bead_positions_um=beads,
+        flag_states=(),
+        reverse_flagella=(),
+    )
+
+
+def _state_with_flagella_far_from_body(index: int) -> SimulationState:
+    state = _state(index)
+    beads = np.asarray(
+        [
+            [state.position_um[0] - 0.2, -0.05, 0.0],
+            [state.position_um[0] + 0.2, 0.05, 0.0],
+            [state.position_um[0] + 3.0, 2.0, 0.0],
+            [state.position_um[0] + 3.4, 2.4, 0.0],
+        ],
+        dtype=float,
+    )
+    return SimulationState(
+        t=state.t,
+        position_um=state.position_um,
+        quaternion=state.quaternion,
+        velocity_um_s=state.velocity_um_s,
+        omega_rad_s=state.omega_rad_s,
         bead_positions_um=beads,
         flag_states=(),
         reverse_flagella=(),
@@ -160,6 +187,7 @@ def test_phase3_gt_passthrough_metadata_matches_required_schema_fields(
     assert metadata["processing_mode"] == "gt_passthrough"
     assert metadata["labels"] == {"n_flagella": 1, "label_source": "phase2_gt"}
     assert metadata["provenance"]["run_id"] == "nf01_as000_ps000"
+    assert metadata["provenance"]["render_id"] == "body_capsule_rigid_v1"
     assert metadata["provenance"]["dataset_revision"] is None
     assert metadata["track"]["group_key"] == "phase2:v1:nf01_as000_ps000"
     assert metadata["track"]["source_frame_end"] == 12
@@ -171,6 +199,28 @@ def test_phase3_gt_passthrough_metadata_matches_required_schema_fields(
     assert metadata["qc"]["training_candidate"] is True
     assert metadata["qc"]["diagnostic_only"] is False
     assert len(metadata["frames"]) == 13
+
+
+@pytest.mark.light
+def test_phase3_render_uses_body_only_rigid_capsule() -> None:
+    states = [_state_with_flagella_far_from_body(i) for i in range(3)]
+
+    clip_array, geometries = render_clip_array(
+        states,
+        image_size_px=64,
+        pixel_size_um=0.1,
+        body_length_um=2.0,
+        body_width_um=1.0,
+    )
+
+    assert clip_array.shape == (3, 64, 64)
+    assert clip_array.dtype == np.uint8
+    assert np.min(clip_array) < 255
+    # The far-away flagella-like beads are ignored, so the distant upper-right
+    # crop area stays background.
+    assert np.all(clip_array[:, 48:, 48:] == 255)
+    assert {geometry.body_length_px for geometry in geometries} == {20.0}
+    assert {geometry.body_width_px for geometry in geometries} == {10.0}
 
 
 @pytest.mark.light
@@ -270,6 +320,18 @@ def test_phase3_pipeline_writes_clips_manifest_and_summaries(tmp_path: Path) -> 
         "cli_overrides": ["clip.duration_s=0.5"],
     }
     assert manifest["filters"]["max_per_class"] is None
+    assert manifest["render"] == {
+        "render_mode": "body_capsule_rigid_v1",
+        "body_deformation_rendered": False,
+        "rendered_objects": ["body"],
+        "excluded_objects": ["flagella"],
+        "body_shape": "capsule",
+        "body_length_um": 2.0,
+        "body_width_um": 1.0,
+        "body_intensity": 60,
+        "background_intensity": 255,
+        "tracking_center": True,
+    }
     assert "python" in manifest["environment"]
     assert manifest["sample_count"] == 1
     assert manifest["clip_count"] == 2
@@ -404,3 +466,62 @@ def test_phase3_replay_writes_contact_sheet_and_manifest(tmp_path: Path) -> None
     manifest = json.loads((replay_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["clip_count"] == 1
     assert manifest["filters"]["n_flagella"] == 1
+
+
+@pytest.mark.light
+def test_phase3_replay_writes_3d_2d_mp4_grid_and_manifest(tmp_path: Path) -> None:
+    input_dataset = tmp_path / "dataset"
+    raw_dir = tmp_path / "raw" / "nf01_as000_ps000"
+    raw_dir.mkdir(parents=True)
+    save_state_archive(raw_dir / "state_archive.npz", [_state(i) for i in range(26)])
+    input_dataset.mkdir()
+    with (input_dataset / "summary.csv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "sample_id",
+                "n_flagella",
+                "torque_Nm",
+                "use_for_ml_candidate",
+                "raw_dir",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "sample_id": "nf01_as000_ps000",
+                "n_flagella": "1",
+                "torque_Nm": "2e-20",
+                "use_for_ml_candidate": "True",
+                "raw_dir": str(raw_dir),
+            }
+        )
+    dataset_dir = build_clip_dataset(
+        Phase3Config(
+            dataset_id="phase3_fixture",
+            input_dataset=input_dataset,
+            output_dir=tmp_path / "clips",
+            crop_size_px=32,
+        )
+    )
+
+    replay_dir = render_3d_2d_grid_mp4(
+        ReplayConfig(
+            dataset_dir=dataset_dir,
+            output_dir=tmp_path / "replay",
+            n_flagella=1,
+            training_candidate=True,
+            max_clips=1,
+            frames_per_clip=2,
+            panel_width_px=320,
+            panel_height_px=160,
+        )
+    )
+
+    assert (replay_dir / "3d_2d_grid.mp4").is_file()
+    manifest = json.loads((replay_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["pipeline_name"] == "phase3_clip_replay_3d_2d_grid"
+    assert manifest["clip_count"] == 1
+    assert manifest["outputs"]["mp4_grid"].endswith("3d_2d_grid.mp4")
