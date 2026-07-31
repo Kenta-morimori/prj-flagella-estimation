@@ -7,7 +7,7 @@ freeze:
   source_dataset_ids: [v1_r1_duration_3s]
   model_ids: [phase2_flagella_count_behavior_v1]
   source_model_ids: [flag_spring2p25_body2p5_candidate]
-  render_ids: [state_archive_numpy_v1]
+  render_ids: [body_capsule_orthographic_v1]
   pipeline_name: phase3_gt_passthrough
   schema_version: phase3_clip_metadata/v0
   source_kind: phase2_pseudo

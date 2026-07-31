@@ -89,7 +89,7 @@ def test_phase4_loader_reads_phase3_common_clip_dataset(tmp_path: Path) -> None:
             dataset_id="phase4_loader_fixture",
             input_dataset=input_dataset,
             output_dir=tmp_path / "phase3_clips",
-            crop_size_px=32,
+            image_size_px=32,
             max_per_class=3,
         )
     )
@@ -141,7 +141,7 @@ def test_phase4_loader_rejects_group_key_leakage(tmp_path: Path) -> None:
             dataset_id="phase4_loader_fixture",
             input_dataset=input_dataset,
             output_dir=tmp_path / "phase3_clips",
-            crop_size_px=32,
+            image_size_px=32,
         )
     )
 
@@ -181,7 +181,7 @@ def test_phase4_loader_rejects_split_rows_without_metadata(tmp_path: Path) -> No
             dataset_id="phase4_loader_fixture",
             input_dataset=input_dataset,
             output_dir=tmp_path / "phase3_clips",
-            crop_size_px=32,
+            image_size_px=32,
         )
     )
 
@@ -222,7 +222,7 @@ def test_phase4_loader_rejects_clip_shape_mismatch(tmp_path: Path) -> None:
             dataset_id="phase4_loader_fixture",
             input_dataset=input_dataset,
             output_dir=tmp_path / "phase3_clips",
-            crop_size_px=32,
+            image_size_px=32,
         )
     )
 

@@ -29,7 +29,7 @@ Phase 2 dataset v1
 - CLI: `scripts/03_phase3/build_clip_dataset.py`
 - config: `conf/phase3/gt_passthrough_v1.yaml`
 - clip artifact: `clips/<clip_id>.npy`，`uint8` grayscale，shape `(T, H, W)`
-- default: `clip.duration_s=0.5`，`clip.window_policy=non_overlap`，`frame_rate_hz=25.0`
+- default: `clip.duration_s=0.5`，`clip.window_policy=non_overlap`，`output_sampling.fps_out=25.0`
 - MVP filter: `n_flagella=1,2,3`，`use_for_ml_candidate=True`，baseline torque only
 - output metadata: `schemas/phase3_clip_metadata.schema.json` compatible JSONL
 - split policy: `group_key` leakage を禁止し，MVP label (`n_flagella=1,2,3`) ごとに grouped split を割り当てる

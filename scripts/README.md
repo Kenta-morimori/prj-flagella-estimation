@@ -220,7 +220,9 @@ uv run python scripts/02_phase2_analysis/analyze_2d_separability.py \
 
 ### v1 r1 3秒runから0.5秒clip datasetを作成
 
-Issue #159 の Phase 3 common clip dataset は、既存の3秒 state archive から生成します。長時間の Phase 2 simulation は再実行しません。
+Issue #159 の Phase 3 common clip dataset は、既存の3秒 state archive から生成します。長時間の Phase 2 simulation は再実行しません。canonical `.npy` clip は、べん毛を描画せず、菌体のみを `body_capsule_orthographic_v1` のtracking cropで描画します。菌体は全長2.0 µm、幅1.0 µmの剛体capsuleとして扱い、固定カメラへの並行投影により斜め姿勢では見かけの長さを短縮し、z方向への正対時は円形にします。菌体変形はML入力へ反映せず、QC確認対象として扱います。blur / noise / defocusは実動画条件が未確定のためcanonical v1には含めません。Phase 3 configでは、出力fpsは `output_sampling.fps_out`、画像条件は `render.image_size_px` / `render.pixel_size_um` を正本とします。
+
+画像サイズ、pixel scale、body寸法、intensity等をoverrideした場合は描画条件から決定的なvariant `render_id`を生成します。canonical freeze auditはvariant IDを拒否します。MP4 replayはdataset manifestの描画条件を復元するため、保存済み`.npy`と同じsilhouetteを表示します。
 
 probe は1 classあたり1 runだけ処理します。probe 出力は実行ごとの timestamp path に置き、最終 dataset v1 には使いません。
 
@@ -240,19 +242,19 @@ uv run python scripts/03_phase3/build_clip_dataset.py \
 
 `outputs/YYYY-MM-DD/HHMMSS/phase3_v1_r1_clip_dataset/` はstaging / probe用途の実行ログ付き出力です。最終採択済みの Phase 4 入力 dataset は `outputs/phase3_common_clip/datasets/v1/` を参照します。`data/` は外部入力や手元データ置き場として残し、今回の生成済み共通clip dataset正本には使いません。
 
-QC確認対象は `dataset_summary.csv`、`qc_summary.csv`、`split_summary.csv`、`clip_metadata.jsonl` です。`n_flagella=3` の first-fail run では、first-failを含むwindowとそれ以降のwindowが `qc_label=diagnostic` / `training_candidate=false` になります。early clipは削除せず、Phase 4側の `freeze.warmup_s=0.0/0.5/1.0` で選択します。
+QC確認対象は `dataset_summary.csv`、`qc_summary.csv`、`split_summary.csv`、`clip_metadata.jsonl` です。`n_flagella=3` の first-fail run では、first-failを含むwindowとそれ以降のwindowが `qc_label=diagnostic` / `training_candidate=false` になります。ここでの `diagnostic` は、Phase 2 shape QC の `first_fail_t_s` を含む、またはそれ以後のためtrainingから除外した診断用clipという意味であり、全frameで形状崩壊が目視できることを意味しません。early clipは削除せず、Phase 4側の `freeze.warmup_s=0.0/0.5/1.0` で選択します。
 v1 r1 では source summary の `use_for_ml_candidate=false` run も除外せず、clip artifact を作成したうえで window QC により diagnostic-only として扱います。
 
-contact sheet replay は `.npy` clip から再生成します。titleには `n_flagella`、`run_id`、`clip_index`、time band、QC label が入ります。
+MP4 grid replay は source state archive から同じclip windowを再構成し、defaultでは各panelに3D source replayと2D body-only renderを横並びで表示します。3D側はPhase 2共通3D rendererを使い、べん毛を描画します。2D側はcanonical ML入力と同じ菌体のみのcapsule renderです。titleには `n_flagella`、`run_id`、`clip_index`、time band、QC label が入り、3D status textには first-fail時刻と before/after first-fail status が入ります。
+
+`--max-clips` を省略すると、filterに一致する全clipを処理します。1本のMP4に描画する上限はdefault 12 clipで、対象が12 clipを超える場合は `3d_2d_grid_001.mp4`、`3d_2d_grid_002.mp4` のように分割します。この上限は `--clips-per-video` で変更できます。`--max-clips` は全体の処理件数を明示的に制限したいprobe用途に使います。
 
 ```bash
 uv run python scripts/03_phase3/replay_clip_dataset.py \
-  outputs/phase3_common_clip/datasets/v1 \
-  --max-clips 12
+  outputs/phase3_common_clip/datasets/v1
 uv run python scripts/03_phase3/replay_clip_dataset.py \
   outputs/phase3_common_clip/datasets/v1 \
-  --qc-label diagnostic \
-  --max-clips 12
+  --qc-label diagnostic
 uv run python scripts/03_phase3/replay_clip_dataset.py \
   outputs/phase3_common_clip/datasets/v1 \
   --training-candidate true \
@@ -260,7 +262,27 @@ uv run python scripts/03_phase3/replay_clip_dataset.py \
   --max-clips 12
 ```
 
-定性確認点は、early/middle/late clipでbody-centered cropが破綻していないこと、pre-first-failとdiagnosticの境界表示がmetadataと一致すること、class/run/time bandが期待どおり見分けられることです。
+MP4 panelは必要に応じて選択できます。defaultは `--panel-layout 3d+2d` です。
+
+```bash
+uv run python scripts/03_phase3/replay_clip_dataset.py \
+  outputs/phase3_common_clip/datasets/v1 \
+  --panel-layout 3d
+uv run python scripts/03_phase3/replay_clip_dataset.py \
+  outputs/phase3_common_clip/datasets/v1 \
+  --panel-layout 2d
+```
+
+従来の `.npy` tensor contact sheetを確認したい場合は `--mode contact-sheet` を付けます。
+
+```bash
+uv run python scripts/03_phase3/replay_clip_dataset.py \
+  outputs/phase3_common_clip/datasets/v1 \
+  --mode contact-sheet \
+  --max-clips 12
+```
+
+定性確認点は、early/middle/late clipでtracking cropが破綻していないこと、2D側にflagellaが描画されていないこと、菌体がcapsule状で不自然に伸縮しないこと、3Dと2Dの姿勢・時刻対応が破綻していないこと、pre-first-failとdiagnosticの境界表示がmetadataと一致すること、class/run/time bandが期待どおり見分けられることです。
 
 Phase 4 freeze audit は同じ Phase 3 dataset を直接読みます。`warmup_s` は比較条件として切り替えます。
 

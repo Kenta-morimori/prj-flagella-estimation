@@ -110,6 +110,8 @@
   - first-failを含むwindowとそれ以降を diagnostic-only とし，early clipは削除せず Phase 4 の `warmup_s=0.0/0.5/1.0` 選択条件として扱う。
   - Phase 4 loader / freeze audit / baseline trainingを，training candidate選択とrun-balanced sample weightへ接続した。
   - `scripts/03_phase3/replay_clip_dataset.py` で `.npy` clipからcontact sheetを再生成し，titleにclass/run/clip/time band/QC labelを表示できるようにした。
+  - stacked PR #161 でcanonical 2D renderを `body_capsule_orthographic_v1` へ更新し，全長2.0 µm・幅1.0 µmの剛体capsuleについて斜め姿勢のforeshorteningとz正対時の円形silhouetteを反映した。2026-07-31のユーザー定性評価で，`nf02_as000_ps001_c0004`を含む3D/2D replayを採択した。
+  - replayはfilter後の全clipをdefault対象とし，1本あたり12 clipで複数MP4へ分割する。
   - `scripts/README.md` に probe，full build，replay，freeze audit の exact command と確認点を追加した。
 - acceptance criteria:
   - [x] 27 run全てから0.5秒clip artifactを生成できる実装がある。
@@ -127,6 +129,8 @@
   - full build user command: `uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml output_dir=outputs/phase3_common_clip/datasets/v1`
   - `uv run python scripts/04_phase4/audit_dataset_freeze.py config=conf/phase4/dataset_freeze_v1_r1.yaml dataset_dir=outputs/2026-07-31/163726/phase3_v1_r1_clip_dataset`
   - `uv run python scripts/03_phase3/replay_clip_dataset.py outputs/2026-07-31/163726/phase3_v1_r1_clip_dataset --max-clips 3 --frames-per-clip 2`
+  - `uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --run-id nf02_as000_ps001 --clip-index 4`
+  - `uv run python scripts/04_phase4/audit_dataset_freeze.py config=conf/phase4/dataset_freeze_v1_r1.yaml dataset_dir=outputs/2026-07-31/205818/phase3_v1_r1_clip_dataset` -> PASS
 - docs:
   - `docs/phase3/phase3_current.md`
   - `scripts/README.md`
