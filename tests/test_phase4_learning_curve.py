@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+from copy import deepcopy
 import json
 from pathlib import Path
 
@@ -91,6 +92,67 @@ def test_grouped_learning_curve_writes_group_level_artifacts(
 
 
 @pytest.mark.light
+def test_grouped_learning_curve_excludes_diagnostic_clips(tmp_path: Path) -> None:
+    dataset_dir = tmp_path / "phase3_dataset"
+    output_dir = tmp_path / "learning_curve"
+    write_phase4_fixture_dataset(dataset_dir)
+    records = [
+        json.loads(line)
+        for line in (dataset_dir / "clip_metadata.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    split_rows = list(
+        csv.DictReader(
+            (dataset_dir / "split_summary.csv").open("r", encoding="utf-8", newline="")
+        )
+    )
+    for record, split_row in zip(records[:6], split_rows[:6], strict=True):
+        diagnostic = deepcopy(record)
+        clip_id = f"{record['clip']['clip_id']}_diagnostic"
+        diagnostic["clip"]["clip_id"] = clip_id
+        diagnostic["clip"]["output_path"] = f"clips/{clip_id}.npy"
+        diagnostic["qc"]["training_candidate"] = False
+        diagnostic["qc"]["diagnostic_only"] = True
+        np.save(
+            dataset_dir / diagnostic["clip"]["output_path"],
+            np.load(dataset_dir / record["clip"]["output_path"]),
+        )
+        records.append(diagnostic)
+        duplicate_row = dict(split_row)
+        duplicate_row["clip_id"] = clip_id
+        split_rows.append(duplicate_row)
+    (dataset_dir / "clip_metadata.jsonl").write_text(
+        "".join(json.dumps(record) + "\n" for record in records),
+        encoding="utf-8",
+    )
+    with (dataset_dir / "split_summary.csv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(split_rows[0]))
+        writer.writeheader()
+        writer.writerows(split_rows)
+    manifest = json.loads((dataset_dir / "manifest.json").read_text(encoding="utf-8"))
+    manifest["clip_count"] = len(records)
+    (dataset_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    evaluate_grouped_learning_curve(
+        Phase4LearningCurveConfig(
+            dataset_dir=dataset_dir,
+            output_dir=output_dir,
+            repeats=4,
+        )
+    )
+
+    curve_rows = list(
+        csv.DictReader(
+            (output_dir / "learning_curve.csv").open("r", encoding="utf-8", newline="")
+        )
+    )
+    assert {row["train_clip_count"] for row in curve_rows} == {"3"}
+
+
+@pytest.mark.light
 def test_grouped_learning_curve_is_deterministic_for_seed(tmp_path: Path) -> None:
     dataset_dir = tmp_path / "phase3_dataset"
     write_phase4_fixture_dataset(dataset_dir)
@@ -159,10 +221,12 @@ def test_load_learning_curve_config_supports_key_value_overrides(
             "dataset_dir=override_input",
             "learning_curve.train_groups_per_class=[1, 2]",
             "learning_curve.repeats=5",
+            "freeze.warmup_s=0.5",
             "seed=13",
         ],
     )
     assert cfg.dataset_dir == Path("override_input")
     assert cfg.train_groups_per_class == (1, 2)
     assert cfg.repeats == 5
+    assert cfg.warmup_s == pytest.approx(0.5)
     assert cfg.seed == 13

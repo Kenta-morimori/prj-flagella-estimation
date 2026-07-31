@@ -79,6 +79,14 @@
     {
       "command": "uv run python scripts/04_phase4/audit_dataset_freeze.py config=conf/phase4/dataset_freeze_v1_r1.yaml dataset_dir=outputs/2026-07-31/212011/phase3_v1_r1_clip_dataset",
       "result": "PASS: 非canonical variantを期待どおりstatus=FAILで拒否。"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase4_learning_curve.py tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase4_dataset_freeze.py tests/test_phase4_baseline_classifier.py",
+      "result": "PASS: 31 passed。learning curveからdiagnostic clipを除外し、replay manifestのGit/environment記録を検証。"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS: PR #160 Codex review P1/P2対応後のfull suiteが終了コード0。"
     }
   ],
   "user_review_required": false,

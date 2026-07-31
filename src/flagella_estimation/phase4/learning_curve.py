@@ -29,6 +29,7 @@ from flagella_estimation.phase4.dataset import (
     Phase4ClipSample,
     audit_phase4_clip_dataset,
     load_phase3_common_clip_dataset,
+    select_phase4_training_candidates,
 )
 from flagella_estimation.phase4.training import (
     Phase4BaselineConfig,
@@ -46,6 +47,7 @@ class Phase4LearningCurveConfig:
     required_dataset_version: str = "v1"
     required_clip_duration_s: float = 0.5
     required_window_policy: str = "non_overlap"
+    warmup_s: float = 0.0
     development_splits: tuple[str, ...] = ("train", "val")
     protected_split: str = "test"
     holdout_groups_per_class: int = 1
@@ -94,6 +96,7 @@ def load_learning_curve_config(
         required_dataset_version=str(freeze.get("dataset_version", "v1")),
         required_clip_duration_s=float(freeze.get("clip_duration_s", 0.5)),
         required_window_policy=str(freeze.get("window_policy", "non_overlap")),
+        warmup_s=float(freeze.get("warmup_s", 0.0)),
         development_splits=tuple(
             str(value) for value in curve.get("development_splits", ["train", "val"])
         ),
@@ -156,10 +159,12 @@ def evaluate_grouped_learning_curve(cfg: Phase4LearningCurveConfig) -> Path:
             required_dataset_version=cfg.required_dataset_version,
             required_clip_duration_s=cfg.required_clip_duration_s,
             required_window_policy=cfg.required_window_policy,
+            warmup_s=cfg.warmup_s,
             seed=cfg.seed,
         ),
     )
-    groups = aggregate_group_features(samples)
+    selected_samples = select_phase4_training_candidates(samples, warmup_s=cfg.warmup_s)
+    groups = aggregate_group_features(selected_samples)
     classes = np.asarray(sorted(cfg.allowed_n_flagella), dtype=np.int64)
     development = [group for group in groups if group.split in cfg.development_splits]
     protected = [group for group in groups if group.split == cfg.protected_split]
@@ -435,6 +440,7 @@ def _write_manifest(
             "dataset_version": cfg.required_dataset_version,
             "clip_duration_s": cfg.required_clip_duration_s,
             "window_policy": cfg.required_window_policy,
+            "warmup_s": cfg.warmup_s,
         },
         "group_count": len(groups),
         "group_counts_by_split": split_counts,

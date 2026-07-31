@@ -588,6 +588,10 @@ def test_phase3_replay_writes_contact_sheet_and_manifest(tmp_path: Path) -> None
     manifest = json.loads((replay_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["clip_count"] == 1
     assert manifest["filters"]["n_flagella"] == 1
+    assert "commit" in manifest["git"]
+    assert {"python", "platform", "numpy", "opencv", "matplotlib"} <= set(
+        manifest["environment"]
+    )
 
 
 @pytest.mark.light
@@ -654,6 +658,10 @@ def test_phase3_replay_writes_3d_2d_mp4_grid_and_manifest(tmp_path: Path) -> Non
     assert manifest["video"]["fps"] == 25.0
     assert manifest["outputs"]["mp4_grid"].endswith("3d_2d_grid.mp4")
     assert manifest["outputs"]["mp4_grids"][0].endswith("3d_2d_grid.mp4")
+    assert "commit" in manifest["git"]
+    assert {"python", "platform", "numpy", "opencv", "matplotlib"} <= set(
+        manifest["environment"]
+    )
 
 
 @pytest.mark.light

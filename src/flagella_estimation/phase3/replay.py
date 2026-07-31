@@ -19,6 +19,7 @@ import numpy as np
 
 from sim_swim.analysis.flagella_count_behavior import load_state_archive
 from flagella_estimation.phase3.render import select_frames
+from flagella_estimation.phase3.pipeline import _environment_info, _git_info
 from sim_swim.render.body2d import BodyCapsuleRenderConfig, render_body_capsule_frame
 from sim_swim.render.grid_movie import (
     auto_grid_layout,
@@ -122,6 +123,8 @@ def render_contact_sheet(cfg: ReplayConfig) -> Path:
         "clip_count": len(selected),
         "clip_ids": [record["clip"]["clip_id"] for record in selected],
         "outputs": {"contact_sheet_png": str(sheet_path)},
+        "git": _git_info(),
+        "environment": _replay_environment_info(),
     }
     (output_dir / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
@@ -227,6 +230,8 @@ def render_3d_2d_grid_mp4(cfg: ReplayConfig) -> Path:
         },
         "video_count": len(video_entries),
         "videos": video_entries,
+        "git": _git_info(),
+        "environment": _replay_environment_info(),
     }
     (output_dir / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
@@ -521,6 +526,14 @@ def _load_metadata_jsonl(path: Path) -> list[dict[str, Any]]:
         if line.strip():
             records.append(json.loads(line))
     return records
+
+
+def _replay_environment_info() -> dict[str, Any]:
+    return {
+        **_environment_info(),
+        "opencv": cv2.__version__,
+        "matplotlib": matplotlib.__version__,
+    }
 
 
 def _load_dataset_render(dataset_dir: Path) -> dict[str, Any]:

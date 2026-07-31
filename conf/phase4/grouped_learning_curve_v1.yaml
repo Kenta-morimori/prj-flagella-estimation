@@ -6,6 +6,7 @@ freeze:
   dataset_version: v1
   clip_duration_s: 0.5
   window_policy: non_overlap
+  warmup_s: 0.0
 learning_curve:
   development_splits: [train, val]
   protected_split: test

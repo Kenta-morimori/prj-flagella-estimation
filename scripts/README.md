@@ -243,6 +243,8 @@ uv run python scripts/03_phase3/build_clip_dataset.py \
 `outputs/YYYY-MM-DD/HHMMSS/phase3_v1_r1_clip_dataset/` はstaging / probe用途の実行ログ付き出力です。最終採択済みの Phase 4 入力 dataset は `outputs/phase3_common_clip/datasets/v1/` を参照します。`data/` は外部入力や手元データ置き場として残し、今回の生成済み共通clip dataset正本には使いません。
 
 QC確認対象は `dataset_summary.csv`、`qc_summary.csv`、`split_summary.csv`、`clip_metadata.jsonl` です。`n_flagella=3` の first-fail run では、first-failを含むwindowとそれ以降のwindowが `qc_label=diagnostic` / `training_candidate=false` になります。ここでの `diagnostic` は、Phase 2 shape QC の `first_fail_t_s` を含む、またはそれ以後のためtrainingから除外した診断用clipという意味であり、全frameで形状崩壊が目視できることを意味しません。early clipは削除せず、Phase 4側の `freeze.warmup_s=0.0/0.5/1.0` で選択します。
+
+Phase 4 baselineとgrouped learning curveは、どちらも`training_candidate=true`かつ`clip.t_start_s >= freeze.warmup_s`の同じ選択集合だけを学習・集約へ渡します。diagnostic clipはartifactとして残りますが、group featureには混入しません。
 v1 r1 では source summary の `use_for_ml_candidate=false` run も除外せず、clip artifact を作成したうえで window QC により diagnostic-only として扱います。
 
 MP4 grid replay は source state archive から同じclip windowを再構成し、defaultでは各panelに3D source replayと2D body-only renderを横並びで表示します。3D側はPhase 2共通3D rendererを使い、べん毛を描画します。2D側はcanonical ML入力と同じ菌体のみのcapsule renderです。titleには `n_flagella`、`run_id`、`clip_index`、time band、QC label が入り、3D status textには first-fail時刻と before/after first-fail status が入ります。
