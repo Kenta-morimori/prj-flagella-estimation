@@ -66,6 +66,9 @@ RUN_SUMMARY_FIELDS = (
     "flag_flag_repulsion_force_max_N",
     "flag_body_min_center_dist_um",
     "flag_body_min_gap_um",
+    "attach_pair_dist_min_um",
+    "attach_pair_dist_max_um",
+    "attach_centroid_offset_um",
 )
 
 EVENT_FIELDS = (
@@ -95,6 +98,51 @@ EVENT_FIELDS = (
     "F_repulsion_mean_flag",
     "flag_body_min_center_dist_um",
     "flag_body_min_gap_um",
+)
+
+LEAD_LAG_FIELDS = (
+    "condition_id",
+    "first_fail_t_s",
+    "first_fail_flag_id",
+    "first_fail_local_bond",
+    "window_s",
+    "sample_count_pre_fail",
+    "bond_rel_err_start",
+    "bond_rel_err_end",
+    "bond_rel_err_delta",
+    "bond_rel_err_slope_per_s",
+    "flag_flag_repulsion_max_pre_fail_N",
+    "flag_flag_repulsion_positive_pre_fail",
+    "flag_body_min_gap_pre_fail_um",
+    "flag_body_gap_negative_pre_fail",
+    "contact_precedes_failure",
+    "interpretation",
+)
+
+SEED_FAILURE_FIELDS = (
+    "n_flagella",
+    "attach_seed",
+    "phase_seed",
+    "condition_id",
+    "strict_pass",
+    "first_fail_t_s",
+    "first_fail_flag_id",
+    "first_fail_local_bond",
+    "max_flag_bond_rel_err",
+    "axis_center_to_body_roll_ratio_mean",
+)
+
+ATTACH_GEOMETRY_FIELDS = (
+    "n_flagella",
+    "attach_seed",
+    "condition_id_reference",
+    "attach_body_indices",
+    "attach_pair_dist_min_um",
+    "attach_pair_dist_max_um",
+    "attach_pair_dist_values_um",
+    "attach_centroid_um",
+    "attach_centroid_offset_um",
+    "attach_spread_values_um",
 )
 
 
@@ -314,6 +362,49 @@ def _flag_local_bead_lookup(cfg: SimulationConfig) -> dict[int, int]:
     return lookup
 
 
+def _attach_geometry(
+    condition: dict[str, Any], cfg: SimulationConfig
+) -> dict[str, Any]:
+    model = ModelBuilder(cfg).build()
+    attach_indices = model.flagella_attach_body_indices.astype(int, copy=False)
+    if attach_indices.size == 0:
+        return {
+            "n_flagella": condition["axis_values"].get("n_flagella", ""),
+            "attach_seed": condition["axis_values"].get("attach_seed", ""),
+            "condition_id_reference": condition["condition_id"],
+            "attach_body_indices": "",
+            "attach_pair_dist_min_um": "",
+            "attach_pair_dist_max_um": "",
+            "attach_pair_dist_values_um": "",
+            "attach_centroid_um": "",
+            "attach_centroid_offset_um": "",
+            "attach_spread_values_um": "",
+        }
+    positions_um = np.asarray(model.positions_m[attach_indices], dtype=float) * 1.0e6
+    pair_distances: list[float] = []
+    for i in range(positions_um.shape[0]):
+        for j in range(i + 1, positions_um.shape[0]):
+            pair_distances.append(
+                float(np.linalg.norm(positions_um[i] - positions_um[j]))
+            )
+    centroid = np.mean(positions_um, axis=0)
+    spread = np.linalg.norm(positions_um - centroid[None, :], axis=1)
+    return {
+        "n_flagella": condition["axis_values"].get("n_flagella", ""),
+        "attach_seed": condition["axis_values"].get("attach_seed", ""),
+        "condition_id_reference": condition["condition_id"],
+        "attach_body_indices": "|".join(str(int(value)) for value in attach_indices),
+        "attach_pair_dist_min_um": min(pair_distances) if pair_distances else "",
+        "attach_pair_dist_max_um": max(pair_distances) if pair_distances else "",
+        "attach_pair_dist_values_um": "|".join(
+            f"{value:.12g}" for value in pair_distances
+        ),
+        "attach_centroid_um": "|".join(f"{value:.12g}" for value in centroid),
+        "attach_centroid_offset_um": float(np.linalg.norm(centroid)),
+        "attach_spread_values_um": "|".join(f"{value:.12g}" for value in spread),
+    }
+
+
 def _annotate_local_flag_bonds(
     rows: list[dict[str, str]], cfg: SimulationConfig
 ) -> list[dict[str, str]]:
@@ -381,6 +472,7 @@ def _summarize_condition(
     condition: dict[str, Any],
     rows: list[dict[str, str]],
     distances: dict[float, tuple[float, float]],
+    attach_geometry: dict[str, Any],
 ) -> dict[str, Any]:
     first_fail = _first_fail_row(rows)
     max_flag = _max_row(rows, "flag_bond_rel_err_max")
@@ -453,6 +545,11 @@ def _summarize_condition(
             min(_finite(fb_centers)) if _finite(fb_centers) else ""
         ),
         "flag_body_min_gap_um": min(_finite(fb_gaps)) if _finite(fb_gaps) else "",
+        "attach_pair_dist_min_um": attach_geometry.get("attach_pair_dist_min_um", ""),
+        "attach_pair_dist_max_um": attach_geometry.get("attach_pair_dist_max_um", ""),
+        "attach_centroid_offset_um": attach_geometry.get(
+            "attach_centroid_offset_um", ""
+        ),
     }
 
 
@@ -501,6 +598,119 @@ def _event_rows(
         event["flag_body_min_gap_um"] = gap
         selected.append(event)
     return selected
+
+
+def _linear_slope(xs: list[float], ys: list[float]) -> float:
+    if len(xs) < 2 or len(xs) != len(ys):
+        return float("nan")
+    x_arr = np.asarray(xs, dtype=float)
+    y_arr = np.asarray(ys, dtype=float)
+    mask = np.isfinite(x_arr) & np.isfinite(y_arr)
+    if np.count_nonzero(mask) < 2:
+        return float("nan")
+    x_arr = x_arr[mask]
+    y_arr = y_arr[mask]
+    x_bar = float(np.mean(x_arr))
+    y_bar = float(np.mean(y_arr))
+    denominator = float(np.sum((x_arr - x_bar) ** 2))
+    if denominator <= 0.0:
+        return float("nan")
+    return float(np.sum((x_arr - x_bar) * (y_arr - y_bar)) / denominator)
+
+
+def _lead_lag_summary(
+    run_rows: list[dict[str, Any]],
+    event_rows: list[dict[str, Any]],
+    *,
+    windows_s: tuple[float, ...] = (0.25, 0.1, 0.05),
+) -> list[dict[str, Any]]:
+    run_by_id = {str(row["condition_id"]): row for row in run_rows}
+    out: list[dict[str, Any]] = []
+    for condition_id in sorted({str(row["condition_id"]) for row in event_rows}):
+        condition_events = [
+            row for row in event_rows if str(row["condition_id"]) == condition_id
+        ]
+        run = run_by_id.get(condition_id, {})
+        first_fail_t = _to_float(run.get("first_fail_t_s"))
+        for window_s in windows_s:
+            pre = [
+                row
+                for row in condition_events
+                if -window_s <= _to_float(row["relative_t_s"]) <= 0.0
+            ]
+            pre = sorted(pre, key=lambda row: _to_float(row["relative_t_s"]))
+            xs = [_to_float(row["relative_t_s"]) for row in pre]
+            bond = [_to_float(row["flag_bond_rel_err_max"]) for row in pre]
+            repulsion = [
+                _to_float(row["flag_flag_repulsion_force_max_N"], default=0.0)
+                for row in pre
+            ]
+            gaps = [_to_float(row["flag_body_min_gap_um"]) for row in pre]
+            bond_start = bond[0] if bond else float("nan")
+            bond_end = bond[-1] if bond else float("nan")
+            repulsion_max = max(_finite(repulsion)) if _finite(repulsion) else 0.0
+            min_gap = min(_finite(gaps)) if _finite(gaps) else float("nan")
+            contact_precedes = bool(
+                repulsion_max > 0.0 or (math.isfinite(min_gap) and min_gap < 0.0)
+            )
+            slope = _linear_slope(xs, bond)
+            if math.isfinite(slope) and slope > 0.0 and not contact_precedes:
+                interpretation = "bond_growth_without_contact_precursor"
+            elif math.isfinite(slope) and slope > 0.0 and contact_precedes:
+                interpretation = "bond_growth_with_contact_correlation"
+            elif contact_precedes:
+                interpretation = "contact_correlation_without_clear_bond_growth"
+            else:
+                interpretation = "no_clear_precursor"
+            out.append(
+                {
+                    "condition_id": condition_id,
+                    "first_fail_t_s": first_fail_t,
+                    "first_fail_flag_id": run.get("first_fail_flag_id", ""),
+                    "first_fail_local_bond": run.get("first_fail_local_bond", ""),
+                    "window_s": window_s,
+                    "sample_count_pre_fail": len(pre),
+                    "bond_rel_err_start": bond_start,
+                    "bond_rel_err_end": bond_end,
+                    "bond_rel_err_delta": (
+                        bond_end - bond_start
+                        if math.isfinite(bond_start) and math.isfinite(bond_end)
+                        else float("nan")
+                    ),
+                    "bond_rel_err_slope_per_s": slope,
+                    "flag_flag_repulsion_max_pre_fail_N": repulsion_max,
+                    "flag_flag_repulsion_positive_pre_fail": repulsion_max > 0.0,
+                    "flag_body_min_gap_pre_fail_um": min_gap,
+                    "flag_body_gap_negative_pre_fail": (
+                        math.isfinite(min_gap) and min_gap < 0.0
+                    ),
+                    "contact_precedes_failure": contact_precedes,
+                    "interpretation": interpretation,
+                }
+            )
+    return out
+
+
+def _seed_failure_table(run_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {field: row.get(field, "") for field in SEED_FAILURE_FIELDS}
+        for row in run_rows
+        if int(row.get("n_flagella", -1)) == 3
+    ]
+
+
+def _unique_attach_geometry_rows(
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    seen: set[tuple[int, int]] = set()
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        key = (int(row["n_flagella"]), int(row["attach_seed"]))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({field: row.get(field, "") for field in ATTACH_GEOMETRY_FIELDS})
+    return out
 
 
 def _write_failure_plots(
@@ -565,7 +775,9 @@ def _write_failure_plots(
 
 
 def _classify_hypotheses(
-    run_rows: list[dict[str, Any]], event_rows: list[dict[str, Any]]
+    run_rows: list[dict[str, Any]],
+    event_rows: list[dict[str, Any]],
+    lead_lag_rows: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     nf3 = [row for row in run_rows if int(row["n_flagella"]) == 3]
     failed = [row for row in nf3 if not _to_bool(row["strict_pass"])]
@@ -576,12 +788,21 @@ def _classify_hypotheses(
     local_bonds = sorted({str(row["first_fail_local_bond"]) for row in failed})
     flag_ids = sorted({str(row["first_fail_flag_id"]) for row in failed})
 
-    pre_fail_contact = []
-    for row in event_rows:
-        if _to_float(row["relative_t_s"]) > 0.0:
-            continue
-        if _to_float(row.get("flag_flag_repulsion_force_max_N")) > 0.0:
-            pre_fail_contact.append(row)
+    short_window = [
+        row
+        for row in lead_lag_rows
+        if math.isclose(_to_float(row["window_s"]), 0.05, abs_tol=1e-12)
+    ]
+    no_contact_bond_growth = [
+        row
+        for row in short_window
+        if row.get("interpretation") == "bond_growth_without_contact_precursor"
+    ]
+    contact_correlated = [
+        row
+        for row in short_window
+        if row.get("interpretation") == "bond_growth_with_contact_correlation"
+    ]
 
     return [
         {
@@ -605,13 +826,14 @@ def _classify_hypotheses(
         },
         {
             "hypothesis": "flag-flag or flag-body contact contributes to load variation",
-            "classification": "inconclusive",
+            "classification": "weak_as_primary_cause",
             "evidence": (
-                "flag-flag and flag-body proximity are synchronized in the event table, "
-                "but this diagnostic PR treats them as correlations unless a pre-fail "
-                "contact peak consistently precedes bond growth."
+                "In the 0.05 s pre-fail window, most failures show positive bond growth "
+                "without a flag-flag or flag-body contact precursor. Contact remains a "
+                "possible secondary contributor for the correlated subset."
             ),
-            "pre_fail_flag_flag_contact_rows": len(pre_fail_contact),
+            "bond_growth_without_contact_precursor_count": len(no_contact_bond_growth),
+            "bond_growth_with_contact_correlation_count": len(contact_correlated),
         },
         {
             "hypothesis": "body roll and flagella axis spin imbalance creates nonsteady rotation",
@@ -676,6 +898,7 @@ def analyze_phase2_158_diagnostics(config: Phase2158DiagnosticConfig) -> Path:
     root_summary = _summary_lookup(config.input_dir / "summary.csv")
     run_rows: list[dict[str, Any]] = []
     failure_events: list[dict[str, Any]] = []
+    attach_geometry_rows: list[dict[str, Any]] = []
 
     for condition in conditions:
         condition_id = str(condition["condition_id"])
@@ -685,11 +908,13 @@ def analyze_phase2_158_diagnostics(config: Phase2158DiagnosticConfig) -> Path:
             logger.warning("Missing step_summary.csv for %s", condition_id)
             continue
         sim_cfg = _condition_config(campaign, condition)
+        attach_geometry = _attach_geometry(condition, sim_cfg)
+        attach_geometry_rows.append(attach_geometry)
         rows = _annotate_local_flag_bonds(_read_csv(step_path), sim_cfg)
         distances = _flag_body_distance_series(
             condition_dir / "state_archive.npz", sim_cfg
         )
-        summary_row = _summarize_condition(condition, rows, distances)
+        summary_row = _summarize_condition(condition, rows, distances, attach_geometry)
         summary_row = _add_root_summary_fields(
             summary_row, root_summary.get(condition_id)
         )
@@ -724,8 +949,24 @@ def analyze_phase2_158_diagnostics(config: Phase2158DiagnosticConfig) -> Path:
     _write_csv(
         config.output_dir / "failure_event_table.csv", failure_events, EVENT_FIELDS
     )
+    lead_lag_rows = _lead_lag_summary(run_rows, failure_events)
+    seed_rows = _seed_failure_table(run_rows)
+    attach_rows = _unique_attach_geometry_rows(attach_geometry_rows)
+    _write_csv(
+        config.output_dir / "failure_lead_lag_summary.csv",
+        lead_lag_rows,
+        LEAD_LAG_FIELDS,
+    )
+    _write_csv(
+        config.output_dir / "seed_failure_table.csv", seed_rows, SEED_FAILURE_FIELDS
+    )
+    _write_csv(
+        config.output_dir / "attach_geometry_table.csv",
+        attach_rows,
+        ATTACH_GEOMETRY_FIELDS,
+    )
     plot_paths = _write_failure_plots(config.output_dir, failure_events)
-    assessments = _classify_hypotheses(run_rows, failure_events)
+    assessments = _classify_hypotheses(run_rows, failure_events, lead_lag_rows)
     (config.output_dir / "hypothesis_assessment.json").write_text(
         json.dumps(assessments, ensure_ascii=False, indent=2),
         encoding="utf-8",
@@ -745,6 +986,13 @@ def analyze_phase2_158_diagnostics(config: Phase2158DiagnosticConfig) -> Path:
                 config.output_dir / "run_diagnostic_summary.csv"
             ),
             "failure_event_table": str(config.output_dir / "failure_event_table.csv"),
+            "failure_lead_lag_summary": str(
+                config.output_dir / "failure_lead_lag_summary.csv"
+            ),
+            "seed_failure_table": str(config.output_dir / "seed_failure_table.csv"),
+            "attach_geometry_table": str(
+                config.output_dir / "attach_geometry_table.csv"
+            ),
             "hypothesis_assessment_json": str(
                 config.output_dir / "hypothesis_assessment.json"
             ),

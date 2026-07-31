@@ -146,9 +146,34 @@ def test_phase2_158_diagnostics_writes_summary_events_and_manifest(
     event_rows = list(csv.DictReader((output_dir / "failure_event_table.csv").open()))
     assert event_rows
     assert {row["condition_id"] for row in event_rows} == {"as000__ps001__nf03"}
+    lead_lag_rows = list(
+        csv.DictReader((output_dir / "failure_lead_lag_summary.csv").open())
+    )
+    assert {row["window_s"] for row in lead_lag_rows} == {"0.25", "0.1", "0.05"}
+    assert {
+        row["interpretation"] for row in lead_lag_rows if row["window_s"] == "0.05"
+    } == {"bond_growth_with_contact_correlation"}
+    seed_rows = list(csv.DictReader((output_dir / "seed_failure_table.csv").open()))
+    assert len(seed_rows) == 2
+    assert {row["condition_id"] for row in seed_rows} == {
+        "as000__ps000__nf03",
+        "as000__ps001__nf03",
+    }
+    attach_rows = list(
+        csv.DictReader((output_dir / "attach_geometry_table.csv").open())
+    )
+    assert len(attach_rows) == 1
+    assert attach_rows[0]["attach_body_indices"]
+    assert attach_rows[0]["attach_pair_dist_min_um"]
     assert (output_dir / "plots" / "as000__ps001__nf03_first_fail_sync.png").is_file()
 
     manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["long_simulation_rerun"] is False
     assert manifest["run_counts"] == {"total": 2, "strict_pass": 1, "fail": 1}
     assert manifest["outputs"]["plots"]
+    assert manifest["outputs"]["failure_lead_lag_summary"].endswith(
+        "failure_lead_lag_summary.csv"
+    )
+    assert manifest["outputs"]["attach_geometry_table"].endswith(
+        "attach_geometry_table.csv"
+    )
