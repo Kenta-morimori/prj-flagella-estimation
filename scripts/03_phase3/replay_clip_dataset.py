@@ -37,7 +37,18 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--time-band", default=None)
     parser.add_argument("--qc-label", default=None)
     parser.add_argument("--training-candidate", type=_optional_bool, default=None)
-    parser.add_argument("--max-clips", type=int, default=12)
+    parser.add_argument(
+        "--max-clips",
+        type=int,
+        default=None,
+        help="maximum clips to process after filtering; omitted means all matching clips",
+    )
+    parser.add_argument(
+        "--clips-per-video",
+        type=int,
+        default=12,
+        help="maximum clips in each MP4 grid (default: 12)",
+    )
     parser.add_argument(
         "--frames-per-clip",
         type=int,
@@ -67,6 +78,7 @@ def main(argv: list[str] | None = None) -> None:
         qc_label=args.qc_label,
         training_candidate=args.training_candidate,
         max_clips=args.max_clips,
+        clips_per_video=args.clips_per_video,
         frames_per_clip=args.frames_per_clip,
         panel_layout=args.panel_layout,
     )

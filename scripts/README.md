@@ -245,14 +245,14 @@ v1 r1 では source summary の `use_for_ml_candidate=false` run も除外せず
 
 MP4 grid replay は source state archive から同じclip windowを再構成し、defaultでは各panelに3D source replayと2D body-only renderを横並びで表示します。3D側はPhase 2共通3D rendererを使い、べん毛を描画します。2D側はcanonical ML入力と同じ菌体のみのcapsule renderです。titleには `n_flagella`、`run_id`、`clip_index`、time band、QC label が入り、3D status textには first-fail時刻と before/after first-fail status が入ります。
 
+`--max-clips` を省略すると、filterに一致する全clipを処理します。1本のMP4に描画する上限はdefault 12 clipで、対象が12 clipを超える場合は `3d_2d_grid_001.mp4`、`3d_2d_grid_002.mp4` のように分割します。この上限は `--clips-per-video` で変更できます。`--max-clips` は全体の処理件数を明示的に制限したいprobe用途に使います。
+
 ```bash
 uv run python scripts/03_phase3/replay_clip_dataset.py \
-  outputs/phase3_common_clip/datasets/v1 \
-  --max-clips 12
+  outputs/phase3_common_clip/datasets/v1
 uv run python scripts/03_phase3/replay_clip_dataset.py \
   outputs/phase3_common_clip/datasets/v1 \
-  --qc-label diagnostic \
-  --max-clips 12
+  --qc-label diagnostic
 uv run python scripts/03_phase3/replay_clip_dataset.py \
   outputs/phase3_common_clip/datasets/v1 \
   --training-candidate true \

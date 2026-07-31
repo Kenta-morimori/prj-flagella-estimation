@@ -591,9 +591,60 @@ def test_phase3_replay_writes_3d_2d_mp4_grid_and_manifest(tmp_path: Path) -> Non
     assert manifest["pipeline_name"] == "phase3_clip_replay_3d_2d_grid"
     assert manifest["clip_count"] == 1
     assert manifest["panel_layout"] == "3d+2d"
+    assert manifest["video_count"] == 1
+    assert manifest["videos"][0]["fps"] == 25.0
+    assert manifest["videos"][0]["frame_count"] == 13
     assert manifest["video"]["fps"] == 25.0
-    assert manifest["video"]["frame_count"] == 13
     assert manifest["outputs"]["mp4_grid"].endswith("3d_2d_grid.mp4")
+    assert manifest["outputs"]["mp4_grids"][0].endswith("3d_2d_grid.mp4")
+
+
+@pytest.mark.light
+def test_phase3_replay_splits_all_matching_clips_across_mp4_grids(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    records = [{"clip": {"clip_id": f"clip-{index}"}} for index in range(5)]
+    monkeypatch.setattr(
+        "flagella_estimation.phase3.replay._select_records", lambda _cfg: records
+    )
+    monkeypatch.setattr(
+        "flagella_estimation.phase3.replay._load_replay_clip",
+        lambda record, _cfg: {
+            "record": record,
+            "states": [object()],
+            "image_size_px": 32,
+            "pixel_size_um": 0.1,
+            "sim_cfg": object(),
+            "rig": object(),
+        },
+    )
+    monkeypatch.setattr(
+        "flagella_estimation.phase3.replay._render_clip_pair_panel",
+        lambda *args, **kwargs: np.zeros((16, 16, 3), dtype=np.uint8),
+    )
+    monkeypatch.setattr(
+        "flagella_estimation.phase3.replay._resolve_replay_fps", lambda _clips: 25.0
+    )
+
+    replay_dir = render_3d_2d_grid_mp4(
+        ReplayConfig(
+            dataset_dir=tmp_path / "dataset",
+            output_dir=tmp_path / "replay",
+            clips_per_video=2,
+            panel_width_px=16,
+            panel_height_px=16,
+        )
+    )
+
+    manifest = json.loads((replay_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["clip_count"] == 5
+    assert manifest["video_count"] == 3
+    assert [video["clip_count"] for video in manifest["videos"]] == [2, 2, 1]
+    assert [Path(path).name for path in manifest["outputs"]["mp4_grids"]] == [
+        "3d_2d_grid_001.mp4",
+        "3d_2d_grid_002.mp4",
+        "3d_2d_grid_003.mp4",
+    ]
 
 
 @pytest.mark.light

@@ -40,7 +40,8 @@ class ReplayConfig:
     time_band: str | None = None
     qc_label: str | None = None
     training_candidate: bool | None = None
-    max_clips: int = 12
+    max_clips: int | None = None
+    clips_per_video: int = 12
     frames_per_clip: int = 4
     panel_layout: str = "3d+2d"
     panel_width_px: int = 640
@@ -64,7 +65,8 @@ def default_replay_output_dir(dataset_dir: Path) -> Path:
 def render_contact_sheet(cfg: ReplayConfig) -> Path:
     records = _load_metadata_jsonl(cfg.dataset_dir / "clip_metadata.jsonl")
     selected = [record for record in records if _matches(record, cfg)]
-    selected = selected[: cfg.max_clips]
+    if cfg.max_clips is not None:
+        selected = selected[: cfg.max_clips]
     if not selected:
         raise ValueError("no clips match replay filters")
 
@@ -144,45 +146,64 @@ def render_3d_2d_grid_mp4(cfg: ReplayConfig) -> Path:
     """Render a human-review MP4 grid with source 3D and body-only 2D panels."""
 
     records = _select_records(cfg)
+    if cfg.clips_per_video <= 0:
+        raise ValueError("clips_per_video must be positive")
     output_dir = cfg.output_dir or default_replay_output_dir(cfg.dataset_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    clips = [_load_replay_clip(record, cfg) for record in records]
-    if not clips:
-        raise ValueError("no clips match replay filters")
+    record_batches = [
+        records[start : start + cfg.clips_per_video]
+        for start in range(0, len(records), cfg.clips_per_video)
+    ]
+    video_entries = []
+    for batch_index, record_batch in enumerate(record_batches, start=1):
+        clips = [_load_replay_clip(record, cfg) for record in record_batch]
+        layout = auto_grid_layout(
+            len(clips),
+            cell_width_px=cfg.panel_width_px,
+            cell_height_px=cfg.panel_height_px,
+            max_cols=2,
+        )
+        video_name = (
+            "3d_2d_grid.mp4"
+            if len(record_batches) == 1
+            else f"3d_2d_grid_{batch_index:03d}.mp4"
+        )
+        video_path = output_dir / video_name
+        frame_count = max(len(clip["states"]) for clip in clips)
+        fps = _resolve_replay_fps(clips)
 
-    layout = auto_grid_layout(
-        len(clips),
-        cell_width_px=cfg.panel_width_px,
-        cell_height_px=cfg.panel_height_px,
-        max_cols=2,
-    )
-    video_path = output_dir / "3d_2d_grid.mp4"
-    frame_count = max(len(clip["states"]) for clip in clips)
-    fps = _resolve_replay_fps(clips)
-
-    def frames() -> Any:
-        for frame_index in range(frame_count):
-            panels = []
-            for clip in clips:
-                states = clip["states"]
-                state = states[min(frame_index, len(states) - 1)]
-                panels.append(
-                    _render_clip_pair_panel(
-                        state,
-                        clip["record"],
-                        clip["sim_cfg"],
-                        clip["rig"],
-                        cell_w=layout.cell_width_px,
-                        cell_h=layout.cell_height_px,
-                        image_size_px=clip["image_size_px"],
-                        pixel_size_um=clip["pixel_size_um"],
-                        panel_layout=cfg.panel_layout,
+        def frames() -> Any:
+            for frame_index in range(frame_count):
+                panels = []
+                for clip in clips:
+                    states = clip["states"]
+                    state = states[min(frame_index, len(states) - 1)]
+                    panels.append(
+                        _render_clip_pair_panel(
+                            state,
+                            clip["record"],
+                            clip["sim_cfg"],
+                            clip["rig"],
+                            cell_w=layout.cell_width_px,
+                            cell_h=layout.cell_height_px,
+                            image_size_px=clip["image_size_px"],
+                            pixel_size_um=clip["pixel_size_um"],
+                            panel_layout=cfg.panel_layout,
+                        )
                     )
-                )
-            yield compose_grid_frame(panels, layout)
+                yield compose_grid_frame(panels, layout)
 
-    render_result = write_mp4_grid(video_path, frames=frames(), fps=fps)
+        render_result = write_mp4_grid(video_path, frames=frames(), fps=fps)
+        video_entries.append(
+            {
+                "batch_index": batch_index,
+                "path": str(video_path),
+                "clip_count": len(clips),
+                "clip_ids": [clip["record"]["clip"]["clip_id"] for clip in clips],
+                **render_result.to_manifest(),
+            }
+        )
 
     manifest = {
         "pipeline_name": "phase3_clip_replay_3d_2d_grid",
@@ -190,11 +211,20 @@ def render_3d_2d_grid_mp4(cfg: ReplayConfig) -> Path:
         "input_dataset": str(cfg.dataset_dir),
         "output_dir": str(output_dir),
         "filters": _filters_dict(cfg),
-        "clip_count": len(clips),
-        "clip_ids": [clip["record"]["clip"]["clip_id"] for clip in clips],
-        "outputs": {"mp4_grid": str(video_path)},
+        "clip_count": len(records),
+        "clip_ids": [record["clip"]["clip_id"] for record in records],
+        "outputs": {
+            "mp4_grid": video_entries[0]["path"],
+            "mp4_grids": [entry["path"] for entry in video_entries],
+        },
         "panel_layout": cfg.panel_layout,
-        "video": render_result.to_manifest(),
+        "video": {
+            key: value
+            for key, value in video_entries[0].items()
+            if key not in {"batch_index", "path", "clip_count", "clip_ids"}
+        },
+        "video_count": len(video_entries),
+        "videos": video_entries,
     }
     (output_dir / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
@@ -206,8 +236,9 @@ def render_3d_2d_grid_mp4(cfg: ReplayConfig) -> Path:
                 f"created_at={manifest['created_at']}",
                 f"input_dataset={cfg.dataset_dir}",
                 f"output_dir={output_dir}",
-                f"clip_count={len(clips)}",
-                f"mp4_grid={video_path}",
+                f"clip_count={len(records)}",
+                f"video_count={len(video_entries)}",
+                *[f"mp4_grid={entry['path']}" for entry in video_entries],
             ]
         )
         + "\n",
@@ -242,7 +273,8 @@ def _matches(record: dict[str, Any], cfg: ReplayConfig) -> bool:
 def _select_records(cfg: ReplayConfig) -> list[dict[str, Any]]:
     records = _load_metadata_jsonl(cfg.dataset_dir / "clip_metadata.jsonl")
     selected = [record for record in records if _matches(record, cfg)]
-    selected = selected[: cfg.max_clips]
+    if cfg.max_clips is not None:
+        selected = selected[: cfg.max_clips]
     if not selected:
         raise ValueError("no clips match replay filters")
     return selected
@@ -257,6 +289,7 @@ def _filters_dict(cfg: ReplayConfig) -> dict[str, Any]:
         "qc_label": cfg.qc_label,
         "training_candidate": cfg.training_candidate,
         "max_clips": cfg.max_clips,
+        "clips_per_video": cfg.clips_per_video,
         "frames_per_clip": cfg.frames_per_clip,
         "panel_layout": cfg.panel_layout,
     }
