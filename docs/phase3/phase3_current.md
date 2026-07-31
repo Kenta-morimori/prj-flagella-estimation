@@ -8,7 +8,7 @@ Phase 3 の目的は，実顕微鏡動画と Phase 2 擬似動画を，Phase 4 �
 
 ## Current Status
 
-Phase 3 は common clip schemaを#127 / PR #142，pseudo GT passthroughを#6 / PR #144で実装済みである。Phase 2 dataset v1 の RUN固定 `n_flagella=1,2,3` がtraining candidateとしてPhase 4 loader / baseline / learning curve / freeze gateまで接続されている。dataset v1 r1 の3秒runは #159 で0.5秒 non-overlap common clip datasetとして生成できるようになった。
+Phase 3 は common clip schemaを#127 / PR #142，pseudo GT passthroughを#6 / PR #144で実装済みである。Phase 2 dataset v1 の RUN固定 `n_flagella=1,2,3` がtraining candidateとしてPhase 4 loader / baseline / learning curve / freeze gateまで接続されている。dataset v1 r1 の3秒runは #159 で0.5秒 non-overlap common clip datasetとして生成できるようになった。最終採択済みの Phase 3 common clip dataset v1 は `outputs/phase3_common_clip/datasets/v1/` を canonical path とする。
 
 現在の主対象:
 
@@ -34,6 +34,7 @@ Phase 2擬似動画:
 - raw simulation: `outputs/phase2_multi_run/flagella_count_behavior_v1`
 - analysis dataset: `outputs/phase2_analysis/flagella_count_behavior/datasets/v1`
 - duration/revision dataset: `outputs/phase2_multi_run/flagella_count_duration_3s_r1/dataset/v1_r1_duration_3s`
+- canonical Phase 3 clip dataset: `outputs/phase3_common_clip/datasets/v1`
 - current training candidate: `n_flagella=1,2,3`
 
 実顕微鏡動画:

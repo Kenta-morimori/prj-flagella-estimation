@@ -105,6 +105,7 @@
 - goal: 既存dataset v1 r1の3秒run 27件を，0.5秒non-overlap clipへ変換し，window QC，grouped split，replay，freeze auditを備えたPhase 3共通clip datasetとしてPhase 4 MLへ渡せる状態にする。
 - result:
   - `conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml` を追加し，既存 `outputs/phase2_multi_run/flagella_count_duration_3s_r1/dataset/v1_r1_duration_3s` から5 clips/runを生成できるようにした。
+  - 最終採択済みの Phase 3 common clip dataset v1 は `outputs/phase3_common_clip/datasets/v1/` を canonical path とし，probe / staging の timestamp output と分離する。
   - clip metadataへ `dataset_revision`，`clip.time_band`，run/window QC，first-fail時刻，pre-first-fail，training_candidate，diagnostic-only，exclusion_reasonを伝搬した。
   - first-failを含むwindowとそれ以降を diagnostic-only とし，early clipは削除せず Phase 4 の `warmup_s=0.0/0.5/1.0` 選択条件として扱う。
   - Phase 4 loader / freeze audit / baseline trainingを，training candidate選択とrun-balanced sample weightへ接続した。
@@ -123,6 +124,7 @@
   - `uv run pytest -q tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase4_clip_dataset_loader.py tests/test_phase4_dataset_freeze.py tests/test_phase4_baseline_classifier.py tests/test_phase4_learning_curve.py`
   - `uv run pytest -q`
   - `uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml filters.max_per_class=1`
+  - full build user command: `uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml output_dir=outputs/phase3_common_clip/datasets/v1`
   - `uv run python scripts/04_phase4/audit_dataset_freeze.py config=conf/phase4/dataset_freeze_v1_r1.yaml dataset_dir=outputs/2026-07-31/163726/phase3_v1_r1_clip_dataset`
   - `uv run python scripts/03_phase3/replay_clip_dataset.py outputs/2026-07-31/163726/phase3_v1_r1_clip_dataset --max-clips 3 --frames-per-clip 2`
 - docs:

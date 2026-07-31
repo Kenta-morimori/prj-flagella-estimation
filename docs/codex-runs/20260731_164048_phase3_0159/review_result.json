@@ -50,13 +50,13 @@
     }
   ],
   "user_review_required": true,
-  "user_review_command": "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml && uv run python scripts/03_phase3/replay_clip_dataset.py outputs/YYYY-MM-DD/HHMMSS/phase3_v1_r1_clip_dataset --max-clips 12 && uv run python scripts/03_phase3/replay_clip_dataset.py outputs/YYYY-MM-DD/HHMMSS/phase3_v1_r1_clip_dataset --qc-label diagnostic --max-clips 12",
+  "user_review_command": "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml output_dir=outputs/phase3_common_clip/datasets/v1 && uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --max-clips 12 && uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --qc-label diagnostic --max-clips 12",
   "user_review_outputs": [
-    "outputs/YYYY-MM-DD/HHMMSS/phase3_v1_r1_clip_dataset/dataset_summary.csv",
-    "outputs/YYYY-MM-DD/HHMMSS/phase3_v1_r1_clip_dataset/qc_summary.csv",
-    "outputs/YYYY-MM-DD/HHMMSS/phase3_v1_r1_clip_dataset/split_summary.csv",
-    "outputs/YYYY-MM-DD/HHMMSS/phase3_v1_r1_clip_dataset/clip_metadata.jsonl",
-    "outputs/YYYY-MM-DD/HHMMSS/phase3_v1_r1_clip_dataset/replay/*/contact_sheet.png"
+    "outputs/phase3_common_clip/datasets/v1/dataset_summary.csv",
+    "outputs/phase3_common_clip/datasets/v1/qc_summary.csv",
+    "outputs/phase3_common_clip/datasets/v1/split_summary.csv",
+    "outputs/phase3_common_clip/datasets/v1/clip_metadata.jsonl",
+    "outputs/phase3_common_clip/datasets/v1/replay/*/contact_sheet.png"
   ],
   "user_review_points": [
     "full buildで clip_count=135、group_count=27、class_count=3 になっていること。",
