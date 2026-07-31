@@ -83,7 +83,7 @@ plot:
     - body_spring_max_stretch_ratio
 
 output:
-  base_dir: outputs/phase2_multi_run/flagella_count_duration_3s_r1
-  timestamp_subdir: false
+  base_dir: outputs
+  timestamp_subdir: true
   save_state_archive: true
   progress_interval: 1000

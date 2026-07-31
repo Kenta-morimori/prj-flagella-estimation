@@ -7,8 +7,11 @@ from dataclasses import dataclass
 from datetime import datetime
 import json
 import math
+import platform
 from pathlib import Path
 import shutil
+import subprocess
+import sys
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -87,6 +90,8 @@ COMMON_FIELDS = (
 class DurationStudyConfig:
     dataset_dir: Path
     output_dir: Path
+    config_path: Path | None = None
+    cli_overrides: tuple[str, ...] = ()
     durations_s: tuple[float, ...] = (0.25, 0.5, 1.0)
     frame_rate_hz: float = 25.0
     crop_size_px: int = 96
@@ -137,6 +142,8 @@ def load_duration_study_config(
     return DurationStudyConfig(
         dataset_dir=Path(str(data.get("dataset_dir", ""))),
         output_dir=Path(str(output_dir)) if output_dir else default_output_dir(),
+        config_path=path,
+        cli_overrides=tuple(overrides or ()),
         durations_s=tuple(
             float(value) for value in study.get("durations_s", [0.25, 0.5, 1.0])
         ),
@@ -176,6 +183,37 @@ def _to_float(value: Any, default: float = float("nan")) -> float:
 
 def _to_bool(value: Any) -> bool:
     return str(value).strip().lower() in {"true", "1", "yes"}
+
+
+def _git_info() -> dict[str, Any]:
+    def run(command: list[str]) -> str:
+        return subprocess.check_output(
+            command, stderr=subprocess.STDOUT, text=True
+        ).strip()
+
+    try:
+        return {
+            "commit": run(["git", "rev-parse", "HEAD"]),
+            "commit_short": run(["git", "rev-parse", "--short", "HEAD"]),
+            "branch": run(["git", "rev-parse", "--abbrev-ref", "HEAD"]),
+            "is_clean": run(["git", "status", "--porcelain"]) == "",
+        }
+    except Exception:
+        return {
+            "commit": "unknown",
+            "commit_short": "unknown",
+            "branch": "unknown",
+            "is_clean": False,
+        }
+
+
+def _environment_info() -> dict[str, Any]:
+    return {
+        "python": sys.version.split()[0],
+        "platform": platform.platform(),
+        "numpy": np.__version__,
+        "matplotlib": matplotlib.__version__,
+    }
 
 
 def _mean(values: list[float]) -> float:
@@ -420,15 +458,9 @@ def _run_feature_mean_rows(
 def _seed_effect_rows(
     run_means: list[dict[str, Any]], *, qc_scope: str
 ) -> list[dict[str, Any]]:
-    if qc_scope == "strict_run_and_windows":
-        run_means = [
-            row
-            for row in run_means
-            if bool(row["run_shape_pass"]) and bool(row["all_windows_shape_pass"])
-        ]
-    elif qc_scope != "all_labeled":
+    if qc_scope not in {"all_labeled", "strict_run_and_windows"}:
         raise ValueError(f"Unsupported seed-effect QC scope: {qc_scope}")
-    groups: dict[tuple[Any, ...], list[tuple[int, int, float]]] = {}
+    groups: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
     for row in run_means:
         key = (
             row["domain"],
@@ -437,13 +469,7 @@ def _seed_effect_rows(
             row["n_flagella"],
             row["feature"],
         )
-        groups.setdefault(key, []).append(
-            (
-                int(row["attach_seed"]),
-                int(row["phase_seed"]),
-                float(row["run_mean"]),
-            )
-        )
+        groups.setdefault(key, []).append(row)
 
     output: list[dict[str, Any]] = []
     for (
@@ -452,23 +478,63 @@ def _seed_effect_rows(
         actual,
         n_flagella,
         feature,
-    ), values in sorted(groups.items()):
+    ), all_rows in sorted(groups.items()):
+        expected_attach_levels = sorted({int(row["attach_seed"]) for row in all_rows})
+        expected_phase_levels = sorted({int(row["phase_seed"]) for row in all_rows})
+        selected_rows = (
+            [
+                row
+                for row in all_rows
+                if bool(row["run_shape_pass"]) and bool(row["all_windows_shape_pass"])
+            ]
+            if qc_scope == "strict_run_and_windows"
+            else all_rows
+        )
+        values = [
+            (
+                int(row["attach_seed"]),
+                int(row["phase_seed"]),
+                float(row["run_mean"]),
+            )
+            for row in selected_rows
+        ]
+        if not values:
+            continue
         observed = np.asarray([value for _, _, value in values], dtype=float)
         grand = float(np.mean(observed))
         total_ss = float(np.sum((observed - grand) ** 2))
-        attach_levels = sorted({attach for attach, _, _ in values})
-        phase_levels = sorted({phase for _, phase, _ in values})
-        attach_ss = sum(
-            sum(1 for a, _, _ in values if a == attach)
-            * (np.mean([value for a, _, value in values if a == attach]) - grand) ** 2
-            for attach in attach_levels
+        observed_cells = {(attach, phase) for attach, phase, _ in values}
+        expected_cells = {
+            (attach, phase)
+            for attach in expected_attach_levels
+            for phase in expected_phase_levels
+        }
+        factorial_complete = (
+            len(values) == len(expected_cells) and observed_cells == expected_cells
         )
-        phase_ss = sum(
-            sum(1 for _, p, _ in values if p == phase)
-            * (np.mean([value for _, p, value in values if p == phase]) - grand) ** 2
-            for phase in phase_levels
-        )
-        residual_ss = max(total_ss - float(attach_ss) - float(phase_ss), 0.0)
+        attach_eta: float | None = None
+        phase_eta: float | None = None
+        residual_eta: float | None = None
+        if factorial_complete:
+            attach_ss = sum(
+                sum(1 for a, _, _ in values if a == attach)
+                * (np.mean([value for a, _, value in values if a == attach]) - grand)
+                ** 2
+                for attach in expected_attach_levels
+            )
+            phase_ss = sum(
+                sum(1 for _, p, _ in values if p == phase)
+                * (np.mean([value for _, p, value in values if p == phase]) - grand)
+                ** 2
+                for phase in expected_phase_levels
+            )
+            residual_ss = max(total_ss - float(attach_ss) - float(phase_ss), 0.0)
+            if total_ss > 0.0:
+                attach_eta = float(attach_ss / total_ss)
+                phase_eta = float(phase_ss / total_ss)
+                residual_eta = residual_ss / total_ss
+            else:
+                attach_eta = phase_eta = residual_eta = 0.0
         output.append(
             {
                 "domain": domain,
@@ -478,23 +544,16 @@ def _seed_effect_rows(
                 "actual_duration_s": actual,
                 "n_flagella": n_flagella,
                 "run_count": len(values),
-                "attach_level_count": len(attach_levels),
-                "phase_level_count": len(phase_levels),
-                "factorial_complete": len(values)
-                == len(attach_levels) * len(phase_levels),
+                "attach_level_count": len(expected_attach_levels),
+                "phase_level_count": len(expected_phase_levels),
+                "factorial_complete": factorial_complete,
                 "mean": grand,
                 "between_run_std": float(np.std(observed, ddof=1))
                 if len(observed) > 1
                 else 0.0,
-                "attach_eta_squared": float(attach_ss / total_ss)
-                if total_ss > 0.0
-                else 0.0,
-                "phase_eta_squared": float(phase_ss / total_ss)
-                if total_ss > 0.0
-                else 0.0,
-                "residual_eta_squared": residual_ss / total_ss
-                if total_ss > 0.0
-                else 0.0,
+                "attach_eta_squared": attach_eta,
+                "phase_eta_squared": phase_eta,
+                "residual_eta_squared": residual_eta,
             }
         )
     return output
@@ -878,14 +937,39 @@ def analyze_duration_seed_study(cfg: DurationStudyConfig) -> Path:
     for row in rows_2d:
         key = f"{float(row['requested_duration_s']):g}"
         window_counts[key] = window_counts.get(key, 0) + 1
+    created_at = datetime.now(ZoneInfo("Asia/Tokyo")).isoformat()
+    attach_seeds = sorted({int(row["attach_seed"]) for row in eligible_samples})
+    phase_seeds = sorted({int(row["phase_seed"]) for row in eligible_samples})
     manifest = {
-        "created_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
+        "pipeline_name": "phase4_duration_seed_study",
+        "created_at": created_at,
         "dataset_dir": str(cfg.dataset_dir),
         "dataset_version": dataset_version,
         "dataset_revision": dataset_revision,
         "durations_s_requested": list(cfg.durations_s),
         "frame_rate_hz": cfg.frame_rate_hz,
         "body_centered_2d": True,
+        "study": {
+            "allowed_n_flagella": list(cfg.allowed_n_flagella),
+            "durations_s": list(cfg.durations_s),
+        },
+        "clip": {
+            "frame_rate_hz": cfg.frame_rate_hz,
+            "crop_size_px": cfg.crop_size_px,
+            "pixel_size_um": cfg.pixel_size_um,
+        },
+        "seeds": {
+            "attach": attach_seeds,
+            "phase": phase_seeds,
+        },
+        "invocation": {
+            "config_path": str(cfg.config_path) if cfg.config_path else None,
+            "cli_overrides": list(cfg.cli_overrides),
+        },
+        "source_dataset_manifest": {
+            "path": str(dataset_manifest_path),
+            "git": dataset_manifest.get("git"),
+        },
         "independent_unit": "run_id / group_key",
         "within_run_windows_are_independent": False,
         "sample_count": len(eligible_samples),
@@ -897,8 +981,27 @@ def analyze_duration_seed_study(cfg: DurationStudyConfig) -> Path:
             "seed_effects_csv": str(seed_effects_path),
             "plots": plot_paths,
         },
+        "git": _git_info(),
+        "environment": _environment_info(),
     }
     (cfg.output_dir / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    (cfg.output_dir / "run.log").write_text(
+        "\n".join(
+            [
+                f"created_at={created_at}",
+                f"config_path={manifest['invocation']['config_path']}",
+                f"cli_overrides={json.dumps(list(cfg.cli_overrides))}",
+                f"dataset_dir={cfg.dataset_dir}",
+                f"output_dir={cfg.output_dir}",
+                f"attach_seeds={attach_seeds}",
+                f"phase_seeds={phase_seeds}",
+                f"sample_count={len(eligible_samples)}",
+                f"git_commit={manifest['git']['commit']}",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
     )
     return cfg.output_dir

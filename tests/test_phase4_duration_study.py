@@ -161,7 +161,20 @@ def test_duration_study_writes_window_qc_and_seed_artifacts(tmp_path: Path) -> N
     assert {
         row["run_count"] for row in seed_rows if row["qc_scope"] == "all_labeled"
     } == {"4"}
-    assert all(0.0 <= float(row["attach_eta_squared"]) <= 1.0 for row in seed_rows)
+    complete_seed_rows = [
+        row for row in seed_rows if row["factorial_complete"] == "True"
+    ]
+    incomplete_seed_rows = [
+        row for row in seed_rows if row["factorial_complete"] == "False"
+    ]
+    assert complete_seed_rows
+    assert incomplete_seed_rows
+    assert all(
+        0.0 <= float(row["attach_eta_squared"]) <= 1.0 for row in complete_seed_rows
+    )
+    assert all(row["attach_eta_squared"] == "" for row in incomplete_seed_rows)
+    assert all(row["phase_eta_squared"] == "" for row in incomplete_seed_rows)
+    assert all(row["residual_eta_squared"] == "" for row in incomplete_seed_rows)
     run_means = list(
         csv.DictReader(
             (output_dir / "run_feature_means.csv").open(
@@ -179,6 +192,11 @@ def test_duration_study_writes_window_qc_and_seed_artifacts(tmp_path: Path) -> N
     assert manifest["dataset_version"] == "v1"
     assert manifest["dataset_revision"] == "r1"
     assert manifest["within_run_windows_are_independent"] is False
+    assert manifest["invocation"]["config_path"] is None
+    assert manifest["seeds"] == {"attach": [0, 1], "phase": [0, 1]}
+    assert manifest["git"]["commit"]
+    assert manifest["environment"]["python"]
+    assert (output_dir / "run.log").is_file()
     assert len(manifest["outputs"]["plots"]) >= 6
     plot_names = {Path(path).name for path in manifest["outputs"]["plots"]}
     assert "2d_centroid_step_mean_seed_heatmap.png" in plot_names
@@ -256,4 +274,8 @@ def test_duration_study_shell_full_path_supports_empty_overwrite(
     commands = command_log.read_text(encoding="utf-8").splitlines()
     assert len(commands) == 3
     assert all("overwrite=true" not in command for command in commands)
-    assert "output_dir=" not in commands[2]
+    assert "output.base_dir=outputs/" in commands[0]
+    assert "output.timestamp_subdir=false" in commands[0]
+    assert "dataset.output_dir=outputs/" in commands[1]
+    assert "dataset_dir=outputs/" in commands[2]
+    assert "output_dir=outputs/" in commands[2]

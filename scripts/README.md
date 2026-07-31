@@ -227,10 +227,10 @@ Issue #129 のサンプル時間長・run数検討では、3秒raw run、dataset
 caffeinate -i ./scripts/04_phase4/run_duration_seed_study.sh full
 ```
 
-raw run、dataset revision、duration / seed解析は、同じcampaign rootの `dataset/`、`analysis/` 配下へ保存されます。
+raw run、dataset revision、duration / seed解析は、実行ごとのJST timestampを持つ同じcampaign rootの `dataset/`、`analysis/` 配下へ保存されます。
 
 ```text
-outputs/phase2_multi_run/flagella_count_duration_3s_r1/
+outputs/YYYY-MM-DD/HHMMSS/phase4_duration_seed_study/
 ├── dataset/v1_r1_duration_3s/
 ├── analysis/phase4_duration_seed_study/
 └── replay/
@@ -238,14 +238,18 @@ outputs/phase2_multi_run/flagella_count_duration_3s_r1/
 
 同一特徴量のtime plotは `0.25 / 0.5 / 1.0 s` で共通y軸を使います。seed heatmapはdurationを行、`n_flagella` を列とする1枚にまとめ、durationごとに独立したcolor scaleを使います。`x` と `!` はそれぞれQC fail windowとQC fail runを示します。
 
-3秒raw runがすでに存在する場合は、シミュレーションを再実行せずdataset revisionと解析結果だけを生成できます。
+3秒raw runがすでに存在する場合は、`RUN_DIR`にcampaign rootを指定し、シミュレーションを再実行せずdataset revisionと解析結果だけを生成できます。以下は既存のcanonical campaignを再解析する例です。
 
 ```bash
+RUN_DIR=outputs/phase2_multi_run/flagella_count_duration_3s_r1
 uv run python scripts/02_phase2_analysis/build_dataset.py \
   config=conf/phase2_multi_run/flagella_count_duration_3s_r1.yaml \
-  run_dir=outputs/phase2_multi_run/flagella_count_duration_3s_r1
+  run_dir="${RUN_DIR}" \
+  dataset.output_dir="${RUN_DIR}/dataset/v1_r1_duration_3s"
 uv run python scripts/04_phase4/evaluate_duration_seed_study.py \
-  config=conf/phase4/duration_seed_study_v1_r1.yaml
+  config=conf/phase4/duration_seed_study_v1_r1.yaml \
+  dataset_dir="${RUN_DIR}/dataset/v1_r1_duration_3s" \
+  output_dir="${RUN_DIR}/analysis/phase4_duration_seed_study"
 ```
 
 3秒raw runを再シミュレーションせず3D比較renderする場合:
@@ -253,6 +257,7 @@ uv run python scripts/04_phase4/evaluate_duration_seed_study.py \
 ```bash
 uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py \
   config=conf/phase2_multi_run/flagella_count_duration_3s_r1.yaml \
+  run_dir="${RUN_DIR}" \
   mode=render-only \
   max_panels_per_grid=9 \
   overwrite=true
