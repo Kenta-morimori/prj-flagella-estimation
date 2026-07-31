@@ -20,6 +20,8 @@ Phase 3 は common clip schemaを#127 / PR #142，pseudo GT passthroughを#6 / P
 
 Phase 3 v1 r1 clip dataset configでは，出力fpsは `output_sampling.fps_out`，画像条件は `render.image_size_px` / `render.pixel_size_um` を正本とする。canonical body-only画像は `body_capsule_orthographic_v1` とし，全長2.0 µm，幅1.0 µmの剛体capsuleを固定カメラへ並行投影する。斜め姿勢では見かけの長さを短縮し，z方向への正対時は円形にする。実動画条件が未確定のblur / noise / defocusはv1に含めない。`diagnostic` clip は Phase 2 shape QC の `first_fail_t_s` を含む，またはそれ以後のためtrainingから除外した診断用clipであり，全frameで形状崩壊が目視できることを意味しない。
 
+2026-07-31のユーザー定性評価では，full replayの他clipに問題がないこと，および `nf02_as000_ps001_c0004` がz正対付近で円形化してから別方向へ伸び，固定長capsuleの見かけ上一回転にならないことを確認し，このcanonical renderを採択した。
+
 MVP 固定方針（2026-07-23 のユーザー判断に基づく）:
 
 - Phase 3 / 4 MVP の標準 clip duration は `0.5 s` とする。`0.25 s` / `1.0 s` は比較条件に残す。

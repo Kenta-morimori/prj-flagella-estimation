@@ -2,9 +2,7 @@
   "status": "PASS",
   "summary": "Phase 3 v1 r1 clip dataset の canonical `.npy` render を body-only rigid capsule に変更し、Phase 3 config を `output_sampling.fps_out` / `render.*` へ統一した。canonical render `body_capsule_orthographic_v1` は全長2.0 µm・幅1.0 µmの剛体capsuleを並行投影し、斜め姿勢のforeshorteningとz正対時の円形silhouetteを反映する。MP4 grid replay は Phase 2 共通3D rendererを使う `3d+2d` / `3d` / `2d` 選択式にし、defaultでは3Dがflagella-visible、2Dがbody-onlyになる。diagnostic表示には first-fail 時刻と before/after first-fail status を追加した。`--max-clips` 省略時はfilter後の全clipを処理し、default 12 clipずつ複数MP4へ分割する。",
   "blocking_issues": [],
-  "non_blocking_issues": [
-    "merge 前にユーザーによる full dataset build と MP4 grid replay の定性評価が必要。"
-  ],
+  "non_blocking_issues": [],
   "tests_reviewed": [
     {
       "command": "uv run ruff format --check .",
@@ -71,8 +69,9 @@
       "result": "PASS: whitespace errorなし。"
     }
   ],
-  "user_review_required": true,
-  "user_review_reason": "dataset v1 の画像内容と MP4 replay の定性確認は自動テストだけでは判断できないため。",
+  "user_review_required": false,
+  "user_review_reason": "2026-07-31にユーザーがfull replayとnf02_as000_ps001_c0004の並行投影挙動を確認し、定性評価PASSと判断した。",
+  "user_review_result": "PASS",
   "user_run_commands": [
     "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml output_dir=outputs/phase3_common_clip/datasets/v1",
     "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1",
@@ -102,7 +101,5 @@
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/161",
   "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/159",
   "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/160",
-  "next_actions": [
-    "ユーザーが full dataset build と MP4 grid replay を評価し、merge 可否を判断する。"
-  ]
+  "next_actions": []
 }
