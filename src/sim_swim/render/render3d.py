@@ -83,12 +83,18 @@ def _run_tumble_label(st: SimulationState, cfg: SimulationConfig) -> str:
     return "TUMBLE" if bool(is_tumble) else "RUN"
 
 
-def _frame_status_lines(st: SimulationState, cfg: SimulationConfig) -> list[str]:
+def _frame_status_lines(
+    st: SimulationState,
+    cfg: SimulationConfig,
+    *,
+    extra_lines: Iterable[str] = (),
+) -> list[str]:
     lines = [_run_tumble_label(st, cfg)]
     if cfg.render.timestamp_3d:
         lines.append(cfg.render.timestamp_fmt.format(t=st.t))
     lines.append(f"motor_torque_Nm = {cfg.motor_torque_Nm:.3e}")
     lines.append(f"follow_camera_3d = {cfg.render.follow_camera_3d}")
+    lines.extend(str(line) for line in extra_lines if str(line).strip())
     return lines
 
 
@@ -100,7 +106,10 @@ def _plot_segments_3d(
     color: tuple[float, float, float] | str,
     linewidth: float,
 ) -> None:
+    bead_count = int(beads.shape[0])
     for i, j in edges:
+        if int(i) >= bead_count or int(j) >= bead_count:
+            continue
         p = beads[int(i)]
         q = beads[int(j)]
         ax.plot(
@@ -151,6 +160,170 @@ def _plot_flagella_helix_axis_3d(
     )
 
 
+def plot_swim_frame_3d(
+    ax: plt.Axes,
+    st: SimulationState,
+    cfg: SimulationConfig,
+    rig: FlagellaRig,
+    *,
+    title: str | None = None,
+    extra_status_lines: Iterable[str] = (),
+    hide_ticks: bool = False,
+    body_linewidth: float = 1.6,
+    flagella_linewidth: float = 2.0,
+    hook_linewidth: float = 2.6,
+    body_marker_size: float = 8.0,
+    flagella_marker_size: float = 6.0,
+) -> None:
+    """Plot one 3D swim frame using the same visual contract as swim movies."""
+
+    ax.set_facecolor("white")
+    beads = st.bead_positions_um
+    center = np.array(
+        st.position_um if cfg.render.follow_camera_3d else (0.0, 0.0, 0.0),
+        dtype=float,
+    )
+    view_range = _resolve_view_range_um(cfg, rig)
+    ax.set_xlim(center[0] - view_range, center[0] + view_range)
+    ax.set_ylim(center[1] - view_range, center[1] + view_range)
+    ax.set_zlim(center[2] - view_range, center[2] + view_range)
+    ax.set_box_aspect((1, 1, 1))
+    if hide_ticks:
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_zticks([])
+    else:
+        ax.set_xlabel("x [um]")
+        ax.set_ylabel("y [um]")
+        ax.set_zlabel("z [um]")
+    ax.grid(True)
+    if title:
+        ax.set_title(title, fontsize=9, pad=6)
+
+    _plot_segments_3d(
+        ax,
+        beads,
+        rig.body_spring_edges,
+        color=(0.35, 0.35, 0.35),
+        linewidth=body_linewidth,
+    )
+
+    body_indices = np.concatenate(rig.body_layer_indices)
+    body_indices = body_indices[body_indices < beads.shape[0]]
+    if body_indices.size == 0:
+        body_indices = np.arange(beads.shape[0], dtype=int)
+    body_pts = beads[body_indices]
+    if body_pts.size > 0:
+        ax.scatter(
+            body_pts[:, 0],
+            body_pts[:, 1],
+            body_pts[:, 2],
+            color="k",
+            s=body_marker_size,
+            depthshade=False,
+        )
+
+    handles = []
+    colors = _flagella_colors(len(rig.flagella_indices))
+    if cfg.render.render_flagella:
+        for f_id, idxs in enumerate(rig.flagella_indices):
+            idxs = idxs[idxs < beads.shape[0]]
+            if idxs.size == 0:
+                continue
+            color = colors[f_id % len(colors)] if colors else (0.1, 0.4, 0.7)
+            pts = beads[idxs]
+            (line,) = ax.plot(
+                pts[:, 0],
+                pts[:, 1],
+                pts[:, 2],
+                color=color,
+                linewidth=flagella_linewidth,
+            )
+            handles.append((line, f"F{f_id}"))
+            ax.scatter(
+                pts[:, 0],
+                pts[:, 1],
+                pts[:, 2],
+                color=[color],
+                s=flagella_marker_size,
+                depthshade=False,
+            )
+            if cfg.render.label_flagella:
+                end = pts[-1]
+                ax.text(
+                    end[0],
+                    end[1],
+                    end[2],
+                    f"F{f_id}",
+                    color=color,
+                    fontsize=8,
+                )
+            if cfg.render.show_flagella_helix_axis_3d:
+                _plot_flagella_helix_axis_3d(ax, beads, idxs, f_id, color)
+
+    if rig.hook_triplets.size > 0:
+        hook_edges = _hook_edges(rig.hook_triplets)
+        _plot_segments_3d(
+            ax,
+            beads,
+            hook_edges,
+            color=(1.0, 0.85, 0.05),
+            linewidth=hook_linewidth,
+        )
+
+    if handles:
+        ax.legend(
+            [h[0] for h in handles],
+            [h[1] for h in handles],
+            loc="upper right",
+            fontsize=8,
+        )
+
+    ax.text2D(
+        0.02,
+        0.96,
+        "\n".join(_frame_status_lines(st, cfg, extra_lines=extra_status_lines)),
+        transform=ax.transAxes,
+        va="top",
+        fontsize=8,
+    )
+
+
+def render_swim_frame_3d(
+    st: SimulationState,
+    cfg: SimulationConfig,
+    rig: FlagellaRig,
+    *,
+    width_px: int = 500,
+    height_px: int = 500,
+    title: str | None = None,
+    extra_status_lines: Iterable[str] = (),
+    hide_ticks: bool = False,
+) -> np.ndarray:
+    """Render one 3D swim frame to a BGR image."""
+
+    fig = plt.figure(figsize=(width_px / 100.0, height_px / 100.0), dpi=100)
+    ax = fig.add_subplot(111, projection="3d")
+    plot_swim_frame_3d(
+        ax,
+        st,
+        cfg,
+        rig,
+        title=title,
+        extra_status_lines=extra_status_lines,
+        hide_ticks=hide_ticks,
+    )
+    fig.tight_layout()
+    canvas = FigureCanvasAgg(fig)
+    canvas.draw()
+    buf = np.asarray(canvas.buffer_rgba())
+    frame = cv2.cvtColor(buf, cv2.COLOR_RGBA2BGR)
+    plt.close(fig)
+    if frame.shape[:2] != (height_px, width_px):
+        frame = cv2.resize(frame, (width_px, height_px), interpolation=cv2.INTER_AREA)
+    return frame
+
+
 def save_swim_movie(
     states: Iterable[SimulationState],
     cfg: SimulationConfig,
@@ -175,9 +348,6 @@ def save_swim_movie(
     if cfg.render.save_frames_3d:
         frames_dir.mkdir(parents=True, exist_ok=True)
 
-    colors = _flagella_colors(len(rig.flagella_indices))
-    view_range = _resolve_view_range_um(cfg, rig)
-
     movie_path = out_dir / "swim3d.mp4"
     writer: cv2.VideoWriter | None = None
     writer_selection: VideoWriterSelection | None = None
@@ -190,105 +360,13 @@ def save_swim_movie(
         fps_3d = max(1.0, float(cfg.output_sampling.fps_out_3d))
 
     for idx, st in enumerate(render_states):
-        fig = plt.figure(figsize=(5, 5))
-        ax = fig.add_subplot(111, projection="3d")
-        ax.set_facecolor("white")
-
-        beads = st.bead_positions_um
-        center = np.array(
-            st.position_um if cfg.render.follow_camera_3d else (0.0, 0.0, 0.0),
-            dtype=float,
+        frame = render_swim_frame_3d(
+            st,
+            cfg,
+            rig,
+            width_px=500,
+            height_px=500,
         )
-
-        ax.set_xlim(center[0] - view_range, center[0] + view_range)
-        ax.set_ylim(center[1] - view_range, center[1] + view_range)
-        ax.set_zlim(center[2] - view_range, center[2] + view_range)
-        ax.set_box_aspect((1, 1, 1))
-        ax.set_xlabel("x [um]")
-        ax.set_ylabel("y [um]")
-        ax.set_zlabel("z [um]")
-        ax.grid(True)
-
-        _plot_segments_3d(
-            ax,
-            beads,
-            rig.body_spring_edges,
-            color=(0.35, 0.35, 0.35),
-            linewidth=1.6,
-        )
-
-        body_pts = beads[np.concatenate(rig.body_layer_indices)]
-        ax.scatter(
-            body_pts[:, 0],
-            body_pts[:, 1],
-            body_pts[:, 2],
-            color="k",
-            s=8,
-            depthshade=False,
-        )
-
-        handles = []
-        if cfg.render.render_flagella:
-            for f_id, idxs in enumerate(rig.flagella_indices):
-                color = colors[f_id % len(colors)] if colors else (0.1, 0.4, 0.7)
-                pts = beads[idxs]
-                (line,) = ax.plot(
-                    pts[:, 0], pts[:, 1], pts[:, 2], color=color, linewidth=2.0
-                )
-                handles.append((line, f"F{f_id}"))
-                ax.scatter(
-                    pts[:, 0],
-                    pts[:, 1],
-                    pts[:, 2],
-                    color=[color],
-                    s=6,
-                    depthshade=False,
-                )
-                if cfg.render.label_flagella:
-                    end = pts[-1]
-                    ax.text(
-                        end[0],
-                        end[1],
-                        end[2],
-                        f"F{f_id}",
-                        color=color,
-                        fontsize=8,
-                    )
-                if cfg.render.show_flagella_helix_axis_3d:
-                    _plot_flagella_helix_axis_3d(ax, beads, idxs, f_id, color)
-
-        if rig.hook_triplets.size > 0:
-            hook_edges = _hook_edges(rig.hook_triplets)
-            _plot_segments_3d(
-                ax,
-                beads,
-                hook_edges,
-                color=(1.0, 0.85, 0.05),
-                linewidth=2.6,
-            )
-
-        if handles:
-            ax.legend(
-                [h[0] for h in handles],
-                [h[1] for h in handles],
-                loc="upper right",
-                fontsize=8,
-            )
-
-        ax.text2D(
-            0.02,
-            0.96,
-            "\n".join(_frame_status_lines(st, cfg)),
-            transform=ax.transAxes,
-            va="top",
-        )
-
-        fig.tight_layout()
-        canvas = FigureCanvasAgg(fig)
-        canvas.draw()
-        buf = np.asarray(canvas.buffer_rgba())
-        frame = cv2.cvtColor(buf, cv2.COLOR_RGBA2BGR)
-        plt.close(fig)
 
         if cfg.render.save_frames_3d:
             cv2.imwrite(str(frames_dir / f"frame_{idx:06d}.png"), frame)

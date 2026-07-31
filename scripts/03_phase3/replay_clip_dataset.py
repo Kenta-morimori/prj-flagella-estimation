@@ -38,14 +38,24 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--qc-label", default=None)
     parser.add_argument("--training-candidate", type=_optional_bool, default=None)
     parser.add_argument("--max-clips", type=int, default=12)
-    parser.add_argument("--frames-per-clip", type=int, default=4)
+    parser.add_argument(
+        "--frames-per-clip",
+        type=int,
+        default=4,
+        help="contact-sheet mode only; MP4 grid always uses all clip frames",
+    )
     parser.add_argument(
         "--mode",
         choices=("mp4-grid", "contact-sheet"),
         default="mp4-grid",
         help="visual replay artifact to create",
     )
-    parser.add_argument("--mp4-fps", type=float, default=5.0)
+    parser.add_argument(
+        "--panel-layout",
+        choices=("3d+2d", "3d", "2d"),
+        default="3d+2d",
+        help="MP4 grid panel layout",
+    )
     args = parser.parse_args(argv)
     cfg = ReplayConfig(
         dataset_dir=args.dataset_dir,
@@ -58,7 +68,7 @@ def main(argv: list[str] | None = None) -> None:
         training_candidate=args.training_candidate,
         max_clips=args.max_clips,
         frames_per_clip=args.frames_per_clip,
-        mp4_fps=args.mp4_fps,
+        panel_layout=args.panel_layout,
     )
     output_dir = (
         render_contact_sheet(cfg)

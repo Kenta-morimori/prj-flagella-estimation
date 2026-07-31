@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Phase 3 v1 r1 clip dataset の canonical `.npy` render を body-only rigid capsule に変更し、source state archive 由来の 3D/2D MP4 grid replay を追加した。既存の grouped split、window QC、Phase 4 loader / freeze audit 契約は維持した。",
+  "summary": "Phase 3 v1 r1 clip dataset の canonical `.npy` render を body-only rigid capsule に変更し、Phase 3 config を `output_sampling.fps_out` / `render.*` へ統一した。MP4 grid replay は Phase 2 共通3D rendererを使う `3d+2d` / `3d` / `2d` 選択式にし、defaultでは3Dがflagella-visible、2Dがbody-onlyになる。diagnostic表示には first-fail 時刻と before/after first-fail status を追加した。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "merge 前にユーザーによる full dataset build と MP4 grid replay の定性評価が必要。"
@@ -8,31 +8,39 @@
   "tests_reviewed": [
     {
       "command": "uv run ruff format --check .",
-      "result": "PASS: 115 files already formatted。"
+      "result": "PASS: 116 files already formatted。"
     },
     {
       "command": "uv run ruff check .",
       "result": "PASS: All checks passed。"
     },
     {
-      "command": "uv run pytest -q tests/test_phase3_gt_passthrough_pipeline.py",
-      "result": "PASS: 11 passed。"
-    },
-    {
-      "command": "uv run pytest -q tests/test_phase3_clip_metadata_schema.py tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase4_clip_dataset_loader.py tests/test_phase4_dataset_freeze.py",
-      "result": "PASS: 28 passed。"
+      "command": "uv run pytest -q tests/test_render_state_and_projection.py tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase3_clip_metadata_schema.py tests/test_phase4_clip_dataset_loader.py tests/test_phase4_dataset_freeze.py",
+      "result": "PASS: 41 passed。"
     },
     {
       "command": "uv run pytest -q",
-      "result": "PASS: 422 passed。"
+      "result": "PASS: 423 passed。"
     },
     {
       "command": "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml filters.max_per_class=1",
-      "result": "PASS: probe output outputs/2026-07-31/183333/phase3_v1_r1_clip_dataset, 15 clips / 3 groups / 3 classes。"
+      "result": "PASS: probe output outputs/2026-07-31/201401/phase3_v1_r1_clip_dataset, 15 clips / 3 groups / 3 classes。"
     },
     {
-      "command": "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/2026-07-31/183333/phase3_v1_r1_clip_dataset --max-clips 2 --frames-per-clip 2",
-      "result": "PASS: probe replay output outputs/2026-07-31/183333/phase3_v1_r1_clip_dataset/replay/20260731_183341/3d_2d_grid.mp4。"
+      "command": "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/2026-07-31/201401/phase3_v1_r1_clip_dataset --max-clips 2 --panel-layout 3d+2d",
+      "result": "PASS: 13 frames / 25 fps / 0.52 s の probe MP4 を生成。"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/2026-07-31/201401/phase3_v1_r1_clip_dataset --max-clips 1 --panel-layout 3d",
+      "result": "PASS: 3D-only panel layout を生成。"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/2026-07-31/201401/phase3_v1_r1_clip_dataset --max-clips 1 --panel-layout 2d",
+      "result": "PASS: 2D-only panel layout を生成。"
+    },
+    {
+      "command": "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --qc-label diagnostic --max-clips 1 --panel-layout 3d+2d",
+      "result": "PASS: diagnostic filter replay を生成し、13 frames / 25 fps を確認。"
     },
     {
       "command": "git diff --check",
@@ -44,7 +52,9 @@
   "user_run_commands": [
     "uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml output_dir=outputs/phase3_common_clip/datasets/v1",
     "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --max-clips 12",
-    "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --qc-label diagnostic --max-clips 12"
+    "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --qc-label diagnostic --max-clips 12",
+    "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --panel-layout 3d --max-clips 12",
+    "uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --panel-layout 2d --max-clips 12"
   ],
   "user_review_outputs": [
     "outputs/phase3_common_clip/datasets/v1/dataset_summary.csv",
@@ -53,21 +63,21 @@
   ],
   "user_review_points": [
     "dataset_summary.csv が 135 clips / 27 groups / 3 classes / training_candidate 129 / diagnostic 6 を示すこと。",
-    "2D側にflagellaが描画されず、菌体のみがcapsule silhouetteとして見えること。",
-    "菌体がframe間で不自然に伸縮せず、tracking crop内に安定して入ること。",
-    "3Dと2Dの姿勢・時刻対応が破綻していないこと。",
-    "diagnostic replayでQC labelとfirst-fail後windowの表示がmetadataと一致すること。"
+    "default MP4 gridで3D側はべん毛を含むPhase 2共通3D表示、2D側はflagellaなしのbody-only capsuleであること。",
+    "MP4 grid が 13 frames / 25 fps / 約0.52 s で、0s表示問題が解消していること。",
+    "3D status textに shape first-fail 時刻と before/after first-fail status が表示されること。",
+    "diagnostic replayでfirst-failを含む/以後のwindowがtraining_excludedとして分かること。"
   ],
   "adr_required": false,
-  "adr_reason": "dataset v1 のrender仕様を既存 Phase 3 docs / scripts README / manifest に記録した。別ADRが必要なほどの横断的方針変更はない。",
+  "adr_reason": "既存Phase 2 renderer / output_sampling方針にPhase 3 dataset replayを揃える変更であり、新しい物理モデルや横断的運用方針は追加していない。",
   "commit_type": "complete",
-  "commit_hash": "included in the branch commit; see final response",
+  "commit_hash": "included in the branch commits; see final response",
   "push_status": "not_pushed",
-  "pull_request_url": "",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/161",
   "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/159",
   "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/160",
   "next_actions": [
-    "branch を push し、base=feature/phase3-v1-r1-clip-dataset の draft PR を作成する。",
+    "branch を push し、draft PR #161 を更新する。",
     "ユーザーが full dataset build と MP4 grid replay を評価し、merge 可否を判断する。"
   ]
 }

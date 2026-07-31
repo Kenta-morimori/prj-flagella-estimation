@@ -11,6 +11,7 @@ from flagella_estimation.phase3.metadata import build_gt_passthrough_metadata
 from flagella_estimation.phase3.pipeline import (
     Phase3Config,
     build_clip_dataset,
+    load_config,
     validate_training_candidate,
 )
 from flagella_estimation.phase3.replay import (
@@ -144,6 +145,40 @@ def test_phase3_grouped_split_can_stratify_by_n_flagella() -> None:
             if label == n_flagella
         }
         assert label_splits == {"train", "val", "test"}
+
+
+@pytest.mark.light
+def test_phase3_config_uses_output_sampling_and_render_keys(tmp_path: Path) -> None:
+    config_path = tmp_path / "phase3.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "dataset_id: phase3_fixture",
+                f"input_dataset: {tmp_path / 'input'}",
+                f"output_dir: {tmp_path / 'out'}",
+                "clip:",
+                "  duration_s: 0.5",
+                "  window_policy: non_overlap",
+                "  overlap_stride_fraction: 0.5",
+                "output_sampling:",
+                "  fps_out: 20.0",
+                "render:",
+                "  image_size_px: 40",
+                "  pixel_size_um: 0.2",
+                "  body_length_um: 2.5",
+                "  body_width_um: 0.8",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    cfg = load_config(config_path)
+
+    assert cfg.fps_out == pytest.approx(20.0)
+    assert cfg.image_size_px == 40
+    assert cfg.pixel_size_um == pytest.approx(0.2)
+    assert cfg.body_length_um == pytest.approx(2.5)
+    assert cfg.body_width_um == pytest.approx(0.8)
 
 
 @pytest.mark.light
@@ -303,7 +338,7 @@ def test_phase3_pipeline_writes_clips_manifest_and_summaries(tmp_path: Path) -> 
         output_dir=output_dir,
         config_path=Path("conf/phase3/fixture.yaml"),
         cli_overrides=("clip.duration_s=0.5",),
-        crop_size_px=32,
+        image_size_px=32,
     )
     result_dir = build_clip_dataset(cfg)
 
@@ -320,12 +355,20 @@ def test_phase3_pipeline_writes_clips_manifest_and_summaries(tmp_path: Path) -> 
         "cli_overrides": ["clip.duration_s=0.5"],
     }
     assert manifest["filters"]["max_per_class"] is None
+    assert manifest["clip"] == {
+        "duration_s": 0.5,
+        "window_policy": "non_overlap",
+        "overlap_stride_fraction": 0.5,
+    }
+    assert manifest["output_sampling"] == {"fps_out": 25.0}
     assert manifest["render"] == {
         "render_mode": "body_capsule_rigid_v1",
         "body_deformation_rendered": False,
         "rendered_objects": ["body"],
         "excluded_objects": ["flagella"],
         "body_shape": "capsule",
+        "image_size_px": 32,
+        "pixel_size_um": 0.1,
         "body_length_um": 2.0,
         "body_width_um": 1.0,
         "body_intensity": 60,
@@ -387,7 +430,7 @@ def test_phase3_pipeline_marks_first_fail_windows_diagnostic(tmp_path: Path) -> 
             dataset_id="phase3_fixture",
             input_dataset=input_dataset,
             output_dir=output_dir,
-            crop_size_px=32,
+            image_size_px=32,
             dataset_revision="r1",
             source_require_use_for_ml_candidate=False,
         )
@@ -447,7 +490,7 @@ def test_phase3_replay_writes_contact_sheet_and_manifest(tmp_path: Path) -> None
             dataset_id="phase3_fixture",
             input_dataset=input_dataset,
             output_dir=tmp_path / "clips",
-            crop_size_px=32,
+            image_size_px=32,
         )
     )
 
@@ -503,7 +546,7 @@ def test_phase3_replay_writes_3d_2d_mp4_grid_and_manifest(tmp_path: Path) -> Non
             dataset_id="phase3_fixture",
             input_dataset=input_dataset,
             output_dir=tmp_path / "clips",
-            crop_size_px=32,
+            image_size_px=32,
         )
     )
 
@@ -515,6 +558,7 @@ def test_phase3_replay_writes_3d_2d_mp4_grid_and_manifest(tmp_path: Path) -> Non
             training_candidate=True,
             max_clips=1,
             frames_per_clip=2,
+            panel_layout="3d+2d",
             panel_width_px=320,
             panel_height_px=160,
         )
@@ -524,4 +568,7 @@ def test_phase3_replay_writes_3d_2d_mp4_grid_and_manifest(tmp_path: Path) -> Non
     manifest = json.loads((replay_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["pipeline_name"] == "phase3_clip_replay_3d_2d_grid"
     assert manifest["clip_count"] == 1
+    assert manifest["panel_layout"] == "3d+2d"
+    assert manifest["video"]["fps"] == 25.0
+    assert manifest["video"]["frame_count"] == 13
     assert manifest["outputs"]["mp4_grid"].endswith("3d_2d_grid.mp4")

@@ -43,8 +43,8 @@ class Phase3Config:
     duration_s: float = 0.5
     window_policy: str = "non_overlap"
     overlap_stride_fraction: float = 0.5
-    frame_rate_hz: float = 25.0
-    crop_size_px: int = 96
+    fps_out: float = 25.0
+    image_size_px: int = 96
     pixel_size_um: float = 0.1
     body_length_um: float = 2.0
     body_width_um: float = 1.0
@@ -201,6 +201,7 @@ def load_config(path: Path | None, overrides: list[str] | None = None) -> Phase3
         raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     data = _apply_overrides(raw, overrides or [])
     clip = dict(data.get("clip", {}) or {})
+    output_sampling = dict(data.get("output_sampling", {}) or {})
     render = dict(data.get("render", {}) or {})
     filters = dict(data.get("filters", {}) or {})
     freeze = dict(data.get("freeze", {}) or {})
@@ -217,9 +218,9 @@ def load_config(path: Path | None, overrides: list[str] | None = None) -> Phase3
         duration_s=float(clip.get("duration_s", 0.5)),
         window_policy=str(clip.get("window_policy", "non_overlap")),
         overlap_stride_fraction=float(clip.get("overlap_stride_fraction", 0.5)),
-        frame_rate_hz=float(clip.get("frame_rate_hz", 25.0)),
-        crop_size_px=int(clip.get("crop_size_px", 96)),
-        pixel_size_um=float(clip.get("pixel_size_um", 0.1)),
+        fps_out=float(output_sampling.get("fps_out", 25.0)),
+        image_size_px=int(render.get("image_size_px", 96)),
+        pixel_size_um=float(render.get("pixel_size_um", 0.1)),
         body_length_um=float(render.get("body_length_um", 2.0)),
         body_width_um=float(render.get("body_width_um", 1.0)),
         body_intensity=int(render.get("body_intensity", 60)),
@@ -352,16 +353,16 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
             )
             continue
 
-        states = select_frames(load_state_archive(archive_path), cfg.frame_rate_hz)
+        states = select_frames(load_state_archive(archive_path), cfg.fps_out)
         windows = generate_windows(
             source_frame_count=len(states),
-            frame_rate_hz=cfg.frame_rate_hz,
+            frame_rate_hz=cfg.fps_out,
             duration_s=cfg.duration_s,
             policy=cfg.window_policy,
             overlap_stride_fraction=cfg.overlap_stride_fraction,
         )
         group_key = f"phase2:{dataset_version}:{sample_id}"
-        source_duration_s = len(states) / cfg.frame_rate_hz
+        source_duration_s = len(states) / cfg.fps_out
         run_shape_pass = _to_bool(row.get("shape_pass", "true"))
         run_first_fail_t_s = _optional_float(row.get("first_fail_t_s"))
         run_training_count = 0
@@ -371,7 +372,7 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
             output_path = clips_dir / f"{clip_id}.npy"
             clip_array, geometries = render_clip_array(
                 states[window.start : window.end],
-                image_size_px=cfg.crop_size_px,
+                image_size_px=cfg.image_size_px,
                 pixel_size_um=cfg.pixel_size_um,
                 body_length_um=cfg.body_length_um,
                 body_width_um=cfg.body_width_um,
@@ -385,7 +386,7 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
                 exclusion_reason,
                 qc_label,
             ) = _window_qc(
-                window_end_s=window.end / cfg.frame_rate_hz,
+                window_end_s=window.end / cfg.fps_out,
                 run_shape_pass=run_shape_pass,
                 run_first_fail_t_s=run_first_fail_t_s,
             )
@@ -396,7 +397,7 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
                 dataset_id=cfg.dataset_id,
                 source_video_id=sample_id,
                 source_path=archive_path,
-                frame_rate_hz=cfg.frame_rate_hz,
+                frame_rate_hz=cfg.fps_out,
                 source_frame_count=len(states),
                 source_duration_s=source_duration_s,
                 run_id=sample_id,
@@ -409,7 +410,7 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
                 window=window,
                 window_policy=cfg.window_policy,
                 output_path=output_path,
-                crop_size_px=cfg.crop_size_px,
+                crop_size_px=cfg.image_size_px,
                 pixel_size_um=cfg.pixel_size_um,
                 frame_geometries=geometries,
                 dataset_version=dataset_version,
@@ -432,8 +433,8 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
                     "split": split_by_group[group_key],
                     "n_flagella": n_flagella,
                     "clip_index": clip_index,
-                    "t_start_s": window.start / cfg.frame_rate_hz,
-                    "t_end_s": window.end / cfg.frame_rate_hz,
+                    "t_start_s": window.start / cfg.fps_out,
+                    "t_end_s": window.end / cfg.fps_out,
                     "qc_label": qc_label,
                     "training_candidate": training_candidate,
                     "exclusion_reason": exclusion_reason,
@@ -513,9 +514,9 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
             "duration_s": cfg.duration_s,
             "window_policy": cfg.window_policy,
             "overlap_stride_fraction": cfg.overlap_stride_fraction,
-            "frame_rate_hz": cfg.frame_rate_hz,
-            "crop_size_px": cfg.crop_size_px,
-            "pixel_size_um": cfg.pixel_size_um,
+        },
+        "output_sampling": {
+            "fps_out": cfg.fps_out,
         },
         "render": {
             "render_mode": RENDER_MODE,
@@ -523,6 +524,8 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
             "rendered_objects": ["body"],
             "excluded_objects": ["flagella"],
             "body_shape": "capsule",
+            "image_size_px": cfg.image_size_px,
+            "pixel_size_um": cfg.pixel_size_um,
             "body_length_um": cfg.body_length_um,
             "body_width_um": cfg.body_width_um,
             "body_intensity": cfg.body_intensity,
