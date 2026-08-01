@@ -141,6 +141,9 @@ class DynamicsEngine:
         # `SimulationConfig.stiffness_scales`.
         self.body_stiffness_scale = float(cfg.stiffness_scales.body)
         self.flag_spring_stiffness_scale = float(cfg.stiffness_scales.flag_spring)
+        self.proximal_flag_spring_stiffness_scale = float(
+            cfg.stiffness_scales.proximal_flag_spring
+        )
         self.flag_bend_stiffness_scale = float(cfg.stiffness_scales.flag_bend)
         self.flag_torsion_stiffness_scale = float(cfg.stiffness_scales.flag_torsion)
         self.theta0_ref_rad, self.phi0_ref_rad = self._initial_reference_angles_rad()
@@ -166,6 +169,7 @@ class DynamicsEngine:
         self.body_torsion_rows = np.where(self.model.torsion_flag_ids < 0)[0]
         self.flag_torsion_rows = np.where(self.model.torsion_flag_ids >= 0)[0]
         self.flag_local_spring_rows = np.zeros((0,), dtype=int)
+        self.flag_proximal_spring_rows = np.zeros((0,), dtype=int)
         self.flag_nonlocal_spring_rows = self.flag_intra_spring_rows.copy()
         self.flag_local_bending_rows = np.zeros((0,), dtype=int)
         self.flag_nonlocal_bending_rows = self.flag_bending_rows.copy()
@@ -173,6 +177,7 @@ class DynamicsEngine:
         self.flag_nonlocal_torsion_rows = self.flag_torsion_rows.copy()
 
         local_spring_rows: list[int] = []
+        proximal_spring_rows: list[int] = []
         local_bending_rows: list[int] = []
         local_torsion_rows: list[int] = []
         for flag_id, flag_idxs in enumerate(self.model.flagella_indices):
@@ -186,6 +191,16 @@ class DynamicsEngine:
                     & (self.model.spring_pairs[:, 1] == int(idx[0]))
                 )
                 local_spring_rows.extend(np.where(pair_mask)[0].tolist())
+            for local_start in (1, 2):
+                if idx.size > local_start + 1:
+                    pair_mask = (
+                        (self.model.spring_pairs[:, 0] == int(idx[local_start]))
+                        & (self.model.spring_pairs[:, 1] == int(idx[local_start + 1]))
+                    ) | (
+                        (self.model.spring_pairs[:, 0] == int(idx[local_start + 1]))
+                        & (self.model.spring_pairs[:, 1] == int(idx[local_start]))
+                    )
+                    proximal_spring_rows.extend(np.where(pair_mask)[0].tolist())
             if idx.size >= 3:
                 bend_mask = (
                     (self.model.bending_triplets[:, 0] == int(idx[0]))
@@ -206,9 +221,16 @@ class DynamicsEngine:
             self.flag_local_spring_rows = np.asarray(
                 sorted(set(local_spring_rows)), dtype=int
             )
+        if proximal_spring_rows:
+            self.flag_proximal_spring_rows = np.asarray(
+                sorted(set(proximal_spring_rows)), dtype=int
+            )
+        if local_spring_rows or proximal_spring_rows:
             self.flag_nonlocal_spring_rows = np.setdiff1d(
                 self.flag_intra_spring_rows,
-                self.flag_local_spring_rows,
+                np.concatenate(
+                    [self.flag_local_spring_rows, self.flag_proximal_spring_rows]
+                ),
                 assume_unique=False,
             )
         if local_bending_rows:
@@ -765,6 +787,19 @@ class DynamicsEngine:
                 h_const=self.spring_h
                 * self.flag_spring_stiffness_scale
                 * (first_second_spring_scale if motor_on else 1.0),
+                s_limit_m=self.spring_s_m,
+                clamp_eps=1e-3,
+            )
+        if self.flag_proximal_spring_rows.size > 0:
+            spring_forces += compute_spring_forces(
+                positions_m=pos,
+                spring_pairs=self.model.spring_pairs[self.flag_proximal_spring_rows],
+                spring_rest_lengths_m=self.model.spring_rest_lengths_m[
+                    self.flag_proximal_spring_rows
+                ],
+                h_const=self.spring_h
+                * self.flag_spring_stiffness_scale
+                * self.proximal_flag_spring_stiffness_scale,
                 s_limit_m=self.spring_s_m,
                 clamp_eps=1e-3,
             )

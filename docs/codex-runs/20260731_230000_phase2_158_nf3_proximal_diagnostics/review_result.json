@@ -1,0 +1,88 @@
+{
+  "status": "PASS",
+  "summary": "Issue #158 dataset v1 r1 3.0 s run の n_flagella=3 proximal failure を、既存 step_summary.csv / state_archive.npz から再simulationなしで診断するCLIを追加した。27 run summary、4 fail条件のfirst-fail前後event table、lead/lag summary、attach geometry table、同期plot、replay、仮説分類、原因・解決策候補を出力する。probeでは n=1: 9/9, n=2: 9/9, n=3: 5/9 strict-pass を再現し、4 failすべての first-fail local bond が proximal 1-2 または 2-3 であることを確認した。ユーザー実行の proximal_flag_spring=2.0 4 fail条件比較では4/4が3.0 s first-failなしでpassした。一方，ユーザー定性評価では pfs2 でも菌体後方での自然な束化は確認できなかった。最有力原因は非対称attach geometry、初期helix phase、basal load transfer の組み合わせによる proximal flag bond への局所負荷集中と整理し、dataset v2生成は行わない。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "flag-body接触は bead center distance minus 2a のproxyであり、連続capsule bodyに対する厳密な貫通判定ではない。",
+    "0.05 s lead/lag では4 fail中2条件が contact precursorなしのbond growth、2条件がcontact correlationありだった。接触は副次寄与候補だが主因とは判定しない。",
+    "proximal_flag_spring=2.0 は4 fail条件の形状破綻を解消したが、菌体後方での自然な束化は未達だった。dataset v2採用条件ではなく、同様の形状破綻が出た場合の診断知見として扱う。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest -q tests/test_phase2_158_diagnostics.py",
+      "result": "PASS: 3 passed。診断CLI本体がsummary/event table/plot/manifestを生成し、local bondをglobal bead IDから復元することを検証。Codex review指摘を受け、flag-body距離をpost-step stateへ対応付けること、接触仮説文言が実測countを出すことも検証。"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/analysis/phase2_158_diagnostics.py scripts/02_phase2_analysis/diagnose_v1_r1_nf3_failures.py tests/test_phase2_158_diagnostics.py",
+      "result": "PASS: All checks passed。"
+    },
+    {
+      "command": "uv run python scripts/02_phase2_analysis/diagnose_v1_r1_nf3_failures.py --output-dir outputs/2026-07-31/phase2_158_probe --overwrite",
+      "result": "PASS: 27 runの診断出力を生成。run_diagnostic_summary.csv, failure_event_table.csv, failure_lead_lag_summary.csv, seed_failure_table.csv, attach_geometry_table.csv, 4同期plot, hypothesis_assessment, manifest.json, run.log を確認。Codex review対応後に再解析し、0.05 s窓は2/4 contactなし、2/4 contact相関ありとして出力。"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py --config conf/phase2_multi_run/flagella_count_duration_3s_r1.yaml --input-dir outputs/phase2_multi_run/flagella_count_duration_3s_r1 --output-dir outputs/2026-07-31/phase2_158_probe/replay --mode both --fps-out-3d 5 --max-panels-per-grid 9 --overwrite",
+      "result": "PASS: 既存state_archiveから3ページのgrid_swim3d_page*.mp4とshape_stability_metrics.pngを生成。grid_swim3d_page03_final.pngが非blankで、attach_seed=2 の n=3 3条件がFAIL表示されることを確認。"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS: 119 files already formatted。"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS: All checks passed。"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS: 193 passed, 235 deselected。"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS: whitespace errorなし。"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_v1_r1_nf3_proximal_relief_fail4.yaml sweep.include_condition_ids='[as001__ps001__nf03__pfs2,as002__ps000__nf03__pfs2,as002__ps001__nf03__pfs2,as002__ps002__nf03__pfs2]' output.base_dir=outputs/phase2_multi_run/flagella_count_v1_r1_nf3_proximal_relief_fail4_pfs2_full overwrite=true",
+      "result": "PASS: user実行。4 fail条件すべて final_t_s=2.9999, final_shape_pass_nonbody=True, first_fail_t_sなし, final_first_fail_category_nonbody=none, body_shape_pass=True。max_flag_bond_rel_err は 0.4153-0.8695。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_reason": "ユーザー定性評価済み。pfs2は形状安定化には有効だが、菌体後方での自然な束化は未達と判断した。今回のPRは原因診断であり、dataset v2生成や物理モデル修正は含めない。",
+  "user_review_command": "uv run python scripts/02_phase2_analysis/diagnose_v1_r1_nf3_failures.py --output-dir outputs/2026-07-31/phase2_158_probe --overwrite",
+  "user_review_outputs": [
+    "outputs/2026-07-31/phase2_158_probe/run_diagnostic_summary.csv",
+    "outputs/2026-07-31/phase2_158_probe/failure_event_table.csv",
+    "outputs/2026-07-31/phase2_158_probe/failure_lead_lag_summary.csv",
+    "outputs/2026-07-31/phase2_158_probe/seed_failure_table.csv",
+    "outputs/2026-07-31/phase2_158_probe/attach_geometry_table.csv",
+    "outputs/2026-07-31/phase2_158_probe/plots/as001__ps001__nf03_first_fail_sync.png",
+    "outputs/2026-07-31/phase2_158_probe/plots/as002__ps000__nf03_first_fail_sync.png",
+    "outputs/2026-07-31/phase2_158_probe/plots/as002__ps001__nf03_first_fail_sync.png",
+    "outputs/2026-07-31/phase2_158_probe/plots/as002__ps002__nf03_first_fail_sync.png",
+    "outputs/2026-07-31/phase2_158_probe/replay/grid_swim3d_page01.mp4",
+    "outputs/2026-07-31/phase2_158_probe/replay/grid_swim3d_page02.mp4",
+    "outputs/2026-07-31/phase2_158_probe/replay/grid_swim3d_page03.mp4",
+    "outputs/2026-07-31/phase2_158_probe/replay/shape_stability_metrics.png",
+    "outputs/2026-07-31/phase2_158_probe/hypothesis_assessment.md"
+  ],
+  "user_review_points": [
+    "4 fail条件のfirst-fail直前で flag_bond_rel_err_max がstrict limit付近へ滑らかに近づくか。",
+    "body angular velocity / speed の変動が proximal bond growth と同期しているか。",
+    "flag-flag repulsion と flag-body proxy gap が failureの先行主因に見えるか、それとも副次的相関に見えるか。",
+    "原因整理を非対称attach geometry、初期helix phase、basal load transfer による proximal flag bond load concentration として扱ってよいか。",
+    "次の修正候補を proximal flag bond 専用 load relief / stiffness profile と attach geometry QC に絞ってよいか。proximal_flag_spring=2.0 は4 fail条件で3.0 s pass済み。"
+  ],
+  "user_review_result": "PASS_WITH_LIMITATION: pfs2は4 fail条件の形状破綻を解消したが、菌体後方束化は未達。診断PRとしては完了、dataset v2採用判断は行わない。",
+  "adr_required": false,
+  "adr_reason": "今回のPRは診断CLIと文書整理のみで、物理モデル・dataset採用境界・出力契約を変更しないため。proximal bond stiffness profile 等を採用する場合は別途ADRまたは同等の設計記録が必要。",
+  "commit_type": "diagnostic",
+  "commit_hash": "see PR #162 head commit",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/162",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/158",
+  "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/157",
+  "next_actions": [
+    "dataset v2生成と5 s x 27 run quality gateは他要件と合わせて後続作業で扱う。",
+    "dataset v2で同様の形状破綻が見られた場合、proximal load path と attach geometry の知見を優先的に参照する。",
+    "proximal_flag_spring の採用倍率、n=1,2,3 全27条件smoke、attach geometry QC、滑らかな回転と後方束化は dataset v2 の物理条件検討内で扱う。新規Issueは作成しない。"
+  ]
+}

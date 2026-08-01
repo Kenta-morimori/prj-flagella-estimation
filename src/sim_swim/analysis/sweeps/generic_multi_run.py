@@ -101,6 +101,9 @@ def _condition_row(
         {
             "stiffness_body_scale": cfg.stiffness_scales.body,
             "stiffness_flag_spring_scale": cfg.stiffness_scales.flag_spring,
+            "stiffness_proximal_flag_spring_scale": (
+                cfg.stiffness_scales.proximal_flag_spring
+            ),
             "stiffness_flag_bend_scale": cfg.stiffness_scales.flag_bend,
             "stiffness_flag_torsion_scale": cfg.stiffness_scales.flag_torsion,
         }

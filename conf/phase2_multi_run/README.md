@@ -23,6 +23,16 @@
 
 `flagella_count_duration_3s_r1.yaml`はcanonical dataset更新ではなく，v1と同じ物理条件のsource durationを3 sへ延長した比較用revisionである。`n_flagella=1,2,3`とattach / phase seed各3のfull factorial 27 runを生成し，#129 / #155のwindow時間長・seed差・初期過渡状態評価へ渡す。
 
+#158 の `n_flagella=3` proximal failure 診断は，長時間simulationを再実行せず既存 raw output を読む。
+
+```bash
+uv run python scripts/02_phase2_analysis/diagnose_v1_r1_nf3_failures.py \
+  --output-dir outputs/2026-07-31/phase2_158_probe \
+  --overwrite
+```
+
+診断結果の整理は `docs/phase2/phase2_158_v1_r1_nf3_proximal_diagnostics.md` を参照する。
+
 ## analysis dataset naming
 
 Issue #118 以降の analysis dataset config は，config 本体をモデル条件の source of truth とし，config 名・`dataset.dataset_id`・出力先は短い dataset version を中心に付ける。

@@ -122,6 +122,65 @@ def test_flagella_count_stability_candidates_expand_stiffness_axes() -> None:
     )
 
 
+def test_generic_multi_run_include_condition_ids_filters_in_requested_order() -> None:
+    campaign = apply_campaign_cli_overrides(
+        {
+            "base_config": "conf/sim_swim.yaml",
+            "sweep": {
+                "include_condition_ids": ["b2__a1", "b1__a0"],
+                "axes": {
+                    "b": {
+                        "key": "seed.attach_seed",
+                        "short_name": "b",
+                        "values": [1, 2],
+                        "ids": ["b1", "b2"],
+                    },
+                    "a": {
+                        "key": "seed.phase_seed",
+                        "short_name": "a",
+                        "values": [0, 1],
+                        "ids": ["a0", "a1"],
+                    },
+                },
+            },
+        },
+        [],
+    )
+
+    conditions = build_campaign_conditions(campaign)
+
+    assert [condition["condition_id"] for condition in conditions] == [
+        "b2__a1",
+        "b1__a0",
+    ]
+    assert conditions[0]["condition_index"] == 3
+    assert conditions[0]["config_overrides"]["seed"]["attach_seed"] == 2
+    assert conditions[0]["config_overrides"]["seed"]["phase_seed"] == 1
+
+
+def test_generic_multi_run_include_condition_ids_rejects_unknown_id() -> None:
+    campaign = apply_campaign_cli_overrides(
+        {
+            "base_config": "conf/sim_swim.yaml",
+            "sweep": {
+                "include_condition_ids": ["missing"],
+                "axes": {
+                    "seed": {
+                        "key": "seed.attach_seed",
+                        "short_name": "seed",
+                        "values": [0],
+                        "ids": ["seed0"],
+                    }
+                },
+            },
+        },
+        [],
+    )
+
+    with pytest.raises(ValueError, match="unknown condition IDs"):
+        build_campaign_conditions(campaign)
+
+
 def test_flagella_count_stability_narrow_seed00_profile_contract() -> None:
     campaign = apply_campaign_cli_overrides(
         load_yaml(
