@@ -96,6 +96,29 @@ first-fail 前 0.05 s の lead/lag summary:
 | `as002__ps001__nf03` | 0.2296 | 3.6789 | 0.0 | -0.00017 | bond growth with contact correlation |
 | `as002__ps002__nf03` | 0.5457 | 10.6414 | 0.0 | 0.0077 | bond growth without contact precursor |
 
+## Proximal Relief Diagnostic
+
+ユーザー実行の追加比較として，4 fail条件だけを `stiffness_scales.proximal_flag_spring=2.0` で3.0 s再実行した。これは dataset v2 生成ではなく，failure位置である flag chain local bond `1-2` / `2-3` だけを補強した原因分離probeである。
+
+実行config:
+
+- `conf/phase2_multi_run/flagella_count_v1_r1_nf3_proximal_relief_fail4.yaml`
+- output: `outputs/phase2_multi_run/flagella_count_v1_r1_nf3_proximal_relief_fail4_pfs2_full`
+- base condition: dataset v1 r1 3.0 s と同一。ただし `stiffness_scales.proximal_flag_spring=2.0`。
+
+結果:
+
+| condition_id | final_t_s | final pass | first_fail_t_s | max_flag_bond_rel_err | max local bond | body pass |
+|---|---:|---|---:|---:|---|---|
+| `as001__ps001__nf03__pfs2` | 2.9999 | True | none | 0.6067 | `4-5` | True |
+| `as002__ps000__nf03__pfs2` | 2.9999 | True | none | 0.4153 | `1-2` | True |
+| `as002__ps001__nf03__pfs2` | 2.9999 | True | none | 0.8695 | `3-4` | True |
+| `as002__ps002__nf03__pfs2` | 2.9999 | True | none | 0.5114 | `3-4` | True |
+
+baselineでは4条件すべてが `flag` category でfailし，first-fail local bondは `1-2` または `2-3` だった。一方，`proximal_flag_spring=2.0` では4条件すべてが3.0 sまで `final_shape_pass_nonbody=True`，`first_fail_t_s` なし，`body_shape_pass=True` になった。
+
+したがって，proximal local flag bond `1-2` / `2-3` の局所剛性・load path が failure の最有力修正対象である。contact は一部条件で副次的な負荷変動に関与しうるが，今回の `pfs2` 結果は「接触回避」よりも「basal load transfer から proximal bond への局所変形集中」が主因であるという解釈を強める。
+
 ## Evidence
 
 ### Attach Seed
@@ -142,7 +165,7 @@ flag-body は bead center distance から `2a` を引いた proxy gap で確認�
 
 ## Most Likely Cause
 
-最有力原因は，`seeded_surface` の非対称attach geometry，初期helix phase，`root_torque_segment_couples` のbasal load transferが組み合わさり，`n=3` の一部配置で proximal local flag bond `1-2` / `2-3` に局所負荷を集中させることである。
+最有力原因は，`seeded_surface` の非対称attach geometry，初期helix phase，`root_torque_segment_couples` のbasal load transferが組み合わさり，`n=3` の一部配置で proximal local flag bond `1-2` / `2-3` に局所負荷を集中させることである。`proximal_flag_spring=2.0` の4 fail条件再実行で3.0 s first-failなしになったため，この proximal load path が第一修正対象である。
 
 より具体的には，対称attach (`attach_seed=0`) では3 phaseすべて pass する一方，centroid offset `0.333 um` と近接attach pair `0.5 um` を持つ非対称attachでは proximal bond margin が小さくなり，`attach_seed=2` では全phaseで strict limit を超える。phase seed は対象flagとfailure時刻を変える。
 
@@ -171,7 +194,8 @@ dataset v2 生成前に検討すべき修正対象:
    - existing outputを本CLIで再解析する。
 2. proximal local flag spring candidate:
    - `local 1-2 / 2-3` の flag springだけを段階的に `1.25`, `1.5`, `2.0` へ上げる診断extensionを追加する。
-   - 4 fail条件，3.0 s，strict QC，body roll / axis spin / speed特徴保持を確認する。
+   - `2.0` はユーザー実行で4 fail条件すべて3.0 s passを確認済み。
+   - 次に dataset v2 要件と合わせる前に，`1.25` / `1.5` の最小倍率確認，および `n=1,2,3` 全27条件のsmoke quality gateを後続PRで扱う。
 3. attach geometry reject-only reference:
    - モデル修正なしで `attach_seed=2` を除いた場合にdataset coverageがどう落ちるかを表にする。
 

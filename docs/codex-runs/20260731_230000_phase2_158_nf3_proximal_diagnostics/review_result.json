@@ -1,9 +1,8 @@
 {
   "status": "FAIL",
-  "summary": "Issue #158 dataset v1 r1 3.0 s run の n_flagella=3 proximal failure を、既存 step_summary.csv / state_archive.npz から再simulationなしで診断するCLIを追加した。27 run summary、4 fail条件のfirst-fail前後event table、lead/lag summary、attach geometry table、同期plot、replay、仮説分類、原因・解決策候補を出力する。probeでは n=1: 9/9, n=2: 9/9, n=3: 5/9 strict-pass を再現し、4 failすべての first-fail local bond が proximal 1-2 または 2-3 であることを確認した。最有力原因は非対称attach geometry、初期helix phase、basal load transfer の組み合わせによる proximal flag bond への局所負荷集中と整理し、dataset v2生成は行わない。",
+  "summary": "Issue #158 dataset v1 r1 3.0 s run の n_flagella=3 proximal failure を、既存 step_summary.csv / state_archive.npz から再simulationなしで診断するCLIを追加した。27 run summary、4 fail条件のfirst-fail前後event table、lead/lag summary、attach geometry table、同期plot、replay、仮説分類、原因・解決策候補を出力する。probeでは n=1: 9/9, n=2: 9/9, n=3: 5/9 strict-pass を再現し、4 failすべての first-fail local bond が proximal 1-2 または 2-3 であることを確認した。ユーザー実行の proximal_flag_spring=2.0 4 fail条件比較では4/4が3.0 s first-failなしでpassした。最有力原因は非対称attach geometry、初期helix phase、basal load transfer の組み合わせによる proximal flag bond への局所負荷集中と整理し、dataset v2生成は行わない。",
   "blocking_issues": [
-    "merge前にユーザーが outputs/2026-07-31/phase2_158_probe/plots/*.png と必要なreplayを定性確認する必要がある。",
-    "proximal flag bond 専用 load relief / stiffness profile など物理解釈を変える修正は、ユーザー確認前には実装しない。"
+    "merge前にユーザーが outputs/2026-07-31/phase2_158_probe/plots/*.png と必要なreplayを定性確認する必要がある。"
   ],
   "non_blocking_issues": [
     "flag-body接触は bead center distance minus 2a のproxyであり、連続capsule bodyに対する厳密な貫通判定ではない。",
@@ -41,6 +40,10 @@
     {
       "command": "git diff --check",
       "result": "PASS: whitespace errorなし。"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_v1_r1_nf3_proximal_relief_fail4.yaml sweep.include_condition_ids='[as001__ps001__nf03__pfs2,as002__ps000__nf03__pfs2,as002__ps001__nf03__pfs2,as002__ps002__nf03__pfs2]' output.base_dir=outputs/phase2_multi_run/flagella_count_v1_r1_nf3_proximal_relief_fail4_pfs2_full overwrite=true",
+      "result": "PASS: user実行。4 fail条件すべて final_t_s=2.9999, final_shape_pass_nonbody=True, first_fail_t_sなし, final_first_fail_category_nonbody=none, body_shape_pass=True。max_flag_bond_rel_err は 0.4153-0.8695。"
     }
   ],
   "user_review_required": true,
@@ -67,7 +70,7 @@
     "body angular velocity / speed の変動が proximal bond growth と同期しているか。",
     "flag-flag repulsion と flag-body proxy gap が failureの先行主因に見えるか、それとも副次的相関に見えるか。",
     "原因整理を非対称attach geometry、初期helix phase、basal load transfer による proximal flag bond load concentration として扱ってよいか。",
-    "次の修正候補を proximal flag bond 専用 load relief / stiffness profile と attach geometry QC に絞ってよいか。"
+    "次の修正候補を proximal flag bond 専用 load relief / stiffness profile と attach geometry QC に絞ってよいか。proximal_flag_spring=2.0 は4 fail条件で3.0 s pass済み。"
   ],
   "user_review_result": "PENDING",
   "adr_required": false,
@@ -80,7 +83,8 @@
   "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/157",
   "next_actions": [
     "ユーザーが同期plotと必要replayを確認する。",
-    "ユーザー確認後、review_resultをPASSへ更新するか、proximal load reliefの設計・最小比較へ進む。",
-    "dataset v2生成と5 s x 27 run quality gateは他要件と合わせて後続PRで扱う。"
+    "ユーザーが同期plotと必要replayを確認したら、review_resultをPASSへ更新する。",
+    "dataset v2生成と5 s x 27 run quality gateは他要件と合わせて後続PRで扱う。",
+    "proximal_flag_spring の採用倍率、n=1,2,3 全27条件smoke、attach geometry QCは後続PRで扱う。"
   ]
 }
