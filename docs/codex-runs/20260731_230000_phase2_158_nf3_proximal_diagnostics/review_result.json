@@ -10,7 +10,7 @@
   "tests_reviewed": [
     {
       "command": "uv run pytest -q tests/test_phase2_158_diagnostics.py",
-      "result": "PASS: 1 passed。診断CLI本体がsummary/event table/plot/manifestを生成し、local bondをglobal bead IDから復元することを検証。"
+      "result": "PASS: 3 passed。診断CLI本体がsummary/event table/plot/manifestを生成し、local bondをglobal bead IDから復元することを検証。Codex review指摘を受け、flag-body距離をpost-step stateへ対応付けること、接触仮説文言が実測countを出すことも検証。"
     },
     {
       "command": "uv run ruff check src/sim_swim/analysis/phase2_158_diagnostics.py scripts/02_phase2_analysis/diagnose_v1_r1_nf3_failures.py tests/test_phase2_158_diagnostics.py",
@@ -18,7 +18,7 @@
     },
     {
       "command": "uv run python scripts/02_phase2_analysis/diagnose_v1_r1_nf3_failures.py --output-dir outputs/2026-07-31/phase2_158_probe --overwrite",
-      "result": "PASS: 27 runの診断出力を生成。run_diagnostic_summary.csv, failure_event_table.csv, failure_lead_lag_summary.csv, seed_failure_table.csv, attach_geometry_table.csv, 4同期plot, hypothesis_assessment, manifest.json, run.log を確認。"
+      "result": "PASS: 27 runの診断出力を生成。run_diagnostic_summary.csv, failure_event_table.csv, failure_lead_lag_summary.csv, seed_failure_table.csv, attach_geometry_table.csv, 4同期plot, hypothesis_assessment, manifest.json, run.log を確認。Codex review対応後に再解析し、0.05 s窓は2/4 contactなし、2/4 contact相関ありとして出力。"
     },
     {
       "command": "uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py --config conf/phase2_multi_run/flagella_count_duration_3s_r1.yaml --input-dir outputs/phase2_multi_run/flagella_count_duration_3s_r1 --output-dir outputs/2026-07-31/phase2_158_probe/replay --mode both --fps-out-3d 5 --max-panels-per-grid 9 --overwrite",
@@ -75,7 +75,7 @@
   "adr_required": false,
   "adr_reason": "今回のPRは診断CLIと文書整理のみで、物理モデル・dataset採用境界・出力契約を変更しないため。proximal bond stiffness profile 等を採用する場合は別途ADRまたは同等の設計記録が必要。",
   "commit_type": "diagnostic",
-  "commit_hash": "093dc4355624ca3e9b29c56ffa1c61413a64e80a",
+  "commit_hash": "see PR #162 head commit",
   "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/162",
   "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/158",

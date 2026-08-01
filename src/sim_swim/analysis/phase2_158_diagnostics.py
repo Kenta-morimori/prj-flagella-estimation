@@ -459,12 +459,17 @@ def _flag_body_distance_series(
 def _distance_for_row(
     row: dict[str, str], distances: dict[float, tuple[float, float]]
 ) -> tuple[float, float]:
-    t_s = round(_to_float(row.get("t_s")), 10)
-    if t_s in distances:
-        return distances[t_s]
     if not distances:
         return float("nan"), float("nan")
-    nearest = min(distances, key=lambda value: abs(value - t_s))
+    t_s = _to_float(row.get("t_s"))
+    dt_s = _to_float(row.get("dt_s"))
+    if not math.isfinite(dt_s):
+        dt_s = _to_float(row.get("dt_internal_s"))
+    target_t_s = t_s + dt_s if math.isfinite(dt_s) else t_s
+    target_t_s = round(target_t_s, 10)
+    if target_t_s in distances:
+        return distances[target_t_s]
+    nearest = min(distances, key=lambda value: abs(value - target_t_s))
     return distances[nearest]
 
 
@@ -803,6 +808,16 @@ def _classify_hypotheses(
         for row in short_window
         if row.get("interpretation") == "bond_growth_with_contact_correlation"
     ]
+    short_window_count = len(short_window)
+    no_contact_count = len(no_contact_bond_growth)
+    contact_count = len(contact_correlated)
+    contact_evidence = (
+        "In the 0.05 s pre-fail window, "
+        f"{no_contact_count}/{short_window_count} failures show positive bond growth "
+        "without a flag-flag or flag-body contact precursor, and "
+        f"{contact_count}/{short_window_count} show contact correlation. Contact "
+        "remains a possible secondary contributor for the correlated subset."
+    )
 
     return [
         {
@@ -827,13 +842,9 @@ def _classify_hypotheses(
         {
             "hypothesis": "flag-flag or flag-body contact contributes to load variation",
             "classification": "weak_as_primary_cause",
-            "evidence": (
-                "In the 0.05 s pre-fail window, most failures show positive bond growth "
-                "without a flag-flag or flag-body contact precursor. Contact remains a "
-                "possible secondary contributor for the correlated subset."
-            ),
-            "bond_growth_without_contact_precursor_count": len(no_contact_bond_growth),
-            "bond_growth_with_contact_correlation_count": len(contact_correlated),
+            "evidence": contact_evidence,
+            "bond_growth_without_contact_precursor_count": no_contact_count,
+            "bond_growth_with_contact_correlation_count": contact_count,
         },
         {
             "hypothesis": "body roll and flagella axis spin imbalance creates nonsteady rotation",

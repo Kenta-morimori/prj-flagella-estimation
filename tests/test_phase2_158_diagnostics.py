@@ -10,6 +10,8 @@ import pytest
 from sim_swim.analysis.flagella_count_behavior import save_state_archive
 from sim_swim.analysis.phase2_158_diagnostics import (
     Phase2158DiagnosticConfig,
+    _classify_hypotheses,
+    _distance_for_row,
     analyze_phase2_158_diagnostics,
 )
 from sim_swim.sim.core import SimulationState
@@ -114,6 +116,67 @@ def _write_fixture(root: Path) -> Path:
         )
     _write_csv(input_dir / "summary.csv", summary_rows)
     return campaign_path
+
+
+def test_phase2_158_distance_for_row_prefers_post_step_time() -> None:
+    distances = {
+        0.0: (10.0, 9.8),
+        0.1: (1.0, 0.8),
+    }
+
+    assert _distance_for_row({"t_s": "0.0", "dt_s": "0.1"}, distances) == (
+        1.0,
+        0.8,
+    )
+
+
+def test_phase2_158_contact_hypothesis_reports_measured_counts() -> None:
+    run_rows = [
+        {
+            "n_flagella": "3",
+            "strict_pass": "False",
+            "attach_seed": "1",
+            "first_fail_local_bond": "1-2",
+            "first_fail_flag_id": "0",
+        },
+        {
+            "n_flagella": "3",
+            "strict_pass": "False",
+            "attach_seed": "2",
+            "first_fail_local_bond": "2-3",
+            "first_fail_flag_id": "1",
+        },
+        {
+            "n_flagella": "3",
+            "strict_pass": "True",
+            "attach_seed": "0",
+            "first_fail_local_bond": "",
+            "first_fail_flag_id": "",
+        },
+    ]
+    lead_lag_rows = [
+        {
+            "window_s": "0.05",
+            "interpretation": "bond_growth_without_contact_precursor",
+        },
+        {
+            "window_s": "0.05",
+            "interpretation": "bond_growth_with_contact_correlation",
+        },
+    ]
+
+    assessments = _classify_hypotheses(run_rows, [], lead_lag_rows)
+    contact = next(
+        item
+        for item in assessments
+        if item["hypothesis"]
+        == "flag-flag or flag-body contact contributes to load variation"
+    )
+
+    assert "1/2 failures" in contact["evidence"]
+    assert "without a flag-flag or flag-body contact precursor" in contact["evidence"]
+    assert contact["bond_growth_without_contact_precursor_count"] == 1
+    assert contact["bond_growth_with_contact_correlation_count"] == 1
 
 
 @pytest.mark.light
