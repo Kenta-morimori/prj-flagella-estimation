@@ -119,6 +119,8 @@ baselineでは4条件すべてが `flag` category でfailし，first-fail local 
 
 したがって，proximal local flag bond `1-2` / `2-3` の局所剛性・load path が failure の最有力修正対象である。contact は一部条件で副次的な負荷変動に関与しうるが，今回の `pfs2` 結果は「接触回避」よりも「basal load transfer から proximal bond への局所変形集中」が主因であるという解釈を強める。
 
+ただしユーザー定性評価では，`pfs2` でも菌体後方での自然な束化は確認できなかった。したがって `pfs2` は proximal flag bond failure の原因分離と形状破綻抑制には有効だが，dataset v2 の採用条件としては未確定である。dataset v2 では，他要件と合わせて滑らかな回転，泳ぎらしい後方束化，過剛性の副作用を別途評価する。
+
 ## Evidence
 
 ### Attach Seed
@@ -184,6 +186,8 @@ dataset v2 生成前に検討すべき修正対象:
 3. torque distribution / basal freedom の変更は第二候補にする。
    - body roll / axis spin imbalance は見えるが，first-fail local bondが一貫してproximalなので，まず局所load pathを直す方が狭い修正になる。
 
+今回の `pfs2` は「壊れない」ことを示す診断候補であり，「菌体後方で束化する」ことまでは満たしていない。dataset v2 で同様の形状破綻が見られた場合は，今回の知見を proximal load path の第一切り分け材料として使う。ただし新規Issueは作らず，dataset v2 の物理条件検討の中で扱う。
+
 物理解釈を変えるため，1 の実装修正前にはユーザー確認が必要である。
 
 ## Next Minimal Comparisons
@@ -195,7 +199,7 @@ dataset v2 生成前に検討すべき修正対象:
 2. proximal local flag spring candidate:
    - `local 1-2 / 2-3` の flag springだけを段階的に `1.25`, `1.5`, `2.0` へ上げる診断extensionを追加する。
    - `2.0` はユーザー実行で4 fail条件すべて3.0 s passを確認済み。
-   - 次に dataset v2 要件と合わせる前に，`1.25` / `1.5` の最小倍率確認，および `n=1,2,3` 全27条件のsmoke quality gateを後続PRで扱う。
+   - 次に dataset v2 要件と合わせる前に，`1.25` / `1.5` の最小倍率確認，`n=1,2,3` 全27条件のsmoke quality gate，滑らかな回転と後方束化の定性評価を後続作業で扱う。
 3. attach geometry reject-only reference:
    - モデル修正なしで `attach_seed=2` を除いた場合にdataset coverageがどう落ちるかを表にする。
 
