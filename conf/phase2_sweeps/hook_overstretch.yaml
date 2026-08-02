@@ -7,7 +7,7 @@ metadata:
   description: Historical alias of the canonical shape stability sweep profile.
   recommended_heatmap_profile: conf/phase2_sweeps/hook_overstretch_heatmap.yaml
 args:
-  config: conf/sim_swim.yaml
+  config: conf/sim_swim_2010.yaml
   mode: preset
   output_dir: outputs/phase2_sweeps/hook_overstretch
   duration_s: 0.5

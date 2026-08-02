@@ -1,0 +1,62 @@
+{
+  "status": "PASS",
+  "summary": "Issue #164としてPhase 2 simulation configを2010/2015 x project/paperの4 profileへ再編した。defaultの2010 project profileは旧configの有効設定値を維持し、2010 paperは15 body + 15 beads/flagellum x 3 = 60 beadsの実行可能な参照profileとした。2015 project/paperは30 body + 30 beads/flagellum x 3 = 120 beadsのpending profileとして記録し、後続実装前の実simulationを拒否する。manifestへmodel_profileとsource_config_pathを追加した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "2010 paper profileは現行builderが常時生成するbody diagonal braceとpaper torque/counter-torqueのclosest approximationを含むため、論文の完全再現ではない。",
+    "2015 project/paper profileの正式な時間scale、refined geometry、paper dynamics、安定性評価はIssue #165、#166、#167、#168で扱う。",
+    "過去のADR・Issue #163結果文書にはrename前の歴史的path表記が残るが、実行可能な旧path参照は残していない。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": ".venv/bin/pytest -q tests/test_model_profiles.py tests/test_params.py tests/test_run_context.py tests/test_e2e_cli.py tests/test_phase2_generic_multi_run.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS: 164 passed"
+    },
+    {
+      "command": ".venv/bin/pytest -q -m light",
+      "result": "PASS: 246 passed, 240 deselected"
+    },
+    {
+      "command": ".venv/bin/pytest -q",
+      "result": "PASS: 493 passed"
+    },
+    {
+      "command": ".venv/bin/ruff format --check . && .venv/bin/ruff check .",
+      "result": "PASS"
+    },
+    {
+      "command": "parse all conf/**/*.yaml and inspect SimulationConfig/Simulator construction",
+      "result": "PASS: all YAML parsed; 2010 profiles build with 48/60 beads; 2015 profiles reject as pending before geometry construction"
+    },
+    {
+      "command": ".venv/bin/python -m scripts.01_simulate_swimming config=conf/sim_swim_2010.yaml time.duration_s=0.0001 time.dt_star=1.0e-4 motor.torque_Nm=0 output.base_dir=/private/tmp/phase2_164_profile_smoke output.timestamp_subdir=false",
+      "result": "PASS: 1 step completed; manifest records source_config_path and 2010 project model_profile"
+    },
+    {
+      "command": "rg executable conf/sim_swim.yaml references and git diff --check",
+      "result": "PASS: executable references 0; diff check clean"
+    },
+    {
+      "command": "Codex review follow-up: reject non-integer model_profile year/bead/count values",
+      "result": "PASS: float, string, and bool cases are rejected before provenance serialization"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [
+    "長時間simulationと動画目視は不要。config同値性、bead構成、manifest provenance、pending拒否を自動testとbuild-only checkで確認した。"
+  ],
+  "adr_required": true,
+  "adr_reason": "config directory architecture、paper/project profileの意味、manifest provenance、pending互換方針は再現性と後続model実装の境界に関わるためADR 0010を作成した。",
+  "commit_type": "complete",
+  "commit_hash": "",
+  "push_status": "pushed",
+  "pull_request_url": "",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/164",
+  "next_actions": [
+    "Issue #165でprofile別のtau durationと実時間換算を正式化する。",
+    "Issue #166で2015 refined geometryを実装する。",
+    "Issue #167/#168で2015 paper dynamicsと安定性を実装・評価する。"
+  ]
+}

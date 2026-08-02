@@ -12,7 +12,7 @@ from sim_swim.analysis.multi_run_campaign import (
     build_campaign_conditions,
     load_yaml,
 )
-from sim_swim.analysis.sweeps.generic_multi_run import _summary_fieldnames
+from sim_swim.analysis.sweeps.generic_multi_run import _summary_fieldnames, run_campaign
 
 
 def _load_script(path: Path, name: str):
@@ -34,7 +34,7 @@ def _write_generic_profile(
                 "metadata:",
                 "  role: sweep",
                 "  canonical: true",
-                "base_config: conf/sim_swim.yaml",
+                "base_config: conf/sim_swim_2010.yaml",
                 "base_overrides: {}",
                 "sweep:",
                 "  axes:",
@@ -125,7 +125,7 @@ def test_flagella_count_stability_candidates_expand_stiffness_axes() -> None:
 def test_generic_multi_run_include_condition_ids_filters_in_requested_order() -> None:
     campaign = apply_campaign_cli_overrides(
         {
-            "base_config": "conf/sim_swim.yaml",
+            "base_config": "conf/sim_swim_2010.yaml",
             "sweep": {
                 "include_condition_ids": ["b2__a1", "b1__a0"],
                 "axes": {
@@ -161,7 +161,7 @@ def test_generic_multi_run_include_condition_ids_filters_in_requested_order() ->
 def test_generic_multi_run_include_condition_ids_rejects_unknown_id() -> None:
     campaign = apply_campaign_cli_overrides(
         {
-            "base_config": "conf/sim_swim.yaml",
+            "base_config": "conf/sim_swim_2010.yaml",
             "sweep": {
                 "include_condition_ids": ["missing"],
                 "axes": {
@@ -257,6 +257,56 @@ def test_generic_multi_run_builds_conditions_and_cli_override() -> None:
     ]
     assert conditions[0]["axis_values"]["torque"] == 1.0e-20
     assert conditions[1]["config_overrides"]["motor"]["torque_Nm"] == 2.0e-20
+
+
+def test_generic_multi_run_manifests_record_model_profile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    campaign_path = tmp_path / "campaign.yaml"
+    output_dir = tmp_path / "output"
+    campaign_path.write_text(
+        "\n".join(
+            [
+                "kind: generic_multi_run",
+                "base_config: conf/sim_swim_2010.yaml",
+                "base_overrides:",
+                "  time.duration_s: 0.0001",
+                "sweep:",
+                "  axes:",
+                "    torque:",
+                "      key: motor.torque_Nm",
+                "      values: [2.0e-20]",
+                "output:",
+                f"  base_dir: {output_dir}",
+                "  timestamp_subdir: false",
+                "  save_state_archive: false",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("sim_swim.core.run_context._require_clean_git", lambda: None)
+
+    run_campaign(["--campaign-config", str(campaign_path), "--sample-limit", "1"])
+
+    root_manifest = json.loads(
+        (output_dir / "manifest.json").read_text(encoding="utf-8")
+    )
+    run_manifest = json.loads(
+        (output_dir / "run_manifest.json").read_text(encoding="utf-8")
+    )
+    for manifest in (root_manifest, run_manifest):
+        assert manifest["source_config_path"] == "conf/sim_swim_2010.yaml"
+        assert manifest["model_profile"] == {
+            "year": 2010,
+            "variant": "project",
+            "resolution": "legacy_project",
+            "implementation_status": "supported",
+            "body_beads": 15,
+            "flagellum_beads_per_filament": 11,
+            "nominal_flagella_count": 3,
+            "nominal_total_beads": 48,
+        }
 
 
 def test_issue113_seed_fixed_profile_builds_three_boundary_conditions() -> None:
@@ -517,7 +567,7 @@ def test_replay_load_inputs_uses_manifest_condition_order_and_output_dir(
         condition_dir.mkdir(parents=True)
         (condition_dir / "state_archive.npz").write_bytes(b"")
     manifest = {
-        "base_config": "conf/sim_swim.yaml",
+        "base_config": "conf/sim_swim_2010.yaml",
         "condition_order": ["torque_1p5e20", "torque_2p0e20"],
         "conditions": [
             {
@@ -546,7 +596,7 @@ def test_replay_load_inputs_uses_manifest_condition_order_and_output_dir(
     assert records["torque_1p5e20"]["output_dir"] == str(
         external_root / "torque_1p5e20"
     )
-    assert base_cfg_path == Path("conf/sim_swim.yaml")
+    assert base_cfg_path == Path("conf/sim_swim_2010.yaml")
 
 
 def test_replay_wrapper_accepts_config_run_dir_defaults(tmp_path: Path) -> None:

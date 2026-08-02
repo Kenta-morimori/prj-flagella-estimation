@@ -27,6 +27,105 @@ def _base_cfg() -> dict:
     }
 
 
+def _model_profile(*, status: str = "supported") -> dict:
+    return {
+        "year": 2010,
+        "variant": "project",
+        "resolution": "legacy_project",
+        "implementation_status": status,
+        "body_beads": 15,
+        "flagellum_beads_per_filament": 11,
+        "nominal_flagella_count": 3,
+        "nominal_total_beads": 48,
+    }
+
+
+def test_model_profile_is_optional_for_legacy_configs() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    assert SimulationConfig.from_dict(cfg).model_profile is None
+
+
+def test_model_profile_round_trips_to_manifest() -> None:
+    cfg = _base_cfg()
+    cfg["model_profile"] = _model_profile()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.model_profile_manifest() == _model_profile()
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("year", 2012),
+        ("variant", "custom"),
+        ("resolution", "fine_120_bead"),
+        ("implementation_status", "experimental"),
+    ],
+)
+def test_model_profile_rejects_unknown_enum_values(key: str, value: object) -> None:
+    cfg = _base_cfg()
+    cfg["model_profile"] = _model_profile()
+    cfg["model_profile"][key] = value
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    with pytest.raises(ValueError, match=rf"model_profile\.{key}"):
+        SimulationConfig.from_dict(cfg)
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("year", 2010.5),
+        ("year", "2010"),
+        ("body_beads", 15.9),
+        ("flagellum_beads_per_filament", "11"),
+        ("nominal_flagella_count", True),
+        ("nominal_total_beads", 48.9),
+    ],
+)
+def test_model_profile_rejects_non_integer_fields(key: str, value: object) -> None:
+    cfg = _base_cfg()
+    cfg["model_profile"] = _model_profile()
+    cfg["model_profile"][key] = value
+
+    with pytest.raises(ValueError, match=rf"model_profile\.{key} must be an integer"):
+        SimulationConfig.from_dict(cfg)
+
+
+def test_model_profile_rejects_inconsistent_nominal_total() -> None:
+    cfg = _base_cfg()
+    cfg["model_profile"] = _model_profile()
+    cfg["model_profile"]["nominal_total_beads"] = 60
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    with pytest.raises(ValueError, match="nominal_total_beads is inconsistent"):
+        SimulationConfig.from_dict(cfg)
+
+
+def test_pending_model_profile_rejects_execution() -> None:
+    cfg = _base_cfg()
+    cfg["model_profile"] = _model_profile(status="pending")
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    with pytest.raises(ValueError, match="pending model profile"):
+        sim_cfg.validate_execution_supported()
+
+
+def test_model_profile_cannot_be_overridden() -> None:
+    cfg = _base_cfg()
+    cfg["model_profile"] = _model_profile()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    with pytest.raises(ValueError, match="cannot be overridden"):
+        sim_cfg.with_overrides({"model_profile": {"year": 2015}})
+
+
 def test_dt_over_tau_input_is_rejected() -> None:
     cfg = _base_cfg()
     cfg["time"] = {"duration_s": 0.1, "dt_over_tau": 0.001}
@@ -204,7 +303,7 @@ def test_default_motor_local_scales_are_unity_in_parser_defaults() -> None:
 
 
 def test_default_config_sets_phase2_dt_star() -> None:
-    cfg_path = Path(__file__).resolve().parents[1] / "conf" / "sim_swim.yaml"
+    cfg_path = Path(__file__).resolve().parents[1] / "conf" / "sim_swim_2010.yaml"
     raw_cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
     sim_cfg = SimulationConfig.from_dict(raw_cfg)
 
@@ -213,7 +312,7 @@ def test_default_config_sets_phase2_dt_star() -> None:
 
 
 def test_default_config_sets_phase2_local_scales() -> None:
-    cfg_path = Path(__file__).resolve().parents[1] / "conf" / "sim_swim.yaml"
+    cfg_path = Path(__file__).resolve().parents[1] / "conf" / "sim_swim_2010.yaml"
     raw_cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
     sim_cfg = SimulationConfig.from_dict(raw_cfg)
 

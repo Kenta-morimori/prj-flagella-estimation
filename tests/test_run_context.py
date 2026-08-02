@@ -18,7 +18,10 @@ def test_init_run_creates_log_and_manifest(
         "sim_swim.core.run_context._now_jst",
         lambda: ("2026-02-18", "210000"),
     )
-    ctx = init_run(base_dir=tmp_path, input_info={"config": "conf/sim_swim.yaml"})
+    ctx = init_run(
+        base_dir=tmp_path,
+        input_info={"config": "conf/sim_swim_2010.yaml"},
+    )
 
     assert ctx.out.root.is_dir()
     assert ctx.out.sim_dir.is_dir()
@@ -31,9 +34,36 @@ def test_init_run_creates_log_and_manifest(
     assert manifest_path.is_file()
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert manifest["input"]["config"] == "conf/sim_swim.yaml"
+    assert manifest["input"]["config"] == "conf/sim_swim_2010.yaml"
     assert Path(manifest["outputs"]["sim_dir"]).name == "sim"
     assert manifest["run_time"]["timestamp_subdir"] is True
+
+
+def test_init_run_records_model_profile_and_source_config_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("sim_swim.core.run_context._require_clean_git", lambda: None)
+    model_profile = {
+        "year": 2010,
+        "variant": "project",
+        "resolution": "legacy_project",
+        "implementation_status": "supported",
+        "body_beads": 15,
+        "flagellum_beads_per_filament": 11,
+        "nominal_flagella_count": 3,
+        "nominal_total_beads": 48,
+    }
+
+    ctx = init_run(
+        base_dir=tmp_path,
+        input_info={"config": "conf/sim_swim_2010.yaml"},
+        source_config_path=Path("conf/sim_swim_2010.yaml"),
+        model_profile=model_profile,
+    )
+
+    manifest = json.loads((ctx.out.root / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["source_config_path"] == "conf/sim_swim_2010.yaml"
+    assert manifest["model_profile"] == model_profile
 
 
 def test_init_run_can_use_base_dir_as_root(
@@ -48,7 +78,7 @@ def test_init_run_can_use_base_dir_as_root(
     run_dir = tmp_path / "run"
     ctx = init_run(
         base_dir=run_dir,
-        input_info={"config": "conf/sim_swim.yaml"},
+        input_info={"config": "conf/sim_swim_2010.yaml"},
         timestamp_subdir=False,
     )
 
@@ -70,7 +100,7 @@ def test_init_run_fixed_root_requires_overwrite(
     with pytest.raises(FileExistsError, match="overwrite=true"):
         init_run(
             base_dir=run_dir,
-            input_info={"config": "conf/sim_swim.yaml"},
+            input_info={"config": "conf/sim_swim_2010.yaml"},
             timestamp_subdir=False,
         )
 
@@ -87,7 +117,7 @@ def test_init_run_fixed_root_overwrite_replaces_existing_output(
 
     ctx = init_run(
         base_dir=run_dir,
-        input_info={"config": "conf/sim_swim.yaml"},
+        input_info={"config": "conf/sim_swim_2010.yaml"},
         timestamp_subdir=False,
         overwrite=True,
     )
@@ -106,7 +136,10 @@ def test_init_run_aborts_when_dirty_and_leaves_no_output(
     )
 
     with pytest.raises(RuntimeError) as exc_info:
-        init_run(base_dir=tmp_path, input_info={"config": "conf/sim_swim.yaml"})
+        init_run(
+            base_dir=tmp_path,
+            input_info={"config": "conf/sim_swim_2010.yaml"},
+        )
 
     msg = str(exc_info.value)
     assert "未コミット変更があるため実行を中止" in msg

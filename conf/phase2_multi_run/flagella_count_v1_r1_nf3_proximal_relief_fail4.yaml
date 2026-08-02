@@ -16,7 +16,7 @@ metadata:
     - proximal_flag_spring scales only flag local bonds 1-2 and 2-3, where Issue 158 failures concentrate.
     - This is a diagnostic comparison profile, not dataset v2 generation.
 
-base_config: conf/sim_swim.yaml
+base_config: conf/sim_swim_2010.yaml
 
 base_overrides:
   time.duration_s: 3.0

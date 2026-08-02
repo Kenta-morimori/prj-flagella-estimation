@@ -4,7 +4,7 @@ metadata:
   canonical: true
   description: Issue #163 spring formulation comparison under motor-off conditions
 
-base_config: conf/sim_swim.yaml
+base_config: conf/sim_swim_2010.yaml
 
 base_overrides:
   time.duration_s: 0.1

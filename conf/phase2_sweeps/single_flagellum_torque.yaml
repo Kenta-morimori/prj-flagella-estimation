@@ -4,7 +4,7 @@ metadata:
   canonical: true
   description: Canonical sweep profile for single-flagellum torque condition comparisons.
 args:
-  config: conf/sim_swim.yaml
+  config: conf/sim_swim_2010.yaml
   duration: 0.5
   dt_star: 1.0e-4
   torques: [0.5e-20, 1.0e-20, 2.0e-20, 4.0e-20, 6.0e-20, 8.0e-20, 1.0e-19]

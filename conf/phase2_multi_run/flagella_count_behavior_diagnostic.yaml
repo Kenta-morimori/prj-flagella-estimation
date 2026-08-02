@@ -5,7 +5,7 @@ metadata:
   alias_of: conf/phase2_multi_run/flagella_count_behavior_v0.yaml
   description: Historical alias of the Phase 2.8 flagella-count behavior diagnostic dataset v0 profile.
 
-base_config: conf/sim_swim.yaml
+base_config: conf/sim_swim_2010.yaml
 
 base_overrides:
   time.duration_s: 1.0

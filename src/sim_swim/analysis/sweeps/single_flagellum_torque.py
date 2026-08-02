@@ -380,6 +380,7 @@ def _write_manifest(
     summary_path: Path,
     condition_count: int,
     status: str,
+    base_cfg: SimulationConfig,
 ) -> None:
     git_commit = "unknown"
     try:
@@ -394,6 +395,8 @@ def _write_manifest(
     manifest = {
         "task": "P2-6-009 / issue #54 torque transmission model evaluation",
         "config": str(args.config),
+        "source_config_path": str(args.config),
+        "model_profile": base_cfg.model_profile_manifest(),
         "torques_Nm": args.torques,
         "scale_values": args.scale_values,
         "scale_torques": args.scale_torques,
@@ -431,7 +434,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run Phase 2.6 torque transmission model evaluation."
     )
-    parser.add_argument("--config", type=Path, default=Path("conf/sim_swim.yaml"))
+    parser.add_argument("--config", type=Path, default=Path("conf/sim_swim_2010.yaml"))
     parser.add_argument(
         "--torques",
         type=_parse_float_list,
@@ -472,6 +475,8 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
+    base_cfg = SimulationConfig.from_dict(_load_config(args.config))
+    base_cfg.validate_execution_supported()
     output_dir = args.output_dir or _default_output_dir()
     output_dir.mkdir(parents=True, exist_ok=True)
     logger = _setup_logger(output_dir)
@@ -482,7 +487,6 @@ def main(argv: list[str] | None = None) -> None:
     if max(torques) > 1.0e-19:
         raise SystemExit("P2-6-009 torque upper bound is 1.0e-19 N m")
 
-    base_cfg = SimulationConfig.from_dict(_load_config(args.config))
     summary_path = output_dir / "summary.csv"
     _write_manifest(
         output_dir / "manifest.json",
@@ -490,6 +494,7 @@ def main(argv: list[str] | None = None) -> None:
         summary_path=summary_path,
         condition_count=0,
         status="started",
+        base_cfg=base_cfg,
     )
 
     rows: list[dict[str, Any]] = []
@@ -557,6 +562,7 @@ def main(argv: list[str] | None = None) -> None:
         summary_path=summary_path,
         condition_count=len(rows),
         status="completed",
+        base_cfg=base_cfg,
     )
     logger.info("summary saved to %s", summary_path)
 

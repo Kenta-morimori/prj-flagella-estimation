@@ -120,9 +120,11 @@ Recommended order:
 | #100 | closed | #82 | sweep / multi-run / replay導線整理 |
 | #103 | closed | #82 | basal freedom / attach-frame剛体回転診断 |
 | #124 | open | #10 | `n>=4` 根元付近過伸長改善 |
-| #163 | open | #10 | potential式照合と比較完了。`fene_fraenkel` をdefault採用、PR merge待ち |
-| #164 | open | #154 | 2010年/2015年baseline config再編。#163のpotential照合結果を前提にする |
-| #165 | open | #154 | `tau` duration指定の正式化。#164と連携する |
+| #163 | closed | #10 | potential式照合と比較完了。`fene_fraenkel` をdefault採用。PR #169 merged |
+| #164 | open | #154 | 4 model profileへのconfig再編を実装。2010はsupported、2015は後続Issueまでpending |
+| #165 | open | #154 | `tau` duration指定の正式化。#164のprofile provenanceを引き継ぐ |
+| #166 | open | #154 | 2015年refined 120-bead geometryを実装する |
+| #167 | open | #154 | 2015年paper dynamicsとproject差分を実装・検証する |
 | #69 | open | #10 | Tumble状態の段階実装 |
 | #15 | open | #10 | Brownian項追加 |
 | #41 | open | #10 | 参照論文 contour length 矛盾対応 |

@@ -136,7 +136,7 @@
 - 既存実装で確認すべき点:
   - `tests/test_run_state_fixed.py` の長時間テスト設計
   - `src/sim_swim/sim/debug_summary.py` の flag系診断列
-  - `conf/sim_swim.yaml` の stiffness・dt_star 設定
+  - `conf/sim_swim_2010.yaml` の stiffness・dt_star 設定
 - suggested acceptance criteria:
   1. multi-step hard test が追加され CI で再現可能
   2. helix collapse を pass/fail で機械判定できる
@@ -168,7 +168,7 @@
   - 論文3本条件と、プロジェクト拡張9本条件の運用差異を明示
 - 既存実装で確認すべき点:
   - `src/sim_swim/model/builder.py` の付着点選択ロジック
-  - `conf/sim_swim.yaml` の `flagella.n_flagella`
+  - `conf/sim_swim_2010.yaml` の `flagella.n_flagella`
   - `scripts/01_simulate_swimming/run_motor_scale_sweep.py` の集計列
 - suggested acceptance criteria:
   1. `n_flagella` ごとの安定/不安定帯が再現可能に整理される

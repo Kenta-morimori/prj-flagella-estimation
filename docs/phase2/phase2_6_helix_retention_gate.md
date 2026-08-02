@@ -87,7 +87,7 @@ Issue #88 以降の正式 `motor.force_distribution` 名は以下である。
 | `torque=2.0e-20`, `dt_star=1.0e-4`, `motor.force_distribution=local_twist_transmission_probe`, `local_spring_scale=1.2`, other local scales `1.0` | pass | segment orientation state をrootから先端へ伝搬させる近似で、0.5 s / 5000 steps で `net_abs_flag_helix_spin_revolutions=1.04745`, direction consistency `0.81507`, hook rel err `0.31502` |
 | `torque=2.0e-20`, `dt_star=1.0e-4`, `motor.force_distribution=root_torque_segment_couples`, `local_spring_scale=1.2`, other local scales `1.0` | pass | segment orientation state を隣接bead対の局所force coupleへ変換し、0.5 s / 5000 steps で `net_abs_flag_helix_spin_revolutions=1.11698`, direction consistency `0.98175`, hook rel err `0.40113` |
 
-これらの local scale は、現時点では物理最適値ではなく、Phase 2.6 の診断 representative である。参照論文モデルとの差分としては、motor-on 時の hook / spring / bend / torsion の局所補強であり、数値安定化寄りの運用パラメータとして扱う。標準 `conf/sim_swim.yaml` は local scale を `1.0` にしているため、再現する場合は CLI override で明示する。
+これらの local scale は、現時点では物理最適値ではなく、Phase 2.6 の診断 representative である。参照論文モデルとの差分としては、motor-on 時の hook / spring / bend / torsion の局所補強であり、数値安定化寄りの運用パラメータとして扱う。当時の標準configは現在 `conf/sim_swim_2010.yaml` へ名称変更されているため、再現する場合は CLI override で明示する。
 
 `root_torque_axis_projection` は、従来の `triplet` 方式で root 近傍の揺れに消えていた motor torque を、螺旋全体の主軸回りへ分布させる軸投影比較方式である。P2-6-008後の既定値は `root_torque_segment_couples` であり、`root_torque_axis_projection` や `triplet` は比較・診断時に CLI override で明示する。詳細は `docs/adr/0001_phase2_distributed_flagellar_torque.md` に記録する。
 
@@ -130,7 +130,7 @@ P2-6-008の完了判定は定量gateで行う。新modeは net回転と形状維
 
 ```bash
 uv run python -m scripts.01_simulate_swimming \
-  --config conf/sim_swim.yaml \
+  --config conf/sim_swim_2010.yaml \
   --render-flagella \
   --render-flagella-2d \
   time.duration_s=0.5 \

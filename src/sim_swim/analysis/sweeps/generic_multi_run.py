@@ -159,6 +159,11 @@ def run_campaign(argv: list[str] | None = None) -> Path:
             print(condition["condition_id"])
         return Path()
 
+    base_config_path = Path(str(campaign["base_config"]))
+    base_cfg = load_yaml(base_config_path)
+    base_simulation_cfg = SimulationConfig.from_dict(base_cfg)
+    base_simulation_cfg.validate_execution_supported()
+
     output_base_dir = Path(
         str(campaign.get("output", {}).get("base_dir") or "outputs/phase2_multi_run")
     )
@@ -177,6 +182,8 @@ def run_campaign(argv: list[str] | None = None) -> Path:
             "overrides": passthrough,
             "sample_limit": args.sample_limit,
         },
+        source_config_path=base_config_path,
+        model_profile=base_simulation_cfg.model_profile_manifest(),
     )
     logger = ctx.logger
     progress_interval = (
@@ -191,8 +198,6 @@ def run_campaign(argv: list[str] | None = None) -> Path:
     logger.info("Loaded generic multi-run config: %s", args.campaign_config)
     logger.info("Campaign conditions=%d", len(conditions))
 
-    base_config_path = Path(str(campaign["base_config"]))
-    base_cfg = load_yaml(base_config_path)
     rows: list[dict[str, Any]] = []
     total = len(conditions)
     for index, condition in enumerate(conditions, start=1):
@@ -229,6 +234,8 @@ def run_campaign(argv: list[str] | None = None) -> Path:
         "created_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
         "campaign_config": str(args.campaign_config),
         "base_config": str(base_config_path),
+        "source_config_path": str(base_config_path),
+        "model_profile": base_simulation_cfg.model_profile_manifest(),
         "summary_csv": str(summary_path),
         "git": {
             "commit": ctx.git.commit,

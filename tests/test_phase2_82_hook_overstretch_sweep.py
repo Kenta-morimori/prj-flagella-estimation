@@ -344,7 +344,9 @@ def test_phase2_82_summary_row_records_fail_and_max_hook_events(
 def test_phase2_82_run_condition_optionally_saves_state_archive(
     tmp_path: Path, save_state_archive: bool
 ) -> None:
-    base_cfg = yaml.safe_load(Path("conf/sim_swim.yaml").read_text(encoding="utf-8"))
+    base_cfg = yaml.safe_load(
+        Path("conf/sim_swim_2010.yaml").read_text(encoding="utf-8")
+    )
     args = SimpleNamespace(
         output_dir=tmp_path,
         overwrite=True,

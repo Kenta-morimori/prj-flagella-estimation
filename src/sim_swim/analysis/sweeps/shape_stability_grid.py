@@ -1243,7 +1243,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="preset",
         help="Condition generation mode.",
     )
-    parser.add_argument("--config", type=Path, default=Path("conf/sim_swim.yaml"))
+    parser.add_argument("--config", type=Path, default=Path("conf/sim_swim_2010.yaml"))
     parser.add_argument("--output-dir", type=Path, default=_default_output_dir())
     parser.add_argument("--duration-s", type=float, default=0.5)
     parser.add_argument("--dt-star", type=float, default=1.0e-4)
@@ -1348,6 +1348,8 @@ def main(argv: list[str] | None = None) -> None:
             print(condition.condition_id)
         return
 
+    profile_cfg = SimulationConfig.from_dict(base_cfg)
+    profile_cfg.validate_execution_supported()
     args.output_dir.mkdir(parents=True, exist_ok=args.overwrite)
     rows = []
     total = len(conditions)
@@ -1374,6 +1376,8 @@ def main(argv: list[str] | None = None) -> None:
         "created_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
         "base_config": str(args.config),
         "config": str(args.config),
+        "source_config_path": str(args.config),
+        "model_profile": profile_cfg.model_profile_manifest(),
         "args": {
             "mode": args.mode,
             "output_dir": str(args.output_dir),

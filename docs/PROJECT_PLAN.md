@@ -651,9 +651,12 @@ Phase 5以降では，推定されたべん毛本数を元動画または解析�
 
 実行設定ファイルを置く。
 
-例：
+主なPhase 2 model profile：
 
-* `conf/sim_swim.yaml`
+* `conf/sim_swim_2010.yaml`: 現行project default
+* `conf/sim_swim_2010_paper.yaml`: 2010 paper参照条件
+* `conf/sim_swim_2015.yaml`: 2015 refined project候補（pending）
+* `conf/sim_swim_2015_paper.yaml`: 2015 refined paper条件（pending）
 * `conf/phase2_analysis/`
 
 ### `outputs/`

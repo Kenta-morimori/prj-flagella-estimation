@@ -1,4 +1,15 @@
-# Watari & Larson 2010 (no-wall v1) に合わせた Phase2 設定
+# Watari & Larson 2010を基礎にした現行project default。
+# 11-bead flagellum、分散torque、局所attach-frame補強、body対角braceを含む。
+
+model_profile:
+  year: 2010
+  variant: project
+  resolution: legacy_project
+  implementation_status: supported
+  body_beads: 15
+  flagellum_beads_per_filament: 11
+  nominal_flagella_count: 3
+  nominal_total_beads: 48
 
 scale:
   b_um: 1.0                    # [um] 長さスケール b（菌体長軸の半分）

@@ -4,7 +4,7 @@ metadata:
   canonical: true
   description: Issue #113 n>=4 seed-fixed flagella-count failure boundary diagnostic
 
-base_config: conf/sim_swim.yaml
+base_config: conf/sim_swim_2010.yaml
 
 base_overrides:
   time.duration_s: 1.0

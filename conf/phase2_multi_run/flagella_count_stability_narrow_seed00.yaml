@@ -11,7 +11,7 @@ metadata:
     - Narrows around flag_spring=2.0 and body stiffness 1.0..2.5.
     - Does not strengthen local_first_second_spring_scale by default because prior results did not improve the main proximal flag bond failure.
 
-base_config: conf/sim_swim.yaml
+base_config: conf/sim_swim_2010.yaml
 
 base_overrides:
   time.duration_s: 1.0

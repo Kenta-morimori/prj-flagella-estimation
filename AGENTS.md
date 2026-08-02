@@ -89,7 +89,7 @@ There is no `prompts/` source of truth in the current repository. Do not recreat
 
 For Phase 2 simulation, sweep, and heatmap commands, prefer `KEY=VALUE` arguments in new user-facing examples:
 
-`uv run python -m scripts.01_simulate_swimming config=conf/sim_swim.yaml time.duration_s=0.5 time.dt_star=1.0e-4`
+`uv run python -m scripts.01_simulate_swimming config=conf/sim_swim_2010.yaml time.duration_s=0.5 time.dt_star=1.0e-4`
 
 `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml dry_run=true sample_limit=3`
 

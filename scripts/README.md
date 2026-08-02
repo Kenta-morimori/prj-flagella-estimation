@@ -12,11 +12,11 @@ Phase 2 の 3D 遊泳シミュレーション、条件 sweep、sweep 結果の h
 uv run python -m scripts.01_simulate_swimming
 ```
 
-設定は `conf/sim_swim.yaml` を読みます。一時的な変更や設定ファイル指定は `KEY=VALUE` 形式で指定します。
+設定はdefaultで `conf/sim_swim_2010.yaml` を読みます。一時的な変更や設定ファイル指定は `KEY=VALUE` 形式で指定します。
 
 ```bash
 uv run python -m scripts.01_simulate_swimming \
-  config=conf/sim_swim.yaml \
+  config=conf/sim_swim_2010.yaml \
   time.duration_s=0.05 \
   motor.torque_Nm=2.0e-20 \
   time.dt_star=1.0e-4
@@ -109,7 +109,7 @@ uv run python scripts/01_simulate_swimming/run_sweep.py \
 
 ```bash
 uv run python -m scripts.01_simulate_swimming \
-  config=conf/sim_swim.yaml \
+  config=conf/sim_swim_2010.yaml \
   potentials.spring.formulation=fene_fraenkel \
   time.duration_s=0.01 \
   time.dt_star=1.0e-4
