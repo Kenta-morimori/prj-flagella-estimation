@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Implemented motor.force_distribution=hook_coupled_body_reaction as a paper-inspired approximation for the Kong et al. (2015) profiles. The flagellum-side hook-local drive and attach-neighborhood body reaction each have zero net force and opposite full torque vectors. Local body support falls back to all body beads only when degenerate. Single-run, generic campaign, and shape-stability manifests now distinguish dynamics, geometry, and simulation status and record reaction provenance, observed support bead counts, and fallback use. Both 2015 profiles remain pending and reject execution until Issues #166 and #168 are complete. Codex Cloud feedback was addressed by replacing axial-only torque matching with a six-constraint zero-force/full-vector-torque solver and adding a regression test on the 2010 triangular geometry.",
+  "summary": "Implemented motor.force_distribution=hook_coupled_body_reaction as a paper-inspired approximation for the Kong et al. (2015) paper profile while retaining root_torque_segment_couples for the project comparison profile. The flagellum-side hook-local drive and attach-neighborhood body reaction each have zero net force and opposite full torque vectors. Local body support falls back to all body beads only when degenerate. Single-run, generic campaign, and shape-stability manifests distinguish dynamics, geometry, and simulation status, record reaction provenance and observed support/fallback use, and expose item-level paper, inference, assumption, and project-model provenance. Both 2015 profiles remain pending and reject execution until Issues #166 and #168 are complete. Codex Cloud feedback was addressed by replacing axial-only torque matching with a six-constraint zero-force/full-vector-torque solver and adding a regression test on the 2010 triangular geometry.",
   "blocking_issues": [],
   "non_blocking_issues": [
     "Issue #166 refined 120-bead geometry is not implemented, so the 2015 profiles remain implementation_status=pending.",
@@ -10,7 +10,7 @@
   "tests_reviewed": [
     {
       "command": "uv run pytest -q tests/test_motor_forces.py tests/test_model_profiles.py tests/test_params.py tests/test_e2e_cli.py tests/test_phase2_generic_multi_run.py tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py",
-      "result": "PASS after Codex Cloud feedback (207 passed)"
+      "result": "PASS after Codex Cloud feedback (207 passed); subsequent profile/provenance subset PASS (166 passed)"
     },
     {
       "command": "uv run ruff format --check .",
@@ -22,15 +22,15 @@
     },
     {
       "command": "uv run pytest -q -m light",
-      "result": "PASS after Codex Cloud feedback (275 passed, 241 deselected)"
+      "result": "PASS final candidate (276 passed, 241 deselected)"
     },
     {
       "command": "uv run pytest -q",
-      "result": "PASS after Codex Cloud feedback (516 passed)"
+      "result": "PASS final candidate (517 passed)"
     },
     {
       "command": "uv run python -m scripts.01_simulate_swimming config=conf/sim_swim_2010.yaml motor.force_distribution=hook_coupled_body_reaction time.duration.value=1.0e-4 time.duration.unit=tau time.integration.dt_star=1.0e-4 output.base_dir=outputs/phase2_167/one_step_render output_sampling.out_all_steps_3d=true render.save_frames_3d=true render.save_frames_2d=false",
-      "result": "PASS after Codex Cloud feedback at commit 5be7fef (1 step; reaction support bead counts [5]; fallback false; finite 3D render produced)"
+      "result": "PASS after Codex Cloud feedback at commit 5be7fef (2010 triangular geometry only; 1 step; reaction support bead counts [5]; fallback false; finite 3D render produced)"
     },
     {
       "command": "2010 triangular geometry full-vector motor balance regression",
@@ -55,8 +55,8 @@
   "adr_required": true,
   "adr_reason": "The change adds a new physical motor/reaction interpretation and a reproducibility-facing manifest contract.",
   "commit_type": "complete",
-  "commit_hash": "5be7fef8a0441bca347d5872c70f98b5d8b728ce",
-  "push_status": "not_pushed",
+  "commit_hash": "fa4633d4da256ab0b81a6d6de6ea2e41448e7dd3",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/174",
   "next_actions": [
     "Complete Issue #166 refined geometry before enabling either 2015 profile.",
