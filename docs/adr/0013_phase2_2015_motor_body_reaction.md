@@ -20,8 +20,10 @@ motor dynamicsとprovenanceだけを導入する。
 `motor.force_distribution=hook_coupled_body_reaction`を追加する。
 
 各flagellumについて、first-second方向をmotor軸とし、flagellum基部の最初の3 beadsへ
-合力ゼロかつ指定軸torqueが`motor.torque_Nm`となる接線力を分配する。body側には逆符号の
-torqueを与える。body supportはattach beadと、`body_ring_edges`または
+合力ゼロかつtorque全ベクトルが`motor.torque_Nm * motor_axis`となる最小ノルム力を
+分配する。body側にはflagellum側で実際に生じたtorque全ベクトルの逆符号を与える。
+これにより、軸方向成分だけでなく軸直交成分もswimmer全体で相殺する。body supportは
+attach beadと、`body_ring_edges`または
 `body_vertical_edges`で直接接続されたone-ring beadsとする。このsupportで軸torqueを
 生成できない場合だけ、全body beadsを使うzero-net-force torque coupleへfallbackする。
 

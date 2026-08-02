@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import math
+from pathlib import Path
 
 import numpy as np
 import pytest
+import yaml
 
 from sim_swim.dynamics.forces import (
     compute_attach_first_body_axis_angle_forces,
@@ -14,6 +16,8 @@ from sim_swim.dynamics.forces import (
     compute_root_torque_axis_projection_forces,
     compute_root_torque_segment_couples_forces,
 )
+from sim_swim.model.builder import ModelBuilder
+from sim_swim.sim.params import SimulationConfig
 
 pytestmark = pytest.mark.light
 
@@ -45,24 +49,18 @@ def test_hook_coupled_body_reaction_balances_force_and_axis_torque() -> None:
     )
 
     axis = np.array([1.0, 0.0, 0.0])
-    flag_torque = float(
-        np.dot(
-            np.sum(np.cross(positions[flag_indices], forces[flag_indices]), axis=0),
-            axis,
-        )
+    flag_torque = np.sum(
+        np.cross(positions[flag_indices], forces[flag_indices]), axis=0
     )
-    body_torque = float(
-        np.dot(
-            np.sum(np.cross(positions[body_indices], forces[body_indices]), axis=0),
-            axis,
-        )
+    body_torque = np.sum(
+        np.cross(positions[body_indices], forces[body_indices]), axis=0
     )
     assert np.allclose(forces[flag_indices].sum(axis=0), 0.0, atol=1e-12)
     assert np.allclose(forces[body_indices].sum(axis=0), 0.0, atol=1e-12)
     assert np.allclose(forces.sum(axis=0), 0.0, atol=1e-12)
-    assert flag_torque == pytest.approx(2.0)
-    assert body_torque == pytest.approx(-2.0)
-    assert flag_torque + body_torque == pytest.approx(0.0, abs=1e-12)
+    assert np.allclose(flag_torque, 2.0 * axis, atol=1e-12)
+    assert np.allclose(body_torque, -2.0 * axis, atol=1e-12)
+    assert np.allclose(flag_torque + body_torque, 0.0, atol=1e-12)
     assert diag.reaction_support_bead_counts == (4,)
     assert diag.reaction_fallback_used is False
 
@@ -94,9 +92,36 @@ def test_hook_coupled_body_reaction_falls_back_for_degenerate_local_support() ->
 
     assert np.isfinite(forces).all()
     assert np.allclose(forces.sum(axis=0), 0.0, atol=1e-12)
+    total_torque = np.sum(np.cross(positions, forces), axis=0)
+    assert np.allclose(total_torque, 0.0, atol=1e-12)
     assert diag.degenerate_axis_count == 0
     assert diag.reaction_support_bead_counts == (5,)
     assert diag.reaction_fallback_used is True
+
+
+def test_hook_coupled_body_reaction_cancels_full_torque_on_2010_geometry() -> None:
+    raw = yaml.safe_load(Path("conf/sim_swim_2010.yaml").read_text(encoding="utf-8"))
+    raw["motor"]["force_distribution"] = "hook_coupled_body_reaction"
+    cfg = SimulationConfig.from_dict(raw)
+    model = ModelBuilder(cfg).build()
+
+    forces, diag = compute_hook_coupled_body_reaction_forces(
+        positions_m=model.positions_m,
+        flagella_indices=model.flagella_indices,
+        flagella_attach_body_indices=model.flagella_attach_body_indices,
+        body_indices=model.body_indices,
+        body_ring_edges=model.body_ring_edges,
+        body_vertical_edges=model.body_vertical_edges,
+        torque_per_flag=cfg.motor_torque_Nm * model.torque_signs,
+    )
+
+    origin = np.mean(model.positions_m, axis=0)
+    total_torque = np.sum(np.cross(model.positions_m - origin, forces), axis=0)
+    force_scale = abs(cfg.motor_torque_Nm) / cfg.b_m
+    assert np.linalg.norm(forces.sum(axis=0)) <= 1e-10 * force_scale
+    assert np.linalg.norm(total_torque) <= 1e-10 * abs(cfg.motor_torque_Nm)
+    assert diag.reaction_support_bead_counts == (5, 5, 5)
+    assert diag.reaction_fallback_used is False
 
 
 def test_motor_force_couple_matches_target_torque() -> None:

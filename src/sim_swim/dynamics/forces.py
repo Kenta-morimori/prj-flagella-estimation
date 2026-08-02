@@ -709,6 +709,56 @@ def _zero_net_force_torque_drive(
     return forces, 0, torque_norm, force_norm
 
 
+def _cross_matrix(vector: np.ndarray) -> np.ndarray:
+    x, y, z = (float(value) for value in vector)
+    return np.array(
+        [[0.0, -z, y], [z, 0.0, -x], [-y, x, 0.0]],
+        dtype=float,
+    )
+
+
+def _zero_net_force_vector_torque_drive(
+    *,
+    positions_m: np.ndarray,
+    indices: np.ndarray,
+    origin: np.ndarray,
+    target_torque_Nm: np.ndarray,
+) -> tuple[np.ndarray, int, np.ndarray, float]:
+    idx = indices.astype(int, copy=False)
+    target = np.asarray(target_torque_Nm, dtype=float).reshape((3,))
+    if idx.size < 2 or float(np.linalg.norm(target)) <= 0.0:
+        return np.zeros_like(positions_m), 0, np.zeros(3, dtype=float), 0.0
+
+    rel = positions_m[idx] - origin
+    if not np.isfinite(rel).all() or not np.isfinite(target).all():
+        return np.zeros_like(positions_m), 1, np.zeros(3, dtype=float), 0.0
+
+    length_scale = max(float(np.max(np.linalg.norm(rel, axis=1))), 1e-18)
+    operator = np.zeros((6, 3 * idx.size), dtype=float)
+    for local_index, arm in enumerate(rel):
+        block = slice(3 * local_index, 3 * (local_index + 1))
+        operator[:3, block] = np.eye(3)
+        operator[3:, block] = _cross_matrix(arm) / length_scale
+    rhs = np.concatenate([np.zeros(3, dtype=float), target / length_scale])
+
+    local_forces = np.linalg.pinv(operator) @ rhs
+    local_forces = local_forces.reshape((-1, 3))
+    net_force = np.sum(local_forces, axis=0)
+    applied_torque = np.sum(np.cross(rel, local_forces), axis=0)
+    force_scale = max(float(np.linalg.norm(target)) / length_scale, 1e-30)
+    force_residual = float(np.linalg.norm(net_force))
+    torque_residual = float(np.linalg.norm(applied_torque - target))
+    if force_residual > 1e-10 * force_scale or torque_residual > 1e-10 * max(
+        float(np.linalg.norm(target)), 1e-30
+    ):
+        return np.zeros_like(positions_m), 1, np.zeros(3, dtype=float), 0.0
+
+    forces = np.zeros_like(positions_m)
+    forces[idx] += local_forces
+    force_norm = float(np.mean(np.linalg.norm(local_forces, axis=1)))
+    return forces, 0, applied_torque, force_norm
+
+
 def _attach_body_support(
     *,
     attach_index: int,
@@ -776,12 +826,11 @@ def compute_hook_coupled_body_reaction_forces(
 
         flag_support = flag_idx[:3]
         flag_forces, flag_degenerate, flag_torque, flag_force = (
-            _zero_net_force_torque_drive(
+            _zero_net_force_vector_torque_drive(
                 positions_m=positions_m,
                 indices=flag_support,
                 origin=origin,
-                axis=axis,
-                target_torque_Nm=tau,
+                target_torque_Nm=tau * axis,
             )
         )
         if flag_degenerate:
@@ -794,24 +843,22 @@ def compute_hook_coupled_body_reaction_forces(
             body_vertical_edges=body_vertical_edges,
         )
         body_forces, body_degenerate, body_torque, body_force = (
-            _zero_net_force_torque_drive(
+            _zero_net_force_vector_torque_drive(
                 positions_m=positions_m,
                 indices=body_support,
                 origin=origin,
-                axis=axis,
-                target_torque_Nm=-tau,
+                target_torque_Nm=-flag_torque,
             )
         )
         if body_degenerate:
             fallback_used = True
             body_support = body_idx
             body_forces, body_degenerate, body_torque, body_force = (
-                _zero_net_force_torque_drive(
+                _zero_net_force_vector_torque_drive(
                     positions_m=positions_m,
                     indices=body_support,
                     origin=origin,
-                    axis=axis,
-                    target_torque_Nm=-tau,
+                    target_torque_Nm=-flag_torque,
                 )
             )
         support_counts.append(int(body_support.size))
@@ -821,8 +868,8 @@ def compute_hook_coupled_body_reaction_forces(
 
         forces += flag_forces + body_forces
         valid_count += 1
-        flag_torque_sum += flag_torque
-        body_torque_sum += body_torque
+        flag_torque_sum += float(np.linalg.norm(flag_torque))
+        body_torque_sum += float(np.linalg.norm(body_torque))
         flag_force_sum += flag_force
         body_force_sum += body_force
 
