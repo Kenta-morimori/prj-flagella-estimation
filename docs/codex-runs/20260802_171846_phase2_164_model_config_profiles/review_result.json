@@ -10,7 +10,7 @@
   "tests_reviewed": [
     {
       "command": ".venv/bin/pytest -q tests/test_model_profiles.py tests/test_params.py tests/test_run_context.py tests/test_e2e_cli.py tests/test_phase2_generic_multi_run.py tests/test_phase2_sweep_profiles.py",
-      "result": "PASS: 158 passed"
+      "result": "PASS: 164 passed"
     },
     {
       "command": ".venv/bin/pytest -q -m light",
@@ -18,7 +18,7 @@
     },
     {
       "command": ".venv/bin/pytest -q",
-      "result": "PASS: 487 passed"
+      "result": "PASS: 493 passed"
     },
     {
       "command": ".venv/bin/ruff format --check . && .venv/bin/ruff check .",
@@ -35,6 +35,10 @@
     {
       "command": "rg executable conf/sim_swim.yaml references and git diff --check",
       "result": "PASS: executable references 0; diff check clean"
+    },
+    {
+      "command": "Codex review follow-up: reject non-integer model_profile year/bead/count values",
+      "result": "PASS: float, string, and bool cases are rejected before provenance serialization"
     }
   ],
   "user_review_required": false,

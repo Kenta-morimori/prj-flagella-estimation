@@ -16,9 +16,9 @@
 
 ## Verification
 
-- focused tests: 158 passed
+- focused tests: 164 passed
 - light tests: 246 passed, 240 deselected
-- full pytest: 487 passed
+- full pytest: 493 passed
 - Ruff format/check: PASS
 - all YAML parse: PASS
 - `git diff --check`: PASS
@@ -27,3 +27,7 @@
 - executable legacy path search: source、scripts、tests、conf、active READMEで0件
 
 長時間simulationと動画生成は実行していない。config/profile/manifest契約の変更であり、ユーザーvisual reviewは不要と判断した。
+
+## Codex review follow-up
+
+Codex Cloud reviewは、YAMLの非整数profile値が`int()`で切り捨てられる点を指摘した。`year`と4つのbead/count fieldについて、bool・float・文字列を拒否する厳密な整数validationへ変更し、6ケースの回帰testを追加した。修正後のfocused/full testとRuffを再実行した。

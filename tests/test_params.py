@@ -76,6 +76,26 @@ def test_model_profile_rejects_unknown_enum_values(key: str, value: object) -> N
         SimulationConfig.from_dict(cfg)
 
 
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("year", 2010.5),
+        ("year", "2010"),
+        ("body_beads", 15.9),
+        ("flagellum_beads_per_filament", "11"),
+        ("nominal_flagella_count", True),
+        ("nominal_total_beads", 48.9),
+    ],
+)
+def test_model_profile_rejects_non_integer_fields(key: str, value: object) -> None:
+    cfg = _base_cfg()
+    cfg["model_profile"] = _model_profile()
+    cfg["model_profile"][key] = value
+
+    with pytest.raises(ValueError, match=rf"model_profile\.{key} must be an integer"):
+        SimulationConfig.from_dict(cfg)
+
+
 def test_model_profile_rejects_inconsistent_nominal_total() -> None:
     cfg = _base_cfg()
     cfg["model_profile"] = _model_profile()

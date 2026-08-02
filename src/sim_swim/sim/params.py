@@ -239,6 +239,17 @@ class ModelProfileParams:
     nominal_total_beads: int
 
     def __post_init__(self) -> None:
+        integer_values = {
+            "year": self.year,
+            "body_beads": self.body_beads,
+            "flagellum_beads_per_filament": self.flagellum_beads_per_filament,
+            "nominal_flagella_count": self.nominal_flagella_count,
+            "nominal_total_beads": self.nominal_total_beads,
+        }
+        for name, value in integer_values.items():
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise ValueError(f"model_profile.{name} must be an integer: {value!r}")
+
         allowed: tuple[tuple[str, Any, frozenset[Any]], ...] = (
             ("year", self.year, MODEL_PROFILE_YEARS),
             ("variant", self.variant, MODEL_PROFILE_VARIANTS),
@@ -804,16 +815,16 @@ class SimulationConfig:
                     "model_profile is missing required keys: " + ", ".join(missing)
                 )
             model_profile = ModelProfileParams(
-                year=int(model_profile_raw["year"]),
+                year=model_profile_raw["year"],
                 variant=str(model_profile_raw["variant"]),
                 resolution=str(model_profile_raw["resolution"]),
                 implementation_status=str(model_profile_raw["implementation_status"]),
-                body_beads=int(model_profile_raw["body_beads"]),
-                flagellum_beads_per_filament=int(
-                    model_profile_raw["flagellum_beads_per_filament"]
-                ),
-                nominal_flagella_count=int(model_profile_raw["nominal_flagella_count"]),
-                nominal_total_beads=int(model_profile_raw["nominal_total_beads"]),
+                body_beads=model_profile_raw["body_beads"],
+                flagellum_beads_per_filament=model_profile_raw[
+                    "flagellum_beads_per_filament"
+                ],
+                nominal_flagella_count=model_profile_raw["nominal_flagella_count"],
+                nominal_total_beads=model_profile_raw["nominal_total_beads"],
             )
 
         brown_raw = raw.get("brownian", {}) or {}
