@@ -1335,7 +1335,7 @@
 
 ### P2-MODEL-163: 2010年モデルのpotential式を論文と照合し採否を整理する
 
-- status: in progress
+- status: completed
 - source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/163`
 - parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/10`
 - branch: `feature/phase2-163-2010-potentials`
@@ -1345,12 +1345,12 @@
   - [x] 現行springは絶対限界 `s*b` と分母二乗を維持する `legacy` とする。selector欠落時も `legacy`。
   - [x] bending/torsion/hookは論文表示の負号だけで反転せず、現行の平衡角への復元方向を仕様とする。
   - [x] repulsionの `A_ss=1.0 T`, `alpha_ss=0.2 b`, cutoff `0.2 b` は論文由来。共有端点除外、body-body除外、端点への線形分配は実装仮定。
-  - [x] default採否はmotor-off `0.1 tau` とmotor-on RUN `1 tau` の完走・有限性・全期間strict shape gateで自動判定する。結果取得前は `legacy`。
-- remaining:
-  - [ ] spring selector、validation、力–伸長比較、復元方向・wrap・repulsion testを完了する。
-  - [ ] 比較profileのdry-runと短時間checkを完了する。
-  - [ ] ユーザーが長時間比較を実行し、自動判定artifactを生成する。
-  - [ ] 結果をADRとreview resultへ反映し、defaultを確定する。
+  - [x] default採否はmotor-off `0.1 tau` とmotor-on RUN `1 tau` の完走・有限性・全期間strict shape gateで自動判定する。
+  - [x] 両formulationが両runで完走・gate通過したため、論文一致を優先してdefaultを `fene_fraenkel` とする。
+- verification:
+  - [x] spring selector、validation、力-伸長比較、復元方向・wrap・repulsion testを完了した。
+  - [x] 比較profileのdry-run、focused test、light test、full pytestを完了した。
+  - [x] user-run artifact `outputs/phase2_potential_comparison/2026-08-02/154149/default_decision.json` が `fene_fraenkel` を選択した。
 - boundaries:
   - `sim_swim_2010.yaml` 作成とconfig再編はIssue #164で扱う。
   - 正式な `tau` duration指定はIssue #165で扱う。本Issueの `0.1 tau` / `1 tau` は現行 `tau_s=1.0` 規約の比較profileに限定する。

@@ -22,6 +22,13 @@ from sim_swim.sim.params import SimulationConfig
 ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.mark.light
+def test_repository_default_uses_selected_fene_fraenkel() -> None:
+    cfg = SimulationConfig.from_dict(load_yaml(ROOT / "conf/sim_swim.yaml"))
+
+    assert cfg.potentials.spring.formulation == "fene_fraenkel"
+
+
 def _write_summary(
     path: Path,
     *,

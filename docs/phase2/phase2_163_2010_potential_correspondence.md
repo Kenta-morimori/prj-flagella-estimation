@@ -122,7 +122,13 @@ uv run python scripts/01_simulate_swimming/analyze_spring_formulations.py \
 
 run rootはそれぞれ `outputs/phase2_multi_run/spring_formulation_motor_off/` と `outputs/phase2_multi_run/spring_formulation_motor_on/` のJST timestamp配下に作られる。解析出力はデフォルトで `outputs/phase2_potential_comparison/` のJST timestamp配下に作られ、`force_extension.csv`, `force_extension.png`, `default_decision.json`, `default_decision.md`, `run.log`, `manifest.json` を確認する。
 
-比較結果が未取得の間は `conf/sim_swim.yaml` のdefaultを `legacy` とする。Issue #164 が扱う `sim_swim_2010.yaml` の作成・config再編は本Issueに含めない。
+2026-08-02の採否runは次である。
+
+- motor-off: `outputs/phase2_multi_run/spring_formulation_motor_off/2026-08-02/151207`
+- motor-on: `outputs/phase2_multi_run/spring_formulation_motor_on/2026-08-02/151505`
+- corrected decision: `outputs/phase2_potential_comparison/2026-08-02/154149`
+
+両formulationは両runで完走し、body/nonbody strict shape gateを全期間通過した。`fene_fraenkel` は `legacy` に対して、motor-off/onの `max_flag_bond_rel_err` をそれぞれ49.2%/84.2%、`body_spring_max_stretch_ratio` を84.4%/81.0%低減した。採否規則と論文一致に従い、`conf/sim_swim.yaml` のdefaultを `fene_fraenkel` とする。selectorを省略した既存configは引き続き `legacy` へfallbackする。Issue #164 が扱う `sim_swim_2010.yaml` の作成・config再編は本Issueに含めない。
 
 ## Issue境界
 

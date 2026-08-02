@@ -59,7 +59,7 @@ motor:
 
 potentials:
   spring:
-    formulation: "legacy"      # legacy: 過去run互換。fene_fraenkel: Watari & Larson (2010) の相対伸長式
+    formulation: "fene_fraenkel"  # Issue #163比較で採用。legacyは過去run互換用
     H_over_T_over_b: 10.0      # [-] 係数値H=10*T/b。式自体のpaper準拠はformulationで選択
     s: 0.1                     # legacyでは絶対限界s*b、fene_fraenkelではbond長に対する相対限界
   bend:

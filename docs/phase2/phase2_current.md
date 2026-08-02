@@ -33,7 +33,7 @@ Phase 2 は，3D物理シミュレーションと2D擬似顕微鏡動画生成�
 
 現在の主対象:
 
-* Phase 2 / Issue #163: Watari & Larson (2010) のpotential式を現行実装と照合し、論文準拠 `fene_fraenkel` と過去互換 `legacy` を `potentials.spring.formulation` で選択可能にする。比較結果取得前のdefaultは `legacy`。bending/torsion/hookは現行の復元方向を維持し、spring-spring repulsionのsegment選別と端点分配は実装仮定として明記する。motor-off `0.1 tau` / motor-on RUN `1 tau` の長時間比較はユーザー実行で、strict shape gateによる自動採否とする。config再編は #164、正式なtau指定は #165へ分離する。
+* Phase 2 / Issue #163: Watari & Larson (2010) potential式照合を完了した。論文準拠 `fene_fraenkel` と過去互換 `legacy` を `potentials.spring.formulation` で選択でき、selector欠落時は `legacy`。motor-off `0.1 tau` / motor-on RUN `1 tau` の両runでFENEが完走・strict shape gateを通過し、defaultは `fene_fraenkel` とした。bending/torsion/hookの復元方向とspring-spring repulsionの実装仮定はADR 0009に記録した。config再編は #164、正式なtau指定は #165へ分離する。
 * Phase 2.8 / Issue #65: 親Issue #71 のRUN固定べん毛数差分析に向けて，特徴量カテゴリとdataset出力方針を定義済み。
 * Phase 2.8 / Issue #72 / #112: 親Issue #71 のRUN固定べん毛数差分析に向けて，raw output は `scripts/01_simulate_swimming/run_multi_run.py` で作り，dataset builder は generic multi-run の `run_manifest.json` から `summary.csv` / `timeseries/<sample_id>.csv` を生成する。
   raw condition には `trajectory.csv` と `state_archive.npz` を残し，後から replay render を再生成できる。

@@ -29,7 +29,9 @@ spring-spring repulsionは論文がexponential potentialとTable 1の値を与�
 
 比較結果がない段階では `legacy` をdefaultとする。motor-off `0.1 tau` と motor-on RUN `1 tau` の両方について、`fene_fraenkel` が完走し、非有限値・step欠損がなく、body/nonbody strict shape gateを全期間通過した場合だけ、論文一致を優先して2010年baselineの採用候補にする。いずれかを満たさない場合は `legacy` を維持する。
 
-この比較は自動基準で判断し、動画目視を必須にしない。長時間runはユーザー実行とし、結果取得後に本ADRへ出力場所、判定artifact、defaultの最終判断を追記する。
+2026-08-02のuser-runでは、両formulationがmotor-off/onとも予定stepを完走し、body/nonbody strict shape gateを全期間通過した。corrected decision artifact `outputs/phase2_potential_comparison/2026-08-02/154149/default_decision.json` は `fene_fraenkel` を選択したため、`conf/sim_swim.yaml` のdefaultを `fene_fraenkel` とする。selector欠落時のparser fallbackは過去互換のため `legacy` のまま維持する。
+
+初回解析 `outputs/phase2_potential_comparison/2026-08-02/153848` は、`step_summary.csv` がstep実行前時刻を記録する契約を考慮せず、正常な最終時刻 `duration-dt` を途中停止と誤判定したため採否根拠に用いない。判定器は連続step番号、観測dt、予定durationを照合するよう修正した。
 
 ## Consequences
 
@@ -41,5 +43,4 @@ spring-spring repulsionは論文がexponential potentialとTable 1の値を与�
 
 ## Verification status
 
-unit test、force-extension artifact、比較profileのdry-runまではCodexが実行する。motor-off/onの長時間比較結果とdefault最終判断はユーザーrun後に追記する。結果未取得の間、Issue #163のreview resultは `FAIL` のままとする。
-
+unit test、full pytest、force-extension artifact、比較profileのdry-run、motor-off/onの長時間比較、自動default判定まで完了した。動画目視は採否基準に含めない。
