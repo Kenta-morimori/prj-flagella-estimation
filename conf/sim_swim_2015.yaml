@@ -1,6 +1,6 @@
 # Kong et al. (2015) refined modelを基礎にするproject採用候補。
 # 初期candidateはpaper profileと同じ物理値を持ち、project固有補強は未採用。
-# #166/#167/#168の実装・安定性評価後にpaper profileとの差分を決定する。
+# #166/#167でgeometry/dynamicsは実装済み。#168の安定性評価後に採否を決定する。
 
 model_profile:
   year: 2015
@@ -23,11 +23,12 @@ body:
     dz_over_b: 0.5
     radius_over_b: 0.5
     axis: "x"
+    diagonal_braces_enabled: false
   length_total_um: 2.0
 
 flagella:
   n_flagella: 3
-  placement_mode: "seeded_surface"
+  placement_mode: "seeded_center_layer"
   initial_phase_mode: "seeded"
   init_mode: "paper_table1"
   n_beads_per_flagellum: 30
@@ -90,8 +91,8 @@ hook:
   enabled: true
   threshold_deg: 90.0
   kb_over_T: 30.0
+  length_over_b: 0.25
 
-# diagonal brace制御と中央層slot geometryは#166まで未実装。
 body_equiv_load:
   enabled: false
   mode: "none"

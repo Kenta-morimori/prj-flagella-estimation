@@ -4,6 +4,10 @@
 - Date: 2026-08-02
 - Issue: #167
 
+> 2026-08-02追補: Issue #166でrefined geometryが実装された後の実行状態はADR 0014を正本とする。
+> profileは`pending`を維持するが、`geometry=implemented`, `simulation=evaluation_ready`として
+> #168評価実行を許可する。
+
 ## Context
 
 Kong et al. (2015)のrefined profileでは、flagellar motorの駆動torqueとbodyへの

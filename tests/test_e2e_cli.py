@@ -164,6 +164,10 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
     assert manifest["dynamics"]["reaction_support_bead_counts"]
     assert manifest["dynamics"]["reaction_fallback_used"] is False
     assert manifest["geometry"]["implementation_status"] == "implemented"
+    assert manifest["geometry"]["actual"]["total_beads"] == 30
+    assert manifest["geometry"]["actual"]["body_beads"] == 15
+    assert manifest["geometry"]["actual"]["flagellum_beads"] == [5, 5, 5]
+    assert manifest["geometry"]["actual"]["body_diagonal_edges"] == 24
     assert manifest["simulation"]["implementation_status"] == "executable"
     assert (
         manifest["input"]["effective_overrides"]["output_sampling"]["fps_out_2d"]

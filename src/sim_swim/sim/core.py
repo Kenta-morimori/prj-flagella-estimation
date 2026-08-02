@@ -250,12 +250,14 @@ class Simulator:
     def implementation_manifest(self) -> dict[str, Any]:
         """Return provenance enriched with observed motor reaction diagnostics."""
 
-        return self.config.implementation_manifest(
+        manifest = self.config.implementation_manifest(
             reaction_support_bead_counts=sorted(
                 self.engine.motor_reaction_support_bead_counts_observed
             ),
             reaction_fallback_used=self.engine.motor_reaction_fallback_used,
         )
+        manifest["geometry"]["actual"] = self.initial_geometry_summary["geometry"]
+        return manifest
 
     def _build_initial_geometry_summary(self) -> dict[str, Any]:
         pos = self.model.positions_m
@@ -272,8 +274,61 @@ class Simulator:
         bond_target_over_b = float(self.config.flagella.bond_L_over_b)
         radius_target_over_b = float(self.config.flagella.helix_init.radius_over_b)
         pitch_target_over_b = float(self.config.flagella.helix_init.pitch_over_b)
+        layer_centroids = np.asarray(
+            [np.mean(pos[layer], axis=0) for layer in self.model.body_layer_indices]
+        )
+        layer_radii = np.asarray(
+            [
+                np.mean(np.linalg.norm(pos[layer] - centroid, axis=1))
+                for layer, centroid in zip(
+                    self.model.body_layer_indices, layer_centroids, strict=True
+                )
+            ]
+        )
+        body_length_over_b = float(
+            np.linalg.norm(layer_centroids[-1] - layer_centroids[0]) / b_m
+        )
+        body_width_over_b = float(2.0 * np.mean(layer_radii) / b_m)
+        attach_topology: list[dict[str, int]] = []
+        for flag_id, attach_raw in enumerate(self.model.flagella_attach_body_indices):
+            attach = int(attach_raw)
+            for layer_id, layer in enumerate(self.model.body_layer_indices):
+                slots = np.where(layer.astype(int, copy=False) == attach)[0]
+                if slots.size:
+                    attach_topology.append(
+                        {
+                            "flag_id": int(flag_id),
+                            "body_bead_index": attach,
+                            "layer": int(layer_id),
+                            "slot": int(slots[0]),
+                        }
+                    )
+                    break
+
+        geometry = {
+            "total_beads": int(pos.shape[0]),
+            "body_beads": int(self.model.body_indices.size),
+            "flagellum_beads": [
+                int(indices.size) for indices in self.model.flagella_indices
+            ],
+            "body_layers": int(len(self.model.body_layer_indices)),
+            "body_slots_per_layer": int(self.config.body.prism.n_prism),
+            "body_length_over_b": body_length_over_b,
+            "body_width_over_b": body_width_over_b,
+            "body_layer_radius_over_b": [float(radius / b_m) for radius in layer_radii],
+            "body_ring_edges": int(self.model.body_ring_edges.shape[0]),
+            "body_vertical_edges": int(self.model.body_vertical_edges.shape[0]),
+            "body_diagonal_edges": int(self.model.body_diagonal_edges.shape[0]),
+            "diagonal_braces_enabled": bool(
+                self.config.body.prism.diagonal_braces_enabled
+            ),
+            "hook_length_over_b": float(self.config.hook.length_over_b),
+            "flagellum_bond_length_over_b": bond_target_over_b,
+            "attachment_topology": attach_topology,
+        }
 
         summary: dict[str, Any] = {
+            "geometry": geometry,
             "potentials": {
                 "spring_formulation": str(self.config.potentials.spring.formulation),
                 "spring_H_over_T_over_b": float(
@@ -296,6 +351,7 @@ class Simulator:
                     self.config.flagella.n_beads_per_flagellum
                 ),
                 "bond_L_over_b": bond_target_over_b,
+                "hook_length_over_b": float(self.config.hook.length_over_b),
                 "target_helix_radius_over_b": radius_target_over_b,
                 "target_helix_pitch_over_b": pitch_target_over_b,
                 "target_theta0_deg_normal": bend_target,

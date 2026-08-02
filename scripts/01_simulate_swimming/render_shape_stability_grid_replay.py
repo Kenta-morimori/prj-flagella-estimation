@@ -946,6 +946,15 @@ def main(argv: list[str] | None = None) -> None:
             )
             states = load_state_archive(_archive_path(args.input_dir, record))
             simulator = Simulator(cfg)
+            expected_beads = int(simulator.model.positions_m.shape[0])
+            for state_index, state in enumerate(states):
+                actual_beads = int(state.bead_positions_um.shape[0])
+                if actual_beads != expected_beads:
+                    raise ValueError(
+                        "Replay state topology does not match regenerated geometry: "
+                        f"condition={condition_id}, state={state_index}, "
+                        f"actual_beads={actual_beads}, expected_beads={expected_beads}"
+                    )
             states_by_condition.append(states)
             cfg_by_condition.append(cfg)
             rig_by_condition.append(simulator.rig)

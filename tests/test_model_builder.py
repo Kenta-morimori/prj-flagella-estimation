@@ -35,6 +35,8 @@ def _make_cfg(
     phase_seed: int | None = None,
     placement_mode: str = "uniform",
     initial_phase_mode: str = "uniform",
+    diagonal_braces_enabled: bool = True,
+    hook_length_over_b: float = 0.25,
 ) -> SimulationConfig:
     flagella_cfg: dict[str, object] = {
         "n_flagella": n_flagella,
@@ -63,12 +65,14 @@ def _make_cfg(
                     "dz_over_b": dz_over_b,
                     "radius_over_b": radius_over_b,
                     "axis": "x",
+                    "diagonal_braces_enabled": diagonal_braces_enabled,
                 },
                 "length_total_um": body_length_um,
             },
             "flagella": flagella_cfg,
             "time": {"duration_s": 0.02, "dt_s": 1.0e-3},
             "brownian": {"enabled": False},
+            "hook": {"length_over_b": hook_length_over_b},
             "seed": {
                 "global_seed": seed,
                 "attach_seed": attach_seed,
@@ -253,10 +257,75 @@ def test_body_prism_bead_count_and_layout() -> None:
     assert np.allclose(diffs, 0.5, atol=1e-6)
 
 
-def test_mvp_requires_n_prism_eq_3() -> None:
-    cfg = _make_cfg(n_prism=4)
-    with pytest.raises(ValueError, match="MVP: body.prism.n_prism must be 3"):
-        ModelBuilder(cfg).build()
+def test_body_prism_requires_at_least_three_slots() -> None:
+    with pytest.raises(ValueError, match="body.prism.n_prism must be at least 3"):
+        _make_cfg(n_prism=2)
+
+
+def test_refined_2015_geometry_has_120_beads_and_expected_topology() -> None:
+    cfg = _make_cfg(
+        n_prism=6,
+        n_flagella=3,
+        n_beads_per_flagellum=30,
+        ds_over_b=0.29,
+        flag_length_over_b=8.41,
+        init_mode="paper_table1",
+        placement_mode="seeded_center_layer",
+        initial_phase_mode="seeded",
+        attach_seed=0,
+        phase_seed=7,
+        diagonal_braces_enabled=False,
+        hook_length_over_b=0.25,
+    )
+    model = ModelBuilder(cfg).build()
+
+    assert model.positions_m.shape == (120, 3)
+    assert model.body_indices.size == 30
+    assert [indices.size for indices in model.flagella_indices] == [30, 30, 30]
+    assert model.flagella_attach_body_indices.tolist() == [12, 14, 16]
+    assert model.body_ring_edges.shape == (30, 2)
+    assert model.body_vertical_edges.shape == (24, 2)
+    assert model.body_diagonal_edges.shape == (0, 2)
+
+    hook_lengths = np.linalg.norm(
+        model.positions_m[model.hook_triplets[:, 1]]
+        - model.positions_m[model.hook_triplets[:, 0]],
+        axis=1,
+    )
+    assert np.allclose(hook_lengths / cfg.b_m, 0.25, atol=1e-12)
+    for indices in model.flagella_indices:
+        bond_lengths = np.linalg.norm(
+            model.positions_m[indices[1:]] - model.positions_m[indices[:-1]], axis=1
+        )
+        assert bond_lengths.shape == (29,)
+        assert np.allclose(bond_lengths / cfg.b_m, 0.29, atol=1e-12)
+
+
+def test_seeded_center_layer_rotates_slots_independently_of_phase_seed() -> None:
+    base = dict(
+        n_prism=6,
+        n_flagella=3,
+        placement_mode="seeded_center_layer",
+        initial_phase_mode="seeded",
+    )
+    model_even = ModelBuilder(_make_cfg(**base, attach_seed=0, phase_seed=9)).build()
+    model_odd = ModelBuilder(_make_cfg(**base, attach_seed=1, phase_seed=9)).build()
+    model_phase = ModelBuilder(_make_cfg(**base, attach_seed=0, phase_seed=10)).build()
+
+    assert model_even.flagella_attach_body_indices.tolist() == [12, 14, 16]
+    assert model_odd.flagella_attach_body_indices.tolist() == [13, 15, 17]
+    assert np.array_equal(
+        model_even.flagella_initial_phases_rad,
+        model_odd.flagella_initial_phases_rad,
+    )
+    assert np.array_equal(
+        model_even.flagella_attach_body_indices,
+        model_phase.flagella_attach_body_indices,
+    )
+    assert not np.array_equal(
+        model_even.flagella_initial_phases_rad,
+        model_phase.flagella_initial_phases_rad,
+    )
 
 
 @pytest.mark.parametrize("n_flagella", [-1, 10])
@@ -601,6 +670,16 @@ def test_body_flag_hook_length_is_initialized_to_0p25b() -> None:
     assert np.allclose(dists_m, 0.25 * cfg.b_m, atol=1e-12)
 
 
+def test_hook_length_is_configurable() -> None:
+    cfg = _make_cfg(n_flagella=1, hook_length_over_b=0.4)
+    model = ModelBuilder(cfg).build()
+    attach, first, _ = model.hook_triplets[0]
+
+    assert np.linalg.norm(model.positions_m[first] - model.positions_m[attach]) == (
+        pytest.approx(0.4 * cfg.b_m)
+    )
+
+
 def test_body_side_brace_has_both_diagonals_per_face() -> None:
     cfg = _make_cfg(n_flagella=0, body_length_um=2.0, dz_over_b=0.5)
     model = ModelBuilder(cfg).build()
@@ -634,6 +713,15 @@ def test_body_side_brace_has_both_diagonals_per_face() -> None:
     expected_side_brace = (n_prism * 2) * (n_layers - 1)
     assert vertical_count == expected_vertical
     assert side_brace_count == expected_side_brace
+    assert model.body_diagonal_edges.shape == (expected_side_brace, 2)
+
+
+def test_body_side_brace_can_be_disabled() -> None:
+    cfg = _make_cfg(n_prism=6, n_flagella=0, diagonal_braces_enabled=False)
+    model = ModelBuilder(cfg).build()
+
+    assert model.body_diagonal_edges.shape == (0, 2)
+    assert model.spring_pairs.shape[0] == 30 + 24
 
 
 def test_basal_link_initial_direction_matches_local_layer_radial() -> None:

@@ -6,6 +6,7 @@ import pytest
 import yaml
 
 from sim_swim.sim.params import SimulationConfig
+from sim_swim.sim.core import Simulator
 
 pytestmark = pytest.mark.light
 
@@ -103,7 +104,7 @@ def test_only_supported_project_profile_defaults_to_posterior_helix_axis(
         ),
     ],
 )
-def test_2015_profiles_record_implemented_dynamics_but_remain_blocked(
+def test_2015_profiles_are_geometry_implemented_and_evaluation_ready(
     filename: str,
     force_distribution: str,
     provenance: str,
@@ -131,13 +132,12 @@ def test_2015_profiles_record_implemented_dynamics_but_remain_blocked(
             }
         )
     assert implementation["dynamics"] == expected_dynamics
-    assert implementation["geometry"] == {"implementation_status": "pending"}
+    assert implementation["geometry"] == {"implementation_status": "implemented"}
     assert implementation["simulation"] == {
-        "implementation_status": "blocked",
-        "blocked_by": [166, 168],
+        "implementation_status": "evaluation_ready",
+        "blocked_by": [168],
     }
-    with pytest.raises(ValueError, match="Issues #166 and #168"):
-        cfg.validate_execution_supported()
+    cfg.validate_execution_supported()
     assert all(ok for _name, ok, _actual, _expected in cfg.paper_reference_checks())
     paper_reference = implementation["paper_reference"]
     assert paper_reference["parameters"]["body.width_over_b"] == {
@@ -148,11 +148,13 @@ def test_2015_profiles_record_implemented_dynamics_but_remain_blocked(
     assert paper_reference["parameters"]["hook.length_over_b"] == {
         "value": 0.25,
         "source": "implementation_assumption",
-        "implementation_status": "geometry_pending_issue_166",
+        "implementation_status": "implemented",
     }
+    assert cfg.flagella.placement_mode == "seeded_center_layer"
+    assert cfg.body.prism.diagonal_braces_enabled is False
 
 
-def test_2015_body_width_0p7_override_is_parseable_but_remains_blocked() -> None:
+def test_2015_body_width_0p7_override_is_parseable_for_evaluation() -> None:
     raw = yaml.safe_load(
         (ROOT / "conf" / "sim_swim_2015_paper.yaml").read_text(encoding="utf-8")
     )
@@ -164,8 +166,32 @@ def test_2015_body_width_0p7_override_is_parseable_but_remains_blocked() -> None
     assert cfg.implementation_manifest()["paper_reference"]["parameters"][
         "body.width_over_b"
     ]["value"] == pytest.approx(0.7)
-    with pytest.raises(ValueError, match="pending model profile"):
-        cfg.validate_execution_supported()
+    cfg.validate_execution_supported()
+
+
+def test_2015_paper_manifest_records_actual_refined_geometry() -> None:
+    raw = yaml.safe_load(
+        (ROOT / "conf" / "sim_swim_2015_paper.yaml").read_text(encoding="utf-8")
+    )
+    simulator = Simulator(SimulationConfig.from_dict(raw))
+    manifest = simulator.implementation_manifest()
+    actual = manifest["geometry"]["actual"]
+
+    assert actual["total_beads"] == 120
+    assert actual["body_beads"] == 30
+    assert actual["flagellum_beads"] == [30, 30, 30]
+    assert actual["body_layers"] == 5
+    assert actual["body_slots_per_layer"] == 6
+    assert actual["body_length_over_b"] == pytest.approx(2.0)
+    assert actual["body_width_over_b"] == pytest.approx(1.0)
+    assert actual["body_ring_edges"] == 30
+    assert actual["body_vertical_edges"] == 24
+    assert actual["body_diagonal_edges"] == 0
+    assert actual["attachment_topology"] == [
+        {"flag_id": 0, "body_bead_index": 12, "layer": 2, "slot": 0},
+        {"flag_id": 1, "body_bead_index": 14, "layer": 2, "slot": 2},
+        {"flag_id": 2, "body_bead_index": 16, "layer": 2, "slot": 4},
+    ]
 
 
 def test_legacy_default_config_path_is_removed() -> None:

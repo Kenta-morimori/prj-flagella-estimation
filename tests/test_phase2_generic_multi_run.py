@@ -319,6 +319,8 @@ def test_generic_multi_run_manifests_record_model_profile(
     assert condition["dynamics"]["provenance"] == "paper_inspired_approximation"
     assert condition["dynamics"]["reaction_support_bead_counts"]
     assert condition["dynamics"]["reaction_fallback_used"] is False
+    assert condition["geometry"]["actual"]["total_beads"] == 48
+    assert condition["geometry"]["actual"]["body_diagonal_edges"] == 24
 
 
 def test_issue113_seed_fixed_profile_builds_three_boundary_conditions() -> None:
@@ -609,6 +611,27 @@ def test_replay_load_inputs_uses_manifest_condition_order_and_output_dir(
         external_root / "torque_1p5e20"
     )
     assert base_cfg_path == Path("conf/sim_swim_2010.yaml")
+
+
+def test_replay_builds_refined_2015_geometry_from_campaign_record() -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_replay_refined_2015_geometry",
+    )
+    cfg = module._build_cfg(
+        base_cfg_path=Path("conf/sim_swim_2015_paper.yaml"),
+        condition_record={"config_overrides": {}},
+        fps_out_3d=25.0,
+    )
+
+    from sim_swim.sim.core import Simulator
+
+    simulator = Simulator(cfg)
+    geometry = simulator.implementation_manifest()["geometry"]["actual"]
+    assert geometry["total_beads"] == 120
+    assert geometry["body_beads"] == 30
+    assert geometry["flagellum_beads"] == [30, 30, 30]
+    assert geometry["body_diagonal_edges"] == 0
 
 
 def test_replay_wrapper_accepts_config_run_dir_defaults(tmp_path: Path) -> None:

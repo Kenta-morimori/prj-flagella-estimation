@@ -124,6 +124,33 @@ def test_hook_coupled_body_reaction_cancels_full_torque_on_2010_geometry() -> No
     assert diag.reaction_fallback_used is False
 
 
+def test_hook_coupled_body_reaction_uses_five_local_beads_on_refined_geometry() -> None:
+    raw = yaml.safe_load(
+        Path("conf/sim_swim_2015_paper.yaml").read_text(encoding="utf-8")
+    )
+    cfg = SimulationConfig.from_dict(raw)
+    model = ModelBuilder(cfg).build()
+
+    forces, diag = compute_hook_coupled_body_reaction_forces(
+        positions_m=model.positions_m,
+        flagella_indices=model.flagella_indices,
+        flagella_attach_body_indices=model.flagella_attach_body_indices,
+        body_indices=model.body_indices,
+        body_ring_edges=model.body_ring_edges,
+        body_vertical_edges=model.body_vertical_edges,
+        torque_per_flag=cfg.motor_torque_Nm * model.torque_signs,
+    )
+
+    origin = np.mean(model.positions_m, axis=0)
+    net_force = np.sum(forces, axis=0)
+    net_torque = np.sum(np.cross(model.positions_m - origin, forces), axis=0)
+    force_scale = abs(cfg.motor_torque_Nm) / cfg.b_m
+    assert np.linalg.norm(net_force) <= 1e-10 * force_scale
+    assert np.linalg.norm(net_torque) <= 1e-10 * abs(cfg.motor_torque_Nm)
+    assert diag.reaction_support_bead_counts == (5, 5, 5)
+    assert diag.reaction_fallback_used is False
+
+
 def test_motor_force_couple_matches_target_torque() -> None:
     positions = np.array(
         [
