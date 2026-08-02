@@ -930,7 +930,10 @@ class SimulationConfig:
             or abs(self.reference_torque_Nm) <= 0.0
         ):
             raise ValueError("motor.reference_torque_Nm must be finite and non-zero.")
-        if self.input_torque_Nm < 0.0 and not self.use_eta_b3_torque:
+        if (
+            math.isclose(self.input_torque_Nm, -1.0, rel_tol=0.0, abs_tol=1.0e-12)
+            and not self.use_eta_b3_torque
+        ):
             raise ValueError(
                 "motor.torque_Nm=-1 is a deprecated 2010 paper profile sentinel "
                 "and cannot be used for this profile."
@@ -1527,17 +1530,27 @@ class SimulationConfig:
             overrides.get("time", {}) if isinstance(overrides, dict) else {}
         )
         merged_time = merged.get("time")
-        if isinstance(merged_time, dict) and "time" not in overrides:
+        if isinstance(merged_time, dict):
             if self.time.schema_source == "canonical":
-                merged_time["duration"] = {
-                    "value": self.time.duration_value,
-                    "unit": self.time.duration_unit,
-                }
-                merged_time["integration"] = {"dt_star": self.time.integration_dt_star}
-                merged_time.pop("duration_s", None)
-                merged_time.pop("dt_star", None)
-                merged_time.pop("legacy_duration_s", None)
-                merged_time.pop("legacy_dt_star", None)
+                override_has_duration = isinstance(time_overrides, dict) and (
+                    "duration" in time_overrides or "duration_s" in time_overrides
+                )
+                override_has_integration = isinstance(time_overrides, dict) and (
+                    "integration" in time_overrides or "dt_star" in time_overrides
+                )
+                if not override_has_duration:
+                    merged_time["duration"] = {
+                        "value": self.time.duration_value,
+                        "unit": self.time.duration_unit,
+                    }
+                    merged_time.pop("duration_s", None)
+                    merged_time.pop("legacy_duration_s", None)
+                if not override_has_integration:
+                    merged_time["integration"] = {
+                        "dt_star": self.time.integration_dt_star
+                    }
+                    merged_time.pop("dt_star", None)
+                    merged_time.pop("legacy_dt_star", None)
             for derived_key in (
                 "duration_value",
                 "duration_unit",
@@ -1551,10 +1564,15 @@ class SimulationConfig:
                 if "duration" in time_overrides:
                     merged_time.pop("duration_s", None)
                     merged_time.pop("legacy_duration_s", None)
+                if "duration_s" in time_overrides:
+                    merged_time.pop("duration", None)
                 if "integration" in time_overrides:
                     merged_time.pop("dt_star", None)
                     merged_time.pop("integration_dt_star", None)
                     merged_time.pop("legacy_dt_star", None)
+                if "dt_star" in time_overrides:
+                    merged_time.pop("integration", None)
+                    merged_time.pop("integration_dt_star", None)
                 for derived_key in (
                     "duration_value",
                     "duration_unit",

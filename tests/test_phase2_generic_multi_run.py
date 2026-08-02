@@ -312,7 +312,7 @@ def test_generic_multi_run_manifests_record_model_profile(
         assert manifest["time"]["time_schema_source"] == "canonical"
     assert run_manifest["conditions"][0]["time"]["duration_s"] == pytest.approx(0.0001)
     assert run_manifest["conditions"][0]["time"]["time_schema_source"] == (
-        "legacy_duration_s"
+        "mixed_equivalent"
     )
 
 

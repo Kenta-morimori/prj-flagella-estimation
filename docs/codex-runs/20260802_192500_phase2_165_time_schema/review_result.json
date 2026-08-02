@@ -9,7 +9,8 @@
     "Separated motor.enabled, motor.torque_Nm, and motor.reference_torque_Nm responsibilities.",
     "Recorded normalized time quantities and compatibility source paths in single-run and campaign manifests.",
     "Documented the ceil(duration_tau / dt_star) step-time contract and kept 2015 geometry/dynamics/stability out of scope.",
-    "Addressed Codex Cloud feedback by making motor.enabled=false override the 2010 paper torque_Nm=-1 sentinel for actual motor drive while preserving reference_torque_Nm."
+    "Addressed Codex Cloud feedback by making motor.enabled=false override the 2010 paper torque_Nm=-1 sentinel for actual motor drive while preserving reference_torque_Nm.",
+    "Addressed Codex Cloud feedback by preserving canonical duration units across partial time overrides and allowing negative signed torque values other than the -1 sentinel."
   ],
   "scope_boundaries": [
     "2015 profiles remain implementation_status=pending and are not made executable.",
@@ -85,6 +86,34 @@
     {
       "command": "uv run pytest -q",
       "result": "PASS after Codex Cloud feedback"
+    },
+    {
+      "command": "uv run pytest tests/test_params.py -q",
+      "result": "PASS after second Codex Cloud feedback batch"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/sim/params.py tests/test_params.py",
+      "result": "PASS after second Codex Cloud feedback batch"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/sim/params.py tests/test_params.py",
+      "result": "PASS after second Codex Cloud feedback batch"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS after second Codex Cloud feedback batch"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS after second Codex Cloud feedback batch"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS after second Codex Cloud feedback batch"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS after second Codex Cloud feedback batch"
     }
   ],
   "user_visual_review_required": false,

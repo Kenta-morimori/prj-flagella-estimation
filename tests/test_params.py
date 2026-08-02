@@ -195,6 +195,25 @@ def test_legacy_project_profile_keeps_tau_s_fixed_at_one() -> None:
     assert sim_cfg.time_scale_policy == "legacy_fixed_tau_s_1"
 
 
+def test_partial_time_override_preserves_canonical_duration_unit() -> None:
+    cfg = _base_cfg()
+    cfg["model_profile"] = _paper_model_profile(year=2010)
+    cfg["motor"] = {"torque_Nm": 2.0e-20, "reference_torque_Nm": 2.0e-20}
+    cfg["time"] = {
+        "duration": {"value": 0.1, "unit": "tau"},
+        "dt_s": 1.0e-3,
+        "integration": {"dt_star": 1.0e-4},
+    }
+    base = SimulationConfig.from_dict(cfg)
+
+    overridden = base.with_overrides({"time": {"integration": {"dt_star": 2.0e-4}}})
+
+    assert overridden.time.duration_unit == "tau"
+    assert overridden.tau_s == pytest.approx(base.tau_s)
+    assert overridden.time.duration_s == pytest.approx(0.1 * base.tau_s)
+    assert overridden.dt_star == pytest.approx(2.0e-4)
+
+
 def test_equivalent_new_and_legacy_time_keys_are_accepted() -> None:
     cfg = _base_cfg()
     cfg["time"] = {
@@ -552,6 +571,18 @@ def test_torque_minus_one_is_rejected_for_2010_project_profile() -> None:
 
     with pytest.raises(ValueError, match="deprecated 2010 paper profile sentinel"):
         sim_cfg.validate_time_scaling()
+
+
+def test_negative_signed_torque_other_than_minus_one_is_allowed() -> None:
+    cfg = _base_cfg()
+    cfg["model_profile"] = _model_profile()
+    cfg["motor"]["torque_Nm"] = -2.5e-20
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    sim_cfg.validate_time_scaling()
+    assert sim_cfg.motor_torque_Nm == pytest.approx(-2.5e-20)
+    assert sim_cfg.reference_torque_Nm == pytest.approx(2.5e-20)
 
 
 def test_zero_reference_torque_is_rejected() -> None:
