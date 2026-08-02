@@ -184,6 +184,73 @@ def test_incomplete_run_retains_legacy(tmp_path: Path) -> None:
 
 
 @pytest.mark.light
+def test_final_step_start_time_is_accepted_as_complete(tmp_path: Path) -> None:
+    motor_off = tmp_path / "motor_off.csv"
+    motor_on = tmp_path / "motor_on.csv"
+    _write_summary(motor_off, fene_pass=True)
+    _write_summary(motor_on, fene_pass=True)
+
+    rows = list(csv.DictReader(motor_on.open(encoding="utf-8", newline="")))
+    for row in rows:
+        condition_dir = tmp_path / row["axis_formulation_value"]
+        condition_dir.mkdir()
+        row["output_dir"] = str(condition_dir)
+        row["final_t_s"] = "0.9"
+        with (condition_dir / "step_summary.csv").open(
+            "w", encoding="utf-8", newline=""
+        ) as handle:
+            writer = csv.DictWriter(handle, fieldnames=["step", "t_s"])
+            writer.writeheader()
+            writer.writerows([{"step": step, "t_s": step * 0.1} for step in range(10)])
+    with motor_on.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+    decision = decide_default(motor_off, motor_on)
+
+    assert decision["selected_default"] == "fene_fraenkel"
+
+
+@pytest.mark.light
+def test_non_contiguous_step_summary_retains_legacy(tmp_path: Path) -> None:
+    motor_off = tmp_path / "motor_off.csv"
+    motor_on = tmp_path / "motor_on.csv"
+    _write_summary(motor_off, fene_pass=True)
+    _write_summary(motor_on, fene_pass=True)
+
+    rows = list(csv.DictReader(motor_on.open(encoding="utf-8", newline="")))
+    condition_dir = tmp_path / "fene_fraenkel"
+    condition_dir.mkdir()
+    rows[0]["output_dir"] = ""
+    rows[1]["output_dir"] = str(condition_dir)
+    rows[1]["final_t_s"] = "0.9"
+    with (condition_dir / "step_summary.csv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(handle, fieldnames=["step", "t_s"])
+        writer.writeheader()
+        writer.writerows(
+            [
+                {"step": 0, "t_s": 0.0},
+                {"step": 2, "t_s": 0.9},
+            ]
+        )
+    with motor_on.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+    decision = decide_default(motor_off, motor_on)
+
+    assert decision["selected_default"] == "legacy"
+    assert (
+        "step_summary.csv step indices are not contiguous from zero"
+        in decision["evaluations"]["fene_fraenkel"]["motor_on"]["reasons"]
+    )
+
+
+@pytest.mark.light
 def test_non_finite_summary_metric_retains_legacy(tmp_path: Path) -> None:
     motor_off = tmp_path / "motor_off.csv"
     motor_on = tmp_path / "motor_on.csv"

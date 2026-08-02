@@ -173,6 +173,45 @@ def _formulation(row: dict[str, str]) -> str:
     return ""
 
 
+def _step_summary_reaches_duration(
+    row: dict[str, str],
+    *,
+    duration_s: float,
+    final_t_s: float,
+) -> tuple[bool, str | None]:
+    output_dir = str(row.get("output_dir", "")).strip()
+    if not output_dir:
+        return False, None
+    step_summary = Path(output_dir) / "step_summary.csv"
+    if not step_summary.is_file():
+        return False, f"step_summary.csv is missing: {step_summary}"
+
+    with step_summary.open("r", encoding="utf-8", newline="") as handle:
+        step_rows = list(csv.DictReader(handle))
+    if len(step_rows) < 2:
+        return False, "step_summary.csv has fewer than two rows"
+
+    try:
+        steps = [int(step_row["step"]) for step_row in step_rows]
+        times = [float(step_row["t_s"]) for step_row in step_rows]
+    except (KeyError, TypeError, ValueError):
+        return False, "step_summary.csv has invalid step or t_s values"
+    if steps != list(range(len(steps))):
+        return False, "step_summary.csv step indices are not contiguous from zero"
+    if not all(math.isfinite(value) for value in times):
+        return False, "step_summary.csv contains non-finite t_s values"
+
+    observed_dt_s = times[-1] - times[-2]
+    tolerance = max(1.0e-12, duration_s * 1.0e-9)
+    if observed_dt_s <= 0.0 or not math.isfinite(observed_dt_s):
+        return False, "step_summary.csv final time interval is invalid"
+    if not math.isclose(times[-1], final_t_s, rel_tol=1.0e-9, abs_tol=tolerance):
+        return False, "summary final_t_s does not match step_summary.csv"
+    if times[-1] + observed_dt_s < duration_s - tolerance:
+        return False, "step_summary.csv did not reach duration_s"
+    return True, None
+
+
 def _evaluate_row(row: dict[str, str] | None) -> dict[str, Any]:
     reasons: list[str] = []
     if row is None:
@@ -206,12 +245,18 @@ def _evaluate_row(row: dict[str, str] | None) -> dict[str, Any]:
             duration_s = parsed
         else:
             final_t_s = parsed
-    if (
-        final_t_s is not None
-        and duration_s is not None
-        and final_t_s < duration_s - max(1.0e-12, duration_s * 1.0e-9)
-    ):
-        reasons.append("final_t_s did not reach duration_s")
+    if final_t_s is not None and duration_s is not None:
+        tolerance = max(1.0e-12, duration_s * 1.0e-9)
+        if final_t_s < duration_s - tolerance:
+            completed, completion_reason = _step_summary_reaches_duration(
+                row,
+                duration_s=duration_s,
+                final_t_s=final_t_s,
+            )
+            if not completed:
+                reasons.append(
+                    completion_reason or "final_t_s did not reach duration_s"
+                )
 
     finite_metric_fields = {
         "max_flag_bond_rel_err": ("max_flag_bond_rel_err",),
