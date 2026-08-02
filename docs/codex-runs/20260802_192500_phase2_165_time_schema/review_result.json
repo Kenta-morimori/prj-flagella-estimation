@@ -1,0 +1,123 @@
+{
+  "status": "PASS",
+  "task": "Phase 2 Issue #165 time schema and profile-aware duration scaling",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/165",
+  "branch": "feature/phase2-165-time-schema",
+  "summary": [
+    "Added canonical time.duration.{value,unit} and time.integration.dt_star parsing with legacy flat-key compatibility.",
+    "Preserved 2010 project tau_s=1.0 while deriving tau_s from eta*b^3/reference_torque_Nm for 2010 paper and 2015 profiles.",
+    "Separated motor.enabled, motor.torque_Nm, and motor.reference_torque_Nm responsibilities.",
+    "Recorded normalized time quantities and compatibility source paths in single-run and campaign manifests.",
+    "Documented the ceil(duration_tau / dt_star) step-time contract and kept 2015 geometry/dynamics/stability out of scope.",
+    "Addressed Codex Cloud feedback by making motor.enabled=false override the 2010 paper torque_Nm=-1 sentinel for actual motor drive while preserving reference_torque_Nm.",
+    "Addressed Codex Cloud feedback by preserving canonical duration units across partial time overrides and allowing negative signed torque values other than the -1 sentinel."
+  ],
+  "scope_boundaries": [
+    "2015 profiles remain implementation_status=pending and are not made executable.",
+    "Issue #166 refined geometry, Issue #167 2015 dynamics, and Issue #168 stability evaluation were not implemented.",
+    "time.dt_s remains a deprecated output/recording interval key; no output.interval_s migration was implemented.",
+    "Long Phase 2 simulations and visual review videos were not run."
+  ],
+  "checks": [
+    {
+      "command": "uv run pytest tests/test_params.py tests/test_model_profiles.py tests/test_e2e_cli.py tests/test_phase2_generic_multi_run.py -q",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest tests/test_simulation.py tests/test_run_state_fixed.py tests/test_render_state_and_projection.py -q",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/sim/params.py src/sim_swim/sim/core.py src/sim_swim/analysis/sweeps/generic_multi_run.py src/sim_swim/analysis/sweeps/shape_stability_grid.py src/sim_swim/analysis/sweeps/single_flagellum_torque.py scripts/01_simulate_swimming/01_simulate_swimming.py tests/test_params.py tests/test_e2e_cli.py tests/test_phase2_generic_multi_run.py tests/test_model_profiles.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest tests/test_phase2_sweep_profiles.py tests/test_phase2_6_torque_model_evaluation.py tests/test_phase2_82_hook_overstretch_sweep.py -q",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run python -c \"import yaml; from pathlib import Path; from sim_swim.sim.params import SimulationConfig; [SimulationConfig.from_dict(yaml.safe_load(Path('conf', name).read_text(encoding='utf-8'))).time_manifest() for name in ('sim_swim_2010.yaml','sim_swim_2010_paper.yaml','sim_swim_2015.yaml','sim_swim_2015_paper.yaml')]; print('profiles ok')\"",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest tests/test_params.py -q",
+      "result": "PASS after Codex Cloud feedback"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/sim/params.py tests/test_params.py",
+      "result": "PASS after Codex Cloud feedback"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/sim/params.py tests/test_params.py",
+      "result": "PASS after Codex Cloud feedback"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS after Codex Cloud feedback"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS after Codex Cloud feedback"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS after Codex Cloud feedback"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS after Codex Cloud feedback"
+    },
+    {
+      "command": "uv run pytest tests/test_params.py -q",
+      "result": "PASS after second Codex Cloud feedback batch"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/sim/params.py tests/test_params.py",
+      "result": "PASS after second Codex Cloud feedback batch"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/sim/params.py tests/test_params.py",
+      "result": "PASS after second Codex Cloud feedback batch"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS after second Codex Cloud feedback batch"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS after second Codex Cloud feedback batch"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS after second Codex Cloud feedback batch"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS after second Codex Cloud feedback batch"
+    }
+  ],
+  "user_visual_review_required": false,
+  "long_simulation_required": false,
+  "adr": "docs/adr/0012_phase2_time_schema_profiles.md",
+  "created_at": "2026-08-02T19:25:00+09:00"
+}

@@ -112,8 +112,13 @@ def _condition_row(
     return row
 
 
-def _manifest_condition_record(root: Path, condition: dict[str, Any]) -> dict[str, Any]:
-    return {
+def _manifest_condition_record(
+    root: Path,
+    condition: dict[str, Any],
+    *,
+    time_manifest: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    record = {
         "condition_id": condition["condition_id"],
         "condition_index": condition["condition_index"],
         "condition_label": condition["condition_label"],
@@ -132,6 +137,9 @@ def _manifest_condition_record(root: Path, condition: dict[str, Any]) -> dict[st
             "col_label": condition.get("grid_col_label"),
         },
     }
+    if time_manifest is not None:
+        record["time"] = time_manifest
+    return record
 
 
 def _summary_fieldnames(rows: list[dict[str, Any]]) -> list[str]:
@@ -199,6 +207,7 @@ def run_campaign(argv: list[str] | None = None) -> Path:
     logger.info("Campaign conditions=%d", len(conditions))
 
     rows: list[dict[str, Any]] = []
+    condition_time_manifests: dict[str, dict[str, Any]] = {}
     total = len(conditions)
     for index, condition in enumerate(conditions, start=1):
         logger.info(
@@ -209,6 +218,7 @@ def run_campaign(argv: list[str] | None = None) -> Path:
         cfg = SimulationConfig.from_dict(base_cfg).with_overrides(
             condition["config_overrides"]
         )
+        condition_time_manifests[condition["condition_id"]] = cfg.time_manifest()
         simulator = Simulator(cfg)
         states = simulator.run(
             cfg.time.duration_s,
@@ -236,6 +246,7 @@ def run_campaign(argv: list[str] | None = None) -> Path:
         "base_config": str(base_config_path),
         "source_config_path": str(base_config_path),
         "model_profile": base_simulation_cfg.model_profile_manifest(),
+        "time": base_simulation_cfg.time_manifest(),
         "summary_csv": str(summary_path),
         "git": {
             "commit": ctx.git.commit,
@@ -250,7 +261,11 @@ def run_campaign(argv: list[str] | None = None) -> Path:
         "axes": campaign_axes_metadata(campaign),
         "condition_order": [condition["condition_id"] for condition in conditions],
         "conditions": [
-            _manifest_condition_record(ctx.out.root, condition)
+            _manifest_condition_record(
+                ctx.out.root,
+                condition,
+                time_manifest=condition_time_manifests.get(condition["condition_id"]),
+            )
             for condition in conditions
         ],
     }
@@ -268,6 +283,7 @@ def run_campaign(argv: list[str] | None = None) -> Path:
             "replay": manifest["replay"],
             "plot": manifest["plot"],
         }
+        existing["time"] = base_simulation_cfg.time_manifest()
         existing["outputs"]["summary_csv"] = str(summary_path)
         existing["outputs"]["run_manifest_json"] = str(run_manifest_path)
         manifest_path.write_text(

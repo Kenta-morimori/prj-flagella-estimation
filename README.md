@@ -53,6 +53,17 @@ Phase 2のmodel profileは次の4つです。`2015` profileはgeometry・paper�
 | `conf/sim_swim_2010_paper.yaml` | Watari & Larson (2010) paper参照条件 |
 | `conf/sim_swim_2015.yaml` | 2015 refined modelのproject採用候補 |
 | `conf/sim_swim_2015_paper.yaml` | Kong et al. (2015) paper参照条件 |
+
+Phase 2 の時間指定は `time.duration.value` / `time.duration.unit` と
+`time.integration.dt_star` が正本です。`duration.unit` は `s` または `tau`
+を受け付けます。`time.duration_s`、`time.dt_star`、`time.dt_s` は既存互換の
+deprecated key です。`time.dt_s` は出力・記録間隔であり、内部積分刻みは
+`time.integration.dt_star` から決まります。
+
+内部step数は `total_steps = ceil(duration_tau / dt_star)` です。
+`step_summary.csv` は各stepの開始時刻を `total_steps` 行記録し、state列は
+初期状態を含む `total_steps + 1` 件になります。そのため `ceil` により最終
+state時刻が指定durationをわずかに超える場合があります。
 - `scripts/`: ユーザー向け CLI entrypoints。詳細は `scripts/README.md` を参照してください。
 - `src/`: 再利用可能な実装本体。Phase 2 simulation は `src/sim_swim/` が中心です。
 - `docs/phase2/`: Phase 2 の現在地、task status、設計・検証記録。

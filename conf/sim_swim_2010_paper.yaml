@@ -42,8 +42,9 @@ fluid:
   viscosity_Pa_s: 0.001
 
 motor:
+  enabled: true
   # -1 sentinelは現行legacyでT=eta*b^3、tau_s=1 sとするnondimensional paper reference。
-  # 正式なreference torque/time contractへの移行は#165で扱う。
+  # #165以降は2010 paper profile由来のdeprecated compatibilityとしてのみ受け付ける。
   torque_Nm: -1.0
   # tripletはroot局所のforce coupleで、現行実装中のclosest approximation。
   # 論文の駆動条件を厳密に再現する実装は#167の範囲。
@@ -105,9 +106,12 @@ run_tumble:
   curly1_tau: 400.0
 
 time:
-  duration_s: 0.1
-  dt_s: 1.0e-3
-  dt_star: 1.0e-4              # tau duration・実時間換算の正式化は#165で扱う
+  duration:
+    value: 0.1
+    unit: tau
+  dt_s: 1.0e-3                 # [s] deprecated: 出力・記録間隔。内部積分刻みではない
+  integration:
+    dt_star: 1.0e-4
 
 output_sampling:
   out_all_steps_3d: false

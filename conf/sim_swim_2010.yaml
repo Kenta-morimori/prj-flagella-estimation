@@ -43,7 +43,9 @@ fluid:
   viscosity_Pa_s: 0.001        # [Pa*s] 水相当
 
 motor:
+  enabled: true
   torque_Nm: 2.5e-20      # [N*m] Phase 2代表条件のモータートルク(Torque, T)．-1のときはτ=1になるよう「η * b^3」と定義する．
+  reference_torque_Nm: 2.5e-20 # [N*m] 時間換算・無次元係数の参照トルク。2010 projectではtau_s=1固定のためprovenance用
   # motor torque をbead forceへ変換する方式。
   # - root_torque_segment_couples: 既定値。root起点のねじりをsegmentごとのlocal force coupleとして分配し、形状安定性を優先する。
   # - root_torque_axis_projection: flagellum軸まわりの接線方向へzero-net-forceで分配し、軸中心回転の参照比較に使う。
@@ -110,9 +112,12 @@ run_tumble:
   curly1_tau: 400.0            # [tau] tumble 後半（curly1）
 
 time:
-  duration_s: 0.1              # [s] 物理時間（デバッグ固定）
-  dt_s: 1.0e-3                 # [s] 出力・記録間隔。dt_star=null時は内部積分刻みとしても使う
-  dt_star: 1.0e-4              # [-] Phase 2標準の内部積分刻み。null時はdt_s/tau_sを使用
+  duration:
+    value: 0.1                 # [s] 物理時間（デバッグ固定）
+    unit: s                    # s / tau
+  dt_s: 1.0e-3                 # [s] deprecated: 出力・記録間隔。内部積分刻みではない
+  integration:
+    dt_star: 1.0e-4            # [-] Phase 2標準の内部積分刻み
 
 output_sampling:
   out_all_steps_3d: false      # false: 3D は fps_out_3d で間引く。全内部step描画は明示override時のみ

@@ -54,6 +54,7 @@ There is no `prompts/` source of truth in the current repository. Do not recreat
 
 * Do not work directly on `main` or `master`.
 * Check current branch and `git status` before making changes.
+* After a PR is merged, sync the default branch and delete that task branch locally and remotely. Do not delete unmerged branches or branches retained for active follow-up work without an explicit decision.
 * Keep changes within the requested task scope.
 * Do not make broad refactors unless required by the task.
 * Do not add dependencies without explaining why they are necessary.

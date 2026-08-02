@@ -17,12 +17,21 @@ uv run python -m scripts.01_simulate_swimming
 ```bash
 uv run python -m scripts.01_simulate_swimming \
   config=conf/sim_swim_2010.yaml \
-  time.duration_s=0.05 \
+  time.duration.value=0.05 \
+  time.duration.unit=s \
   motor.torque_Nm=2.0e-20 \
-  time.dt_star=1.0e-4
+  time.integration.dt_star=1.0e-4
 ```
 
-`--config`、`--duration-s`、`--fps-out` は既存互換用に残しています。新規コマンド例では `config=...`、`time.duration_s=...`、`output_sampling.fps_out_2d=...` を使います。
+`--config`、`--duration-s`、`--fps-out`、`time.duration_s`、`time.dt_star` は既存互換用に残しています。新規コマンド例では `config=...`、`time.duration.value=...`、`time.duration.unit=...`、`time.integration.dt_star=...`、`output_sampling.fps_out_2d=...` を使います。
+
+時間正規化の契約:
+
+- `time.duration.unit` は `s` または `tau`。
+- 2010 project profile は legacy 互換のため `tau_s=1.0` 固定。
+- 2010 paper / 2015 profiles は `tau_s = viscosity_Pa_s * b_m^3 / abs(motor.reference_torque_Nm)`。
+- `time.dt_s` は deprecated な出力・記録間隔で、内部積分刻みではありません。
+- `total_steps = ceil(duration_tau / dt_star)`。`step_summary.csv` はstep開始時刻を記録するため最終state時刻は指定durationをわずかに超える場合があります。
 
 主な出力は `outputs/YYYY-MM-DD/HHMMSS/` 配下に作成され、`manifest.json` と `run.log` に実行条件が記録されます。
 
@@ -43,7 +52,8 @@ uv run python scripts/01_simulate_swimming/run_sweep.py \
 uv run python scripts/01_simulate_swimming/run_sweep.py \
   config=conf/phase2_sweeps/shape_stability_grid.yaml \
   mode=first-second-grid \
-  time.duration_s=0.001 \
+  time.duration.value=0.001 \
+  time.duration.unit=s \
   motor.torque_Nm=0 \
   first_second_spring_scales=1 \
   output_dir=/private/tmp/phase2_smoke \
@@ -66,7 +76,8 @@ uv run python scripts/01_simulate_swimming/run_multi_run.py \
 uv run python scripts/01_simulate_swimming/run_multi_run.py \
   config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml \
   sweep.axes.torque.values=[1.5e-20,2.0e-20,2.5e-20] \
-  time.duration_s=1.0 \
+  time.duration.value=1.0 \
+  time.duration.unit=s \
   overwrite=true
 ```
 
@@ -111,8 +122,9 @@ uv run python scripts/01_simulate_swimming/run_sweep.py \
 uv run python -m scripts.01_simulate_swimming \
   config=conf/sim_swim_2010.yaml \
   potentials.spring.formulation=fene_fraenkel \
-  time.duration_s=0.01 \
-  time.dt_star=1.0e-4
+  time.duration.value=0.01 \
+  time.duration.unit=s \
+  time.integration.dt_star=1.0e-4
 ```
 
 Issue #163 のdefault判定用長時間比較は、motor-offとmotor-on RUNを同じseedで実行します。

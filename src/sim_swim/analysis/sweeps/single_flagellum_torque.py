@@ -397,6 +397,9 @@ def _write_manifest(
         "config": str(args.config),
         "source_config_path": str(args.config),
         "model_profile": base_cfg.model_profile_manifest(),
+        "time": base_cfg.with_overrides(
+            {"time": {"duration_s": args.duration, "dt_star": args.dt_star}}
+        ).time_manifest(),
         "torques_Nm": args.torques,
         "scale_values": args.scale_values,
         "scale_torques": args.scale_torques,

@@ -47,6 +47,18 @@ MODEL_PROFILE_YEARS = frozenset({2010, 2015})
 MODEL_PROFILE_VARIANTS = frozenset({"project", "paper"})
 MODEL_PROFILE_RESOLUTIONS = frozenset({"legacy_project", "coarse", "refined"})
 MODEL_PROFILE_IMPLEMENTATION_STATUSES = frozenset({"supported", "pending"})
+TIME_DURATION_UNITS = frozenset({"s", "tau"})
+TIME_SCHEMA_SOURCES = frozenset(
+    {
+        "canonical",
+        "legacy_duration_s",
+        "legacy_dt_star",
+        "cli_shorthand",
+        "mixed_equivalent",
+    }
+)
+TIME_SCALE_POLICY_LEGACY_FIXED_TAU = "legacy_fixed_tau_s_1"
+TIME_SCALE_POLICY_REFERENCE_TORQUE = "reference_torque"
 MOTOR_LOCAL_SCALE_KEYS = (
     "local_hook_scale",
     "local_spring_scale",
@@ -380,7 +392,9 @@ class FluidParams:
 class MotorParams:
     """モータ設定。"""
 
+    enabled: bool = True
     torque_Nm: float = 4.0e-18
+    reference_torque_Nm: float | None = None
     force_distribution: str = MOTOR_FORCE_DISTRIBUTION_DEFAULT
     torque_distribution_profile: str = MOTOR_TORQUE_DISTRIBUTION_PROFILE_DEFAULT
     reverse_n_flagella: int = 1
@@ -501,6 +515,13 @@ class TimeParams:
     duration_s: float = 0.1
     dt_s: float = 1.0e-3
     dt_star: float | None = None
+    duration_value: float = 0.1
+    duration_unit: str = "s"
+    integration_dt_star: float | None = None
+    schema_source: str = "legacy_duration_s"
+    legacy_keys_used: tuple[str, ...] = ()
+    legacy_duration_s: float | None = None
+    legacy_dt_star: float | None = None
 
 
 @dataclass(frozen=True)
@@ -563,6 +584,158 @@ class StiffnessScaleParams:
     flag_torsion: float = 1.0
 
 
+def _is_2010_project_profile(profile: ModelProfileParams | None) -> bool:
+    return profile is None or (
+        profile.year == 2010
+        and profile.variant == "project"
+        and profile.resolution == "legacy_project"
+    )
+
+
+def _is_2010_paper_profile(profile: ModelProfileParams | None) -> bool:
+    return (
+        profile is not None
+        and profile.year == 2010
+        and profile.variant == "paper"
+        and profile.resolution == "coarse"
+    )
+
+
+def _time_scale_policy(profile: ModelProfileParams | None) -> str:
+    if _is_2010_project_profile(profile):
+        return TIME_SCALE_POLICY_LEGACY_FIXED_TAU
+    return TIME_SCALE_POLICY_REFERENCE_TORQUE
+
+
+def _equivalent_time_seconds(a: float, b: float) -> bool:
+    return math.isclose(float(a), float(b), rel_tol=1.0e-12, abs_tol=1.0e-15)
+
+
+def _normalize_duration_unit(value: Any) -> str:
+    unit = str(value).strip()
+    if unit not in TIME_DURATION_UNITS:
+        supported = ", ".join(sorted(TIME_DURATION_UNITS))
+        raise ValueError(
+            f"Unsupported time.duration.unit: {unit!r}. Use one of: {supported}."
+        )
+    return unit
+
+
+def _parse_time_params(raw: dict[str, Any]) -> TimeParams:
+    time_raw = raw.get("time", {}) or {}
+    if "dt_over_tau" in time_raw:
+        raise ValueError(
+            "time.dt_over_tau は入力キーとして廃止。time.dt_s を使用してください。"
+        )
+
+    legacy_keys_used: list[str] = []
+    duration_raw = time_raw.get("duration")
+    has_canonical_duration = duration_raw not in (None, "")
+    if has_canonical_duration and not isinstance(duration_raw, dict):
+        raise ValueError("time.duration must be a mapping with value and unit")
+
+    legacy_duration_present = time_raw.get("duration_s") not in (None, "")
+    if legacy_duration_present:
+        legacy_keys_used.append("time.duration_s")
+
+    if has_canonical_duration:
+        duration_value = float(_get(duration_raw, "value", 0.1))
+        duration_unit = _normalize_duration_unit(_get(duration_raw, "unit", "s"))
+    elif legacy_duration_present:
+        duration_value = float(time_raw["duration_s"])
+        duration_unit = "s"
+    else:
+        duration_value = 0.1
+        duration_unit = "s"
+
+    dt_s = time_raw.get("dt_s")
+    if dt_s is None:
+        raise ValueError("time.dt_s は必須です。出力・記録間隔として設定してください。")
+    legacy_keys_used.append("time.dt_s")
+
+    integration_raw = time_raw.get("integration")
+    has_canonical_integration = integration_raw not in (None, "")
+    if has_canonical_integration and not isinstance(integration_raw, dict):
+        raise ValueError("time.integration must be a mapping with dt_star")
+
+    legacy_dt_star_present = time_raw.get("dt_star") not in (None, "")
+    if legacy_dt_star_present:
+        legacy_keys_used.append("time.dt_star")
+
+    if has_canonical_integration:
+        canonical_dt = integration_raw.get("dt_star")
+        integration_dt_star = (
+            float(canonical_dt) if canonical_dt not in (None, "") else None
+        )
+    elif legacy_dt_star_present:
+        integration_dt_star = float(time_raw["dt_star"])
+    else:
+        integration_dt_star = None
+
+    if (
+        has_canonical_integration
+        and legacy_dt_star_present
+        and integration_dt_star is not None
+        and not math.isclose(
+            float(integration_dt_star),
+            float(time_raw["dt_star"]),
+            rel_tol=1.0e-12,
+            abs_tol=1.0e-15,
+        )
+    ):
+        raise ValueError(
+            "Conflicting time integration settings: "
+            "time.integration.dt_star and legacy time.dt_star differ."
+        )
+
+    if has_canonical_duration and legacy_duration_present:
+        canonical_duration_s = duration_value if duration_unit == "s" else None
+        if canonical_duration_s is not None and not _equivalent_time_seconds(
+            canonical_duration_s,
+            float(time_raw["duration_s"]),
+        ):
+            raise ValueError(
+                "Conflicting time duration settings: "
+                "time.duration and legacy time.duration_s differ."
+            )
+
+    if has_canonical_duration or has_canonical_integration:
+        schema_source = (
+            "mixed_equivalent"
+            if legacy_duration_present or legacy_dt_star_present
+            else "canonical"
+        )
+    elif legacy_duration_present:
+        schema_source = "legacy_duration_s"
+    elif legacy_dt_star_present:
+        schema_source = "legacy_dt_star"
+    else:
+        schema_source = "legacy_duration_s"
+
+    explicit_schema_source = time_raw.get("_schema_source")
+    if explicit_schema_source not in (None, ""):
+        schema_source = str(explicit_schema_source)
+
+    if schema_source not in TIME_SCHEMA_SOURCES:
+        raise ValueError(f"Unsupported time schema source: {schema_source}")
+
+    legacy_keys = tuple(dict.fromkeys(legacy_keys_used))
+    return TimeParams(
+        duration_s=float(duration_value),
+        dt_s=float(dt_s),
+        dt_star=integration_dt_star,
+        duration_value=float(duration_value),
+        duration_unit=duration_unit,
+        integration_dt_star=integration_dt_star,
+        schema_source=schema_source,
+        legacy_keys_used=legacy_keys,
+        legacy_duration_s=(
+            float(time_raw["duration_s"]) if legacy_duration_present else None
+        ),
+        legacy_dt_star=(float(time_raw["dt_star"]) if legacy_dt_star_present else None),
+    )
+
+
 @dataclass(frozen=True)
 class SimulationConfig:
     """Phase2シミュレーション設定。"""
@@ -584,6 +757,36 @@ class SimulationConfig:
     output: OutputParams
     stiffness_scales: StiffnessScaleParams
     model_profile: ModelProfileParams | None = None
+
+    def __post_init__(self) -> None:
+        tau_s = self._compute_tau_s()
+        duration_s = (
+            float(self.time.duration_value) * tau_s
+            if self.time.duration_unit == "tau"
+            else float(self.time.duration_value)
+        )
+        if self.time.legacy_duration_s is not None and not _equivalent_time_seconds(
+            duration_s,
+            self.time.legacy_duration_s,
+        ):
+            raise ValueError(
+                "Conflicting time duration settings: "
+                "time.duration and legacy time.duration_s differ after tau_s "
+                "normalization."
+            )
+        resolved_time = TimeParams(
+            duration_s=duration_s,
+            dt_s=self.time.dt_s,
+            dt_star=self.time.integration_dt_star,
+            duration_value=self.time.duration_value,
+            duration_unit=self.time.duration_unit,
+            integration_dt_star=self.time.integration_dt_star,
+            schema_source=self.time.schema_source,
+            legacy_keys_used=self.time.legacy_keys_used,
+            legacy_duration_s=self.time.legacy_duration_s,
+            legacy_dt_star=self.time.legacy_dt_star,
+        )
+        object.__setattr__(self, "time", resolved_time)
 
     def validate_execution_supported(self) -> None:
         """Reject profiles that intentionally describe future implementations."""
@@ -617,11 +820,15 @@ class SimulationConfig:
 
     @property
     def use_eta_b3_torque(self) -> bool:
-        return math.isclose(self.input_torque_Nm, -1.0, rel_tol=0.0, abs_tol=1e-12)
+        return (
+            self.model_profile is None or _is_2010_paper_profile(self.model_profile)
+        ) and math.isclose(self.input_torque_Nm, -1.0, rel_tol=0.0, abs_tol=1e-12)
 
     @property
     def is_motor_off_torque(self) -> bool:
-        return math.isclose(self.input_torque_Nm, 0.0, rel_tol=0.0, abs_tol=1e-30)
+        return (not bool(self.motor.enabled)) or math.isclose(
+            self.input_torque_Nm, 0.0, rel_tol=0.0, abs_tol=1e-30
+        )
 
     @property
     def torque_eta_b3_Nm(self) -> float:
@@ -630,26 +837,42 @@ class SimulationConfig:
     @property
     def torque_scale_Nm(self) -> float:
         """τ計算に使うスケールトルク絶対値。"""
-        if self.use_eta_b3_torque or self.is_motor_off_torque:
-            return self.torque_eta_b3_Nm
-        return abs(self.input_torque_Nm)
+        return abs(self.reference_torque_Nm)
 
     @property
     def torque_for_forces_Nm(self) -> float:
         """力学パラメータ（剛性/反発）のスケーリングに使うトルク絶対値。"""
         if float(self.motor.torque_for_forces_override_Nm) > 0.0:
             return float(self.motor.torque_for_forces_override_Nm)
-        if self.use_eta_b3_torque or self.is_motor_off_torque:
+        return abs(self.reference_torque_Nm)
+
+    @property
+    def motor_enabled(self) -> bool:
+        return not self.is_motor_off_torque
+
+    @property
+    def time_scale_policy(self) -> str:
+        return _time_scale_policy(self.model_profile)
+
+    @property
+    def reference_torque_Nm(self) -> float:
+        if self.use_eta_b3_torque:
             return self.torque_eta_b3_Nm
-        return abs(self.motor_torque_Nm)
+        if self.motor.reference_torque_Nm is not None:
+            return float(self.motor.reference_torque_Nm)
+        if self.time_scale_policy == TIME_SCALE_POLICY_REFERENCE_TORQUE:
+            return abs(self.input_torque_Nm)
+        if self.is_motor_off_torque:
+            return self.torque_eta_b3_Nm
+        return abs(self.input_torque_Nm)
 
     @property
     def motor_torque_Nm(self) -> float:
         """モータ力計算で使う符号付きトルク。"""
-        if self.use_eta_b3_torque:
-            return self.torque_eta_b3_Nm
         if self.is_motor_off_torque:
             return 0.0
+        if self.use_eta_b3_torque:
+            return self.torque_eta_b3_Nm
         return self.input_torque_Nm
 
     @property
@@ -663,8 +886,14 @@ class SimulationConfig:
 
     @property
     def tau_s(self) -> float:
-        """内部計算で使う時間スケールτ[s]。Phase2では常に1固定。"""
-        return 1.0
+        """内部計算で使う時間スケールτ[s]。"""
+        return self._compute_tau_s()
+
+    def _compute_tau_s(self) -> float:
+        if self.time_scale_policy == TIME_SCALE_POLICY_LEGACY_FIXED_TAU:
+            return 1.0
+        reference = abs(float(self.reference_torque_Nm))
+        return self.viscosity_Pa_s * (self.b_m**3) / max(reference, 1e-300)
 
     @property
     def output_dt_s(self) -> float:
@@ -689,19 +918,64 @@ class SimulationConfig:
 
     @property
     def total_steps(self) -> int:
-        return max(1, int(math.ceil(self.duration_star / max(self.dt_star, 1e-30))))
+        return max(0, int(math.ceil(self.duration_star / max(self.dt_star, 1e-30))))
 
     def validate_time_scaling(
         self,
     ) -> None:
         """内部計算刻みが有効な値かを検証する。"""
 
+        if (
+            not math.isfinite(self.reference_torque_Nm)
+            or abs(self.reference_torque_Nm) <= 0.0
+        ):
+            raise ValueError("motor.reference_torque_Nm must be finite and non-zero.")
+        if (
+            math.isclose(self.input_torque_Nm, -1.0, rel_tol=0.0, abs_tol=1.0e-12)
+            and not self.use_eta_b3_torque
+        ):
+            raise ValueError(
+                "motor.torque_Nm=-1 is a deprecated 2010 paper profile sentinel "
+                "and cannot be used for this profile."
+            )
         if not math.isfinite(self.dt_star) or self.dt_star <= 0.0:
             raise ValueError(
                 "内部時間刻みが不正です。"
                 f" dt_s={self.dt_s:.12e}, tau_s={self.tau_s:.12e},"
                 f" dt_star={self.dt_star:.12e}"
             )
+        if not math.isfinite(self.time.duration_s) or self.time.duration_s < 0.0:
+            raise ValueError("time.duration must resolve to a non-negative duration.")
+
+    @property
+    def final_state_t_s(self) -> float:
+        return self.total_steps * self.dt_star * self.tau_s
+
+    @property
+    def final_step_summary_t_s(self) -> float:
+        if self.total_steps <= 0:
+            return 0.0
+        return (self.total_steps - 1) * self.dt_star * self.tau_s
+
+    def time_manifest(self) -> dict[str, Any]:
+        return {
+            "duration_value": float(self.time.duration_value),
+            "duration_unit": str(self.time.duration_unit),
+            "duration_tau": float(self.duration_star),
+            "duration_s": float(self.time.duration_s),
+            "dt_star": float(self.dt_star),
+            "tau_s": float(self.tau_s),
+            "dt_internal_s": float(self.dt_s),
+            "total_steps": int(self.total_steps),
+            "final_state_t_s": float(self.final_state_t_s),
+            "final_step_summary_t_s": float(self.final_step_summary_t_s),
+            "time_scale_policy": str(self.time_scale_policy),
+            "reference_torque_Nm": float(self.reference_torque_Nm),
+            "motor_enabled": bool(self.motor_enabled),
+            "motor_torque_Nm": float(self.motor_torque_Nm),
+            "time_schema_source": str(self.time.schema_source),
+            "legacy_time_keys_used": list(self.time.legacy_keys_used),
+        }
 
     def motor_local_scale_deviations(self) -> dict[str, float]:
         """Return motor local scales that differ from the paper-aligned default."""
@@ -961,7 +1235,13 @@ class SimulationConfig:
                 stacklevel=2,
             )
         motor = MotorParams(
+            enabled=bool(_get(motor_raw, "enabled", True)),
             torque_Nm=float(_get(motor_raw, "torque_Nm", 2.5e-20)),
+            reference_torque_Nm=(
+                float(motor_raw["reference_torque_Nm"])
+                if motor_raw.get("reference_torque_Nm") not in (None, "")
+                else None
+            ),
             force_distribution=normalize_motor_force_distribution(
                 _get(
                     motor_raw,
@@ -1151,27 +1431,7 @@ class SimulationConfig:
             curly1_tau=float(_get(rt_raw, "curly1_tau", 400.0)),
         )
 
-        time_raw = raw.get("time", {}) or {}
-        if "dt_over_tau" in time_raw:
-            raise ValueError(
-                "time.dt_over_tau は入力キーとして廃止。time.dt_s を使用してください。"
-            )
-
-        dt_s = time_raw.get("dt_s")
-        if dt_s is None:
-            raise ValueError(
-                "time.dt_s は必須です。出力間隔として設定してください（内部計算のΔtは1e-3固定）。"
-            )
-
-        time = TimeParams(
-            duration_s=float(_get(time_raw, "duration_s", 0.1)),
-            dt_s=float(dt_s),
-            dt_star=(
-                float(time_raw["dt_star"])
-                if time_raw.get("dt_star") not in (None, "")
-                else None
-            ),
-        )
+        time = _parse_time_params(raw)
 
         out_sample_raw = raw.get("output_sampling", {}) or {}
         old_fps = (raw.get("time", {}) or {}).get("fps_out")
@@ -1266,6 +1526,61 @@ class SimulationConfig:
             )
 
         merged = asdict(self)
+        time_overrides = (
+            overrides.get("time", {}) if isinstance(overrides, dict) else {}
+        )
+        merged_time = merged.get("time")
+        if isinstance(merged_time, dict):
+            if self.time.schema_source == "canonical":
+                override_has_duration = isinstance(time_overrides, dict) and (
+                    "duration" in time_overrides or "duration_s" in time_overrides
+                )
+                override_has_integration = isinstance(time_overrides, dict) and (
+                    "integration" in time_overrides or "dt_star" in time_overrides
+                )
+                if not override_has_duration:
+                    merged_time["duration"] = {
+                        "value": self.time.duration_value,
+                        "unit": self.time.duration_unit,
+                    }
+                    merged_time.pop("duration_s", None)
+                    merged_time.pop("legacy_duration_s", None)
+                if not override_has_integration:
+                    merged_time["integration"] = {
+                        "dt_star": self.time.integration_dt_star
+                    }
+                    merged_time.pop("dt_star", None)
+                    merged_time.pop("legacy_dt_star", None)
+            for derived_key in (
+                "duration_value",
+                "duration_unit",
+                "integration_dt_star",
+                "schema_source",
+                "legacy_keys_used",
+            ):
+                merged_time.pop(derived_key, None)
+        if isinstance(time_overrides, dict):
+            if isinstance(merged_time, dict):
+                if "duration" in time_overrides:
+                    merged_time.pop("duration_s", None)
+                    merged_time.pop("legacy_duration_s", None)
+                if "duration_s" in time_overrides:
+                    merged_time.pop("duration", None)
+                if "integration" in time_overrides:
+                    merged_time.pop("dt_star", None)
+                    merged_time.pop("integration_dt_star", None)
+                    merged_time.pop("legacy_dt_star", None)
+                if "dt_star" in time_overrides:
+                    merged_time.pop("integration", None)
+                    merged_time.pop("integration_dt_star", None)
+                for derived_key in (
+                    "duration_value",
+                    "duration_unit",
+                    "integration_dt_star",
+                    "schema_source",
+                    "legacy_keys_used",
+                ):
+                    merged_time.pop(derived_key, None)
 
         def _merge(dst: dict[str, Any], src: dict[str, Any]) -> None:
             for key, value in src.items():

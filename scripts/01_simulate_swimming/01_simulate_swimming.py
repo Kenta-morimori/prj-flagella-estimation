@@ -102,6 +102,7 @@ def main(
     override_dict = _to_nested_overrides(overrides)
     if duration_s is not None:
         override_dict.setdefault("time", {})["duration_s"] = duration_s
+        override_dict.setdefault("time", {})["_schema_source"] = "cli_shorthand"
         shorthand_overrides.append(f"time.duration_s={duration_s}")
     if fps_out is not None:
         override_dict.setdefault("output_sampling", {})["fps_out_2d"] = fps_out
@@ -136,7 +137,7 @@ def main(
     logger.info("Loaded simulation config (effective): %s", cfg)
     logger.info("Overrides: %s", override_dict if override_dict else "None")
     cfg.validate_time_scaling()
-    logger.info("[time-scale] τ is fixed to 1.0 in stable integration mode")
+    logger.info("[time-scale] normalized=%s", cfg.time_manifest())
 
     if cfg.use_eta_b3_torque:
         logger.info(
@@ -155,7 +156,7 @@ def main(
             cfg.tau_s,
         )
     elif cfg.is_motor_off_torque:
-        logger.info("[time-scale] input motor.torque_Nm=0; motor OFF mode (tau=1)")
+        logger.info("[time-scale] motor disabled or torque_Nm=0; motor OFF mode")
         logger.info(
             (
                 "[time-scale] b=%.6e um, b_m=%.6e m, η=%.6e Pa·s, "
@@ -286,6 +287,7 @@ def main(
     except Exception:
         manifest = {}
     outputs = manifest.get("outputs", {})
+    manifest["time"] = cfg.time_manifest()
     body_diag_csv = ctx.out.sim_dir / "body_constraint_diagnostics.csv"
     body_local_diag_csv = ctx.out.sim_dir / "body_constraint_local_diagnostics.csv"
     init_geom_json = ctx.out.sim_dir / "initial_geometry_summary.json"

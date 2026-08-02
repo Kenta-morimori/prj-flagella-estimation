@@ -1189,9 +1189,10 @@ def _manifest_record(
     condition: Condition,
     *,
     condition_index: int,
+    time_manifest: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     metadata = _campaign_condition_metadata(args, condition, condition_index)
-    return {
+    record = {
         "condition_id": condition.condition_id,
         "condition_index": condition_index,
         "condition_label": metadata["condition_label"],
@@ -1213,6 +1214,9 @@ def _manifest_record(
             "col_label": metadata.get("grid_col_label"),
         },
     }
+    if time_manifest is not None:
+        record["time"] = time_manifest
+    return record
 
 
 def _summary_fieldnames(rows: list[dict[str, str | float]]) -> list[str]:
@@ -1352,12 +1356,16 @@ def main(argv: list[str] | None = None) -> None:
     profile_cfg.validate_execution_supported()
     args.output_dir.mkdir(parents=True, exist_ok=args.overwrite)
     rows = []
+    condition_time_manifests: dict[str, dict[str, Any]] = {}
     total = len(conditions)
     for index, condition in enumerate(conditions, start=1):
         print(
             f"[{index}/{total}] shape_stability_grid {condition.condition_id}",
             flush=True,
         )
+        overrides = _overrides_for_condition(args, condition)
+        cfg = SimulationConfig.from_dict(base_cfg).with_overrides(overrides)
+        condition_time_manifests[condition.condition_id] = cfg.time_manifest()
         rows.append(
             _run_condition(
                 base_cfg,
@@ -1378,6 +1386,7 @@ def main(argv: list[str] | None = None) -> None:
         "config": str(args.config),
         "source_config_path": str(args.config),
         "model_profile": profile_cfg.model_profile_manifest(),
+        "time": profile_cfg.time_manifest(),
         "args": {
             "mode": args.mode,
             "output_dir": str(args.output_dir),
@@ -1396,7 +1405,12 @@ def main(argv: list[str] | None = None) -> None:
         "axes": _campaign_axes(args),
         "condition_order": [condition.condition_id for condition in conditions],
         "conditions": [
-            _manifest_record(args, condition, condition_index=index)
+            _manifest_record(
+                args,
+                condition,
+                condition_index=index,
+                time_manifest=condition_time_manifests.get(condition.condition_id),
+            )
             for index, condition in enumerate(conditions)
         ],
     }

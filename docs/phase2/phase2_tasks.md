@@ -1377,6 +1377,37 @@
 - docs:
   - `docs/adr/0010_phase2_model_config_profiles.md`
 
+### P2-MODEL-165: 時間スケールとduration指定をprofile対応する
+
+- status: completed
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/165`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/154`
+- branch: `feature/phase2-165-time-schema`
+- goal: 2010 projectのlegacy時間解釈を維持しつつ、2010 paper / 2015 profilesでは参照トルクから `tau_s` を導出し、`tau` / `s` durationを同じ契約で扱う。
+- accepted decisions:
+  - [x] 正式schemaを `time.duration.value` / `time.duration.unit` / `time.integration.dt_star` とする。
+  - [x] `time.duration_s` / `time.dt_star` / `time.dt_s` / `--duration-s` は deprecated compatibility として受け付ける。
+  - [x] 新旧time keyが同時指定され同じ意味の値が矛盾する場合は `ValueError` で拒否する。同値なら `mixed_equivalent` として受理する。
+  - [x] 2010 project profileは `tau_s=1.0` 固定を維持する。
+  - [x] 2010 paper / 2015 profilesは `tau_s = viscosity_Pa_s * b_m^3 / abs(motor.reference_torque_Nm)` を使う。
+  - [x] `motor.enabled` は実駆動ON/OFF、`motor.torque_Nm` は実駆動torque、`motor.reference_torque_Nm` は時間換算・無次元係数の参照torqueとして分離する。
+  - [x] `motor.torque_Nm=-1` sentinelは profileなしlegacy fixtureと2010 paper profile由来のみ deprecated compatibility として受け付ける。canonical 2010 project / 2015 profileでは拒否する。
+  - [x] `total_steps = ceil(duration_tau / dt_star)`、state数は `total_steps + 1`、`step_summary.csv` はstep開始時刻を `total_steps` 行記録する契約に固定する。
+  - [x] manifestへ `duration_value`, `duration_unit`, `duration_tau`, `duration_s`, `dt_star`, `tau_s`, `dt_internal_s`, `total_steps`, `final_state_t_s`, `final_step_summary_t_s`, `time_scale_policy`, `reference_torque_Nm`, `motor_enabled`, `motor_torque_Nm`, `time_schema_source`, `legacy_time_keys_used` を保存する。
+- boundaries:
+  - 2015 profilesは引き続き `implementation_status: pending` とし、geometry実装、2015 paper motor dynamics、安定性評価には踏み込まない。
+  - `time.dt_s` は今回意味を変えず、deprecatedな出力・記録間隔として維持する。明示的な `output.interval_s` または `time.output_interval_s` への移行は後続で扱う。
+  - 長時間simulationやvisual review用動画生成は実行しない。
+- verification:
+  - [x] parser / canonical profiles / CLI manifest / generic multi-run manifest のfocused pytestを完了した。
+  - [x] simulation loop契約に関係する既存pytestを完了した。
+- docs:
+  - `README.md`
+  - `scripts/README.md`
+  - `docs/phase2/phase2_current.md`
+  - `docs/adr/0012_phase2_time_schema_profiles.md`
+  - `docs/codex-runs/20260802_192500_phase2_165_time_schema/review_result.json`
+
 ### P2-MODEL-163: 2010年モデルのpotential式を論文と照合し採否を整理する
 
 - status: completed

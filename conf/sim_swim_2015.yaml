@@ -44,7 +44,9 @@ fluid:
   viscosity_Pa_s: 0.001
 
 motor:
+  enabled: true
   torque_Nm: 1.2e-18
+  reference_torque_Nm: 1.2e-18
   force_distribution: "triplet" # #167実装前のpaper profile同値
   torque_distribution_profile: "diffusive"
   reverse_n_flagella: 1
@@ -103,9 +105,12 @@ run_tumble:
   curly1_tau: 400.0
 
 time:
-  duration_s: 0.1              # 暫定legacyキー。tau duration契約は#165で扱う
-  dt_s: 1.0e-3
-  dt_star: 1.0e-5
+  duration:
+    value: 1.0
+    unit: tau
+  dt_s: 1.0e-3                 # [s] deprecated: 出力・記録間隔。内部積分刻みではない
+  integration:
+    dt_star: 1.0e-5
 
 output_sampling:
   out_all_steps_3d: false

@@ -54,7 +54,7 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
             "helix_init": {"radius_over_b": 0.25, "pitch_over_b": 2.5},
         },
         "fluid": {"viscosity_Pa_s": 0.001},
-        "motor": {"torque_Nm": -1.0, "reverse_n_flagella": 1},
+        "motor": {"torque_Nm": 2.5e-20, "reverse_n_flagella": 1},
         "potentials": {
             "spring": {"H_over_T_over_b": 10.0, "s": 0.1},
             "bend": {
@@ -149,6 +149,13 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
         "render.render_flagella=True",
     ]
     assert manifest["input"]["effective_overrides"]["time"]["duration_s"] == 5.0e-5
+    assert manifest["time"]["duration_s"] == 5.0e-5
+    assert manifest["time"]["duration_unit"] == "s"
+    assert manifest["time"]["dt_star"] == 1.0e-3
+    assert manifest["time"]["time_schema_source"] == "cli_shorthand"
+    assert manifest["time"]["total_steps"] == 1
+    assert manifest["time"]["final_state_t_s"] == 1.0e-3
+    assert manifest["time"]["final_step_summary_t_s"] == 0.0
     assert (
         manifest["input"]["effective_overrides"]["output_sampling"]["fps_out_2d"]
         == 25.0
