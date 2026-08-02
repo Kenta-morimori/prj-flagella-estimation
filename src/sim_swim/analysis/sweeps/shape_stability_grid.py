@@ -1145,6 +1145,7 @@ def _run_condition(
     condition: Condition,
     *,
     condition_index: int = 0,
+    implementation_manifests: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, str | float]:
     overrides = _overrides_for_condition(args, condition)
     cfg = SimulationConfig.from_dict(base_cfg).with_overrides(overrides)
@@ -1181,6 +1182,10 @@ def _run_condition(
             _campaign_condition_metadata(args, condition, condition_index)
         )
     )
+    if implementation_manifests is not None:
+        implementation_manifests[condition.condition_id] = (
+            simulator.implementation_manifest()
+        )
     return row
 
 
@@ -1190,6 +1195,7 @@ def _manifest_record(
     *,
     condition_index: int,
     time_manifest: dict[str, Any] | None = None,
+    implementation_manifest: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     metadata = _campaign_condition_metadata(args, condition, condition_index)
     record = {
@@ -1216,6 +1222,8 @@ def _manifest_record(
     }
     if time_manifest is not None:
         record["time"] = time_manifest
+    if implementation_manifest is not None:
+        record.update(implementation_manifest)
     return record
 
 
@@ -1357,6 +1365,7 @@ def main(argv: list[str] | None = None) -> None:
     args.output_dir.mkdir(parents=True, exist_ok=args.overwrite)
     rows = []
     condition_time_manifests: dict[str, dict[str, Any]] = {}
+    condition_implementation_manifests: dict[str, dict[str, Any]] = {}
     total = len(conditions)
     for index, condition in enumerate(conditions, start=1):
         print(
@@ -1372,6 +1381,7 @@ def main(argv: list[str] | None = None) -> None:
                 args,
                 condition,
                 condition_index=index - 1,
+                implementation_manifests=condition_implementation_manifests,
             )
         )
     summary_path = args.output_dir / "summary.csv"
@@ -1410,10 +1420,14 @@ def main(argv: list[str] | None = None) -> None:
                 condition,
                 condition_index=index,
                 time_manifest=condition_time_manifests.get(condition.condition_id),
+                implementation_manifest=condition_implementation_manifests.get(
+                    condition.condition_id
+                ),
             )
             for index, condition in enumerate(conditions)
         ],
     }
+    manifest.update(profile_cfg.implementation_manifest())
     (args.output_dir / "run_manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2),
         encoding="utf-8",

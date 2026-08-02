@@ -271,6 +271,7 @@ def test_generic_multi_run_manifests_record_model_profile(
                 "base_config: conf/sim_swim_2010.yaml",
                 "base_overrides:",
                 "  time.duration_s: 0.0001",
+                "  motor.force_distribution: hook_coupled_body_reaction",
                 "sweep:",
                 "  axes:",
                 "    torque:",
@@ -314,6 +315,10 @@ def test_generic_multi_run_manifests_record_model_profile(
     assert run_manifest["conditions"][0]["time"]["time_schema_source"] == (
         "mixed_equivalent"
     )
+    condition = run_manifest["conditions"][0]
+    assert condition["dynamics"]["provenance"] == "paper_inspired_approximation"
+    assert condition["dynamics"]["reaction_support_bead_counts"]
+    assert condition["dynamics"]["reaction_fallback_used"] is False
 
 
 def test_issue113_seed_fixed_profile_builds_three_boundary_conditions() -> None:

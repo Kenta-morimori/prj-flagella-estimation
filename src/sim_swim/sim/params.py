@@ -15,6 +15,7 @@ MOTOR_FORCE_DISTRIBUTION_DEFAULT = "root_torque_segment_couples"
 MOTOR_FORCE_DISTRIBUTIONS = frozenset(
     {
         "triplet",
+        "hook_coupled_body_reaction",
         "root_torque_segment_couples",
         "root_torque_axis_projection",
     }
@@ -797,14 +798,157 @@ class SimulationConfig:
         raise ValueError(
             "Simulation execution is unavailable for pending model profile: "
             f"year={profile.year}, variant={profile.variant}, "
-            f"resolution={profile.resolution}. Complete Issues #165, #166, "
-            "#167, and #168 before running this profile."
+            f"resolution={profile.resolution}. Complete Issues #166 and #168 "
+            "before running this profile; Issue #167 dynamics are implemented."
         )
 
     def model_profile_manifest(self) -> dict[str, Any] | None:
         """Return JSON-serializable profile provenance when it is available."""
 
         return asdict(self.model_profile) if self.model_profile is not None else None
+
+    def paper_reference_manifest(self) -> dict[str, Any] | None:
+        """Return item-level 2015 paper, inference, and assumption provenance."""
+
+        profile = self.model_profile
+        if profile is None or profile.year != 2015:
+            return None
+        motor_source = (
+            "paper_inspired_approximation"
+            if profile.variant == "paper"
+            else "project_comparison_model"
+        )
+        return {
+            "reference": "Kong et al. (2015), DOI 10.1039/C4SM02437K",
+            "parameters": {
+                "scale.bead_radius_a_over_b": {
+                    "value": float(self.scale.bead_radius_a_over_b),
+                    "source": "paper_table_1",
+                },
+                "body.width_over_b": {
+                    "value": float(2.0 * self.body.prism.radius_over_b),
+                    "source": "paper_default",
+                    "comparison_override": 0.7,
+                },
+                "body.prism.n_prism": {
+                    "value": int(self.body.prism.n_prism),
+                    "source": "figure_and_bead_count_inference",
+                },
+                "flagella.bond_L_over_b": {
+                    "value": float(self.flagella.bond_L_over_b),
+                    "source": "paper_table_1",
+                },
+                "potentials.spring.H_over_T_over_b": {
+                    "value": float(self.potentials.spring.H_over_T_over_b),
+                    "source": "paper_table_1",
+                },
+                "potentials.bend.kb_over_T": {
+                    "value": float(self.potentials.bend.kb_over_T),
+                    "source": "paper_table_1",
+                },
+                "potentials.torsion.kt_over_T": {
+                    "value": float(self.potentials.torsion.kt_over_T),
+                    "source": "paper_table_1",
+                },
+                "potentials.bend.theta0_deg": {
+                    "value": dict(self.potentials.bend.theta0_deg),
+                    "source": "paper_table_1",
+                },
+                "potentials.torsion.phi0_deg": {
+                    "value": dict(self.potentials.torsion.phi0_deg),
+                    "source": "paper_table_1",
+                },
+                "motor.torque_Nm": {
+                    "value": float(self.motor.torque_Nm),
+                    "source": "paper_reference_torque",
+                },
+                "motor.force_distribution": {
+                    "value": str(self.motor.force_distribution),
+                    "source": motor_source,
+                },
+                "time.integration.dt_star": {
+                    "value": float(self.dt_star),
+                    "source": "paper_integration_step",
+                },
+                "brownian.enabled": {
+                    "value": bool(self.brownian.enabled),
+                    "source": "paper_condition",
+                },
+                "hook.length_over_b": {
+                    "value": 0.25,
+                    "source": "implementation_assumption",
+                    "implementation_status": "geometry_pending_issue_166",
+                },
+                "body.diagonal_brace": {
+                    "value": False,
+                    "source": "paper_condition",
+                    "implementation_status": "geometry_pending_issue_166",
+                },
+            },
+        }
+
+    def implementation_manifest(
+        self,
+        *,
+        reaction_support_bead_counts: list[int] | tuple[int, ...] | None = None,
+        reaction_fallback_used: bool | None = None,
+    ) -> dict[str, Any]:
+        """Return implementation state and motor-dynamics provenance."""
+
+        profile_pending = bool(
+            self.model_profile is not None
+            and self.model_profile.implementation_status == "pending"
+        )
+        geometry_pending = bool(
+            self.model_profile is not None and self.model_profile.year == 2015
+        )
+        force_distribution = str(self.motor.force_distribution)
+        dynamics: dict[str, Any] = {
+            "implementation_status": "implemented",
+            "force_distribution": force_distribution,
+            "provenance": (
+                "paper_inspired_approximation"
+                if force_distribution == "hook_coupled_body_reaction"
+                else "project_implementation"
+            ),
+        }
+        if force_distribution == "hook_coupled_body_reaction":
+            dynamics.update(
+                {
+                    "motor_axis_model": "hook_basal_tangent",
+                    "body_reaction_model": (
+                        "local_attach_neighborhood_zero_net_force_torque_couple"
+                    ),
+                    "body_reaction_fallback_model": (
+                        "all_body_beads_zero_net_force_torque_couple"
+                    ),
+                }
+            )
+            if reaction_support_bead_counts is not None:
+                dynamics["reaction_support_bead_counts"] = sorted(
+                    {int(value) for value in reaction_support_bead_counts}
+                )
+            if reaction_fallback_used is not None:
+                dynamics["reaction_fallback_used"] = bool(reaction_fallback_used)
+
+        manifest = {
+            "dynamics": dynamics,
+            "geometry": {
+                "implementation_status": (
+                    "pending" if geometry_pending else "implemented"
+                )
+            },
+            "simulation": {
+                "implementation_status": (
+                    "blocked" if profile_pending else "executable"
+                ),
+                "blocked_by": [166, 168] if profile_pending else [],
+            },
+        }
+        paper_reference = self.paper_reference_manifest()
+        if paper_reference is not None:
+            manifest["paper_reference"] = paper_reference
+        return manifest
 
     @property
     def b_m(self) -> float:
@@ -1030,8 +1174,20 @@ class SimulationConfig:
                 ok = actual == expected
             checks.append((name, ok, repr(actual), repr(expected)))
 
+        is_2015 = bool(
+            self.model_profile is not None and self.model_profile.year == 2015
+        )
+        is_2015_paper = bool(
+            is_2015
+            and self.model_profile is not None
+            and self.model_profile.variant == "paper"
+        )
         add("flagella.n_flagella", self.flagella.n_flagella, 3)
-        add("scale.bead_radius_a_over_b", self.scale.bead_radius_a_over_b, 0.1)
+        add(
+            "scale.bead_radius_a_over_b",
+            self.scale.bead_radius_a_over_b,
+            0.06 if is_2015 else 0.1,
+        )
         add(
             "potentials.spring.formulation",
             self.potentials.spring.formulation,
@@ -1040,23 +1196,55 @@ class SimulationConfig:
         add(
             "potentials.spring.H_over_T_over_b",
             self.potentials.spring.H_over_T_over_b,
-            10.0,
+            1000.0 if is_2015 else 10.0,
         )
         add("potentials.spring.s", self.potentials.spring.s, 0.1)
-        add("potentials.bend.kb_over_T", self.potentials.bend.kb_over_T, 20.0)
-        add("potentials.torsion.kt_over_T", self.potentials.torsion.kt_over_T, 10.0)
+        add(
+            "potentials.bend.kb_over_T",
+            self.potentials.bend.kb_over_T,
+            30.0 if is_2015 else 20.0,
+        )
+        add(
+            "potentials.torsion.kt_over_T",
+            self.potentials.torsion.kt_over_T,
+            5.0 if is_2015 else 10.0,
+        )
+        expected_bend = (
+            {"normal": 161.0, "semicoiled": 138.0, "curly1": 142.0}
+            if is_2015
+            else {"normal": 142.0, "semicoiled": 90.0, "curly1": 105.0}
+        )
         add(
             "potentials.bend.theta0_deg",
-            self.potentials.bend.theta0_deg
-            or {"normal": 142.0, "semicoiled": 90.0, "curly1": 105.0},
-            {"normal": 142.0, "semicoiled": 90.0, "curly1": 105.0},
+            self.potentials.bend.theta0_deg or expected_bend,
+            expected_bend,
+        )
+        expected_torsion = (
+            {"normal": -30.0, "semicoiled": 32.5, "curly1": 60.0}
+            if is_2015
+            else {"normal": -60.0, "semicoiled": 65.0, "curly1": 120.0}
         )
         add(
             "potentials.torsion.phi0_deg",
-            self.potentials.torsion.phi0_deg
-            or {"normal": -60.0, "semicoiled": 65.0, "curly1": 120.0},
-            {"normal": -60.0, "semicoiled": 65.0, "curly1": 120.0},
+            self.potentials.torsion.phi0_deg or expected_torsion,
+            expected_torsion,
         )
+        if is_2015:
+            add("flagella.bond_L_over_b", self.flagella.bond_L_over_b, 0.29)
+            add("motor.enabled", self.motor.enabled, True)
+            add("motor.torque_Nm", self.motor.torque_Nm, 1.2e-18)
+            add("motor.reference_torque_Nm", self.reference_torque_Nm, 1.2e-18)
+            add(
+                "motor.force_distribution",
+                self.motor.force_distribution,
+                (
+                    "hook_coupled_body_reaction"
+                    if is_2015_paper
+                    else "root_torque_segment_couples"
+                ),
+            )
+            add("time.integration.dt_star", self.dt_star, 1.0e-5)
+            add("brownian.enabled", self.brownian.enabled, False)
         add("run_tumble.run_tau", self.run_tumble.run_tau, 1200.0)
         add("run_tumble.tumble_tau", self.run_tumble.tumble_tau, 800.0)
         add("run_tumble.semicoiled_tau", self.run_tumble.semicoiled_tau, 400.0)

@@ -278,6 +278,20 @@ def test_default_motor_force_distribution_is_root_torque_segment_couples() -> No
     assert sim_cfg.motor.force_distribution == "root_torque_segment_couples"
 
 
+def test_hook_coupled_body_reaction_force_distribution_is_accepted() -> None:
+    cfg = _base_cfg()
+    cfg["motor"]["force_distribution"] = "hook_coupled_body_reaction"
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.motor.force_distribution == "hook_coupled_body_reaction"
+    assert (
+        sim_cfg.implementation_manifest()["dynamics"]["provenance"]
+        == "paper_inspired_approximation"
+    )
+
+
 def test_output_timestamp_subdir_defaults_to_true() -> None:
     cfg = _base_cfg()
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}

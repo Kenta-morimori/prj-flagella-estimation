@@ -288,6 +288,7 @@ def main(
         manifest = {}
     outputs = manifest.get("outputs", {})
     manifest["time"] = cfg.time_manifest()
+    manifest.update(simulator.implementation_manifest())
     body_diag_csv = ctx.out.sim_dir / "body_constraint_diagnostics.csv"
     body_local_diag_csv = ctx.out.sim_dir / "body_constraint_local_diagnostics.csv"
     init_geom_json = ctx.out.sim_dir / "initial_geometry_summary.json"

@@ -247,6 +247,16 @@ class Simulator:
         body_rows = np.where(bi & bj)[0]
         return pairs[body_rows].astype(int, copy=True)
 
+    def implementation_manifest(self) -> dict[str, Any]:
+        """Return provenance enriched with observed motor reaction diagnostics."""
+
+        return self.config.implementation_manifest(
+            reaction_support_bead_counts=sorted(
+                self.engine.motor_reaction_support_bead_counts_observed
+            ),
+            reaction_fallback_used=self.engine.motor_reaction_fallback_used,
+        )
+
     def _build_initial_geometry_summary(self) -> dict[str, Any]:
         pos = self.model.positions_m
         b_m = max(self.config.b_m, 1e-30)

@@ -54,7 +54,11 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
             "helix_init": {"radius_over_b": 0.25, "pitch_over_b": 2.5},
         },
         "fluid": {"viscosity_Pa_s": 0.001},
-        "motor": {"torque_Nm": 2.5e-20, "reverse_n_flagella": 1},
+        "motor": {
+            "torque_Nm": 2.5e-20,
+            "force_distribution": "hook_coupled_body_reaction",
+            "reverse_n_flagella": 1,
+        },
         "potentials": {
             "spring": {"H_over_T_over_b": 10.0, "s": 0.1},
             "bend": {
@@ -156,6 +160,11 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
     assert manifest["time"]["total_steps"] == 1
     assert manifest["time"]["final_state_t_s"] == 1.0e-3
     assert manifest["time"]["final_step_summary_t_s"] == 0.0
+    assert manifest["dynamics"]["provenance"] == "paper_inspired_approximation"
+    assert manifest["dynamics"]["reaction_support_bead_counts"]
+    assert manifest["dynamics"]["reaction_fallback_used"] is False
+    assert manifest["geometry"]["implementation_status"] == "implemented"
+    assert manifest["simulation"]["implementation_status"] == "executable"
     assert (
         manifest["input"]["effective_overrides"]["output_sampling"]["fps_out_2d"]
         == 25.0

@@ -1,0 +1,66 @@
+{
+  "status": "PASS",
+  "summary": "Implemented motor.force_distribution=hook_coupled_body_reaction as a paper-inspired approximation for the Kong et al. (2015) paper profile while retaining root_torque_segment_couples for the project comparison profile. The flagellum-side hook-local drive and attach-neighborhood body reaction each have zero net force and opposite full torque vectors. Local body support falls back to all body beads only when degenerate. Single-run, generic campaign, and shape-stability manifests distinguish dynamics, geometry, and simulation status, record reaction provenance and observed support/fallback use, and expose item-level paper, inference, assumption, and project-model provenance. Both 2015 profiles remain pending and reject execution until Issues #166 and #168 are complete. Codex Cloud feedback was addressed by replacing axial-only torque matching with a six-constraint zero-force/full-vector-torque solver and adding a regression test on the 2010 triangular geometry.",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "Issue #166 refined 120-bead geometry is not implemented, so the 2015 profiles remain implementation_status=pending.",
+    "Issue #168 motor-off 0.1 tau and motor-on 1 tau stability evaluation has not been run.",
+    "The new dynamics are explicitly paper_inspired_approximation and do not claim complete reproduction of the paper force placement."
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest -q tests/test_motor_forces.py tests/test_model_profiles.py tests/test_params.py tests/test_e2e_cli.py tests/test_phase2_generic_multi_run.py tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py",
+      "result": "PASS after Codex Cloud feedback (207 passed); subsequent profile/provenance subset PASS (166 passed)"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS (124 files already formatted)"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS final candidate (276 passed, 241 deselected)"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS final candidate (517 passed)"
+    },
+    {
+      "command": "uv run python -m scripts.01_simulate_swimming config=conf/sim_swim_2010.yaml motor.force_distribution=hook_coupled_body_reaction time.duration.value=1.0e-4 time.duration.unit=tau time.integration.dt_star=1.0e-4 output.base_dir=outputs/phase2_167/one_step_render output_sampling.out_all_steps_3d=true render.save_frames_3d=true render.save_frames_2d=false",
+      "result": "PASS after Codex Cloud feedback at commit 5be7fef (2010 triangular geometry only; 1 step; reaction support bead counts [5]; fallback false; finite 3D render produced)"
+    },
+    {
+      "command": "2010 triangular geometry full-vector motor balance regression",
+      "result": "PASS (net torque 1.2767e-34 N m; 5.1069e-15 of one motor torque; net force 7.9827e-29 N)"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "outputs/phase2_167/one_step_render/2026-08-02/205848/render/swim3d_final.png",
+    "outputs/phase2_167/one_step_render/2026-08-02/205848/render/swim3d.mp4",
+    "outputs/phase2_167/one_step_render/2026-08-02/205848/manifest.json"
+  ],
+  "user_review_points": [
+    "Optional one-step qualitative check only: body and three flagella are visible without missing geometry or non-finite coordinates.",
+    "120-bead shape preservation, propulsion, collapse, and long-time stability are intentionally deferred to Issue #168."
+  ],
+  "adr_required": true,
+  "adr_reason": "The change adds a new physical motor/reaction interpretation and a reproducibility-facing manifest contract.",
+  "commit_type": "complete",
+  "commit_hash": "fa4633d4da256ab0b81a6d6de6ea2e41448e7dd3",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/174",
+  "next_actions": [
+    "Complete Issue #166 refined geometry before enabling either 2015 profile.",
+    "Run the 120-bead motor-off 0.1 tau and motor-on 1 tau stability evaluation under Issue #168 after #166 is complete.",
+    "Promote the 2015 profiles to supported only after geometry and stability acceptance criteria pass."
+  ]
+}

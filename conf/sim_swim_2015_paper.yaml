@@ -1,5 +1,5 @@
 # Kong et al. (2015)の120-bead refined modelを記録するpaper profile。
-# geometry・paper駆動条件は未実装のため、simulation実行はimplementation_statusで拒否する。
+# dynamicsはpaper-inspired approximationとして実装済み。geometryは#166までpending。
 
 model_profile:
   year: 2015
@@ -47,8 +47,8 @@ motor:
   enabled: true
   torque_Nm: 1.2e-18           # [N m] 1200 pN nm reference torque
   reference_torque_Nm: 1.2e-18 # [N m] tau = eta b^3 / T の参照トルク
-  # 現行tripletは暫定表現。2015 paperの駆動・反作用条件は#167で実装する。
-  force_distribution: "triplet"
+  # 論文完全再現ではなく、局所body反作用を含むpaper-inspired approximation。
+  force_distribution: "hook_coupled_body_reaction"
   torque_distribution_profile: "diffusive"
   reverse_n_flagella: 1
   enable_switching: false

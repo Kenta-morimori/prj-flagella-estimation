@@ -15,6 +15,7 @@ from sim_swim.dynamics.forces import (
     compute_attach_frame_basal_bearing_forces,
     compute_attach_frame_target_forces,
     compute_bending_forces,
+    compute_hook_coupled_body_reaction_forces,
     compute_hook_forces,
     compute_motor_forces,
     compute_root_torque_axis_projection_forces,
@@ -120,6 +121,8 @@ class DynamicsEngine:
         self.external_force_callback: (
             Callable[[np.ndarray, float], np.ndarray] | None
         ) = None
+        self.motor_reaction_fallback_used = False
+        self.motor_reaction_support_bead_counts_observed: set[int] = set()
 
         torque = max(cfg.torque_for_forces_Nm, 1e-30)
         b_m = cfg.b_m
@@ -970,6 +973,18 @@ class DynamicsEngine:
                     torque_per_flag=torque_per_flag,
                     body_axis_unit=self._body_axis_unit(pos),
                 )
+            elif distribution == "hook_coupled_body_reaction":
+                motor_forces, motor_diag = compute_hook_coupled_body_reaction_forces(
+                    positions_m=pos,
+                    flagella_indices=self.model.flagella_indices,
+                    flagella_attach_body_indices=(
+                        self.model.flagella_attach_body_indices
+                    ),
+                    body_indices=self.model.body_indices,
+                    body_ring_edges=self.model.body_ring_edges,
+                    body_vertical_edges=self.model.body_vertical_edges,
+                    torque_per_flag=torque_per_flag,
+                )
             elif distribution == "root_torque_axis_projection":
                 _segment_weights, bead_weights = self._advance_local_twist_state(
                     torque_per_flag=torque_per_flag,
@@ -998,9 +1013,16 @@ class DynamicsEngine:
                 raise ValueError(
                     "Unsupported motor.force_distribution: "
                     f"{distribution!r}. Use 'triplet', "
+                    "'hook_coupled_body_reaction', "
                     "'root_torque_axis_projection', "
                     "'root_torque_segment_couples'."
                 )
+            self.motor_reaction_fallback_used = (
+                self.motor_reaction_fallback_used or motor_diag.reaction_fallback_used
+            )
+            self.motor_reaction_support_bead_counts_observed.update(
+                motor_diag.reaction_support_bead_counts
+            )
         motor_axis_vs_rear_direction_angle_deg = (
             self._motor_axis_vs_rear_direction_angle_deg(pos)
         )

@@ -47,7 +47,8 @@ motor:
   enabled: true
   torque_Nm: 1.2e-18
   reference_torque_Nm: 1.2e-18
-  force_distribution: "triplet" # #167実装前のpaper profile同値
+  # project比較用の現行torque transmission。paper profileとの差分を維持する。
+  force_distribution: "root_torque_segment_couples"
   torque_distribution_profile: "diffusive"
   reverse_n_flagella: 1
   enable_switching: false
