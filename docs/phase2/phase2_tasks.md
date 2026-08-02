@@ -1428,7 +1428,7 @@
 - verification:
   - [x] 120 beads、body/flag bead数、body edge数、Hook/bond長、attachment topologyをunit testとmanifestで自動検証する。
   - [x] refined geometry上のpaper body reaction support 5 beads、fallbackなし、net force/torque相殺を自動検証する。
-  - [ ] project/paper profileの1-step smoke、3D render、ruff、light/full pytestを完了する。
+  - [x] project/paper profileの1-step smoke、3D render、ruff、light/full pytestを完了する。projectは`outputs/2026-08-02/220309/`、paperは`outputs/2026-08-02/220316/`。
 - docs:
   - `docs/adr/0014_phase2_2015_refined_geometry.md`
   - `docs/phase2/phase2_167_2015_paper_conditions.md`
