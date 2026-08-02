@@ -869,10 +869,10 @@ class SimulationConfig:
     @property
     def motor_torque_Nm(self) -> float:
         """モータ力計算で使う符号付きトルク。"""
-        if self.use_eta_b3_torque:
-            return self.torque_eta_b3_Nm
         if self.is_motor_off_torque:
             return 0.0
+        if self.use_eta_b3_torque:
+            return self.torque_eta_b3_Nm
         return self.input_torque_Nm
 
     @property

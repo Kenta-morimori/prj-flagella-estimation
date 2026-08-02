@@ -8,7 +8,8 @@
     "Preserved 2010 project tau_s=1.0 while deriving tau_s from eta*b^3/reference_torque_Nm for 2010 paper and 2015 profiles.",
     "Separated motor.enabled, motor.torque_Nm, and motor.reference_torque_Nm responsibilities.",
     "Recorded normalized time quantities and compatibility source paths in single-run and campaign manifests.",
-    "Documented the ceil(duration_tau / dt_star) step-time contract and kept 2015 geometry/dynamics/stability out of scope."
+    "Documented the ceil(duration_tau / dt_star) step-time contract and kept 2015 geometry/dynamics/stability out of scope.",
+    "Addressed Codex Cloud feedback by making motor.enabled=false override the 2010 paper torque_Nm=-1 sentinel for actual motor drive while preserving reference_torque_Nm."
   ],
   "scope_boundaries": [
     "2015 profiles remain implementation_status=pending and are not made executable.",
@@ -56,6 +57,34 @@
     {
       "command": "uv run pytest -q",
       "result": "PASS"
+    },
+    {
+      "command": "uv run pytest tests/test_params.py -q",
+      "result": "PASS after Codex Cloud feedback"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/sim/params.py tests/test_params.py",
+      "result": "PASS after Codex Cloud feedback"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/sim/params.py tests/test_params.py",
+      "result": "PASS after Codex Cloud feedback"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS after Codex Cloud feedback"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS after Codex Cloud feedback"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS after Codex Cloud feedback"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS after Codex Cloud feedback"
     }
   ],
   "user_visual_review_required": false,

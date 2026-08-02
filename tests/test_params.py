@@ -528,6 +528,21 @@ def test_torque_minus_one_is_allowed_for_2010_paper_profile() -> None:
     assert sim_cfg.motor_torque_Nm == pytest.approx(sim_cfg.torque_eta_b3_Nm)
 
 
+def test_motor_disabled_overrides_2010_paper_minus_one_sentinel_drive() -> None:
+    cfg = _base_cfg()
+    cfg["model_profile"] = _paper_model_profile(year=2010)
+    cfg["motor"]["enabled"] = False
+    cfg["motor"]["torque_Nm"] = -1.0
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    sim_cfg.validate_time_scaling()
+    assert sim_cfg.use_eta_b3_torque
+    assert sim_cfg.reference_torque_Nm == pytest.approx(sim_cfg.torque_eta_b3_Nm)
+    assert sim_cfg.motor_enabled is False
+    assert sim_cfg.motor_torque_Nm == pytest.approx(0.0)
+
+
 def test_torque_minus_one_is_rejected_for_2010_project_profile() -> None:
     cfg = _base_cfg()
     cfg["model_profile"] = _model_profile()
