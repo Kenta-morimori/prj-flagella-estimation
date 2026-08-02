@@ -57,8 +57,8 @@
   "adr_reason": "ADR 0014 records the pentagon/hexagon interpretation, topology contract, Hook and brace assumptions, and the evaluation_ready pending-profile state.",
   "commit_type": "complete",
   "commit_hash": "cf3291d05806b02eb15869c7a4592c86b2879e7b",
-  "push_status": "pending",
-  "pull_request_url": null,
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/175",
   "next_actions": [
     "Run motor-off 0.1 tau and motor-on 1 tau only under Issue #168.",
     "Evaluate long-time shape, force/torque residuals, performance, and brace OFF/ON only under Issue #168.",
