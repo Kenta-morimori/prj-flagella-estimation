@@ -251,7 +251,7 @@
   - 正式名を `triplet`, `root_torque_segment_couples`, `root_torque_axis_projection` に整理した。
   - 旧 `material_twist_local_couple` は `root_torque_segment_couples`、旧 `distributed_flagellum` は `root_torque_axis_projection` の deprecated alias として正規化する。
   - `axial_torque_flux_probe` と `local_twist_transmission_probe` はコード・設定上の実行modeから削除した。
-  - `conf/sim_swim.yaml` と Phase 2.8 dataset config は新名 `root_torque_segment_couples` を使う。
+  - 現行default `conf/sim_swim_2010.yaml` と Phase 2.8 dataset config は新名 `root_torque_segment_couples` を使う。
 - acceptance criteria:
   - [x] 新名指定で既存代表条件が動作する。
   - [x] 旧名 alias は warning 付きで新名へ正規化される。
@@ -824,21 +824,21 @@
 - branch: `feature/phase2-84-experiment-simplification`
 - goal: 実験時の設定編集と動画確認を簡略化するため，標準config default，3D render表示，dataset一括再描画CLIを整理する。
 - result:
-  - `conf/sim_swim.yaml` の `motor.torque_Nm` default は，Phase 2.6 torque評価の第一候補，Phase 2.7代表条件，Phase 2.8 dataset条件と揃え，`2.5e-20` とした。`-1` sentinel の意味はコメントに残した。
+  - 現行default `conf/sim_swim_2010.yaml` の `motor.torque_Nm` は，Phase 2.6 torque評価の第一候補，Phase 2.7代表条件，Phase 2.8 dataset条件と揃え，`2.5e-20` とした。`-1` sentinel の意味はコメントに残した。
   - `motor.torque_Nm` と `time.dt_star` は独立した設定である。P2-8-DTSTAR 以降，標準configでは `time.dt_star=1.0e-4` を内部積分刻み，`time.dt_s=1.0e-3` を出力・記録間隔として扱う。
   - `flagella.placement_mode` と `flagella.initial_phase_mode` の取りうる値をconfigコメントへ明記した。
   - `render.save_frames_3d` / `render.save_frames_2d` の default を `false` にし，mp4 と final image は維持した。
   - 3D render に RUN/TUMBLE，時刻，実効トルク，`follow_camera_3d` を併記するようにした。
   - `render_sample.py --dataset-dir` で dataset 内の全raw sampleを `replays/<sample_id>/` へ一括再描画できるようにした。
 - acceptance criteria:
-  - [x] `conf/sim_swim.yaml` と parser fallback default が一致する。
+  - [x] 現行default `conf/sim_swim_2010.yaml` と parser fallback default が一致する。
   - [x] `-1` sentinel と明示的な `motor.torque_Nm` override は維持される。
   - [x] 3D render の表示内容を単体テストで確認できる。
   - [x] dataset directory から `dataset_manifest.json` / `run_manifest.json` を辿って全sampleを再描画できる。
   - [x] dataset一括再描画は既存 `replays/<sample_id>/` を置き換える。
 - verification:
   - `uv run pytest tests/test_params.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
-  - `uv run python -c "import yaml; yaml.safe_load(open('conf/sim_swim.yaml', encoding='utf-8'))"`
+  - `uv run python -c "import yaml; yaml.safe_load(open('conf/sim_swim_2010.yaml', encoding='utf-8'))"`
   - `uv run ruff check src/sim_swim/sim/params.py src/sim_swim/render/render3d.py scripts/02_phase2_analysis/render_sample.py tests/test_params.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
   - `uv run ruff format --check src/sim_swim/sim/params.py src/sim_swim/render/render3d.py scripts/02_phase2_analysis/render_sample.py tests/test_params.py tests/test_render_state_and_projection.py tests/test_flagella_count_behavior_dataset.py`
   - `uv run python -m scripts.01_simulate_swimming time.duration_s=0.001 time.dt_star=1.0e-4 motor.torque_Nm=0 output.base_dir=/private/tmp/phase2_issue84_smoke`
@@ -1106,7 +1106,7 @@
   - `uv run pytest tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py tests/test_simulation.py::test_root_torque_segment_couples_weight_profiles_run -q`
   - `uv run ruff check src/sim_swim/sim/helix_axis.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/params.py src/sim_swim/dynamics/engine.py src/sim_swim/analysis/sweeps/hook_overstretch.py tests/test_helix_axis.py tests/test_simulation.py tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py`
   - `uv run ruff format --check src/sim_swim/sim/helix_axis.py src/sim_swim/sim/debug_summary.py src/sim_swim/sim/params.py src/sim_swim/dynamics/engine.py src/sim_swim/analysis/sweeps/hook_overstretch.py tests/test_helix_axis.py tests/test_simulation.py tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py`
-  - `uv run python -c "import yaml; yaml.safe_load(open('conf/sim_swim.yaml', encoding='utf-8'))"`
+  - `uv run python -c "import yaml; yaml.safe_load(open('conf/sim_swim_2010.yaml', encoding='utf-8'))"`
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_distribution_profiles=diffusive,uniform dry_run=true`
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.001 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 torque_distribution_profiles=diffusive,uniform output_dir=/private/tmp/phase2_issue97_torque_profile_smoke overwrite=true progress_interval=10000`
   - `uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml mode=torque-profile-grid duration_s=0.001 torque_nm=2.0e-20 fixed_attach_frame_position_scale=3 fixed_attach_frame_tangent_scale=1.5 output_dir=/private/tmp/phase2_issue97_profile_expansion_smoke overwrite=true progress_interval=10000`
@@ -1250,7 +1250,7 @@
 - branch: `feature/phase2-94-flag-bond-overstretch`
 - goal: `dt_star=1.0e-4` を Phase 2 標準configへ反映し，代表コマンドでは default 値をなるべく明示しない運用へ揃える。
 - result:
-  - `conf/sim_swim.yaml` の `time.dt_star` default を `1.0e-4` にした。
+  - 現行default `conf/sim_swim_2010.yaml` の `time.dt_star` を `1.0e-4` にした。
   - `time.dt_s=1.0e-3` は出力・記録間隔として説明し，`time.dt_star: null` の場合だけ従来互換として内部積分刻みが `time.dt_s/tau_s` へ戻ることを明記した。
   - parser の `dt_star: null` 互換挙動は変更していない。
   - Issue #82 / #94 の user-run commands から `--dt-star 1.0e-4`，`--torque-nm 2.5e-20`，`--n-flagella 3` など script default と重複する指定を削った。
@@ -1264,7 +1264,7 @@
   - `uv run pytest tests/test_params.py tests/test_phase2_82_hook_overstretch_sweep.py`
   - `uv run ruff check tests/test_params.py`
   - `uv run ruff format --check tests/test_params.py`
-  - `uv run python -c "import yaml; yaml.safe_load(open('conf/sim_swim.yaml', encoding='utf-8'))"`
+  - `uv run python -c "import yaml; yaml.safe_load(open('conf/sim_swim_2010.yaml', encoding='utf-8'))"`
   - `uv run python scripts/01_simulate_swimming/run_phase2_82_hook_overstretch_sweep.py --dry-run --sample-limit 1`
   - `uv run pytest tests/test_params.py tests/test_render_state_and_projection.py`
 - docs:
@@ -1332,6 +1332,32 @@
   - `docs/phase2/phase2_158_v1_r1_nf3_proximal_diagnostics.md`
 
 ## Phase 2 model correspondence
+
+### P2-MODEL-164: 2010年・2015年モデルconfigを再編する
+
+- status: completed
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/164`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/154`
+- branch: `feature/phase2-164-model-config-profiles`
+- goal: 2010年ベースの現行project model、2010 paper参照条件、2015 refined project候補、2015 refined paper条件を別configにし、runの由来と実装状態をmanifestから追跡可能にする。
+- accepted decisions:
+  - [x] defaultを `conf/sim_swim_2010.yaml` とし、旧 `conf/sim_swim.yaml` の有効設定値と挙動を維持する。
+  - [x] 2010 projectは body 15 + flagellum 11 x 3 = 48、2010 paperは body 15 + flagellum 15 x 3 = 60 とする。
+  - [x] 2015 project/paperは body 30 + flagellum 30 x 3 = 120 のrefined profileとする。
+  - [x] `model_profile` に `year`、`variant`、`resolution`、`implementation_status` とnominal bead構成を記録する。
+  - [x] single-run manifestとgeneric multi-runのcampaign-level `run_manifest.json` へ `model_profile` と `source_config_path` を保存する。
+  - [x] 2010 project/paperを `supported`、2015 project/paperを `pending` とし、pending profileの実simulationをoutput作成前に拒否する。
+  - [x] 旧 `conf/sim_swim.yaml` を残さず、active default参照を新pathへ更新する。
+- boundaries:
+  - `tau` / `s` duration schemaと正式な時間換算はIssue #165で扱う。
+  - 30-bead body / flagellumのgeometry builderとbrace切替はIssue #166で扱う。
+  - 2015 paper dynamics、motor、potentialの実装・検証はIssue #167で扱う。
+- verification:
+  - [x] 4 profileのparse、metadata・nominal bead構成、2010 projectの旧config同値性を自動testで確認する。
+  - [x] default path、manifest provenance、pending実行拒否、metadata override拒否を自動testで確認する。
+  - [x] 長時間simulationと動画目視は実施しない。
+- docs:
+  - `docs/adr/0010_phase2_model_config_profiles.md`
 
 ### P2-MODEL-163: 2010年モデルのpotential式を論文と照合し採否を整理する
 

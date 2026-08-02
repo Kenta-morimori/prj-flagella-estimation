@@ -43,7 +43,16 @@ CLI の詳細、override 例、後から 3D / 2D render を再生成する方法
 
 ## 主要ディレクトリ
 
-- `conf/`: 実行設定。Phase 2 simulation は `conf/sim_swim.yaml`、複数条件 run / heatmap / replay / dataset 作成は `conf/phase2_multi_run/` を使います。
+- `conf/`: 実行設定。Phase 2 simulation のdefaultは `conf/sim_swim_2010.yaml`、複数条件 run / heatmap / replay / dataset 作成は `conf/phase2_multi_run/` を使います。
+
+Phase 2のmodel profileは次の4つです。`2015` profileはgeometry・paper駆動条件が未実装のため、設定参照用の`pending` profileです。
+
+| config | role |
+| --- | --- |
+| `conf/sim_swim_2010.yaml` | 現行2010 project default |
+| `conf/sim_swim_2010_paper.yaml` | Watari & Larson (2010) paper参照条件 |
+| `conf/sim_swim_2015.yaml` | 2015 refined modelのproject採用候補 |
+| `conf/sim_swim_2015_paper.yaml` | Kong et al. (2015) paper参照条件 |
 - `scripts/`: ユーザー向け CLI entrypoints。詳細は `scripts/README.md` を参照してください。
 - `src/`: 再利用可能な実装本体。Phase 2 simulation は `src/sim_swim/` が中心です。
 - `docs/phase2/`: Phase 2 の現在地、task status、設計・検証記録。

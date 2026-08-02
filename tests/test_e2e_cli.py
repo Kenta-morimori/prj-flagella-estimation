@@ -25,6 +25,16 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
     spec.loader.exec_module(mod)
 
     cfg = {
+        "model_profile": {
+            "year": 2010,
+            "variant": "project",
+            "resolution": "legacy_project",
+            "implementation_status": "supported",
+            "body_beads": 15,
+            "flagellum_beads_per_filament": 11,
+            "nominal_flagella_count": 3,
+            "nominal_total_beads": 48,
+        },
         "scale": {"b_um": 1.0, "bead_radius_a_over_b": 0.1},
         "body": {
             "prism": {
@@ -125,6 +135,8 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
     manifest = json.loads((latest / "manifest.json").read_text(encoding="utf-8"))
     outputs = manifest.get("outputs", {})
     assert "initial_geometry_summary_json" in outputs
+    assert manifest["source_config_path"] == str(cfg_path)
+    assert manifest["model_profile"] == cfg["model_profile"]
     assert manifest["input"]["cli_overrides"] == []
     assert manifest["input"]["legacy_shorthand_overrides"] == [
         "time.duration_s=5e-05",

@@ -37,7 +37,7 @@ def test_sweep_profile_converts_yaml_args_to_cli_args() -> None:
     args = args_from_profile(profile)
     assert "--duration-s" in args
     assert args[args.index("--mode") + 1] == "preset"
-    assert args[args.index("--config") + 1] == "conf/sim_swim.yaml"
+    assert args[args.index("--config") + 1] == "conf/sim_swim_2010.yaml"
 
 
 def test_load_profile_entry_exposes_metadata() -> None:
@@ -308,7 +308,7 @@ def _write_replay_inputs(tmp_path: Path, condition_ids: list[str]) -> Path:
         encoding="utf-8",
     )
     manifest = {
-        "config": "conf/sim_swim.yaml",
+        "config": "conf/sim_swim_2010.yaml",
         "conditions": [
             {"condition_id": condition_id, "config_overrides": {}}
             for condition_id in condition_ids

@@ -43,6 +43,10 @@ MOTOR_ATTACH_FRAME_TANGENT_MODE_DEFAULT = "vector"
 MOTOR_ATTACH_FRAME_TANGENT_MODES = frozenset({"vector", "basal_bearing"})
 SPRING_FORMULATION_DEFAULT = "legacy"
 SPRING_FORMULATIONS = frozenset({"legacy", "fene_fraenkel"})
+MODEL_PROFILE_YEARS = frozenset({2010, 2015})
+MODEL_PROFILE_VARIANTS = frozenset({"project", "paper"})
+MODEL_PROFILE_RESOLUTIONS = frozenset({"legacy_project", "coarse", "refined"})
+MODEL_PROFILE_IMPLEMENTATION_STATUSES = frozenset({"supported", "pending"})
 MOTOR_LOCAL_SCALE_KEYS = (
     "local_hook_scale",
     "local_spring_scale",
@@ -219,6 +223,58 @@ def validate_dynamics_mode_consistency(
             f"inferred from config={inferred}. "
             f"n_flagella={n_flagella}, stub_mode={stub_mode}"
         )
+
+
+@dataclass(frozen=True)
+class ModelProfileParams:
+    """Canonical model identity and its nominal bead resolution."""
+
+    year: int
+    variant: str
+    resolution: str
+    implementation_status: str
+    body_beads: int
+    flagellum_beads_per_filament: int
+    nominal_flagella_count: int
+    nominal_total_beads: int
+
+    def __post_init__(self) -> None:
+        allowed: tuple[tuple[str, Any, frozenset[Any]], ...] = (
+            ("year", self.year, MODEL_PROFILE_YEARS),
+            ("variant", self.variant, MODEL_PROFILE_VARIANTS),
+            ("resolution", self.resolution, MODEL_PROFILE_RESOLUTIONS),
+            (
+                "implementation_status",
+                self.implementation_status,
+                MODEL_PROFILE_IMPLEMENTATION_STATUSES,
+            ),
+        )
+        for name, value, choices in allowed:
+            if value not in choices:
+                supported = ", ".join(str(item) for item in sorted(choices))
+                raise ValueError(
+                    f"Unsupported model_profile.{name}: {value!r}. "
+                    f"Use one of: {supported}."
+                )
+
+        bead_counts = {
+            "body_beads": self.body_beads,
+            "flagellum_beads_per_filament": self.flagellum_beads_per_filament,
+            "nominal_flagella_count": self.nominal_flagella_count,
+            "nominal_total_beads": self.nominal_total_beads,
+        }
+        for name, value in bead_counts.items():
+            if value <= 0:
+                raise ValueError(f"model_profile.{name} must be positive: {value}")
+
+        expected_total = self.body_beads + (
+            self.flagellum_beads_per_filament * self.nominal_flagella_count
+        )
+        if self.nominal_total_beads != expected_total:
+            raise ValueError(
+                "model_profile.nominal_total_beads is inconsistent: "
+                f"expected {expected_total}, got {self.nominal_total_beads}"
+            )
 
 
 @dataclass(frozen=True)
@@ -516,6 +572,25 @@ class SimulationConfig:
     seed: SeedParams
     output: OutputParams
     stiffness_scales: StiffnessScaleParams
+    model_profile: ModelProfileParams | None = None
+
+    def validate_execution_supported(self) -> None:
+        """Reject profiles that intentionally describe future implementations."""
+
+        profile = self.model_profile
+        if profile is None or profile.implementation_status == "supported":
+            return
+        raise ValueError(
+            "Simulation execution is unavailable for pending model profile: "
+            f"year={profile.year}, variant={profile.variant}, "
+            f"resolution={profile.resolution}. Complete Issues #165, #166, "
+            "#167, and #168 before running this profile."
+        )
+
+    def model_profile_manifest(self) -> dict[str, Any] | None:
+        """Return JSON-serializable profile provenance when it is available."""
+
+        return asdict(self.model_profile) if self.model_profile is not None else None
 
     @property
     def b_m(self) -> float:
@@ -707,6 +782,39 @@ class SimulationConfig:
     @staticmethod
     def from_dict(raw: dict[str, Any]) -> "SimulationConfig":
         """辞書（YAML読込後）から設定を構築する。"""
+
+        model_profile_raw = raw.get("model_profile")
+        model_profile = None
+        if model_profile_raw is not None:
+            if not isinstance(model_profile_raw, dict):
+                raise ValueError("model_profile must be a mapping")
+            required = (
+                "year",
+                "variant",
+                "resolution",
+                "implementation_status",
+                "body_beads",
+                "flagellum_beads_per_filament",
+                "nominal_flagella_count",
+                "nominal_total_beads",
+            )
+            missing = [key for key in required if key not in model_profile_raw]
+            if missing:
+                raise ValueError(
+                    "model_profile is missing required keys: " + ", ".join(missing)
+                )
+            model_profile = ModelProfileParams(
+                year=int(model_profile_raw["year"]),
+                variant=str(model_profile_raw["variant"]),
+                resolution=str(model_profile_raw["resolution"]),
+                implementation_status=str(model_profile_raw["implementation_status"]),
+                body_beads=int(model_profile_raw["body_beads"]),
+                flagellum_beads_per_filament=int(
+                    model_profile_raw["flagellum_beads_per_filament"]
+                ),
+                nominal_flagella_count=int(model_profile_raw["nominal_flagella_count"]),
+                nominal_total_beads=int(model_profile_raw["nominal_total_beads"]),
+            )
 
         brown_raw = raw.get("brownian", {}) or {}
         brownian = BrownianParams(
@@ -1135,10 +1243,16 @@ class SimulationConfig:
             seed=seed,
             output=output,
             stiffness_scales=stiffness,
+            model_profile=model_profile,
         )
 
     def with_overrides(self, overrides: dict[str, Any]) -> "SimulationConfig":
         """ネスト辞書の上書きから新しい設定を生成する。"""
+
+        if "model_profile" in overrides:
+            raise ValueError(
+                "model_profile is source-config provenance and cannot be overridden"
+            )
 
         merged = asdict(self)
 

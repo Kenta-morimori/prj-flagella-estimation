@@ -31,7 +31,7 @@ def _write_fixture(root: Path) -> Path:
         "\n".join(
             [
                 "kind: generic_multi_run",
-                "base_config: conf/sim_swim.yaml",
+                "base_config: conf/sim_swim_2010.yaml",
                 "base_overrides:",
                 "  time.duration_s: 0.003",
                 "  time.dt_star: 1.0e-4",

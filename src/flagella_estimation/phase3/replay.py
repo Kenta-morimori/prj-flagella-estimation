@@ -516,7 +516,8 @@ def _load_simulation_config_for_record(
             raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
             return SimulationConfig.from_dict(raw)
     return SimulationConfig.from_dict(
-        yaml.safe_load(Path("conf/sim_swim.yaml").read_text(encoding="utf-8")) or {}
+        yaml.safe_load(Path("conf/sim_swim_2010.yaml").read_text(encoding="utf-8"))
+        or {}
     )
 
 

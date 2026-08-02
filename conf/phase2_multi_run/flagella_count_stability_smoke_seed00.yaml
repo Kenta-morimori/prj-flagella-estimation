@@ -10,7 +10,7 @@ metadata:
     - Default candidate values are flag_spring=2.0 and body=2.0, but the selected sweep winner should be passed as KEY=VALUE overrides if different.
     - Keeps attach_seed=0 and phase_seed=0 for the first smoke check before seed expansion in Issue #119.
 
-base_config: conf/sim_swim.yaml
+base_config: conf/sim_swim_2010.yaml
 
 base_overrides:
   time.duration_s: 1.0

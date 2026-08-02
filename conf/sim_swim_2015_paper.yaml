@@ -1,0 +1,146 @@
+# Kong et al. (2015)の120-bead refined modelを記録するpaper profile。
+# geometry・paper駆動条件は未実装のため、simulation実行はimplementation_statusで拒否する。
+
+model_profile:
+  year: 2015
+  variant: paper
+  resolution: refined
+  implementation_status: pending
+  body_beads: 30
+  flagellum_beads_per_filament: 30
+  nominal_flagella_count: 3
+  nominal_total_beads: 120
+
+scale:
+  b_um: 1.0
+  bead_radius_a_over_b: 0.06   # Kong et al. (2015): a=0.06 b
+
+body:
+  prism:
+    # 論文本文のpentagon記述とFig. 1・30 beads・5 layersは不整合。
+    # Fig. 1、総bead数、層数と整合する正六角形x5層をproject推論として採用する。
+    n_prism: 6
+    dz_over_b: 0.5             # [-] 5 layersをbody length 2.0 bへ配置
+    radius_over_b: 0.5         # [-] body width 1.0 b。0.7 b幅は比較override候補
+    axis: "x"
+  length_total_um: 2.0
+
+flagella:
+  n_flagella: 3
+  placement_mode: "seeded_surface" # 中央層の等角度slot実装は#166で扱う
+  initial_phase_mode: "seeded"
+  init_mode: "paper_table1"
+  n_beads_per_flagellum: 30
+  discretization:
+    ds_over_b: 0.29            # [-] Kong et al. (2015): equilibrium bond length
+  bond_L_over_b: 0.29
+  length_over_b: 8.41          # [-] 29 bonds * 0.29 b
+  helix_init:
+    radius_over_b: 0.25
+    pitch_over_b: 2.5
+  initial_helix_axis_from_rear_deg: null
+
+fluid:
+  viscosity_Pa_s: 0.001
+
+motor:
+  torque_Nm: 1.2e-18           # [N m] 1200 pN nm reference torque
+  # 現行tripletは暫定表現。2015 paperの駆動・反作用条件は#167で実装する。
+  force_distribution: "triplet"
+  torque_distribution_profile: "diffusive"
+  reverse_n_flagella: 1
+  enable_switching: false
+  local_hook_scale: 1.0
+  local_spring_scale: 1.0
+  local_attach_first_spring_scale: 1.0
+  local_attach_first_body_axis_angle_scale: 1.0
+  local_first_second_spring_scale: 1.0
+  local_attach_frame_position_scale: 1.0
+  local_attach_frame_tangent_scale: 1.0
+  local_attach_frame_tangent_mode: "vector"
+  local_bend_scale: 1.0
+  local_torsion_scale: 1.0
+
+potentials:
+  spring:
+    formulation: "fene_fraenkel"
+    H_over_T_over_b: 1000.0    # [-] Kong et al. (2015): H=1000 T/b
+    s: 0.1                     # [-] FENE-Fraenkel relative extension limit
+  bend:
+    kb_over_T: 30.0            # [-] Kong et al. (2015): kb=30 T
+    theta0_deg:
+      normal: 161.0
+      semicoiled: 138.0
+      curly1: 142.0
+  torsion:
+    kt_over_T: 5.0             # [-] Kong et al. (2015): kt=5 T
+    fd_eps_over_b: 1e-3        # 数値有限差分幅（論文値ではない）
+    phi0_deg:
+      normal: -30.0
+      semicoiled: 32.5
+      curly1: 60.0
+  spring_spring_repulsion:
+    A_ss_over_T: 1.0
+    a_ss_over_b: 0.2
+    cutoff_over_b: 0.2
+
+hook:
+  enabled: true
+  threshold_deg: 90.0
+  kb_over_T: 30.0
+
+# 2015 paperはbody diagonal braceなし。現行builderのbrace制御追加は#166で扱う。
+body_equiv_load:
+  enabled: false
+  mode: "none"
+  target_torque_Nm: 0.0
+  target_force_N: 0.0
+  attach_region_id: 0
+
+run_tumble:
+  run_tau: 1200.0
+  tumble_tau: 800.0
+  semicoiled_tau: 400.0
+  curly1_tau: 400.0
+
+time:
+  duration_s: 0.1              # 暫定legacyキー。tau duration契約は#165で扱う
+  dt_s: 1.0e-3
+  dt_star: 1.0e-5              # [-] Kong et al. (2015)の積分刻み
+
+output_sampling:
+  out_all_steps_3d: false
+  fps_out_3d: 25.0
+  fps_out_2d: 25.0
+
+brownian:
+  enabled: false               # paper条件
+  temperature_K: 298.0
+  method: "cholesky"
+  jitter: 1.0e-20
+
+render:
+  image_size_px: 256
+  pixel_size_um: 0.203
+  flagella_linewidth_px: 2.0
+  render_flagella: true
+  render_flagella_2d: false
+  save_frames_3d: false
+  follow_camera_3d: true
+  view_range_um: 5.0
+  timestamp_3d: true
+  timestamp_fmt: "t = {t:.3f} s"
+  label_flagella: true
+  show_flagella_helix_axis_3d: false
+  follow_camera_2d: false
+  center_body_in_2d: true
+  save_frames_2d: false
+
+seed:
+  global_seed: 0
+  attach_seed: null
+  phase_seed: null
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true

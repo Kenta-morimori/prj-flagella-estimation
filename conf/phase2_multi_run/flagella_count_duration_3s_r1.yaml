@@ -17,7 +17,7 @@ metadata:
     - RUN fixed with motor.enable_switching=false.
     - Body-centered 2D rendering is accepted for this study.
 
-base_config: conf/sim_swim.yaml
+base_config: conf/sim_swim_2010.yaml
 
 base_overrides:
   time.duration_s: 3.0

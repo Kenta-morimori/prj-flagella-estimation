@@ -23,7 +23,7 @@ metadata:
   source_handoff: conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml
   smoke_check: conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml
 
-base_config: conf/sim_swim.yaml
+base_config: conf/sim_swim_2010.yaml
 
 base_overrides:
   time.duration_s: 1.0

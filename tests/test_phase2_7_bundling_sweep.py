@@ -129,7 +129,7 @@ def test_phase27_net_abs_helix_spin_revolutions_uses_phase_delta() -> None:
 
 def test_phase27_build_config_sets_initial_helix_axis_angle() -> None:
     raw_cfg = phase27._load_yaml(
-        Path(__file__).resolve().parents[1] / "conf/sim_swim.yaml"
+        Path(__file__).resolve().parents[1] / "conf/sim_swim_2010.yaml"
     )
 
     cfg = phase27._build_config(

@@ -18,7 +18,7 @@ metadata:
     - torque_Nm=2.0e-20
   historical_alias: conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml
 
-base_config: conf/sim_swim.yaml
+base_config: conf/sim_swim_2010.yaml
 
 base_overrides:
   time.duration_s: 1.0

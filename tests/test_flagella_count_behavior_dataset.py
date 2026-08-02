@@ -353,7 +353,9 @@ def test_state_archive_round_trip(tmp_path: Path) -> None:
 
 
 def test_render_sample_from_archive(tmp_path: Path) -> None:
-    raw_cfg = yaml.safe_load((ROOT / "conf/sim_swim.yaml").read_text(encoding="utf-8"))
+    raw_cfg = yaml.safe_load(
+        (ROOT / "conf/sim_swim_2010.yaml").read_text(encoding="utf-8")
+    )
     raw_cfg["flagella"]["n_flagella"] = 1
     raw_cfg["output_sampling"]["out_all_steps_3d"] = False
     raw_cfg["output_sampling"]["fps_out_3d"] = 2.0
@@ -396,7 +398,9 @@ def test_render_sample_from_archive(tmp_path: Path) -> None:
 def test_render_sample_defaults_to_lightweight_3d_replay(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    raw_cfg = yaml.safe_load((ROOT / "conf/sim_swim.yaml").read_text(encoding="utf-8"))
+    raw_cfg = yaml.safe_load(
+        (ROOT / "conf/sim_swim_2010.yaml").read_text(encoding="utf-8")
+    )
     raw_cfg["flagella"]["n_flagella"] = 1
     raw_cfg["output_sampling"]["out_all_steps_3d"] = True
     raw_cfg["output_sampling"]["fps_out_3d"] = 99.0
@@ -804,7 +808,7 @@ def test_dataset_builder_outputs_summary_qc_and_timeseries(tmp_path: Path) -> No
     feature_schema.write_text("feature_categories: {}\n", encoding="utf-8")
     campaign_config = {
         "kind": "generic_multi_run",
-        "base_config": str(ROOT / "conf/sim_swim.yaml"),
+        "base_config": str(ROOT / "conf/sim_swim_2010.yaml"),
         "base_overrides": {
             "time.duration_s": 0.1,
             "time.dt_star": 1.0e-4,

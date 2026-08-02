@@ -9,7 +9,7 @@ metadata:
     - Sweeps project-specific stiffness_scales.flag_spring and stiffness_scales.body.
     - local_first_second_spring_scale remains default because #94 did not improve the main failure.
 
-base_config: conf/sim_swim.yaml
+base_config: conf/sim_swim_2010.yaml
 
 base_overrides:
   time.duration_s: 1.0

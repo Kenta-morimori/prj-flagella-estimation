@@ -467,7 +467,7 @@ def _build_config(
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, default=Path("conf/sim_swim.yaml"))
+    parser.add_argument("--config", type=Path, default=Path("conf/sim_swim_2010.yaml"))
     parser.add_argument(
         "--helix-axis-angles-deg",
         type=_parse_csv_floats,
@@ -518,6 +518,7 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     raw_cfg = _load_yaml(args.config)
+    SimulationConfig.from_dict(raw_cfg).validate_execution_supported()
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     summary_path = out_dir / "summary.csv"

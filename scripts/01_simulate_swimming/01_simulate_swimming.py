@@ -52,7 +52,7 @@ def _split_config_override(
 
 @app.command()
 def main(
-    config: Path = typer.Option(Path("conf/sim_swim.yaml"), "--config", "-c"),
+    config: Path = typer.Option(Path("conf/sim_swim_2010.yaml"), "--config", "-c"),
     duration_s: Optional[float] = typer.Option(
         None,
         help=(
@@ -83,7 +83,7 @@ def main(
     """Phase2 用のシミュレーション＆投影エントリ。"""
 
     if _is_typer_default(config):
-        config = Path(getattr(config, "default", "conf/sim_swim.yaml"))
+        config = Path(getattr(config, "default", "conf/sim_swim_2010.yaml"))
     if _is_typer_default(overrides):
         overrides = []
     if _is_typer_default(duration_s):
@@ -116,6 +116,7 @@ def main(
         shorthand_overrides.append(f"render.render_flagella_2d={render_flagella_2d}")
     effective_overrides = [*cli_overrides, *shorthand_overrides]
     cfg = SimulationConfig.from_dict(raw_cfg).with_overrides(override_dict)
+    cfg.validate_execution_supported()
 
     output_base = cfg.output.base_dir
     ctx = init_run(
@@ -128,6 +129,8 @@ def main(
             "legacy_shorthand_overrides": shorthand_overrides,
             "effective_overrides": override_dict,
         },
+        source_config_path=config,
+        model_profile=cfg.model_profile_manifest(),
     )
     logger = ctx.logger
     logger.info("Loaded simulation config (effective): %s", cfg)

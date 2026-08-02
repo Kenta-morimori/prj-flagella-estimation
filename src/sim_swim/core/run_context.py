@@ -131,6 +131,8 @@ def init_run(
     *,
     timestamp_subdir: bool = True,
     overwrite: bool = False,
+    source_config_path: str | Path | None = None,
+    model_profile: dict[str, Any] | None = None,
 ) -> RunContext:
     """実行ディレクトリ・ログ・manifestを作成して返す。
 
@@ -204,6 +206,10 @@ def init_run(
             "python_version": sys.version.split()[0],
         },
     }
+    if source_config_path is not None:
+        manifest["source_config_path"] = str(source_config_path)
+    if model_profile is not None:
+        manifest["model_profile"] = model_profile
     (root / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2),
         encoding="utf-8",

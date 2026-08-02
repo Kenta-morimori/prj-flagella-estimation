@@ -1,0 +1,147 @@
+# Watari & Larson (2010) Table 1を参照するpaper profile。
+# 論文が完全には規定しないmotor実装と数値近似には、現行実装で最も近い条件を使う。
+
+model_profile:
+  year: 2010
+  variant: paper
+  resolution: coarse
+  implementation_status: supported
+  body_beads: 15
+  flagellum_beads_per_filament: 15
+  nominal_flagella_count: 3
+  nominal_total_beads: 60
+
+scale:
+  b_um: 1.0                    # [um] Watari & Larson (2010)の長さscale b
+  bead_radius_a_over_b: 0.1    # [-] Table 1: a/b
+
+body:
+  prism:
+    n_prism: 3                 # Fig. 1: 三角柱断面
+    dz_over_b: 0.5             # [-] Fig. 1: 層間隔
+    radius_over_b: 0.5         # [-] body width 1.0 b
+    axis: "x"
+  length_total_um: 2.0         # [um] body length 2.0 b (b=1 um)
+
+flagella:
+  n_flagella: 3
+  placement_mode: "uniform"    # project独自のseeded surface配置は採用しない
+  initial_phase_mode: "uniform"
+  init_mode: "paper_table1"
+  n_beads_per_flagellum: 15    # Table 1 / Fig. 1: 15 beads per filament
+  discretization:
+    ds_over_b: 0.58            # [-] Table 1: equilibrium bond length L/b
+  bond_L_over_b: 0.58
+  length_over_b: 8.12          # [-] 14 bonds * 0.58 b
+  helix_init:
+    radius_over_b: 0.25        # [-] helix diameter 0.5 b
+    pitch_over_b: 2.5          # [-] normal helix pitch
+  initial_helix_axis_from_rear_deg: null
+
+fluid:
+  viscosity_Pa_s: 0.001
+
+motor:
+  # -1 sentinelは現行legacyでT=eta*b^3、tau_s=1 sとするnondimensional paper reference。
+  # 正式なreference torque/time contractへの移行は#165で扱う。
+  torque_Nm: -1.0
+  # tripletはroot局所のforce coupleで、現行実装中のclosest approximation。
+  # 論文の駆動条件を厳密に再現する実装は#167の範囲。
+  force_distribution: "triplet"
+  torque_distribution_profile: "diffusive"
+  reverse_n_flagella: 1
+  enable_switching: false
+  local_hook_scale: 1.0
+  local_spring_scale: 1.0
+  local_attach_first_spring_scale: 1.0
+  local_attach_first_body_axis_angle_scale: 1.0
+  local_first_second_spring_scale: 1.0
+  local_attach_frame_position_scale: 1.0  # project profileの1.25補強は採用しない
+  local_attach_frame_tangent_scale: 1.0
+  local_attach_frame_tangent_mode: "vector"
+  local_bend_scale: 1.0
+  local_torsion_scale: 1.0
+
+potentials:
+  spring:
+    formulation: "fene_fraenkel" # Eq. (1); Issue #163で式・復元方向を照合済み
+    H_over_T_over_b: 10.0      # [-] Table 1: H=10 T/b
+    s: 0.1                     # [-] Table 1: bond長に対する相対変形限界
+  bend:
+    kb_over_T: 20.0            # [-] Table 1: kb=20 T
+    theta0_deg:
+      normal: 142.0
+      semicoiled: 90.0
+      curly1: 105.0
+  torsion:
+    kt_over_T: 10.0            # [-] Table 1: kt=10 T
+    fd_eps_over_b: 1e-3        # 数値有限差分幅（論文値ではない）
+    phi0_deg:
+      normal: -60.0
+      semicoiled: 65.0
+      curly1: 120.0
+  spring_spring_repulsion:
+    A_ss_over_T: 1.0           # [-] Table 1: A_ss=T
+    a_ss_over_b: 0.2           # [-] Table 1: alpha_ss/b
+    cutoff_over_b: 0.2         # [-] Table 1
+
+hook:
+  enabled: true
+  threshold_deg: 90.0          # Eq. (4)
+  kb_over_T: 20.0
+
+# 現行builderはbodyの対角braceを常時生成する。paperとの差分解消は#166で扱う。
+body_equiv_load:
+  enabled: false
+  mode: "none"
+  target_torque_Nm: 0.0
+  target_force_N: 0.0
+  attach_region_id: 0
+
+run_tumble:
+  run_tau: 1200.0
+  tumble_tau: 800.0
+  semicoiled_tau: 400.0
+  curly1_tau: 400.0
+
+time:
+  duration_s: 0.1
+  dt_s: 1.0e-3
+  dt_star: 1.0e-4              # tau duration・実時間換算の正式化は#165で扱う
+
+output_sampling:
+  out_all_steps_3d: false
+  fps_out_3d: 25.0
+  fps_out_2d: 25.0
+
+brownian:
+  enabled: false
+  temperature_K: 298.0
+  method: "cholesky"
+  jitter: 1.0e-20
+
+render:
+  image_size_px: 256
+  pixel_size_um: 0.203
+  flagella_linewidth_px: 2.0
+  render_flagella: true
+  render_flagella_2d: false
+  save_frames_3d: false
+  follow_camera_3d: true
+  view_range_um: 5.0
+  timestamp_3d: true
+  timestamp_fmt: "t = {t:.3f} s"
+  label_flagella: true
+  show_flagella_helix_axis_3d: false
+  follow_camera_2d: false
+  center_body_in_2d: true
+  save_frames_2d: false
+
+seed:
+  global_seed: 0
+  attach_seed: null
+  phase_seed: null
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
