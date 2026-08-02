@@ -120,6 +120,9 @@ Recommended order:
 | #100 | closed | #82 | sweep / multi-run / replay導線整理 |
 | #103 | closed | #82 | basal freedom / attach-frame剛体回転診断 |
 | #124 | open | #10 | `n>=4` 根元付近過伸長改善 |
+| #163 | open | #10 | Watari & Larson (2010) potential式照合とspring formulation選択。長時間比較はuser-run |
+| #164 | open | #154 | 2010年/2015年baseline config再編。#163のpotential照合結果を前提にする |
+| #165 | open | #154 | `tau` duration指定の正式化。#164と連携する |
 | #69 | open | #10 | Tumble状態の段階実装 |
 | #15 | open | #10 | Brownian項追加 |
 | #41 | open | #10 | 参照論文 contour length 矛盾対応 |
@@ -166,31 +169,32 @@ MVPでは #124 / #69 / #15 は Phase 3 baseline をblockしない。必要なら
 
 ## User-Run Required Queue
 
-現時点でユーザー実行が必須の項目はない。
-
-今後ユーザー実行が必要になった場合は，この形式で報告する。
+Issue #163 の motor-off `0.1 tau` / motor-on RUN `1 tau` spring formulation比較は、実装・短時間check完了後にユーザー実行する。
 
 ```bash
-uv run python ...
+uv run python scripts/01_simulate_swimming/run_multi_run.py \
+  config=conf/phase2_multi_run/spring_formulation_motor_off.yaml
+uv run python scripts/01_simulate_swimming/run_multi_run.py \
+  config=conf/phase2_multi_run/spring_formulation_motor_on.yaml
+uv run python scripts/01_simulate_swimming/analyze_spring_formulations.py \
+  motor_off_summary=<motor-off-run-root>/summary.csv \
+  motor_on_summary=<motor-on-run-root>/summary.csv
 ```
 
-確認先:
+確認先は各campaignの `summary.csv` と、解析runの次のartifactである。
 
 ```text
-outputs/...
+force_extension.csv
+force_extension.png
+default_decision.json
+default_decision.md
 ```
 
-判断ポイント:
+完走・有限値・body/nonbody strict shape gateを自動判定し、動画目視は要求しない。
 
-```text
-body deformation が見えるか
-helical shape が保たれているか
-2D pseudo-microscopy として自然か
-同一run由来clipを独立sampleとして扱っていないか
-```
-
-## Next Three Actions
+## Next Actions
 
 1. #129で`4 training groups/class`をpseudo-v1 MVP lower boundとして採用するか判断する。
 2. 一般的な必要run数を主張する場合はprotected評価用runの追加条件を決める。
 3. #145 dataset v2はProject `TODO`のまま後回しにする。
+4. #163の短時間check後、ユーザー実行の2 formulation比較から2010年baseline defaultを確定する。

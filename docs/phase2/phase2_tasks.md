@@ -1331,6 +1331,33 @@
 - docs:
   - `docs/phase2/phase2_158_v1_r1_nf3_proximal_diagnostics.md`
 
+## Phase 2 model correspondence
+
+### P2-MODEL-163: 2010年モデルのpotential式を論文と照合し採否を整理する
+
+- status: in progress
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/163`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/10`
+- branch: `feature/phase2-163-2010-potentials`
+- goal: Watari & Larson (2010) のspring、bending、torsion、hook、spring-spring repulsionを式・変数・次元・復元方向で照合し、論文準拠springと過去互換springを再現可能に比較する。
+- accepted decisions:
+  - [x] `fene_fraenkel` は相対変形 `q=(r-L)/L`、相対限界 `s`、分母一乗を用いる。
+  - [x] 現行springは絶対限界 `s*b` と分母二乗を維持する `legacy` とする。selector欠落時も `legacy`。
+  - [x] bending/torsion/hookは論文表示の負号だけで反転せず、現行の平衡角への復元方向を仕様とする。
+  - [x] repulsionの `A_ss=1.0 T`, `alpha_ss=0.2 b`, cutoff `0.2 b` は論文由来。共有端点除外、body-body除外、端点への線形分配は実装仮定。
+  - [x] default採否はmotor-off `0.1 tau` とmotor-on RUN `1 tau` の完走・有限性・全期間strict shape gateで自動判定する。結果取得前は `legacy`。
+- remaining:
+  - [ ] spring selector、validation、力–伸長比較、復元方向・wrap・repulsion testを完了する。
+  - [ ] 比較profileのdry-runと短時間checkを完了する。
+  - [ ] ユーザーが長時間比較を実行し、自動判定artifactを生成する。
+  - [ ] 結果をADRとreview resultへ反映し、defaultを確定する。
+- boundaries:
+  - `sim_swim_2010.yaml` 作成とconfig再編はIssue #164で扱う。
+  - 正式な `tau` duration指定はIssue #165で扱う。本Issueの `0.1 tau` / `1 tau` は現行 `tau_s=1.0` 規約の比較profileに限定する。
+- docs:
+  - `docs/phase2/phase2_163_2010_potential_correspondence.md`
+  - `docs/adr/0009_phase2_2010_potential_formulations.md`
+
 ## Phase 2.9: Tumble状態の段階実装
 
 ### P2-9-010: Tumble状態を段階実装する

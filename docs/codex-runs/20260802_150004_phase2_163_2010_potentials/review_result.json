@@ -1,0 +1,64 @@
+{
+  "status": "FAIL",
+  "summary": "Issue #163 の実装・文書・自動テストを完了した。Watari & Larson (2010) 準拠の `fene_fraenkel` と過去互換の `legacy` を `potentials.spring.formulation` で選択可能にし、selector欠落時のlegacy互換、potentialの復元方向、repulsion仮定、force-extension比較、motor-off/on比較profile、自動default判定を追加した。default最終採否に必要な長時間比較はリポジトリ方針により未実行のため、現時点のdefaultは `legacy`、task状態はFAIL/WIPとする。",
+  "blocking_issues": [
+    "motor-off 0.1 tau と motor-on RUN 1 tau の両formulation比較が未実行であり、2010年baselineのdefaultを最終確定できない。"
+  ],
+  "non_blocking_issues": [
+    "spring-spring repulsionのcutoff不連続と完全交差時の反発方向退化は既存の数値近似として維持する。",
+    "`sim_swim_2010.yaml` の作成・config再編はIssue #164、正式なtau duration指定はIssue #165で扱う。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest -q tests/test_potentials.py tests/test_phase2_163_spring_formulation_comparison.py",
+      "result": "PASS: 32 passed"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS: 225 passed, 240 deselected"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS: 465 passed"
+    },
+    {
+      "command": "uv run ruff format --check . && uv run ruff check .",
+      "result": "PASS: 123 files formatted, all checks passed"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/spring_formulation_motor_off.yaml dry_run=true; uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/spring_formulation_motor_on.yaml dry_run=true",
+      "result": "PASS: 両profileがlegacy / fene_fraenkelの2条件を展開"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": true,
+  "user_review_command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/spring_formulation_motor_off.yaml\nuv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/spring_formulation_motor_on.yaml\nuv run python scripts/01_simulate_swimming/analyze_spring_formulations.py motor_off_summary=<motor-off-run-root>/summary.csv motor_on_summary=<motor-on-run-root>/summary.csv",
+  "user_review_outputs": [
+    "outputs/phase2_multi_run/spring_formulation_motor_off/<JST timestamp>/summary.csv",
+    "outputs/phase2_multi_run/spring_formulation_motor_on/<JST timestamp>/summary.csv",
+    "outputs/phase2_potential_comparison/<JST timestamp>/default_decision.json",
+    "outputs/phase2_potential_comparison/<JST timestamp>/default_decision.md",
+    "outputs/phase2_potential_comparison/<JST timestamp>/force_extension.csv",
+    "outputs/phase2_potential_comparison/<JST timestamp>/force_extension.png"
+  ],
+  "user_review_points": [
+    "動画の目視判定は不要。2本のcampaignが全条件を完走し、各summary.csvが生成されること。",
+    "解析CLIがdefault_decision.jsonを生成し、selected_defaultと各runのreasonsを記録すること。",
+    "fene_fraenkelは両runで完走、有限値、全期間nonbody gate、body gateを満たす場合だけdefault候補になること。"
+  ],
+  "adr_required": true,
+  "adr_reason": "spring式、互換selector、potential符号規約、repulsion仮定、default採否gateは物理解釈と再現性に関わるため、ADR 0009を作成した。",
+  "commit_type": "wip",
+  "commit_hash": "",
+  "push_status": "pushed",
+  "pull_request_url": "",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/163",
+  "next_actions": [
+    "ユーザーがmotor-off/onの比較campaignと解析CLIを実行し、3つのrun rootを共有する。",
+    "default_decision.jsonの結果をADR、config、task docs、review_resultへ反映する。",
+    "最終候補でself-checkとCodex Cloud reviewを行い、review_result PASS後にIssue #163を完了する。"
+  ]
+}

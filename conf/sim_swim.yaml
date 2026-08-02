@@ -59,8 +59,9 @@ motor:
 
 potentials:
   spring:
-    H_over_T_over_b: 10.0      # [-] H = 10 * Torque / b（paper-aligned default）
-    s: 0.1                     # [-] 伸長限界 s/b（paper-aligned default）
+    formulation: "legacy"      # legacy: 過去run互換。fene_fraenkel: Watari & Larson (2010) の相対伸長式
+    H_over_T_over_b: 10.0      # [-] 係数値H=10*T/b。式自体のpaper準拠はformulationで選択
+    s: 0.1                     # legacyでは絶対限界s*b、fene_fraenkelではbond長に対する相対限界
   bend:
     kb_over_T: 20.0            # [-] kb = 20 * T
     theta0_deg:

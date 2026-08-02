@@ -254,6 +254,13 @@ class Simulator:
         pitch_target_over_b = float(self.config.flagella.helix_init.pitch_over_b)
 
         summary: dict[str, Any] = {
+            "potentials": {
+                "spring_formulation": str(self.config.potentials.spring.formulation),
+                "spring_H_over_T_over_b": float(
+                    self.config.potentials.spring.H_over_T_over_b
+                ),
+                "spring_s": float(self.config.potentials.spring.s),
+            },
             "flagella": {
                 "init_mode": str(self.config.flagella.init_mode),
                 "placement_mode": str(self.config.flagella.placement_mode),

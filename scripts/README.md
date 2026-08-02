@@ -82,6 +82,8 @@ uv run python scripts/01_simulate_swimming/run_multi_run.py \
 | `conf/phase2_sweeps/shape_stability_grid.yaml` | hook / proximal flagellum を含む shape stability grid |
 | `conf/phase2_sweeps/torque_distribution_grid.yaml` | #97 用 torque distribution 2x2 比較 |
 | `conf/phase2_sweeps/hook_overstretch.yaml` | 旧名互換 profile |
+| `conf/phase2_multi_run/spring_formulation_motor_off.yaml` | Issue #163 motor-off `legacy` / `fene_fraenkel` 比較 |
+| `conf/phase2_multi_run/spring_formulation_motor_on.yaml` | Issue #163 motor-on RUN `legacy` / `fene_fraenkel` 比較 |
 
 新規の user-facing 実行では `shape_stability_grid.yaml` を正本として使います。
 `hook_overstretch.yaml` は historical alias であり，既存メモや過去コマンドの互換用です。
@@ -100,6 +102,38 @@ uv run python scripts/01_simulate_swimming/run_sweep.py \
   config=conf/phase2_sweeps/shape_stability_grid.yaml \
   describe_profile=true
 ```
+
+### 2010 spring formulation比較
+
+`potentials.spring.formulation` は `legacy` と `fene_fraenkel` を受け付けます。selectorを省略した既存configは過去互換の `legacy` として読み込みます。単発で論文準拠式を選ぶ場合:
+
+```bash
+uv run python -m scripts.01_simulate_swimming \
+  config=conf/sim_swim.yaml \
+  potentials.spring.formulation=fene_fraenkel \
+  time.duration_s=0.01 \
+  time.dt_star=1.0e-4
+```
+
+Issue #163 のdefault判定用長時間比較は、motor-offとmotor-on RUNを同じseedで実行します。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_multi_run.py \
+  config=conf/phase2_multi_run/spring_formulation_motor_off.yaml
+
+uv run python scripts/01_simulate_swimming/run_multi_run.py \
+  config=conf/phase2_multi_run/spring_formulation_motor_on.yaml
+```
+
+各コマンドが出力したrun rootの `summary.csv` を解析CLIへ渡します。
+
+```bash
+uv run python scripts/01_simulate_swimming/analyze_spring_formulations.py \
+  motor_off_summary=<motor-off-run-root>/summary.csv \
+  motor_on_summary=<motor-on-run-root>/summary.csv
+```
+
+解析runには `force_extension.csv` / `force_extension.png` と、自動採否の `default_decision.json` / `default_decision.md` が出力されます。採否は両runの完走、有限値、body/nonbody strict shape gateを使い、条件を満たす場合だけ `fene_fraenkel` を選びます。この比較に動画目視は要求しません。
 
 ### Heatmap
 
