@@ -57,16 +57,18 @@ def compute_spring_forces(
     spring_pairs: np.ndarray,
     spring_rest_lengths_m: np.ndarray,
     h_const: float,
-    s_limit_m: float,
+    s: float,
+    b_m: float,
+    formulation: str = "legacy",
     clamp_eps: float = 1e-6,
 ) -> np.ndarray:
-    """Fraenkel型spring力を計算する。"""
+    """Compute legacy or Watari-Larson FENE-Fraenkel spring forces."""
 
     forces = np.zeros_like(positions_m)
     if spring_pairs.size == 0:
         return forces
 
-    s = max(s_limit_m, 1e-15)
+    s_value = max(float(s), 1e-15)
     h = float(h_const)
 
     for idx, (i, j) in enumerate(spring_pairs):
@@ -74,11 +76,35 @@ def compute_spring_forces(
         rj = positions_m[int(j)]
         dvec = ri - rj
         d = _safe_norm(dvec)
-        x = d - float(spring_rest_lengths_m[idx])
-        x = float(np.clip(x, -(1.0 - clamp_eps) * s, (1.0 - clamp_eps) * s))
-        denom = 1.0 - (x * x) / (s * s)
-        dU_dd = h * x / (denom * denom)
-        fij = -dU_dd * (dvec / d)
+        rest = max(float(spring_rest_lengths_m[idx]), 1e-30)
+        x = d - rest
+        if formulation == "legacy":
+            limit_m = max(s_value * float(b_m), 1e-15)
+            x = float(
+                np.clip(
+                    x,
+                    -(1.0 - clamp_eps) * limit_m,
+                    (1.0 - clamp_eps) * limit_m,
+                )
+            )
+            denom = 1.0 - (x * x) / (limit_m * limit_m)
+            force_magnitude = h * x / (denom * denom)
+        elif formulation == "fene_fraenkel":
+            relative_extension = x / rest
+            relative_extension = float(
+                np.clip(
+                    relative_extension,
+                    -(1.0 - clamp_eps) * s_value,
+                    (1.0 - clamp_eps) * s_value,
+                )
+            )
+            denom = 1.0 - (relative_extension * relative_extension) / (
+                s_value * s_value
+            )
+            force_magnitude = h * relative_extension / denom
+        else:
+            raise ValueError(f"Unsupported spring formulation: {formulation!r}")
+        fij = -force_magnitude * (dvec / d)
         forces[int(i)] += fij
         forces[int(j)] -= fij
 

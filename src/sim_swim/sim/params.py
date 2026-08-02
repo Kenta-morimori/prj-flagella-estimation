@@ -41,6 +41,8 @@ MOTOR_TORQUE_DISTRIBUTION_PROFILE_ALIASES = {
 }
 MOTOR_ATTACH_FRAME_TANGENT_MODE_DEFAULT = "vector"
 MOTOR_ATTACH_FRAME_TANGENT_MODES = frozenset({"vector", "basal_bearing"})
+SPRING_FORMULATION_DEFAULT = "legacy"
+SPRING_FORMULATIONS = frozenset({"legacy", "fene_fraenkel"})
 MOTOR_LOCAL_SCALE_KEYS = (
     "local_hook_scale",
     "local_spring_scale",
@@ -135,6 +137,19 @@ def normalize_motor_attach_frame_tangent_mode(value: Any) -> str:
             f"{mode!r}. Use one of: {supported}."
         )
     return mode
+
+
+def normalize_spring_formulation(value: Any) -> str:
+    """Validate the spring force formulation selector."""
+
+    formulation = str(value)
+    if formulation not in SPRING_FORMULATIONS:
+        supported = ", ".join(sorted(SPRING_FORMULATIONS))
+        raise ValueError(
+            "Unsupported potentials.spring.formulation: "
+            f"{formulation!r}. Use one of: {supported}."
+        )
+    return formulation
 
 
 class DynamicsMode(Enum):
@@ -322,6 +337,7 @@ class MotorParams:
 class SpringPotentialParams:
     """springポテンシャル設定。"""
 
+    formulation: str = SPRING_FORMULATION_DEFAULT
     H_over_T_over_b: float = 10.0
     s: float = 0.1
 
@@ -657,6 +673,11 @@ class SimulationConfig:
         add("flagella.n_flagella", self.flagella.n_flagella, 3)
         add("scale.bead_radius_a_over_b", self.scale.bead_radius_a_over_b, 0.1)
         add(
+            "potentials.spring.formulation",
+            self.potentials.spring.formulation,
+            "fene_fraenkel",
+        )
+        add(
             "potentials.spring.H_over_T_over_b",
             self.potentials.spring.H_over_T_over_b,
             10.0,
@@ -903,15 +924,29 @@ class SimulationConfig:
         b_m = max(scale.b_um, 1e-9) * 1e-6
 
         spring_raw = (raw.get("potentials", {}) or {}).get("spring", {}) or {}
+        spring_formulation = normalize_spring_formulation(
+            _get(spring_raw, "formulation", SPRING_FORMULATION_DEFAULT)
+        )
         h_over = spring_raw.get("H_over_T_over_b")
         if h_over is None and "H" in spring_raw:
             h_over = float(spring_raw["H"]) * b_m / max(thermal, 1e-30)
         s_val = spring_raw.get("s")
         if s_val is None and "s_um" in spring_raw:
             s_val = float(spring_raw["s_um"]) / max(scale.b_um, 1e-12)
+        h_over_value = float(h_over if h_over is not None else 10.0)
+        s_value = float(s_val if s_val is not None else 0.1)
+        if not math.isfinite(h_over_value) or h_over_value <= 0.0:
+            raise ValueError("potentials.spring.H_over_T_over_b must be positive.")
+        if not math.isfinite(s_value) or s_value <= 0.0:
+            raise ValueError("potentials.spring.s must be positive.")
+        if spring_formulation == "fene_fraenkel" and s_value >= 1.0:
+            raise ValueError(
+                "potentials.spring.s must be smaller than 1 for fene_fraenkel."
+            )
         spring = SpringPotentialParams(
-            H_over_T_over_b=float(h_over if h_over is not None else 10.0),
-            s=float(s_val if s_val is not None else 0.1),
+            formulation=spring_formulation,
+            H_over_T_over_b=h_over_value,
+            s=s_value,
         )
 
         bend_raw = (raw.get("potentials", {}) or {}).get("bend", {}) or {}

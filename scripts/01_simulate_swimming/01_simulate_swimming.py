@@ -197,6 +197,12 @@ def main(
         cfg.duration_star,
         cfg.total_steps,
     )
+    logger.info(
+        "[potential ] spring formulation=%s, H/(T/b)=%.6g, s=%.6g",
+        cfg.potentials.spring.formulation,
+        cfg.potentials.spring.H_over_T_over_b,
+        cfg.potentials.spring.s,
+    )
 
     n_layers = cfg.compute_body_n_layers()
     l_over_b = cfg.body.length_total_um / max(cfg.scale.b_um, 1e-12)

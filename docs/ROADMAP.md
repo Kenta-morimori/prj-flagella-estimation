@@ -120,6 +120,9 @@ Recommended order:
 | #100 | closed | #82 | sweep / multi-run / replay導線整理 |
 | #103 | closed | #82 | basal freedom / attach-frame剛体回転診断 |
 | #124 | open | #10 | `n>=4` 根元付近過伸長改善 |
+| #163 | open | #10 | potential式照合と比較完了。`fene_fraenkel` をdefault採用、PR merge待ち |
+| #164 | open | #154 | 2010年/2015年baseline config再編。#163のpotential照合結果を前提にする |
+| #165 | open | #154 | `tau` duration指定の正式化。#164と連携する |
 | #69 | open | #10 | Tumble状態の段階実装 |
 | #15 | open | #10 | Brownian項追加 |
 | #41 | open | #10 | 参照論文 contour length 矛盾対応 |
@@ -166,30 +169,9 @@ MVPでは #124 / #69 / #15 は Phase 3 baseline をblockしない。必要なら
 
 ## User-Run Required Queue
 
-現時点でユーザー実行が必須の項目はない。
+現時点でユーザー実行が必須の項目はない。Issue #163の比較は `outputs/phase2_potential_comparison/2026-08-02/154149` で完了した。
 
-今後ユーザー実行が必要になった場合は，この形式で報告する。
-
-```bash
-uv run python ...
-```
-
-確認先:
-
-```text
-outputs/...
-```
-
-判断ポイント:
-
-```text
-body deformation が見えるか
-helical shape が保たれているか
-2D pseudo-microscopy として自然か
-同一run由来clipを独立sampleとして扱っていないか
-```
-
-## Next Three Actions
+## Next Actions
 
 1. #129で`4 training groups/class`をpseudo-v1 MVP lower boundとして採用するか判断する。
 2. 一般的な必要run数を主張する場合はprotected評価用runの追加条件を決める。

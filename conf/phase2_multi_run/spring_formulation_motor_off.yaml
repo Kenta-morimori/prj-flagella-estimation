@@ -1,0 +1,39 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: true
+  description: Issue #163 spring formulation comparison under motor-off conditions
+
+base_config: conf/sim_swim.yaml
+
+base_overrides:
+  time.duration_s: 0.1
+  time.dt_star: 1.0e-4
+  motor.torque_Nm: 0.0
+  motor.torque_for_forces_override_Nm: 2.5e-20
+  motor.enable_switching: false
+  seed.attach_seed: 0
+  seed.phase_seed: 0
+
+sweep:
+  axes:
+    formulation:
+      key: potentials.spring.formulation
+      short_name: formulation
+      values: [legacy, fene_fraenkel]
+      labels: [legacy, fene_fraenkel]
+      ids: [legacy, fene_fraenkel]
+
+plot:
+  default_x_axis: formulation
+  default_y_axis: null
+  metrics:
+    - first_fail_t_s
+    - body_shape_pass
+    - max_flag_bond_rel_err
+
+output:
+  base_dir: outputs/phase2_multi_run/spring_formulation_motor_off
+  timestamp_subdir: true
+  save_state_archive: false
+  progress_interval: 1000

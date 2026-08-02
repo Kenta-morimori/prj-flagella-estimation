@@ -1,0 +1,74 @@
+{
+  "status": "PASS",
+  "summary": "Issue #163としてWatari & Larson (2010)のpotential式と現実装を照合し、論文準拠`fene_fraenkel`と過去互換`legacy`を選択可能にした。motor-off 0.1 tauとmotor-on RUN 1 tauでは両formulationが完走し、body/nonbody strict shape gateを全期間通過した。FENEはlegacy比でmax flag bond誤差を49.2%/84.2%、body spring最大伸長を84.4%/81.0%低減したため、採否規則と論文一致に従いdefaultを`fene_fraenkel`とした。selector欠落時は`legacy`へfallbackし、過去config互換を維持する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "spring-spring repulsionのcutoff不連続と完全交差時の反発方向退化は既存の数値近似として維持する。",
+    "`sim_swim_2010.yaml`の作成・config再編はIssue #164、正式なtau duration指定はIssue #165で扱う。",
+    "初回解析153848は正常なfinal_t_s=duration-dtを途中停止と誤判定したため不採用。判定器を連続step番号・観測dt・予定durationの照合へ修正し、154149で再解析した。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest -q tests/test_potentials.py tests/test_phase2_163_spring_formulation_comparison.py",
+      "result": "PASS: 37 passed"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS: 230 passed, 240 deselected"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS: 470 passed"
+    },
+    {
+      "command": "uv run ruff format --check . && uv run ruff check .",
+      "result": "PASS"
+    },
+    {
+      "command": "inspect outputs/phase2_multi_run/spring_formulation_motor_off/2026-08-02/151207/summary.csv and step_summary.csv",
+      "result": "PASS: legacy/feneとも1000 step完走、nonbody/body gate pass、first failなし"
+    },
+    {
+      "command": "inspect outputs/phase2_multi_run/spring_formulation_motor_on/2026-08-02/151505/summary.csv and step_summary.csv",
+      "result": "PASS: legacy/feneとも10000 step完走、nonbody/body gate pass、first failなし"
+    },
+    {
+      "command": "inspect outputs/phase2_potential_comparison/2026-08-02/154149/default_decision.json",
+      "result": "PASS: selected_default=fene_fraenkel; all four evaluations pass"
+    },
+    {
+      "command": "pytest missing/empty summary decision artifact cases",
+      "result": "PASS: campaign例外でsummaryが欠損・空でも理由付きlegacy decision JSON/Markdownを生成"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/spring_formulation_motor_off.yaml\nuv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/spring_formulation_motor_on.yaml\nuv run python scripts/01_simulate_swimming/analyze_spring_formulations.py motor_off_summary=outputs/phase2_multi_run/spring_formulation_motor_off/2026-08-02/151207/summary.csv motor_on_summary=outputs/phase2_multi_run/spring_formulation_motor_on/2026-08-02/151505/summary.csv",
+  "user_review_outputs": [
+    "outputs/phase2_multi_run/spring_formulation_motor_off/2026-08-02/151207/summary.csv",
+    "outputs/phase2_multi_run/spring_formulation_motor_on/2026-08-02/151505/summary.csv",
+    "outputs/phase2_potential_comparison/2026-08-02/154149/default_decision.json",
+    "outputs/phase2_potential_comparison/2026-08-02/154149/default_decision.md",
+    "outputs/phase2_potential_comparison/2026-08-02/154149/force_extension.csv",
+    "outputs/phase2_potential_comparison/2026-08-02/154149/force_extension.png"
+  ],
+  "user_review_points": [
+    "動画目視は不要。完走、有限値、全期間body/nonbody strict shape gateを自動判定した。",
+    "corrected decision artifactが両formulationの全run PASSとfene_fraenkel選択を記録している。"
+  ],
+  "adr_required": true,
+  "adr_reason": "spring式、互換selector、potential符号規約、repulsion仮定、default採否gateは物理解釈と再現性に関わるため、ADR 0009を作成し採否結果を追記した。",
+  "commit_type": "complete",
+  "commit_hash": "",
+  "push_status": "pushed",
+  "pull_request_url": "",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/163",
+  "next_actions": [
+    "PR CIとcodex-review-gateを確認する。",
+    "Issue #164で2010年/2015年baseline configを再編する。",
+    "Issue #165でtau duration指定を正式化する。"
+  ]
+}

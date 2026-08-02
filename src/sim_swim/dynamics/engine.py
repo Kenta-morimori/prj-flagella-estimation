@@ -124,7 +124,9 @@ class DynamicsEngine:
         torque = max(cfg.torque_for_forces_Nm, 1e-30)
         b_m = cfg.b_m
         self.spring_h = cfg.potentials.spring.H_over_T_over_b * torque / max(b_m, 1e-30)
-        self.spring_s_m = cfg.potentials.spring.s * b_m
+        self.spring_s = cfg.potentials.spring.s
+        self.spring_formulation = cfg.potentials.spring.formulation
+        self.b_m = b_m
         self.k_bend = cfg.potentials.bend.kb_over_T * torque
         self.k_torsion = cfg.potentials.torsion.kt_over_T * torque
         self.torsion_fd_eps_m = max(cfg.potentials.torsion.fd_eps_over_b * b_m, 1e-12)
@@ -759,7 +761,9 @@ class DynamicsEngine:
                     self.body_spring_rows
                 ],
                 h_const=self.spring_h * self.body_stiffness_scale,
-                s_limit_m=self.spring_s_m,
+                s=self.spring_s,
+                b_m=self.b_m,
+                formulation=self.spring_formulation,
                 clamp_eps=1e-3,
             )
         if self.hook_spring_rows.size > 0:
@@ -772,7 +776,9 @@ class DynamicsEngine:
                     self.hook_spring_rows
                 ],
                 h_const=self.spring_h * (hook_spring_scale if motor_on else 1.0),
-                s_limit_m=self.spring_s_m,
+                s=self.spring_s,
+                b_m=self.b_m,
+                formulation=self.spring_formulation,
                 clamp_eps=1e-3,
             )
         if self.flag_local_spring_rows.size > 0:
@@ -787,7 +793,9 @@ class DynamicsEngine:
                 h_const=self.spring_h
                 * self.flag_spring_stiffness_scale
                 * (first_second_spring_scale if motor_on else 1.0),
-                s_limit_m=self.spring_s_m,
+                s=self.spring_s,
+                b_m=self.b_m,
+                formulation=self.spring_formulation,
                 clamp_eps=1e-3,
             )
         if self.flag_proximal_spring_rows.size > 0:
@@ -800,7 +808,9 @@ class DynamicsEngine:
                 h_const=self.spring_h
                 * self.flag_spring_stiffness_scale
                 * self.proximal_flag_spring_stiffness_scale,
-                s_limit_m=self.spring_s_m,
+                s=self.spring_s,
+                b_m=self.b_m,
+                formulation=self.spring_formulation,
                 clamp_eps=1e-3,
             )
         if self.flag_nonlocal_spring_rows.size > 0:
@@ -811,7 +821,9 @@ class DynamicsEngine:
                     self.flag_nonlocal_spring_rows
                 ],
                 h_const=self.spring_h * self.flag_spring_stiffness_scale,
-                s_limit_m=self.spring_s_m,
+                s=self.spring_s,
+                b_m=self.b_m,
+                formulation=self.spring_formulation,
                 clamp_eps=1e-3,
             )
         bend_forces = np.zeros_like(pos)
