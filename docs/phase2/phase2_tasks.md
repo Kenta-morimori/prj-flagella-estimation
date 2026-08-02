@@ -1420,7 +1420,9 @@
   - [x] flagellum基部3 beadsへzero-net-force torque driveを与える。
   - [x] body反作用はattach beadとring/vertical one-ringを第一選択とし、局所support縮退時だけ全body beadsへfallbackする。
   - [x] 論文完全再現とはせず、`paper_inspired_approximation` と記録する。
+  - [x] paper profileは `hook_coupled_body_reaction`、project比較profileは `root_torque_segment_couples` とする。
   - [x] manifestへdynamics / geometry / simulation状態、reaction model、support bead数、fallback使用有無を保存する。
+  - [x] 主要parameterをpaper値、figure推論、implementation assumption、project比較modelに分類してmanifestへ保存する。
   - [x] `motor.enabled`、`motor.torque_Nm`、`motor.reference_torque_Nm`、canonical time schema、step数契約を変更しない。
   - [x] 2015 project / paper profilesは `implementation_status: pending` を維持し、実simulationを拒否する。
 - boundaries:
@@ -1431,10 +1433,12 @@
   - [x] swimmer net forceとbody/flagellumのmotor軸torque相殺をunit testで確認する。
   - [x] 局所supportと全body fallbackをunit testで確認する。
   - [x] parser/profile、CLI manifest、generic campaign provenance、2015実行拒否を確認する。
+  - [x] body width `0.7 b` overrideをparseでき、実行拒否を維持することを確認する。
   - [x] ruff、light pytest、full pytest、2010 triangular geometryの1-step renderを実行する。
 - docs:
   - `README.md`
   - `docs/adr/0013_phase2_2015_motor_body_reaction.md`
+  - `docs/phase2/phase2_167_2015_paper_conditions.md`
   - `docs/phase2/phase2_current.md`
   - `docs/codex-runs/20260802_204719_phase2_167_motor_dynamics/review_result.json`
 

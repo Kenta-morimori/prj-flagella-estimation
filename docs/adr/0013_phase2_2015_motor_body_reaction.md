@@ -18,6 +18,8 @@ motor dynamicsとprovenanceだけを導入する。
 ## Decision
 
 `motor.force_distribution=hook_coupled_body_reaction`を追加する。
+`sim_swim_2015_paper.yaml`だけがこのmodelを使い、project比較profileの
+`sim_swim_2015.yaml`は既存`root_torque_segment_couples`を維持する。
 
 各flagellumについて、first-second方向をmotor軸とし、flagellum基部の最初の3 beadsへ
 合力ゼロかつtorque全ベクトルが`motor.torque_Nm * motor_axis`となる最小ノルム力を
@@ -38,6 +40,7 @@ attach beadと、`body_ring_edges`または
 - run中に一度でもfallbackしたか
 - `geometry.implementation_status`
 - `simulation.implementation_status`とblocker
+- `paper_reference.parameters`の項目別source classification
 
 2015 project / paper profilesは、#166と#168が完了するまで
 `model_profile.implementation_status: pending`、`geometry: pending`、
@@ -50,3 +53,5 @@ support縮退時も全body fallbackで反作用を維持でき、その使用は
 
 一方、120-bead geometry上の安定性、長時間の形状保持、論文再現性は本ADRでは主張しない。
 motor-off `0.1 tau`、motor-on `1 tau`とそれ以降の評価は#168で扱う。
+parameter対応表とsupported昇格条件は
+`docs/phase2/phase2_167_2015_paper_conditions.md`を正本とする。

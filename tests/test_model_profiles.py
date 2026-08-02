@@ -88,25 +88,49 @@ def test_only_supported_project_profile_defaults_to_posterior_helix_axis(
     assert cfg.flagella.initial_helix_axis_from_rear_deg == expected
 
 
-@pytest.mark.parametrize("filename", ["sim_swim_2015.yaml", "sim_swim_2015_paper.yaml"])
+@pytest.mark.parametrize(
+    ("filename", "force_distribution", "provenance"),
+    [
+        (
+            "sim_swim_2015.yaml",
+            "root_torque_segment_couples",
+            "project_implementation",
+        ),
+        (
+            "sim_swim_2015_paper.yaml",
+            "hook_coupled_body_reaction",
+            "paper_inspired_approximation",
+        ),
+    ],
+)
 def test_2015_profiles_record_implemented_dynamics_but_remain_blocked(
     filename: str,
+    force_distribution: str,
+    provenance: str,
 ) -> None:
     raw = yaml.safe_load((ROOT / "conf" / filename).read_text(encoding="utf-8"))
     cfg = SimulationConfig.from_dict(raw)
 
-    assert cfg.motor.force_distribution == "hook_coupled_body_reaction"
+    assert cfg.motor.force_distribution == force_distribution
     implementation = cfg.implementation_manifest()
-    assert implementation["dynamics"] == {
+    expected_dynamics = {
         "implementation_status": "implemented",
-        "force_distribution": "hook_coupled_body_reaction",
-        "provenance": "paper_inspired_approximation",
-        "motor_axis_model": "hook_basal_tangent",
-        "body_reaction_model": (
-            "local_attach_neighborhood_zero_net_force_torque_couple"
-        ),
-        "body_reaction_fallback_model": ("all_body_beads_zero_net_force_torque_couple"),
+        "force_distribution": force_distribution,
+        "provenance": provenance,
     }
+    if filename == "sim_swim_2015_paper.yaml":
+        expected_dynamics.update(
+            {
+                "motor_axis_model": "hook_basal_tangent",
+                "body_reaction_model": (
+                    "local_attach_neighborhood_zero_net_force_torque_couple"
+                ),
+                "body_reaction_fallback_model": (
+                    "all_body_beads_zero_net_force_torque_couple"
+                ),
+            }
+        )
+    assert implementation["dynamics"] == expected_dynamics
     assert implementation["geometry"] == {"implementation_status": "pending"}
     assert implementation["simulation"] == {
         "implementation_status": "blocked",
@@ -115,6 +139,33 @@ def test_2015_profiles_record_implemented_dynamics_but_remain_blocked(
     with pytest.raises(ValueError, match="Issues #166 and #168"):
         cfg.validate_execution_supported()
     assert all(ok for _name, ok, _actual, _expected in cfg.paper_reference_checks())
+    paper_reference = implementation["paper_reference"]
+    assert paper_reference["parameters"]["body.width_over_b"] == {
+        "value": 1.0,
+        "source": "paper_default",
+        "comparison_override": 0.7,
+    }
+    assert paper_reference["parameters"]["hook.length_over_b"] == {
+        "value": 0.25,
+        "source": "implementation_assumption",
+        "implementation_status": "geometry_pending_issue_166",
+    }
+
+
+def test_2015_body_width_0p7_override_is_parseable_but_remains_blocked() -> None:
+    raw = yaml.safe_load(
+        (ROOT / "conf" / "sim_swim_2015_paper.yaml").read_text(encoding="utf-8")
+    )
+    cfg = SimulationConfig.from_dict(raw).with_overrides(
+        {"body": {"prism": {"radius_over_b": 0.35}}}
+    )
+
+    assert 2.0 * cfg.body.prism.radius_over_b == pytest.approx(0.7)
+    assert cfg.implementation_manifest()["paper_reference"]["parameters"][
+        "body.width_over_b"
+    ]["value"] == pytest.approx(0.7)
+    with pytest.raises(ValueError, match="pending model profile"):
+        cfg.validate_execution_supported()
 
 
 def test_legacy_default_config_path_is_removed() -> None:

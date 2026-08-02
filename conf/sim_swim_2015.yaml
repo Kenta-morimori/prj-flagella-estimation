@@ -47,8 +47,8 @@ motor:
   enabled: true
   torque_Nm: 1.2e-18
   reference_torque_Nm: 1.2e-18
-  # #167 paper-inspired hook駆動。refined geometryは#166までpending。
-  force_distribution: "hook_coupled_body_reaction"
+  # project比較用の現行torque transmission。paper profileとの差分を維持する。
+  force_distribution: "root_torque_segment_couples"
   torque_distribution_profile: "diffusive"
   reverse_n_flagella: 1
   enable_switching: false

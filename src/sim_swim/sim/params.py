@@ -807,6 +807,86 @@ class SimulationConfig:
 
         return asdict(self.model_profile) if self.model_profile is not None else None
 
+    def paper_reference_manifest(self) -> dict[str, Any] | None:
+        """Return item-level 2015 paper, inference, and assumption provenance."""
+
+        profile = self.model_profile
+        if profile is None or profile.year != 2015:
+            return None
+        motor_source = (
+            "paper_inspired_approximation"
+            if profile.variant == "paper"
+            else "project_comparison_model"
+        )
+        return {
+            "reference": "Kong et al. (2015), DOI 10.1039/C4SM02437K",
+            "parameters": {
+                "scale.bead_radius_a_over_b": {
+                    "value": float(self.scale.bead_radius_a_over_b),
+                    "source": "paper_table_1",
+                },
+                "body.width_over_b": {
+                    "value": float(2.0 * self.body.prism.radius_over_b),
+                    "source": "paper_default",
+                    "comparison_override": 0.7,
+                },
+                "body.prism.n_prism": {
+                    "value": int(self.body.prism.n_prism),
+                    "source": "figure_and_bead_count_inference",
+                },
+                "flagella.bond_L_over_b": {
+                    "value": float(self.flagella.bond_L_over_b),
+                    "source": "paper_table_1",
+                },
+                "potentials.spring.H_over_T_over_b": {
+                    "value": float(self.potentials.spring.H_over_T_over_b),
+                    "source": "paper_table_1",
+                },
+                "potentials.bend.kb_over_T": {
+                    "value": float(self.potentials.bend.kb_over_T),
+                    "source": "paper_table_1",
+                },
+                "potentials.torsion.kt_over_T": {
+                    "value": float(self.potentials.torsion.kt_over_T),
+                    "source": "paper_table_1",
+                },
+                "potentials.bend.theta0_deg": {
+                    "value": dict(self.potentials.bend.theta0_deg),
+                    "source": "paper_table_1",
+                },
+                "potentials.torsion.phi0_deg": {
+                    "value": dict(self.potentials.torsion.phi0_deg),
+                    "source": "paper_table_1",
+                },
+                "motor.torque_Nm": {
+                    "value": float(self.motor.torque_Nm),
+                    "source": "paper_reference_torque",
+                },
+                "motor.force_distribution": {
+                    "value": str(self.motor.force_distribution),
+                    "source": motor_source,
+                },
+                "time.integration.dt_star": {
+                    "value": float(self.dt_star),
+                    "source": "paper_integration_step",
+                },
+                "brownian.enabled": {
+                    "value": bool(self.brownian.enabled),
+                    "source": "paper_condition",
+                },
+                "hook.length_over_b": {
+                    "value": 0.25,
+                    "source": "implementation_assumption",
+                    "implementation_status": "geometry_pending_issue_166",
+                },
+                "body.diagonal_brace": {
+                    "value": False,
+                    "source": "paper_condition",
+                    "implementation_status": "geometry_pending_issue_166",
+                },
+            },
+        }
+
     def implementation_manifest(
         self,
         *,
@@ -851,7 +931,7 @@ class SimulationConfig:
             if reaction_fallback_used is not None:
                 dynamics["reaction_fallback_used"] = bool(reaction_fallback_used)
 
-        return {
+        manifest = {
             "dynamics": dynamics,
             "geometry": {
                 "implementation_status": (
@@ -865,6 +945,10 @@ class SimulationConfig:
                 "blocked_by": [166, 168] if profile_pending else [],
             },
         }
+        paper_reference = self.paper_reference_manifest()
+        if paper_reference is not None:
+            manifest["paper_reference"] = paper_reference
+        return manifest
 
     @property
     def b_m(self) -> float:
@@ -1093,6 +1177,11 @@ class SimulationConfig:
         is_2015 = bool(
             self.model_profile is not None and self.model_profile.year == 2015
         )
+        is_2015_paper = bool(
+            is_2015
+            and self.model_profile is not None
+            and self.model_profile.variant == "paper"
+        )
         add("flagella.n_flagella", self.flagella.n_flagella, 3)
         add(
             "scale.bead_radius_a_over_b",
@@ -1148,7 +1237,11 @@ class SimulationConfig:
             add(
                 "motor.force_distribution",
                 self.motor.force_distribution,
-                "hook_coupled_body_reaction",
+                (
+                    "hook_coupled_body_reaction"
+                    if is_2015_paper
+                    else "root_torque_segment_couples"
+                ),
             )
             add("time.integration.dt_star", self.dt_star, 1.0e-5)
             add("brownian.enabled", self.brownian.enabled, False)
