@@ -194,5 +194,20 @@ def test_2015_paper_manifest_records_actual_refined_geometry() -> None:
     ]
 
 
+def test_non_2015_pending_profile_remains_blocked_in_manifest_and_execution() -> None:
+    raw = yaml.safe_load(
+        (ROOT / "conf" / "sim_swim_2010.yaml").read_text(encoding="utf-8")
+    )
+    raw["model_profile"]["implementation_status"] = "pending"
+    cfg = SimulationConfig.from_dict(raw)
+
+    assert cfg.implementation_manifest()["simulation"] == {
+        "implementation_status": "blocked",
+        "blocked_by": [],
+    }
+    with pytest.raises(ValueError, match="pending model profile"):
+        cfg.validate_execution_supported()
+
+
 def test_legacy_default_config_path_is_removed() -> None:
     assert not (ROOT / "conf" / "sim_swim.yaml").exists()

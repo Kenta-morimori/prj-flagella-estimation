@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Implemented the Kong et al. (2015) refined geometry as the Issue #166 project interpretation: a five-layer regular hexagonal 30-bead body plus three 30-bead flagella for 120 total beads. The 2015 profiles use center-layer 120-degree attachment slots, configurable 0.25 b hooks, 0.29 b flagellum bonds, and disabled diagonal braces. Actual topology is recorded in single-run and campaign manifests, replay validates regenerated bead counts, and both pending profiles are evaluation_ready for Issue #168 without promotion to supported.",
+  "summary": "Implemented the Kong et al. (2015) refined geometry as the Issue #166 project interpretation: a five-layer regular hexagonal 30-bead body plus three 30-bead flagella for 120 total beads. The 2015 profiles use center-layer 120-degree attachment slots, configurable 0.25 b hooks, 0.29 b flagellum bonds, and disabled diagonal braces. Actual topology is recorded in single-run and campaign manifests, replay validates regenerated bead counts, and both pending profiles are evaluation_ready for Issue #168 without promotion to supported. Codex Cloud feedback was addressed by keeping every non-2015 pending profile blocked in both the manifest and execution validator.",
   "blocking_issues": [],
   "non_blocking_issues": [
     "Issue #168 motor-off 0.1 tau, motor-on 1 tau, long-time stability, brace adoption, and supported promotion were not run or decided.",
@@ -26,7 +26,11 @@
     },
     {
       "command": "uv run pytest -q",
-      "result": "PASS (524 passed in 97.78 s)"
+      "result": "PASS initial candidate (524 passed in 97.78 s); PASS after Codex Cloud feedback (525 passed in 103.60 s)"
+    },
+    {
+      "command": "uv run pytest -q tests/test_model_profiles.py tests/test_params.py tests/test_phase2_generic_multi_run.py tests/test_e2e_cli.py",
+      "result": "PASS after Codex Cloud feedback (150 passed)"
     },
     {
       "command": "uv run python -m scripts.01_simulate_swimming config=conf/sim_swim_2015.yaml time.duration.value=1.0e-5 time.duration.unit=tau output_sampling.out_all_steps_3d=true render.save_frames_3d=true render.save_frames_2d=false render.view_range_um=10.0",

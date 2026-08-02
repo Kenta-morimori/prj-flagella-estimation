@@ -949,7 +949,11 @@ class SimulationConfig:
             "geometry": {"implementation_status": "implemented"},
             "simulation": {
                 "implementation_status": (
-                    "evaluation_ready" if evaluation_ready else "executable"
+                    "evaluation_ready"
+                    if evaluation_ready
+                    else "blocked"
+                    if profile_pending
+                    else "executable"
                 ),
                 "blocked_by": [168] if evaluation_ready else [],
             },
