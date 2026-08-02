@@ -10,7 +10,7 @@
   "tests_reviewed": [
     {
       "command": "uv run pytest -q tests/test_motor_forces.py tests/test_model_profiles.py tests/test_params.py tests/test_e2e_cli.py tests/test_phase2_generic_multi_run.py tests/test_phase2_sweep_profiles.py tests/test_phase2_82_hook_overstretch_sweep.py",
-      "result": "PASS (206 passed)"
+      "result": "PASS after Codex Cloud feedback (207 passed)"
     },
     {
       "command": "uv run ruff format --check .",
@@ -22,15 +22,19 @@
     },
     {
       "command": "uv run pytest -q -m light",
-      "result": "PASS (274 passed, 241 deselected)"
+      "result": "PASS after Codex Cloud feedback (275 passed, 241 deselected)"
     },
     {
       "command": "uv run pytest -q",
-      "result": "PASS (515 passed)"
+      "result": "PASS after Codex Cloud feedback (516 passed)"
     },
     {
       "command": "uv run python -m scripts.01_simulate_swimming config=conf/sim_swim_2010.yaml motor.force_distribution=hook_coupled_body_reaction time.duration.value=1.0e-4 time.duration.unit=tau time.integration.dt_star=1.0e-4 output.base_dir=outputs/phase2_167/one_step_render output_sampling.out_all_steps_3d=true render.save_frames_3d=true render.save_frames_2d=false",
-      "result": "PASS (1 step; reaction support bead counts [5]; fallback false; finite 3D render produced)"
+      "result": "PASS after Codex Cloud feedback at commit 5be7fef (1 step; reaction support bead counts [5]; fallback false; finite 3D render produced)"
+    },
+    {
+      "command": "2010 triangular geometry full-vector motor balance regression",
+      "result": "PASS (net torque 1.2767e-34 N m; 5.1069e-15 of one motor torque; net force 7.9827e-29 N)"
     },
     {
       "command": "git diff --check",
@@ -40,9 +44,9 @@
   "user_review_required": false,
   "user_review_command": null,
   "user_review_outputs": [
-    "outputs/phase2_167/one_step_render/2026-08-02/204757/render/swim3d_final.png",
-    "outputs/phase2_167/one_step_render/2026-08-02/204757/render/swim3d.mp4",
-    "outputs/phase2_167/one_step_render/2026-08-02/204757/manifest.json"
+    "outputs/phase2_167/one_step_render/2026-08-02/205848/render/swim3d_final.png",
+    "outputs/phase2_167/one_step_render/2026-08-02/205848/render/swim3d.mp4",
+    "outputs/phase2_167/one_step_render/2026-08-02/205848/manifest.json"
   ],
   "user_review_points": [
     "Optional one-step qualitative check only: body and three flagella are visible without missing geometry or non-finite coordinates.",
@@ -51,9 +55,9 @@
   "adr_required": true,
   "adr_reason": "The change adds a new physical motor/reaction interpretation and a reproducibility-facing manifest contract.",
   "commit_type": "complete",
-  "commit_hash": "ec4340edb27feff3879bb5cdbe088a581d4c602a",
+  "commit_hash": "5be7fef8a0441bca347d5872c70f98b5d8b728ce",
   "push_status": "not_pushed",
-  "pull_request_url": null,
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/174",
   "next_actions": [
     "Complete Issue #166 refined geometry before enabling either 2015 profile.",
     "Run the 120-bead motor-off 0.1 tau and motor-on 1 tau stability evaluation under Issue #168 after #166 is complete.",
