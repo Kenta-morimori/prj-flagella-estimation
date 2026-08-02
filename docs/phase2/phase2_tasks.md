@@ -1333,6 +1333,24 @@
 
 ## Phase 2 model correspondence
 
+### P2-MODEL-171: 2010 projectの初期べん毛軸を後方整列defaultにする
+
+- status: completed
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/171`
+- branch: `feature/phase2-171-posterior-project-default`
+- goal: 現行2010 project profileの初期べん毛螺旋軸を菌体後方へ揃え、projectの通常条件とする。
+- accepted decisions:
+  - [x] `conf/sim_swim_2010.yaml` の `flagella.initial_helix_axis_from_rear_deg` を `0` とする。
+  - [x] 2010/2015 paper profileと2015 project pending profileは `null` を維持する。
+  - [x] 0.5 s user runの5,000 stepがfinite・通常/strict non-body shape gateを全通過し、user定性評価で問題なしと確認した。
+  - [x] 個別軸の開きは最大 `38.57 deg` だが、bundle rearward projectionは全期間 `>=0.9668`、最終bundle軸は後方から `14.62 deg` であることを記録する。
+- boundaries:
+  - 正式な時間schemaはIssue #165で扱い、本Issueでは変更しない。
+  - 2015 projectの後方default化は #166/#167/#168 で実行可能になった後に別途評価する。
+  - standard 0.5 s runではbody diagnostics CSVが出力されないため、body変形はuser visual reviewを根拠とする。
+- docs:
+  - `docs/adr/0011_phase2_2010_project_posterior_default.md`
+
 ### P2-MODEL-164: 2010年・2015年モデルconfigを再編する
 
 - status: completed

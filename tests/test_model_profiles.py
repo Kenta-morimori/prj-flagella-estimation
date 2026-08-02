@@ -30,6 +30,13 @@ PROFILE_CASES = (
     ),
 )
 
+INITIAL_HELIX_AXIS_CASES = (
+    ("sim_swim_2010.yaml", 0.0),
+    ("sim_swim_2010_paper.yaml", None),
+    ("sim_swim_2015.yaml", None),
+    ("sim_swim_2015_paper.yaml", None),
+)
+
 
 @pytest.mark.parametrize(("filename", "expected"), PROFILE_CASES)
 def test_canonical_model_profiles_have_expected_identity_and_resolution(
@@ -68,6 +75,17 @@ def test_2010_paper_profile_uses_fourteen_bonds_at_paper_spacing() -> None:
     assert cfg.flagella.n_beads_per_flagellum == 15
     assert cfg.flagella.bond_L_over_b == pytest.approx(0.58)
     assert cfg.flagella.length_over_b == pytest.approx(14 * 0.58)
+
+
+@pytest.mark.parametrize(("filename", "expected"), INITIAL_HELIX_AXIS_CASES)
+def test_only_supported_project_profile_defaults_to_posterior_helix_axis(
+    filename: str,
+    expected: float | None,
+) -> None:
+    raw = yaml.safe_load((ROOT / "conf" / filename).read_text(encoding="utf-8"))
+    cfg = SimulationConfig.from_dict(raw)
+
+    assert cfg.flagella.initial_helix_axis_from_rear_deg == expected
 
 
 def test_legacy_default_config_path_is_removed() -> None:
