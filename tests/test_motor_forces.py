@@ -9,12 +9,94 @@ from sim_swim.dynamics.forces import (
     compute_attach_first_body_axis_angle_forces,
     compute_attach_frame_basal_bearing_forces,
     compute_attach_frame_target_forces,
+    compute_hook_coupled_body_reaction_forces,
     compute_motor_forces,
     compute_root_torque_axis_projection_forces,
     compute_root_torque_segment_couples_forces,
 )
 
 pytestmark = pytest.mark.light
+
+
+def test_hook_coupled_body_reaction_balances_force_and_axis_torque() -> None:
+    positions = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [1.0, 0.5, 0.0],
+            [2.0, 0.5, 0.0],
+            [3.0, 0.0, 0.5],
+        ],
+        dtype=float,
+    )
+    body_indices = np.arange(4, dtype=int)
+    flag_indices = np.arange(4, 7, dtype=int)
+
+    forces, diag = compute_hook_coupled_body_reaction_forces(
+        positions_m=positions,
+        flagella_indices=[flag_indices],
+        flagella_attach_body_indices=np.array([0], dtype=int),
+        body_indices=body_indices,
+        body_ring_edges=np.array([[0, 1], [0, 2]], dtype=int),
+        body_vertical_edges=np.array([[0, 3]], dtype=int),
+        torque_per_flag=np.array([2.0], dtype=float),
+    )
+
+    axis = np.array([1.0, 0.0, 0.0])
+    flag_torque = float(
+        np.dot(
+            np.sum(np.cross(positions[flag_indices], forces[flag_indices]), axis=0),
+            axis,
+        )
+    )
+    body_torque = float(
+        np.dot(
+            np.sum(np.cross(positions[body_indices], forces[body_indices]), axis=0),
+            axis,
+        )
+    )
+    assert np.allclose(forces[flag_indices].sum(axis=0), 0.0, atol=1e-12)
+    assert np.allclose(forces[body_indices].sum(axis=0), 0.0, atol=1e-12)
+    assert np.allclose(forces.sum(axis=0), 0.0, atol=1e-12)
+    assert flag_torque == pytest.approx(2.0)
+    assert body_torque == pytest.approx(-2.0)
+    assert flag_torque + body_torque == pytest.approx(0.0, abs=1e-12)
+    assert diag.reaction_support_bead_counts == (4,)
+    assert diag.reaction_fallback_used is False
+
+
+def test_hook_coupled_body_reaction_falls_back_for_degenerate_local_support() -> None:
+    positions = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [-1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [1.0, 0.5, 0.0],
+            [2.0, 0.5, 0.0],
+            [3.0, 0.0, 0.5],
+        ],
+        dtype=float,
+    )
+
+    forces, diag = compute_hook_coupled_body_reaction_forces(
+        positions_m=positions,
+        flagella_indices=[np.arange(5, 8, dtype=int)],
+        flagella_attach_body_indices=np.array([0], dtype=int),
+        body_indices=np.arange(5, dtype=int),
+        body_ring_edges=np.array([[0, 1], [0, 2]], dtype=int),
+        body_vertical_edges=np.zeros((0, 2), dtype=int),
+        torque_per_flag=np.array([2.0], dtype=float),
+    )
+
+    assert np.isfinite(forces).all()
+    assert np.allclose(forces.sum(axis=0), 0.0, atol=1e-12)
+    assert diag.degenerate_axis_count == 0
+    assert diag.reaction_support_bead_counts == (5,)
+    assert diag.reaction_fallback_used is True
 
 
 def test_motor_force_couple_matches_target_torque() -> None:

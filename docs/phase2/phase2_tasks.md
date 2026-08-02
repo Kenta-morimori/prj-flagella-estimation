@@ -1408,6 +1408,36 @@
   - `docs/adr/0012_phase2_time_schema_profiles.md`
   - `docs/codex-runs/20260802_192500_phase2_165_time_schema/review_result.json`
 
+### P2-MODEL-167: 2015 paper-inspired motor dynamicsとbody反作用を実装する
+
+- status: completed
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/167`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/154`
+- branch: `agent/issue-167-2015-motor-dynamics`
+- goal: Kong et al. (2015) profileのmotor駆動とbody反作用をPhase 2へ導入し、geometry・stability未完了状態をprovenance上分離する。
+- accepted decisions:
+  - [x] 新しい正式名を `motor.force_distribution=hook_coupled_body_reaction` とする。
+  - [x] flagellum基部3 beadsへzero-net-force torque driveを与える。
+  - [x] body反作用はattach beadとring/vertical one-ringを第一選択とし、局所support縮退時だけ全body beadsへfallbackする。
+  - [x] 論文完全再現とはせず、`paper_inspired_approximation` と記録する。
+  - [x] manifestへdynamics / geometry / simulation状態、reaction model、support bead数、fallback使用有無を保存する。
+  - [x] `motor.enabled`、`motor.torque_Nm`、`motor.reference_torque_Nm`、canonical time schema、step数契約を変更しない。
+  - [x] 2015 project / paper profilesは `implementation_status: pending` を維持し、実simulationを拒否する。
+- boundaries:
+  - #166の30-body + 3x30-flagella refined geometry、brace切替、中央層slotは実装しない。
+  - #168の120-bead motor-off `0.1 tau`、motor-on `1 tau`、長時間sweepと安定性採否は実行しない。
+  - #167のsimulation確認は2010 triangular geometry上の1-step/短時間smokeに限定する。
+- verification:
+  - [x] swimmer net forceとbody/flagellumのmotor軸torque相殺をunit testで確認する。
+  - [x] 局所supportと全body fallbackをunit testで確認する。
+  - [x] parser/profile、CLI manifest、generic campaign provenance、2015実行拒否を確認する。
+  - [x] ruff、light pytest、full pytest、2010 triangular geometryの1-step renderを実行する。
+- docs:
+  - `README.md`
+  - `docs/adr/0013_phase2_2015_motor_body_reaction.md`
+  - `docs/phase2/phase2_current.md`
+  - `docs/codex-runs/20260802_204719_phase2_167_motor_dynamics/review_result.json`
+
 ### P2-MODEL-163: 2010年モデルのpotential式を論文と照合し採否を整理する
 
 - status: completed

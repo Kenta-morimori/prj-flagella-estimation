@@ -117,6 +117,7 @@ def _manifest_condition_record(
     condition: dict[str, Any],
     *,
     time_manifest: dict[str, Any] | None = None,
+    implementation_manifest: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     record = {
         "condition_id": condition["condition_id"],
@@ -139,6 +140,8 @@ def _manifest_condition_record(
     }
     if time_manifest is not None:
         record["time"] = time_manifest
+    if implementation_manifest is not None:
+        record.update(implementation_manifest)
     return record
 
 
@@ -208,6 +211,7 @@ def run_campaign(argv: list[str] | None = None) -> Path:
 
     rows: list[dict[str, Any]] = []
     condition_time_manifests: dict[str, dict[str, Any]] = {}
+    condition_implementation_manifests: dict[str, dict[str, Any]] = {}
     total = len(conditions)
     for index, condition in enumerate(conditions, start=1):
         logger.info(
@@ -231,6 +235,9 @@ def run_campaign(argv: list[str] | None = None) -> Path:
             save_state_archive(condition_dir / "state_archive.npz", states)
             write_trajectory_csv(condition_dir / "trajectory.csv", states)
         rows.append(_condition_row(cfg, condition, condition_dir))
+        condition_implementation_manifests[condition["condition_id"]] = (
+            simulator.implementation_manifest()
+        )
 
     summary_path = ctx.out.root / "summary.csv"
     fieldnames = _summary_fieldnames(rows)
@@ -265,10 +272,14 @@ def run_campaign(argv: list[str] | None = None) -> Path:
                 ctx.out.root,
                 condition,
                 time_manifest=condition_time_manifests.get(condition["condition_id"]),
+                implementation_manifest=condition_implementation_manifests.get(
+                    condition["condition_id"]
+                ),
             )
             for condition in conditions
         ],
     }
+    manifest.update(base_simulation_cfg.implementation_manifest())
     run_manifest_path = ctx.out.root / "run_manifest.json"
     run_manifest_path.write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2),
@@ -283,6 +294,7 @@ def run_campaign(argv: list[str] | None = None) -> Path:
             "replay": manifest["replay"],
             "plot": manifest["plot"],
         }
+        existing.update(base_simulation_cfg.implementation_manifest())
         existing["time"] = base_simulation_cfg.time_manifest()
         existing["outputs"]["summary_csv"] = str(summary_path)
         existing["outputs"]["run_manifest_json"] = str(run_manifest_path)

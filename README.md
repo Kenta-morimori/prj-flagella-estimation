@@ -45,7 +45,9 @@ CLI の詳細、override 例、後から 3D / 2D render を再生成する方法
 
 - `conf/`: 実行設定。Phase 2 simulation のdefaultは `conf/sim_swim_2010.yaml`、複数条件 run / heatmap / replay / dataset 作成は `conf/phase2_multi_run/` を使います。
 
-Phase 2のmodel profileは次の4つです。`2015` profileはgeometry・paper駆動条件が未実装のため、設定参照用の`pending` profileです。
+Phase 2のmodel profileは次の4つです。`2015` profileはmotor dynamicsを
+`paper_inspired_approximation` として実装済みですが、refined geometryと安定性評価が
+未完了のため、設定参照用の`pending` profileです。
 
 | config | role |
 | --- | --- |
@@ -53,6 +55,13 @@ Phase 2のmodel profileは次の4つです。`2015` profileはgeometry・paper�
 | `conf/sim_swim_2010_paper.yaml` | Watari & Larson (2010) paper参照条件 |
 | `conf/sim_swim_2015.yaml` | 2015 refined modelのproject採用候補 |
 | `conf/sim_swim_2015_paper.yaml` | Kong et al. (2015) paper参照条件 |
+
+2015 motor dynamicsは
+`motor.force_distribution=hook_coupled_body_reaction` を使います。hook基部近傍の
+flagellumへ駆動torqueを与え、attach beadとbody one-ringへ逆向きのzero-net-force
+torque coupleを与えます。局所supportが縮退した場合だけ全body beadsへfallbackし、
+support bead数とfallback使用有無をmanifestへ保存します。これは論文完全再現では
+ありません。
 
 Phase 2 の時間指定は `time.duration.value` / `time.duration.unit` と
 `time.integration.dt_star` が正本です。`duration.unit` は `s` または `tau`

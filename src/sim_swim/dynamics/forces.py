@@ -27,6 +27,8 @@ class MotorForceDiagnostics:
     split_residual_norm_mean: float = float("nan")
     ta_dot_ra_abs_mean: float = float("nan")
     tb_dot_rb_abs_mean: float = float("nan")
+    reaction_support_bead_counts: tuple[int, ...] = ()
+    reaction_fallback_used: bool = False
 
 
 def _safe_norm(v: np.ndarray, eps: float = 1e-18) -> float:
@@ -705,6 +707,135 @@ def _zero_net_force_torque_drive(
     torque_norm = abs(float(np.sum(np.cross(radial, local_forces) @ axis)))
     force_norm = float(np.mean(np.linalg.norm(local_forces, axis=1)))
     return forces, 0, torque_norm, force_norm
+
+
+def _attach_body_support(
+    *,
+    attach_index: int,
+    body_ring_edges: np.ndarray,
+    body_vertical_edges: np.ndarray,
+) -> np.ndarray:
+    support = {int(attach_index)}
+    for edges in (body_ring_edges, body_vertical_edges):
+        for left_raw, right_raw in edges:
+            left = int(left_raw)
+            right = int(right_raw)
+            if left == attach_index:
+                support.add(right)
+            elif right == attach_index:
+                support.add(left)
+    return np.asarray(sorted(support), dtype=int)
+
+
+def compute_hook_coupled_body_reaction_forces(
+    *,
+    positions_m: np.ndarray,
+    flagella_indices: list[np.ndarray],
+    flagella_attach_body_indices: np.ndarray,
+    body_indices: np.ndarray,
+    body_ring_edges: np.ndarray,
+    body_vertical_edges: np.ndarray,
+    torque_per_flag: np.ndarray,
+) -> tuple[np.ndarray, MotorForceDiagnostics]:
+    """Apply a hook-local motor torque and an opposite local body reaction."""
+
+    forces = np.zeros_like(positions_m)
+    body_idx = body_indices.astype(int, copy=False)
+    degenerate_count = 0
+    valid_count = 0
+    flag_torque_sum = 0.0
+    body_torque_sum = 0.0
+    flag_force_sum = 0.0
+    body_force_sum = 0.0
+    support_counts: list[int] = []
+    fallback_used = False
+
+    for f_id, flag_idx_raw in enumerate(flagella_indices):
+        if (
+            f_id >= torque_per_flag.shape[0]
+            or f_id >= flagella_attach_body_indices.shape[0]
+        ):
+            break
+        tau = float(torque_per_flag[f_id])
+        if abs(tau) <= 0.0:
+            continue
+
+        flag_idx = flag_idx_raw.astype(int, copy=False)
+        if flag_idx.size < 3 or body_idx.size < 3:
+            degenerate_count += 1
+            continue
+
+        attach = int(flagella_attach_body_indices[f_id])
+        origin = positions_m[attach]
+        axis = positions_m[int(flag_idx[1])] - positions_m[int(flag_idx[0])]
+        axis_norm = float(np.linalg.norm(axis))
+        if axis_norm <= 1e-18 or not np.isfinite(axis_norm):
+            degenerate_count += 1
+            continue
+        axis = axis / axis_norm
+
+        flag_support = flag_idx[:3]
+        flag_forces, flag_degenerate, flag_torque, flag_force = (
+            _zero_net_force_torque_drive(
+                positions_m=positions_m,
+                indices=flag_support,
+                origin=origin,
+                axis=axis,
+                target_torque_Nm=tau,
+            )
+        )
+        if flag_degenerate:
+            degenerate_count += flag_degenerate
+            continue
+
+        body_support = _attach_body_support(
+            attach_index=attach,
+            body_ring_edges=body_ring_edges,
+            body_vertical_edges=body_vertical_edges,
+        )
+        body_forces, body_degenerate, body_torque, body_force = (
+            _zero_net_force_torque_drive(
+                positions_m=positions_m,
+                indices=body_support,
+                origin=origin,
+                axis=axis,
+                target_torque_Nm=-tau,
+            )
+        )
+        if body_degenerate:
+            fallback_used = True
+            body_support = body_idx
+            body_forces, body_degenerate, body_torque, body_force = (
+                _zero_net_force_torque_drive(
+                    positions_m=positions_m,
+                    indices=body_support,
+                    origin=origin,
+                    axis=axis,
+                    target_torque_Nm=-tau,
+                )
+            )
+        support_counts.append(int(body_support.size))
+        if body_degenerate:
+            degenerate_count += body_degenerate
+            continue
+
+        forces += flag_forces + body_forces
+        valid_count += 1
+        flag_torque_sum += flag_torque
+        body_torque_sum += body_torque
+        flag_force_sum += flag_force
+        body_force_sum += body_force
+
+    inv = 1.0 / max(valid_count, 1)
+    return forces, MotorForceDiagnostics(
+        degenerate_axis_count=degenerate_count,
+        Ta_norm_mean=(flag_torque_sum * inv if valid_count else float("nan")),
+        Tb_norm_mean=(body_torque_sum * inv if valid_count else float("nan")),
+        Fa_norm_mean=(flag_force_sum * inv if valid_count else float("nan")),
+        Fb_norm_mean=(body_force_sum * inv if valid_count else float("nan")),
+        reaction_support_bead_counts=tuple(support_counts),
+        reaction_fallback_used=fallback_used,
+    )
 
 
 def compute_root_torque_axis_projection_forces(
