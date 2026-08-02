@@ -1,0 +1,56 @@
+{
+  "status": "PASS",
+  "summary": "Issue #171として、2010 project profileの初期べん毛螺旋軸を菌体後方へ揃えるflagella.initial_helix_axis_from_rear_deg=0をdefaultにした。user実行の0.5 s runは5,000/5,000 stepで有限性と通常/strict non-body shape gateを全通過し、bundle軸の後方性を維持した。user定性評価も問題なし。paper profileとpendingの2015 project profileはnullを維持する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "standard 0.5 s runではbody_constraint_diagnostics.csvが出力されないため、body shape gateは後付け評価できない。body変形なしの判断はuser visual reviewを根拠とする。",
+    "個別helix axisは全期間最大38.57 degまで開くが、bundle rearward projectionは全期間0.96679以上、最終bundle axis vs rearは14.62 degである。",
+    "2015 project profileはpendingであり、後方default化はIssue #166/#167/#168完了後の別評価とする。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": ".venv/bin/pytest -q tests/test_model_profiles.py tests/test_params.py tests/test_model_builder.py",
+      "result": "PASS: 157 passed"
+    },
+    {
+      "command": ".venv/bin/ruff format --check . && .venv/bin/ruff check . && .venv/bin/pytest -q -m light",
+      "result": "PASS: ruff passed; 256 passed, 241 deselected"
+    },
+    {
+      "command": ".venv/bin/pytest -q",
+      "result": "PASS: 497 passed"
+    },
+    {
+      "command": "analyze existing step_summary.csv and flag_helix_axis_diagnostics.csv without rerunning simulation",
+      "result": "PASS: 5,000 contiguous steps; finite/normal/strict non-body gates all pass; max hook rel err 0.08801; max flag bond rel err 0.08626; bundle rearward projection min 0.96679; axis fit R2 min 0.94857; degenerate count 0"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "uv run python -m scripts.01_simulate_swimming config=conf/sim_swim_2010.yaml flagella.initial_helix_axis_from_rear_deg=0 seed.attach_seed=0 seed.phase_seed=0 time.duration_s=0.5 time.dt_star=1.0e-4 output_sampling.out_all_steps_3d=false output_sampling.fps_out_3d=25 render.render_flagella=true render.render_flagella_2d=true render.show_flagella_helix_axis_3d=true output.base_dir=outputs/phase2_project_posterior_default/2010_project",
+  "user_review_outputs": [
+    "outputs/phase2_project_posterior_default/2010_project/2026-08-02/181138/render/swim3d.mp4",
+    "outputs/phase2_project_posterior_default/2010_project/2026-08-02/181138/render2d/projection.mp4",
+    "outputs/phase2_project_posterior_default/2010_project/2026-08-02/181138/sim/step_summary.csv",
+    "outputs/phase2_project_posterior_default/2010_project/2026-08-02/181138/sim/flag_helix_axis_diagnostics.csv"
+  ],
+  "user_review_points": [
+    "User reviewed the qualitative output and reported no problems.",
+    "No long simulation was run by Codex; the supplied user-run artifacts were evaluated."
+  ],
+  "adr_required": true,
+  "adr_reason": "Initial helix-axis default changes physical interpretation and generated-data initial conditions, so ADR 0011 records the evidence, profile boundary, and side-attach override.",
+  "commit_type": "complete",
+  "commit_hash": "",
+  "push_status": "pushed",
+  "pull_request_url": "",
+  "related_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/171",
+  "next_actions": [
+    "Keep paper profiles at null unless a separate paper-model decision changes them.",
+    "Evaluate the 2015 project posterior default only after Issues #166, #167, and #168 make the profile executable and stable.",
+    "Keep formal duration/tau schema work in Issue #165."
+  ]
+}
