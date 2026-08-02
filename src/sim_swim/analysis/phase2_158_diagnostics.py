@@ -349,8 +349,9 @@ def _condition_config(
 ) -> SimulationConfig:
     base_config_path = Path(str(campaign["base_config"]))
     raw = load_yaml(base_config_path)
-    effective = _merge_nested(raw, condition.get("config_overrides", {}) or {})
-    return SimulationConfig.from_dict(effective)
+    return SimulationConfig.from_dict(raw).with_overrides(
+        condition.get("config_overrides", {}) or {}
+    )
 
 
 def _flag_local_bead_lookup(cfg: SimulationConfig) -> dict[int, int]:

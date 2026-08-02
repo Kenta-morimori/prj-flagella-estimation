@@ -156,6 +156,15 @@ def _wrap_deg(deg: float) -> float:
     return float((deg + 180.0) % 360.0 - 180.0)
 
 
+def _duration_matches_config(duration_s: float, config_duration_s: float) -> bool:
+    return math.isclose(
+        float(duration_s),
+        float(config_duration_s),
+        rel_tol=1.0e-12,
+        abs_tol=1.0e-15,
+    )
+
+
 def _estimate_helix_radius_pitch_over_b(
     points_m: np.ndarray,
     b_m: float,
@@ -559,7 +568,10 @@ class Simulator:
         tau_s = self.config.tau_s
         dt_star = max(self.config.dt_star, 1e-12)
         duration_star = max(float(duration_s), 0.0) / max(tau_s, 1e-30)
-        total_steps = max(1, int(math.ceil(duration_star / dt_star)))
+        if _duration_matches_config(duration_s, self.config.time.duration_s):
+            total_steps = self.config.total_steps
+        else:
+            total_steps = max(0, int(math.ceil(duration_star / dt_star)))
         flush_interval_steps = max(1, int(flush_interval_steps))
 
         states: List[SimulationState] = []

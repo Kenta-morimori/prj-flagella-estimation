@@ -307,6 +307,13 @@ def test_generic_multi_run_manifests_record_model_profile(
             "nominal_flagella_count": 3,
             "nominal_total_beads": 48,
         }
+        assert manifest["time"]["duration_s"] == pytest.approx(0.1)
+        assert manifest["time"]["dt_star"] == pytest.approx(1.0e-4)
+        assert manifest["time"]["time_schema_source"] == "canonical"
+    assert run_manifest["conditions"][0]["time"]["duration_s"] == pytest.approx(0.0001)
+    assert run_manifest["conditions"][0]["time"]["time_schema_source"] == (
+        "legacy_duration_s"
+    )
 
 
 def test_issue113_seed_fixed_profile_builds_three_boundary_conditions() -> None:

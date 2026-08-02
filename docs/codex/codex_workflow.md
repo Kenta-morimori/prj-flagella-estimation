@@ -129,6 +129,8 @@ Examples:
 Rules:
 
 * Do not commit directly on `main` or `master`.
+* After merge, sync the default branch, delete the merged task branch locally and remotely, and prune stale remote-tracking refs. Preserve unmerged branches and branches explicitly retained for active follow-up work.
+* Start the next task from the updated default branch on a new task-specific branch.
 * Commit useful FAIL progress only when it is clearly diagnostic or WIP and does not claim completion.
 * Push the feature branch when remote access is available.
 * Send the final user report only after the final task state has been committed and pushed when remote access is available.

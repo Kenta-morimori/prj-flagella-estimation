@@ -40,6 +40,30 @@ def _model_profile(*, status: str = "supported") -> dict:
     }
 
 
+def _paper_model_profile(*, year: int = 2010, status: str = "supported") -> dict:
+    if year == 2010:
+        return {
+            "year": 2010,
+            "variant": "paper",
+            "resolution": "coarse",
+            "implementation_status": status,
+            "body_beads": 15,
+            "flagellum_beads_per_filament": 15,
+            "nominal_flagella_count": 3,
+            "nominal_total_beads": 60,
+        }
+    return {
+        "year": 2015,
+        "variant": "paper",
+        "resolution": "refined",
+        "implementation_status": status,
+        "body_beads": 30,
+        "flagellum_beads_per_filament": 30,
+        "nominal_flagella_count": 3,
+        "nominal_total_beads": 120,
+    }
+
+
 def test_model_profile_is_optional_for_legacy_configs() -> None:
     cfg = _base_cfg()
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
@@ -131,6 +155,99 @@ def test_dt_over_tau_input_is_rejected() -> None:
     cfg["time"] = {"duration_s": 0.1, "dt_over_tau": 0.001}
 
     with pytest.raises(ValueError, match="time.dt_over_tau"):
+        SimulationConfig.from_dict(cfg)
+
+
+def test_canonical_time_schema_resolves_tau_duration_from_reference_torque() -> None:
+    cfg = _base_cfg()
+    cfg["model_profile"] = _paper_model_profile(year=2015, status="pending")
+    cfg["motor"] = {"torque_Nm": 1.2e-18, "reference_torque_Nm": 1.2e-18}
+    cfg["time"] = {
+        "duration": {"value": 1.0, "unit": "tau"},
+        "dt_s": 1.0e-3,
+        "integration": {"dt_star": 1.0e-5},
+    }
+
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    expected_tau_s = sim_cfg.viscosity_Pa_s * (sim_cfg.b_m**3) / 1.2e-18
+    assert sim_cfg.tau_s == pytest.approx(expected_tau_s)
+    assert sim_cfg.time.duration_s == pytest.approx(expected_tau_s)
+    assert sim_cfg.dt_s == pytest.approx(1.0e-5 * expected_tau_s)
+    assert sim_cfg.time_manifest()["time_schema_source"] == "canonical"
+
+
+def test_legacy_project_profile_keeps_tau_s_fixed_at_one() -> None:
+    cfg = _base_cfg()
+    cfg["model_profile"] = _model_profile()
+    cfg["motor"]["torque_Nm"] = 2.0e-20
+    cfg["motor"]["reference_torque_Nm"] = 1.2e-18
+    cfg["time"] = {
+        "duration": {"value": 0.2, "unit": "tau"},
+        "dt_s": 1.0e-3,
+        "integration": {"dt_star": 1.0e-4},
+    }
+
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.tau_s == pytest.approx(1.0)
+    assert sim_cfg.time.duration_s == pytest.approx(0.2)
+    assert sim_cfg.time_scale_policy == "legacy_fixed_tau_s_1"
+
+
+def test_equivalent_new_and_legacy_time_keys_are_accepted() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {
+        "duration": {"value": 0.1, "unit": "s"},
+        "duration_s": 0.1,
+        "dt_s": 1.0e-3,
+        "integration": {"dt_star": 1.0e-4},
+        "dt_star": 1.0e-4,
+    }
+
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.time.schema_source == "mixed_equivalent"
+    assert set(sim_cfg.time_manifest()["legacy_time_keys_used"]) == {
+        "time.duration_s",
+        "time.dt_s",
+        "time.dt_star",
+    }
+
+
+def test_conflicting_new_and_legacy_duration_is_rejected() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {
+        "duration": {"value": 0.2, "unit": "s"},
+        "duration_s": 0.1,
+        "dt_s": 1.0e-3,
+    }
+
+    with pytest.raises(ValueError, match="Conflicting time duration"):
+        SimulationConfig.from_dict(cfg)
+
+
+def test_conflicting_new_and_legacy_dt_star_is_rejected() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {
+        "duration_s": 0.1,
+        "dt_s": 1.0e-3,
+        "integration": {"dt_star": 1.0e-4},
+        "dt_star": 2.0e-4,
+    }
+
+    with pytest.raises(ValueError, match="Conflicting time integration"):
+        SimulationConfig.from_dict(cfg)
+
+
+def test_invalid_time_duration_unit_is_rejected() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {
+        "duration": {"value": 0.1, "unit": "frame"},
+        "dt_s": 1.0e-3,
+    }
+
+    with pytest.raises(ValueError, match="Unsupported time.duration.unit"):
         SimulationConfig.from_dict(cfg)
 
 
@@ -395,6 +512,54 @@ def test_torque_minus_one_uses_eta_b3_and_tau_is_one() -> None:
     )
     assert sim_cfg.torque_Nm == pytest.approx(sim_cfg.motor_torque_Nm)
     assert sim_cfg.tau_s == pytest.approx(1.0)
+
+
+def test_torque_minus_one_is_allowed_for_2010_paper_profile() -> None:
+    cfg = _base_cfg()
+    cfg["model_profile"] = _paper_model_profile(year=2010)
+    cfg["fluid"]["viscosity_Pa_s"] = 2.0e-3
+    cfg["motor"]["torque_Nm"] = -1.0
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    sim_cfg.validate_time_scaling()
+    assert sim_cfg.use_eta_b3_torque
+    assert sim_cfg.reference_torque_Nm == pytest.approx(sim_cfg.torque_eta_b3_Nm)
+    assert sim_cfg.motor_torque_Nm == pytest.approx(sim_cfg.torque_eta_b3_Nm)
+
+
+def test_torque_minus_one_is_rejected_for_2010_project_profile() -> None:
+    cfg = _base_cfg()
+    cfg["model_profile"] = _model_profile()
+    cfg["motor"]["torque_Nm"] = -1.0
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    with pytest.raises(ValueError, match="deprecated 2010 paper profile sentinel"):
+        sim_cfg.validate_time_scaling()
+
+
+def test_zero_reference_torque_is_rejected() -> None:
+    cfg = _base_cfg()
+    cfg["model_profile"] = _paper_model_profile(year=2015, status="pending")
+    cfg["motor"] = {
+        "torque_Nm": 1.2e-18,
+        "reference_torque_Nm": 0.0,
+    }
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    with pytest.raises(ValueError, match="reference_torque_Nm"):
+        sim_cfg.validate_time_scaling()
+
+
+def test_non_positive_dt_star_is_rejected() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3, "dt_star": 0.0}
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    with pytest.raises(ValueError, match="内部時間刻み"):
+        sim_cfg.validate_time_scaling()
 
 
 def test_torque_non_minus_one_uses_input_value() -> None:

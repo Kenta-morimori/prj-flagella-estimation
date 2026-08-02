@@ -44,7 +44,9 @@ fluid:
   viscosity_Pa_s: 0.001
 
 motor:
+  enabled: true
   torque_Nm: 1.2e-18           # [N m] 1200 pN nm reference torque
+  reference_torque_Nm: 1.2e-18 # [N m] tau = eta b^3 / T の参照トルク
   # 現行tripletは暫定表現。2015 paperの駆動・反作用条件は#167で実装する。
   force_distribution: "triplet"
   torque_distribution_profile: "diffusive"
@@ -104,9 +106,12 @@ run_tumble:
   curly1_tau: 400.0
 
 time:
-  duration_s: 0.1              # 暫定legacyキー。tau duration契約は#165で扱う
-  dt_s: 1.0e-3
-  dt_star: 1.0e-5              # [-] Kong et al. (2015)の積分刻み
+  duration:
+    value: 1.0
+    unit: tau
+  dt_s: 1.0e-3                 # [s] deprecated: 出力・記録間隔。内部積分刻みではない
+  integration:
+    dt_star: 1.0e-5            # [-] Kong et al. (2015)の積分刻み
 
 output_sampling:
   out_all_steps_3d: false
