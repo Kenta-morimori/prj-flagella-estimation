@@ -104,6 +104,8 @@ phi_ss(D) = A_ss exp(-D/alpha_ss)
 3. 1と2を満たせば、論文一致を優先して `fene_fraenkel` を2010年baselineの採用候補とする。それ以外は `legacy` を維持する。
 4. 両formulationが失敗した場合も、過去互換を優先して `legacy` を維持し、失敗条件を診断結果として保存する。
 
+campaignがcondition例外で `summary.csv` 作成前に停止した場合も、解析CLIは欠損summaryをrun失敗として扱い、理由付きのlegacy判定artifactを生成する。
+
 長時間比較はリポジトリ方針に従いユーザーが実行する。実装側の短時間test、dry-run、force-extension artifact検証が完了した後に、実行コマンド、出力先、確認ファイル、判定結果の取込コマンドを一括提示する。自動基準で採否するため、この比較自体に動画目視は要求しない。
 
 実行導線は次の2 profileと解析CLIに固定する。

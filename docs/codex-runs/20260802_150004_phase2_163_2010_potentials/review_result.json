@@ -10,15 +10,15 @@
   "tests_reviewed": [
     {
       "command": "uv run pytest -q tests/test_potentials.py tests/test_phase2_163_spring_formulation_comparison.py",
-      "result": "PASS: 35 passed"
+      "result": "PASS: 37 passed"
     },
     {
       "command": "uv run pytest -q -m light",
-      "result": "PASS: 228 passed, 240 deselected"
+      "result": "PASS: 230 passed, 240 deselected"
     },
     {
       "command": "uv run pytest -q",
-      "result": "PASS: 468 passed"
+      "result": "PASS: 470 passed"
     },
     {
       "command": "uv run ruff format --check . && uv run ruff check .",
@@ -35,6 +35,10 @@
     {
       "command": "inspect outputs/phase2_potential_comparison/2026-08-02/154149/default_decision.json",
       "result": "PASS: selected_default=fene_fraenkel; all four evaluations pass"
+    },
+    {
+      "command": "pytest missing/empty summary decision artifact cases",
+      "result": "PASS: campaign例外でsummaryが欠損・空でも理由付きlegacy decision JSON/Markdownを生成"
     },
     {
       "command": "git diff --check",

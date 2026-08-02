@@ -15,6 +15,7 @@ from sim_swim.analysis.multi_run_campaign import (
 from sim_swim.analysis.spring_formulation_comparison import (
     decide_default,
     force_extension_rows,
+    write_decision_artifacts,
     write_force_extension_artifacts,
 )
 from sim_swim.sim.params import SimulationConfig
@@ -167,6 +168,44 @@ def test_missing_formulation_row_retains_legacy(tmp_path: Path) -> None:
     assert decision["evaluations"]["fene_fraenkel"]["motor_on"]["reasons"] == [
         "summary row is missing"
     ]
+
+
+@pytest.mark.light
+def test_missing_summary_retains_legacy_and_records_failure(tmp_path: Path) -> None:
+    motor_off = tmp_path / "motor_off.csv"
+    motor_on = tmp_path / "missing_motor_on.csv"
+    _write_summary(motor_off, fene_pass=True)
+
+    json_path, markdown_path, decision = write_decision_artifacts(
+        tmp_path / "decision",
+        motor_off_summary=motor_off,
+        motor_on_summary=motor_on,
+    )
+
+    assert decision["selected_default"] == "legacy"
+    assert json_path.is_file()
+    assert markdown_path.is_file()
+    for formulation in ("legacy", "fene_fraenkel"):
+        evaluation = decision["evaluations"][formulation]["motor_on"]
+        assert evaluation["pass"] is False
+        assert "summary is unavailable or invalid" in evaluation["reasons"][0]
+        assert str(motor_on) in evaluation["reasons"][0]
+
+
+@pytest.mark.light
+def test_empty_summary_retains_legacy_and_records_failure(tmp_path: Path) -> None:
+    motor_off = tmp_path / "motor_off.csv"
+    motor_on = tmp_path / "empty_motor_on.csv"
+    _write_summary(motor_off, fene_pass=True)
+    motor_on.write_text("axis_formulation_value\n", encoding="utf-8")
+
+    decision = decide_default(motor_off, motor_on)
+
+    assert decision["selected_default"] == "legacy"
+    assert (
+        "summary.csv is empty"
+        in decision["evaluations"]["fene_fraenkel"]["motor_on"]["reasons"][0]
+    )
 
 
 @pytest.mark.light

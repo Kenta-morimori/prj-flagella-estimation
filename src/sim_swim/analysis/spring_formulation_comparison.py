@@ -295,13 +295,32 @@ def decide_default(
         "motor_on": motor_on_summary,
     }
     for run_name, path in inputs.items():
-        rows = _read_summary(path)
+        try:
+            rows = _read_summary(path)
+        except (OSError, ValueError, csv.Error) as exc:
+            reason = f"summary is unavailable or invalid: {exc}"
+            for formulation in FORMULATIONS:
+                evaluations[formulation][run_name] = {
+                    "pass": False,
+                    "reasons": [reason],
+                }
+            continue
         by_formulation: dict[str, dict[str, str]] = {}
+        duplicate_formulation = ""
         for row in rows:
             formulation = _formulation(row)
             if formulation in by_formulation:
-                raise ValueError(f"duplicate {formulation} row in {path}")
+                duplicate_formulation = formulation
+                break
             by_formulation[formulation] = row
+        if duplicate_formulation:
+            reason = f"duplicate {duplicate_formulation} row in {path}"
+            for formulation in FORMULATIONS:
+                evaluations[formulation][run_name] = {
+                    "pass": False,
+                    "reasons": [reason],
+                }
+            continue
         for formulation in FORMULATIONS:
             evaluations[formulation][run_name] = _evaluate_row(
                 by_formulation.get(formulation)
