@@ -1408,6 +1408,34 @@
   - `docs/adr/0012_phase2_time_schema_profiles.md`
   - `docs/codex-runs/20260802_192500_phase2_165_time_schema/review_result.json`
 
+### P2-MODEL-166: 2015 refined 120-bead geometryを実装する
+
+- status: completed
+- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/166`
+- parent issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/154`
+- branch: `agent/issue-166-2015-refined-geometry`
+- goal: Kong et al. (2015) profile向けに30-bead body + 30-bead flagellum x 3本のrefined geometryを実装し、#168評価を開始可能にする。
+- accepted decisions:
+  - [x] 論文本文のpentagon記述との不整合を明記し、Fig. 1・30 body beads・5 layersと整合する正六角形x5層をproject inferenceとして採用する。
+  - [x] body length `2.0 b`、layer spacing `0.5 b`、default width `1.0 b`とし、width `0.7 b`は`radius_over_b=0.35` overrideで扱う。
+  - [x] `body.prism.diagonal_braces_enabled`を追加し、2015 profilesはOFF、2010互換defaultはONとする。
+  - [x] 30 flagellum beadsは29本の`0.29 b`内部bondを持ち、body attachからbead 0までを`0.25 b` Hookとする。
+  - [x] `seeded_center_layer`で中央層slots `[0,2,4]` / `[1,3,5]`へ120度間隔でattachし、attach/phase seedを独立させる。
+  - [x] 2015 profilesは`pending`を維持し、manifestを`geometry=implemented`, `simulation=evaluation_ready`, `blocked_by=[168]`へ更新する。
+  - [x] user reviewを反映し、project profileは後方束化初期条件`initial_helix_axis_from_rear_deg=0`をdefaultとする。paper profileは`null`を維持する。
+  - [x] 2015の3D確認表示を`view_range_um=7.0`へ拡大し、`t`と`tau_s`を併記する。2D確認像はPhase 3 common clipと同じ`body_capsule_orthographic_v1`、`96 px`、`0.1 um/px`を使う。
+- boundaries:
+  - #167のmotor/time schema契約とproject/paper motorの選択は変更しない。
+  - motor-off `0.1 tau`、motor-on `1 tau`、長時間simulation、sweep、brace採否、supported昇格は#168へ残す。
+- verification:
+  - [x] 120 beads、body/flag bead数、body edge数、Hook/bond長、attachment topologyをunit testとmanifestで自動検証する。
+  - [x] refined geometry上のpaper body reaction support 5 beads、fallbackなし、net force/torque相殺を自動検証する。
+  - [x] project/paper profileの1-step smoke、3D render、ruff、light/full pytestを完了する。初回projectは`outputs/2026-08-02/220309/`、paperは`outputs/2026-08-02/220316/`。user review後はsimulationを進めない初期stateのrender-only確認を使い、#168の評価runは本PRで実行しない。
+- docs:
+  - `docs/adr/0014_phase2_2015_refined_geometry.md`
+  - `docs/phase2/phase2_167_2015_paper_conditions.md`
+  - `docs/phase2/phase2_current.md`
+
 ### P2-MODEL-167: 2015 paper-inspired motor dynamicsとbody反作用を実装する
 
 - status: completed

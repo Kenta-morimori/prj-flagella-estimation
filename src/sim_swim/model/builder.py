@@ -439,8 +439,8 @@ class ModelBuilder:
 
         cfg = self.cfg
         b_um = cfg.scale.b_um
-        if cfg.body.prism.n_prism != 3:
-            raise ValueError("MVP: body.prism.n_prism must be 3")
+        if cfg.body.prism.n_prism < 3:
+            raise ValueError("body.prism.n_prism must be at least 3")
         if not (0 <= cfg.flagella.n_flagella <= 9):
             raise ValueError("MVP: flagella.n_flagella must be in [0,9]")
         if cfg.flagella.stub_mode not in (
@@ -473,6 +473,21 @@ class ModelBuilder:
         center_layer = body_layers[len(body_layers) // 2]
         if placement_mode == "uniform" and n_flagella <= 3:
             attach_ids = self._flag_attach_indices(center_layer, n_flagella)
+        elif placement_mode == "seeded_center_layer":
+            if n_flagella == 0:
+                attach_ids = np.zeros((0,), dtype=int)
+            elif n_prism := int(center_layer.shape[0]):
+                if n_prism % n_flagella != 0:
+                    raise ValueError(
+                        "seeded_center_layer requires n_prism to be divisible by "
+                        f"n_flagella: n_prism={n_prism}, n_flagella={n_flagella}"
+                    )
+                start_slot = self.attach_seed % n_prism
+                slot_step = n_prism // n_flagella
+                attach_ids = center_layer[
+                    (start_slot + slot_step * np.arange(n_flagella, dtype=int))
+                    % n_prism
+                ]
         elif placement_mode in ("uniform", "seeded_surface"):
             candidates = self._collect_attach_candidates(body_layers)
             unique_candidates = np.unique(candidates)
@@ -497,7 +512,8 @@ class ModelBuilder:
         else:
             raise ValueError(
                 "Unsupported flagella.placement_mode:"
-                f" {placement_mode}. Use 'uniform' or 'seeded_surface'."
+                f" {placement_mode}. Use 'uniform', 'seeded_surface', or "
+                "'seeded_center_layer'."
             )
         initial_phase_mode = str(cfg.flagella.initial_phase_mode)
         if initial_phase_mode == "uniform":
@@ -519,7 +535,7 @@ class ModelBuilder:
                 "Unsupported flagella.initial_phase_mode:"
                 f" {initial_phase_mode}. Use 'uniform' or 'seeded'."
             )
-        hook_length_um = 0.25 * b_um
+        hook_length_um = cfg.hook.length_over_b * b_um
         body_axis = _principal_axis(body_um)
         rear_dir = -body_axis
         body_bead_to_layer = np.full((n_body,), -1, dtype=int)
@@ -542,27 +558,31 @@ class ModelBuilder:
             spring_pairs.append((int(i), int(j)))
         for i, j in vertical_edges:
             spring_pairs.append((int(i), int(j)))
-        # Body side braces (both diagonals) to suppress shear deformation between layers.
-        for layer_idx in range(n_layers - 1):
-            prev_layer = body_layers[layer_idx]
-            curr_layer = body_layers[layer_idx + 1]
-            for k in range(n_prism):
-                i = int(prev_layer[k])
-                j = int(curr_layer[(k + 1) % n_prism])
-                spring_pairs.append((i, j))
-                i2 = int(prev_layer[(k + 1) % n_prism])
-                j2 = int(curr_layer[k])
-                spring_pairs.append((i2, j2))
+        diagonal_edges: list[tuple[int, int]] = []
+        if cfg.body.prism.diagonal_braces_enabled:
+            for layer_idx in range(n_layers - 1):
+                prev_layer = body_layers[layer_idx]
+                curr_layer = body_layers[layer_idx + 1]
+                for k in range(n_prism):
+                    i = int(prev_layer[k])
+                    j = int(curr_layer[(k + 1) % n_prism])
+                    diagonal_edges.append((i, j))
+                    i2 = int(prev_layer[(k + 1) % n_prism])
+                    j2 = int(curr_layer[k])
+                    diagonal_edges.append((i2, j2))
+        spring_pairs.extend(diagonal_edges)
 
-        # Body bending/torsion along each vertical chain
+        # Preserve each regular-polygon cross section at every vertex.
         for layer in body_layers:
-            a, b, c = int(layer[0]), int(layer[1]), int(layer[2])
-            bending_triplets.append((b, a, c))
-            bending_flag_ids.append(-1)
-            bending_triplets.append((c, b, a))
-            bending_flag_ids.append(-1)
-            bending_triplets.append((a, c, b))
-            bending_flag_ids.append(-1)
+            for k in range(n_prism):
+                bending_triplets.append(
+                    (
+                        int(layer[(k - 1) % n_prism]),
+                        int(layer[k]),
+                        int(layer[(k + 1) % n_prism]),
+                    )
+                )
+                bending_flag_ids.append(-1)
 
         for k in range(n_prism):
             chain = [int(body_layers[layer_idx][k]) for layer_idx in range(n_layers)]
@@ -773,6 +793,7 @@ class ModelBuilder:
             body_layer_indices=[arr.copy() for arr in body_layers],
             body_ring_edges=ring_edges,
             body_vertical_edges=vertical_edges,
+            body_diagonal_edges=_ensure_arr2(diagonal_edges),
             flagella_indices=flagella_indices,
             flagella_attach_body_indices=np.asarray(attach_ids, dtype=int),
             flagella_initial_phases_rad=np.asarray(initial_phases, dtype=float),

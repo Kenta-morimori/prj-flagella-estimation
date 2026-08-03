@@ -26,6 +26,7 @@ class SimModel:
     body_layer_indices: list[np.ndarray]
     body_ring_edges: np.ndarray
     body_vertical_edges: np.ndarray
+    body_diagonal_edges: np.ndarray
 
     flagella_indices: list[np.ndarray]
     flagella_attach_body_indices: np.ndarray

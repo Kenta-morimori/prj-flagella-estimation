@@ -1,5 +1,5 @@
 # Kong et al. (2015)の120-bead refined modelを記録するpaper profile。
-# dynamicsはpaper-inspired approximationとして実装済み。geometryは#166までpending。
+# geometry/dynamicsは実装済み。#168の安定性評価まではpending profileとする。
 
 model_profile:
   year: 2015
@@ -23,11 +23,12 @@ body:
     dz_over_b: 0.5             # [-] 5 layersをbody length 2.0 bへ配置
     radius_over_b: 0.5         # [-] body width 1.0 b。0.7 b幅は比較override候補
     axis: "x"
+    diagonal_braces_enabled: false
   length_total_um: 2.0
 
 flagella:
   n_flagella: 3
-  placement_mode: "seeded_surface" # 中央層の等角度slot実装は#166で扱う
+  placement_mode: "seeded_center_layer"
   initial_phase_mode: "seeded"
   init_mode: "paper_table1"
   n_beads_per_flagellum: 30
@@ -90,8 +91,8 @@ hook:
   enabled: true
   threshold_deg: 90.0
   kb_over_T: 30.0
+  length_over_b: 0.25          # [-] implementation assumption
 
-# 2015 paperはbody diagonal braceなし。現行builderのbrace制御追加は#166で扱う。
 body_equiv_load:
   enabled: false
   mode: "none"
@@ -125,20 +126,21 @@ brownian:
   jitter: 1.0e-20
 
 render:
-  image_size_px: 256
-  pixel_size_um: 0.203
+  image_size_px: 96
+  pixel_size_um: 0.1
   flagella_linewidth_px: 2.0
   render_flagella: true
   render_flagella_2d: false
   save_frames_3d: false
   follow_camera_3d: true
-  view_range_um: 5.0
+  view_range_um: 7.0
   timestamp_3d: true
-  timestamp_fmt: "t = {t:.3f} s"
+  timestamp_fmt: "t = {t:.3f} s (τ = {tau_s:.3e} s)"
   label_flagella: true
   show_flagella_helix_axis_3d: false
   follow_camera_2d: false
   center_body_in_2d: true
+  projection_mode_2d: "body_capsule_orthographic_v1"
   save_frames_2d: false
 
 seed:

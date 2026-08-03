@@ -1,0 +1,88 @@
+{
+  "status": "PASS",
+  "summary": "Implemented the Kong et al. (2015) refined geometry as the Issue #166 project interpretation: a five-layer regular hexagonal 30-bead body plus three 30-bead flagella for 120 total beads. The 2015 profiles use center-layer 120-degree attachment slots, configurable 0.25 b hooks, 0.29 b flagellum bonds, and disabled diagonal braces. Actual topology is recorded in single-run and campaign manifests, replay validates regenerated bead counts, and both pending profiles are evaluation_ready for Issue #168 without promotion to supported. User review follow-up sets the project profile to the posterior helix-axis initial condition, enlarges the 3D review view while preserving the whole geometry, records tau_s in 3D timestamps, and uses the Phase 3 body_capsule_orthographic_v1 contract for 2D review images. Codex Cloud feedback was addressed by keeping every non-2015 pending profile blocked in both the manifest and execution validator.",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "Issue #168 motor-off 0.1 tau, motor-on 1 tau, long-time stability, brace adoption, and supported promotion were not run or decided.",
+    "The paper text describes a pentagonal refined body, while Issue #166 intentionally adopts a hexagonal five-layer body from Fig. 1, the 30-body-bead count, and the five-layer interpretation.",
+    "The one-step total-force residual (9.8870e-14 N) is dominated by the existing finite-difference torsion force. The paper motor component itself balances to 1.8425e-26 N net force and 7.7421e-33 N m net torque. Torsion stability and acceptance remain part of Issue #168."
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest -q tests/test_model_builder.py tests/test_model_profiles.py tests/test_motor_forces.py tests/test_e2e_cli.py tests/test_phase2_generic_multi_run.py tests/test_render_state_and_projection.py tests/test_simulation.py tests/test_body_stability.py",
+      "result": "PASS (228 passed)"
+    },
+    {
+      "command": "uv run ruff format --check .",
+      "result": "PASS (124 files already formatted)"
+    },
+    {
+      "command": "uv run ruff check .",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS via pre-commit (282 passed, 242 deselected)"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS initial candidate (524 passed in 97.78 s); PASS after Codex Cloud feedback (525 passed in 103.60 s)"
+    },
+    {
+      "command": "uv run pytest -q tests/test_model_profiles.py tests/test_params.py tests/test_phase2_generic_multi_run.py tests/test_e2e_cli.py",
+      "result": "PASS after Codex Cloud feedback (150 passed)"
+    },
+    {
+      "command": "uv run python -m scripts.01_simulate_swimming config=conf/sim_swim_2015.yaml time.duration.value=1.0e-5 time.duration.unit=tau output_sampling.out_all_steps_3d=true render.save_frames_3d=true render.save_frames_2d=false render.view_range_um=10.0",
+      "result": "PASS at cf3291d (1 step; 120 beads; finite; Hook max relative error 6.61e-7; flag bond max relative error 3.91e-5; no diagonal braces)"
+    },
+    {
+      "command": "uv run python -m scripts.01_simulate_swimming config=conf/sim_swim_2015_paper.yaml time.duration.value=1.0e-5 time.duration.unit=tau output_sampling.out_all_steps_3d=true render.save_frames_3d=true render.save_frames_2d=false render.view_range_um=10.0",
+      "result": "PASS at cf3291d (1 step; 120 beads; finite; reaction support [5]; fallback false; paper motor net force 1.8425e-26 N and net torque 7.7421e-33 N m)"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q tests/test_model_profiles.py tests/test_params.py tests/test_render_state_and_projection.py tests/test_e2e_cli.py",
+      "result": "PASS after user render feedback (123 passed)"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS after user render feedback (286 passed, 244 deselected)"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS after user render feedback (530 passed in 97.37 s)"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "outputs/2026-08-02/220309/render/frames_3d/frame_000001.png",
+    "outputs/2026-08-02/220309/manifest.json",
+    "outputs/2026-08-02/220316/render/frames_3d/frame_000001.png",
+    "outputs/2026-08-02/220316/manifest.json",
+    "outputs/2026-08-03/094936/project/initial_3d.png",
+    "outputs/2026-08-03/094936/project/initial_2d.png",
+    "outputs/2026-08-03/094936/paper/initial_3d.png",
+    "outputs/2026-08-03/094936/paper/initial_2d.png"
+  ],
+  "user_review_points": [
+    "The step-1 images were inspected and show the refined six-slot body with three 30-bead flagella; neither image uses the 2010 triangular body.",
+    "The render-only follow-up images show the full refined geometry at 7 um view range, an unclipped t/tau_s label, the posterior project initial condition, the unchanged lateral paper initial condition, and the Phase 3-compatible centered body capsule 2D image.",
+    "Long-time body deformation, bundling, propulsion, collapse, and fly-away behavior cannot be determined from a one-step render and are deferred to Issue #168."
+  ],
+  "adr_required": true,
+  "adr_reason": "ADR 0014 records the pentagon/hexagon interpretation, topology contract, Hook and brace assumptions, and the evaluation_ready pending-profile state.",
+  "commit_type": "complete",
+  "commit_hash": "cf3291d05806b02eb15869c7a4592c86b2879e7b",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/175",
+  "next_actions": [
+    "Run motor-off 0.1 tau and motor-on 1 tau only under Issue #168.",
+    "Evaluate long-time shape, force/torque residuals, performance, and brace OFF/ON only under Issue #168.",
+    "Do not promote either 2015 profile to supported until Issue #168 acceptance is complete."
+  ]
+}

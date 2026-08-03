@@ -44,6 +44,14 @@ STEP_SUMMARY_COLUMNS = [
     "any_nan",
     "any_inf",
     "finite_pass",
+    "net_force_x_N",
+    "net_force_y_N",
+    "net_force_z_N",
+    "net_force_norm_N",
+    "net_torque_x_Nm",
+    "net_torque_y_Nm",
+    "net_torque_z_Nm",
+    "net_torque_norm_Nm",
     "shape_pass_nonbody",
     "first_fail_category_nonbody",
     "shape_pass_nonbody_strict",
@@ -241,6 +249,12 @@ BODY_CONSTRAINT_DIAGNOSTICS_COLUMNS = [
     "body_bend_mean_error_deg",
     "body_triangle_area_min",
     "body_triangle_area_max",
+    "body_cross_section_area_min_um2",
+    "body_cross_section_area_max_um2",
+    "body_length_um",
+    "body_width_mean_um",
+    "body_width_min_um",
+    "body_width_max_um",
     "body_centerline_max_deviation_um",
     "com_x_um",
     "com_y_um",
@@ -269,6 +283,7 @@ BODY_CONSTRAINT_LOCAL_DIAGNOSTICS_COLUMNS = [
     "layer_idx",
     "face_idx",
     "triangle_area",
+    "cross_section_area_um2",
 ]
 
 FLAG_HELIX_AXIS_DIAGNOSTICS_COLUMNS = [
@@ -1034,6 +1049,18 @@ def _triangle_area(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> float:
     return 0.5 * float(np.linalg.norm(np.cross(b - a, c - a)))
 
 
+def _polygon_area(points: np.ndarray) -> float:
+    if points.shape[0] < 3:
+        return 0.0
+    centroid = np.mean(points, axis=0)
+    area_vector = np.zeros(3, dtype=float)
+    for idx in range(points.shape[0]):
+        left = points[idx] - centroid
+        right = points[(idx + 1) % points.shape[0]] - centroid
+        area_vector += np.cross(left, right)
+    return 0.5 * float(np.linalg.norm(area_vector))
+
+
 def _point_to_line_distance(
     points: np.ndarray, p0: np.ndarray, p1: np.ndarray
 ) -> np.ndarray:
@@ -1171,25 +1198,40 @@ class BodyConstraintDiagnosticsRecorder:
             body_bend_mean_error_deg = 0.0
 
         tri_areas = []
+        cross_section_areas = []
+        layer_widths = []
         centroids = []
         for layer in self.body_layers:
             pts = pos_after[layer]
             if pts.shape[0] >= 3:
                 tri_areas.append(_triangle_area(pts[0], pts[1], pts[2]))
-            centroids.append(np.mean(pts, axis=0))
+                cross_section_areas.append(_polygon_area(pts) * M_TO_UM**2)
+            centroid = np.mean(pts, axis=0)
+            centroids.append(centroid)
+            layer_widths.append(
+                2.0 * float(np.mean(np.linalg.norm(pts - centroid, axis=1))) * M_TO_UM
+            )
         if tri_areas:
             body_triangle_area_min = float(np.min(tri_areas))
             body_triangle_area_max = float(np.max(tri_areas))
         else:
             body_triangle_area_min = 0.0
             body_triangle_area_max = 0.0
+        body_cross_section_area_min_um2 = (
+            float(np.min(cross_section_areas)) if cross_section_areas else 0.0
+        )
+        body_cross_section_area_max_um2 = (
+            float(np.max(cross_section_areas)) if cross_section_areas else 0.0
+        )
 
         centers = np.asarray(centroids, dtype=float)
         if centers.shape[0] >= 2:
             d = _point_to_line_distance(centers, centers[0], centers[-1])
             body_centerline_max_deviation_um = float(np.max(d)) * M_TO_UM
+            body_length_um = float(np.linalg.norm(centers[-1] - centers[0])) * M_TO_UM
         else:
             body_centerline_max_deviation_um = 0.0
+            body_length_um = 0.0
 
         body_pos = pos_after[self.body_indices]
         com = np.mean(body_pos, axis=0) * M_TO_UM
@@ -1203,6 +1245,12 @@ class BodyConstraintDiagnosticsRecorder:
             "body_bend_mean_error_deg": body_bend_mean_error_deg,
             "body_triangle_area_min": body_triangle_area_min,
             "body_triangle_area_max": body_triangle_area_max,
+            "body_cross_section_area_min_um2": body_cross_section_area_min_um2,
+            "body_cross_section_area_max_um2": body_cross_section_area_max_um2,
+            "body_length_um": body_length_um,
+            "body_width_mean_um": float(np.mean(layer_widths)),
+            "body_width_min_um": float(np.min(layer_widths)),
+            "body_width_max_um": float(np.max(layer_widths)),
             "body_centerline_max_deviation_um": body_centerline_max_deviation_um,
             "com_x_um": float(com[0]),
             "com_y_um": float(com[1]),
@@ -1306,6 +1354,7 @@ class BodyConstraintLocalDiagnosticsRecorder:
                         "layer_idx": "",
                         "face_idx": "",
                         "triangle_area": "",
+                        "cross_section_area_um2": "",
                     }
                 )
 
@@ -1337,6 +1386,7 @@ class BodyConstraintLocalDiagnosticsRecorder:
                         "layer_idx": "",
                         "face_idx": "",
                         "triangle_area": "",
+                        "cross_section_area_um2": "",
                     }
                 )
 
@@ -1345,6 +1395,7 @@ class BodyConstraintLocalDiagnosticsRecorder:
             if pts.shape[0] < 3:
                 continue
             area = _triangle_area(pts[0], pts[1], pts[2])
+            polygon_area_um2 = _polygon_area(pts) * M_TO_UM**2
             self._writer.writerow(
                 {
                     "step": int(step),
@@ -1363,6 +1414,7 @@ class BodyConstraintLocalDiagnosticsRecorder:
                     "layer_idx": int(layer_idx),
                     "face_idx": 0,
                     "triangle_area": float(area),
+                    "cross_section_area_um2": float(polygon_area_um2),
                 }
             )
 
@@ -2238,6 +2290,12 @@ class StepSummaryRecorder:
             self.hook_attach_first_frame_local_m,
             self.hook_first_second_frame_local_m,
         )
+        net_force = np.sum(diag.total_forces, axis=0)
+        force_origin = np.mean(diag.positions_before_m, axis=0)
+        net_torque = np.sum(
+            np.cross(diag.positions_before_m - force_origin, diag.total_forces),
+            axis=0,
+        )
 
         row: dict[str, float | int | bool] = {
             "step": int(step),
@@ -2251,6 +2309,14 @@ class StepSummaryRecorder:
             "any_nan": any_nan,
             "any_inf": any_inf,
             "finite_pass": finite_pass,
+            "net_force_x_N": float(net_force[0]),
+            "net_force_y_N": float(net_force[1]),
+            "net_force_z_N": float(net_force[2]),
+            "net_force_norm_N": float(np.linalg.norm(net_force)),
+            "net_torque_x_Nm": float(net_torque[0]),
+            "net_torque_y_Nm": float(net_torque[1]),
+            "net_torque_z_Nm": float(net_torque[2]),
+            "net_torque_norm_Nm": float(np.linalg.norm(net_torque)),
             "shape_pass_nonbody": shape_pass_nonbody,
             "first_fail_category_nonbody": first_fail_category_nonbody,
             "shape_pass_nonbody_strict": shape_pass_nonbody,

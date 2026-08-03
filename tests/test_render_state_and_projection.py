@@ -16,7 +16,7 @@ from sim_swim.render.render3d import (
 )
 from sim_swim.render.video_writer import open_mp4_writer
 from sim_swim.sim.flagella_geometry import FlagellaRig
-from sim_swim.sim.core import SimulationState
+from sim_swim.sim.core import SimulationState, Simulator
 from sim_swim.sim.params import SimulationConfig
 
 
@@ -126,6 +126,25 @@ def test_frame_status_lines_include_time_torque_and_camera_mode() -> None:
     assert "t = 0.000 s" in lines
     assert "motor_torque_Nm = 1.000e-18" in lines
     assert "follow_camera_3d = True" in lines
+
+
+def test_frame_status_lines_support_tau_seconds_placeholder() -> None:
+    base_cfg = _make_cfg(
+        center_body_in_2d=True,
+        follow_camera_2d=False,
+        enable_switching=False,
+    )
+    cfg = replace(
+        base_cfg,
+        render=replace(
+            base_cfg.render,
+            timestamp_fmt="t = {t:.3f} s (τ = {tau_s:.3e} s)",
+        ),
+    )
+
+    lines = _frame_status_lines(_state(), cfg)
+
+    assert f"t = 0.000 s (τ = {cfg.tau_s:.3e} s)" in lines
 
 
 def test_hook_edges_expand_triplets_into_two_segments() -> None:
@@ -364,11 +383,20 @@ def test_save_swim_movie_can_overlay_flagella_helix_axes(
     assert (tmp_path / "swim3d_final.png").exists()
 
 
-def test_project_states_reports_selected_video_codec(tmp_path, monkeypatch) -> None:
-    cfg = _make_cfg(
+@pytest.mark.parametrize(
+    "projection_mode_2d", ["bead_projection", "body_capsule_orthographic_v1"]
+)
+def test_project_states_reports_selected_video_codec(
+    tmp_path, monkeypatch, projection_mode_2d: str
+) -> None:
+    base_cfg = _make_cfg(
         center_body_in_2d=True,
         follow_camera_2d=False,
         enable_switching=False,
+    )
+    cfg = replace(
+        base_cfg,
+        render=replace(base_cfg.render, projection_mode_2d=projection_mode_2d),
     )
     beads = np.array(
         [
@@ -424,3 +452,19 @@ def test_project_states_reports_selected_video_codec(tmp_path, monkeypatch) -> N
     assert result.selected_codec == "avc1"
     assert result.frame_count == 1
     assert result.frame_size == (256, 256)
+
+
+def test_project_states_rejects_unknown_projection_mode(tmp_path) -> None:
+    base_cfg = _make_cfg(
+        center_body_in_2d=True,
+        follow_camera_2d=False,
+        enable_switching=False,
+    )
+    cfg = replace(
+        base_cfg,
+        render=replace(base_cfg.render, projection_mode_2d="unknown"),
+    )
+    simulator = Simulator(base_cfg)
+
+    with pytest.raises(ValueError, match="render.projection_mode_2d"):
+        project_states([simulator._observe(0.0, None)], cfg, simulator.rig, tmp_path)

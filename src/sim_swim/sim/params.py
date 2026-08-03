@@ -317,6 +317,7 @@ class BodyPrismParams:
     dz_over_b: float = 0.5
     radius_over_b: float = 0.5
     axis: str = "x"
+    diagonal_braces_enabled: bool = True
 
 
 @dataclass(frozen=True)
@@ -467,6 +468,7 @@ class HookParams:
     enabled: bool = True
     threshold_deg: float = 90.0
     kb_over_T: float = 20.0
+    length_over_b: float = 0.25
 
 
 @dataclass(frozen=True)
@@ -554,6 +556,7 @@ class RenderParams:
 
     follow_camera_2d: bool = False
     center_body_in_2d: bool = True
+    projection_mode_2d: str = "bead_projection"
     save_frames_2d: bool = False
 
 
@@ -790,16 +793,24 @@ class SimulationConfig:
         object.__setattr__(self, "time", resolved_time)
 
     def validate_execution_supported(self) -> None:
-        """Reject profiles that intentionally describe future implementations."""
+        """Reject profiles that are not ready even for evaluation runs."""
 
         profile = self.model_profile
-        if profile is None or profile.implementation_status == "supported":
+        if (
+            profile is None
+            or profile.implementation_status == "supported"
+            or (
+                profile.year == 2015
+                and profile.resolution == "refined"
+                and profile.implementation_status == "pending"
+            )
+        ):
             return
         raise ValueError(
             "Simulation execution is unavailable for pending model profile: "
             f"year={profile.year}, variant={profile.variant}, "
-            f"resolution={profile.resolution}. Complete Issues #166 and #168 "
-            "before running this profile; Issue #167 dynamics are implemented."
+            f"resolution={profile.resolution}. Complete the geometry and dynamics "
+            "implementation before running this profile."
         )
 
     def model_profile_manifest(self) -> dict[str, Any] | None:
@@ -875,14 +886,14 @@ class SimulationConfig:
                     "source": "paper_condition",
                 },
                 "hook.length_over_b": {
-                    "value": 0.25,
+                    "value": float(self.hook.length_over_b),
                     "source": "implementation_assumption",
-                    "implementation_status": "geometry_pending_issue_166",
+                    "implementation_status": "implemented",
                 },
                 "body.diagonal_brace": {
-                    "value": False,
+                    "value": bool(self.body.prism.diagonal_braces_enabled),
                     "source": "paper_condition",
-                    "implementation_status": "geometry_pending_issue_166",
+                    "implementation_status": "implemented",
                 },
             },
         }
@@ -899,8 +910,11 @@ class SimulationConfig:
             self.model_profile is not None
             and self.model_profile.implementation_status == "pending"
         )
-        geometry_pending = bool(
-            self.model_profile is not None and self.model_profile.year == 2015
+        evaluation_ready = bool(
+            profile_pending
+            and self.model_profile is not None
+            and self.model_profile.year == 2015
+            and self.model_profile.resolution == "refined"
         )
         force_distribution = str(self.motor.force_distribution)
         dynamics: dict[str, Any] = {
@@ -933,16 +947,16 @@ class SimulationConfig:
 
         manifest = {
             "dynamics": dynamics,
-            "geometry": {
-                "implementation_status": (
-                    "pending" if geometry_pending else "implemented"
-                )
-            },
+            "geometry": {"implementation_status": "implemented"},
             "simulation": {
                 "implementation_status": (
-                    "blocked" if profile_pending else "executable"
+                    "evaluation_ready"
+                    if evaluation_ready
+                    else "blocked"
+                    if profile_pending
+                    else "executable"
                 ),
-                "blocked_by": [166, 168] if profile_pending else [],
+                "blocked_by": [168] if evaluation_ready else [],
             },
         }
         paper_reference = self.paper_reference_manifest()
@@ -1230,7 +1244,19 @@ class SimulationConfig:
             expected_torsion,
         )
         if is_2015:
+            add("body.prism.n_prism", self.body.prism.n_prism, 6)
+            add(
+                "body.prism.diagonal_braces_enabled",
+                self.body.prism.diagonal_braces_enabled,
+                False,
+            )
+            add(
+                "flagella.placement_mode",
+                self.flagella.placement_mode,
+                "seeded_center_layer",
+            )
             add("flagella.bond_L_over_b", self.flagella.bond_L_over_b, 0.29)
+            add("hook.length_over_b", self.hook.length_over_b, 0.25)
             add("motor.enabled", self.motor.enabled, True)
             add("motor.torque_Nm", self.motor.torque_Nm, 1.2e-18)
             add("motor.reference_torque_Nm", self.reference_torque_Nm, 1.2e-18)
@@ -1318,11 +1344,17 @@ class SimulationConfig:
         if radius_over_b is None and diameter_um is not None:
             radius_over_b = (float(diameter_um) * 0.5) / max(scale.b_um, 1e-12)
 
+        n_prism = int(_get(prism_raw, "n_prism", 3))
+        if n_prism < 3:
+            raise ValueError("body.prism.n_prism must be at least 3")
         prism = BodyPrismParams(
-            n_prism=int(_get(prism_raw, "n_prism", 3)),
+            n_prism=n_prism,
             dz_over_b=float(_get(prism_raw, "dz_over_b", 0.5)),
             radius_over_b=float(radius_over_b if radius_over_b is not None else 0.5),
             axis=str(_get(prism_raw, "axis", "x")),
+            diagonal_braces_enabled=bool(
+                _get(prism_raw, "diagonal_braces_enabled", True)
+            ),
         )
 
         body = BodyParams(
@@ -1596,10 +1628,14 @@ class SimulationConfig:
         kb_hook_over = hook_raw.get("kb_over_T")
         if kb_hook_over is None and "kb" in hook_raw:
             kb_hook_over = float(hook_raw["kb"]) / max(thermal, 1e-30)
+        hook_length_over_b = float(_get(hook_raw, "length_over_b", 0.25))
+        if not math.isfinite(hook_length_over_b) or hook_length_over_b <= 0.0:
+            raise ValueError("hook.length_over_b must be finite and positive")
         hook = HookParams(
             enabled=bool(_get(hook_raw, "enabled", True)),
             threshold_deg=float(_get(hook_raw, "threshold_deg", 90.0)),
             kb_over_T=float(kb_hook_over if kb_hook_over is not None else 20.0),
+            length_over_b=hook_length_over_b,
         )
 
         body_equiv_raw = raw.get("body_equiv_load", {}) or {}
@@ -1650,8 +1686,19 @@ class SimulationConfig:
             ),
             follow_camera_2d=bool(_get(render_raw, "follow_camera_2d", False)),
             center_body_in_2d=bool(_get(render_raw, "center_body_in_2d", True)),
+            projection_mode_2d=str(
+                _get(render_raw, "projection_mode_2d", "bead_projection")
+            ),
             save_frames_2d=bool(_get(render_raw, "save_frames_2d", False)),
         )
+        if render.projection_mode_2d not in {
+            "bead_projection",
+            "body_capsule_orthographic_v1",
+        }:
+            raise ValueError(
+                "render.projection_mode_2d must be 'bead_projection' or "
+                "'body_capsule_orthographic_v1'"
+            )
 
         seed_raw = raw.get("seed", {}) or {}
         seed = SeedParams(

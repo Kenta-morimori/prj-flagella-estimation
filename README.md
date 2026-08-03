@@ -46,8 +46,8 @@ CLI の詳細、override 例、後から 3D / 2D render を再生成する方法
 - `conf/`: 実行設定。Phase 2 simulation のdefaultは `conf/sim_swim_2010.yaml`、複数条件 run / heatmap / replay / dataset 作成は `conf/phase2_multi_run/` を使います。
 
 Phase 2のmodel profileは次の4つです。`2015` paper profileはmotor dynamicsを
-`paper_inspired_approximation` として実装済みですが、refined geometryと安定性評価が
-未完了のため、両2015 profileとも設定参照用の`pending` profileです。
+`paper_inspired_approximation` として実装済みです。refined 120-bead geometryも実装済みで、
+両2015 profileは#168の安定性評価用に実行できますが、採否未確定の`pending` profileです。
 
 | config | role |
 | --- | --- |
@@ -65,8 +65,12 @@ support bead数とfallback使用有無をmanifestへ保存します。これは�
 維持します。parameterとprovenanceの対応は
 `docs/phase2/phase2_167_2015_paper_conditions.md`を参照してください。
 
-2015 profilesは#166/#168完了までsimulation実行を拒否します。現在の状態とmanifest
-provenanceはsimulationを開始せず次のように確認できます。
+2015 profilesはmanifest上で`geometry=implemented`, `simulation=evaluation_ready`を記録し、
+#168向けの評価実行を許可します。`implementation_status=supported`への昇格は#168まで行いません。
+project profileは3本の初期helix axisを菌体後方へ揃え、paper profileは側方初期配置を維持します。
+両profileの2D確認像はPhase 3 common clipと同じ`body_capsule_orthographic_v1`を使い、
+3D確認像には実時間`t`と時間scale`tau_s`を表示します。
+現在の状態とmanifest provenanceはsimulationを開始せず次のように確認できます。
 
 ```bash
 uv run python -c "import yaml; from pathlib import Path; from sim_swim.sim.params import SimulationConfig; cfg=SimulationConfig.from_dict(yaml.safe_load(Path('conf/sim_swim_2015_paper.yaml').read_text())); print(cfg.implementation_manifest())"
