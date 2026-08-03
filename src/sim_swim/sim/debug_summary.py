@@ -48,10 +48,24 @@ STEP_SUMMARY_COLUMNS = [
     "net_force_y_N",
     "net_force_z_N",
     "net_force_norm_N",
+    "net_force_residual_ratio",
     "net_torque_x_Nm",
     "net_torque_y_Nm",
     "net_torque_z_Nm",
     "net_torque_norm_Nm",
+    "net_torque_residual_ratio",
+    "motor_net_force_body_norm_N",
+    "motor_net_force_flag_norm_N",
+    "motor_force_balance_residual_ratio",
+    "motor_net_torque_body_x_Nm",
+    "motor_net_torque_body_y_Nm",
+    "motor_net_torque_body_z_Nm",
+    "motor_net_torque_body_norm_Nm",
+    "motor_net_torque_flag_x_Nm",
+    "motor_net_torque_flag_y_Nm",
+    "motor_net_torque_flag_z_Nm",
+    "motor_net_torque_flag_norm_Nm",
+    "motor_torque_balance_residual_ratio",
     "shape_pass_nonbody",
     "first_fail_category_nonbody",
     "shape_pass_nonbody_strict",
@@ -132,6 +146,16 @@ STEP_SUMMARY_COLUMNS = [
     "flag_helix_axis_center_spin_fit_r2_min",
     "flag_helix_axis_center_root_offset_um_mean",
     "flag_helix_axis_center_root_offset_um_max",
+    "flag_helix_radius_over_b_mean",
+    "flag_helix_radius_over_b_min",
+    "flag_helix_radius_over_b_max",
+    "flag_helix_radius_abs_err_over_b_max",
+    "flag_helix_radius_over_b_per_flag",
+    "flag_helix_pitch_over_b_mean",
+    "flag_helix_pitch_over_b_min",
+    "flag_helix_pitch_over_b_max",
+    "flag_helix_pitch_rel_err_max",
+    "flag_helix_pitch_over_b_per_flag",
     "flag_flag_helix_bead_dist_min_um",
     "flag_flag_helix_close_pair_count",
     "flag_helix_bundle_radius_mean_um",
@@ -1804,6 +1828,8 @@ class StepSummaryRecorder:
         center_radius_cvs: list[float] = []
         center_spin_fit_r2_values: list[float] = []
         center_root_offsets_um: list[float] = []
+        helix_radii_over_b: list[tuple[int, float]] = []
+        helix_pitches_over_b: list[tuple[int, float]] = []
         helix_axis_degenerate_count = 0
         _, phase_ref_e1, _ = self._phase_reference_frame(pos_after)
         body_roll_offset_deg = self._body_roll_offset_deg(pos_after)
@@ -1854,6 +1880,12 @@ class StepSummaryRecorder:
                 estimate,
                 phase_ref_e1,
             )
+            radius_over_b = centered.radius_mean_m / max(self.cfg.b_m, 1.0e-30)
+            pitch_over_b = centered.pitch_m / max(self.cfg.b_m, 1.0e-30)
+            if np.isfinite(radius_over_b):
+                helix_radii_over_b.append((int(flag_id), float(radius_over_b)))
+            if np.isfinite(pitch_over_b):
+                helix_pitches_over_b.append((int(flag_id), float(pitch_over_b)))
             if estimate.degenerate:
                 helix_axis_degenerate_count += 1
             if np.isfinite(angle_deg):
@@ -1965,6 +1997,27 @@ class StepSummaryRecorder:
         flag_helix_axis_center_root_offset_um_max = (
             float(np.max(center_root_offsets_um))
             if center_root_offsets_um
+            else float("nan")
+        )
+        radius_values = np.asarray(
+            [value for _flag_id, value in helix_radii_over_b], dtype=float
+        )
+        pitch_values = np.asarray(
+            [value for _flag_id, value in helix_pitches_over_b], dtype=float
+        )
+        radius_target = float(self.cfg.flagella.helix_init.radius_over_b)
+        pitch_target = float(self.cfg.flagella.helix_init.pitch_over_b)
+        flag_helix_radius_abs_err_over_b_max = (
+            float(np.max(np.abs(radius_values - radius_target)))
+            if radius_values.size
+            else float("nan")
+        )
+        flag_helix_pitch_rel_err_max = (
+            float(
+                np.max(np.abs(pitch_values - pitch_target))
+                / max(abs(pitch_target), 1e-30)
+            )
+            if pitch_values.size
             else float("nan")
         )
         (
@@ -2296,6 +2349,42 @@ class StepSummaryRecorder:
             np.cross(diag.positions_before_m - force_origin, diag.total_forces),
             axis=0,
         )
+        force_scale = float(np.sum(np.linalg.norm(diag.total_forces, axis=1)))
+        torque_contributions = np.cross(
+            diag.positions_before_m - force_origin,
+            diag.total_forces,
+        )
+        torque_scale = float(np.sum(np.linalg.norm(torque_contributions, axis=1)))
+        body_mask = self.model.bead_is_body.astype(bool, copy=False)
+        flag_mask = ~body_mask
+        motor_force_body = np.sum(diag.motor_forces[body_mask], axis=0)
+        motor_force_flag = np.sum(diag.motor_forces[flag_mask], axis=0)
+        motor_torque_body = np.sum(
+            np.cross(
+                diag.positions_before_m[body_mask] - force_origin,
+                diag.motor_forces[body_mask],
+            ),
+            axis=0,
+        )
+        motor_torque_flag = np.sum(
+            np.cross(
+                diag.positions_before_m[flag_mask] - force_origin,
+                diag.motor_forces[flag_mask],
+            ),
+            axis=0,
+        )
+        motor_force_scale = float(np.sum(np.linalg.norm(diag.motor_forces, axis=1)))
+        motor_torque_scale = float(
+            np.sum(
+                np.linalg.norm(
+                    np.cross(
+                        diag.positions_before_m - force_origin,
+                        diag.motor_forces,
+                    ),
+                    axis=1,
+                )
+            )
+        )
 
         row: dict[str, float | int | bool] = {
             "step": int(step),
@@ -2313,10 +2402,34 @@ class StepSummaryRecorder:
             "net_force_y_N": float(net_force[1]),
             "net_force_z_N": float(net_force[2]),
             "net_force_norm_N": float(np.linalg.norm(net_force)),
+            "net_force_residual_ratio": float(
+                np.linalg.norm(net_force) / max(force_scale, 1e-30)
+            ),
             "net_torque_x_Nm": float(net_torque[0]),
             "net_torque_y_Nm": float(net_torque[1]),
             "net_torque_z_Nm": float(net_torque[2]),
             "net_torque_norm_Nm": float(np.linalg.norm(net_torque)),
+            "net_torque_residual_ratio": float(
+                np.linalg.norm(net_torque) / max(torque_scale, 1e-30)
+            ),
+            "motor_net_force_body_norm_N": float(np.linalg.norm(motor_force_body)),
+            "motor_net_force_flag_norm_N": float(np.linalg.norm(motor_force_flag)),
+            "motor_force_balance_residual_ratio": float(
+                np.linalg.norm(motor_force_body + motor_force_flag)
+                / max(motor_force_scale, 1e-30)
+            ),
+            "motor_net_torque_body_x_Nm": float(motor_torque_body[0]),
+            "motor_net_torque_body_y_Nm": float(motor_torque_body[1]),
+            "motor_net_torque_body_z_Nm": float(motor_torque_body[2]),
+            "motor_net_torque_body_norm_Nm": float(np.linalg.norm(motor_torque_body)),
+            "motor_net_torque_flag_x_Nm": float(motor_torque_flag[0]),
+            "motor_net_torque_flag_y_Nm": float(motor_torque_flag[1]),
+            "motor_net_torque_flag_z_Nm": float(motor_torque_flag[2]),
+            "motor_net_torque_flag_norm_Nm": float(np.linalg.norm(motor_torque_flag)),
+            "motor_torque_balance_residual_ratio": float(
+                np.linalg.norm(motor_torque_body + motor_torque_flag)
+                / max(motor_torque_scale, 1e-30)
+            ),
             "shape_pass_nonbody": shape_pass_nonbody,
             "first_fail_category_nonbody": first_fail_category_nonbody,
             "shape_pass_nonbody_strict": shape_pass_nonbody,
@@ -2406,6 +2519,34 @@ class StepSummaryRecorder:
             ),
             "flag_helix_axis_center_root_offset_um_max": (
                 flag_helix_axis_center_root_offset_um_max
+            ),
+            "flag_helix_radius_over_b_mean": (
+                float(np.mean(radius_values)) if radius_values.size else float("nan")
+            ),
+            "flag_helix_radius_over_b_min": (
+                float(np.min(radius_values)) if radius_values.size else float("nan")
+            ),
+            "flag_helix_radius_over_b_max": (
+                float(np.max(radius_values)) if radius_values.size else float("nan")
+            ),
+            "flag_helix_radius_abs_err_over_b_max": (
+                flag_helix_radius_abs_err_over_b_max
+            ),
+            "flag_helix_radius_over_b_per_flag": _format_flag_metric(
+                helix_radii_over_b
+            ),
+            "flag_helix_pitch_over_b_mean": (
+                float(np.mean(pitch_values)) if pitch_values.size else float("nan")
+            ),
+            "flag_helix_pitch_over_b_min": (
+                float(np.min(pitch_values)) if pitch_values.size else float("nan")
+            ),
+            "flag_helix_pitch_over_b_max": (
+                float(np.max(pitch_values)) if pitch_values.size else float("nan")
+            ),
+            "flag_helix_pitch_rel_err_max": flag_helix_pitch_rel_err_max,
+            "flag_helix_pitch_over_b_per_flag": _format_flag_metric(
+                helix_pitches_over_b
             ),
             "flag_flag_helix_bead_dist_min_um": flag_flag_helix_bead_dist_min_um,
             "flag_flag_helix_close_pair_count": int(flag_flag_helix_close_pair_count),

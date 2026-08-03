@@ -1,0 +1,6 @@
+kind: stage_a_2015_threshold_contract
+issue: 168
+status: awaiting_motor_off_pilot
+source_motor_off_run: null
+locked_at: null
+thresholds: {}

@@ -21,6 +21,7 @@ from sim_swim.sim.debug_summary import (
     StepSummaryRecorder,
 )
 from sim_swim.sim.flagella_geometry import FlagellaRig
+from sim_swim.sim.helix_axis import estimate_helix_radius_pitch_over_b
 from sim_swim.sim.params import SimulationConfig
 
 M_TO_UM = 1e6
@@ -164,46 +165,6 @@ def _duration_matches_config(duration_s: float, config_duration_s: float) -> boo
         rel_tol=1.0e-12,
         abs_tol=1.0e-15,
     )
-
-
-def _estimate_helix_radius_pitch_over_b(
-    points_m: np.ndarray,
-    b_m: float,
-) -> tuple[float, float]:
-    centered = points_m - np.mean(points_m, axis=0)
-    _, _, vh = np.linalg.svd(centered, full_matrices=False)
-    axis = vh[0]
-    axis = axis / max(float(np.linalg.norm(axis)), 1e-18)
-    if float(np.dot(axis, points_m[-1] - points_m[0])) < 0.0:
-        axis = -axis
-
-    ref = np.array([1.0, 0.0, 0.0], dtype=float)
-    if abs(float(np.dot(ref, axis))) > 0.9:
-        ref = np.array([0.0, 1.0, 0.0], dtype=float)
-    e1 = np.cross(axis, ref)
-    e1 = e1 / max(float(np.linalg.norm(e1)), 1e-18)
-    e2 = np.cross(axis, e1)
-
-    origin = points_m[0]
-    rel = points_m - origin
-    s = rel @ axis
-    u = rel @ e1
-    v = rel @ e2
-
-    mat = np.column_stack([u, v, np.ones_like(u)])
-    rhs = -(u * u + v * v)
-    coef, *_ = np.linalg.lstsq(mat, rhs, rcond=None)
-    a, b, c = coef
-    cx = -0.5 * a
-    cy = -0.5 * b
-    radius = np.sqrt(max(cx * cx + cy * cy - c, 0.0))
-
-    phase = np.unwrap(np.arctan2(v - cy, u - cx))
-    if phase.size < 2 or float(np.max(phase) - np.min(phase)) < 1e-9:
-        return float(radius / max(b_m, 1e-18)), float("nan")
-    slope, _ = np.polyfit(phase, s, 1)
-    pitch = abs(float(slope)) * 2.0 * np.pi
-    return float(radius / max(b_m, 1e-18)), float(pitch / max(b_m, 1e-18))
 
 
 @dataclass
@@ -418,7 +379,7 @@ class Simulator:
             bond_mean_over_b = float(np.mean(bonds) / b_m)
             bond_min_over_b = float(np.min(bonds) / b_m)
             bond_max_over_b = float(np.max(bonds) / b_m)
-            radius_over_b, pitch_over_b = _estimate_helix_radius_pitch_over_b(
+            radius_over_b, pitch_over_b = estimate_helix_radius_pitch_over_b(
                 pts,
                 b_m,
             )
@@ -616,6 +577,8 @@ class Simulator:
         stop_on_shape_fail: bool = False,
         flush_interval_steps: int = 1,
         record_body_diagnostics: bool | None = None,
+        record_body_local_diagnostics: bool | None = None,
+        state_sample_interval_steps: int = 1,
     ) -> List[SimulationState]:
         """与えた時間だけシミュレーションして状態列を返す。
 
@@ -630,6 +593,9 @@ class Simulator:
             record_body_diagnostics: True の場合、長時間runでも body constraint
                 diagnostics を記録する。None では従来互換として 0.05 s 以下だけ
                 記録する。
+            record_body_local_diagnostics: body local diagnosticsの出力指定。
+                Noneではrecord_body_diagnosticsと同じ判定を使う。
+            state_sample_interval_steps: 返却stateのstep間隔。初期・最終stateは常に残す。
         """
 
         tau_s = self.config.tau_s
@@ -640,6 +606,7 @@ class Simulator:
         else:
             total_steps = max(0, int(math.ceil(duration_star / dt_star)))
         flush_interval_steps = max(1, int(flush_interval_steps))
+        state_sample_interval_steps = max(1, int(state_sample_interval_steps))
 
         states: List[SimulationState] = []
         wall_start = time.perf_counter()
@@ -696,7 +663,12 @@ class Simulator:
         )
         body_local_diag_recorder = (
             BodyConstraintLocalDiagnosticsRecorder(self.model, step_summary_dir)
-            if step_summary_dir is not None and record_body_diag
+            if step_summary_dir is not None
+            and (
+                record_body_diag
+                if record_body_local_diagnostics is None
+                else bool(record_body_local_diagnostics)
+            )
             else None
         )
 
@@ -738,9 +710,10 @@ class Simulator:
                     pos_after=step_diag.positions_after_m,
                 )
 
-            t_now = self.engine.t_star * tau_s
-            prev = states[-1]
-            states.append(self._observe(t_now, prev))
+            if completed % state_sample_interval_steps == 0 or completed == total_steps:
+                t_now = self.engine.t_star * tau_s
+                prev = states[-1]
+                states.append(self._observe(t_now, prev))
 
             if logger is not None and (
                 completed % progress_interval == 0 or completed == total_steps

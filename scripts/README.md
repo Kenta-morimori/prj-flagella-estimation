@@ -147,6 +147,22 @@ uv run python scripts/01_simulate_swimming/analyze_spring_formulations.py \
 
 解析runには `force_extension.csv` / `force_extension.png` と、自動採否の `default_decision.json` / `default_decision.md` が出力されます。採否は両runの完走、有限値、body/nonbody strict shape gateを使い、条件を満たす場合だけ `fene_fraenkel` を選びます。この比較に動画目視は要求しません。
 
+### 2015 refined Stage A
+
+Issue #168はmotor-off pilotを先に実行し、閾値を固定してからmotor-onへ進みます。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_sweep.py \
+  config=conf/phase2_sweeps/2015_stage_a_motor_off.yaml
+
+uv run python scripts/01_simulate_swimming/analyze_2015_stage_a.py \
+  motor_off_run=<motor-off-run-root>
+```
+
+motor-on command、brace分岐、replay、目視項目は
+`docs/phase2/phase2_168_2015_stage_a_validation.md`を参照してください。motor-off pilotから具体的閾値を
+lockする前にmotor-on採否は行いません。
+
 ### Heatmap
 
 sweep summary から heatmap を作る場合は `plot_heatmap.py` を使います。
