@@ -82,7 +82,7 @@ uv run python scripts/01_simulate_swimming/run_sweep.py \
 
 ```bash
 uv run python scripts/01_simulate_swimming/analyze_2015_stage_a.py \
-  motor_off_run=<motor-off-run-root>
+  --motor-off-run <motor-off-run-root>
 ```
 
 Codexが`threshold_proposal.json` / `threshold_proposal.md`を確認し、閾値を固定した後にだけ
@@ -97,9 +97,9 @@ motor-on解析:
 
 ```bash
 uv run python scripts/01_simulate_swimming/analyze_2015_stage_a.py \
-  motor_off_run=<motor-off-run-root> \
-  motor_on_run=<motor-on-run-root> \
-  threshold_contract=conf/phase2_validation/2015_stage_a_thresholds.yaml
+  --motor-off-run <motor-off-run-root> \
+  --motor-on-run <motor-on-run-root> \
+  --threshold-contract conf/phase2_validation/2015_stage_a_thresholds.yaml
 ```
 
 replay:
