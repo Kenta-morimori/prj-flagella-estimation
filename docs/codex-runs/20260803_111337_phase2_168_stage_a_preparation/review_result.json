@@ -47,6 +47,10 @@
       "result": "PASS (dt、duration、motor、comparison_role、project/paper条件を確認)"
     },
     {
+      "command": ".venv/bin/python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/2015_stage_a_dt1e4_motor_on_reference.yaml profiles=paper smoke_steps=1 output_base_dir=/tmp/issue168_dt1e4_smoke",
+      "result": "PASS (dt_star=1e-4、1 step、initial/final 2 states、comparison role/scales/durationをmanifestとsummaryへ保存)"
+    },
+    {
       "command": "git diff --check",
       "result": "PASS"
     }
