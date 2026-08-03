@@ -16,7 +16,7 @@ from sim_swim.render.render3d import (
 )
 from sim_swim.render.video_writer import open_mp4_writer
 from sim_swim.sim.flagella_geometry import FlagellaRig
-from sim_swim.sim.core import SimulationState
+from sim_swim.sim.core import SimulationState, Simulator
 from sim_swim.sim.params import SimulationConfig
 
 
@@ -452,3 +452,19 @@ def test_project_states_reports_selected_video_codec(
     assert result.selected_codec == "avc1"
     assert result.frame_count == 1
     assert result.frame_size == (256, 256)
+
+
+def test_project_states_rejects_unknown_projection_mode(tmp_path) -> None:
+    base_cfg = _make_cfg(
+        center_body_in_2d=True,
+        follow_camera_2d=False,
+        enable_switching=False,
+    )
+    cfg = replace(
+        base_cfg,
+        render=replace(base_cfg.render, projection_mode_2d="unknown"),
+    )
+    simulator = Simulator(base_cfg)
+
+    with pytest.raises(ValueError, match="render.projection_mode_2d"):
+        project_states([simulator._observe(0.0, None)], cfg, simulator.rig, tmp_path)

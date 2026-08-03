@@ -62,6 +62,15 @@ def project_states(
     states_list = list(states)
     if not states_list:
         return None
+    projection_mode_2d = cfg.render.projection_mode_2d
+    if projection_mode_2d not in {
+        "bead_projection",
+        "body_capsule_orthographic_v1",
+    }:
+        raise ValueError(
+            "render.projection_mode_2d must be 'bead_projection' or "
+            "'body_capsule_orthographic_v1'"
+        )
 
     out_dir.mkdir(parents=True, exist_ok=True)
     frames_dir = out_dir / "frames"
@@ -88,7 +97,7 @@ def project_states(
     frame_count = 0
 
     for idx, st in enumerate(sampled):
-        if cfg.render.projection_mode_2d == "body_capsule_orthographic_v1":
+        if projection_mode_2d == "body_capsule_orthographic_v1":
             frame, _ = render_body_capsule_frame(
                 st,
                 BodyCapsuleRenderConfig(
@@ -100,7 +109,7 @@ def project_states(
                 ),
             )
             img = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
-        elif cfg.render.projection_mode_2d == "bead_projection":
+        else:
             img = np.full((img_size, img_size, 3), 255, dtype=np.uint8)
         beads = st.bead_positions_um
 
@@ -111,7 +120,7 @@ def project_states(
             y = int(round((p[1] - cam_center[1]) * px_per_um + img_size / 2.0))
             return x, y
 
-        if cfg.render.projection_mode_2d == "bead_projection":
+        if projection_mode_2d == "bead_projection":
             for i, j in rig.body_ring_edges:
                 p = to_px(beads[int(i)])
                 q = to_px(beads[int(j)])
@@ -122,10 +131,7 @@ def project_states(
                 q = to_px(beads[int(j)])
                 cv2.line(img, p, q, body_color, line_w, cv2.LINE_AA)
 
-        if (
-            cfg.render.projection_mode_2d == "bead_projection"
-            and cfg.render.render_flagella_2d
-        ):
+        if projection_mode_2d == "bead_projection" and cfg.render.render_flagella_2d:
             for f_id, idxs in enumerate(rig.flagella_indices):
                 color = colors[f_id % len(colors)] if colors else (30, 120, 220)
                 pts = [to_px(beads[int(i)]) for i in idxs]
