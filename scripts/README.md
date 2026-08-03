@@ -156,10 +156,10 @@ uv run python scripts/01_simulate_swimming/run_sweep.py \
   config=conf/phase2_sweeps/2015_stage_a_motor_off.yaml
 
 uv run python scripts/01_simulate_swimming/analyze_2015_stage_a.py \
-  motor_off_run=<motor-off-run-root>
+  --motor-off-run <motor-off-run-root>
 ```
 
-motor-on command、brace分岐、replay、目視項目は
+`dt_star=1e-4`参考比較、motor-on command、brace分岐、replay、目視項目は
 `docs/phase2/phase2_168_2015_stage_a_validation.md`を参照してください。motor-off pilotから具体的閾値を
 lockする前にmotor-on採否は行いません。
 

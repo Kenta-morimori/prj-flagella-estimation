@@ -76,6 +76,41 @@ motor-on最低回転を`8.133947 rev / 1 tau`とした。この値は131 Hz較�
 
 ## ユーザー実行
 
+### `dt_star=1e-4`参考・採用候補評価
+
+canonical motor-onの前に、10倍粗い内部刻みを独立した非canonical参考条件として評価する。
+既存のlocked閾値は変更せず、次の順に実行する。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_sweep.py \
+  config=conf/phase2_sweeps/2015_stage_a_dt1e4_motor_off_reference.yaml
+
+uv run python scripts/01_simulate_swimming/run_sweep.py \
+  config=conf/phase2_sweeps/2015_stage_a_dt1e4_motor_on_reference.yaml
+
+uv run python scripts/01_simulate_swimming/run_sweep.py \
+  config=conf/phase2_sweeps/2015_stage_a_dt1e5_motor_on_short_reference.yaml
+```
+
+各run rootを指定して解析する。
+
+```bash
+uv run python scripts/01_simulate_swimming/analyze_2015_stage_a.py \
+  --motor-off-run outputs/2026-08-03/111818 \
+  --threshold-contract conf/phase2_validation/2015_stage_a_thresholds.yaml \
+  --coarse-motor-off-run <dt1e-4-motor-off-run-root> \
+  --coarse-motor-on-run <dt1e-4-motor-on-run-root> \
+  --fine-motor-on-short-run <dt1e-5-motor-on-0.1tau-run-root>
+```
+
+`dt_sensitivity_decision.json` / `.md` / comparison CSVへ安定性、刻み感度、高速化率を保存する。
+`reference_stable`には既存locked gateの通過を要求する。`adoption_candidate`にはさらにmotor-on
+先頭`0.1 tau`で各flagellumの回転方向一致・回転量差10%以内、body姿勢差5度以内、body重心並進を
+除いた全beadのRMS差`0.1 b`以内・最大差`0.25 b`以内を要求する。採用候補でもreplay目視とADRなしに
+2015 defaultを変更しない。3 run群のproject/paper合計実行時間は約3時間を目安とする。
+
+### Canonical Stage A
+
 最初にprofileと条件だけを確認する。
 
 ```bash

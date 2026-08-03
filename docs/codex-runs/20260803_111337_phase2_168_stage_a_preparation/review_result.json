@@ -1,8 +1,9 @@
 {
   "status": "FAIL",
-  "summary": "Issue #168 Stage Aの専用runner、全step診断、201状態sampling、性能記録、閾値提案・判定、replay対応、設定、テスト、実行手順を実装した。motor-off 0.1 tauはproject/paperとも完走し、全pilot値がcap内であることを確認して閾値contractをlockした。motor-on本実行と目視判定が未完のため受入状態はFAILとする。",
+  "summary": "Issue #168 Stage Aの専用runner、診断、閾値判定、replay対応を実装し、motor-off 0.1 tauの完走結果から閾値をlockした。canonical motor-on前の追加依頼として、dt_star=1e-4のmotor-off/on参考runとdt_star=1e-5短時間motor-onとの刻み感度判定を実装した。参考run、canonical motor-on、目視判定が未完のため受入状態はFAILとする。",
   "blocking_issues": [
-    "閾値lock後のmotor-on 1 tau実行、replay、ユーザー目視判定が未完である。"
+    "dt_star=1e-4のmotor-off 0.1 tau / motor-on 1 tauとdt_star=1e-5 motor-on 0.1 tauのユーザー実行・比較が未完である。",
+    "参考比較後のcanonical motor-on 1 tau実行、replay、ユーザー目視判定が未完である。"
   ],
   "non_blocking_issues": [
     "total force/torque residual ratioは既存の有限差分力・potential由来の寄与を含むため情報記録とし、motor action-reaction成分だけを1e-8 gateの対象にした。",
@@ -19,7 +20,7 @@
     },
     {
       "command": "uv run pytest -q",
-      "result": "PASS (536 passed in 109.86 s)"
+      "result": "PASS (initial 536 passed; dt reference implementation 541 passed in 114.07 s)"
     },
     {
       "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/2015_stage_a_motor_off.yaml profiles=paper smoke_steps=1 output_base_dir=/tmp/issue168_stage_a_smoke",
@@ -38,21 +39,31 @@
       "result": "PASS (pilot failuresなし、threshold proposalを生成)"
     },
     {
+      "command": ".venv/bin/pytest -q tests/test_phase2_168_stage_a.py",
+      "result": "PASS (10 passed; dt profile contracts、smoke duration、paired comparison pass/reversal failureを含む)"
+    },
+    {
+      "command": ".venv/bin/python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/2015_stage_a_dt1e4_{motor_off,motor_on}_reference.yaml dry_run=true および dt1e5 short profile",
+      "result": "PASS (dt、duration、motor、comparison_role、project/paper条件を確認)"
+    },
+    {
       "command": "git diff --check",
       "result": "PASS"
     }
   ],
   "user_review_required": true,
-  "user_review_command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/2015_stage_a_motor_on.yaml",
+  "user_review_command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/2015_stage_a_dt1e4_motor_off_reference.yaml",
   "user_review_outputs": [
-    "<motor-on-run-root>/summary.csv",
-    "<motor-on-run-root>/performance.json",
-    "<motor-on-run-root>/project/state_archive.npz",
-    "<motor-on-run-root>/paper/state_archive.npz",
-    "<motor-on-run-root>/replay/"
+    "<dt1e-4-motor-off-run-root>/summary.csv",
+    "<dt1e-4-motor-on-run-root>/summary.csv",
+    "<dt1e-5-motor-on-short-run-root>/summary.csv",
+    "<analysis-run-root>/dt_sensitivity_decision.json",
+    "<analysis-run-root>/dt_sensitivity_comparison.csv"
   ],
   "user_review_points": [
-    "motor-on 1 tauは閾値lock後にのみ実行し、replayでbody deformation、helix shape、collapse/fly-away、bundling、propulsionを目視する。"
+    "dt_star=1e-4は既存locked閾値を変更せず、完走・有限性・形状・motor反作用を参考評価する。",
+    "採用候補には短時間ペアの回転方向・回転量、body姿勢、並進除去後bead差の固定基準通過を要求する。",
+    "自動採用候補でもreplay目視とADRなしに2015 defaultを変更しない。"
   ],
   "adr_required": false,
   "adr_reason": "現時点は既存の2015 project/paper profileを比較する検証基盤の追加であり、profile採用、brace、物理解釈の決定はしていない。結果に基づく重要判断が生じた時点でADR要否を再評価する。",
@@ -61,7 +72,9 @@
   "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/176",
   "next_actions": [
-    "ユーザーがmotor-on 1 tauとreplayを実行し、目視結果を共有する。",
+    "ユーザーが3つのdt参考runを実行し、run rootを共有する。",
+    "Codexがdt感度解析を行い、dt_star=1e-4の採用候補可否を判定する。",
+    "判定後にcanonical motor-on 1 tauとreplayの要否・条件を確定する。",
     "結果に基づきbrace、profile採用、ADR、Issue #168完了を判断する。"
   ]
 }

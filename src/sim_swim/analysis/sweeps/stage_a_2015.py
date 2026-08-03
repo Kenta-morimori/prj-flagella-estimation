@@ -63,6 +63,9 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output-base-dir", type=Path, default=Path("outputs"))
     parser.add_argument("--state-sample-count", type=int, default=201)
     parser.add_argument("--progress-interval", type=int, default=1000)
+    parser.add_argument("--dt-star", type=float, default=1.0e-5)
+    parser.add_argument("--duration-tau", type=float, default=None)
+    parser.add_argument("--comparison-role", default="canonical_stage_a")
     parser.add_argument("--diagonal-braces-enabled", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
@@ -140,6 +143,8 @@ def _successful_row(
             "steps_per_s": completed_steps / max(elapsed_s, 1.0e-30),
             "sampled_state_count": sampled_state_count,
             "state_sample_interval_steps": sample_interval_steps,
+            "dt_star": cfg.dt_star,
+            "duration_tau": cfg.duration_star,
             "max_hook_angle_err_deg": _max_numeric(rows, "hook_angle_err_max_deg"),
             "max_flag_helix_radius_abs_err_over_b": _max_numeric(
                 rows, "flag_helix_radius_abs_err_over_b_max"
@@ -183,12 +188,20 @@ def _write_summary(path: Path, rows: list[dict[str, Any]]) -> None:
 def run_stage_a(argv: list[str] | None = None) -> Path:
     args = _parse_args(argv)
     contract = STAGE_CONTRACT[args.stage]
+    if not math.isfinite(args.dt_star) or args.dt_star <= 0.0:
+        raise ValueError("dt_star must be finite and positive")
+    if args.duration_tau is not None and (
+        not math.isfinite(args.duration_tau) or args.duration_tau <= 0.0
+    ):
+        raise ValueError("duration_tau must be finite and positive")
     if args.smoke_steps is not None and args.smoke_steps <= 0:
         raise ValueError("smoke_steps must be positive")
     duration_tau = (
-        float(args.smoke_steps) * 1.0e-5
+        float(args.smoke_steps) * args.dt_star
         if args.smoke_steps is not None
-        else float(contract["duration_tau"])
+        else float(
+            contract["duration_tau"] if args.duration_tau is None else args.duration_tau
+        )
     )
     if args.state_sample_count < 2:
         raise ValueError("state_sample_count must be >= 2")
@@ -202,7 +215,9 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
             print(
                 f"{profile_name}\tstage={args.stage}\t"
                 f"duration_tau={duration_tau}\t"
+                f"dt_star={args.dt_star}\t"
                 f"motor_enabled={contract['motor_enabled']}\t"
+                f"comparison_role={args.comparison_role}\t"
                 f"config={config_paths[profile_name]}"
             )
         return Path()
@@ -217,6 +232,9 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
             "profiles": args.profiles,
             "diagonal_braces_enabled": args.diagonal_braces_enabled,
             "smoke_steps": args.smoke_steps,
+            "dt_star": args.dt_star,
+            "duration_tau": duration_tau,
+            "comparison_role": args.comparison_role,
         },
         source_config_path=config_paths[args.profiles[0]],
         model_profile=first_cfg.model_profile_manifest(),
@@ -239,7 +257,7 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
                         "value": duration_tau,
                         "unit": "tau",
                     },
-                    "integration": {"dt_star": 1.0e-5},
+                    "integration": {"dt_star": args.dt_star},
                 },
                 "motor": {
                     "enabled": contract["motor_enabled"],
@@ -315,6 +333,8 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
                 "steps_per_s": len(partial_rows) / max(elapsed_s, 1.0e-30),
                 "sampled_state_count": 0,
                 "state_sample_interval_steps": sample_interval,
+                "dt_star": cfg.dt_star,
+                "duration_tau": cfg.duration_star,
                 "error_type": type(exc).__name__,
                 "error_message": str(exc),
             }
@@ -325,7 +345,13 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
         condition_record = {
             "condition_id": profile_name,
             "source_config_path": str(config_path),
-            "config_overrides": {},
+            "config_overrides": {
+                "time.duration": {"value": duration_tau, "unit": "tau"},
+                "time.integration.dt_star": args.dt_star,
+                "motor.enabled": contract["motor_enabled"],
+                "motor.enable_switching": False,
+                "body.prism.diagonal_braces_enabled": (args.diagonal_braces_enabled),
+            },
             "output_dir": str(condition_dir),
             "status": row["status"],
             "time": cfg.time_manifest(),
@@ -335,6 +361,10 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
                 "wall_time_s": row["wall_time_s"],
                 "steps_per_s": row["steps_per_s"],
             },
+            "comparison_scales": {
+                "b_um": cfg.scale.b_um,
+                "body_beads": cfg.model_profile.body_beads,
+            },
         }
         if implementation_manifest is not None:
             condition_record.update(implementation_manifest)
@@ -343,6 +373,9 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
     performance = {
         "kind": "stage_a_2015_performance",
         "stage": args.stage,
+        "dt_star": args.dt_star,
+        "duration_tau": duration_tau,
+        "comparison_role": args.comparison_role,
         "created_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
         "short_profile_reference": {
             "condition": "2015 paper motor-on, 1 step, cProfile",
@@ -372,7 +405,8 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
         "stage": args.stage,
         "created_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
         "duration_tau": duration_tau,
-        "dt_star": 1.0e-5,
+        "dt_star": args.dt_star,
+        "comparison_role": args.comparison_role,
         "motor_enabled": contract["motor_enabled"],
         "diagonal_braces_enabled": args.diagonal_braces_enabled,
         "state_sample_count_target": args.state_sample_count,

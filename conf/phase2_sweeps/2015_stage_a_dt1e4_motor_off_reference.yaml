@@ -1,0 +1,17 @@
+kind: stage_a_2015
+metadata:
+  role: sweep
+  canonical: false
+  description: Issue #168 dt_star=1e-4 motor-off 0.1 tau reference
+
+args:
+  stage: motor_off
+  project_config: conf/sim_swim_2015.yaml
+  paper_config: conf/sim_swim_2015_paper.yaml
+  profiles: [project, paper]
+  output_base_dir: outputs
+  dt_star: 1.0e-4
+  duration_tau: 0.1
+  comparison_role: dt1e4_motor_off_reference
+  state_sample_count: 201
+  progress_interval: 100

@@ -3,10 +3,13 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
+import numpy as np
 import pytest
 import yaml
 
+from sim_swim.analysis.flagella_count_behavior import save_state_archive
 from sim_swim.analysis.cli_profiles import args_from_profile, load_profile
+from sim_swim.analysis import stage_a_2015_analysis
 from sim_swim.analysis.stage_a_2015_analysis import (
     THRESHOLD_POLICY,
     evaluate_motor_on,
@@ -14,6 +17,7 @@ from sim_swim.analysis.stage_a_2015_analysis import (
 )
 from sim_swim.analysis.sweeps import stage_a_2015
 from sim_swim.sim.core import Simulator
+from sim_swim.sim.core import SimulationState
 from sim_swim.sim.params import SimulationConfig
 
 ROOT = Path(__file__).parents[1]
@@ -24,16 +28,39 @@ def _load_config(name: str) -> dict:
 
 
 @pytest.mark.parametrize(
-    ("profile_name", "stage", "expected_steps"),
+    ("profile_name", "stage", "expected_steps", "dt_star", "duration_tau"),
     [
-        ("2015_stage_a_motor_off.yaml", "motor_off", 10_000),
-        ("2015_stage_a_motor_on.yaml", "motor_on", 100_000),
+        ("2015_stage_a_motor_off.yaml", "motor_off", 10_000, 1.0e-5, 0.1),
+        ("2015_stage_a_motor_on.yaml", "motor_on", 100_000, 1.0e-5, 1.0),
+        (
+            "2015_stage_a_dt1e4_motor_off_reference.yaml",
+            "motor_off",
+            1_000,
+            1.0e-4,
+            0.1,
+        ),
+        (
+            "2015_stage_a_dt1e4_motor_on_reference.yaml",
+            "motor_on",
+            10_000,
+            1.0e-4,
+            1.0,
+        ),
+        (
+            "2015_stage_a_dt1e5_motor_on_short_reference.yaml",
+            "motor_on",
+            10_000,
+            1.0e-5,
+            0.1,
+        ),
     ],
 )
 def test_stage_a_profiles_fix_the_accepted_step_contract(
     profile_name: str,
     stage: str,
     expected_steps: int,
+    dt_star: float,
+    duration_tau: float,
 ) -> None:
     profile = load_profile(ROOT / "conf/phase2_sweeps" / profile_name)
     args = stage_a_2015._parse_args(args_from_profile(profile))
@@ -41,12 +68,17 @@ def test_stage_a_profiles_fix_the_accepted_step_contract(
     assert args.stage == stage
     assert args.profiles == ["project", "paper"]
     contract = stage_a_2015.STAGE_CONTRACT[stage]
+    effective_duration = (
+        contract["duration_tau"] if args.duration_tau is None else args.duration_tau
+    )
+    assert args.dt_star == pytest.approx(dt_star)
+    assert effective_duration == pytest.approx(duration_tau)
     for config_name in ("sim_swim_2015.yaml", "sim_swim_2015_paper.yaml"):
         cfg = SimulationConfig.from_dict(_load_config(config_name)).with_overrides(
             {
                 "time": {
-                    "duration": {"value": contract["duration_tau"], "unit": "tau"},
-                    "integration": {"dt_star": 1.0e-5},
+                    "duration": {"value": effective_duration, "unit": "tau"},
+                    "integration": {"dt_star": args.dt_star},
                 },
                 "motor": {
                     "enabled": contract["motor_enabled"],
@@ -57,6 +89,24 @@ def test_stage_a_profiles_fix_the_accepted_step_contract(
         assert cfg.total_steps == expected_steps
         assert cfg.motor.enabled is contract["motor_enabled"]
         assert cfg.motor.reference_torque_Nm == pytest.approx(1.2e-18)
+
+
+def test_stage_a_smoke_duration_uses_selected_dt_star(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    stage_a_2015.run_stage_a(
+        [
+            "--stage",
+            "motor_on",
+            "--dt-star",
+            "1e-4",
+            "--smoke-steps",
+            "3",
+            "--dry-run",
+        ]
+    )
+
+    assert "duration_tau=0.00030000000000000003" in capsys.readouterr().out
 
 
 def test_simulator_can_sample_states_without_sampling_step_diagnostics(
@@ -208,3 +258,81 @@ def test_motor_on_analysis_requires_rotation_and_visual_review(tmp_path: Path) -
     assert decision["next_action"] == "perform_visual_review"
     assert all(item["automated_pass"] for item in decision["profiles"].values())
     assert all(item["visual_review_required"] for item in decision["profiles"].values())
+
+
+def _state(t: float, *, shift: float = 0.0) -> SimulationState:
+    positions = np.asarray(
+        [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]], dtype=float
+    )
+    positions[:, 1] += shift
+    return SimulationState(
+        t=t,
+        position_um=(0.0, 0.0, 0.0),
+        quaternion=(0.0, 0.0, 0.0, 1.0),
+        velocity_um_s=(0.0, 0.0, 0.0),
+        omega_rad_s=(0.0, 0.0, 0.0),
+        bead_positions_um=positions,
+        flag_states=(0,),
+        reverse_flagella=(),
+    )
+
+
+def _write_axis_rows(path: Path, final_phase: float) -> None:
+    _write_csv(
+        path,
+        [
+            {
+                "t_s": 0.1 * fraction,
+                "flag_id": 0,
+                "axis_center_body_relative_phase_deg": final_phase * fraction,
+            }
+            for fraction in (0.0, 1.0 / 3.0, 2.0 / 3.0, 1.0)
+        ],
+    )
+
+
+def test_paired_dt_comparison_passes_and_detects_rotation_reversal(
+    tmp_path: Path,
+) -> None:
+    coarse = tmp_path / "coarse"
+    fine = tmp_path / "fine"
+    for root in (coarse, fine):
+        save_state_archive(
+            root / "project/state_archive.npz", [_state(0.0), _state(0.1)]
+        )
+    _write_axis_rows(
+        coarse / "project/flag_helix_axis_diagnostics.csv", final_phase=360.0
+    )
+    _write_axis_rows(
+        fine / "project/flag_helix_axis_diagnostics.csv", final_phase=350.0
+    )
+    manifest = {
+        "conditions": [
+            {
+                "condition_id": "project",
+                "comparison_scales": {"b_um": 1.0, "body_beads": 2},
+            }
+        ]
+    }
+
+    passed = stage_a_2015_analysis._paired_profile_comparison(
+        profile="project",
+        coarse_run=coarse,
+        fine_run=fine,
+        coarse_manifest=manifest,
+        fine_manifest=manifest,
+    )
+    assert passed["paired_pass"] is True
+
+    _write_axis_rows(
+        coarse / "project/flag_helix_axis_diagnostics.csv", final_phase=-360.0
+    )
+    failed = stage_a_2015_analysis._paired_profile_comparison(
+        profile="project",
+        coarse_run=coarse,
+        fine_run=fine,
+        coarse_manifest=manifest,
+        fine_manifest=manifest,
+    )
+    assert failed["paired_pass"] is False
+    assert failed["flag_rotation"][0]["same_direction"] is False
