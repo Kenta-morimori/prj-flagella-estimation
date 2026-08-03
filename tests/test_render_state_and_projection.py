@@ -128,6 +128,25 @@ def test_frame_status_lines_include_time_torque_and_camera_mode() -> None:
     assert "follow_camera_3d = True" in lines
 
 
+def test_frame_status_lines_support_tau_seconds_placeholder() -> None:
+    base_cfg = _make_cfg(
+        center_body_in_2d=True,
+        follow_camera_2d=False,
+        enable_switching=False,
+    )
+    cfg = replace(
+        base_cfg,
+        render=replace(
+            base_cfg.render,
+            timestamp_fmt="t = {t:.3f} s (τ = {tau_s:.3e} s)",
+        ),
+    )
+
+    lines = _frame_status_lines(_state(), cfg)
+
+    assert f"t = 0.000 s (τ = {cfg.tau_s:.3e} s)" in lines
+
+
 def test_hook_edges_expand_triplets_into_two_segments() -> None:
     triplets = np.array([[1, 4, 5], [2, 6, 7]], dtype=int)
 
@@ -364,11 +383,20 @@ def test_save_swim_movie_can_overlay_flagella_helix_axes(
     assert (tmp_path / "swim3d_final.png").exists()
 
 
-def test_project_states_reports_selected_video_codec(tmp_path, monkeypatch) -> None:
-    cfg = _make_cfg(
+@pytest.mark.parametrize(
+    "projection_mode_2d", ["bead_projection", "body_capsule_orthographic_v1"]
+)
+def test_project_states_reports_selected_video_codec(
+    tmp_path, monkeypatch, projection_mode_2d: str
+) -> None:
+    base_cfg = _make_cfg(
         center_body_in_2d=True,
         follow_camera_2d=False,
         enable_switching=False,
+    )
+    cfg = replace(
+        base_cfg,
+        render=replace(base_cfg.render, projection_mode_2d=projection_mode_2d),
     )
     beads = np.array(
         [

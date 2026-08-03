@@ -39,7 +39,8 @@ flagella:
   helix_init:
     radius_over_b: 0.25
     pitch_over_b: 2.5
-  initial_helix_axis_from_rear_deg: null
+  # project profileは3本の螺旋中心軸を菌体後方へ揃える。
+  initial_helix_axis_from_rear_deg: 0
 
 fluid:
   viscosity_Pa_s: 0.001
@@ -126,20 +127,21 @@ brownian:
   jitter: 1.0e-20
 
 render:
-  image_size_px: 256
-  pixel_size_um: 0.203
+  image_size_px: 96
+  pixel_size_um: 0.1
   flagella_linewidth_px: 2.0
   render_flagella: true
   render_flagella_2d: false
   save_frames_3d: false
   follow_camera_3d: true
-  view_range_um: 5.0
+  view_range_um: 7.0
   timestamp_3d: true
-  timestamp_fmt: "t = {t:.3f} s"
+  timestamp_fmt: "t = {t:.3f} s (τ = {tau_s:.3e} s)"
   label_flagella: true
   show_flagella_helix_axis_3d: false
   follow_camera_2d: false
   center_body_in_2d: true
+  projection_mode_2d: "body_capsule_orthographic_v1"
   save_frames_2d: false
 
 seed:

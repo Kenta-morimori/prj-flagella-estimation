@@ -24,6 +24,12 @@ Fig. 1、30 body beads、5 layersとの整合を優先し、正六角形x5層を
   `[0,2,4]` / `[1,3,5]`となる。`attach_seed`と`phase_seed`は独立とする。
 - manifestはnominal構成に加えてactual bead数、body寸法、edge数、Hook/bond長、
   attachment layer/slotを記録する。
+- project profileは3本の初期helix axisを菌体後方へ揃える
+  `flagella.initial_helix_axis_from_rear_deg=0`をdefaultとする。paper profileは論文条件との
+  区別のため`null`を維持する。
+- 2015 profilesの3D確認表示は全体形状を保ちながら従来の`10 um`確認overrideより拡大する
+  `view_range_um=7.0`とし、時刻表示に`tau_s`を併記する。2D確認像はPhase 3 common clipと
+  同じ`body_capsule_orthographic_v1`、`96 px`、`0.1 um/px`を使う。
 
 ## Evaluation state
 

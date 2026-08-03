@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Implemented the Kong et al. (2015) refined geometry as the Issue #166 project interpretation: a five-layer regular hexagonal 30-bead body plus three 30-bead flagella for 120 total beads. The 2015 profiles use center-layer 120-degree attachment slots, configurable 0.25 b hooks, 0.29 b flagellum bonds, and disabled diagonal braces. Actual topology is recorded in single-run and campaign manifests, replay validates regenerated bead counts, and both pending profiles are evaluation_ready for Issue #168 without promotion to supported. Codex Cloud feedback was addressed by keeping every non-2015 pending profile blocked in both the manifest and execution validator.",
+  "summary": "Implemented the Kong et al. (2015) refined geometry as the Issue #166 project interpretation: a five-layer regular hexagonal 30-bead body plus three 30-bead flagella for 120 total beads. The 2015 profiles use center-layer 120-degree attachment slots, configurable 0.25 b hooks, 0.29 b flagellum bonds, and disabled diagonal braces. Actual topology is recorded in single-run and campaign manifests, replay validates regenerated bead counts, and both pending profiles are evaluation_ready for Issue #168 without promotion to supported. User review follow-up sets the project profile to the posterior helix-axis initial condition, enlarges the 3D review view while preserving the whole geometry, records tau_s in 3D timestamps, and uses the Phase 3 body_capsule_orthographic_v1 contract for 2D review images. Codex Cloud feedback was addressed by keeping every non-2015 pending profile blocked in both the manifest and execution validator.",
   "blocking_issues": [],
   "non_blocking_issues": [
     "Issue #168 motor-off 0.1 tau, motor-on 1 tau, long-time stability, brace adoption, and supported promotion were not run or decided.",
@@ -43,6 +43,18 @@
     {
       "command": "git diff --check",
       "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q tests/test_model_profiles.py tests/test_params.py tests/test_render_state_and_projection.py tests/test_e2e_cli.py",
+      "result": "PASS after user render feedback (123 passed)"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS after user render feedback (286 passed, 244 deselected)"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS after user render feedback (530 passed in 97.37 s)"
     }
   ],
   "user_review_required": false,
@@ -51,10 +63,15 @@
     "outputs/2026-08-02/220309/render/frames_3d/frame_000001.png",
     "outputs/2026-08-02/220309/manifest.json",
     "outputs/2026-08-02/220316/render/frames_3d/frame_000001.png",
-    "outputs/2026-08-02/220316/manifest.json"
+    "outputs/2026-08-02/220316/manifest.json",
+    "outputs/2026-08-03/094936/project/initial_3d.png",
+    "outputs/2026-08-03/094936/project/initial_2d.png",
+    "outputs/2026-08-03/094936/paper/initial_3d.png",
+    "outputs/2026-08-03/094936/paper/initial_2d.png"
   ],
   "user_review_points": [
     "The step-1 images were inspected and show the refined six-slot body with three 30-bead flagella; neither image uses the 2010 triangular body.",
+    "The render-only follow-up images show the full refined geometry at 7 um view range, an unclipped t/tau_s label, the posterior project initial condition, the unchanged lateral paper initial condition, and the Phase 3-compatible centered body capsule 2D image.",
     "Long-time body deformation, bundling, propulsion, collapse, and fly-away behavior cannot be determined from a one-step render and are deferred to Issue #168."
   ],
   "adr_required": true,

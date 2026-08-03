@@ -34,7 +34,7 @@ PROFILE_CASES = (
 INITIAL_HELIX_AXIS_CASES = (
     ("sim_swim_2010.yaml", 0.0),
     ("sim_swim_2010_paper.yaml", None),
-    ("sim_swim_2015.yaml", None),
+    ("sim_swim_2015.yaml", 0.0),
     ("sim_swim_2015_paper.yaml", None),
 )
 
@@ -79,7 +79,7 @@ def test_2010_paper_profile_uses_fourteen_bonds_at_paper_spacing() -> None:
 
 
 @pytest.mark.parametrize(("filename", "expected"), INITIAL_HELIX_AXIS_CASES)
-def test_only_supported_project_profile_defaults_to_posterior_helix_axis(
+def test_project_profiles_default_to_posterior_helix_axis(
     filename: str,
     expected: float | None,
 ) -> None:
@@ -87,6 +87,18 @@ def test_only_supported_project_profile_defaults_to_posterior_helix_axis(
     cfg = SimulationConfig.from_dict(raw)
 
     assert cfg.flagella.initial_helix_axis_from_rear_deg == expected
+
+
+@pytest.mark.parametrize("filename", ["sim_swim_2015.yaml", "sim_swim_2015_paper.yaml"])
+def test_2015_profiles_use_review_render_defaults(filename: str) -> None:
+    raw = yaml.safe_load((ROOT / "conf" / filename).read_text(encoding="utf-8"))
+    cfg = SimulationConfig.from_dict(raw)
+
+    assert cfg.render.image_size_px == 96
+    assert cfg.render.pixel_size_um == pytest.approx(0.1)
+    assert cfg.render.view_range_um == pytest.approx(7.0)
+    assert cfg.render.timestamp_fmt == "t = {t:.3f} s (τ = {tau_s:.3e} s)"
+    assert cfg.render.projection_mode_2d == "body_capsule_orthographic_v1"
 
 
 @pytest.mark.parametrize(

@@ -91,7 +91,7 @@ def _frame_status_lines(
 ) -> list[str]:
     lines = [_run_tumble_label(st, cfg)]
     if cfg.render.timestamp_3d:
-        lines.append(cfg.render.timestamp_fmt.format(t=st.t))
+        lines.append(cfg.render.timestamp_fmt.format(t=st.t, tau_s=cfg.tau_s))
     lines.append(f"motor_torque_Nm = {cfg.motor_torque_Nm:.3e}")
     lines.append(f"follow_camera_3d = {cfg.render.follow_camera_3d}")
     lines.extend(str(line) for line in extra_lines if str(line).strip())
@@ -280,11 +280,12 @@ def plot_swim_frame_3d(
         )
 
     ax.text2D(
-        0.02,
+        0.08,
         0.96,
         "\n".join(_frame_status_lines(st, cfg, extra_lines=extra_status_lines)),
         transform=ax.transAxes,
         va="top",
+        ha="left",
         fontsize=8,
     )
 

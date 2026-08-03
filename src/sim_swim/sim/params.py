@@ -556,6 +556,7 @@ class RenderParams:
 
     follow_camera_2d: bool = False
     center_body_in_2d: bool = True
+    projection_mode_2d: str = "bead_projection"
     save_frames_2d: bool = False
 
 
@@ -1685,8 +1686,19 @@ class SimulationConfig:
             ),
             follow_camera_2d=bool(_get(render_raw, "follow_camera_2d", False)),
             center_body_in_2d=bool(_get(render_raw, "center_body_in_2d", True)),
+            projection_mode_2d=str(
+                _get(render_raw, "projection_mode_2d", "bead_projection")
+            ),
             save_frames_2d=bool(_get(render_raw, "save_frames_2d", False)),
         )
+        if render.projection_mode_2d not in {
+            "bead_projection",
+            "body_capsule_orthographic_v1",
+        }:
+            raise ValueError(
+                "render.projection_mode_2d must be 'bead_projection' or "
+                "'body_capsule_orthographic_v1'"
+            )
 
         seed_raw = raw.get("seed", {}) or {}
         seed = SeedParams(

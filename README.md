@@ -67,6 +67,9 @@ support bead数とfallback使用有無をmanifestへ保存します。これは�
 
 2015 profilesはmanifest上で`geometry=implemented`, `simulation=evaluation_ready`を記録し、
 #168向けの評価実行を許可します。`implementation_status=supported`への昇格は#168まで行いません。
+project profileは3本の初期helix axisを菌体後方へ揃え、paper profileは側方初期配置を維持します。
+両profileの2D確認像はPhase 3 common clipと同じ`body_capsule_orthographic_v1`を使い、
+3D確認像には実時間`t`と時間scale`tau_s`を表示します。
 現在の状態とmanifest provenanceはsimulationを開始せず次のように確認できます。
 
 ```bash

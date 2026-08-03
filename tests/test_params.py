@@ -957,6 +957,7 @@ def test_render_center_body_in_2d_defaults_to_true() -> None:
     sim_cfg = SimulationConfig.from_dict(cfg)
 
     assert sim_cfg.render.center_body_in_2d is True
+    assert sim_cfg.render.projection_mode_2d == "bead_projection"
 
 
 def test_render_center_body_in_2d_can_be_disabled() -> None:
@@ -966,6 +967,15 @@ def test_render_center_body_in_2d_can_be_disabled() -> None:
     sim_cfg = SimulationConfig.from_dict(cfg)
 
     assert sim_cfg.render.center_body_in_2d is False
+
+
+def test_render_projection_mode_2d_rejects_unknown_value() -> None:
+    cfg = _base_cfg()
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+    cfg["render"] = {"projection_mode_2d": "unknown"}
+
+    with pytest.raises(ValueError, match="render.projection_mode_2d"):
+        SimulationConfig.from_dict(cfg)
 
 
 def test_render_flagella_helix_axis_3d_default_is_off() -> None:
