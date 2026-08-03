@@ -3,7 +3,8 @@
 ## 現在地
 
 2015 project / paper profileはgeometryとdynamicsが実装済みで、Stage A評価を実行できる。
-profile自体は`pending`のままとし、2026-08-03時点ではmotor-off pilotのユーザー実行待ちである。
+profile自体は`pending`のままとする。2026-08-03にmotor-off pilotを完了し、閾値を固定した。
+現在はmotor-on RUNのユーザー実行待ちである。
 
 Stage Aは次の順に進める。
 
@@ -60,6 +61,18 @@ action-reaction residualは`1e-8`以下とする。131 Hz較正はStage A対象�
 具体値はmotor-off pilot後に
 `conf/phase2_validation/2015_stage_a_thresholds.yaml`へ`status: locked`として記録する。
 locked前のmotor-on解析は拒否する。
+
+## Motor-off pilot結果
+
+`outputs/2026-08-03/111818`でproject/paperとも10,000 stepsを例外・非有限値なしで完走した。
+実測はproject `3.780 steps/s`、paper `3.784 steps/s`で、各条件の所要時間は約44分だった。
+両profileともbody gateはPASSし、brace ON比較は不要と判断した。
+
+閾値案は`outputs/2026-08-03/125815/threshold_proposal.json`へ保存した。pilot値は全cap内で、
+提案値を`conf/phase2_validation/2015_stage_a_thresholds.yaml`へ固定した。paper motor-offの
+body-relative回転最大値は`0.8133947 rev / 0.1 tau`であり、既定のduration換算規則により
+motor-on最低回転を`8.133947 rev / 1 tau`とした。この値は131 Hz較正ではなく、motor-off driftを
+下回らないためのStage A検出閾値である。
 
 ## ユーザー実行
 
