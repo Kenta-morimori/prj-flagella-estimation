@@ -1,80 +1,120 @@
 ---
 name: flagella-issue-workflow
-description: Use for issue-driven Codex work in this repository when handling GitHub issues, task planning, implementation, simulation/test execution, result analysis, review_result logging, commits, pushes, PR creation, or when reducing context/resource usage by routing only the necessary project documents.
+description: Use for issue-driven Codex work in this repository, including planning, implementation, diagnostics, testing, result analysis, review_result logging, commits, pushes, PR creation, and context-efficient routing of project documents.
 ---
 
 # Flagella Issue Workflow
 
 ## Overview
 
-この skill は、`prj-flagella-estimation` の issue 単位作業を、必要な文書だけを読んで進めるための workflow である。
-目的は、`AGENTS.md` の完了条件を守りながら、方針検討・実装・実行・分析・報告の各段階で context と実行コストを使いすぎないことである。
+このskillは，`prj-flagella-estimation`のIssue単位作業を，必要な文書だけを読んで進めるためのworkflowである．
+
+目的は，`AGENTS.md`の規則を守りながら，方針検討，実装，実行，分析，文書更新，完了処理を一貫して行い，contextと実行コストを抑えることである．
+
+Phase文書の構成変更，統合，移行，削除を行う場合は，`phase-document-maintenance` skillを併用する．
 
 ## Start
 
-1. 最初に `git status --short --branch` と現在 branch を確認する。
-2. issue / PR / user request の対象を特定する。
-3. `main` / `master` 上で直接作業しない。新規 issue 対応は最新 `main` から feature branch を作る。
-4. まず作業タイプを分類する。
+1. `git status --short --branch`で現在branchと作業treeを確認する．
+2. user request，対象Issue，対象PRを特定する．
+3. 対象Phaseを特定する．
+4. `main`または`master`上で直接作業しない．
+5. 作業タイプを分類する．
+6. semantic decisionを伴うか確認する．
 
 作業タイプ:
 
-- `planning`: 方針検討、タスク分解、issue draft、実装前整理。
-- `implementation`: コード、設定、テスト、ドキュメントの変更。
-- `diagnostic`: Phase 2 simulation sweep、失敗条件保存、原因切り分け。
-- `review-only`: 差分レビュー、CI確認、既存結果の整理。
-- `workflow`: Codex 運用、skill、review_result、PR作成方針の変更。
+- `planning`: 方針検討，task decomposition，Issue draft，実装前整理
+- `implementation`: code，config，schema，test，docsの変更
+- `diagnostic`: simulation，sweep，失敗条件保存，原因切り分け
+- `review-only`: 差分レビュー，CI確認，既存結果の整理
+- `workflow`: Codex運用，skill，review result，PR方針の変更
+- `documentation-maintenance`: Phase文書の監査，統合，移行，削除
 
 ## Context Routing
 
-常に全部読まず、作業タイプで読む文書を絞る。
+常に全資料を読まず，作業タイプと対象Phaseに応じて読む文書を絞る．
 
-- どの文書を読むか迷う場合は `references/context-routing.md` を読む。
-- review_result、commit、push、PR 完了条件が必要な場合は `docs/codex/codex_workflow.md` を読む。
-- リソース削減方針、軽量/重量タスクの分け方、今後の issue 化候補が必要な場合は `references/resource-reduction.md` を読む。
+詳細なroutingは`references/context-routing.md`を参照する．
 
-基本ルール:
+基本順序:
 
-- `AGENTS.md` は repo policy の正本として扱う。
-- Phase 2 work はまず `docs/phase2/phase2_current.md` を読む。
-- `docs/phase2/phase2_tasks.md` は採択済み Phase 2 task の status / acceptance criteria を確認するときだけ読む。
-- `docs/PROJECT_PLAN.md` は全体地図や phase-level context が必要なときだけ読む。
-- Codex workflow の詳細は必要時だけ `docs/codex/codex_workflow.md` を読む。
-- 個別 task の詳細は、該当する `docs/phase*/phase*_*.md` だけ読む。
-- 過去 run log は、該当 issue / branch / phase に直接関係するものだけ読む。
+1. `AGENTS.md`
+2. user requestと対象Issue / PR
+3. `docs/phaseX/phaseX_current.md`
+4. `docs/phaseX/phaseX_guide.md`が存在し，Phase固有規則が必要な場合
+5. `docs/phaseX/phaseX_tasks.md`の関連section
+6. live schema，contract，config，test，active validation
+7. ADR
+8. Issue / PR履歴，Git履歴，`review_result.json`
+
+追加routing:
+
+- 完了条件，`review_result.json`，commit，push，PRについては`references/completion-policy.md`を参照する．
+- contextと実行量の削減については`references/resource-reduction.md`を参照する．
+- Phase文書の整理・統合・削除では，`phase-document-maintenance` skillと`docs/codex/phase_document_policy.md`を参照する．
+- Codex workflow全体の詳細が必要な場合のみ`docs/codex/codex_workflow.md`を参照する．
 
 ## Workflow
 
-1. **方針検討**
-   - issue 本文、関連 task、直近の該当 docs だけで scope を決める。
-   - 実装に入る前に、完了条件、実行すべき test/simulation、目視レビュー要否を分ける。
-   - 方針検討だけの依頼では、重い simulation や full pytest は走らせない。
+### 1. 方針検討
 
-2. **実装**
-   - 変更は scope 内に限定する。
-   - `scripts/` は orchestration、再利用ロジックは `src/`、Codex workflow 補助は `tools/codex/` に置く。
-   - Phase 2 の物理モデル変更では、参照論文モデル、現行実装、数値安定化、project-specific extension を区別して記録する。
+- Issue本文，current，必要なtasks section，live contractだけでscopeを決める．
+- acceptance criteria，必要なtest / simulation，目視レビュー要否を分ける．
+- 過去判断が必要な場合は，tasksをIssue番号，decision ID，model名，dataset version，関連keywordで検索する．
+- tasksの要約だけで理由が不足する場合に限り，ADR，Issue，PR，Git履歴へ進む．
+- planningのみの依頼では，重いsimulationやfull pytestを実行しない．
 
-3. **実行**
-   - 最小の targeted test から実行する。
-   - Phase 2 の simulation は、まず短時間または代表条件で確認し、必要があるときだけ sweep / 長時間実行へ進む。
-   - `time.dt_star` は default config を変えず、必要な run で CLI override する。
+### 2. 実装
 
-4. **結果分析**
-   - PASS / FAIL だけでなく、残った blocking issue と次に切り分けるべき原因を記録する。
-   - Phase 2 の collapse、fly-away、hook drift、no_bundle などは、失敗でも再現条件が有用なら diagnostic progress として扱う。
+- 変更を依頼scope内に限定する．
+- `scripts/`はuser-facing orchestration，`src/`は再利用可能な実装，`tools/codex/`はCodex workflow補助に使用する．
+- config，schema，testなど既存の正本を確認し，同じ情報をdocsへ複製しない．
+- Phase 2の物理モデル変更では，reference model，repository implementation，numerical stabilization，project-specific extensionを区別する．
+- semantic decisionが発生した場合は，完了時にcurrent，tasks，ADRの更新要否を確認する．
 
-5. **報告・完了**
-   - `docs/codex-runs/<run-id>/review_result.json` を作成する。
-   - PASS 完了なら commit / push / PR まで行う。
-   - FAIL 診断でも有用な場合は、diagnostic / wip / docs commit として保存できる。ただし完了とは言わない。
+### 3. 実行
+
+- 最小のtargeted testから開始する．
+- 重い処理は，short representative，targeted test，sweep，full executionの順で段階的に行う．
+- 長時間simulation，sweep，training，renderは，ユーザーから明示的に依頼されない限り実行しない．
+- user executionとする場合は，command，expected output，evaluation points，実行済みcheckを提示する．
+
+### 4. 結果分析
+
+- PASS / FAILだけでなく，blocking issue，non-blocking issue，次の切り分け対象を記録する．
+- 意思決定に影響した結果と，補助的なdiagnostic resultを分ける．
+- 結果が既存判断を支持するか，置換するか，保留するかを明示する．
+- Phase 2のcollapse，fly-away，hook drift，no bundleなどは，再現条件が有用であればdiagnostic progressとして扱う．
+
+### 5. Phase文書更新
+
+semantic decisionを伴う場合は，以下を確認する．
+
+- `phaseX_current.md`の更新
+- `phaseX_tasks.md`の更新
+- ADRの作成または更新
+- task-specific docの保持・削除
+- stale referenceの更新
+
+Phase文書の再構成，情報移行，削除を伴う場合は，このskill内で詳細手順を重複させず，`phase-document-maintenance` skillへ委譲する．
+
+### 6. 報告・完了
+
+- `references/completion-policy.md`に従って`review_result.json`を作成する．
+- PASS完了時はcommit，push，PRまで行う．
+- FAILでも有用な診断結果は，diagnostic，wip，docs，test相当のcommitとして保存できる．
+- FAILを完了扱いにしない．
+- 文書変更時は，current，tasks，ADR，維持文書，削除文書を最終報告に含める．
 
 ## Resource Discipline
 
-- `SKILL.md` に長い project history を入れない。長い情報は reference へ分離する。
-- 1回の issue で「方針検討」と「実装・実行」を混ぜすぎない。必要なら PR を分ける。
-- full test / long simulation / video render は、acceptance criteria に必要な場合だけ実行する。
-- 既存 docs の探索は `rg` で候補を絞ってから読む。
-- 長い Markdown、logs、CSV、`work_log.md` はデフォルトで全文表示しない。
-- 過去 run は `review_result.json` を先に読み、必要時だけ `work_log.md` を読む。
-- 最終報告では、読んだもの、変えたもの、走らせたもの、走らせなかったものを短く明示する。
+- `SKILL.md`にproject historyやPhase固有の詳細を蓄積しない．
+- 長い規則やchecklistはreferenceまたはpolicyへ分離する．
+- 既存docsは`rg -n`で候補を絞ってから読む．
+- 長いMarkdown，logs，CSV，generated outputをデフォルトで全文表示しない．
+- 過去runは`review_result.json`を先に読み，必要な場合だけ`work_log.md`を読む．
+- currentへ完了履歴を追記し続けない．
+- tasksへIssue，PR，command，output pathの全文をコピーしない．
+- full test，long simulation，video renderは完了条件に必要な場合だけ実行する．
+- 最終報告では，変更内容，実行したcheck，未実行項目，残Issueを簡潔に示す．
