@@ -1,101 +1,234 @@
 # Resource Reduction
 
-この reference は、Codex の context 使用量、tool 実行量、simulation/test 実行コストを下げるための方針である。
+このreferenceは，Codexのcontext使用量，tool実行量，simulation / test実行コストを抑えるための方針を定める．
 
-## Does This Skill Reduce Resources?
+文書構成と保持基準は`docs/codex/phase_document_policy.md`を正本とする．
 
-削減できる可能性は高い。
+## Principles
 
-理由:
+削減対象:
 
-- 毎回読む文書を `task type` と `phase` で routing できる。
-- `SKILL.md` 本体を短くし、必要時だけ reference を読む progressive disclosure にできる。
-- 方針検討だけの依頼で、重い simulation や full pytest を走らせる判断を避けやすい。
-- `review_result.json` と `work_log.md` の読み方を固定し、過去ログ探索を `review_result` 優先にできる。
+- 毎回読み込む文書量
+- 同じ情報の重複
+- 不要なIssue / PR / Git履歴の探索
+- 長いMarkdown，CSV，log，generated outputの全文読込
+- 不要なfull test
+- 不要なlong simulation，sweep，training，render
+- 完了済みplanやtemporary reportの蓄積
 
-限界:
+削減してはいけないもの:
 
-- Skill は自動で source of truth を更新しない。`AGENTS.md`、`docs/PROJECT_PLAN.md`、`docs/phase2/*`、`docs/codex/*` が肥大化し続けると効果は下がる。
-- 実際に効果を出すには、issue 本文に task type、対象 phase、期待する完了範囲を書く必要がある。
+- 判断の背景
+- model，condition，schema，pipelineの変更内容
+- 意思決定に影響した結果
+- 結果の解釈
+- 採用，不採用，置換，保留
+- 再確認可能なevidence
+- 現在利用するschema，contract，config，test
+- reproducibilityに必要なraw output
 
-## Lightweight vs Heavyweight Work
+## Progressive Context
 
-軽量扱い:
+基本的な読込順序:
 
-- issue 整理、方針検討、task decomposition。
-- docs/planning への proposal。
-- review_result / work_log の整理。
-- 小さな docs 変更。
-- targeted unit test だけで十分な変更。
+1. `AGENTS.md`
+2. user request
+3. target Issue / PR
+4. target Phaseのcurrent
+5. Phase guide
+6. tasksの関連section
+7. live contract，config，schema，test
+8. ADR
+9. Issue / PR history
+10. review result
+11. Git history，work log，raw output
 
-重量扱い:
+前段で十分な場合は，後段を読まない．
 
-- Phase 2 simulation sweep。
-- `duration_s>=0.5` かつ `time.dt_star=1.0e-4` の長時間実行。
-- 3D/2D動画 render。
-- full pytest。
-- 物理モデルや出力 format の変更。
+`phaseX_tasks.md`は全文を毎回読まず，Issue番号，decision ID，model名，dataset version，keywordで検索する．
+
+## Phase Documents
+
+### Current
+
+`phaseX_current.md`には現在地だけを保持する．
+
+- 完了履歴を追加し続けない
+- 全open Issueを列挙しない
+- 全metricや全output pathを記載しない
+- config値を複製しない
+- 詳細結果はtasks，ADR，reportへ分離する
+
+### Tasks
+
+`phaseX_tasks.md`は判断単位で圧縮する．
+
+残すもの:
+
+- background
+- change
+- representative comparison
+- decision-bearing result
+- interpretation
+- decision
+- evidence
+
+残さないもの:
+
+- Issue / PR本文の複製
+- 全acceptance criteria
+- 全command
+- 全seed，sweep，time-step結果
+- branch履歴
+- output path一覧
+- 時系列work log
+
+### Task-Specific Documents
+
+新規文書を作成する前に確認する．
+
+- tasks entryだけで十分ではないか
+- 既存guideまたはcontractへ追記できないか
+- ADRとして残すべきか
+- Issue / PRだけで十分ではないか
+
+完了済みplan，temporary memo，comparison reportは，判断情報をtasksまたはADRへ移行した後に保持要否を再評価する．
+
+文書の統合・削除は`phase-document-maintenance` skillを使用する．
+
+## Lightweight And Heavyweight Work
+
+軽量:
+
+- Issue整理
+- planning
+- task decomposition
+- docs proposal
+- current / tasks更新
+- Phase文書の監査・統合
+- skillやworkflow更新
+- targeted testだけで十分な小規模変更
+
+重量:
+
+- simulation sweep
+- long simulation
+- 3D / 2D render
+- dataset生成
+- ML training
+- full pytest
+- physics，schema，共通output contractの変更
 
 運用:
 
-- 軽量 task では、まず `git diff --check`、JSON/YAML validation、該当 docs の整合だけでよいか判断する。
-- 重量 task では、短時間 representative、targeted tests、sweep、full tests の順で段階実行する。
-- 既存PRで継続すべき Phase 2 diagnostic は、原則として同じPRブランチへ統合する。誤って別branchに進んだ場合は、差分を本来のPRブランチへ移し、重複PRは閉じる方針にする。
+1. static check
+2. targeted test
+3. short representative run
+4. limited sweep
+5. full testまたはlong execution
 
-## Issue Template Suggestions
+の順で段階的に進める．
 
-今後の issue には、以下を入れると resource 使用量を下げやすい。
+docs-only，planning-only，workflow-only変更ではfull pytestを必須としない．
+
+## Large Files
+
+長いMarkdown，logs，CSV，generated outputは，必要な範囲だけ読む．
+
+優先順位:
+
+1. current
+2. tasks section
+3. compact summary
+4. manifest
+5. review result
+6. selected columns / rows
+7. raw file
+
+避ける操作:
+
+- 長いMarkdownの無条件な全文表示
+- wide CSVへの無制限な`cat`
+- 全列を含む`head` / `tail`
+- 全run logの横断的な全文読込
+- generated outputを最初の情報源として扱う
+
+raw outputはreproducibilityのため保持してよいが，Codexの日常分析ではcompact summaryを優先する．
+
+## Issue Scope
+
+Issueまたはuser requestに以下があると，contextと実行量を抑えやすい．
 
 ```markdown
 ## Task type
-- [ ] planning
-- [ ] implementation
-- [ ] diagnostic
-- [ ] review-only
-- [ ] workflow
+
+- planning / implementation / diagnostic / review-only / workflow / documentation-maintenance
 
 ## Scope
+
 - Target phase:
 - Target files/modules:
 - Out of scope:
 
-## Required context
-- Must read:
-- Read only if needed:
-
 ## Execution budget
+
 - Tests:
 - Simulation:
-- Video render:
-- Full pytest required: yes/no
+- Render:
+- Training:
+- Full pytest required:
+
+## Documentation impact
+
+- current update:
+- tasks update:
+- ADR:
+- document deletion:
 
 ## Completion target
-- PASS completion required: yes/no
-- Diagnostic FAIL can be committed: yes/no
-- User visual review required: yes/no/unknown
+
+- PASS completion required:
+- Diagnostic FAIL can be committed:
+- User review required:
 ```
 
-## Other Reduction Ideas
+すべての項目を毎回必須にはしない．
+対象Phase，変更範囲，重い処理の実行可否が分かればよい．
 
-1. `docs/phase2/phase2_current.md` を保守する。
-   - Phase 2 の current representative、最新 issue、最新 PR、読むべき doc を短くまとめる。
-   - 原則 100〜150 行以内に抑え、詳細履歴は参照先へ逃がす。
-   - 長い `docs/PROJECT_PLAN.md` と `docs/phase2/phase2_tasks.md` を毎回読む頻度を下げる。
+## Planning And Execution
 
-2. `docs/codex-runs/RUN_INDEX.md` を作る。
-   - run-id、issue、branch、status、commit、PR、next action だけを表にする。
-   - 過去 run の `review_result.json` 全探索を減らす。
+方針が不確かな重量taskでは，planningとimplementationを分離する．
 
-3. issue を `planning PR` と `implementation PR` に分ける。
-   - 方針が不確かな task では、まず docs/planning と review_result だけで PASS する軽量 PR を作る。
-   - 実装 PR は acceptance criteria と execution budget が固まってから始める。
+分離が有効な例:
 
-4. simulation sweep の manifest summary を標準化する。
-   - sweep summary の主要列と代表条件を固定し、毎回 CSV 全体を読まなくてよいようにする。
+- 物理モデル候補が複数ある
+- dataset採択条件が未確定
+- schema変更範囲が不明
+- long simulation前に短時間評価が必要
+- user visual reviewが必要
 
-5. 「full pytest が必要な条件」を明文化する。
-   - docs-only / workflow-only では full pytest を必須にしない。
-   - physics / output format / shared library 変更では full pytest または未実行理由を必須にする。
+小規模なdocs整理やworkflow修正は，同一PRでplanningから実装まで行ってよい．
 
-6. user visual review issue を分離する。
-   - 動画生成と目視判定が必要な場合、生成 PR と review result 更新 PR を分けると無駄な再実行を減らせる。
+## Completion Efficiency
+
+- 過去runは`review_result.json`を先に確認する．
+- `work_log.md`は要約で不足する場合だけ読む．
+- semantic decisionを伴わない変更ではtasksやADRを更新しない．
+- semantic decisionを伴う変更では，完了時に一度だけcurrent，tasks，ADR要否を確認する．
+- 文書削除時は旧pathをまとめて検索する．
+- Cloud reviewはmerge-ready candidateに対して原則1回依頼する．
+- actionable feedbackはまとめて修正し，細かな再レビューを繰り返さない．
+
+## Anti-Patterns
+
+以下が続くとresource削減効果が下がる．
+
+- currentへの完了履歴追記
+- tasksへのPR全文コピー
+- 同じparameter表の複数文書への複製
+- 新規task-specific docの無制限追加
+- obsolete historyを削除しない
+- full CSVやlogを毎回直接読む
+- Issue scopeが不明なまま重量処理を開始する
+- docs-only変更でfull pytestを実行する
+- decision indexやrun indexなど新しい保守台帳を安易に追加する
