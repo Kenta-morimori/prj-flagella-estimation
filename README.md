@@ -12,7 +12,13 @@
 - Phase 2.8: RUN 固定条件で、べん毛本数差による遊泳挙動を dataset として分析
 - Phase 3 以降: 菌体検出、個体クリップ生成、べん毛本数推定モデルの学習・評価
 
-詳細な現在地は `docs/phase2/phase2_current.md`、全体計画は `docs/PROJECT_PLAN.md` を参照してください。
+詳細な現在地は，各Phaseのcurrent文書を参照してください。
+
+- Phase 2: `docs/phase2/phase2_current.md`
+- Phase 3: `docs/phase3/phase3_current.md`
+- Phase 4: `docs/phase4/phase4_current.md`
+
+Phase間の依存関係と作業順序は，GitHub Issues / Projectsを正本とします。
 
 ## セットアップ
 
@@ -126,8 +132,7 @@ uv run pytest tests/test_flagella_count_behavior_dataset.py
 
 ## 詳細ドキュメント
 
-- `scripts/README.md`: CLI 一覧、実行例、override 指定方法
-- `docs/phase2/phase2_current.md`: Phase 2 の現在地
-- `docs/phase2/phase2_tasks.md`: Phase 2 の accepted task status
-- `docs/PROJECT_PLAN.md`: プロジェクト全体の流れとフェーズ定義
-- `docs/codex/codex_workflow.md`: Codex 作業・review result・commit/push 方針
+- `scripts/README.md`: CLI一覧，実行例，override指定方法
+- `docs/phase2/phase2_current.md`: Phase 2の現在地
+- `docs/phase2/phase2_tasks.md`: Phase 2の採択判断と根拠
+- `docs/codex/codex_workflow.md`: Codex作業・review result・commit / push方針

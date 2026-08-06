@@ -44,7 +44,6 @@
 
 - `docs/TASK_MAP.md`
 - `docs/ROADMAP.md`
-- `docs/PROJECT_PLAN.md`
 
 読み方:
 
