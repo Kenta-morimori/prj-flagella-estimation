@@ -1,79 +1,39 @@
 # Phase 3 Current
 
-このファイルは，Phase 3 作業の入口として読む短い現在地ドキュメントである。
+この文書は，Phase 3作業の入口となる短い現在地ドキュメントである．
 
 ## Goal
 
-Phase 3 の目的は，実顕微鏡動画と Phase 2 擬似動画を，Phase 4 で共通に使える個体clipとmetadataへ変換することである。
+Phase 3の目的は，実顕微鏡動画とPhase 2擬似動画を，Phase 4で共通利用できる個体clipとmetadataへ変換することである．
 
-## Current Status
+## Current Baseline
 
-Phase 3 は common clip schemaを#127 / PR #142，pseudo GT passthroughを#6 / PR #144で実装済みである。Phase 2 dataset v1 の RUN固定 `n_flagella=1,2,3` がtraining candidateとしてPhase 4 loader / baseline / learning curve / freeze gateまで接続されている。dataset v1 r1 の3秒runは #159 で0.5秒 non-overlap common clip datasetとして生成できるようになった。最終採択済みの Phase 3 common clip dataset v1 は `outputs/phase3_common_clip/datasets/v1/` を canonical path とする。
+* 実動画と擬似動画で共通のclip metadata schemaを採用している．
+* Phase 2擬似dataはGround Truth passthroughにより，再検出せずclip datasetへ変換できる．
+* dataset v1 r1の3秒runから，0.5秒non-overlap clipを生成するpipelineを実装済みである．
+* canonical renderは`body_capsule_orthographic_v1`である．
+* Phase 4のloader，baseline，grouped learning curve，freeze auditへ接続済みである．
+* 実動画のdetection / tracking経路は未実装である．
 
-現在の主対象:
+## Active Work
 
-- #127: closed / merged。実動画 detection 経路と擬似動画 GT passthrough 経路を，共通clip / metadata schemaへ収束させた。schema 正本は `docs/phase3/phase3_1_clip_metadata_schema.md`，機械可読schemaは `schemas/phase3_clip_metadata.schema.json`。
-- #129: `0.5 s` defaultとgrouped learning curveは完了し，pseudo-v1で`k=4`を採用する範囲を判断する。
-- #128: closed / PR #152 merged。Phase 4 machine-readable freeze gateへ接続した。
-- #159: dataset v1 r1 の3秒run 27件を，5 clips/run のPhase 3共通clip datasetへ変換するCLI/config，window QC，grouped split，body-only rigid capsule `.npy` render，3D/2D MP4 grid replay，Phase 4 warmup filter / run-balanced weighting / freeze audit接続を追加した。
-- #6: 共通clip生成pipelineの実装親Issue。Phase 2 擬似動画 GT passthrough は実装済みで，実動画 detection / tracking は #8 / #9 後に進める。
+* #129: pseudo-v1に必要な独立run数の採用範囲とprotected evaluation条件を決める．
 
-Phase 3 v1 r1 clip dataset configでは，出力fpsは `output_sampling.fps_out`，画像条件は `render.image_size_px` / `render.pixel_size_um` を正本とする。canonical body-only画像は `body_capsule_orthographic_v1` とし，全長2.0 µm，幅1.0 µmの剛体capsuleを固定カメラへ並行投影する。斜め姿勢では見かけの長さを短縮し，z方向への正対時は円形にする。実動画条件が未確定のblur / noise / defocusはv1に含めない。`diagnostic` clip は Phase 2 shape QC の `first_fail_t_s` を含む，またはそれ以後のためtrainingから除外した診断用clipであり，全frameで形状崩壊が目視できることを意味しない。
+## Next Queue
 
-2026-07-31のユーザー定性評価では，full replayの他clipに問題がないこと，および `nf02_as000_ps001_c0004` がz正対付近で円形化してから別方向へ伸び，固定長capsuleの見かけ上一回転にならないことを確認し，このcanonical renderを採択した。
+1. #8: 実顕微鏡動画の入力条件と必要metadataを整理する．
+2. #9: 実菌体サイズとscale normalizationの基準を整理する．
+3. #17: 実動画条件に基づくrender profileを定義する．
 
-MVP 固定方針（2026-07-23 のユーザー判断に基づく）:
+## Blockers
 
-- Phase 3 / 4 MVP の標準 clip duration は `0.5 s` とする。`0.25 s` / `1.0 s` は比較条件に残す。
-- torque variation は MVP training baseline に混ぜず，diagnostic / robustness dataset として分離する。
-- Brownian は当面含めない。
-- RUN-TUMBLE は v2 以降で，論文の状態遷移構造を使いつつ短縮 profile を別定義する。
-- render variation は軽い観測 augmentation のみ training に含める。
-- `n_flagella=4` は v1/MVP では diagnostic-only のまま，v2 で再検討する。
+* 実動画のdetection / tracking実装は，#8と#9の入力・scale条件に依存する．
+* 実動画domainに合わせたrender variationは，#8の撮影条件確定まで採択しない．
 
-## Input Paths
+## Context Routing
 
-Phase 2擬似動画:
-
-- raw simulation: `outputs/phase2_multi_run/flagella_count_behavior_v1`
-- analysis dataset: `outputs/phase2_analysis/flagella_count_behavior/datasets/v1`
-- duration/revision dataset: `outputs/phase2_multi_run/flagella_count_duration_3s_r1/dataset/v1_r1_duration_3s`
-- canonical Phase 3 clip dataset: `outputs/phase3_common_clip/datasets/v1`
-- current training candidate: `n_flagella=1,2,3`
-
-実顕微鏡動画:
-
-- 入力条件は #8 で整理する。
-- 菌体長さ特徴は #9 で整理する。
-
-## Design Boundary
-
-Phase 3 の出力schemaは，detectionあり・GT passthroughのどちらでも同じにする。
-
-最低限保持するID:
-
-- `source_video_id`
-- `track_id`
-- `clip_id`
-- `frame_id`
-- `run_id` または simulation provenance
-- `group_key`
-
-dataset splitでは，同一 `run_id` / `source_video_id` / `track_id` 由来のclipを train / validation / test にまたがせない。
-
-## Next Actions
-
-1. #129で`k=4`をpseudo-v1 MVP lower boundとして採用するか判断する。
-2. #128 freeze gateを今後のtraining / learning curve前にも継続実行する。
-3. #145 RUN-TUMBLE dataset v2はProject `TODO`のまま後回しにする。
-4. 実動画 detection / tracking は #8 / #9 の入力条件整理後に本格化する。
-
-## Key references
-
-- Phase 3 issue map: `docs/phase3/phase3_issue_map.md`
-- Common clip schema: `docs/phase3/phase3_1_clip_metadata_schema.md`
-- Clip duration and run count design: `docs/phase3/phase3_2_clip_duration_run_count.md`
-- Dataset mixing and versioning rules: `docs/phase3/phase3_3_dataset_mixing_versioning.md`
-- Minimal pipeline implementation plan: `docs/phase3/phase3_4_common_clip_pipeline_plan.md`
-- Machine-readable schema: `schemas/phase3_clip_metadata.schema.json`
-- Minimal fixture: `examples/phase3/clip_metadata_minimal.json`
+* 採択判断: `docs/phase3/phase3_tasks.md`
+* Human-readable schema: `docs/phase3/phase3_1_clip_metadata_schema.md`
+* Machine-readable schema: `schemas/phase3_clip_metadata.schema.json`
+* Dataset mixing policy: `docs/adr/0015_dataset_mixing_and_versioning.md`
+* CLIと実行方法: `scripts/README.md`
