@@ -256,7 +256,10 @@ jobs:
                 ) {
                   return "codex";
                 }
-                if (isCopilotReviewer(reviewLogin)) {
+                if (
+                  isCopilotReviewer(reviewLogin) ||
+                  isCopilotReviewer(commentLogin)
+                ) {
                   return "copilot";
                 }
                 return "other";
