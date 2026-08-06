@@ -1,129 +1,156 @@
 # Phase 2 Current
 
-このファイルは，Codex CLI が Phase 2 作業の最初に読む短い現在地ドキュメントである。
+このファイルは、CodexがPhase 2作業を開始するときに読む短い現在地ドキュメントである。
 
-原則として 100〜150 行以内に保つ。詳細な実験履歴，長い失敗条件，過去 run の詳細はここに書かず，必要な参照先だけを置く。
+現在の採用条件、進行中タスク、次候補、blocker、参照先のみを記載する。
+詳細な仕様、数値結果、実験履歴、実行ログは、個別文書、ADR、Issue、PRへ分離する。
 
-## Source of truth priority
+## Current baseline
 
-* Repository-wide rules: `AGENTS.md`
-* Current Phase 2 entry point: `docs/phase2/phase2_current.md`
-* Accepted task status: `docs/phase2/phase2_tasks.md`
-* Overall project map: `docs/PROJECT_PLAN.md`
-* Historical context: Git history, issue/PR history, and Codex run records
+Phase 2は、3D物理シミュレーションと2D擬似顕微鏡動画を、機械学習用データとして利用できる形へ整えるフェーズである。
 
-## Context reading policy
+現在の基準は以下とする。
 
-* 長い文書を開く前に `rg -n` で関連箇所を絞る。
-* 長い Markdown，logs，CSV，`work_log.md` はデフォルトで全文表示しない。
-* 過去 run は `review_result.json` を先に読み，必要な場合だけ `work_log.md` を読む。
-* `outputs/` の大きな成果物は，文書・summary・review_result で不足するときだけ読む。
+* 標準simulation profileは `conf/sim_swim_2010.yaml`
+* 2010 project profileは現行のsupported baseline
+* 2015 project / paper profileは実装済みだが、Issue #168のStage A完了まではpending
+* Phase 2からPhase 3 / 4へ渡すbaselineはdataset v1のRUN固定 `n_flagella=1,2,3`
+* `n_flagella=4`はdiagnostic-only
+* `n_flagella>=5`は現行のcanonical training scope外
+* 新しいPhase 2 CLI例は `KEY=VALUE` 形式を第一表記とする
+* 詳細なparameter値は、このファイルへ複製せずconfigを正本とする
 
-## Current Phase 2 status
+現在の判断と根拠の一覧は、`docs/phase2/phase2_decision_index.md` を参照する。
 
-Phase 2 は，3D物理シミュレーションと2D擬似顕微鏡動画生成を，ML教師データに使える形へ整えるフェーズである。
+## Active work
 
-完了済みの大枠:
+### Issue #168 / PR #176: 2015 refined model Stage A
 
-* Phase 2.1〜2.5: 初期幾何，body-only，body+hook，single flagellum の短時間安定条件を整理済み。
-* Phase 2.6: `root_torque_segment_couples` により，単一べん毛の螺旋形状維持と net 回転を両立する代表条件を確認済み。Issue #53 / #54 は完了。旧名 `material_twist_local_couple` は deprecated alias として受け付ける。
-* Phase 2.7: 複数べん毛の束化検証は，近接束ではなく螺旋中心軸の安定整列を成功定義として完了。代表条件は `hook_wrapped_axis_aligned`。
-* 3D出力の間引き用 `output_sampling.fps_out_3d` は導入済み。
-* Phase 2 CLI の新規コマンド例は `config=...`，`time.duration.value=...`，`time.duration.unit=s|tau`，`time.integration.dt_star=...` などの `KEY=VALUE` 形式を第一表記にする。`time.duration_s` / `time.dt_star` / `time.dt_s` / `--config` / `--duration-s` / `--fps-out` は legacy compatibility としてのみ残す。
+2015 project / paper profileについて、motor-offおよびmotor-on RUN条件の短時間安定性を検証している。
 
-現在の主対象:
+完了済み:
 
-* Phase 2 / Issue #163: Watari & Larson (2010) potential式照合を完了した。論文準拠 `fene_fraenkel` と過去互換 `legacy` を `potentials.spring.formulation` で選択でき、selector欠落時は `legacy`。motor-off `0.1 tau` / motor-on RUN `1 tau` の両runでFENEが完走・strict shape gateを通過し、defaultは `fene_fraenkel` とした。bending/torsion/hookの復元方向とspring-spring repulsionの実装仮定はADR 0009に記録した。
-* Phase 2 / Issue #164: simulation configを2010/2015 x project/paperの4 profileへ再編した。defaultは旧条件を維持する `conf/sim_swim_2010.yaml`。`model_profile` はyear、variant、resolution、implementation status、nominal bead構成を持ち、manifestには `model_profile` と `source_config_path` を保存する。2010 project/paperは `supported`、2015 project/paperは `pending` とし、pending profileの実simulationはoutput作成前に拒否する。正式な時間schemaは #165、2015 geometryは #166、2015 paper dynamicsは #167へ分離した。設計判断はADR 0010に記録した。
-* Phase 2 / Issue #165: `time.duration.{value,unit}` と `time.integration.dt_star` を正式schemaとし、`tau` / `s` durationを正規化する。2010 project profileは過去run互換のため `tau_s=1.0` 固定を維持し、2010 paper / 2015 profilesは `tau_s = viscosity_Pa_s * b_m^3 / abs(motor.reference_torque_Nm)` を使う。2015 profilesは引き続き `pending` で、parse・正規化・manifest出力の対象だが実simulationは拒否する。`total_steps = ceil(duration_tau / dt_star)`、`step_summary.csv` はstep開始時刻を `total_steps` 行、state列は初期状態を含め `total_steps+1` 件とする。`ceil` によりfinal state時刻が指定durationをわずかに超える場合がある。設計判断はADR 0012に記録する。
-* Phase 2 / Issue #166: 2015 refined geometryとして正六角形断面x5層の30-bead bodyと30-bead flagellum x 3本を実装し、total 120 beadsとした。論文本文のpentagon記述とFig. 1・30 beads・5 layersの不整合は、後者を優先するproject inferenceとして記録する。body幅はdefault `1.0 b`、比較override `0.7 b`、Hookはbody attachからflagellum bead 0まで `0.25 b`、flagellum内部は29 bonds x `0.29 b`。2015 profilesは中央層slots `[0,2,4]` / `[1,3,5]`へattachし、diagonal braceはOFF。project profileは後方束化初期条件`initial_helix_axis_from_rear_deg=0`、paper profileは`null`を維持する。3D確認表示は`view_range_um=7.0`と`tau_s`併記、2DはPhase 3共通clipと同じ`body_capsule_orthographic_v1`、`96 px`、`0.1 um/px`を使う。paper profileのbody reaction supportは各5 beads、fallbackなしを自動検証する。profile自体は#168完了まで`pending`のまま、manifestは`geometry: implemented`, `simulation: evaluation_ready`, `blocked_by: [168]`として評価実行を許可する。設計判断はADR 0014に記録する。
-* Phase 2 / Issue #167: Kong et al. (2015)を参考にしたpaper profile用 `hook_coupled_body_reaction` を実装した。flagellum基部3 beadsへzero-net-force駆動torque全ベクトルを与え、attach beadとbody ring/vertical one-ringへ逆torque全ベクトルを与える。局所body supportが縮退した場合だけ全body beadsへfallbackする。paper profileは `paper_inspired_approximation`、project profileは比較用の `root_torque_segment_couples` とし、manifestは項目別paper/inference/assumption provenance、reaction model、support bead数、fallback使用有無を区別する。#167完了時点ではgeometry pendingとして実行を拒否していたが、#166完了後は`geometry: implemented`, `simulation: evaluation_ready`へ更新する。2015 profilesの`implementation_status: pending`と120-bead長時間runを#168へ残す。parameter対応表は `phase2_167_2015_paper_conditions.md`、設計判断はADR 0013/0014に記録する。
-* Phase 2 / Issue #171: `conf/sim_swim_2010.yaml` の初期べん毛螺旋軸を菌体後方へ揃える `flagella.initial_helix_axis_from_rear_deg=0` をproject defaultとした。user実行0.5 s runは5,000/5,000 stepでfinite・通常/strict non-body shape gateを通過し、bundle rearward projectionは全期間 `>=0.9668`、最終bundle軸は後方から `14.62 deg`だった。user定性評価も問題なし。2010/2015 paper profileは`null`を維持する。2015 project profileはIssue #166のuser reviewを受けて後方束化条件`0`をdefault化し、安定性採否は#168へ残す。採用判断はADR 0011/0014に記録した。
-* Phase 2.8 / Issue #65: 親Issue #71 のRUN固定べん毛数差分析に向けて，特徴量カテゴリとdataset出力方針を定義済み。
-* Phase 2.8 / Issue #72 / #112: 親Issue #71 のRUN固定べん毛数差分析に向けて，raw output は `scripts/01_simulate_swimming/run_multi_run.py` で作り，dataset builder は generic multi-run の `run_manifest.json` から `summary.csv` / `timeseries/<sample_id>.csv` を生成する。
-  raw condition には `trajectory.csv` と `state_archive.npz` を残し，後から replay render を再生成できる。
-  Issue #78 により，後出し render CLI はデフォルトで3D全step描画を避け，`--fps-out-3d` / `--fps-out-2d` でfpsを指定できる。
-  run / heatmap / replay / dataset 作成は同じ `conf/phase2_multi_run/*.yaml` を source of truth とし，dataset 固有情報は `dataset:` section に置く。
-* Phase 2.8 / Issue #76: seed依存の初期条件ばらつきとして，付着点選択 `attach_seed` と初期helix phase `phase_seed` を分離した。標準datasetは `attach_seeds=[0,1,2]` と `phase_seeds=[0,1,2]` の直積を使う `fc_nf1_2_3_6_as3_ps3_dur0p5`。
-* Phase 2.8 / Issue #73: `summary.csv` から本数別の特徴量分布plot，QC plot，要約統計，NaN集計，簡易スクリーニングを生成するCLIを追加済み。標準datasetの分析出力は `plots/distributions/`，`plots/qc/`，`analysis/` に生成できる。
-* Phase 2.8 / Issue #81 / #112: 旧 `run_flagella_count_behavior_sweep.py` と旧 `conf/phase2_analysis/flagella_count_behavior_dataset*.yaml` は廃止し，Phase 2.8 raw output は generic multi-run profile で作る。raw condition は `step_summary.csv`，`trajectory.csv`，`state_archive.npz` を全step保存し，軽量化は replay render / visualization 側の sampling で行う。
-* Phase 2 / Issue #84: 実験簡略化のため，render frame保存defaultをOFFにした。現行default `conf/sim_swim_2010.yaml` の `motor.torque_Nm` は，Phase 2.6 torque評価の第一候補，Phase 2.7代表条件，Phase 2.8 dataset条件と揃え，`2.5e-20` とする。`time.dt_star` default は Phase 2 標準の内部積分刻みとして `1.0e-4` とし，`time.dt_s=1.0e-3` は出力・記録間隔として扱う。`time.dt_star: null` を明示した場合だけ，内部積分刻みは従来互換として `time.dt_s/tau_s` に戻る。通常の3D render default は `output_sampling.out_all_steps_3d=false` とし，`fps_out_3d` で間引く。全内部stepを3D描画したい診断runだけ `output_sampling.out_all_steps_3d=true` を明示する。3D render は RUN/TUMBLE・時刻・実効トルク・`follow_camera_3d` を併記し，dataset directory 指定で全raw sampleを `replays/<sample_id>/` へ一括再描画できる。残タスクの `seeded_surface` 付着点配置では，`attach_seed` 前半を `n_flagella` ごとの center-triangle priority 配置にし，`n_flagella=1..9` の前半seed数を `3,3,1,6,15,20,15,6,1` として明文化した。前半seedのみのdataset条件は必要になった時点で `conf/phase2_multi_run/*.yaml` の axes として表現する。
-* Phase 2 / Issue #88: `motor.force_distribution` の正式名を `triplet`, `root_torque_segment_couples`, `root_torque_axis_projection` に整理した。旧名 `material_twist_local_couple` と `distributed_flagellum` は deprecated alias として新名へ正規化する。診断用 probe mode `axial_torque_flux_probe` / `local_twist_transmission_probe` は削除した。
-* Phase 2 / Issue #82: `root_torque_segment_couples` 条件での hook過伸長対策として，局所補強候補を比較できるようにした。`motor.local_attach_first_body_axis_angle_scale` の90度補強は，`hook_triplets=(attach, first, second)` の角度ではなく，`attach -> first` ベクトルが body長軸に対して垂直に生えることを指す。default `1.0` では標準挙動を変えず，非defaultを診断用 extension として扱う。body-first距離・body軸90度補正，第1-第2ビーズ距離補正，per-flag hook診断，first fail / 全期間最大hook event指標，`motor.local_attach_frame_position_scale` / `motor.local_attach_frame_tangent_scale` と `attach-frame-grid` sweep / heatmap に対応済み。2026-06-27時点の代表評価では，Stage A の `fp=3, ft=1.5` が baseline `hook_len_rel_err_max=3.2865` を `0.0145` まで抑え，後方条件0.5 sの定性評価でも hook根元挙動は問題なし。ただし first fail は `flag` へ移り，Stage B で `local_first_second_spring_scale=1..3` を足しても `flag_bond_rel_err_max` は `1.1875..1.1961` に残った。dt sweep では `dt_star=1.0e-4, 5.0e-5, 2.5e-5` で破綻種別が解消しないため，時間刻みではなく拘束・力の釣り合い不足として扱う。長時間3D定性評価 `frame_fp3_ft1p5_fs1p5` では first fail `flag`, `hook_len_rel_err_max=0.0157`, `flag_bond_rel_err_max=1.0006`, final `flag_bond_rel_err_max=2.0500` となり，hookではなく flagellum bond 過伸長が残課題である。反作用トルクは消しておらず body 側へ入っているが，attach-frame補強で body-root 間の相対運動が抑えられ，一体回転に近く見える。Issue #94 では flag bond 最大伸長の `flag_id` / bead pair / per-flag 最大値を `step_summary.csv` と #82 sweep summary に出し，sweep summary では local bead pair も出す。さらに proximal local bond `0-1..4-5` の rel err を per-flag で `step_summary.csv` と sweep summary の final / first fail / max event に出す。`fp=3, ft=1.5` 固定の短時間 `fs=1..3` 比較では `max_flag_bond_rel_err` はほぼ同等で明確な改善は見えず，0.6 s `fs=1..3` 比較でも全条件の first fail は `t=0.4363 s`, `flag_id=1`, global bead `29-30`, local bead `3-4` に固定された。`fs=1.25` は max event が flag 0 local `0-1` へ飛び，悪化候補として扱う。first-second や second-third ではないため，`fs` 増強は採用しない。2026-06-29 の torque切り分けでは `fs=1.0, fp=3, ft=1.5` で `1.0e-20..2.0e-20` は0.6 s first failなし，`2.5e-20` は非有限座標に起因すると見られる SVD crash で summary化できなかった。attach-frame強度切り分けでは `ft=1` が local `0-1` 破綻を誘発しやすく不採用，`ft=1.5` は維持候補とする。`fp=3, ft=1.5` は first fail が `0.4363 s` と最遅だが final/max `flag_bond_rel_err_max=1.4964`，`fp=2, ft=1.5` は first fail `0.4217 s` で final/max `1.3315` まで下がるため，attach-frame診断代表は `fs=1.0, ft=1.5` 固定で `fp=2` と `fp=3` を併記候補にする。SVD crash guard 実装後は `fp=3, ft=1.5, torque=2.5e-20, duration_s=0.6` でも Python 例外ではなく summary CSV まで出力できる。ただし first fail は `t=0.0009 s`, `hook`，max `flag_bond_rel_err` は極大値となるため，物理条件としては破綻扱いを継続する。body-flagella 貫通検証は Issue #93 側へ分離する。Issue #82 配下の残タスクは，`#94=flag bond 過伸長の診断・抑制`, `#97=torque distribution 比較と採用判断`, `#100=user-facing sweep/heatmap 導線の generic 化` として分担する。#100 は `hook_overstretch` 起源の実験基盤整理であり，#97 の比較再開前に先行実施する sub-issue とする。
-* Phase 2 / Issue #94 follow-up: 2026-06-30時点の追加切り分けでは，`run_phase2_82_hook_overstretch_sweep.py` が `flagella.initial_helix_axis_from_rear_deg=0` を内部overrideするため，数値sweepは後方束化初期条件で評価している。`af=1, axis=1, fs=1, fp=2, ft=1.5` 固定では `torque=1.9e-20` だけが 0.6 s の自動 shape gate を通った。`fp=3, ft=1.5` では `torque=1.9e-20` と `2.0e-20` が shape gate を通り，`2.0e-20` は `max_flag_bond_rel_err=0.9063` で比較候補中もっとも余裕があった。merge判定用の後方動画 `outputs/phase2_94/posterior_merge_review/qual_videos/fp3_ft1p5_torque2p0_dur0p6/2026-06-30/170248` は user定性評価で概ね良好と判断されたため，PR #95 の採用候補は `fp=3, ft=1.5, fs=1, torque=2.0e-20` とする。自動指標上は後方軸整列が時間とともに弱まるため，べん毛が螺旋軸中心に回っているかの厳密評価も含め，トルク分散・回転伝達の深掘りは Issue #97 `[Phase2] hookとべん毛形状を保つトルク分散方法を見直す` で扱う。
-* Phase 2 / Issue #97: 後方条件での `body / hook / flagella / attach-bead` 回転安定性を主目的に，トルク分散比較を整理した。`motor.torque_distribution_profile` を導入し，旧 `motor.torque_segment_weight_profile` は deprecated alias とした。旧 `local_twist_activity` 系 profile は `diffusive`, `diffusive_sqrt`, `diffusive_floor_0p2`, `diffusive_floor_0p4` に改名し，`root_torque_axis_projection` でも同じ profile 名を使えるようにした。後方主評価 Stage E では `root_torque_segment_couples + diffusive` だけが 0.6 s を shape pass したため，比較面を `root_torque_segment_couples / root_torque_axis_projection` × `diffusive / uniform` の 2x2 に縮小した。Issue #100 で現役導線は `shape_stability_grid` sweep / heatmap へ移し，replay utility `render_shape_stability_grid_replay.py` は `state_archive.npz` / `trajectory.csv` を使った再シミュレーションなしの定性確認に対応した。2026-07-07 の最終評価では，後方 1.0 s `outputs/phase2_97/stage_g_posterior_distribution_grid_fp3_ft1p5_torque2p0_dur1p0/summary.csv` は4条件すべて `flag` fail，側方 0.6 s `outputs/phase2_97/stage_h_lateral_distribution_grid_fp3_ft1p5_torque2p0_dur0p6/summary.csv` は4条件すべて shape pass した。`root_torque_segment_couples` では `diffusive` が `uniform` より first fail を遅らせる一方，側方 user定性評価 `stage_h_lateral_grid_qual_fp3_ft1p5_torque2p0_dur0p6` ではどの2x2条件も螺旋軸中心の回転ではなく菌体を含む剛体回転に見えた。従って #97 では現行2x2候補を採用せず，剛体回転の主因は torque profile より attach-frame補強による body-root 一体化 / basal自由度不足として扱い，診断を Issue #103 として #82 配下へ分離した。
-* Phase 2 / Issue #103: attach-frame補強による剛体回転を診断するため，`body_roll_phase_deg` と `axis_center_body_relative_phase_deg` を追加し，`shape_stability_grid` summary で body roll と螺旋軸中心 spin を分離できるようにした。`motor.local_attach_frame_tangent_mode=basal_bearing` は，`attach -> first` 軸まわり方位角を拘束せず，`first -> second` の軸方向成分と垂直半径だけを保つ #103 診断用 extension である。#103 の比較とユーザー定性評価により，現行 `local_attach_frame_tangent_scale` は「接線方向だけ」を保つのではなく，body attach frame で見た `first -> second` ベクトル全体を初期 target に戻すため，root の軸まわり相対 spin も抑えやすく，側方・後方の両条件で剛体回転様の見え方を招くと整理した。言い換えると，attach-frame tangent を強くすると root tangent が body 座標系へ縛られ，べん毛だけが軸中心に回るより先に菌体ごと一緒に回る見え方になりやすい。続く position-only 比較 `conf/phase2_sweeps/basal_freedom_position_only_sweep.yaml` では，側方 0.6 s は `no_frame` がもっとも自然な軸中心回転に見え，`fp>=1.25` は hook を大きく改善する一方で body-relative spin / body-roll ratio を `103.5 -> 約48.6` まで落とした。後方 1.0 s では `no_frame` が `final_shape_pass_nonbody=True` でも `t=0.0449 s` に `hook` first fail しており，無破綻ではない。これに対し `fp1p25` は `t=0.3295 s` まで `flag` fail を遅らせ，`max_hook_len_rel_err=0.1207`, `body_roll_net_abs_revolutions=0.0135`, `axis_center_to_body_roll_ratio_mean=151.2` で最良の折衷となった。`fp1p5` は `first_fail_t_s=0.3498 s` とわずかに遅いが body roll が増え，`fp2+` は `flag_bond_rel_err_max` 悪化で不利だった。したがって default は tangent を外し，`motor.local_attach_frame_position_scale=1.25` の最小補強だけを採る。採用判断は `final_shape_pass_nonbody` 単独ではなく `first_fail_category_nonbody` / `first_fail_t_s` を優先して読む。さらに #94 既存結果どおり `local_first_second_spring_scale` は主要 failure である proximal flag bond 過伸長を改善しておらず，現時点では優先する補強候補ではない。`basal_freedom_diagnostic.yaml` は #103 の診断再現用として保持し，追加の長時間 sweep / replay render はユーザー実行待ちである。
-* Phase 2 / Issue #96: `scripts/01_simulate_swimming` の sweep / heatmap 導線を整理した。現役CLIは `run_sweep.py config=conf/phase2_sweeps/<profile>.yaml` と `plot_heatmap.py config=conf/phase2_sweeps/<profile>.yaml` に統一し，issue番号付きの個別scriptは用途別 module under `src/sim_swim/analysis/` へ移した。新しい sweep summary の標準名は `summary.csv`。`shape_stability_grid.yaml` / `shape_stability_heatmap.yaml` を canonical profile とし，`hook_overstretch.yaml` / `hook_overstretch_heatmap.yaml` は historical alias として残す。`conf/phase2_sweeps/*.yaml` は `metadata` に role / canonical / 推奨対応先を持ち，wrapper から `list_canonical_profiles=true` と `describe_profile=true` で確認できる。`scripts/README.md` は初見ユーザー向けの現行操作説明だけに更新した。未使用だった `src/flagella_estimation` package は削除し，wheel 配布対象は `sim_swim` に切り替えた。
-* Phase 2 / Issue #100: `sweep` と `multi-run / replay` の導線を整理した。`run_sweep.py` は `conf/phase2_sweeps/` の task-specific diagnostic sweep 専用とし，user-facing な複数条件実行は `run_multi_run.py config=conf/phase2_multi_run/<profile>.yaml` に寄せる。`conf/phase2_multi_run/` の profile は run / plot / replay で 1 枚共用し，`output.timestamp_subdir=false` の profile では `output.base_dir` を固定 run root として `plot_heatmap.py config=...` が `plots/` を，`render_shape_stability_grid_replay.py config=...` が `replay/` を作れる。さらに `shape_stability_grid` sweep 側も `condition_order` / `base_config` / `axes` / `condition_label` を含む共通 campaign 契約へ寄せ，`render_shape_stability_grid_replay.py` は sweep / multi-run の両方を同じ reader で読めるようにした。標準 profile は `latest_model_torque_shape_stability` とし，最新モデルの torque 複数条件比較を 3 コマンドで回せる。tracked local wrapper は不要になったため削除した。`plot_heatmap.py` / replay の log / manifest 強化は別PRで扱う。なお `shape_stability_grid` の heatmap 実装は sweep 診断用 mode ごとの集計ロジックを残しており，generic 化しているのは wrapper / config / summary contract と multi-run 側の plot 導線である。
-* Phase 2.8 / Issue #71 / #117 / #118: 診断用 dataset v0 は Phase3/4 本番訓練 dataset ではなく，現状モデルの diagnostic baseline である。canonical config は `conf/phase2_multi_run/flagella_count_behavior_v0.yaml`，canonical dataset_id は `v0`，canonical output は `outputs/phase2_analysis/flagella_count_behavior/datasets/v0` とし，version 対応表は `docs/phase2/phase2_8_dataset_version_registry.md` に置く。既存 `conf/phase2_multi_run/flagella_count_behavior_diagnostic.yaml` と `fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0` は historical alias として保持する。v0 では `n=1,2,3` が各9 sample すべて `strict_pass` で，`cell_mean_speed`，`cell_straightness`，`cell_angular_velocity_rms`，`hook_drift` などに本数差が出た。
-* Phase 2.8 / Issue #113: dataset v0 で見えた `n>=4` の破綻境界確認に向け，PR #114 で `conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml` と paged replay 出力を追加している。`attach_seed=0`, `phase_seed=0`, `n_flagella=4,5,6` の初回実行結果では全条件が `flag` first fail となり，first fail は `n=4: 0.3273 s`, `n=5: 0.3168 s`, `n=6: 0.3505 s`，max flag bond rel err は `1.8486`, `1.5037`, `1.4889` だった。body diagnostics 対応後の再実行では，全条件で `body_shape_pass=false`, `body_fail_category=body_spring` となり，ユーザー定性評価でも `n=4,5,6` のいずれも body 伸長が見えると判断された。36条件 `grid_swim3d_page*.mp4` もユーザー目視確認済みで追加追記項目はない。hook rel err は主因ではなく，現状 `n>=4` は flag failure と body_spring failure が併発するため Phase3/4 training candidate として不安定である。
-* Phase 2.8 / Issue #113 follow-up ordering: #113 / PR #114 で failure mode を確定し，#117/#118 で v0 統計レポートと `model_id` 命名規則を完了した。#115 では `flag_spring/body` が有効な探索軸であることを確認したが，`n>=4` の v1-ready 条件は未確定である。次は #116 で `flag_spring/body` 近傍 sweep と proximal local bond 補強の要否を検討し，#119 で改善モデル dataset v1 を再生成する。#17 は背景ノイズ関連のためこの関係整理から除外する。
-* Phase 2.8 / Issue #115: `stiffness_scales.flag_spring` を追加し，hook ではなく flag 内 spring を強める project-specific stabilizing extension として candidate 比較できるようにした。seed固定 candidate profile `conf/phase2_multi_run/flagella_count_stability_candidates_seed00.yaml` の user実行結果 `outputs/phase2_multi_run/flagella_count_stability_candidates_seed00/summary.csv` では，baseline `flag_spring=1.0, body=1.0` は `n=4,5,6` すべてで flag failure と body_spring failure が併発した。`n=4` は `flag_spring=2.0, body=1.0` で first fail なし，`max_flag_bond_rel_err=0.9075`, `body_spring_max_stretch_ratio=0.9605` まで改善した。一方 `n=5` の best score は `flag_spring=2.0, body=1.0` で nonbody pass だが body fail，`n=6` の best score は `flag_spring=2.0, body=2.0` で body pass だが `t=0.4891 s` に flag fail した。したがって #115 では `flag_spring/body` が有効な探索軸であることを確認したが，dataset v1 へ直接渡せる `n>=4` 安定条件は未確定とし，#116 で `flag_spring/body` 近傍 sweep と proximal local bond 補強の要否を検討する。
-* Phase 2.8 / Issue #116: #115 の改善域に絞った seed固定 `n=4,5,6` の少数 sweep `conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml` を user実行済み。root `summary.csv` が未生成だったため，Codex が既存 condition output から再シミュレーションなしで summary / plots を再生成した。結果は `n=4` のみ複数条件で v1-ready 自動指標を満たし，`n=5` は最良近傍 `flag_spring=2.25, body=2.5` でも `t=0.9060 s` に flag fail，`n=6` は `flag_spring=2.25, body=2.0` でも `t=0.4955 s` に flag fail した。#119 へ渡す seed00 候補は `stiffness_scales.flag_spring=2.25`, `stiffness_scales.body=2.5`, `n=1..4` とし，`n=5,6` は現時点では training candidate から外す。#119 冒頭で `conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml` を同候補値で実行し，`n=1,2,3` の v0 baseline を壊していないことを確認する。広い `flag_spring/body` heatmap は優先せず，`n=5,6` を戻す場合は proximal local bond `1-2` 近傍の別補強候補を検討する。
-* Phase 2.8 / Issue #119: 改善モデル dataset v1 の36 sample raw outputとcanonical dataset `outputs/phase2_analysis/flagella_count_behavior/datasets/v1` を生成した。全step QCでは `n=1,2,3` が27/27 strict pass，`n=4` は6/9 strict pass，3/9 `flag` failだった。途中failure後に最終stepで回復した2件もML候補へ戻さないようdataset builderを全時系列判定へ修正した。2026-07-16 のuser visual reviewで `n=1,2,3` の定性判断を承認し，training candidateとして確定した。`n=4` は全体形状が良好でも非等速回転とstrict QC failureが残るためdiagnostic-onlyとし，形状依存のelastic / hydrodynamic load，`diffusive` torque作用位置，局所変形の切り分けはIssue #124で扱う。v0比で `n=3` は平均速度 `+2.2%`，直進性 `-16.0%`，角速度RMS `+24.2%` だが，visual reviewでは問題なしと判断した。
-* Phase 2→3 / Issue #125: Phase 2 handoff baseline は dataset v1 の RUN固定 `n_flagella=1,2,3` とする。`n=4` は diagnostic-only，`n>=5` は対象外，TUMBLE / Brownian / torque variation / model変更は baseline外とし，#124 / #69 / #15 / #128 へ分離する。Phase 3 は実動画 detection 経路と擬似動画 GT passthrough 経路を共通 clip / metadata schema へ収束させる。正本は `docs/phase2/phase2_8_phase2_to_phase3_handoff.md`。
-* Phase 2→3 / Issue #126: dataset v1 の `n_flagella=1,2,3` について，raw `trajectory.csv` から renderer の body-centered camera frame に合わせた2D投影特徴量を抽出する `scripts/02_phase2_analysis/analyze_2d_separability.py` を追加した。27 sample の grouped nearest-centroid baseline は `19/27 = 0.704` で，body center translation を除いても body axis の向き変化には本数差が一部残る。今回の観測時間スケールは source run 全体 `1.0 s` であり，画像frame由来特徴と短時間clip窓 `0.25 s` / `0.5 s` / `1.0 s` の識別性は #127 / #129 へ接続する。
-* Phase 2 / Issue #158: dataset v1 r1 3.0 s run の `n_flagella=3` failure 診断では，4 failすべての first-fail local bond が proximal `1-2` または `2-3` だった。`attach_seed=0` は3/3 pass，`attach_seed=2` は3/3 fail，`attach_seed=1` は phase依存で1/3 fail となった。`attach_seed=0` は attach pair distance が全て `0.866 um` の対称配置，`attach_seed=1/2` は centroid offset `0.333 um` と最小pair distance `0.5 um` を持つ非対称配置であり，最有力原因は非対称attach geometry，初期helix phase，basal load transfer の組み合わせによる proximal flag bond への局所負荷集中と整理した。flag-flag repulsion は4 fail中3条件でfirst-fail前0，flag-body bead proxy gapはpass条件にも同程度に出るため主因とは判定しない。dataset v2生成は行わず，修正候補は proximal flag bond 専用の load relief / stiffness profile と attach geometry QC とする。詳細は `docs/phase2/phase2_158_v1_r1_nf3_proximal_diagnostics.md`。
-* Phase 2.9 / Issue #69: Tumble状態を段階実装する。まず設計・診断，次にmotor reversal，polymorph切替，run-and-tumble評価へ分ける。
+* 2015 refined geometryの実装
+* project / paper motor dynamicsの実装
+* Stage A専用runnerと診断出力の実装
+* motor-off pilotの完走
+* Stage A判定閾値の固定
+* `dt_star=1e-4` / `1e-5`比較用profileと解析導線の実装
+
+未完:
+
+* `dt_star=1e-4` motor-off `0.1 tau`の参考run
+* `dt_star=1e-4` motor-on `1 tau`の参考run
+* `dt_star=1e-5` motor-on `0.1 tau`との刻み感度比較
+* replayによる定性評価
+* 必要に応じたcanonical motor-on `1 tau`の実行
+* 2015 profileの採否判断
+
+詳細:
+
+* Issue #168
+* PR #176
+* `docs/phase2/phase2_168_2015_stage_a_validation.md`
+
+## Next queue
+
+Phase 2では、以下を次候補とする。必要に応じて並列に進める。
+
+### 1. Issue #154: 2015 refined modelの次段階
+
+Issue #168のStage A結果を受けて、2015 modelの次段階へ進む。
+
+主な候補:
+
+* Stage Bの評価条件を定義する
+* 遊泳速度、body rotation、flagellar rotation、wobbleを評価する
+* Kong et al. (2015)の定量値との比較範囲を決める
+* project profileとpaper profileの採用目的を分ける
+
+Stage B用の子Issueを作成した場合は、Issue #154ではなく子Issueをここへ記載する。
+
+### 2. Issue #158: n=3長時間非定常回転とproximal failure
+
+dataset v1 r1の `n_flagella=3` 長時間runで残った、非定常回転とproximal flag bond failureの原因を分離する。
+
+結果はdataset v2の物理モデルとquality gateへ反映する。
+
+### 3. Issue #157: dataset v2生成・品質改善
+
+修正後の物理モデルを用いて、RUN固定 `n_flagella=1,2,3` のdataset v2 coreを先にfreezeする。
+
+主な条件:
+
+* source durationは5秒を候補とする
+* attach × phaseの独立runを評価する
+* training candidateは全時間strict-passを要求する
+* RUN–TUMBLEはv2 core完了後の別scopeとして扱う
 
 ## Current blockers
 
-* P2-7代表条件は `hook_wrapped_axis_aligned` であり，hook length fail は残る。#71 のRUN本数差評価では前提リスクとして扱う。
-* #82/#94 の attach-frame 補強は hook過伸長を 0.5 s 代表条件で抑えるが，長時間では flagellum bond 過伸長が支配的になる。#103 の整理後は `ft=1.5` を維持候補から外し，default は `motor.local_attach_frame_position_scale=1.25`, `motor.local_attach_frame_tangent_scale=1.0`, `motor.local_first_second_spring_scale=1.0` とする。Issue #94 後は破綻 flag / bead pair を CSV で追え，非有限座標・SVD失敗も fail-safe に記録できるが，根本的な flag bond 安定化は未解決である。出力整理では `step_summary.csv`，`trajectory.csv`，`state_archive.npz`，`manifest.json` を再現用として保持し，途中停止run・重複run・報告に使わない再生成可能な動画/frameだけを削除対象にする。
-* #97 の 2x2 torque distribution 候補は，後方 1.0 s で全条件 `flag` fail，側方 0.6 s で剛体回転様の user定性評価となったため採用しない。#103 の初期診断も `ft` / `basal_bearing` の継続採用には至らなかった。position-only 比較の結果，#82 へ返す posterior 代表候補は `fp1p25`，次点は `fp1p5`，lateral の自然回転参照点は `no_frame` とした。採用判断では `final_shape_pass_nonbody` 単独ではなく `first_fail_category_nonbody` / `first_fail_t_s` を優先して読む。残る blocker は `n_flagella>=4` の flag bond / body_spring 安定化であり，Issue #124 で扱う。
-* #71 の3D RUN本数差分析は v1 `n=1,2,3` を training candidate として Phase 3 / 4 へ引き渡せる段階にある。#125 では handoff 境界を固定し，2D識別性は #126，共通clip仕様は #127，条件変更の混在規則は #128，clip時間長と独立run数は #129 で扱う。
-* #126 の初期2D特徴量評価は完了し，`trajectory.csv` のXY投影では本数差が残る。実際のpseudo-microscopy画像からの検出・短時間clip化・grouped splitは #127 / #129 で引き続き設計する。
-* #69 は一括実装にせず，設計・診断から段階化する必要がある。
+* 2015 profileの採用は、Issue #168のStage A完了待ち
+* 2015 Stage Bの開始条件は、Stage Aの刻み感度、安定性、定性評価結果待ち
+* dataset v2は、Issue #158の長時間failure診断とIssue #157のquality gate確定待ち
+* RUN–TUMBLEは、dataset v2 RUN core完了後にIssue #69で扱う
+* `n_flagella>=4`は現行training scope外とし、必要時はIssue #124で物理安定化を扱う
+* flagella-body貫通の検証が必要な場合はIssue #93で扱う
 
-## Default read path
+open Issueの一覧はこのファイルへ列挙せず、Phase 2 roadmapまたは各親Issueを参照する。
 
-Phase 2 task の開始時は，次の順で必要な範囲だけ読む。
+## Context routing
+
+Phase 2作業では、以下の順に必要な範囲だけ読む。
 
 1. `AGENTS.md`
 2. この `docs/phase2/phase2_current.md`
-3. 対象 issue / PR 本文とコメント
-4. `docs/phase2/phase2_tasks.md` の該当 task 周辺
-5. 該当する `docs/phase2/phase2_*.md`
-6. 関連する `docs/codex-runs/*/review_result.json`
+3. 対象Issue / PR
+4. 対象Issueに対応する `docs/phase2/phase2_*.md`
+5. 採択済みtask statusが必要な場合のみ `docs/phase2/phase2_tasks.md`
+6. 設計判断の根拠が必要な場合のみ `docs/phase2/phase2_decision_index.md` と `docs/adr/`
+7. 過去の作業結果が必要な場合のみ、対応する `review_result.json`
+8. 上記で不足する場合のみ、Git履歴、PR履歴、generated outputを確認する
 
-`docs/PROJECT_PLAN.md` は，全体地図や phase-level context が必要な場合だけ読む。
+原則として最初に全文を読まない:
+
+* `docs/PROJECT_PLAN.md`
+* `work_log.md`
+* 大規模CSV
+* 長いrun log
+* `outputs/` 配下のgenerated artifacts
+
+長い文書や出力を確認する場合は、先に検索して対象箇所、列、step範囲を限定する。
 
 ## Key references
 
-* Accepted Phase 2 tasks: `docs/phase2/phase2_tasks.md`
-* Overall project map: `docs/PROJECT_PLAN.md`
-* Phase 2.6 single flagellum gate: `docs/phase2/phase2_6_helix_retention_gate.md`
-* Phase 2.6 torque model evaluation: `docs/phase2/phase2_6_torque_transmission_model_evaluation.md`
-* Phase 2.7 bundling plan: `docs/phase2/phase2_7_bundling_stability_plan.md`
-* Phase 2.7 helix axis diagnostics: `docs/phase2/phase2_7_flag_helix_axis_diagnostics.md`
-* Phase 2.8 flagella count feature definitions: `docs/phase2/phase2_8_flagella_count_feature_definitions.md`
-* Phase 2→3 handoff: `docs/phase2/phase2_8_phase2_to_phase3_handoff.md`
-* 2010 potential式照合: `docs/phase2/phase2_163_2010_potential_correspondence.md`
-* 2010 potential ADR: `docs/adr/0009_phase2_2010_potential_formulations.md`
-* Model config profile ADR: `docs/adr/0010_phase2_model_config_profiles.md`
-* Root torque segment-couple ADR: `docs/adr/0004_phase2_material_frame_twist_transmission.md`
-* Codex workflow details: `docs/codex/codex_workflow.md`
+現在のPhase 2作業で優先する参照先:
 
-## Recent run anchors
+* 採択済みtask status: `docs/phase2/phase2_tasks.md`
+* 判断根拠一覧: `docs/phase2/phase2_decision_index.md`
+* 2015 Stage A: `docs/phase2/phase2_168_2015_stage_a_validation.md`
+* Phase 2からPhase 3へのhandoff: `docs/phase2/phase2_8_phase2_to_phase3_handoff.md`
+* Dataset version registry: `docs/phase2/phase2_8_dataset_version_registry.md`
+* Phase 2 roadmap: Issue #134
+* 2015 refined model parent: Issue #154
+* Dataset v2 roadmap: Issue #157
+* n=3 long-run diagnostics: Issue #158
+* 設計判断: `docs/adr/`
 
-* `docs/codex-runs/20260616_144322_phase2_7_axis_alignment_definition/review_result.json`
-* `docs/codex-runs/20260616_211555_phase2_7_axis_plot_readability/review_result.json`
-* `docs/codex-runs/20260616_121312_phase2_7_issue58_helix_axis_integration/review_result.json`
+個別の実装仕様や過去の定量結果は、対応するIssue、PR、ADR、個別文書を参照する。
 
-## Usually do not read first
+## Maintenance rule
 
-* `work_log.md`: read only after the matching `review_result.json` is insufficient.
-* Large CSVs and generated outputs under `outputs/`: inspect only when summary docs cannot answer the question.
+このファイルは以下の規則で維持する。
 
-## Completion update rule
+* Active workは原則1件とする
+* 並列作業中はActive workを複数記載してよい
+* Next queueは最大3件とする
+* 完了したIssueはActive workから削除する
+* 完了したIssueの詳細結果を追記し続けない
+* 完了後も必要な判断は `phase2_decision_index.md` から根拠へ辿れるようにする
+* parameter値、閾値、output path、実行日時、pass件数、failure条件一覧を記載しない
+* config、ADR、個別文書と同じ説明を重複して記載しない
+* 更新時は、新しい情報の追加と同時に古くなった情報を削除する
+* 本文は目安として80行・4,000文字以内に保つ
+* 上限を超える場合は、情報を個別文書またはdecision indexへ移す
 
-Phase 2 task completion should update only the documents needed by the result:
-
-* Always: `docs/codex-runs/<run-id>/review_result.json`
-* Usually: `docs/phase2/phase2_current.md`
-* When accepted task status changes: `docs/phase2/phase2_tasks.md`
-* When project-level phase status changes: `docs/PROJECT_PLAN.md`
-* When a modeling or workflow decision is significant: `docs/adr/`
-* When Codex workflow details change: `docs/codex/codex_workflow.md`
-
-Do not mark a task complete unless the relevant review result is `PASS`.
+Phase 2 taskの完了条件、commit、push、PR、review resultの一般規則は `AGENTS.md` と `docs/codex/` を正本とし、このファイルへ重複記載しない。
