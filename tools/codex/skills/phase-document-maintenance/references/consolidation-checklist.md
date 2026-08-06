@@ -194,7 +194,8 @@ Action:
 
 ```bash
 rg -n "<deleted-path>|<deleted-file-name>" \
-  AGENTS.md README.md docs tools scripts conf schemas tests
+  AGENTS.md README.md docs tools scripts conf schemas tests \
+  -g'!docs/codex-runs/**'
 ```
 
 必要に応じて判断語も検索する．
