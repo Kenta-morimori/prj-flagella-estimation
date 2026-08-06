@@ -202,7 +202,8 @@ git diff --check
 
 ```bash
 rg -n "<deleted-path>|<deleted-file-name>" \
-  AGENTS.md README.md docs tools scripts conf schemas tests
+  AGENTS.md README.md docs tools scripts conf schemas tests \
+  -g'!docs/codex-runs/**'
 ```
 
 skill追加・更新時:
