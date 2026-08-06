@@ -1,136 +1,64 @@
-# Phase 3 Tasks
+# Phase 3 Decisions
 
-このファイルは Phase 3 の採択済みタスクを管理する。
+この文書は，Phase 3の後続開発で必要となる採択判断と根拠を保持する．
 
-チェックボックスは review PASS 後にのみ更新する。
+Issue単位の進捗台帳ではない．現在の作業状態は`phase3_current.md`，詳細なschemaは対応するschema文書とmachine-readable schemaを正本とする．
 
-## Phase 3.1: common clip / metadata schema
+## P3-D01: 実動画・擬似動画の共通clip schema
 
-### P3-1-001: Issue #127 実動画と擬似動画の共通clip schemaを決める
+* **Status:** adopted
+* **Background:** 実動画はdetection / trackingを必要とする一方，Phase 2擬似動画はGround Truth trackを利用できる．入力経路が異なっても，Phase 4へ渡す形式は共通化する必要があった．
+* **Change:** `detection_tracking`と`gt_passthrough`を同じclip metadata schemaへ収束させた．経路差は`processing_mode`，`label_source`，provenanceで表現する．
+* **Result:** machine-readable schema，最小fixture，contract testを追加し，必須fieldと条件付きvalidationを固定した．
+* **Decision:** Phase 4は入力経路ではなく共通schemaを読み，dataset splitには`track.group_key`を使用する．
+* **Evidence:** Issue #127，PR #142，`docs/phase3/phase3_1_clip_metadata_schema.md`，`schemas/phase3_clip_metadata.schema.json`，`tests/test_phase3_clip_metadata_schema.py`
 
-- status: complete
-- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/127`
-- branch: `feature/phase3-127-clip-schema`
-- goal: 実動画 detection / tracking 経路と Phase 2 擬似動画 GT passthrough 経路を，Phase 4 が共通利用できる個体clip / metadata schemaへ収束させる。
-- result:
-  - 共通 schema 正本を `docs/phase3/phase3_1_clip_metadata_schema.md` に追加した。
-  - 機械可読 schema を `schemas/phase3_clip_metadata.schema.json` に追加した。
-  - 最小 fixture を `examples/phase3/clip_metadata_minimal.json` に追加した。
-  - schema required field，`group_key`，Phase 2 GT label，実動画 label unavailable 状態を pytest で固定した。
-  - 実装範囲は schema / fixture / contract test までとし，detection / tracking / crop CLI は #6，clip時間長と独立run数は #129，条件混在規則は #128 へ残した。
-- acceptance criteria:
-  - [x] 実動画・擬似動画の入力差分と共通処理が表で文書化されている。
-  - [x] 個体clipとmetadataの必須項目・型・単位が定義されている。
-  - [x] detectionを省略してもPhase 3出力schemaが変わらない。
-  - [x] dataset split時のgroup keyが保持される。
-  - [x] 実装Issueへ分割できる粒度の仕様になっている。
-- verification:
-  - `uv run pytest tests/test_phase3_clip_metadata_schema.py -q`
-- docs:
-  - `docs/phase3/phase3_1_clip_metadata_schema.md`
-  - `docs/phase3/phase3_issue_map.md`
+## P3-D02: clip時間長と独立sample単位
 
-## Phase 3.2: clip duration / dataset mixing / pipeline prep
+* **Status:** adopted
+* **Background:** 同一runやtrackから複数clipを生成できるため，clip数と独立sample数を分離する必要があった．
+* **Change:** `0.25 s`，`0.5 s`，`1.0 s`とnon-overlap / overlapを比較し，split単位を`track.group_key`へ統一した．
+* **Comparison:** `0.25 s`は短時間耐性，`1.0 s`はfull-run比較，overlapは反復観測として扱った．
+* **Result:** `0.5 s`で現行sourceから複数windowを生成でき，Phase 4の入力単位として利用できた．
+* **Interpretation:** 同一run内clip，overlap window，同一raw runのrender variationは独立sampleではない．
+* **Decision:** MVP defaultを`0.5 s`，window policyを`non_overlap`とする．独立数はpseudo dataでは`run_id`，実動画では`source_video_id`と`track_id`の組み合わせで数える．
+* **Evidence:** Issue #129，`conf/phase3/gt_passthrough_v1.yaml`，`conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml`
 
-### P3-2-001: Issues #129 / #128 / #6 Phase 3 schema後続設計を整理する
+## P3-D03: Phase 2擬似dataのGT passthrough
 
-- status: complete
-- source issues:
-  - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/129`
-  - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/128`
-  - `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/6`
-- branch: `docs/phase3-roadmap-housekeeping-129-128`
-- goal: #127 / PR #142 merge後の roadmap housekeeping を行い，clip duration，dataset mixing / versioning，最小 common clip pipeline 実装準備を #127 schema と接続する。
-- result:
-  - #127 が closed / merged 済みであり，active PR がないことを `docs/ROADMAP.md`，`docs/phase3/phase3_current.md`，`docs/phase3/phase3_issue_map.md` に反映した。
-  - #129 の用語，`track.group_key` による grouped split，`0.25 s` / `0.5 s` / `1.0 s` と non-overlap / overlap の評価設計を `docs/phase3/phase3_2_clip_duration_run_count.md` に整理した。
-  - #128 の観測augmentation，独立run，domain variation，dataset version変更の分類と，`model_id` / `render_id` / `dataset_version` / `group_key` の扱いを `docs/phase3/phase3_3_dataset_mixing_versioning.md` に整理した。
-  - #6 の最小実装を擬似動画 GT passthrough から始める作業分解，入出力，test境界を `docs/phase3/phase3_4_common_clip_pipeline_plan.md` に整理した。
-  - 追加判断として，MVP default clip duration を `0.5 s`，torque variation を diagnostic-only，render variation を軽い augmentation のみ，Brownian を当面対象外，RUN-TUMBLE を v2以降の短縮 profile，`n_flagella=4` をv2再検討対象として固定した。
-  - 重い learning curve / pilot clip dataset 実行は未実行とし，draft exact command，出力先，判断ポイントを docs に残した。
-- acceptance criteria:
-  - [x] #127 の closed / merged 状態が docs と整合している。
-  - [x] clip duration / source duration / simulation run / track / window の用語が整理されている。
-  - [x] grouped split と leakage 防止規則が #127 schema の `group_key` と接続されている。
-  - [x] `0.25 s` / `0.5 s` / `1.0 s`，non-overlap / overlap の評価設計がある。
-  - [x] augmentation / domain variation / dataset version 規則が #127 schema provenance と接続されている。
-  - [x] #6 の最小 GT passthrough pipeline 実装境界が整理されている。
-- verification:
-  - `git diff --check`
-  - `uv run ruff format --check .`
-  - `uv run ruff check .`
-- docs:
-  - `docs/ROADMAP.md`
-  - `docs/phase3/phase3_current.md`
-  - `docs/phase3/phase3_issue_map.md`
-  - `docs/phase3/phase3_1_clip_metadata_schema.md`
-  - `docs/phase3/phase3_2_clip_duration_run_count.md`
-  - `docs/phase3/phase3_3_dataset_mixing_versioning.md`
-  - `docs/phase3/phase3_4_common_clip_pipeline_plan.md`
+* **Status:** adopted
+* **Background:** Phase 2擬似dataではbody positionとlabelを取得できるため，再度detectionを行う必要がなかった．
+* **Change:** state archiveからwindow生成，rasterize，metadata生成，grouped split，QC summaryまでを行うPhase 3 pipelineを実装した．
+* **Result:** `.npy` clipと共通metadataを生成し，Phase 4が再検出せず読み込めるようになった．
+* **Decision:** pseudo dataはGT passthroughを標準経路とし，将来の実動画経路はadapter境界の後段で同じmetadata builderへ接続する．
+* **Evidence:** Issue #6，PR #144，`src/flagella_estimation/phase3/`，`scripts/03_phase3/build_clip_dataset.py`，`tests/test_phase3_gt_passthrough_pipeline.py`
 
-## Phase 3.3: common clip pipeline MVP
+## P3-D04: dataset v1 r1 common clip dataset
 
-### P3-3-001: Issue #6 Phase 2 pseudo GT passthrough の最小実装
+* **Status:** adopted
+* **Background:** dataset v1 r1の3秒runを，Phase 4で扱える固定長clipへ変換する必要があった．
+* **Change:** 27 independent runsを0.5秒non-overlap windowへ分割し，run / window QC，first-fail時刻，training candidate，diagnostic-onlyをmetadataへ伝搬した．
+* **Comparison:** 3D / 2D replayにより，斜め姿勢とz方向へ正対した場合のsilhouetteを確認した．
+* **Result:** 各runから5 clipを生成でき，`body_capsule_orthographic_v1`によるrigid capsule renderが目視評価で採択された．
+* **Interpretation:** first-failを含むwindowとそれ以後は診断用であり，early clipは削除せずPhase 4側の選択条件として扱える．
+* **Decision:** 全windowをartifactとして保持し，first-failを含むwindowとそれ以後をdiagnostic-onlyとする．canonical renderは`body_capsule_orthographic_v1`とする．
+* **Evidence:** Issue #159，PR #161，`conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml`，Phase 3 replay，Phase 4 freeze audit
 
-- status: complete
-- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/6`
-- branch: `feature/phase3-6-gt-passthrough`
-- goal: Phase 2 dataset v1 の擬似動画 GT を再検出せず，共通 clip / metadata schema へ変換する最小 pipeline を実装する。
-- result:
-  - `src/flagella_estimation/phase3/` に window generation，state archive rasterize，metadata builder，grouped split，pipeline orchestration を追加した。
-  - `scripts/03_phase3/build_clip_dataset.py` で `config=...` と `KEY=VALUE` override を受ける CLI を追加した。
-  - `conf/phase3/gt_passthrough_v1.yaml` に v1 pilot 用 default を追加した。
-  - MVP freeze として `n_flagella=1,2,3`，`use_for_ml_candidate=True`，baseline torque only を固定した。
-  - 出力は `run.log`，`manifest.json`，`clip_metadata.jsonl`，`split_summary.csv`，`qc_summary.csv`，`clips/<clip_id>.npy` とした。
-  - 実動画 detection / tracking は #8 / #9 後の別実装へ残した。
-- acceptance criteria:
-  - [x] `src/flagella_estimation/`のPhase 3 package構成がある。
-  - [x] 擬似動画のGround Truth passthroughを実装する。
-  - [x] 個体clipとmetadataを出力する。
-  - [x] 同一run / track由来データをgroup化できる。
-  - [x] library-level testを追加する。
-  - [ ] 実動画のdetection / trackingを実装する。
-  - [ ] 実動画・擬似動画を同じCLI / library境界から処理できる。
-- verification:
-  - `uv run pytest -q tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase3_clip_metadata_schema.py`
-- docs:
-  - `docs/phase3/phase3_current.md`
-  - `docs/phase3/phase3_4_common_clip_pipeline_plan.md`
+## P3-D05: dataset mixingとversion境界
 
-### P3-3-002: Issue #159 dataset v1 r1 3秒runを0.5秒clip datasetへ変換する
+* **Status:** adopted
+* **Background:** render variation，seed違い，物理条件変更，model変更を同一datasetへ混在させると，split leakageとdataset解釈の不整合が生じる．
+* **Change:** 条件変更を観測augmentation，独立run，domain variation，dataset version変更へ分類し，identifierとfreeze gateの責務を定めた．
+* **Result:** Phase 4のmachine-readable freeze auditでdataset，model，render，group，source provenanceを検査できるようになった．
+* **Decision:** 同一raw run由来のvariationは同じ`group_key`を維持する．domain variationやmodel変更をbaselineへ無条件に混ぜない．詳細はADR 0015を正本とする．
+* **Evidence:** Issue #128，`docs/adr/0015_dataset_mixing_and_versioning.md`，`conf/phase4/dataset_freeze_v1.yaml`，`conf/phase4/dataset_freeze_v1_r1.yaml`
 
-- status: complete
-- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/159`
-- branch: `feature/phase3-v1-r1-clip-dataset`
-- goal: 既存dataset v1 r1の3秒run 27件を，0.5秒non-overlap clipへ変換し，window QC，grouped split，replay，freeze auditを備えたPhase 3共通clip datasetとしてPhase 4 MLへ渡せる状態にする。
-- result:
-  - `conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml` を追加し，既存 `outputs/phase2_multi_run/flagella_count_duration_3s_r1/dataset/v1_r1_duration_3s` から5 clips/runを生成できるようにした。
-  - 最終採択済みの Phase 3 common clip dataset v1 は `outputs/phase3_common_clip/datasets/v1/` を canonical path とし，probe / staging の timestamp output と分離する。
-  - clip metadataへ `dataset_revision`，`clip.time_band`，run/window QC，first-fail時刻，pre-first-fail，training_candidate，diagnostic-only，exclusion_reasonを伝搬した。
-  - first-failを含むwindowとそれ以降を diagnostic-only とし，early clipは削除せず Phase 4 の `warmup_s=0.0/0.5/1.0` 選択条件として扱う。
-  - Phase 4 loader / freeze audit / baseline trainingを，training candidate選択とrun-balanced sample weightへ接続した。
-  - `scripts/03_phase3/replay_clip_dataset.py` で `.npy` clipからcontact sheetを再生成し，titleにclass/run/clip/time band/QC labelを表示できるようにした。
-  - stacked PR #161 でcanonical 2D renderを `body_capsule_orthographic_v1` へ更新し，全長2.0 µm・幅1.0 µmの剛体capsuleについて斜め姿勢のforeshorteningとz正対時の円形silhouetteを反映した。2026-07-31のユーザー定性評価で，`nf02_as000_ps001_c0004`を含む3D/2D replayを採択した。
-  - replayはfilter後の全clipをdefault対象とし，1本あたり12 clipで複数MP4へ分割する。
-  - `scripts/README.md` に probe，full build，replay，freeze audit の exact command と確認点を追加した。
-- acceptance criteria:
-  - [x] 27 run全てから0.5秒clip artifactを生成できる実装がある。
-  - [x] clip数，class数，独立group数，QC別数をsummaryへ保存する。
-  - [x] pre-first-failとdiagnostic-onlyの境界がfirst-fail時刻と一致する。
-  - [x] group leakageがない。
-  - [x] clip replayでデータ内容とQC labelを確認できる。
-  - [x] freeze audit，tests，review_resultがPASSする。
-  - [x] Phase 4 MLが同じdatasetを再検出なしで読み込める。
-- verification:
-  - `uv run ruff check .`
-  - `uv run pytest -q tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase4_clip_dataset_loader.py tests/test_phase4_dataset_freeze.py tests/test_phase4_baseline_classifier.py tests/test_phase4_learning_curve.py`
-  - `uv run pytest -q`
-  - `uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml filters.max_per_class=1`
-  - full build user command: `uv run python scripts/03_phase3/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml output_dir=outputs/phase3_common_clip/datasets/v1`
-  - `uv run python scripts/04_phase4/audit_dataset_freeze.py config=conf/phase4/dataset_freeze_v1_r1.yaml dataset_dir=outputs/2026-07-31/163726/phase3_v1_r1_clip_dataset`
-  - `uv run python scripts/03_phase3/replay_clip_dataset.py outputs/2026-07-31/163726/phase3_v1_r1_clip_dataset --max-clips 3 --frames-per-clip 2`
-  - `uv run python scripts/03_phase3/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1 --run-id nf02_as000_ps001 --clip-index 4`
-  - `uv run python scripts/04_phase4/audit_dataset_freeze.py config=conf/phase4/dataset_freeze_v1_r1.yaml dataset_dir=outputs/2026-07-31/205818/phase3_v1_r1_clip_dataset` -> PASS
-- docs:
-  - `docs/phase3/phase3_current.md`
-  - `scripts/README.md`
+## P3-D06: 実動画のdetection / tracking経路
+
+* **Status:** pending
+* **Background:** 実動画にはPhase 2のGround Truth trackと`n_flagella` labelが存在せず，低コントラスト菌体と背景artifactを区別する必要がある．
+* **Change:** 共通schemaにbody axis，長短径，detection confidence，tracking gapなどの任意fieldを定義した．
+* **Result:** 初期のthresholdingとconnected componentsでは，小さい黒点，背景noise，リング状artifactを多く検出し，採用手法を確定できなかった．
+* **Interpretation:** detectorとnormalizationを確定するには，実動画の入力条件と実菌体scaleの整理が先に必要である．
+* **Decision:** #8で入力条件，#9でscale normalization，#17でrender条件を整理した後に実動画経路を実装する．共通出力schemaは変更しない．
+* **Evidence:** Issues #6，#8，#9，#17，`docs/phase3/phase3_1_clip_metadata_schema.md`

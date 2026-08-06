@@ -8,161 +8,95 @@ This repository develops a pipeline to estimate bacterial flagella counts from s
 
 Phases:
 
-1. Phase 1: repository, CLI, config, logging, reproducibility foundations.
+1. Phase 1: repository, CLI, config, logging, and reproducibility foundations.
 2. Phase 2: 3D physical simulation and 2D pseudo-microscopy video generation.
 3. Phase 3: cell detection and per-cell clip generation.
 4. Phase 4: flagella-count model training and evaluation.
 5. Phase 5+: prediction visualization and real-data analysis support.
 
-Current focus: **Phase 2**.
+## Context Routing
 
-## Source Of Truth
+Read only what is needed for the task, in this order:
 
-Read only what is needed for the task.
+1. `AGENTS.md`
+2. The user's latest request and the target Issue or PR
+3. `docs/phaseX/phaseX_current.md`
+4. `docs/phaseX/phaseX_guide.md` when it exists and phase-specific rules are relevant
+5. The relevant section of `docs/phaseX/phaseX_tasks.md` when past decisions are needed
+6. Live schemas, contracts, configs, tests, and active validation documents
+7. ADRs
+8. Issue / PR history, Git history, and `docs/codex-runs/*/review_result.json`
 
-Priority:
+Use `rg -n` before opening long Markdown files, logs, CSVs, or generated outputs.
+For prior Codex runs, read `review_result.json` before `work_log.md`.
+Do not read large files under `outputs/` unless compact summaries and manifests are insufficient.
 
-1. Repository-wide rules: `AGENTS.md`
-2. Current Phase 2 entry point: `docs/phase2/phase2_current.md`
-3. Accepted task status: `docs/phase2/phase2_tasks.md`
-4. Active project roadmap and issue hierarchy: `docs/ROADMAP.md`
-5. Overall project map: `docs/PROJECT_PLAN.md`
-6. Current Phase 3 entry point when working on Phase 3: `docs/phase3/phase3_current.md`
-7. Codex workflow details: `docs/codex/codex_workflow.md`
-8. ADRs and task-specific docs under `docs/`
-9. Historical context: Git history, issue/PR history, and `docs/codex-runs/*/review_result.json`
-
-There is no `prompts/` source of truth in the current repository. Do not recreate prompt-based workflow files unless a new task explicitly reintroduces them.
-
-## Context Reading Policy
-
-* Always start from this file, the user's latest request, and the target issue or PR when provided.
-* For Phase 2 work, read `docs/phase2/phase2_current.md` before longer project documents.
-* Use `rg -n` before opening long Markdown files, logs, CSVs, or generated outputs.
-* Read only relevant sections by default.
-* For prior Codex runs, read `review_result.json` before `work_log.md`.
-* Do not read large generated files under `outputs/` unless summaries and docs are insufficient.
-
-## Language Policy
+## Language
 
 * Communicate with the user in Japanese unless explicitly requested otherwise.
-* Write user-facing project documents in Japanese by default, especially under `docs/phase*/` and `docs/codex-runs/`.
-* Keep technical identifiers, config keys, filenames, column names, commands, and accepted domain terms in their original form when translation would reduce precision.
-* Prefer concise explanations with clear evidence and verification results.
+* Write user-facing project documents in Japanese by default.
+* Keep technical identifiers in their original form when translation reduces precision.
 
 ## Repository Rules
 
 * Do not work directly on `main` or `master`.
-* Check current branch and `git status` before making changes.
-* After a PR is merged, sync the default branch and delete that task branch locally and remotely. Do not delete unmerged branches or branches retained for active follow-up work without an explicit decision.
-* Keep changes within the requested task scope.
-* Do not make broad refactors unless required by the task.
+* Check the current branch and `git status` before making changes.
+* Keep changes within scope; do not make broad refactors unless required.
 * Do not add dependencies without explaining why they are necessary.
-* Do not commit secrets, API keys, tokens, private data, or generated credentials.
-* Do not run remote scripts directly, such as `curl ... | sh`, unless explicitly approved by the user.
-* GitHub issues may be created when needed to track an accepted task, split follow-up work, or keep Project items structured.
-* Small PRs may be merged by Codex only when `review_result.json` is `PASS`, CI passes, `codex-review-gate` passes, and no user visual review or major design decision is pending.
-* Do not merge PRs that change physical interpretation, dataset adoption, phase boundaries, ML training policy, output contracts, or qualitative acceptance without explicit user approval.
-* When creating a PR for an issue, link the original source issue in the PR body using an issue-closing keyword when the PR is intended to complete it.
-* Target the branch specified by the task or issue. If no target branch is specified, target the repository default branch.
-* Do not mark a task complete without a local `review_result.json` with `"status": "PASS"`.
+* Do not commit secrets, tokens, credentials, private data, or generated authentication files.
+* Do not run remote scripts such as `curl ... | sh` without explicit user approval.
+* Target the branch specified by the task or Issue; otherwise target the default branch.
+* Link the source Issue from a PR when the PR is intended to complete it.
+* Do not mark a task complete without a local `review_result.json` whose status is `PASS`.
+* Do not merge unless required checks and `codex-review-gate` pass.
+* Do not merge changes to physical interpretation, dataset adoption, phase boundaries, output contracts, or ML policy without explicit user approval.
+* After merge, sync the default branch and delete the completed task branch unless intentionally retained.
 
 ## Directory Responsibilities
 
-* `scripts/`: user-facing CLI entrypoints; keep orchestration, config loading, output setup, logging, and manifest handling here.
+* `scripts/`: user-facing CLI entrypoints and orchestration.
 * `src/`: reusable implementation and core algorithms.
-* `src/sim_swim/`: Phase 2 simulation implementation.
-* `src/flagella_estimation/`: Phase 3-4 detection and ML implementation.
-* `tools/codex/`: Codex-specific workflow helpers.
-* `docs/phase*/`: user-facing phase docs; new files should start with a phase prefix such as `phase2_6_...md`.
-* `docs/codex/`: Codex workflow details that are too long for this file.
-* `docs/codex-runs/`: Codex run logs and review results.
+* `conf/`: reproducible runtime configuration.
+* `schemas/`: machine-readable contracts.
+* `docs/phase*/`: phase state, decisions, contracts, and active validation documents.
+* `docs/adr/`: important design decisions.
+* `docs/codex/`: Codex workflow and documentation policy.
+* `docs/codex-runs/`: run logs and review results.
+* `tools/codex/`: Codex workflow helpers and skills.
+
+## Phase Documentation
+
+* Follow `docs/codex/phase_document_policy.md`.
+* Treat `phaseX_current.md` as the current-state entry point.
+* Treat `phaseX_tasks.md` as the compact decision record.
+* Keep task-specific documents only when they remain live contracts, active validations, or reusable reports.
+* Update current, tasks, and ADRs when a semantic decision changes.
+* Before deleting a document, preserve its decision-bearing information and update all references.
+* Use the `phase-document-maintenance` skill for consolidation, migration, or deletion.
 
 ## Output And Reproducibility
 
 * Store project outputs under `outputs/YYYY-MM-DD/HHMMSS/` using JST.
-* Each applicable run should produce `run.log` and `manifest.json`.
-* `manifest.json` should record config paths, overrides, seeds, input/output paths, Git commit information, and environment details when available.
-* Phase 2 simulation logs use `step_summary.csv` as the unified per-step summary.
-* Do not reintroduce `step_summary_full.csv` unless a task explicitly changes this decision.
-
-## Phase 2 CLI Command Convention
-
-For Phase 2 simulation, sweep, and heatmap commands, prefer `KEY=VALUE` arguments in new user-facing examples:
-
-`uv run python -m scripts.01_simulate_swimming config=conf/sim_swim_2010.yaml time.duration_s=0.5 time.dt_star=1.0e-4`
-
-`uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/hook_overstretch.yaml dry_run=true sample_limit=3`
-
-Option-style arguments such as `--config`, `--duration-s`, and `--fps-out` remain only for legacy compatibility.
+* Applicable runs should produce `run.log` and `manifest.json`.
+* Record configs, overrides, seeds, paths, Git information, and environment details when available.
+* Preserve full diagnostics when needed, but prefer compact summaries for routine analysis.
+* Phase 2 uses `step_summary.csv`; do not reintroduce `step_summary_full.csv` without an explicit decision.
 
 ## Testing And Review
 
-* The default pre-commit hook should stay lightweight: `ruff format --check .`, `ruff check .`, and `pytest -q -m light`.
-* Keep per-commit checks lightweight for development speed. Do heavier self-checks only for the merge-ready final candidate.
+* Keep default pre-commit checks lightweight.
+* Start with targeted tests and expand only when required.
 * Do not require full pytest for docs-only, planning-only, or workflow-only changes.
-* Add or update pytest tests when changing physics, geometry, output format, or pipeline behavior.
-* Prefer library-level tests over slow subprocess-based CLI tests.
-* Stability-sensitive Phase 2 behavior may require multi-step tests; one-step tests are often insufficient.
-* Do not rely only on manual video inspection.
-* If tests or simulations cannot run, record what was not run, why, and what alternative checks were performed.
-* When changing models, physics, geometry, output schema, manifest, or pipeline behavior, run full pytest or record why it was not run in `review_result.json`.
-* Request Codex Cloud review only for the merge-ready final candidate by default. If it finds issues, batch all actionable fixes, rerun merge-final self-checks, and resolve all current actionable review threads before merge.
-* After Codex addresses Codex Cloud feedback, Codex should decide whether each current thread is addressed, obsolete, or requires a reason comment, and then resolve the thread when appropriate. Do not leave addressed Codex review threads unresolved for the user to decide; unresolved current threads keep `codex-review-gate` failing.
-* After Codex Cloud feedback has been addressed, do not request another Codex review solely because the fix commit changed the PR head. Re-evaluate `codex-review-gate` instead.
-* Do not close/reopen PRs to refresh Codex review or gate state. Use normal push, wait for GitHub to sync the PR head, then use scheduled/manual `codex-review-gate` re-evaluation when needed.
-* Do not run long Phase 2 simulation, sweep, or render commands unless the user explicitly asks Codex to execute them. For long runs, provide the exact command, output directory, files to inspect, evaluation points, and checks already passed; treat the long run as user-executed.
-* Completion, review_result schema, commit, push, PR, ADR, and Cloud review details live in `docs/codex/codex_workflow.md`.
+* Add or update tests when changing physics, geometry, schemas, output formats, or pipeline behavior.
+* Prefer library-level tests over slow subprocess tests.
+* Do not rely only on visual inspection when automated checks are possible.
+* Record tests or simulations that were not run and the reason.
+* Do not run long simulations, sweeps, training jobs, or renders unless the user explicitly asks.
+* For user-executed long runs, provide the command, expected outputs, evaluation points, and checks already passed.
+* Documentation deletion or consolidation must include stale-reference checks.
+* Request Cloud review only for the merge-ready final candidate by default.
+* Resolve actionable review threads before merge.
 
-## Phase 2 Visual Review
+## Completion Report
 
-Phase 2 may require user visual review when automated metrics cannot judge behavior fully, including:
-
-* posterior or side bundling,
-* collapse or fly-away behavior,
-* body deformation,
-* helical flagellar shape preservation,
-* swimming-like propulsion,
-* naturalness of 2D pseudo-microscopy video,
-* usability for ML training.
-
-When visual review is required, report the command, expected output directory, files to inspect, evaluation points, automated checks already passed, and what cannot be determined automatically.
-
-Standard command pattern:
-
-`uv run python -m scripts.01_simulate_swimming time.duration_s=0.5 time.dt_star=1.0e-4 ...`
-
-If visual review is required but not completed, the review result remains `FAIL`.
-
-## Phase 2 Modeling Policy
-
-When working on Phase 2, distinguish:
-
-* reference paper model,
-* current repository implementation,
-* project-specific extensions,
-* numerical stabilizing approximations.
-
-Important modeling choices must be documented in task logs or ADRs when they affect interpretation, reproducibility, or downstream ML data generation.
-
-Failures such as collapse, fly-away, unstable hook motion, body deformation, or loss of helix geometry can be meaningful diagnostics. Preserve reproducible failure conditions when useful.
-
-Phase 2 baseline configs should omit `stiffness_scales` when all values are parser defaults (`1.0`). If non-default stiffness scales are kept, document the reason.
-
-For Phase 2 simulation runs, do not change the default config just to set the integration step. Use explicit runtime overrides such as `time.dt_star=1.0e-4` unless the task requires another value.
-
-## Final Response
-
-Final response should be sent only after the task state has been committed and pushed when remote access is available.
-
-After each task, report:
-
-* summary,
-* changed files,
-* tests/checks run,
-* user visual review required or not,
-* review result,
-* ADR created or not created,
-* commit hash,
-* push status,
-* remaining issues.
+Report the summary, changed files, tests and checks, unexecuted long runs, user-review status, review result, documentation updates, ADR status, commit hash, push status, and remaining issues.

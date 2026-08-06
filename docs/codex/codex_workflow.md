@@ -233,9 +233,9 @@ Task progress should be updated only after review PASS.
 
 Update targets:
 
-* Accepted task status: `docs/phase2/phase2_tasks.md`
-* Phase 2 current entry point: `docs/phase2/phase2_current.md`
-* Project-level phase status: `docs/PROJECT_PLAN.md`
+* Current phase state: `docs/phaseX/phaseX_current.md`
+* Adopted decisions: `docs/phaseX/phaseX_tasks.md`
+* Cross-phase dependency and priority: GitHub Issues / Projects
 * Completion record: `docs/codex-runs/<run-id>/review_result.json`
 
-Do not update checkboxes or completion claims in secondary docs when `review_result.json` is `FAIL`.
+Do not update completion claims in secondary docs when `review_result.json` is `FAIL`.

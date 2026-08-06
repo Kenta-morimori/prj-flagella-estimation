@@ -1,129 +1,72 @@
-# Phase 4 Tasks
+# Phase 4 Decisions
 
-このファイルは Phase 4 の採択済みタスクを管理する。
+この文書は，Phase 4の後続開発で必要となる採択判断と根拠を保持する．
 
-チェックボックスは review PASS 後にのみ更新する。
+Issue単位の進捗台帳ではない．現在の作業状態は`phase4_current.md`，datasetの条件と実行方法はconfigおよび`scripts/README.md`を正本とする．
 
-## Phase 4.1: dataset loading contract
+## P4-D01: Phase 3 common clip datasetのloader contract
 
-### P4-1-001: Issue #146 Phase 3 common clip dataset loader smoke test
+* **Status:** adopted
+* **Background:** Phase 4がPhase 3出力を再検出せず利用するため，clip，metadata，splitの整合性を検査する必要があった．
+* **Change:** `manifest.json`，`clip_metadata.jsonl`，`split_summary.csv`，`.npy` clipを読むloaderとaudit helperを実装した．
+* **Result:** clipのdtype・shape・frame数，label，split，`group_key` leakageを検出できるようになった．
+* **Decision:** Phase 4はPhase 3 common clip datasetを直接読み込み，独自の再検出や再分割を行わない．
+* **Evidence:** Issue #146，PR #147，`src/flagella_estimation/phase4/dataset.py`，`tests/test_phase4_clip_dataset_loader.py`
 
-- status: complete
-- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/146`
-- branch: `feature/phase4-146-clip-loader-smoke`
-- goal: Phase 3 common clip dataset (`.npy` clips + `clip_metadata.jsonl`) を Phase 4 が再検出なしに読めることを，学習前の smoke test として確認する。
-- result:
-  - `src/flagella_estimation/phase4/dataset.py` に Phase 3 common clip dataset loader と audit helper を追加した。
-  - loader は `manifest.json`，`clip_metadata.jsonl`，`split_summary.csv`，`.npy` clip を読み，label / split / `group_key` / shape / dtype の contract を検査する。
-  - `group_key` leakage，clip frame count mismatch，crop shape mismatch を loader 側で検出できるようにした。
-  - training loop / baseline classifier は次Issueへ残した。
-- acceptance criteria:
-  - [x] Phase 4 が Phase 3 output を再検出なしに読み込める。
-  - [x] loader-level test が PASS する。
-  - [x] split leakage と label/class count の基本監査が PASS する。
-  - [x] baseline classifier へ進むための入力 contract が文書化されている。
-- verification:
-  - `uv run pytest -q tests/test_phase4_clip_dataset_loader.py tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase3_clip_metadata_schema.py`
-- docs:
-  - `docs/phase4/phase4_current.md`
-  - `docs/phase4/phase4_tasks.md`
+## P4-D02: 診断baseline classifier
 
-## Phase 4.2: diagnostic baseline
+* **Status:** diagnostic
+* **Background:** 学習・評価pipelineとdataset contractを確認するため，軽量で決定的なbaselineが必要だった．
+* **Change:** clipの輝度，foreground，時間差分，重心移動，radial spreadを特徴量とし，standardization付きnearest-centroid classifierを実装した．
+* **Result:** Phase 3のgrouped splitを維持したまま，学習，予測，metrics，confusion matrix，model artifactを生成できた．
+* **Interpretation:** 少数のpseudo groupsに対する性能は，最終modelの性能や実動画への一般化を示さない．
+* **Decision:** このbaselineはpipeline診断とdataset比較に使用し，最終model候補として採択しない．
+* **Evidence:** Issue #148，PR #149，`conf/phase4/baseline_v1.yaml`，`tests/test_phase4_baseline_classifier.py`
 
-### P4-2-001: Issue #148 common clip baseline classifier
+## P4-D03: grouped learning curve
 
-- status: complete
-- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/148`
-- branch: `feature/phase4-148-baseline-classifier`
-- goal: Phase 3 common clip datasetを入力に，既存 grouped splitを維持した最小baseline学習・評価導線を実装する。
-- result:
-  - 時空間統計特徴量と standardization付き nearest-centroid classifierを `src/flagella_estimation/phase4/` に追加した。
-  - `dataset v1`, `n_flagella=1,2,3`, `0.5 s`, `non_overlap`, `qc.status=pass` のfreeze条件を検査する。
-  - `model.npz`, `metrics.json`, `predictions.csv`, `confusion_matrix.csv`, `manifest.json`, `run.log` を保存する。
-  - 実pilot 18 clips / 9 groupsでCLI smokeを実行し，train / validation / testのartifactを確認した。
-  - baseline性能は診断値であり，最終モデル採択や必要独立run数決定には使わない。
-- acceptance criteria:
-  - [x] Phase 3 common clip datasetからbaselineを学習・評価できる。
-  - [x] Phase 3の `group_key` splitを再分割せず維持する。
-  - [x] metrics，predictions，confusion matrix，model，manifestを保存する。
-  - [x] dataset freeze外のversionを拒否する。
-  - [x] library-level testsと実pilot CLI smokeがPASSする。
-- verification:
-  - `uv run pytest -q tests/test_phase4_baseline_classifier.py tests/test_phase4_clip_dataset_loader.py`
-  - `uv run python scripts/04_phase4/train_baseline_classifier.py config=conf/phase4/baseline_v1.yaml dataset_dir=outputs/2026-07-24/001500/phase3_gt_passthrough_v1 output_dir=outputs/2026-07-24/142055/phase4_baseline_v1`
-- docs:
-  - `docs/phase4/phase4_current.md`
-  - `docs/phase4/phase4_tasks.md`
+* **Status:** diagnostic
+* **Background:** 同一runから複数clipを生成しても独立情報は増えないため，clip数ではなく独立group数に基づくlearning curveが必要だった．
+* **Change:** 同一`group_key`のclip特徴を平均し，1 groupを1 feature vectorとして評価するevaluatorを実装した．
+* **Comparison:** train+validation pool内でclass-balancedなtrain / holdout groupsを作り，test splitを保護した．
+* **Result:** 現行pseudo-v1と診断baselineでは，4 training groups/class以降でmacro F1のplateauを確認した．
+* **Interpretation:** protected testが1 group/classであり，実動画domainも未評価であるため，一般的な必要run数を4とは決められない．
+* **Decision:** `k=4`はpseudo-v1内の診断結果として扱い，必要run数の採択範囲とprotected evaluation条件は#129で決める．
+* **Evidence:** Issue #150，PR #151，Issue #129，`conf/phase4/grouped_learning_curve_v1.yaml`，`tests/test_phase4_learning_curve.py`
 
-## Phase 4.3: grouped learning curve
+## P4-D04: dataset freezeとmixing policy
 
-### P4-3-001: Issue #150 grouped learning curve evaluator
+* **Status:** adopted
+* **Background:** dataset version，物理model，render条件，behavior条件の異なるdataが無条件に混在すると，dataset解釈と評価が不明確になる．
+* **Change:** dataset，model，render，class，clip，QC，group，Phase 2 source provenanceを検査するmachine-readable freeze auditを実装した．
+* **Result:** trainingとgrouped learning curveが同じstrict validatorを使用し，source manifestと各runの解決済みconfigまで追跡できるようになった．
+* **Decision:** dataset v1 baselineはRUN固定，`n_flagella=1,2,3`，baseline torque，Brownianなしとする．条件混在とversion境界はADR 0015を正本とする．
+* **Evidence:** Issue #128，PR #152，`docs/adr/0015_dataset_mixing_and_versioning.md`，`conf/phase4/dataset_freeze_v1.yaml`，`conf/phase4/dataset_freeze_v1_r1.yaml`，`tests/test_phase4_dataset_freeze.py`
 
-- status: complete
-- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/150`
-- branch: `feature/phase4-150-grouped-learning-curve`
-- goal: `track.group_key`を独立sample単位とするclass-balanced learning curve evaluatorを実装し，#129の必要run数判断へartifactを渡す。
-- result:
-  - 同一groupのclip特徴を平均し，1 groupを1 feature vectorとして扱う。
-  - train+val pool内でclassごとにdisjointなtrain / holdout groupsを作り，test splitを最終評価用に保護する。
-  - seed固定のbalanced group subsampling，group-level metrics，class recall，empirical percentileを出力する。
-  - 全27 v1 candidateで`k=1..6`，各class 2 holdout，100 repeatsを評価した。
-  - 現行pseudo v1 / diagnostic baselineでは`k>=4`でmacro F1 meanとempirical intervalが`1.0`になった。
-  - 一般的な必要run数の採択は #129 に残し，protected test各class 1 groupという制約を明記した。
-- acceptance criteria:
-  - [x] x軸がclassごとのunique `group_key` 数である。
-  - [x] train / holdout / protected testのgroup leakageを許さない。
-  - [x] deterministic seedで再現できる。
-  - [x] curve，summary，confusion，manifest，run logを保存する。
-  - [x] fixture testsと全27 candidate CLI smokeがPASSする。
-- verification:
-  - `uv run pytest -q tests/test_phase4_learning_curve.py tests/test_phase4_baseline_classifier.py tests/test_phase4_clip_dataset_loader.py`
-  - `uv run python scripts/04_phase4/evaluate_learning_curve.py config=conf/phase4/grouped_learning_curve_v1.yaml dataset_dir=outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates output_dir=outputs/2026-07-24/144032/phase4_grouped_learning_curve_full_candidates learning_curve.repeats=100`
+## P4-D05: 3秒duration / seed study
 
-## Phase 4.4: dataset freeze gate
+* **Status:** adopted
+* **Background:** 1秒sourceだけでは，clip開始時刻，初期過渡状態，attach / phase seed差を十分に比較できなかった．
+* **Change:** dataset v1と同じ物理条件を3秒へ延長し，`n_flagella=1,2,3`，attach seed 3条件，phase seed 3条件の27 independent runsを評価した．
+* **Comparison:** 0.25秒，0.5秒，1.0秒windowの3D / 2D特徴，run / window QC，attach×phase seed差を比較した．
+* **Result:** 0.5秒と1.0秒で主要2D特徴のクラス順位は概ね維持された．strict QCは`n=1: 9/9`，`n=2: 9/9`，`n=3: 5/9`であり，`n=3`はattach seed依存が大きかった．
+* **Interpretation:** 0.5秒clipは現行baselineとして維持できるが，`n=3`の4 fail runを正式なv2 training dataへ含めることはできない．
+* **Decision:** MVP defaultを0.5秒のまま維持する．v1 r1ではwindow QCとpre-first-fail provenanceを保持し，物理品質改善は#157・#158へ分離する．
+* **Evidence:** Issue #129，Issues #155・#158，`conf/phase2_multi_run/flagella_count_duration_3s_r1.yaml`，`scripts/04_phase4/run_duration_seed_study.sh`，`tests/test_phase4_duration_study.py`
 
-### P4-4-001: Issue #128 machine-readable dataset freeze audit
+## P4-D06: warmupとearly clip
 
-- status: complete
-- source issue: `https://github.com/Kenta-morimori/prj-flagella-estimation/issues/128`
-- branch: `feature/phase4-128-dataset-freeze-audit`
-- goal: #128で合意したdataset mixing / versioning規則を，Phase 4 training / learning curve前に実行できるmachine-readable gateへ接続する。
-- result:
-  - `DatasetFreezePolicy`と全違反を集約するaudit APIを追加した。
-  - manifest，metadata，loader auditを使い，version / model / render / torque / class / clip / QC / group provenanceを検査する。
-  - Phase 3 manifestの`input_dataset`からPhase 2 `dataset_manifest.json`と選択runの解決済みconfigを辿り，SHA-256と物理regimeを検査する。
-  - baseline trainingとgrouped learning curveが同じstrict freeze validatorを通るようにした。
-  - PASS / FAILどちらでも`freeze_audit.json`, `manifest.json`, `run.log`を保存するCLIを追加した。
-  - 全27 v1 candidate (`54 clips`) のauditがPASSした。
-  - 全27 runのsource configを検証し，0 errors / 0 warningsでPASSした。
-- acceptance criteria:
-  - [x] 主要条件変更の4分類とmixing規則が文書化されている。
-  - [x] `model_id`, `render_id`, `dataset_version`, `group_key`のMVP規則を自動検査する。
-  - [x] torque / Brownian / RUN-TUMBLE / `n_flagella=4`のMVP除外方針をmachine-readable policyに記録する。
-  - [x] training / learning curveがfreeze外datasetを拒否する。
-  - [x] PASS / FAIL regression testsと実dataset CLI smokeがPASSする。
-- verification:
-  - `uv run pytest -q tests/test_phase4_dataset_freeze.py tests/test_phase4_learning_curve.py tests/test_phase4_baseline_classifier.py tests/test_phase4_clip_dataset_loader.py`
-  - `uv run python scripts/04_phase4/audit_dataset_freeze.py config=conf/phase4/dataset_freeze_v1.yaml dataset_dir=outputs/2026-07-24/143640/phase3_gt_passthrough_v1_full_candidates output_dir=outputs/2026-07-24/153000/phase4_dataset_freeze_audit_source_verified`
+* **Status:** pending
+* **Background:** simulation開始直後のmechanical relaxationが，class分離性と学習結果へ影響する可能性がある．
+* **Change:** early clipを削除せず，全artifactと時刻情報をPhase 4へ渡せるようにした．
+* **Comparison:** `warmup_s=0 / 0.5 / 1.0`について，時間帯別特徴，grouped performance，run内・run間分散を比較する．
+* **Decision:** early clipをtraining candidate，augmentation，diagnostic-onlyのどれとして扱うかは#155で決める．
+* **Evidence:** Issue #155，Issue #159，`conf/phase4/dataset_freeze_v1_r1.yaml`
 
-## Phase 4.5: duration and seed study
+## P4-D07: dataset v2とRUN-TUMBLE
 
-### P4-5-001: Issue #129 3 s full-factorial解析導線
-
-- status: implementation complete / user long run pending
-- branch: `feature/phase4-129-duration-seed-study`
-- goal: dataset v1の物理条件を3 sへ延長したr1について，clip時間長，開始時刻，attach / phase seed差，shape/QCを同じwindow contractで比較できるようにする。
-- implementation:
-  - `conf/phase2_multi_run/flagella_count_duration_3s_r1.yaml`で`n_flagella=1,2,3`，attach / phase seed各3の27 runを固定した。
-  - 3D all-step特徴と25 Hz body-centered 2D clip特徴を同一windowへ対応付けるduration study evaluatorを追加した。
-  - run全体とwindow個別のstrict / relaxed shape/QC labelをCSVへ記録する。
-  - windowをrun単位へ集約し，attach×phaseセル平均を`run_feature_means.csv`，attach / phase seedの分散寄与と残差を`seed_effects.csv`へ記録する。全label付きとstrict-pass限定を分ける。
-  - 時間推移plotではQC failを印で示し，主要特徴量はattach×phase seed heatmapも保存する。
-  - 長時間simulationをユーザーが`probe` / `full`の2段階で実行するshellを追加した。
-- verification:
-  - `uv run pytest -q tests/test_phase4_duration_study.py`
-  - `./scripts/04_phase4/run_duration_seed_study.sh probe`
-- remaining decision:
-  - `0.5 s`相当windowの許容性能差は本実行結果を見て別途決める。
-  - 最終評価用protected runのseed / condition差は別途決める。
-  - 初期過渡状態，`warmup_s`，early clipの用途はIssue #155で判断する。
+* **Status:** pending
+* **Background:** dataset v1には`n_flagella=3`の長時間failureがあり，RUN-TUMBLEも現行RUN固定baselineとは異なるbehavior regimeである．
+* **Change:** dataset v2をRUN固定coreとRUN-TUMBLE scopeへ分離して進める方針を定めた．
+* **Decision:** #158で`n=3`のfailure原因を診断し，#157で修正済みRUN固定coreを先にfreezeする．RUN-TUMBLEは#69とv2 core通過後に#145で別`behavior_profile` / `dataset_scope`として追加する．
+* **Evidence:** Issues #145，#157，#158，ADR 0015
