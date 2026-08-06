@@ -40,11 +40,6 @@
 
 - `docs/phaseX/phaseX_current.md`
 
-必要な場合のみ:
-
-- `docs/TASK_MAP.md`
-- `docs/ROADMAP.md`
-
 読み方:
 
 - 最初に対象Phaseのcurrentを読む．
