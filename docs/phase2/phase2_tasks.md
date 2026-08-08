@@ -147,7 +147,7 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Status:** adopted
 - **Background:** `dt_star=1.0e-4`では内部step数が多く，全stepを画像化すると実行時間とファイル数が大きくなる一方，保存時にstateを間引くと後続解析・再描画ができなくなる．
 - **Change:** user-facingな複数条件実行を`run_multi_run.py`，診断gridを`run_sweep.py`，定量plotを`plot_heatmap.py`，保存済みstateの再描画をreplay CLIへ分離した．
-- **Result:** `summary.csv`, `trajectory.csv`, `state_archive.npz`, `run_manifest.json`をreplayable output contractとして固定した．raw sampleは全step情報を保持し，軽量化はrender側のfps samplingで行う方針となった．保存段階のstrideは廃止し，canonical sweep名を`shape_stability_grid`，sweep summary名を`summary.csv`とした．
+- **Result:** `summary.csv`, `trajectory.csv`, `state_archive.npz`, `run_manifest.json`をreplayable output contractとして固定した．raw sampleは全step情報を保持し，軽量化はrender側のfps samplingで行う方針となった．保存段階のstrideは廃止し，canonical sweep名を`shape_stability_grid`，sweep summary名を`summary.csv`とした．通常診断は軽量な`run_summary.json`を先に読み，raw `step_summary.csv` は限定抽出時のみ使う．
 - **Interpretation:** simulation情報を保存段階で不可逆に削減せず，描画・レビュー時にsamplingする方が，再現性と実行効率を両立できる．
 - **Decision:** raw outputを解析・replay可能な形で保持し，通常renderでは全内部stepを描画しない．full-step renderは診断時のみ明示指定し，Issue番号付き使い捨てscriptをcanonical entrypointにしない．
 - **Evidence:** Tasks P2-9-009，P2-8-078，P2-8-081，P2-8-084，P2-8-100，P2-8-DTSTAR，P2-SCRIPT-096，`conf/phase2_multi_run/README.md`，`scripts/README.md`．

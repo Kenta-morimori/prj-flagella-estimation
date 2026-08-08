@@ -296,6 +296,7 @@ def main(
         {
             "trajectory_csv": str(traj_path),
             "step_summary_csv": str(ctx.out.sim_dir / "step_summary.csv"),
+            "run_summary_json": str(ctx.out.sim_dir / "run_summary.json"),
             "render3d": str(ctx.out.render_dir),
             "render2d": str(ctx.out.render2d_dir),
         }

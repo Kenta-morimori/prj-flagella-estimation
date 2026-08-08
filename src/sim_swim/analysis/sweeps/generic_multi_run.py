@@ -124,6 +124,7 @@ def _manifest_condition_record(
         "condition_index": condition["condition_index"],
         "condition_label": condition["condition_label"],
         "output_dir": str(root / condition["condition_id"]),
+        "run_summary_json": str(root / condition["condition_id"] / "run_summary.json"),
         "config_overrides": condition["config_overrides"],
         "axis_values": condition["axis_values"],
         "axis_labels": condition["axis_labels"],

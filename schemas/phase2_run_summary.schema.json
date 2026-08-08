@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "phase2_run_summary.schema.json",
+  "title": "Phase 2 run summary",
+  "type": "object",
+  "required": ["schema_version", "kind", "input", "execution", "sampling", "gates", "extrema"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "kind": {"const": "phase2_run_summary"},
+    "execution": {
+      "type": "object",
+      "required": ["status", "row_count"],
+      "properties": {"status": {"enum": ["completed", "partial", "unknown"]}}
+    },
+    "gates": {
+      "type": "object",
+      "required": ["finite", "shape_nonbody", "shape_body"],
+      "additionalProperties": {"$ref": "#/$defs/gate"}
+    }
+  },
+  "$defs": {
+    "gate": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {"enum": ["available", "unavailable"]},
+        "episodes": {"type": "array", "maxItems": 32}
+      }
+    }
+  }
+}
