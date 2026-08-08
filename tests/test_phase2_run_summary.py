@@ -64,6 +64,8 @@ def test_run_summary_distinguishes_short_fail_recovery_and_missing_body(
     assert gate["recovered_after_fail"] is True
     assert gate["episode_count"] == 2
     assert gate["episodes"][0]["persistent_observed"] is False
+    assert gate["episodes"][0]["end_t_s"] == pytest.approx(0.1)
+    assert gate["episodes"][0]["next_observed_pass_t_s"] == pytest.approx(0.2)
     assert gate["episodes"][1]["persistent_observed"] is True
     assert summary["gates"]["shape_body"] == {
         "status": "unavailable",

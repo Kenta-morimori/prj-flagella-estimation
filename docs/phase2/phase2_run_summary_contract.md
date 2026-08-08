@@ -28,7 +28,7 @@ Machine-readable top-level validation contract: `schemas/phase2_run_summary.sche
 - `sampling`: observed temporal spacing and the episode policy. Durations are physical seconds but are bounded by observed samples; they do not claim an unobserved threshold-crossing time.
 - `gates.finite` and `gates.shape_nonbody`: existing per-step gate values, without reinterpretation.
 - `gates.shape_body`: `available` only when body diagnostics exist. Missing diagnostics are `unavailable`, never treated as a body failure or pass.
-- `episodes`: maximal consecutive observed fail samples. `persistent_observed` means at least three consecutive observations, not a new physical acceptance threshold.
+- `episodes`: maximal consecutive observed fail samples. `start_t_s` / `end_t_s` are the first / last observed fail times; `next_observed_pass_t_s` records recovery when observed. `observed_duration_s` is therefore a sampled span, not an unobserved threshold-crossing duration. `persistent_observed` means at least three consecutive observations, not a new physical acceptance threshold.
 - `extrema`: selected existing diagnostic maxima and their observed times.
 
 Each gate stores at most 32 episodes. When that limit is exceeded, it retains early, late, and long episodes and records the omitted count. No per-step time series is copied into JSON. The generated file is capped at 64 KiB; generation fails rather than silently emitting an unbounded artifact.

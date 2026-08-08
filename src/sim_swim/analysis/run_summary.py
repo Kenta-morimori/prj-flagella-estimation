@@ -154,7 +154,7 @@ def _episodes(
     episodes: list[dict[str, Any]] = []
     for begin, end in spans:
         begin_t = times[begin]
-        end_t = times[end] if end < len(times) else times[end - 1]
+        end_t = times[end - 1]
         categories = Counter(
             str(row.get(category_column, "unspecified"))[:128]
             for row in rows[begin:end]
@@ -163,11 +163,14 @@ def _episodes(
         episodes.append(
             {
                 "start_step": int(_float(rows[begin].get("step"))),
-                "end_step_exclusive": (
-                    int(_float(rows[end].get("step"))) if end < len(rows) else None
-                ),
+                "last_observed_fail_step": int(_float(rows[end - 1].get("step"))),
                 "start_t_s": begin_t if math.isfinite(begin_t) else None,
                 "end_t_s": end_t if math.isfinite(end_t) else None,
+                "next_observed_pass_t_s": (
+                    times[end]
+                    if end < len(times) and math.isfinite(times[end])
+                    else None
+                ),
                 "observed_fail_sample_count": end - begin,
                 "observed_duration_s": (
                     max(0.0, end_t - begin_t)
