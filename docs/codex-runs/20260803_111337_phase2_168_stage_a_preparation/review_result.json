@@ -1,9 +1,9 @@
 {
   "status": "FAIL",
-  "summary": "Issue #168 Stage Aの専用runner、診断、閾値判定、replay対応を実装し、motor-off 0.1 tauの完走結果から閾値をlockした。canonical motor-on前の追加依頼として、dt_star=1e-4のmotor-off/on参考runとdt_star=1e-5短時間motor-onとの刻み感度判定を実装した。参考run、canonical motor-on、目視判定が未完のため受入状態はFAILとする。",
+  "summary": "Issue #168 Stage Aを最新mainへrebaseし、dt reference群とcanonical motor-onの既存結果を反映した。2015 replayはτ基準時間、固定小数の秒、積分step数を併記する。canonical dt_star=1e-5を維持し、dt_star=1e-4はproject用の非canonical referenceとする。motor-on回転gateはmotor-off drift由来の旧値を撤回し、torque sweep前に物理的な評価契約を固定するため、受入状態はFAILとする。",
   "blocking_issues": [
-    "dt_star=1e-4のmotor-off 0.1 tau / motor-on 1 tauとdt_star=1e-5 motor-on 0.1 tauのユーザー実行・比較が未完である。",
-    "参考比較後のcanonical motor-on 1 tau実行、replay、ユーザー目視判定が未完である。"
+    "motor-onのnet rotation・方向一貫性・遊泳安定性を判定する物理的なgateと、torque sweepの条件を固定していない。",
+    "固定後の複数torque長時間run、run_summary.jsonによる確認、replay時系列のユーザー目視、2015 profile採否が未完である。"
   ],
   "non_blocking_issues": [
     "total force/torque residual ratioは既存の有限差分力・potential由来の寄与を含むため情報記録とし、motor action-reaction成分だけを1e-8 gateの対象にした。",
@@ -58,27 +58,26 @@
   "user_review_required": true,
   "user_review_command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/2015_stage_a_dt1e4_motor_off_reference.yaml",
   "user_review_outputs": [
-    "<dt1e-4-motor-off-run-root>/summary.csv",
-    "<dt1e-4-motor-on-run-root>/summary.csv",
-    "<dt1e-5-motor-on-short-run-root>/summary.csv",
-    "<analysis-run-root>/dt_sensitivity_decision.json",
-    "<analysis-run-root>/dt_sensitivity_comparison.csv"
+    "<torque-sweep-run-root>/manifest.json",
+    "<torque-sweep-run-root>/<condition>/run_summary.json",
+    "<torque-sweep-run-root>/summary.csv",
+    "<torque-sweep-analysis-root>/decision.json",
+    "<torque-sweep-run-root>/replay/grid_swim3d.mp4"
   ],
   "user_review_points": [
-    "dt_star=1e-4は既存locked閾値を変更せず、完走・有限性・形状・motor反作用を参考評価する。",
-    "採用候補には短時間ペアの回転方向・回転量、body姿勢、並進除去後bead差の固定基準通過を要求する。",
-    "自動採用候補でもreplay目視とADRなしに2015 defaultを変更しない。"
+    "dt_star=1e-4はproject用の非canonical referenceに留め、2015 project/paper共通defaultはdt_star=1e-5を維持する。",
+    "torque sweepでは形状、motor action-reaction residual、net rotation・方向一貫性、遊泳運動を分離して確認する。",
+    "profile採否やdefault変更はreplay目視とADR要否の確認なしに行わない。"
   ],
   "adr_required": false,
   "adr_reason": "現時点は既存の2015 project/paper profileを比較する検証基盤の追加であり、profile採用、brace、物理解釈の決定はしていない。結果に基づく重要判断が生じた時点でADR要否を再評価する。",
   "commit_type": "wip",
-  "commit_hash": "766b6b787333bf4c4f07aaca153777b8ae31bca0",
-  "push_status": "pushed",
+  "commit_hash": "pending",
+  "push_status": "not_pushed_after_rebase",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/176",
   "next_actions": [
-    "ユーザーが3つのdt参考runを実行し、run rootを共有する。",
-    "Codexがdt感度解析を行い、dt_star=1e-4の採用候補可否を判定する。",
-    "判定後にcanonical motor-on 1 tauとreplayの要否・条件を確定する。",
-    "結果に基づきbrace、profile採用、ADR、Issue #168完了を判断する。"
+    "Codexとユーザーでmotor-onの回転・遊泳gateとtorque sweep範囲を固定する。",
+    "ユーザーが複数torqueの長時間runを実行し、conditionごとのmanifest.jsonとrun_summary.jsonを共有する。",
+    "Codexがtorque依存性を解析し、replay時系列のユーザー目視を受けてprofile採否とADR要否を判断する。"
   ]
 }

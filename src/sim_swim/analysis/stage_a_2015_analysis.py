@@ -169,18 +169,6 @@ def propose_thresholds(motor_off_run: Path) -> dict[str, Any]:
             policy["cap"], max(policy["floor"], THRESHOLD_FACTOR * pilot_max)
         )
 
-    off_rotation_drift = max(
-        _float(
-            summary[profile].get("axis_center_body_relative_net_abs_revolutions_max")
-        )
-        for profile in ("project", "paper")
-    )
-    if not math.isfinite(off_rotation_drift):
-        failures.append("motor-off body-relative rotation drift is non-finite")
-    thresholds["min_axis_center_body_relative_revolutions"] = max(
-        0.01,
-        10.0 * off_rotation_drift if math.isfinite(off_rotation_drift) else 0.01,
-    )
     thresholds["max_motor_force_balance_residual_ratio"] = 1.0e-8
     thresholds["max_motor_torque_balance_residual_ratio"] = 1.0e-8
 
@@ -440,13 +428,6 @@ def evaluate_motor_on(motor_on_run: Path, contract: dict[str, Any]) -> dict[str,
             limit = float(limit_raw)
             if not math.isfinite(value) or value > limit:
                 reasons.append(f"{metric}={value:.6g} > {limit:.6g}")
-        rotation = _float(row.get("axis_center_body_relative_net_abs_revolutions_min"))
-        rotation_limit = float(thresholds["min_axis_center_body_relative_revolutions"])
-        if not math.isfinite(rotation) or rotation < rotation_limit:
-            reasons.append(
-                "axis_center_body_relative_net_abs_revolutions_min="
-                f"{rotation:.6g} < {rotation_limit:.6g}"
-            )
         body_failed = str(row.get("body_shape_pass", "")).lower() != "true"
         if body_failed:
             brace_profiles.append(profile)

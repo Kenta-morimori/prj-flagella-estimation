@@ -825,6 +825,34 @@ def test_replay_status_lines_include_motor_torque_after_time() -> None:
     ]
 
 
+def test_replay_status_lines_show_2015_tau_seconds_and_steps() -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_replay_2015_time_label",
+    )
+    state = type(
+        "State", (), {"t": 1.0 / 1200.0, "reverse_flagella": (), "flag_states": ()}
+    )()
+    cfg = type(
+        "Config",
+        (),
+        {
+            "tau_s": 1.0 / 1200.0,
+            "dt_star": 1.0e-5,
+            "motor_torque_Nm": 1.2e-18,
+            "model_profile": type("Profile", (), {"year": 2015})(),
+            "motor": type("Motor", (), {"enable_switching": False})(),
+        },
+    )()
+
+    assert module._replay_status_lines(state, cfg, "PASS") == [
+        "RUN",
+        "t = 1.000 τ (0.000833 s, 100,000 steps)",
+        "motor torque / flag = 1.20e-18 N m",
+        "PASS",
+    ]
+
+
 def test_replay_seed_offsets_are_deterministic() -> None:
     module = _load_script(
         Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),

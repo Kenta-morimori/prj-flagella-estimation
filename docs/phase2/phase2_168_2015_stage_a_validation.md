@@ -3,8 +3,9 @@
 ## 現在地
 
 2015 project / paper profileはgeometryとdynamicsが実装済みで、Stage A評価を実行できる。
-profile自体は`pending`のままとする。2026-08-03にmotor-off pilotを完了し、閾値を固定した。
-現在はmotor-on RUNのユーザー実行待ちである。
+profile自体は`pending`のままとする。2026-08-03にmotor-off pilot、dt reference群、canonical
+motor-on RUNを完了した。現在は、project profileにおける`dt_star=1e-4`の正式採用条件と、
+torque sweepを用いた回転・遊泳安定性評価を確定する段階である。
 
 Stage Aは次の順に進める。
 
@@ -24,9 +25,11 @@ Stage Aは次の順に進める。
 両stageともRUN固定、polymorph switching / reversalなし、Brownian OFFとする。motor-offでも
 `reference_torque_Nm=1.2e-18`を時間換算とpotential scale用に維持する。
 
-判定用`step_summary.csv`とaggregate body diagnosticsは全step保存する。trajectoryと
-`state_archive.npz`はinitial/finalを含む201 stateへ間引き、project/paper比較replayを
-再シミュレーションなしで生成できるようにする。per-constraint body local CSVは全step保存しない。
+各conditionには軽量な`run_summary.json`を生成する。通常の確認は`manifest.json`と
+`run_summary.json`を先に読み、詳細が必要な場合だけbounded `inspect_step_summary.py`を使用する。
+`step_summary.csv`とaggregate body diagnosticsは全step保存し、trajectoryと`state_archive.npz`は
+initial/finalを含む201 stateへ間引いて、project/paper比較replayを再シミュレーションなしで
+生成できるようにする。per-constraint body local CSVは全step保存しない。
 
 2026-08-03のpaper motor-on 1-step `cProfile`では、profiler込み`0.500 s/step`のうち
 segment repulsionがcumulative 70.6%、torsion有限差分が14.4%、RPY mobilityが11.0%だった。
@@ -54,9 +57,10 @@ swimmer全体のnet force / torqueとnormalized residualは全step記録する�
 normalized residualを持つため、Stage Aで新たなゼロ残差gateは導入しない。motor-off pilotの
 時系列とproject/paper差を結果へ保存し、物理的な釣り合い改善が必要なら別taskで扱う。
 
-motor-onの各flagellumはbody-relative回転が
-`max(0.01 rev, 10 * motor-off drift)`以上であることを要求する。motor body/flag torqueの
-action-reaction residualは`1e-8`以下とする。131 Hz較正はStage A対象外である。
+motor body/flag torqueのaction-reaction residualは`1e-8`以下とする。131 Hz較正はStage A対象外である。
+motor-off driftから導いた最低回転量は、motor-onの物理的な採否基準としては使用しない。motor-onの
+回転gateは、net revolution、方向一貫性、shape gate、遊泳運動を分離した評価契約として、torque sweep
+実行前に固定する。
 
 具体値はmotor-off pilot後に
 `conf/phase2_validation/2015_stage_a_thresholds.yaml`へ`status: locked`として記録する。
@@ -69,10 +73,20 @@ locked前のmotor-on解析は拒否する。
 両profileともbody gateはPASSし、brace ON比較は不要と判断した。
 
 閾値案は`outputs/2026-08-03/125815/threshold_proposal.json`へ保存した。pilot値は全cap内で、
-提案値を`conf/phase2_validation/2015_stage_a_thresholds.yaml`へ固定した。paper motor-offの
-body-relative回転最大値は`0.8133947 rev / 0.1 tau`であり、既定のduration換算規則により
-motor-on最低回転を`8.133947 rev / 1 tau`とした。この値は131 Hz較正ではなく、motor-off driftを
-下回らないためのStage A検出閾値である。
+提案値を`conf/phase2_validation/2015_stage_a_thresholds.yaml`へ固定した。なお、paper motor-offの
+body-relative回転最大値から導いた旧`8.133947 rev / 1 tau`は、motor-onの物理採否gateとしては
+撤回し、reference診断値としてのみ保持する。
+
+## 実行済み結果と確定方針
+
+- `dt_star=1e-4`と`1e-5`の先頭`0.1 tau`比較では、project profileは全flagellumで回転方向一致・
+  回転量差10%以内、paper profileは回転量差22--34%で不合格だった。
+- body姿勢差と並進除去後bead差は両profileで基準内だった。従って`dt_star=1e-4`はproject用の
+  非canonical referenceとして維持するが、project/paper共通の2015 defaultには採用しない。
+- canonical motor-on `1 tau`ではbody shapeは両profileで維持された。一方、pitch誤差、projectの
+  torsion・motor torque balance、ならびに旧回転gateが不合格だった。旧回転gateは上記のとおり採否に
+  用いない。pitch/torsion/torque balanceの挙動はtorque sweepで再評価する。
+- `grid_swim3d.mp4`の2015表示は`τ`基準時間、固定小数の秒、積分step数を併記する。
 
 ## ユーザー実行
 

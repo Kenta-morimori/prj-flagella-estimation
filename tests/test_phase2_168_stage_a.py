@@ -236,9 +236,7 @@ def test_motor_off_analysis_proposes_shared_thresholds(tmp_path: Path) -> None:
     assert proposal["status"] == "proposed"
     assert proposal["failures"] == []
     assert proposal["thresholds"]["max_flag_bond_rel_err"] == pytest.approx(0.01)
-    assert proposal["thresholds"][
-        "min_axis_center_body_relative_revolutions"
-    ] == pytest.approx(0.01)
+    assert "min_axis_center_body_relative_revolutions" not in proposal["thresholds"]
 
 
 def test_motor_on_analysis_requires_rotation_and_visual_review(tmp_path: Path) -> None:
@@ -247,7 +245,6 @@ def test_motor_on_analysis_requires_rotation_and_visual_review(tmp_path: Path) -
     thresholds = {metric: policy["cap"] for metric, policy in THRESHOLD_POLICY.items()}
     thresholds.update(
         {
-            "min_axis_center_body_relative_revolutions": 0.01,
             "max_motor_force_balance_residual_ratio": 1.0e-8,
             "max_motor_torque_balance_residual_ratio": 1.0e-8,
         }

@@ -238,9 +238,9 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Status:** pending
 - **Background:** 2015 refined geometryとmotor dynamicsは実装済みだが，短時間安定性，integration step感度，定性挙動を確認しない限りsupported profileへ昇格できない．
 - **Change:** motor-off／motor-on，project／paper，`dt_star=1e-4`／`1e-5`を比較できるStage A runnerと判定出力を用意した．
-- **Current result:** motor-off pilotは完走しているが，reference run，motor-on run，刻み感度比較，replay review，profile採否が未完了である．
-- **Interpretation:** implementation completeとvalidation completeを分離する．短時間runが完走しても，paper／project profileの目的と採用範囲は確定しない．
-- **Decision:** Stage A完了までは2015 project／paper profileをpendingとする．
+- **Current result:** motor-off pilot，`dt_star=1e-4` reference群，canonical motor-on `1 tau`は完走した。`dt_star=1e-4`はproject profileの先頭`0.1 tau`ペアでは回転・姿勢・bead差の基準を満たしたが，paper profileでは回転量差が10%を超えた。canonical motor-onはbody shapeを維持した一方，project/paperとも現行のmotor-on自動gateを通過していない。replay最終フレームだけではcollapse / fly-awayは明瞭でないが，時系列目視と回転・遊泳評価は未完である．
+- **Interpretation:** `dt_star=1e-4`をproject/paper共通defaultへ昇格させる根拠はない。motor-off driftから導いたmotor-on最低回転量は，motor-onの物理的な採否基準として再固定する必要がある。形状安定性，motor action-reaction，net回転・方向一貫性，遊泳運動を分離して評価する．
+- **Decision:** canonical `dt_star=1e-5`を維持し，`dt_star=1e-4`は非canonical referenceとする。Stage A完了までは2015 project／paper profileをpendingとし，torque sweepと回転・遊泳安定性評価の後にprofile採否を判断する．
 - **Evidence:** Issue #168，PR #176，`docs/phase2/phase2_168_2015_stage_a_validation.md`，parent Issue #154．
 
 ### P2-D19: dataset v2前にn=3長時間非定常回転とproximal failureを診断する

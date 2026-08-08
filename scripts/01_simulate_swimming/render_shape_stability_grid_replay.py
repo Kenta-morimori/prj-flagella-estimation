@@ -185,7 +185,10 @@ def _replay_status_lines(st: Any, cfg: Any, fail_label: str) -> list[str]:
 
     profile = getattr(cfg, "model_profile", None)
     if getattr(profile, "year", None) == 2015:
-        time_label = f"t = {st.t:.3e} s (t* = {st.t / max(cfg.tau_s, 1e-30):.3f})"
+        tau = st.t / max(cfg.tau_s, 1e-30)
+        dt_s = cfg.dt_star * cfg.tau_s
+        steps = int(round(st.t / max(dt_s, 1e-30)))
+        time_label = f"t = {tau:.3f} τ ({st.t:.6f} s, {steps:,} steps)"
     else:
         time_label = f"t = {st.t:.3f} s"
     return [

@@ -15,6 +15,5 @@ thresholds:
   max_flag_torsion_err_deg: 21.45055176560931
   max_flag_helix_radius_abs_err_over_b: 0.028578997632691394
   max_flag_helix_pitch_rel_err: 0.05
-  min_axis_center_body_relative_revolutions: 8.133947008664649
   max_motor_force_balance_residual_ratio: 1.0e-8
   max_motor_torque_balance_residual_ratio: 1.0e-8

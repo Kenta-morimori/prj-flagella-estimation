@@ -22,7 +22,7 @@
 
 ### Issue #168 / PR #176: 2015 refined model Stage A
 
-2015 project / paper profileのmotor-offおよびmotor-on RUN条件について，短時間安定性とintegration step感度を検証している．
+2015 project / paper profileのmotor-offおよびmotor-on RUN条件について，短時間安定性，integration step感度，回転・遊泳安定性を検証している．
 
 完了済み:
 
@@ -30,14 +30,15 @@
 - project / paper motor dynamics
 - Stage A runner・診断出力・判定閾値
 - motor-off pilot
-- `dt_star=1e-4` / `1e-5`比較導線
+- `dt_star=1e-4` / `1e-5` reference比較（共通defaultは`1e-5`を維持）
+- canonical motor-on `1 tau`とreplay
 
 未完:
 
-- motor-off `0.1 tau` reference run
-- motor-on reference / short run
-- 刻み感度比較
-- replay定性評価
+- project profileの`dt_star=1e-4`正式採用条件
+- torque sweepによる形状・回転・遊泳安定性評価
+- motor-on回転gateの物理的な採否基準
+- replay定性評価の最終記録
 - 2015 profile採否
 
 参照: Issue #168，PR #176，`phase2_168_2015_stage_a_validation.md`，Decision P2-D18．
