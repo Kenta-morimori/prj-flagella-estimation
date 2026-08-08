@@ -29,7 +29,7 @@ Read only what is needed for the task, in this order:
 
 Use `rg -n` before opening long Markdown files, logs, CSVs, or generated outputs.
 For prior Codex runs, read `review_result.json` before `work_log.md`.
-Do not read large files under `outputs/` unless compact summaries and manifests are insufficient.
+Do not read large files under `outputs/` unless compact summaries and manifests are insufficient. For Phase 2 diagnostics, read `run_summary.json` before using the bounded `inspect_step_summary.py` CLI; never load `step_summary.csv` in full for routine analysis.
 
 ## Language
 

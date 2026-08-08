@@ -1,0 +1,50 @@
+{
+  "status": "PASS",
+  "task": "Phase 2 Issue #181 compact run_summary.json",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/181",
+  "branch": "feature/issue-181-run-summary",
+  "summary": [
+    "Added a versioned, bounded Phase 2 run_summary.json generated automatically for every Simulator run.",
+    "Added compatibility CLI generation for existing outputs and bounded raw-diagnostic inspection by time window or summary episode.",
+    "Preserved step_summary.csv and existing gate meanings; absent body diagnostics are explicitly unavailable and incomplete legacy runs are explicitly unknown or partial."
+  ],
+  "scope_boundaries": [
+    "No physical model, threshold, dataset-adoption policy, step_summary.csv schema, or sampling policy was changed.",
+    "Long simulations, sweeps, training, rendering, and user visual review were not required or run."
+  ],
+  "checks": [
+    {
+      "command": "uv run pytest tests/test_phase2_run_summary.py tests/test_simulation.py tests/test_phase2_generic_multi_run.py tests/test_phase2_sweep_profiles.py -q",
+      "result": "PASS: 133 passed"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff check . && uv run ruff format --check . && git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "pre-commit hook: uv run pytest -q -m light",
+      "result": "PASS: 286 passed, 249 deselected"
+    },
+    {
+      "command": "Copilot review follow-up: uv run pytest tests/test_phase2_run_summary.py tests/test_simulation.py tests/test_phase2_generic_multi_run.py tests/test_phase2_sweep_profiles.py -q",
+      "result": "PASS: 133 passed"
+    }
+  ],
+  "review_follow_up": [
+    "Copilot thread on schemas/phase2_run_summary.schema.json: added typed input, execution, sampling, extrema, gate, and episode fields.",
+    "Copilot thread on src/sim_swim/analysis/run_summary.py: end_t_s now identifies the last observed fail sample; next_observed_pass_t_s records recovery separately."
+  ],
+  "user_visual_review_required": false,
+  "long_simulation_required": false,
+  "adr_required": false,
+  "adr_reason": "既存診断の軽量集約と安全な参照導線の追加であり、物理モデル・dataset policy・phase boundaryの決定を変更しないため。",
+  "commit_type": "complete",
+  "commit_hash": "f1b9425",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/182",
+  "next_actions": []
+}

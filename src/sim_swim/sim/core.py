@@ -12,6 +12,7 @@ from typing import Any, List, Tuple
 
 import numpy as np
 
+from sim_swim.analysis.run_summary import write_run_summary
 from sim_swim.dynamics.engine import DynamicsEngine
 from sim_swim.model.builder import ModelBuilder
 from sim_swim.sim.debug_summary import (
@@ -775,5 +776,13 @@ class Simulator:
             body_local_csv = body_local_diag_recorder.write_csv()
             if logger is not None:
                 logger.info("Saved body local diagnostics to %s", body_local_csv)
+        if step_summary_dir is not None:
+            run_summary = write_run_summary(
+                step_summary_dir,
+                time_manifest=self.config.time_manifest(),
+                overwrite=True,
+            )
+            if logger is not None:
+                logger.info("Saved run summary to %s", run_summary)
 
         return states

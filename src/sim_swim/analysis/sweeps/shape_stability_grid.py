@@ -1206,6 +1206,9 @@ def _manifest_record(
         "description": condition.description,
         "scales": dict(condition.scales),
         "output_dir": str(args.output_dir / condition.condition_id),
+        "run_summary_json": str(
+            args.output_dir / condition.condition_id / "run_summary.json"
+        ),
         "config_overrides": _overrides_for_condition(args, condition),
         "axis_values": metadata["axis_values"],
         "axis_labels": metadata["axis_labels"],

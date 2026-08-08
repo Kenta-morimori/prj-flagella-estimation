@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "phase2_run_summary.schema.json",
+  "title": "Phase 2 run summary",
+  "type": "object",
+  "required": ["schema_version", "kind", "input", "execution", "sampling", "gates", "extrema"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "kind": {"const": "phase2_run_summary"},
+    "input": {
+      "type": "object",
+      "required": ["run_dir", "step_summary_csv", "body_constraint_diagnostics_csv"],
+      "properties": {
+        "run_dir": {"type": "string"},
+        "step_summary_csv": {"type": "string"},
+        "body_constraint_diagnostics_csv": {"type": ["string", "null"]}
+      }
+    },
+    "execution": {
+      "type": "object",
+      "required": ["status", "row_count", "step_indices_contiguous_from_zero"],
+      "properties": {
+        "status": {"enum": ["completed", "partial", "unknown"]},
+        "row_count": {"type": "integer", "minimum": 0},
+        "step_indices_contiguous_from_zero": {"type": "boolean"},
+        "observed_first_t_s": {"$ref": "#/$defs/nullableNumber"},
+        "observed_final_t_s": {"$ref": "#/$defs/nullableNumber"},
+        "expected_total_steps": {"type": ["integer", "null"], "minimum": 0},
+        "expected_final_step_summary_t_s": {"$ref": "#/$defs/nullableNumber"},
+        "reason": {"type": "string"}
+      }
+    },
+    "sampling": {
+      "type": "object",
+      "required": ["step_summary_row_count", "time_spacing_s", "episode_definition", "persistent_observed_min_consecutive_fail_samples", "episode_storage_limit_per_gate"],
+      "properties": {
+        "step_summary_row_count": {"type": "integer", "minimum": 0},
+        "time_spacing_s": {
+          "type": "object",
+          "required": ["min_s", "median_s", "max_s"],
+          "properties": {
+            "min_s": {"$ref": "#/$defs/nullableNumber"},
+            "median_s": {"$ref": "#/$defs/nullableNumber"},
+            "max_s": {"$ref": "#/$defs/nullableNumber"}
+          }
+        },
+        "episode_definition": {"type": "string"},
+        "persistent_observed_min_consecutive_fail_samples": {"type": "integer", "minimum": 1},
+        "episode_storage_limit_per_gate": {"type": "integer", "minimum": 1}
+      }
+    },
+    "gates": {
+      "type": "object",
+      "required": ["finite", "shape_nonbody", "shape_body"],
+      "properties": {
+        "finite": {"$ref": "#/$defs/gate"},
+        "shape_nonbody": {"$ref": "#/$defs/gate"},
+        "shape_body": {"$ref": "#/$defs/gate"}
+      }
+    },
+    "extrema": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/extremum"}
+    }
+  },
+  "$defs": {
+    "nullableNumber": {"type": ["number", "null"]},
+    "extremum": {
+      "type": "object",
+      "required": ["value", "t_s"],
+      "properties": {
+        "value": {"$ref": "#/$defs/nullableNumber"},
+        "t_s": {"$ref": "#/$defs/nullableNumber"}
+      }
+    },
+    "episode": {
+      "type": "object",
+      "required": ["start_step", "last_observed_fail_step", "start_t_s", "end_t_s", "next_observed_pass_t_s", "observed_fail_sample_count", "observed_duration_s", "persistent_observed", "category_counts"],
+      "properties": {
+        "start_step": {"type": "integer", "minimum": 0},
+        "last_observed_fail_step": {"type": "integer", "minimum": 0},
+        "start_t_s": {"$ref": "#/$defs/nullableNumber"},
+        "end_t_s": {"$ref": "#/$defs/nullableNumber"},
+        "next_observed_pass_t_s": {"$ref": "#/$defs/nullableNumber"},
+        "observed_fail_sample_count": {"type": "integer", "minimum": 1},
+        "observed_duration_s": {"$ref": "#/$defs/nullableNumber"},
+        "persistent_observed": {"type": "boolean"},
+        "category_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 1}}
+      }
+    },
+    "gate": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {"enum": ["available", "unavailable"]},
+        "reason": {"type": "string"},
+        "final_pass": {"type": ["boolean", "null"]},
+        "any_fail": {"type": "boolean"},
+        "first_observed_fail_t_s": {"$ref": "#/$defs/nullableNumber"},
+        "last_observed_fail_t_s": {"$ref": "#/$defs/nullableNumber"},
+        "observed_fail_sample_count": {"type": "integer", "minimum": 0},
+        "episode_count": {"type": "integer", "minimum": 0},
+        "stored_episode_count": {"type": "integer", "minimum": 0, "maximum": 32},
+        "omitted_episode_count": {"type": "integer", "minimum": 0},
+        "recovered_after_fail": {"type": "boolean"},
+        "episodes": {"type": "array", "maxItems": 32, "items": {"$ref": "#/$defs/episode"}}
+      }
+    }
+  }
+}
