@@ -183,9 +183,17 @@ def _fail_label(row: dict[str, str]) -> str:
 def _replay_status_lines(st: Any, cfg: Any, fail_label: str) -> list[str]:
     from sim_swim.render.render3d import _run_tumble_label
 
+    profile = getattr(cfg, "model_profile", None)
+    if getattr(profile, "year", None) == 2015:
+        tau = st.t / max(cfg.tau_s, 1e-30)
+        dt_s = cfg.dt_star * cfg.tau_s
+        steps = int(round(st.t / max(dt_s, 1e-30)))
+        time_label = f"t = {tau:.3f} τ ({st.t:.6f} s, {steps:,} steps)"
+    else:
+        time_label = f"t = {st.t:.3f} s"
     return [
         _run_tumble_label(st, cfg),
-        f"t = {st.t:.3f} s",
+        time_label,
         f"motor torque / flag = {cfg.motor_torque_Nm:.2e} N m",
         fail_label,
     ]
@@ -312,7 +320,12 @@ def _load_inputs(
     rows = _load_csv_rows(summary_path)
     manifest = _load_json(manifest_path)
     records = _condition_records(manifest)
-    base_cfg_path = Path(str(manifest.get("base_config") or manifest["config"]))
+    base_config_raw = manifest.get("base_config") or manifest.get("config")
+    if base_config_raw is None and records:
+        base_config_raw = next(iter(records.values())).get("source_config_path")
+    if base_config_raw is None:
+        raise RuntimeError(f"No base config recorded in {manifest_path}")
+    base_cfg_path = Path(str(base_config_raw))
     ordered_rows = _ordered_rows(rows, manifest)
     if not ordered_rows:
         raise RuntimeError(f"No condition rows found in summary.csv under {input_dir}")
@@ -341,9 +354,10 @@ def _build_cfg(
     condition_record: dict[str, Any],
     fps_out_3d: float,
 ) -> SimulationConfig:
-    raw_cfg = _load_yaml(base_cfg_path)
+    source_config = condition_record.get("source_config_path")
+    raw_cfg = _load_yaml(Path(str(source_config)) if source_config else base_cfg_path)
     cfg = SimulationConfig.from_dict(raw_cfg).with_overrides(
-        condition_record["config_overrides"]
+        condition_record.get("config_overrides", {})
     )
     return cfg.with_overrides(
         {

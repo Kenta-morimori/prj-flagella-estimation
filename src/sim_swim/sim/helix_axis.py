@@ -47,8 +47,62 @@ class HelixAxisCenteredMetrics:
     radius_mean_m: float
     radius_std_m: float
     radius_cv: float
+    pitch_m: float
     root_offset_m: float
     degenerate: bool
+
+
+def estimate_helix_radius_pitch_over_b(
+    points_m: np.ndarray,
+    b_m: float,
+) -> tuple[float, float]:
+    """Estimate helix radius and pitch from a flagellar bead chain."""
+
+    points = np.asarray(points_m, dtype=float)
+    if points.shape[0] < 3 or not np.isfinite(points).all():
+        return float("nan"), float("nan")
+
+    centered = points - np.mean(points, axis=0)
+    try:
+        _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    except np.linalg.LinAlgError:
+        return float("nan"), float("nan")
+    axis = vh[0]
+    axis = axis / max(float(np.linalg.norm(axis)), 1.0e-18)
+    if float(np.dot(axis, points[-1] - points[0])) < 0.0:
+        axis = -axis
+
+    ref = np.array([1.0, 0.0, 0.0], dtype=float)
+    if abs(float(np.dot(ref, axis))) > 0.9:
+        ref = np.array([0.0, 1.0, 0.0], dtype=float)
+    e1 = np.cross(axis, ref)
+    e1 = e1 / max(float(np.linalg.norm(e1)), 1.0e-18)
+    e2 = np.cross(axis, e1)
+
+    rel = points - points[0]
+    axial = rel @ axis
+    u = rel @ e1
+    v = rel @ e2
+    mat = np.column_stack([u, v, np.ones_like(u)])
+    rhs = -(u * u + v * v)
+    try:
+        coef, *_ = np.linalg.lstsq(mat, rhs, rcond=None)
+    except np.linalg.LinAlgError:
+        return float("nan"), float("nan")
+    a, b, c = coef
+    center_u = -0.5 * a
+    center_v = -0.5 * b
+    radius = np.sqrt(max(center_u * center_u + center_v * center_v - c, 0.0))
+
+    phase = np.unwrap(np.arctan2(v - center_v, u - center_u))
+    if phase.size < 2 or float(np.max(phase) - np.min(phase)) < 1.0e-9:
+        return float(radius / max(b_m, 1.0e-18)), float("nan")
+    slope, _ = np.polyfit(phase, axial, 1)
+    pitch = abs(float(slope)) * 2.0 * np.pi
+    return (
+        float(radius / max(b_m, 1.0e-18)),
+        float(pitch / max(b_m, 1.0e-18)),
+    )
 
 
 def _degenerate_helix_axis_estimate(flag_id: int) -> HelixAxisEstimate:
@@ -71,6 +125,7 @@ def _degenerate_centered_metrics() -> HelixAxisCenteredMetrics:
         radius_mean_m=float("nan"),
         radius_std_m=float("nan"),
         radius_cv=float("nan"),
+        pitch_m=float("nan"),
         root_offset_m=float("nan"),
         degenerate=True,
     )
@@ -241,6 +296,9 @@ def helix_axis_centered_metrics(
     root_rel = root - origin
     root_radial = root_rel - float(np.dot(root_rel, axis)) * axis
     root_offset = float(np.linalg.norm(root_radial))
+    pitch_m = (
+        float(2.0 * np.pi / abs(slope)) if abs(float(slope)) > 1.0e-30 else float("nan")
+    )
 
     return HelixAxisCenteredMetrics(
         phase_deg=float(np.rad2deg(intercept)),
@@ -248,6 +306,7 @@ def helix_axis_centered_metrics(
         radius_mean_m=radius_mean,
         radius_std_m=radius_std,
         radius_cv=float(radius_cv),
+        pitch_m=pitch_m,
         root_offset_m=root_offset,
         degenerate=False,
     )

@@ -26,6 +26,7 @@ from sim_swim.analysis.sweeps import (
     motor_scale,
     shape_stability_grid,
     single_flagellum_torque,
+    stage_a_2015,
 )
 
 
@@ -35,6 +36,7 @@ SWEEP_MAIN = {
     "bundling_alignment": bundling_alignment.main,
     "shape_stability_grid": shape_stability_grid.main,
     "hook_overstretch": hook_overstretch.main,
+    "stage_a_2015": stage_a_2015.main,
 }
 
 
