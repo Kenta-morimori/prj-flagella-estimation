@@ -28,15 +28,23 @@
     {
       "command": "pre-commit hook: uv run pytest -q -m light",
       "result": "PASS: 286 passed, 249 deselected"
+    },
+    {
+      "command": "Copilot review follow-up: uv run pytest tests/test_phase2_run_summary.py tests/test_simulation.py tests/test_phase2_generic_multi_run.py tests/test_phase2_sweep_profiles.py -q",
+      "result": "PASS: 133 passed"
     }
+  ],
+  "review_follow_up": [
+    "Copilot thread on schemas/phase2_run_summary.schema.json: added typed input, execution, sampling, extrema, gate, and episode fields.",
+    "Copilot thread on src/sim_swim/analysis/run_summary.py: end_t_s now identifies the last observed fail sample; next_observed_pass_t_s records recovery separately."
   ],
   "user_visual_review_required": false,
   "long_simulation_required": false,
   "adr_required": false,
   "adr_reason": "既存診断の軽量集約と安全な参照導線の追加であり、物理モデル・dataset policy・phase boundaryの決定を変更しないため。",
   "commit_type": "complete",
-  "commit_hash": "5b4156a04ce6fc786564b21a3873d65049772fcd",
-  "push_status": "not_pushed",
-  "pull_request_url": null,
+  "commit_hash": "f1b9425",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/182",
   "next_actions": []
 }
