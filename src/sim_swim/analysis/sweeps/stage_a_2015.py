@@ -50,6 +50,18 @@ def _parse_csv_names(raw: str) -> list[str]:
     return values
 
 
+def _parse_positive_scales(raw: str) -> list[float]:
+    try:
+        values = [float(item.strip()) for item in raw.split(",") if item.strip()]
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("motor_torque_scales must be numeric") from exc
+    if not values or any(not math.isfinite(value) or value <= 0.0 for value in values):
+        raise argparse.ArgumentTypeError(
+            "motor_torque_scales must be finite and positive"
+        )
+    return values
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stage", choices=sorted(STAGE_CONTRACT), required=True)
@@ -66,11 +78,21 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--dt-star", type=float, default=1.0e-5)
     parser.add_argument("--duration-tau", type=float, default=None)
     parser.add_argument("--comparison-role", default="canonical_stage_a")
+    parser.add_argument(
+        "--motor-torque-scales", type=_parse_positive_scales, default=[1.0]
+    )
     parser.add_argument("--diagonal-braces-enabled", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--smoke-steps", type=int, default=None)
     return parser.parse_args(argv)
+
+
+def _condition_id(profile_name: str, torque_scale: float, scale_count: int) -> str:
+    if scale_count == 1:
+        return profile_name
+    label = f"{torque_scale:g}".replace("-", "m").replace(".", "p")
+    return f"{profile_name}_torque_x{label}"
 
 
 def _max_numeric(rows: list[dict[str, str]], field: str) -> float:
@@ -212,14 +234,15 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
     }
     if args.dry_run:
         for profile_name in args.profiles:
-            print(
-                f"{profile_name}\tstage={args.stage}\t"
-                f"duration_tau={duration_tau}\t"
-                f"dt_star={args.dt_star}\t"
-                f"motor_enabled={contract['motor_enabled']}\t"
-                f"comparison_role={args.comparison_role}\t"
-                f"config={config_paths[profile_name]}"
-            )
+            for torque_scale in args.motor_torque_scales:
+                print(
+                    f"{_condition_id(profile_name, torque_scale, len(args.motor_torque_scales))}\t"
+                    f"stage={args.stage}\tduration_tau={duration_tau}\t"
+                    f"dt_star={args.dt_star}\ttorque_scale={torque_scale}\t"
+                    f"motor_enabled={contract['motor_enabled']}\t"
+                    f"comparison_role={args.comparison_role}\t"
+                    f"config={config_paths[profile_name]}"
+                )
         return Path()
     first_cfg = SimulationConfig.from_dict(load_yaml(config_paths[args.profiles[0]]))
     ctx = init_run(
@@ -235,6 +258,7 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
             "dt_star": args.dt_star,
             "duration_tau": duration_tau,
             "comparison_role": args.comparison_role,
+            "motor_torque_scales": args.motor_torque_scales,
         },
         source_config_path=config_paths[args.profiles[0]],
         model_profile=first_cfg.model_profile_manifest(),
@@ -246,129 +270,142 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
     condition_records: list[dict[str, Any]] = []
     summary_path = ctx.out.root / "summary.csv"
     for profile_name in args.profiles:
-        config_path = config_paths[profile_name]
-        condition_dir = ctx.out.root / profile_name
-        condition_dir.mkdir(parents=True, exist_ok=False)
-        raw = load_yaml(config_path)
-        cfg = SimulationConfig.from_dict(raw).with_overrides(
-            {
-                "time": {
-                    "duration": {
-                        "value": duration_tau,
-                        "unit": "tau",
+        for torque_scale in args.motor_torque_scales:
+            config_path = config_paths[profile_name]
+            condition_id = _condition_id(
+                profile_name, torque_scale, len(args.motor_torque_scales)
+            )
+            condition_dir = ctx.out.root / condition_id
+            condition_dir.mkdir(parents=True, exist_ok=False)
+            raw = load_yaml(config_path)
+            cfg = SimulationConfig.from_dict(raw).with_overrides(
+                {
+                    "time": {
+                        "duration": {
+                            "value": duration_tau,
+                            "unit": "tau",
+                        },
+                        "integration": {"dt_star": args.dt_star},
                     },
-                    "integration": {"dt_star": args.dt_star},
-                },
-                "motor": {
-                    "enabled": contract["motor_enabled"],
-                    "enable_switching": False,
-                },
-                "body": {
-                    "prism": {"diagonal_braces_enabled": args.diagonal_braces_enabled}
-                },
-            }
-        )
-        expected_steps = cfg.total_steps
-        sample_interval = max(
-            1,
-            int(math.ceil(expected_steps / max(args.state_sample_count - 1, 1))),
-        )
-        started = time.perf_counter()
-        row: dict[str, Any]
-        implementation_manifest: dict[str, Any] | None = None
-        try:
-            simulator = Simulator(cfg)
-            states = simulator.run(
-                cfg.time.duration_s,
-                logger=logger,
-                progress_interval=args.progress_interval,
-                step_summary_dir=condition_dir,
-                stop_on_shape_fail=False,
-                flush_interval_steps=100,
-                record_body_diagnostics=True,
-                record_body_local_diagnostics=False,
-                state_sample_interval_steps=sample_interval,
+                    "motor": {
+                        "enabled": contract["motor_enabled"],
+                        "enable_switching": False,
+                        "torque_Nm": SimulationConfig.from_dict(raw).motor.torque_Nm
+                        * torque_scale,
+                    },
+                    "body": {
+                        "prism": {
+                            "diagonal_braces_enabled": args.diagonal_braces_enabled
+                        }
+                    },
+                }
             )
-            elapsed_s = time.perf_counter() - started
-            save_state_archive(condition_dir / "state_archive.npz", states)
-            write_trajectory_csv(condition_dir / "trajectory.csv", states)
-            step_rows = _read_step_rows(condition_dir / "step_summary.csv")
-            if not step_rows:
-                raise RuntimeError("step_summary.csv has no rows")
-            row = _successful_row(
-                cfg,
-                profile_name=profile_name,
-                condition_dir=condition_dir,
-                rows=step_rows,
-                expected_steps=expected_steps,
-                elapsed_s=elapsed_s,
-                sampled_state_count=len(states),
-                sample_interval_steps=sample_interval,
+            expected_steps = cfg.total_steps
+            sample_interval = max(
+                1,
+                int(math.ceil(expected_steps / max(args.state_sample_count - 1, 1))),
             )
-            implementation_manifest = simulator.implementation_manifest()
-        except Exception as exc:  # noqa: BLE001 - campaign must preserve other conditions
-            elapsed_s = time.perf_counter() - started
-            failure = {
-                "status": "exception",
-                "profile": profile_name,
-                "error_type": type(exc).__name__,
-                "error_message": str(exc),
-                "traceback": traceback.format_exc(),
-            }
-            (condition_dir / "failure.json").write_text(
-                json.dumps(failure, ensure_ascii=False, indent=2) + "\n",
-                encoding="utf-8",
-            )
-            partial_rows = _read_step_rows(condition_dir / "step_summary.csv")
-            row = {
-                "condition_id": profile_name,
-                "status": "exception",
-                "profile": profile_name,
-                "output_dir": str(condition_dir),
-                "expected_steps": expected_steps,
-                "completed_steps": len(partial_rows),
-                "completion_pass": False,
-                "finite_pass_all": False,
-                "wall_time_s": elapsed_s,
-                "steps_per_s": len(partial_rows) / max(elapsed_s, 1.0e-30),
-                "sampled_state_count": 0,
-                "state_sample_interval_steps": sample_interval,
-                "dt_star": cfg.dt_star,
-                "duration_tau": cfg.duration_star,
-                "error_type": type(exc).__name__,
-                "error_message": str(exc),
-            }
-            logger.exception("Stage A condition failed: profile=%s", profile_name)
+            started = time.perf_counter()
+            row: dict[str, Any]
+            implementation_manifest: dict[str, Any] | None = None
+            try:
+                simulator = Simulator(cfg)
+                states = simulator.run(
+                    cfg.time.duration_s,
+                    logger=logger,
+                    progress_interval=args.progress_interval,
+                    step_summary_dir=condition_dir,
+                    stop_on_shape_fail=False,
+                    flush_interval_steps=100,
+                    record_body_diagnostics=True,
+                    record_body_local_diagnostics=False,
+                    state_sample_interval_steps=sample_interval,
+                )
+                elapsed_s = time.perf_counter() - started
+                save_state_archive(condition_dir / "state_archive.npz", states)
+                write_trajectory_csv(condition_dir / "trajectory.csv", states)
+                step_rows = _read_step_rows(condition_dir / "step_summary.csv")
+                if not step_rows:
+                    raise RuntimeError("step_summary.csv has no rows")
+                row = _successful_row(
+                    cfg,
+                    profile_name=profile_name,
+                    condition_dir=condition_dir,
+                    rows=step_rows,
+                    expected_steps=expected_steps,
+                    elapsed_s=elapsed_s,
+                    sampled_state_count=len(states),
+                    sample_interval_steps=sample_interval,
+                )
+                implementation_manifest = simulator.implementation_manifest()
+            except Exception as exc:  # noqa: BLE001 - campaign must preserve other conditions
+                elapsed_s = time.perf_counter() - started
+                failure = {
+                    "status": "exception",
+                    "profile": profile_name,
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
+                    "traceback": traceback.format_exc(),
+                }
+                (condition_dir / "failure.json").write_text(
+                    json.dumps(failure, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+                partial_rows = _read_step_rows(condition_dir / "step_summary.csv")
+                row = {
+                    "condition_id": condition_id,
+                    "status": "exception",
+                    "profile": profile_name,
+                    "output_dir": str(condition_dir),
+                    "expected_steps": expected_steps,
+                    "completed_steps": len(partial_rows),
+                    "completion_pass": False,
+                    "finite_pass_all": False,
+                    "wall_time_s": elapsed_s,
+                    "steps_per_s": len(partial_rows) / max(elapsed_s, 1.0e-30),
+                    "sampled_state_count": 0,
+                    "state_sample_interval_steps": sample_interval,
+                    "dt_star": cfg.dt_star,
+                    "duration_tau": cfg.duration_star,
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
+                }
+                logger.exception("Stage A condition failed: profile=%s", profile_name)
 
-        summary_rows.append(row)
-        _write_summary(summary_path, summary_rows)
-        condition_record = {
-            "condition_id": profile_name,
-            "source_config_path": str(config_path),
-            "config_overrides": {
-                "time.duration": {"value": duration_tau, "unit": "tau"},
-                "time.integration.dt_star": args.dt_star,
-                "motor.enabled": contract["motor_enabled"],
-                "motor.enable_switching": False,
-                "body.prism.diagonal_braces_enabled": (args.diagonal_braces_enabled),
-            },
-            "output_dir": str(condition_dir),
-            "status": row["status"],
-            "time": cfg.time_manifest(),
-            "performance": {
-                "expected_steps": expected_steps,
-                "completed_steps": row["completed_steps"],
-                "wall_time_s": row["wall_time_s"],
-                "steps_per_s": row["steps_per_s"],
-            },
-            "comparison_scales": {
-                "b_um": cfg.scale.b_um,
-                "body_beads": cfg.model_profile.body_beads,
-            },
-        }
-        if implementation_manifest is not None:
-            condition_record.update(implementation_manifest)
-        condition_records.append(condition_record)
+            summary_rows.append(row)
+            _write_summary(summary_path, summary_rows)
+            condition_record = {
+                "condition_id": condition_id,
+                "profile": profile_name,
+                "motor_torque_scale": torque_scale,
+                "source_config_path": str(config_path),
+                "config_overrides": {
+                    "time.duration": {"value": duration_tau, "unit": "tau"},
+                    "time.integration.dt_star": args.dt_star,
+                    "motor.enabled": contract["motor_enabled"],
+                    "motor.enable_switching": False,
+                    "motor.torque_Nm": cfg.motor.torque_Nm,
+                    "body.prism.diagonal_braces_enabled": (
+                        args.diagonal_braces_enabled
+                    ),
+                },
+                "output_dir": str(condition_dir),
+                "status": row["status"],
+                "time": cfg.time_manifest(),
+                "performance": {
+                    "expected_steps": expected_steps,
+                    "completed_steps": row["completed_steps"],
+                    "wall_time_s": row["wall_time_s"],
+                    "steps_per_s": row["steps_per_s"],
+                },
+                "comparison_scales": {
+                    "b_um": cfg.scale.b_um,
+                    "body_beads": cfg.model_profile.body_beads,
+                },
+            }
+            if implementation_manifest is not None:
+                condition_record.update(implementation_manifest)
+            condition_records.append(condition_record)
 
     performance = {
         "kind": "stage_a_2015_performance",
@@ -376,6 +413,7 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
         "dt_star": args.dt_star,
         "duration_tau": duration_tau,
         "comparison_role": args.comparison_role,
+        "motor_torque_scales": args.motor_torque_scales,
         "created_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
         "short_profile_reference": {
             "condition": "2015 paper motor-on, 1 step, cProfile",

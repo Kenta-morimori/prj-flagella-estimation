@@ -1,0 +1,18 @@
+kind: stage_a_2015
+metadata:
+  role: sweep
+  canonical: false
+  description: Issue #168 broad short motor-on torque screen before long-run selection
+
+args:
+  stage: motor_on
+  project_config: conf/sim_swim_2015.yaml
+  paper_config: conf/sim_swim_2015_paper.yaml
+  profiles: [project, paper]
+  output_base_dir: outputs
+  state_sample_count: 201
+  progress_interval: 500
+  dt_star: 1.0e-5
+  duration_tau: 0.02
+  motor_torque_scales: [0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0]
+  comparison_role: torque_screen_dt1e5_short

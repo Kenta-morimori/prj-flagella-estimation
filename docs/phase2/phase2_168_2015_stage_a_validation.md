@@ -90,6 +90,26 @@ body-relative回転最大値から導いた旧`8.133947 rev / 1 tau`は、motor-
 
 ## ユーザー実行
 
+### torque screen: 広域・短時間
+
+基準`1.2e-18 N m`の`0.1, 0.2, 0.5, 1, 2, 5, 10`倍を、project/paper両profileで
+`dt_star=1e-5`、`0.02 tau`（2,000 steps）実行する。これは1--2桁の広域screenであり、
+長時間の採否をここだけで決めない。有限性、body/nonbody shape、motor action-reaction、
+回転・遊泳診断をconditionごとの`manifest.json`と`run_summary.json`から確認する。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_sweep.py \
+  config=conf/phase2_sweeps/2015_stage_a_torque_screen.yaml \
+  dry_run=true
+
+uv run python scripts/01_simulate_swimming/run_sweep.py \
+  config=conf/phase2_sweeps/2015_stage_a_torque_screen.yaml
+```
+
+screen後、明白な破綻を除いた連続torque帯を`1 tau`で評価する。`dt_star=1e-4`の比較は、
+この長時間評価を満たしたprofile・torqueだけで`1e-5`と対にして行う。採用はprofile・torque別に
+判断し、paper profileにも同等性が確認されるまでは2015共通canonicalを`1e-5`から変更しない。
+
 ### `dt_star=1e-4`参考・採用候補評価
 
 canonical motor-onの前に、10倍粗い内部刻みを独立した非canonical参考条件として評価する。

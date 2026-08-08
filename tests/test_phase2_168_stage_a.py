@@ -109,6 +109,24 @@ def test_stage_a_smoke_duration_uses_selected_dt_star(
     assert "duration_tau=0.00030000000000000003" in capsys.readouterr().out
 
 
+def test_torque_screen_profile_covers_two_orders_at_2000_steps(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    profile = load_profile(ROOT / "conf/phase2_sweeps/2015_stage_a_torque_screen.yaml")
+    args = stage_a_2015._parse_args(args_from_profile(profile))
+
+    assert args.duration_tau == pytest.approx(0.02)
+    assert args.dt_star == pytest.approx(1.0e-5)
+    assert args.motor_torque_scales == [0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0]
+    assert int(round(args.duration_tau / args.dt_star)) == 2_000
+
+    stage_a_2015.run_stage_a(args_from_profile(profile) + ["--dry-run"])
+    output = capsys.readouterr().out
+    assert output.count("torque_screen_dt1e5_short") == 14
+    assert "project_torque_x0p1" in output
+    assert "paper_torque_x10" in output
+
+
 def test_simulator_can_sample_states_without_sampling_step_diagnostics(
     tmp_path: Path,
 ) -> None:
