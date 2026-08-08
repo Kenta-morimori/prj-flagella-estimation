@@ -127,6 +127,16 @@ def test_torque_screen_profile_covers_two_orders_at_2000_steps(
     assert "paper_torque_x10" in output
 
 
+def test_torque_screen_condition_ids_are_unique() -> None:
+    ids = {
+        stage_a_2015._condition_id(profile, scale, 7)
+        for profile in ("project", "paper")
+        for scale in (0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0)
+    }
+
+    assert len(ids) == 14
+
+
 def test_simulator_can_sample_states_without_sampling_step_diagnostics(
     tmp_path: Path,
 ) -> None:

@@ -337,6 +337,8 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
                     sampled_state_count=len(states),
                     sample_interval_steps=sample_interval,
                 )
+                row["condition_id"] = condition_id
+                row["motor_torque_scale"] = torque_scale
                 implementation_manifest = simulator.implementation_manifest()
             except Exception as exc:  # noqa: BLE001 - campaign must preserve other conditions
                 elapsed_s = time.perf_counter() - started
