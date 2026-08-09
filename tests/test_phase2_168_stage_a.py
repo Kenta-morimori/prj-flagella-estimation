@@ -137,6 +137,26 @@ def test_torque_screen_condition_ids_are_unique() -> None:
     assert len(ids) == 14
 
 
+def test_project_torque_long_profile_has_three_1tau_conditions(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    profile = load_profile(
+        ROOT / "conf/phase2_sweeps/2015_stage_a_project_torque_long.yaml"
+    )
+    args = stage_a_2015._parse_args(args_from_profile(profile))
+
+    assert args.profiles == ["project"]
+    assert args.duration_tau == pytest.approx(1.0)
+    assert args.dt_star == pytest.approx(1.0e-5)
+    assert args.motor_torque_scales == [0.5, 1.0, 2.0]
+
+    stage_a_2015.run_stage_a(args_from_profile(profile) + ["--dry-run"])
+    output = capsys.readouterr().out
+    assert output.count("project_torque_long_dt1e5") == 3
+    assert "project_torque_x0p5" in output
+    assert "project_torque_x2" in output
+
+
 def test_simulator_can_sample_states_without_sampling_step_diagnostics(
     tmp_path: Path,
 ) -> None:

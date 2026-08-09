@@ -110,6 +110,22 @@ screen後、明白な破綻を除いた連続torque帯を`1 tau`で評価する�
 この長時間評価を満たしたprofile・torqueだけで`1e-5`と対にして行う。採用はprofile・torque別に
 判断し、paper profileにも同等性が確認されるまでは2015共通canonicalを`1e-5`から変更しない。
 
+### project torque: 長時間評価
+
+短時間screenで残したprojectの`0.5, 1, 2`倍を、`dt_star=1e-5`、`1 tau`で評価する。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_sweep.py \
+  config=conf/phase2_sweeps/2015_stage_a_project_torque_long.yaml \
+  dry_run=true
+
+uv run python scripts/01_simulate_swimming/run_sweep.py \
+  config=conf/phase2_sweeps/2015_stage_a_project_torque_long.yaml
+```
+
+完了後はrun rootを共有する。Codexは`manifest.json`、conditionごとの`run_summary.json`、
+campaign `summary.csv`を確認し、回転・遊泳評価と`dt_star=1e-4`比較の対象を決める。
+
 ### `dt_star=1e-4`参考・採用候補評価
 
 canonical motor-onの前に、10倍粗い内部刻みを独立した非canonical参考条件として評価する。
