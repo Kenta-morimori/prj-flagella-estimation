@@ -466,6 +466,61 @@ def _plot_cell(
     )
 
 
+def _resample_states_for_replay(
+    states: list[Any], target_frame_count: int
+) -> list[Any]:
+    """Linearly resample archived states for display-only replay frames."""
+
+    if target_frame_count <= 0:
+        raise ValueError("target_frame_count must be positive")
+    if not states:
+        return []
+    if target_frame_count == 1:
+        return [states[0]]
+
+    source_times = np.asarray([state.t for state in states], dtype=float)
+    target_times = np.linspace(source_times[0], source_times[-1], target_frame_count)
+    result: list[Any] = []
+    for target_t in target_times:
+        right = int(np.searchsorted(source_times, target_t, side="right"))
+        if right == 0:
+            result.append(states[0])
+            continue
+        if right >= len(states):
+            result.append(states[-1])
+            continue
+        left = right - 1
+        before = states[left]
+        after = states[right]
+        span = source_times[right] - source_times[left]
+        weight = float((target_t - source_times[left]) / span)
+
+        def blend(name: str) -> tuple[float, ...]:
+            values = (1.0 - weight) * np.asarray(
+                getattr(before, name)
+            ) + weight * np.asarray(getattr(after, name))
+            return tuple(float(value) for value in values)
+
+        quaternion = np.asarray(blend("quaternion"), dtype=float)
+        quaternion /= max(float(np.linalg.norm(quaternion)), 1.0e-30)
+        result.append(
+            type(before)(
+                t=float(target_t),
+                position_um=blend("position_um"),
+                quaternion=tuple(float(value) for value in quaternion),
+                velocity_um_s=blend("velocity_um_s"),
+                omega_rad_s=blend("omega_rad_s"),
+                bead_positions_um=(1.0 - weight) * before.bead_positions_um
+                + weight * after.bead_positions_um,
+                flag_states=before.flag_states if weight < 0.5 else after.flag_states,
+                reverse_flagella=(
+                    before.reverse_flagella if weight < 0.5 else after.reverse_flagella
+                ),
+            )
+        )
+    return result
+
+
 def _render_grid_movie(
     *,
     states_by_condition: list[list[Any]],
@@ -475,16 +530,23 @@ def _render_grid_movie(
     out_dir: Path,
     fps_out_3d: float,
     max_panels_per_grid: int,
+    target_frame_count: int | None,
 ) -> Any:
     import cv2
 
     from sim_swim.render.render3d import _select_frames
     from sim_swim.render.video_writer import VideoRenderResult, open_mp4_writer
 
-    render_states_by_condition = [
-        _select_frames(states, out_all_steps_3d=False, fps_hint=fps_out_3d)
-        for states in states_by_condition
-    ]
+    if target_frame_count is None:
+        render_states_by_condition = [
+            _select_frames(states, out_all_steps_3d=False, fps_hint=fps_out_3d)
+            for states in states_by_condition
+        ]
+    else:
+        render_states_by_condition = [
+            _resample_states_for_replay(states, target_frame_count)
+            for states in states_by_condition
+        ]
     frame_count = min(len(states) for states in render_states_by_condition)
     if frame_count <= 0:
         raise RuntimeError("No frames selected for grid render.")
@@ -885,6 +947,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
     )
     parser.add_argument("--fps-out-3d", type=float, default=None)
+    parser.add_argument("--target-frame-count", type=int, default=None)
     parser.add_argument("--max-panels-per-grid", type=int, default=None)
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
@@ -911,6 +974,8 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error(f"Invalid replay mode: {args.mode}")
     if args.fps_out_3d is None:
         args.fps_out_3d = float(replay_cfg.get("fps_out_3d") or 25.0)
+    if args.target_frame_count is not None and args.target_frame_count <= 0:
+        parser.error("--target-frame-count must be positive")
     if args.max_panels_per_grid is None:
         args.max_panels_per_grid = int(replay_cfg.get("max_panels_per_grid") or 9)
     args.max_panels_per_grid = max(1, int(args.max_panels_per_grid))
@@ -984,6 +1049,7 @@ def main(argv: list[str] | None = None) -> None:
             out_dir=output_dir,
             fps_out_3d=args.fps_out_3d,
             max_panels_per_grid=args.max_panels_per_grid,
+            target_frame_count=args.target_frame_count,
         )
         logger.info(
             "Rendered grid videos: pages=%d",
@@ -998,6 +1064,7 @@ def main(argv: list[str] | None = None) -> None:
             "base_config": str(base_cfg_path),
             "mode": args.mode,
             "fps_out_3d": args.fps_out_3d,
+            "target_frame_count": args.target_frame_count,
             "max_panels_per_grid": args.max_panels_per_grid,
         },
         "conditions": [row["condition_id"] for row in rows],

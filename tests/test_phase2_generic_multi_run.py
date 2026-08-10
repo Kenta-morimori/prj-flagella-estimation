@@ -4,6 +4,7 @@ import importlib.util
 import json
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from sim_swim.analysis.cli_profiles import list_profile_entries, load_profile_entry
@@ -655,6 +656,34 @@ def test_replay_applies_dotted_stage_a_condition_overrides() -> None:
     assert cfg.duration_star == pytest.approx(1.0)
     assert cfg.dt_star == pytest.approx(1.0e-5)
     assert cfg.motor.torque_Nm == pytest.approx(6.0e-19)
+
+
+def test_replay_resamples_archived_states_for_display_only() -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_replay_state_resampling",
+    )
+    from sim_swim.sim.core import SimulationState
+
+    states = [
+        SimulationState(
+            t=t,
+            position_um=(t, 0.0, 0.0),
+            quaternion=(0.0, 0.0, 0.0, 1.0),
+            velocity_um_s=(1.0, 0.0, 0.0),
+            omega_rad_s=(0.0, 0.0, 0.0),
+            bead_positions_um=np.asarray([[t, 0.0, 0.0]]),
+        )
+        for t in (0.0, 1.0)
+    ]
+
+    replay_states = module._resample_states_for_replay(states, 5)
+
+    assert [state.t for state in replay_states] == pytest.approx(
+        [0.0, 0.25, 0.5, 0.75, 1.0]
+    )
+    assert replay_states[2].position_um == pytest.approx((0.5, 0.0, 0.0))
+    assert np.allclose(replay_states[2].bead_positions_um, [[0.5, 0.0, 0.0]])
 
 
 def test_replay_wrapper_accepts_config_run_dir_defaults(tmp_path: Path) -> None:
