@@ -25,6 +25,7 @@ from sim_swim.analysis.cli_profiles import (
     key_value_args_to_cli_args,
     split_config_key,
 )
+from sim_swim.analysis.flagella_count_behavior import normalize_base_overrides
 from sim_swim.sim.params import SimulationConfig
 
 CANONICAL_TORQUE_DISTRIBUTION_CONDITION_IDS = (
@@ -356,8 +357,11 @@ def _build_cfg(
 ) -> SimulationConfig:
     source_config = condition_record.get("source_config_path")
     raw_cfg = _load_yaml(Path(str(source_config)) if source_config else base_cfg_path)
+    # Generic campaigns store nested overrides, whereas the Stage A runner
+    # records equivalent overrides as dotted keys.  Normalize both forms before
+    # reconstructing a condition so labels and replay geometry match the run.
     cfg = SimulationConfig.from_dict(raw_cfg).with_overrides(
-        condition_record.get("config_overrides", {})
+        normalize_base_overrides(condition_record.get("config_overrides", {}))
     )
     return cfg.with_overrides(
         {

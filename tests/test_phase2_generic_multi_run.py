@@ -634,6 +634,29 @@ def test_replay_builds_refined_2015_geometry_from_campaign_record() -> None:
     assert geometry["body_diagonal_edges"] == 0
 
 
+def test_replay_applies_dotted_stage_a_condition_overrides() -> None:
+    module = _load_script(
+        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        "phase2_replay_dotted_stage_a_overrides",
+    )
+
+    cfg = module._build_cfg(
+        base_cfg_path=Path("conf/sim_swim_2015.yaml"),
+        condition_record={
+            "config_overrides": {
+                "time.duration": {"value": 1.0, "unit": "tau"},
+                "time.integration.dt_star": 1.0e-5,
+                "motor.torque_Nm": 6.0e-19,
+            }
+        },
+        fps_out_3d=25.0,
+    )
+
+    assert cfg.duration_star == pytest.approx(1.0)
+    assert cfg.dt_star == pytest.approx(1.0e-5)
+    assert cfg.motor.torque_Nm == pytest.approx(6.0e-19)
+
+
 def test_replay_wrapper_accepts_config_run_dir_defaults(tmp_path: Path) -> None:
     module = _load_script(
         Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
