@@ -126,6 +126,28 @@ uv run python scripts/01_simulate_swimming/run_sweep.py \
 完了後はrun rootを共有する。Codexは`manifest.json`、conditionごとの`run_summary.json`、
 campaign `summary.csv`を確認し、回転・遊泳評価と`dt_star=1e-4`比較の対象を決める。
 
+### torque × `dt_star` replay grid（merge条件）
+
+PRの結果可視化は、project profileの後方束化条件
+`flagella.initial_helix_axis_from_rear_deg=0`だけを対象に、行を`dt_star`（`1e-5`, `1e-4`）、
+列をmotor torque scale（`0.5`, `1`, `2`）とする2×3 replay gridでまとめる。全cellは
+`duration_tau=1`、同一の`reference_torque_Nm=1.2e-18 N m`、201 state archiveで揃える。
+
+既存結果は`dt_star=1e-5 × {0.5,1,2}`および`dt_star=1e-4 × {1}`を満たす。欠ける
+`dt_star=1e-4 × {0.5,2}`だけは、次をuser実行する。`×1`は再実行しない。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_sweep.py \
+  config=conf/phase2_sweeps/2015_stage_a_project_torque_dt1e4_missing.yaml \
+  dry_run=true
+
+uv run python scripts/01_simulate_swimming/run_sweep.py \
+  config=conf/phase2_sweeps/2015_stage_a_project_torque_dt1e4_missing.yaml
+```
+
+6 cellが揃った後、Codexはsimulationを再実行せず、各state archiveを使ってgrid replayを生成し、
+自動判定とは別に定性比較を記録する。
+
 ### `dt_star=1e-4`参考・採用候補評価
 
 canonical motor-onの前に、10倍粗い内部刻みを独立した非canonical参考条件として評価する。
