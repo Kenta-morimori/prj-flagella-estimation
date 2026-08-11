@@ -1,7 +1,10 @@
 name: codex-review-gate
 
 on:
-  pull_request_target:
+  # This gate only reads PR/review metadata and writes a status.  Running from
+  # the same-repository PR ref lets a gate change be validated by the PR that
+  # introduces it; forks do not receive write credentials.
+  pull_request:
     types:
       - opened
       - reopened
@@ -29,7 +32,7 @@ jobs:
   evaluate:
     name: evaluate codex review gate
     if: >-
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
       (github.event_name == 'issue_comment' && github.event.issue.pull_request)
@@ -43,7 +46,7 @@ jobs:
             const repo = context.repo.repo;
             const prNumbers = [];
 
-            if (context.eventName === "pull_request_target") {
+            if (context.eventName === "pull_request") {
               prNumbers.push(context.payload.pull_request.number);
             } else if (context.eventName === "issue_comment") {
               prNumbers.push(context.payload.issue.number);
