@@ -52,6 +52,14 @@ def _float(value: Any) -> float:
         return float("nan")
 
 
+def _simulated_tau_per_wall_s(row: dict[str, str]) -> float:
+    duration_tau = _float(row.get("duration_tau"))
+    wall_time_s = _float(row.get("wall_time_s"))
+    if not math.isfinite(duration_tau) or not math.isfinite(wall_time_s):
+        return float("nan")
+    return duration_tau / max(wall_time_s, 1.0e-30)
+
+
 def _max_field(rows: list[dict[str, str]], field: str) -> float:
     values = [_float(row.get(field)) for row in rows]
     finite = [value for value in values if math.isfinite(value)]
@@ -118,7 +126,19 @@ def _observed_metrics(condition_dir: Path) -> dict[str, float]:
 
 def _summary_by_profile(run_root: Path) -> dict[str, dict[str, str]]:
     rows = _read_csv(run_root / "summary.csv")
-    by_profile = {str(row.get("profile", "")): row for row in rows}
+    by_profile: dict[str, dict[str, str]] = {}
+    duplicates: set[str] = set()
+    for row in rows:
+        profile = str(row.get("profile", ""))
+        if profile in by_profile:
+            duplicates.add(profile)
+        by_profile[profile] = row
+    if duplicates:
+        raise ValueError(
+            "Duplicate profile rows in summary.csv: "
+            + ", ".join(sorted(duplicates))
+            + "; select a single-condition run root for Stage A analysis"
+        )
     missing = sorted({"project", "paper"} - set(by_profile))
     if missing:
         raise ValueError("Missing profile rows: " + ", ".join(missing))
@@ -553,21 +573,54 @@ def evaluate_dt_sensitivity(
         )
         for profile in ("project", "paper")
     }
-    speedups: dict[str, Any] = {}
+    performance: dict[str, Any] = {}
     baseline_summary = _summary_by_profile(baseline_motor_off_run)
     coarse_off_summary = _summary_by_profile(coarse_motor_off_run)
     coarse_on_summary = _summary_by_profile(coarse_motor_on_run)
     fine_on_summary = _summary_by_profile(fine_motor_on_short_run)
     for profile in ("project", "paper"):
-        speedups[profile] = {
-            "motor_off_steps_per_s_ratio": _float(
-                coarse_off_summary[profile].get("steps_per_s")
-            )
-            / max(_float(baseline_summary[profile].get("steps_per_s")), 1.0e-30),
-            "motor_on_steps_per_s_ratio": _float(
-                coarse_on_summary[profile].get("steps_per_s")
-            )
-            / max(_float(fine_on_summary[profile].get("steps_per_s")), 1.0e-30),
+        fine_off_tau_per_wall_s = _simulated_tau_per_wall_s(baseline_summary[profile])
+        coarse_off_tau_per_wall_s = _simulated_tau_per_wall_s(
+            coarse_off_summary[profile]
+        )
+        fine_on_tau_per_wall_s = _simulated_tau_per_wall_s(fine_on_summary[profile])
+        coarse_on_tau_per_wall_s = _simulated_tau_per_wall_s(coarse_on_summary[profile])
+        performance[profile] = {
+            "motor_off": {
+                "same_simulated_duration_tau": _float(
+                    baseline_summary[profile].get("duration_tau")
+                ),
+                "dt1e5_simulated_tau_per_wall_s": fine_off_tau_per_wall_s,
+                "dt1e4_simulated_tau_per_wall_s": coarse_off_tau_per_wall_s,
+                "time_to_solution_speedup_dt1e4_over_dt1e5": (
+                    coarse_off_tau_per_wall_s / max(fine_off_tau_per_wall_s, 1.0e-30)
+                ),
+                "steps_per_s_ratio_diagnostic_only": _float(
+                    coarse_off_summary[profile].get("steps_per_s")
+                )
+                / max(_float(baseline_summary[profile].get("steps_per_s")), 1.0e-30),
+            },
+            "motor_on": {
+                "dt1e5_duration_tau": _float(
+                    fine_on_summary[profile].get("duration_tau")
+                ),
+                "dt1e4_duration_tau": _float(
+                    coarse_on_summary[profile].get("duration_tau")
+                ),
+                "dt1e5_simulated_tau_per_wall_s": fine_on_tau_per_wall_s,
+                "dt1e4_simulated_tau_per_wall_s": coarse_on_tau_per_wall_s,
+                "throughput_speedup_dt1e4_over_dt1e5": (
+                    coarse_on_tau_per_wall_s / max(fine_on_tau_per_wall_s, 1.0e-30)
+                ),
+                "steps_per_s_ratio_diagnostic_only": _float(
+                    coarse_on_summary[profile].get("steps_per_s")
+                )
+                / max(_float(fine_on_summary[profile].get("steps_per_s")), 1.0e-30),
+                "comparison_note": (
+                    "motor-on durations differ; throughput is normalized by simulated tau "
+                    "and is not a same-duration wall-time comparison"
+                ),
+            },
         }
 
     reference_stable = (
@@ -598,7 +651,7 @@ def evaluate_dt_sensitivity(
         "fine_motor_on_short": fine_short_evaluation,
         "motor_off_comparison": off_comparison,
         "paired_motor_on_comparison": paired,
-        "performance_speedup": speedups,
+        "performance": performance,
         "visual_review_required": True,
         "next_action": (
             "perform_visual_review"
@@ -645,13 +698,29 @@ def write_markdown(path: Path, result: dict[str, Any]) -> None:
                 f"max=`{comparison['centered_bead_max_difference_over_b']:.6g} b`"
             )
             lines.extend(f"  - {reason}" for reason in comparison["reasons"])
+        lines.extend(["", "## Performance normalized by simulated time", ""])
+        for profile, performance in result["performance"].items():
+            motor_off = performance["motor_off"]
+            motor_on = performance["motor_on"]
+            lines.append(
+                f"- `{profile}` motor-off: same-duration speedup "
+                f"`{motor_off['time_to_solution_speedup_dt1e4_over_dt1e5']:.6g}` "
+                "(`simulated tau / wall s` basis)"
+            )
+            lines.append(
+                f"- `{profile}` motor-on: throughput speedup "
+                f"`{motor_on['throughput_speedup_dt1e4_over_dt1e5']:.6g}`; "
+                "durations differ, so this is not a same-duration comparison"
+            )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _write_dt_comparison_csv(path: Path, result: dict[str, Any]) -> None:
     rows: list[dict[str, Any]] = []
     for profile, comparison in result["paired_motor_on_comparison"].items():
-        speedup = result["performance_speedup"][profile]
+        performance = result["performance"][profile]
+        motor_off = performance["motor_off"]
+        motor_on = performance["motor_on"]
         base = {
             "profile": profile,
             "paired_pass": comparison["paired_pass"],
@@ -665,8 +734,24 @@ def _write_dt_comparison_csv(path: Path, result: dict[str, Any]) -> None:
             "centered_bead_max_difference_over_b": comparison[
                 "centered_bead_max_difference_over_b"
             ],
-            "motor_off_steps_per_s_ratio": speedup["motor_off_steps_per_s_ratio"],
-            "motor_on_steps_per_s_ratio": speedup["motor_on_steps_per_s_ratio"],
+            "motor_off_dt1e5_simulated_tau_per_wall_s": motor_off[
+                "dt1e5_simulated_tau_per_wall_s"
+            ],
+            "motor_off_dt1e4_simulated_tau_per_wall_s": motor_off[
+                "dt1e4_simulated_tau_per_wall_s"
+            ],
+            "motor_off_time_to_solution_speedup_dt1e4_over_dt1e5": motor_off[
+                "time_to_solution_speedup_dt1e4_over_dt1e5"
+            ],
+            "motor_on_dt1e5_simulated_tau_per_wall_s": motor_on[
+                "dt1e5_simulated_tau_per_wall_s"
+            ],
+            "motor_on_dt1e4_simulated_tau_per_wall_s": motor_on[
+                "dt1e4_simulated_tau_per_wall_s"
+            ],
+            "motor_on_throughput_speedup_dt1e4_over_dt1e5": motor_on[
+                "throughput_speedup_dt1e4_over_dt1e5"
+            ],
         }
         for rotation in comparison["flag_rotation"]:
             row = dict(base)

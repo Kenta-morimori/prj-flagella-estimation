@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import csv
+import logging
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -135,6 +137,55 @@ def test_torque_screen_condition_ids_are_unique() -> None:
     }
 
     assert len(ids) == 14
+
+
+def test_stage_a_failure_without_diagnostics_preserves_all_conditions(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    attempted_profiles: list[str] = []
+
+    class FailingSimulator:
+        def __init__(self, cfg: SimulationConfig) -> None:
+            attempted_profiles.append(cfg.model_profile.variant)
+            raise RuntimeError("simulator construction failed")
+
+    root = tmp_path / "campaign"
+    root.mkdir()
+    (root / "manifest.json").write_text('{"outputs": {}}\n', encoding="utf-8")
+    monkeypatch.setattr(
+        stage_a_2015,
+        "init_run",
+        lambda **_kwargs: SimpleNamespace(
+            out=SimpleNamespace(root=root),
+            logger=logging.getLogger("test-stage-a"),
+            git=SimpleNamespace(
+                commit="test", commit_short="test", branch="test", is_clean=True
+            ),
+        ),
+    )
+    monkeypatch.setattr(stage_a_2015, "Simulator", FailingSimulator)
+
+    with pytest.raises(RuntimeError, match=r"failed condition\(s\): project, paper"):
+        stage_a_2015.run_stage_a(
+            [
+                "--stage",
+                "motor_on",
+                "--smoke-steps",
+                "1",
+                "--output-base-dir",
+                str(tmp_path),
+            ]
+        )
+
+    assert attempted_profiles == ["project", "paper"]
+    summary_path = root / "summary.csv"
+    with summary_path.open("r", encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert [row["status"] for row in rows] == ["exception", "exception"]
+    assert all(
+        (summary_path.parent / row["condition_id"] / "failure.json").is_file()
+        for row in rows
+    )
 
 
 def test_project_torque_long_profile_has_three_1tau_conditions(
@@ -308,6 +359,26 @@ def test_motor_off_analysis_proposes_shared_thresholds(tmp_path: Path) -> None:
     assert proposal["failures"] == []
     assert proposal["thresholds"]["max_flag_bond_rel_err"] == pytest.approx(0.01)
     assert "min_axis_center_body_relative_revolutions" not in proposal["thresholds"]
+
+
+def test_stage_a_analysis_rejects_duplicate_profile_rows(tmp_path: Path) -> None:
+    _write_csv(
+        tmp_path / "summary.csv",
+        [
+            {"profile": "project", "condition_id": "project_torque_x0p5"},
+            {"profile": "project", "condition_id": "project_torque_x1"},
+            {"profile": "paper", "condition_id": "paper_torque_x1"},
+        ],
+    )
+
+    with pytest.raises(ValueError, match="Duplicate profile rows"):
+        stage_a_2015_analysis._summary_by_profile(tmp_path)
+
+
+def test_simulated_tau_per_wall_s_normalizes_duration() -> None:
+    assert stage_a_2015_analysis._simulated_tau_per_wall_s(
+        {"duration_tau": "0.1", "wall_time_s": "2.0"}
+    ) == pytest.approx(0.05)
 
 
 def test_motor_on_analysis_requires_rotation_and_visual_review(tmp_path: Path) -> None:

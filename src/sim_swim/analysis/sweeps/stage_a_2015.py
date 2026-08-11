@@ -107,6 +107,11 @@ def _max_numeric(rows: list[dict[str, str]], field: str) -> float:
     return max(values) if values else float("nan")
 
 
+def _read_partial_step_rows(path: Path) -> list[dict[str, str]]:
+    """Return recorded diagnostics when a condition failed before CSV creation."""
+    return _read_step_rows(path) if path.is_file() else []
+
+
 def _successful_row(
     cfg: SimulationConfig,
     *,
@@ -353,7 +358,9 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
                     json.dumps(failure, ensure_ascii=False, indent=2) + "\n",
                     encoding="utf-8",
                 )
-                partial_rows = _read_step_rows(condition_dir / "step_summary.csv")
+                partial_rows = _read_partial_step_rows(
+                    condition_dir / "step_summary.csv"
+                )
                 row = {
                     "condition_id": condition_id,
                     "status": "exception",
@@ -486,6 +493,16 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
     )
     logger.info("Wrote Stage A summary: %s", summary_path)
     print(summary_path)
+    failed_conditions = [
+        str(row["condition_id"])
+        for row in summary_rows
+        if row.get("status") != "completed"
+    ]
+    if failed_conditions:
+        raise RuntimeError(
+            "Stage A campaign completed with failed condition(s): "
+            + ", ".join(failed_conditions)
+        )
     return summary_path
 
 
