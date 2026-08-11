@@ -66,7 +66,35 @@ def _condition_row(
     condition: dict[str, Any],
     condition_dir: Path,
 ) -> dict[str, Any]:
-    rows = _read_step_rows(condition_dir / "step_summary.csv")
+    step_path = condition_dir / "step_summary.csv"
+    if not step_path.is_file():
+        summary = json.loads(
+            (condition_dir / "run_summary.json").read_text(encoding="utf-8")
+        )
+        execution = dict(summary.get("execution", {}) or {})
+        gates = dict(summary.get("gates", {}) or {})
+        metrics = dict(summary.get("all_step_metrics", {}) or {})
+        nonbody = dict(gates.get("shape_nonbody", {}) or {})
+        body = dict(gates.get("shape_body", {}) or {})
+        result = {
+            "condition_id": condition["condition_id"],
+            "condition_label": condition["condition_label"],
+            "output_policy": "compact",
+            "completed": execution.get("status") == "completed",
+            "total_steps": execution.get("expected_total_steps"),
+            "final_t_s": execution.get("observed_final_t_s"),
+            "final_shape_pass_nonbody": nonbody.get("final_pass"),
+            "first_fail_t_s": nonbody.get("first_observed_fail_t_s"),
+            "first_fail_category_nonbody": nonbody.get("first_failure_category"),
+            "body_shape_pass": not bool(body.get("any_fail", False)),
+            "body_fail_category": body.get("first_failure_category"),
+        }
+        for field in SUMMARY_FIELDS:
+            metric = metrics.get(field)
+            if isinstance(metric, dict):
+                result.setdefault(field, metric.get("max"))
+        return result
+    rows = _read_step_rows(step_path)
     axis_center_summary = _axis_center_phase_summary(
         _read_step_rows(condition_dir / "flag_helix_axis_diagnostics.csv")
     )

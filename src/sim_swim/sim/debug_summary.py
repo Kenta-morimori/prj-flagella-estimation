@@ -1159,17 +1159,20 @@ class BodyConstraintDiagnosticsRecorder:
     model: SimModel
     cfg: SimulationConfig
     out_dir: Path
+    emit_csv: bool = True
     _csv_fp: TextIO | None = field(init=False, default=None, repr=False)
     _writer: csv.DictWriter | None = field(init=False, default=None, repr=False)
 
     def __post_init__(self) -> None:
         self.out_dir.mkdir(parents=True, exist_ok=True)
         self.body_diag_path = self.out_dir / "body_constraint_diagnostics.csv"
-        self._csv_fp = self.body_diag_path.open("w", encoding="utf-8", newline="")
-        self._writer = csv.DictWriter(
-            self._csv_fp, fieldnames=BODY_CONSTRAINT_DIAGNOSTICS_COLUMNS
-        )
-        self._writer.writeheader()
+        if self.emit_csv:
+            self._csv_fp = self.body_diag_path.open("w", encoding="utf-8", newline="")
+            self._writer = csv.DictWriter(
+                self._csv_fp, fieldnames=BODY_CONSTRAINT_DIAGNOSTICS_COLUMNS
+            )
+            self._writer.writeheader()
+        self.last_row: dict[str, float | int] | None = None
 
         self.body_indices = self.model.body_indices.astype(int, copy=False)
         self.body_mask = self.model.bead_is_body.astype(bool)
@@ -1191,9 +1194,6 @@ class BodyConstraintDiagnosticsRecorder:
         ]
 
     def record(self, step: int, t_s: float, diag: StepDiagnostics) -> None:
-        if self._writer is None or self._csv_fp is None:
-            raise RuntimeError("body diagnostics writer is not initialized")
-
         pos_after = diag.positions_after_m
 
         if self.body_spring_rows.size > 0:
@@ -1288,8 +1288,10 @@ class BodyConstraintDiagnosticsRecorder:
             ),
             "F_total_mean_body": _mean_norm(diag.total_forces, self.body_mask),
         }
-        self._writer.writerow(row)
-        self._csv_fp.flush()
+        self.last_row = row
+        if self._writer is not None and self._csv_fp is not None:
+            self._writer.writerow(row)
+            self._csv_fp.flush()
 
     def write_csv(self) -> Path:
         if self._csv_fp is not None:
@@ -1460,6 +1462,7 @@ class StepSummaryRecorder:
     cfg: SimulationConfig
     out_dir: Path
     flush_interval_steps: int = 1
+    emit_csv: bool = True
     _csv_fp: TextIO | None = field(init=False, default=None, repr=False)
     _writer: csv.DictWriter | None = field(init=False, default=None, repr=False)
     _axis_csv_fp: TextIO | None = field(init=False, default=None, repr=False)
@@ -1470,23 +1473,24 @@ class StepSummaryRecorder:
         self.flush_interval_steps = max(1, int(self.flush_interval_steps))
         self.out_dir.mkdir(parents=True, exist_ok=True)
         self.step_summary_path = self.out_dir / "step_summary.csv"
-        self._csv_fp = self.step_summary_path.open("w", encoding="utf-8", newline="")
-        self._writer = csv.DictWriter(self._csv_fp, fieldnames=STEP_SUMMARY_COLUMNS)
-        self._writer.writeheader()
+        if self.emit_csv:
+            self._csv_fp = self.step_summary_path.open(
+                "w", encoding="utf-8", newline=""
+            )
+            self._writer = csv.DictWriter(self._csv_fp, fieldnames=STEP_SUMMARY_COLUMNS)
+            self._writer.writeheader()
 
         self.flag_helix_axis_diag_path = (
             self.out_dir / "flag_helix_axis_diagnostics.csv"
         )
-        self._axis_csv_fp = self.flag_helix_axis_diag_path.open(
-            "w",
-            encoding="utf-8",
-            newline="",
-        )
-        self._axis_writer = csv.DictWriter(
-            self._axis_csv_fp,
-            fieldnames=FLAG_HELIX_AXIS_DIAGNOSTICS_COLUMNS,
-        )
-        self._axis_writer.writeheader()
+        if self.emit_csv:
+            self._axis_csv_fp = self.flag_helix_axis_diag_path.open(
+                "w", encoding="utf-8", newline=""
+            )
+            self._axis_writer = csv.DictWriter(
+                self._axis_csv_fp, fieldnames=FLAG_HELIX_AXIS_DIAGNOSTICS_COLUMNS
+            )
+            self._axis_writer.writeheader()
 
         self.body_mask = self.model.bead_is_body.astype(bool)
         self.flag_mask = ~self.body_mask
@@ -1905,53 +1909,50 @@ class StepSummaryRecorder:
             if not estimate.degenerate and np.isfinite(estimate.axis).all():
                 helix_axes.append(estimate.axis)
 
-            if self._axis_writer is None:
-                raise RuntimeError(
-                    "flag helix axis diagnostics writer is not initialized"
-                )
             axis_center_body_relative_phase_deg = (
                 self._wrap_deg(centered.phase_deg - body_roll_offset_deg)
                 if np.isfinite(centered.phase_deg) and np.isfinite(body_roll_offset_deg)
                 else float("nan")
             )
-            self._axis_writer.writerow(
-                {
-                    "step": int(step),
-                    "t_s": t_s,
-                    "flag_id": int(flag_id),
-                    "flag_helix_axis_vs_rear_angle_deg": angle_deg,
-                    "flag_helix_axis_rearward_projection": rearward_projection,
-                    "flag_helix_axis_fit_r2": estimate.fit_r2,
-                    "axis_origin_x_um": float(estimate.origin[0] * M_TO_UM),
-                    "axis_origin_y_um": float(estimate.origin[1] * M_TO_UM),
-                    "axis_origin_z_um": float(estimate.origin[2] * M_TO_UM),
-                    "axis_dir_x": float(estimate.axis[0]),
-                    "axis_dir_y": float(estimate.axis[1]),
-                    "axis_dir_z": float(estimate.axis[2]),
-                    "axis_center_spin_phase_deg": centered.phase_deg,
-                    "axis_center_spin_fit_r2": centered.fit_r2,
-                    "axis_center_radius_mean_um": (
-                        float(centered.radius_mean_m * M_TO_UM)
-                        if np.isfinite(centered.radius_mean_m)
-                        else float("nan")
-                    ),
-                    "axis_center_radius_std_um": (
-                        float(centered.radius_std_m * M_TO_UM)
-                        if np.isfinite(centered.radius_std_m)
-                        else float("nan")
-                    ),
-                    "axis_center_radius_cv": centered.radius_cv,
-                    "axis_center_root_offset_um": (
-                        float(centered.root_offset_m * M_TO_UM)
-                        if np.isfinite(centered.root_offset_m)
-                        else float("nan")
-                    ),
-                    "body_roll_phase_deg": body_roll_phase_deg,
-                    "axis_center_body_relative_phase_deg": (
-                        axis_center_body_relative_phase_deg
-                    ),
-                }
-            )
+            if self._axis_writer is not None:
+                self._axis_writer.writerow(
+                    {
+                        "step": int(step),
+                        "t_s": t_s,
+                        "flag_id": int(flag_id),
+                        "flag_helix_axis_vs_rear_angle_deg": angle_deg,
+                        "flag_helix_axis_rearward_projection": rearward_projection,
+                        "flag_helix_axis_fit_r2": estimate.fit_r2,
+                        "axis_origin_x_um": float(estimate.origin[0] * M_TO_UM),
+                        "axis_origin_y_um": float(estimate.origin[1] * M_TO_UM),
+                        "axis_origin_z_um": float(estimate.origin[2] * M_TO_UM),
+                        "axis_dir_x": float(estimate.axis[0]),
+                        "axis_dir_y": float(estimate.axis[1]),
+                        "axis_dir_z": float(estimate.axis[2]),
+                        "axis_center_spin_phase_deg": centered.phase_deg,
+                        "axis_center_spin_fit_r2": centered.fit_r2,
+                        "axis_center_radius_mean_um": (
+                            float(centered.radius_mean_m * M_TO_UM)
+                            if np.isfinite(centered.radius_mean_m)
+                            else float("nan")
+                        ),
+                        "axis_center_radius_std_um": (
+                            float(centered.radius_std_m * M_TO_UM)
+                            if np.isfinite(centered.radius_std_m)
+                            else float("nan")
+                        ),
+                        "axis_center_radius_cv": centered.radius_cv,
+                        "axis_center_root_offset_um": (
+                            float(centered.root_offset_m * M_TO_UM)
+                            if np.isfinite(centered.root_offset_m)
+                            else float("nan")
+                        ),
+                        "body_roll_phase_deg": body_roll_phase_deg,
+                        "axis_center_body_relative_phase_deg": (
+                            axis_center_body_relative_phase_deg
+                        ),
+                    }
+                )
 
         flag_helix_axis_vs_rear_angle_deg_min = (
             float(np.min(helix_axis_angles)) if helix_axis_angles else float("nan")
@@ -2675,15 +2676,14 @@ class StepSummaryRecorder:
             "brownian_enabled": bool(diag.brownian_enabled),
             "brownian_disp_mean_um": brownian_disp_mean_um,
         }
-        if self._writer is None or self._csv_fp is None:
-            raise RuntimeError("step summary writer is not initialized")
-        self._writer.writerow(row)
-        self._rows_since_flush += 1
-        if self._rows_since_flush >= self.flush_interval_steps:
-            self._csv_fp.flush()
-            if self._axis_csv_fp is not None:
-                self._axis_csv_fp.flush()
-            self._rows_since_flush = 0
+        if self._writer is not None and self._csv_fp is not None:
+            self._writer.writerow(row)
+            self._rows_since_flush += 1
+            if self._rows_since_flush >= self.flush_interval_steps:
+                self._csv_fp.flush()
+                if self._axis_csv_fp is not None:
+                    self._axis_csv_fp.flush()
+                self._rows_since_flush = 0
         self.last_row = row
         self.prev_flag_states = self.model.flag_states.copy()
         self.prev_body_center_m = body_center_m.copy()

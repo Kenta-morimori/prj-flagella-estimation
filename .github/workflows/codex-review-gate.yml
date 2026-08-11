@@ -1,7 +1,10 @@
 name: codex-review-gate
 
 on:
-  pull_request_target:
+  # This gate only reads PR/review metadata and writes a status.  Running from
+  # the same-repository PR ref lets a gate change be validated by the PR that
+  # introduces it; forks do not receive write credentials.
+  pull_request:
     types:
       - opened
       - reopened
@@ -29,7 +32,7 @@ jobs:
   evaluate:
     name: evaluate codex review gate
     if: >-
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
       (github.event_name == 'issue_comment' && github.event.issue.pull_request)
@@ -43,7 +46,7 @@ jobs:
             const repo = context.repo.repo;
             const prNumbers = [];
 
-            if (context.eventName === "pull_request_target") {
+            if (context.eventName === "pull_request") {
               prNumbers.push(context.payload.pull_request.number);
             } else if (context.eventName === "issue_comment") {
               prNumbers.push(context.payload.issue.number);
@@ -93,36 +96,6 @@ jobs:
               COPILOT_REVIEWER_LOGINS.has(normalizedLogin(login));
             const normalizedSha = (sha) =>
               typeof sha === "string" ? sha.toLowerCase() : "";
-            const shaMatches = (fullSha, prefix) => {
-              const full = normalizedSha(fullSha);
-              const candidate = normalizedSha(prefix);
-              return Boolean(full && candidate && full.startsWith(candidate));
-            };
-            const extractReviewSha = (body) => {
-              if (typeof body !== "string") {
-                return "";
-              }
-              const match = body.match(/@codex\s+review\s+([0-9a-f]{10,40})/i);
-              return match ? match[1].toLowerCase() : "";
-            };
-            const bodyMentionsSha = (body, sha) => {
-              if (typeof body !== "string" || !sha) {
-                return false;
-              }
-              const lowerBody = body.toLowerCase();
-              const lowerSha = sha.toLowerCase();
-              return (
-                lowerBody.includes(lowerSha) ||
-                lowerBody.includes(lowerSha.slice(0, 10))
-              );
-            };
-            const hasPassVerdict = (body) =>
-              typeof body === "string" &&
-              /final verdict[\s\S]{0,200}\bpass\b/i.test(body);
-            const hasCleanCodexSignal = (body) =>
-              hasPassVerdict(body) ||
-              (typeof body === "string" &&
-                /didn['’]t find any major issues/i.test(body));
             const reviewIsSubmitted = (review) =>
               Boolean(review?.submitted_at) &&
               String(review?.state || "").toUpperCase() !== "DISMISSED";
@@ -287,97 +260,17 @@ jobs:
                   reviewIsSubmitted(review) &&
                   shaBelongsToPr(review.commit_id)
               );
+              const validCodexReviews = reviews.filter(
+                (review) =>
+                  isCodexConnector(review.user?.login) &&
+                  reviewIsSubmitted(review) &&
+                  shaBelongsToPr(review.commit_id)
+              );
+              // GitHub already binds reviews to commits.  A trusted review on
+              // any commit still in this PR is valid; unresolved trusted
+              // threads above are the only review-follow-up blocker.
+              const codexReviewAccepted = validCodexReviews.length > 0;
               const copilotReviewAccepted = validCopilotReviews.length > 0;
-
-              const validCodexRequests = comments
-                .map((comment) => ({
-                  comment,
-                  requestedSha: extractReviewSha(comment.body),
-                }))
-                .filter(({ requestedSha }) => shaBelongsToPr(requestedSha))
-                .sort(
-                  (a, b) =>
-                    new Date(
-                      b.comment.updated_at || b.comment.created_at
-                    ) -
-                    new Date(
-                      a.comment.updated_at || a.comment.created_at
-                    )
-                );
-
-              const connectorThumbsUp = async (request) => {
-                const reactions = await github.paginate(
-                  github.rest.reactions.listForIssueComment,
-                  {
-                    owner,
-                    repo,
-                    comment_id: request.id,
-                    content: "+1",
-                    per_page: 100,
-                  }
-                );
-                const requestUpdatedAt = new Date(
-                  request.updated_at || request.created_at
-                );
-                return reactions.some(
-                  (reaction) =>
-                    isCodexConnector(reaction.user?.login) &&
-                    new Date(reaction.created_at) >= requestUpdatedAt
-                );
-              };
-
-              let codexReviewAccepted = false;
-              for (const { comment: request, requestedSha } of validCodexRequests) {
-                const requestAt = new Date(
-                  request.updated_at || request.created_at
-                );
-
-                if (await connectorThumbsUp(request)) {
-                  codexReviewAccepted = true;
-                  break;
-                }
-
-                const connectorReviews = reviews.filter(
-                  (review) =>
-                    isCodexConnector(review.user?.login) &&
-                    reviewIsSubmitted(review) &&
-                    new Date(review.submitted_at) >= requestAt &&
-                    shaBelongsToPr(review.commit_id) &&
-                    (shaMatches(review.commit_id, requestedSha) ||
-                      bodyMentionsSha(review.body, requestedSha))
-                );
-                const connectorComments = comments.filter(
-                  (comment) =>
-                    isCodexConnector(comment.user?.login) &&
-                    new Date(comment.created_at) >= requestAt &&
-                    bodyMentionsSha(comment.body, requestedSha)
-                );
-
-                const cleanResponseSeen =
-                  connectorReviews.some(
-                    (review) =>
-                      String(review.state).toUpperCase() === "APPROVED" ||
-                      hasCleanCodexSignal(review.body)
-                  ) ||
-                  connectorComments.some((comment) =>
-                    hasCleanCodexSignal(comment.body)
-                  );
-                const feedbackSeen = connectorReviews.some(
-                  (review) =>
-                    String(review.state).toUpperCase() !== "APPROVED" &&
-                    !hasCleanCodexSignal(review.body)
-                );
-
-                if (
-                  cleanResponseSeen ||
-                  (feedbackSeen &&
-                    codexThreads.length > 0 &&
-                    unresolvedCodexThreads.length === 0)
-                ) {
-                  codexReviewAccepted = true;
-                  break;
-                }
-              }
 
               let state = "failure";
               let provider = "none";

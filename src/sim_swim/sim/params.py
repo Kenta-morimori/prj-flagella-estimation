@@ -575,6 +575,10 @@ class OutputParams:
 
     base_dir: str = "outputs"
     timestamp_subdir: bool = True
+    # ``debug`` is the legacy-compatible policy.  ``compact`` keeps only a
+    # uniformly sampled replay archive while still evaluating every-step QC.
+    policy: str = "debug"
+    archive_interval_s: float = 0.001
 
 
 @dataclass(frozen=True)
@@ -1719,7 +1723,13 @@ class SimulationConfig:
         output = OutputParams(
             base_dir=str(_get(output_raw, "base_dir", "outputs")),
             timestamp_subdir=bool(_get(output_raw, "timestamp_subdir", True)),
+            policy=str(_get(output_raw, "policy", "debug")),
+            archive_interval_s=float(_get(output_raw, "archive_interval_s", 0.001)),
         )
+        if output.policy not in {"debug", "compact"}:
+            raise ValueError("output.policy must be 'debug' or 'compact'")
+        if output.archive_interval_s <= 0.0:
+            raise ValueError("output.archive_interval_s must be positive")
 
         stiffness_raw = raw.get("stiffness_scales", {}) or {}
         stiffness = StiffnessScaleParams(

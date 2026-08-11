@@ -14,6 +14,26 @@ from sim_swim.sim.params import merge_overrides
 ARCHIVE_FORMAT = "sim_swim.flagella_count_behavior_state_archive"
 ARCHIVE_VERSION = 1
 
+
+def validate_replay_fps(states: list[SimulationState], fps: float) -> None:
+    """Reject replay requests denser than the stored physical-time archive."""
+
+    if fps <= 0:
+        raise ValueError("replay fps must be positive")
+    if len(states) < 2:
+        return
+    gaps = [later.t - earlier.t for earlier, later in zip(states, states[1:])]
+    max_gap = max(gaps)
+    # Archive states are observed on the first integrator step at/after the
+    # requested physical time.  Permit only a tiny timing quantization margin,
+    # never interpolation or a materially denser replay.
+    if max_gap > 0.0 and fps > (1.0 / max_gap) * (1.0 + 1.0e-4):
+        raise ValueError(
+            f"requested replay fps={fps:g} exceeds archive density "
+            f"({1.0 / max_gap:g} fps); interpolation is not supported"
+        )
+
+
 ANALYSIS_OVERRIDE_ROOTS = {
     "dataset_id",
     "run_batch_id",

@@ -1,0 +1,33 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  description: "Issue #186: 2015 project model 0.5 s compact-output candidate"
+
+base_config: conf/sim_swim_2015.yaml
+base_overrides:
+  time.duration:
+    value: 0.5
+    unit: s
+  output.policy: compact
+  # 1 ms: 0.5 s run gives about 501 states; supports 25--1000 fps replay,
+  # about 10 samples/cycle at 100 Hz, and dt_star-independent physical timing.
+  output.archive_interval_s: 0.001
+
+sweep:
+  axes:
+    seed:
+      key: seed.global_seed
+      short_name: seed
+      values: [0]
+
+replay:
+  mode: both
+  fps_out_3d: 25.0
+  output_subdir: replay
+
+output:
+  base_dir: outputs/phase2_multi_run/2015_project_compact_0p5s
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 100000

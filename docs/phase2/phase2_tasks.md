@@ -243,6 +243,11 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Decision:** canonical `dt_star=1e-5`を維持し，`dt_star=1e-4`は非canonical referenceとする。本PRのStage A検証は完了とする。`dt_star`の有効性説明はIssue #61、reference torque policyはIssue #183、dataset v2採択向けのtorque・`dt_star`・べん毛数検証はIssue #184で実施し、2015 profileのsupported採否はそれらの後に判断する。
 - **Evidence:** Issue #168，PR #176，Issues #61・#183・#184，`docs/phase2/phase2_168_2015_stage_a_validation.md`，parent Issue #154．
 
+### P2-D19: 大量step runはcompact output policyを明示選択する
+
+- **Decision:** 既存短時間 workflow は `output.policy: debug` の全step state/CSV 互換を維持する。長時間候補は `compact` を明示し、全内部step QC をオンライン集約しながら state archive を物理時間一様に保存する。標準 cadence は 1 ms とする。compact archive は replay/通常解析用であり、未定義の全step将来指標の完全再構成を保証しない。
+- **Evidence:** Issue #186，`conf/phase2_multi_run/2015_project_compact_0p5s.yaml`，`docs/phase2/phase2_run_summary_contract.md`．
+
 ### P2-D19: dataset v2前にn=3長時間非定常回転とproximal failureを診断する
 
 - **Status:** pending
