@@ -48,7 +48,7 @@
   "adr_reason": "canonical profile、dt_star default、reference torque policy、dataset採択を変更していない。これらの判断はIssue #61、#183、#184で必要に応じてADR要否を再評価する。",
   "commit_type": "docs",
   "commit_hash": "11fa01f2c04ea402679957058486bbb456cf3537",
-  "push_status": "pending_after_review_record_update",
+  "push_status": "pushed: ccd1df1 (2026-08-11 JST)",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/176",
   "next_actions": [
     "Issue #61で2010 / 2015 projectのdt_star有効性を、トルク・力学量・実時間から定量的に説明する。",
