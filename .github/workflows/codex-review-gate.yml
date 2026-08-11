@@ -102,7 +102,11 @@ jobs:
               if (typeof body !== "string") {
                 return "";
               }
-              const match = body.match(/@codex\s+review\s+([0-9a-f]{10,40})/i);
+              // Accept legacy Git short SHA requests (7 chars) so an already
+              // completed trusted review is not discarded solely by request
+              // formatting. Documentation still requires 10+ chars for new
+              // requests to reduce prefix ambiguity.
+              const match = body.match(/@codex\s+review\s+([0-9a-f]{7,40})/i);
               return match ? match[1].toLowerCase() : "";
             };
             const bodyMentionsSha = (body, sha) => {
