@@ -687,6 +687,7 @@ class Simulator:
         body_local_diag_recorder = (
             BodyConstraintLocalDiagnosticsRecorder(self.model, step_summary_dir)
             if step_summary_dir is not None
+            and output_policy == "debug"
             and (
                 record_body_diag
                 if record_body_local_diagnostics is None
