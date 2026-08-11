@@ -1,0 +1,23 @@
+{
+  "status": "PASS",
+  "summary": "Issue #186 compact output policy: every-step diagnostics are aggregated online while compact runs omit full-step state and CSV output. A 1 ms physical-time archive and a 2015 project 0.5 s campaign command are provided.",
+  "blocking_issues": [],
+  "non_blocking_issues": ["The 0.5 s campaign was intentionally not executed; it is for a separate PC."],
+  "tests_reviewed": [
+    "uv run pytest -q tests/test_phase2_186_compact_output.py (3 passed)",
+    "uv run pytest -q tests/test_simulation.py -k 'records_all_states or writes_step_summary' (2 passed)",
+    "uv run python -m compileall -q src",
+    "git diff --check"
+  ],
+  "user_review_required": false,
+  "user_review_command": "bash scripts/01_simulate_swimming/run_2015_project_compact_0p5s.sh",
+  "user_review_outputs": ["manifest.json", "run_manifest.json", "condition/state_archive.npz", "condition/run_summary.json", "condition/performance.json"],
+  "user_review_points": ["Confirm all conditions complete and strict gates pass before any dataset adoption."],
+  "adr_required": false,
+  "adr_reason": "Implements Issue #186's already fixed output-policy decision; physics, torque policy, integration method, dt_star and thresholds are unchanged.",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": []
+}

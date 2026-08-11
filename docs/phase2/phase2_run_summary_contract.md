@@ -4,6 +4,8 @@
 
 `run_summary.json` is the compact, formal first-read artifact for one Phase 2 simulation or campaign condition. It aggregates existing diagnostics and does not change the physical model, gate definitions, thresholds, or `step_summary.csv`.
 
+Issue #186 の `output.policy: compact` では、全内部 step の診断・strict QC をオンライン集約する一方、全step CSV は書かない。`all_step_metrics` は各数値列の min/max/final/finite、gate は first failure の時刻・category・target を持つ。compact archive は物理時間一様で、標準 `output.archive_interval_s: 0.001`（0.5 s なら約501 state）である。これは 25--1000 fps replay、約100 Hz 回転の1周期約10点、`dt_star` 間の同じ物理時間解像度を両立するためである。archive より高い fps は補間せず拒否する。未定義の将来の全step指標は compact archive だけから完全再構成できないため、必要時は短時間 debug policy を使う。
+
 ## Location and reading order
 
 - Single simulation: `<run>/sim/run_summary.json`

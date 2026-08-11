@@ -13,6 +13,7 @@ from typing import Any, List, Tuple
 import numpy as np
 
 from sim_swim.analysis.run_summary import write_run_summary
+from sim_swim.analysis.online_run_summary import OnlineRunSummary
 from sim_swim.dynamics.engine import DynamicsEngine
 from sim_swim.model.builder import ModelBuilder
 from sim_swim.sim.debug_summary import (
@@ -579,6 +580,8 @@ class Simulator:
         record_body_diagnostics: bool | None = None,
         record_body_local_diagnostics: bool | None = None,
         state_sample_interval_steps: int = 1,
+        output_policy: str | None = None,
+        archive_interval_s: float | None = None,
     ) -> List[SimulationState]:
         """与えた時間だけシミュレーションして状態列を返す。
 
@@ -596,6 +599,8 @@ class Simulator:
             record_body_local_diagnostics: body local diagnosticsの出力指定。
                 Noneではrecord_body_diagnosticsと同じ判定を使う。
             state_sample_interval_steps: 返却stateのstep間隔。初期・最終stateは常に残す。
+            output_policy: ``debug`` は従来互換の全step CSV/state、``compact`` は
+                物理時間一様 archive とオンラインQC集約を使う。
         """
 
         tau_s = self.config.tau_s
@@ -607,6 +612,16 @@ class Simulator:
             total_steps = max(0, int(math.ceil(duration_star / dt_star)))
         flush_interval_steps = max(1, int(flush_interval_steps))
         state_sample_interval_steps = max(1, int(state_sample_interval_steps))
+        output_policy = output_policy or self.config.output.policy
+        if output_policy not in {"debug", "compact"}:
+            raise ValueError("output_policy must be 'debug' or 'compact'")
+        archive_interval_s = float(
+            self.config.output.archive_interval_s
+            if archive_interval_s is None
+            else archive_interval_s
+        )
+        if archive_interval_s <= 0.0:
+            raise ValueError("archive_interval_s must be positive")
 
         states: List[SimulationState] = []
         wall_start = time.perf_counter()
@@ -636,6 +651,7 @@ class Simulator:
                 self.config,
                 step_summary_dir,
                 flush_interval_steps=flush_interval_steps,
+                emit_csv=output_policy == "debug",
             )
             if step_summary_dir is not None
             else None
@@ -656,6 +672,8 @@ class Simulator:
             if record_body_diagnostics is None
             else bool(record_body_diagnostics)
         )
+        if output_policy == "compact":
+            record_body_diag = False
         body_diag_recorder = (
             BodyConstraintDiagnosticsRecorder(self.model, self.config, step_summary_dir)
             if step_summary_dir is not None and record_body_diag
@@ -671,64 +689,102 @@ class Simulator:
             )
             else None
         )
+        online_summary = OnlineRunSummary(expected_steps=total_steps)
+        next_archive_t_s = archive_interval_s
+        completed_normally = False
+        completion_reason = "completed all planned steps"
 
-        for step in range(total_steps):
-            t_star_before = self.engine.t_star
-            step_diag = self.engine.step(dt_star)
-            completed = step + 1
+        try:
+            for step in range(total_steps):
+                t_star_before = self.engine.t_star
+                step_diag = self.engine.step(dt_star)
+                completed = step + 1
 
-            if debug_recorder is not None:
-                debug_recorder.record(step=step, t_star=t_star_before, diag=step_diag)
-                if (
-                    stop_on_shape_fail
-                    and debug_recorder.last_row is not None
-                    and not bool(
-                        debug_recorder.last_row.get("shape_pass_nonbody", True)
+                if debug_recorder is not None:
+                    debug_recorder.record(
+                        step=step, t_star=t_star_before, diag=step_diag
                     )
-                ):
-                    if logger is not None:
-                        logger.info(
-                            (
-                                "Simulation stopped on shape fail: step=%d/%d, "
-                                "t_s=%.6f s"
-                            ),
-                            step + 1,
-                            total_steps,
-                            t_star_before * tau_s,
+                    if debug_recorder.last_row is not None:
+                        online_summary.record(debug_recorder.last_row)
+                    if (
+                        stop_on_shape_fail
+                        and debug_recorder.last_row is not None
+                        and not bool(
+                            debug_recorder.last_row.get("shape_pass_nonbody", True)
                         )
-                    break
-            if body_diag_recorder is not None:
-                body_diag_recorder.record(
-                    step=step,
-                    t_s=t_star_before * tau_s,
-                    diag=step_diag,
-                )
-            if body_local_diag_recorder is not None:
-                body_local_diag_recorder.record(
-                    step=step,
-                    t_s=t_star_before * tau_s,
-                    pos_after=step_diag.positions_after_m,
-                )
+                    ):
+                        completion_reason = "stopped on shape failure"
+                        break
+                if body_diag_recorder is not None:
+                    body_diag_recorder.record(
+                        step=step, t_s=t_star_before * tau_s, diag=step_diag
+                    )
+                if body_local_diag_recorder is not None:
+                    body_local_diag_recorder.record(
+                        step=step,
+                        t_s=t_star_before * tau_s,
+                        pos_after=step_diag.positions_after_m,
+                    )
 
-            if completed % state_sample_interval_steps == 0 or completed == total_steps:
                 t_now = self.engine.t_star * tau_s
-                prev = states[-1]
-                states.append(self._observe(t_now, prev))
-
-            if logger is not None and (
-                completed % progress_interval == 0 or completed == total_steps
-            ):
-                logger.info(
-                    (
-                        "Simulation progress: step=%d/%d (%.1f%%), "
-                        "t_star=%.6f, t_s=%.6f s"
-                    ),
-                    completed,
-                    total_steps,
-                    (completed / total_steps) * 100.0,
-                    self.engine.t_star,
-                    self.engine.t_star * tau_s,
+                should_archive = (
+                    completed == total_steps
+                    or (
+                        output_policy == "debug"
+                        and completed % state_sample_interval_steps == 0
+                    )
+                    or (
+                        output_policy == "compact" and t_now + 1e-15 >= next_archive_t_s
+                    )
                 )
+                if should_archive:
+                    prev = states[-1]
+                    states.append(self._observe(t_now, prev))
+                    while next_archive_t_s <= t_now + 1e-15:
+                        next_archive_t_s += archive_interval_s
+
+                if logger is not None and (
+                    completed % progress_interval == 0 or completed == total_steps
+                ):
+                    logger.info(
+                        "Simulation progress: step=%d/%d (%.1f%%), t_star=%.6f, t_s=%.6f s",
+                        completed,
+                        total_steps,
+                        (completed / total_steps) * 100.0,
+                        self.engine.t_star,
+                        t_now,
+                    )
+            else:
+                completed_normally = True
+        except Exception as exc:
+            completion_reason = f"exception: {type(exc).__name__}: {exc}"
+            if step_summary_dir is not None and output_policy == "compact":
+                online_summary.write(
+                    run_dir=step_summary_dir,
+                    completed=False,
+                    reason=completion_reason,
+                    time_manifest=self.config.time_manifest(),
+                    policy=output_policy,
+                )
+                elapsed_s = time.perf_counter() - wall_start
+                (step_summary_dir / "performance.json").write_text(
+                    json.dumps(
+                        {
+                            "wall_time_s": elapsed_s,
+                            "steps_per_s": online_summary.count / max(elapsed_s, 1e-12),
+                            "total_steps": total_steps,
+                            "completed_steps": online_summary.count,
+                            "archive_sampling_interval_s": archive_interval_s,
+                            "saved_state_count": len(states),
+                            "output_policy": output_policy,
+                        },
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                )
+            raise
 
         if logger is not None:
             logger.info(
@@ -750,12 +806,41 @@ class Simulator:
             if logger is not None:
                 logger.info("Saved body local diagnostics to %s", body_local_csv)
         if step_summary_dir is not None:
-            run_summary = write_run_summary(
-                step_summary_dir,
-                time_manifest=self.config.time_manifest(),
-                overwrite=True,
+            run_summary = (
+                write_run_summary(
+                    step_summary_dir,
+                    time_manifest=self.config.time_manifest(),
+                    overwrite=True,
+                )
+                if output_policy == "debug"
+                else online_summary.write(
+                    run_dir=step_summary_dir,
+                    completed=completed_normally,
+                    reason=completion_reason,
+                    time_manifest=self.config.time_manifest(),
+                    policy=output_policy,
+                )
             )
             if logger is not None:
                 logger.info("Saved run summary to %s", run_summary)
+        if step_summary_dir is not None:
+            elapsed_s = time.perf_counter() - wall_start
+            (step_summary_dir / "performance.json").write_text(
+                json.dumps(
+                    {
+                        "wall_time_s": elapsed_s,
+                        "steps_per_s": online_summary.count / max(elapsed_s, 1e-12),
+                        "total_steps": total_steps,
+                        "completed_steps": online_summary.count,
+                        "archive_sampling_interval_s": archive_interval_s,
+                        "saved_state_count": len(states),
+                        "output_policy": output_policy,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
 
         return states

@@ -66,7 +66,21 @@ def _condition_row(
     condition: dict[str, Any],
     condition_dir: Path,
 ) -> dict[str, Any]:
-    rows = _read_step_rows(condition_dir / "step_summary.csv")
+    step_path = condition_dir / "step_summary.csv"
+    if not step_path.is_file():
+        summary = json.loads(
+            (condition_dir / "run_summary.json").read_text(encoding="utf-8")
+        )
+        execution = dict(summary.get("execution", {}) or {})
+        return {
+            "condition_id": condition["condition_id"],
+            "condition_label": condition["condition_label"],
+            "output_policy": "compact",
+            "completed": execution.get("status") == "completed",
+            "total_steps": execution.get("expected_total_steps"),
+            "final_t_s": execution.get("observed_final_t_s"),
+        }
+    rows = _read_step_rows(step_path)
     axis_center_summary = _axis_center_phase_summary(
         _read_step_rows(condition_dir / "flag_helix_axis_diagnostics.csv")
     )

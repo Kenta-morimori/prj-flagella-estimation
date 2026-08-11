@@ -25,7 +25,10 @@ from sim_swim.analysis.cli_profiles import (
     key_value_args_to_cli_args,
     split_config_key,
 )
-from sim_swim.analysis.flagella_count_behavior import normalize_base_overrides
+from sim_swim.analysis.flagella_count_behavior import (
+    normalize_base_overrides,
+    validate_replay_fps,
+)
 from sim_swim.sim.params import SimulationConfig
 
 CANONICAL_TORQUE_DISTRIBUTION_CONDITION_IDS = (
@@ -1028,6 +1031,7 @@ def main(argv: list[str] | None = None) -> None:
                 fps_out_3d=args.fps_out_3d,
             )
             states = load_state_archive(_archive_path(args.input_dir, record))
+            validate_replay_fps(states, args.fps_out_3d)
             simulator = Simulator(cfg)
             expected_beads = int(simulator.model.positions_m.shape[0])
             for state_index, state in enumerate(states):

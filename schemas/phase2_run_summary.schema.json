@@ -12,7 +12,7 @@
       "required": ["run_dir", "step_summary_csv", "body_constraint_diagnostics_csv"],
       "properties": {
         "run_dir": {"type": "string"},
-        "step_summary_csv": {"type": "string"},
+        "step_summary_csv": {"type": ["string", "null"]},
         "body_constraint_diagnostics_csv": {"type": ["string", "null"]}
       }
     },
