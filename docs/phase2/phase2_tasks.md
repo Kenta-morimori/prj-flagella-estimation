@@ -238,10 +238,10 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Status:** pending
 - **Background:** 2015 refined geometryとmotor dynamicsは実装済みだが，短時間安定性，integration step感度，定性挙動を確認しない限りsupported profileへ昇格できない．
 - **Change:** motor-off／motor-on，project／paper，`dt_star=1e-4`／`1e-5`を比較できるStage A runnerと判定出力を用意した．
-- **Current result:** motor-off pilotは完走しているが，reference run，motor-on run，刻み感度比較，replay review，profile採否が未完了である．
-- **Interpretation:** implementation completeとvalidation completeを分離する．短時間runが完走しても，paper／project profileの目的と採用範囲は確定しない．
-- **Decision:** Stage A完了までは2015 project／paper profileをpendingとする．
-- **Evidence:** Issue #168，PR #176，`docs/phase2/phase2_168_2015_stage_a_validation.md`，parent Issue #154．
+- **Current result:** motor-off `0.1 tau`とcanonical motor-on `1 tau`は完走した。`dt_star=1e-4`はproject profileの先頭`0.1 tau`ペアでは回転・姿勢・bead差の基準を満たしたが，paper profileでは回転量差が10%を超えた。project後方束化のtorque scale `0.5, 1, 2` × `dt_star=1e-5, 1e-4`は全6 conditionが完走し、有限性・shape・motor action-reaction gateを通過した。grid replayのユーザー目視では明瞭なcollapse / fly-awayは認められなかった。
+- **Interpretation:** Stage Aの短時間検証と定性可視化は完了したが、`dt_star=1e-4`をproject/paper共通defaultへ昇格させる根拠はない。短い実時間では小さな誤差を過大評価し得るため、同一実時間での定量評価と計算効率評価を分けて行う。
+- **Decision:** canonical `dt_star=1e-5`を維持し，`dt_star=1e-4`は非canonical referenceとする。本PRのStage A検証は完了とする。`dt_star`の有効性説明はIssue #61、reference torque policyはIssue #183、dataset v2採択向けのtorque・`dt_star`・べん毛数検証はIssue #184で実施し、2015 profileのsupported採否はそれらの後に判断する。
+- **Evidence:** Issue #168，PR #176，Issues #61・#183・#184，`docs/phase2/phase2_168_2015_stage_a_validation.md`，parent Issue #154．
 
 ### P2-D19: dataset v2前にn=3長時間非定常回転とproximal failureを診断する
 

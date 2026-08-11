@@ -1,0 +1,14 @@
+kind: stage_a_2015
+metadata:
+  role: sweep
+  canonical: true
+  description: Issue #168 2015 refined project/paper motor-on RUN 1 tau
+
+args:
+  stage: motor_on
+  project_config: conf/sim_swim_2015.yaml
+  paper_config: conf/sim_swim_2015_paper.yaml
+  profiles: [project, paper]
+  output_base_dir: outputs
+  state_sample_count: 201
+  progress_interval: 10000

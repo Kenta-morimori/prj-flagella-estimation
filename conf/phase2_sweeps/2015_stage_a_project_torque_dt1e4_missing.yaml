@@ -1,0 +1,18 @@
+kind: stage_a_2015
+metadata:
+  role: sweep
+  canonical: false
+  description: Issue #168 missing project rear-bundling cells for the torque-by-dt replay grid
+
+args:
+  stage: motor_on
+  project_config: conf/sim_swim_2015.yaml
+  paper_config: conf/sim_swim_2015_paper.yaml
+  profiles: [project]
+  output_base_dir: outputs
+  state_sample_count: 201
+  progress_interval: 1000
+  dt_star: 1.0e-4
+  duration_tau: 1.0
+  motor_torque_scales: [0.5, 2.0]
+  comparison_role: project_torque_dt1e4_grid_missing

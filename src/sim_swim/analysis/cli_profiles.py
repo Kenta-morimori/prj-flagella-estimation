@@ -14,6 +14,7 @@ PROFILE_DIRS = (
 
 BOOLEAN_KEYS = {
     "describe_profile",
+    "diagonal_braces_enabled",
     "dry_run",
     "list_canonical_profiles",
     "list_kind",
@@ -61,6 +62,7 @@ SWEEP_OVERRIDE_ALIASES = {
         "time.dt_star": "dt-star",
         "time.duration_s": "duration",
     },
+    "stage_a_2015": {},
 }
 
 

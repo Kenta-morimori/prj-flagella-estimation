@@ -1,0 +1,18 @@
+kind: stage_a_2015
+metadata:
+  role: sweep
+  canonical: false
+  description: Issue #168 project profile long motor-on torque evaluation after short screen
+
+args:
+  stage: motor_on
+  project_config: conf/sim_swim_2015.yaml
+  paper_config: conf/sim_swim_2015_paper.yaml
+  profiles: [project]
+  output_base_dir: outputs
+  state_sample_count: 201
+  progress_interval: 10000
+  dt_star: 1.0e-5
+  duration_tau: 1.0
+  motor_torque_scales: [0.5, 1.0, 2.0]
+  comparison_role: project_torque_long_dt1e5

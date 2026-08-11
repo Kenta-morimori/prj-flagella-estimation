@@ -1,0 +1,58 @@
+{
+  "status": "PASS",
+  "summary": "Issue #168 / PR #176のStage A受入範囲を完了した。2015 refined 120-bead modelのmotor-off 0.1 tauとmotor-on 1 tauを実行し、project後方束化についてtorque scale 0.5, 1, 2とdt_star 1e-5, 1e-4の6 conditionを再実行なしでreplay gridへ集約した。全6 conditionは軽量なrun_summary.jsonで有限性・shape・motor action-reaction gateを確認し、ユーザー目視で明瞭なcollapse / fly-awayがないことを確認した。レビュー指摘により、条件例外時の失敗記録・非ゼロ終了、summaryの重複profile拒否、simulated tau / wall sによる性能指標へ修正した。canonical dt_star=1e-5は維持する。2015 profileのsupported採択、dt_starの定量的妥当性、reference torque policy、dataset v2採択は本PRの対象外としてIssue #61、#183、#184へ移管した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "短い実時間の比較では小さな誤差を過大評価し得るため、dt_starの正式採用やprofile採択はしていない。",
+    "campaign summary.csvの一部診断列はrun全体の最大値を表さないため、定量判定はconditionごとのrun_summary.jsonを正本とした。",
+    "motor torque balance residual等の物理解釈・改善は、このStage A可視化PRの範囲外である。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest -q tests/test_phase2_168_stage_a.py",
+      "result": "PASS (17 passed; Stage A config・duration・paired dt comparison contracts、例外時campaign終了・重複profile拒否・実時間正規化を含む)"
+    },
+    {
+      "command": "uv run ruff format --check . && uv run ruff check .",
+      "result": "PASS (PR実装時に実行)"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS (PR実装時に実行)"
+    },
+    {
+      "command": "user-run: run_sweep.py config=conf/phase2_sweeps/2015_stage_a_motor_off.yaml",
+      "result": "PASS (outputs/2026-08-03/111818; project/paper各10,000 steps、body gate PASS)"
+    },
+    {
+      "command": "user-run: torque / dt_star long runs",
+      "result": "PASS (outputs/2026-08-09/113646, outputs/2026-08-10/102953, outputs/2026-08-10/122926; project後方束化6 conditionの1 tau完走)"
+    },
+    {
+      "command": "render_shape_stability_grid_replay.py --target-frame-count 50, followed by ffmpeg display-only resampling",
+      "result": "PASS (outputs/2026-08-10/122926/torque_dt_validation/replay/grid_swim3d_2x.mp4 and grid_swim3d_final.png)"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "outputs/2026-08-10/122926/torque_dt_validation/replay/grid_swim3d_2x.mp4",
+    "outputs/2026-08-10/122926/torque_dt_validation/replay/grid_swim3d_final.png",
+    "outputs/2026-08-10/122926/torque_dt_validation/manifest.json"
+  ],
+  "user_review_points": [
+    "project後方束化の2×3 gridをdt_star行・torque列で確認した。",
+    "この記録は短時間安定性の可視化であり、dataset v2採択やdt_star=1e-4の正式採用ではない。"
+  ],
+  "adr_required": false,
+  "adr_reason": "canonical profile、dt_star default、reference torque policy、dataset採択を変更していない。これらの判断はIssue #61、#183、#184で必要に応じてADR要否を再評価する。",
+  "commit_type": "fix",
+  "commit_hash": "c9416fa1f551de63ba8a4dda1921d210f1d0ac3a",
+  "push_status": "pending_after_review_fix_record",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/176",
+  "next_actions": [
+    "Issue #61で2010 / 2015 projectのdt_star有効性を、トルク・力学量・実時間から定量的に説明する。",
+    "Issue #183でreference torqueを変えた場合の同一実時間比較と時間換算policyを決める。",
+    "Issue #184でdataset v2採択前のtorque・dt_star・べん毛数の形状／遊泳安定性と計算効率を検証する。"
+  ]
+}

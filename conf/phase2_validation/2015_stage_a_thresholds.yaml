@@ -1,0 +1,19 @@
+kind: stage_a_2015_threshold_contract
+issue: 168
+status: locked
+source_motor_off_run: outputs/2026-08-03/111818
+locked_at: '2026-08-03T13:00:00+09:00'
+thresholds:
+  body_spring_max_stretch_ratio: 0.05648838862729124
+  body_length_rel_drift_max: 0.01
+  body_width_rel_drift_max: 0.01
+  body_cross_section_area_rel_drift_max: 0.02
+  max_flag_bond_rel_err: 0.08
+  max_hook_len_rel_err: 0.06791995612670954
+  max_hook_angle_err_deg: 30.0
+  max_flag_bend_err_deg: 30.0
+  max_flag_torsion_err_deg: 21.45055176560931
+  max_flag_helix_radius_abs_err_over_b: 0.028578997632691394
+  max_flag_helix_pitch_rel_err: 0.05
+  max_motor_force_balance_residual_ratio: 1.0e-8
+  max_motor_torque_balance_residual_ratio: 1.0e-8
