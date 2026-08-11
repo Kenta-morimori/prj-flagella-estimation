@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "task": "Phase 2 Issue #183 reference torque comparison policy",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/183",
+  "summary": [
+    "fixed-reference / tracking-reference と same-real-time / same-dimensionless-time を、configとcampaign planで機械可読に分離した。",
+    "manifestにmotor/reference/force-scale torque、source、物性係数を保存し、tracking時の物性連動をengine-level unit testで固定した。",
+    "ADR 0016に#61・#184・#157への採用済みpolicyと未決事項を記録し、0.5秒run、dataset v2、2015 supported昇格は行っていない。"
+  ],
+  "checks": [
+    {
+      "command": "uv run ruff check src/sim_swim/analysis/reference_torque_comparison.py scripts/01_simulate_swimming/plan_reference_torque_comparison.py tests/test_reference_torque_comparison.py src/sim_swim/sim/params.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest tests/test_reference_torque_comparison.py tests/test_params.py -q",
+      "result": "PASS: 94 passed"
+    },
+    {
+      "command": "plan_reference_torque_comparison.py for 2010_project.yaml and 2015_project.yaml",
+      "result": "PASS: 12 conditions per profile; simulation was not started"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "Issue #186の0.5秒compact campaignを含め、長時間simulation / sweep / trainingはユーザー指定により実行していない。",
+  "user_review_required": false,
+  "adr_required": true,
+  "adr": "docs/adr/0016_phase2_reference_torque_comparison_policy.md",
+  "next_actions": [
+    "#61: fixed-reference / same-real-time 内でdt_starの数値妥当性と性能を評価する。",
+    "#184: #61で許容されたdt_starだけでper-flag torque x n_flagella screenを行う。",
+    "#157: 0.5秒run・dataset v2・2015 supported statusは上記結果後に別途採択する。"
+  ]
+}

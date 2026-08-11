@@ -1,0 +1,9 @@
+base_config: conf/sim_swim_2015.yaml
+reference_torque_Nm: 1.2e-18
+output_base_dir: outputs/phase2_reference_torque/2015_project
+policies: [fixed-reference, tracking-reference]
+time_bases: [same-real-time, same-dimensionless-time]
+motor_torque_scales: [0.5, 1.0, 2.0]
+durations:
+  same_real_time_s: 0.001
+  same_dimensionless_tau: 1.0

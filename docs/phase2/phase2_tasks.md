@@ -35,6 +35,7 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 | P2-D16 | model profileと時間schema | adopted |
 | P2-D17 | 2015 refined geometryとpaper-inspired motor | adopted |
 | P2-D18 | 2015 refined model Stage A採否 | pending |
+| P2-D21 | reference torque比較のfixed/tracking・時間基準 | adopted |
 | P2-D19 | dataset v2前のn=3長時間failure診断 | pending |
 | P2-D20 | RUN–TUMBLEの段階実装 | pending |
 
@@ -242,6 +243,12 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Interpretation:** Stage Aの短時間検証と定性可視化は完了したが、`dt_star=1e-4`をproject/paper共通defaultへ昇格させる根拠はない。短い実時間では小さな誤差を過大評価し得るため、同一実時間での定量評価と計算効率評価を分けて行う。
 - **Decision:** canonical `dt_star=1e-5`を維持し，`dt_star=1e-4`は非canonical referenceとする。本PRのStage A検証は完了とする。`dt_star`の有効性説明はIssue #61、reference torque policyはIssue #183、dataset v2採択向けのtorque・`dt_star`・べん毛数検証はIssue #184で実施し、2015 profileのsupported採否はそれらの後に判断する。
 - **Evidence:** Issue #168，PR #176，Issues #61・#183・#184，`docs/phase2/phase2_168_2015_stage_a_validation.md`，parent Issue #154．
+
+### P2-D21: reference torque の比較契約は fixed / tracking と時間基準を分離する
+
+- **Decision:** `fixed-reference` は物性を固定した駆動torque感度、`tracking-reference` はreference torqueと物性を同時に連動させる相似候補として分離する。さらに `same-real-time` と `same-dimensionless-time` を直交して記録し、#61の`dt_star`・計算効率比較は fixed-reference / same-real-time 内に限定する。
+- **Interpretation:** 2010 projectは `tau_s=1` legacy policyのためtrackingを時間相似と呼ばない。#184は #61 が許容した`dt_star`とper-flag torque policyを使い、dataset v2・0.5秒run・2015 supported採択はこのDecisionから導かない。
+- **Evidence:** Issue #183，ADR 0016，`docs/phase2/phase2_183_reference_torque_comparison_contract.md`，`conf/phase2_reference_torque/*.yaml`．
 
 ### P2-D19: 大量step runはcompact output policyを明示選択する
 

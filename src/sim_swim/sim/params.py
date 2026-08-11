@@ -1135,8 +1135,37 @@ class SimulationConfig:
             "reference_torque_Nm": float(self.reference_torque_Nm),
             "motor_enabled": bool(self.motor_enabled),
             "motor_torque_Nm": float(self.motor_torque_Nm),
+            "torque_for_forces_Nm": float(self.torque_for_forces_Nm),
+            "torque_for_forces_source": (
+                "motor.torque_for_forces_override_Nm"
+                if float(self.motor.torque_for_forces_override_Nm) > 0.0
+                else "motor.reference_torque_Nm"
+            ),
+            "material_coefficients": self.material_coefficients_manifest(),
             "time_schema_source": str(self.time.schema_source),
             "legacy_time_keys_used": list(self.time.legacy_keys_used),
+        }
+
+    def material_coefficients_manifest(self) -> dict[str, float]:
+        """Return dimensional coefficients derived from the force-scale torque.
+
+        These are the unmultiplied coefficients used by ``DynamicsEngine``;
+        profile-specific stiffness and motor-local multipliers remain separate.
+        Keeping them in the manifest makes fixed- and tracking-reference runs
+        distinguishable without inspecting implementation code.
+        """
+
+        torque = float(self.torque_for_forces_Nm)
+        return {
+            "spring_H_N_per_m": float(
+                self.potentials.spring.H_over_T_over_b * torque / self.b_m
+            ),
+            "bend_k_Nm": float(self.potentials.bend.kb_over_T * torque),
+            "torsion_k_Nm": float(self.potentials.torsion.kt_over_T * torque),
+            "hook_bend_k_Nm": float(self.hook.kb_over_T * torque),
+            "repulsion_A_Nm": float(
+                self.potentials.spring_spring_repulsion.A_ss_over_T * torque
+            ),
         }
 
     def motor_local_scale_deviations(self) -> dict[str, float]:

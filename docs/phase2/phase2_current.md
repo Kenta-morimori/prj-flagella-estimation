@@ -47,7 +47,7 @@ torque × `dt_star` replay gridを完了した。これは短時間の形状・�
 ## Next queue
 
 1. **Issue #61:** 2010 / 2015 projectを対象に、トルク・力学量・実時間から`dt_star`の有効範囲を定量的に説明する．
-2. **Issue #183:** reference torqueを変えたときの同一実時間比較と時間換算policyを確定する．
+2. **Issue #183:** fixed / tracking reference と同一実時間 / 無次元時間を分離した比較policyを ADR 0016 に固定した。torque・`dt_star`・dataset v2 の採択は #61・#184 の結果後とする（`phase2_183_reference_torque_comparison_contract.md`）。
 3. **Issue #184:** dataset v2採択前に、torque・`dt_star`・べん毛数の安定性と計算効率を検証する．
 
 ## Current blockers
