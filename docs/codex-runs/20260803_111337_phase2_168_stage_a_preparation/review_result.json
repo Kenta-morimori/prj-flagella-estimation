@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #168 / PR #176のStage A受入範囲を完了した。2015 refined 120-bead modelのmotor-off 0.1 tauとmotor-on 1 tauを実行し、project後方束化についてtorque scale 0.5, 1, 2とdt_star 1e-5, 1e-4の6 conditionを再実行なしでreplay gridへ集約した。全6 conditionは軽量なrun_summary.jsonで有限性・shape・motor action-reaction gateを確認し、ユーザー目視で明瞭なcollapse / fly-awayがないことを確認した。canonical dt_star=1e-5は維持する。2015 profileのsupported採択、dt_starの定量的妥当性、reference torque policy、dataset v2採択は本PRの対象外としてIssue #61、#183、#184へ移管した。",
+  "summary": "Issue #168 / PR #176のStage A受入範囲を完了した。2015 refined 120-bead modelのmotor-off 0.1 tauとmotor-on 1 tauを実行し、project後方束化についてtorque scale 0.5, 1, 2とdt_star 1e-5, 1e-4の6 conditionを再実行なしでreplay gridへ集約した。全6 conditionは軽量なrun_summary.jsonで有限性・shape・motor action-reaction gateを確認し、ユーザー目視で明瞭なcollapse / fly-awayがないことを確認した。レビュー指摘により、条件例外時の失敗記録・非ゼロ終了、summaryの重複profile拒否、simulated tau / wall sによる性能指標へ修正した。canonical dt_star=1e-5は維持する。2015 profileのsupported採択、dt_starの定量的妥当性、reference torque policy、dataset v2採択は本PRの対象外としてIssue #61、#183、#184へ移管した。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "短い実時間の比較では小さな誤差を過大評価し得るため、dt_starの正式採用やprofile採択はしていない。",
@@ -10,7 +10,7 @@
   "tests_reviewed": [
     {
       "command": "uv run pytest -q tests/test_phase2_168_stage_a.py",
-      "result": "PASS (14 passed; Stage A config・duration・paired dt comparison contracts)"
+      "result": "PASS (17 passed; Stage A config・duration・paired dt comparison contracts、例外時campaign終了・重複profile拒否・実時間正規化を含む)"
     },
     {
       "command": "uv run ruff format --check . && uv run ruff check .",
@@ -46,9 +46,9 @@
   ],
   "adr_required": false,
   "adr_reason": "canonical profile、dt_star default、reference torque policy、dataset採択を変更していない。これらの判断はIssue #61、#183、#184で必要に応じてADR要否を再評価する。",
-  "commit_type": "docs",
-  "commit_hash": "11fa01f2c04ea402679957058486bbb456cf3537",
-  "push_status": "pushed: ccd1df1 (2026-08-11 JST)",
+  "commit_type": "fix",
+  "commit_hash": "c9416fa1f551de63ba8a4dda1921d210f1d0ac3a",
+  "push_status": "pending_after_review_fix_record",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/176",
   "next_actions": [
     "Issue #61で2010 / 2015 projectのdt_star有効性を、トルク・力学量・実時間から定量的に説明する。",
