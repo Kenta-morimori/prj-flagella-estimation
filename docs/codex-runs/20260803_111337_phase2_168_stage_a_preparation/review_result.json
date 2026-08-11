@@ -1,83 +1,58 @@
 {
-  "status": "FAIL",
-  "summary": "Issue #168 Stage Aを最新mainへrebaseし、dt reference群とcanonical motor-onの既存結果を反映した。2015 replayはτ基準時間、固定小数の秒、積分step数を併記する。canonical dt_star=1e-5を維持し、dt_star=1e-4はproject用の非canonical referenceとする。motor-on回転gateはmotor-off drift由来の旧値を撤回し、torque sweep前に物理的な評価契約を固定するため、受入状態はFAILとする。",
-  "blocking_issues": [
-    "motor-onのnet rotation・方向一貫性・遊泳安定性を判定する物理的なgateと、torque sweepの条件を固定していない。",
-    "固定後の複数torque長時間run、run_summary.jsonによる確認、replay時系列のユーザー目視、2015 profile採否が未完である。"
-  ],
+  "status": "PASS",
+  "summary": "Issue #168 / PR #176のStage A受入範囲を完了した。2015 refined 120-bead modelのmotor-off 0.1 tauとmotor-on 1 tauを実行し、project後方束化についてtorque scale 0.5, 1, 2とdt_star 1e-5, 1e-4の6 conditionを再実行なしでreplay gridへ集約した。全6 conditionは軽量なrun_summary.jsonで有限性・shape・motor action-reaction gateを確認し、ユーザー目視で明瞭なcollapse / fly-awayがないことを確認した。canonical dt_star=1e-5は維持する。2015 profileのsupported採択、dt_starの定量的妥当性、reference torque policy、dataset v2採択は本PRの対象外としてIssue #61、#183、#184へ移管した。",
+  "blocking_issues": [],
   "non_blocking_issues": [
-    "total force/torque residual ratioは既存の有限差分力・potential由来の寄与を含むため情報記録とし、motor action-reaction成分だけを1e-8 gateの対象にした。",
-    "1-step cProfileではsegment repulsion 70.6%、torsion 14.4%、RPY 11.0%だった。長時間の実測性能はユーザー実行結果を正とする。"
+    "短い実時間の比較では小さな誤差を過大評価し得るため、dt_starの正式採用やprofile採択はしていない。",
+    "campaign summary.csvの一部診断列はrun全体の最大値を表さないため、定量判定はconditionごとのrun_summary.jsonを正本とした。",
+    "motor torque balance residual等の物理解釈・改善は、このStage A可視化PRの範囲外である。"
   ],
   "tests_reviewed": [
     {
-      "command": "uv run ruff format --check .",
-      "result": "PASS (128 files already formatted)"
+      "command": "uv run pytest -q tests/test_phase2_168_stage_a.py",
+      "result": "PASS (14 passed; Stage A config・duration・paired dt comparison contracts)"
     },
     {
-      "command": "uv run ruff check .",
-      "result": "PASS"
-    },
-    {
-      "command": "uv run pytest -q",
-      "result": "PASS (initial 536 passed; dt reference implementation 541 passed in 114.07 s)"
-    },
-    {
-      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/2015_stage_a_motor_off.yaml profiles=paper smoke_steps=1 output_base_dir=/tmp/issue168_stage_a_smoke",
-      "result": "PASS (1 step; manifest、run_manifest、summary、performance、全step診断、state archive、trajectoryを生成)"
-    },
-    {
-      "command": ".venv/bin/python scripts/01_simulate_swimming/analyze_2015_stage_a.py --motor-off-run /tmp/issue168_stage_a_smoke/2026-08-03/111248 --threshold-contract conf/phase2_validation/2015_stage_a_thresholds.yaml",
-      "result": "PASS (smoke runを閾値提案元として意図どおり拒否)"
-    },
-    {
-      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/2015_stage_a_motor_off.yaml",
-      "result": "PASS (project/paper各10,000 steps、有限値、body gate PASS、201 sampled states、約3.78 steps/s)"
-    },
-    {
-      "command": ".venv/bin/python scripts/01_simulate_swimming/analyze_2015_stage_a.py --motor-off-run outputs/2026-08-03/111818 --threshold-contract conf/phase2_validation/2015_stage_a_thresholds.yaml",
-      "result": "PASS (pilot failuresなし、threshold proposalを生成)"
-    },
-    {
-      "command": ".venv/bin/pytest -q tests/test_phase2_168_stage_a.py",
-      "result": "PASS (10 passed; dt profile contracts、smoke duration、paired comparison pass/reversal failureを含む)"
-    },
-    {
-      "command": ".venv/bin/python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/2015_stage_a_dt1e4_{motor_off,motor_on}_reference.yaml dry_run=true および dt1e5 short profile",
-      "result": "PASS (dt、duration、motor、comparison_role、project/paper条件を確認)"
-    },
-    {
-      "command": ".venv/bin/python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/2015_stage_a_dt1e4_motor_on_reference.yaml profiles=paper smoke_steps=1 output_base_dir=/tmp/issue168_dt1e4_smoke",
-      "result": "PASS (dt_star=1e-4、1 step、initial/final 2 states、comparison role/scales/durationをmanifestとsummaryへ保存)"
+      "command": "uv run ruff format --check . && uv run ruff check .",
+      "result": "PASS (PR実装時に実行)"
     },
     {
       "command": "git diff --check",
-      "result": "PASS"
+      "result": "PASS (PR実装時に実行)"
+    },
+    {
+      "command": "user-run: run_sweep.py config=conf/phase2_sweeps/2015_stage_a_motor_off.yaml",
+      "result": "PASS (outputs/2026-08-03/111818; project/paper各10,000 steps、body gate PASS)"
+    },
+    {
+      "command": "user-run: torque / dt_star long runs",
+      "result": "PASS (outputs/2026-08-09/113646, outputs/2026-08-10/102953, outputs/2026-08-10/122926; project後方束化6 conditionの1 tau完走)"
+    },
+    {
+      "command": "render_shape_stability_grid_replay.py --target-frame-count 50, followed by ffmpeg display-only resampling",
+      "result": "PASS (outputs/2026-08-10/122926/torque_dt_validation/replay/grid_swim3d_2x.mp4 and grid_swim3d_final.png)"
     }
   ],
-  "user_review_required": true,
-  "user_review_command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/2015_stage_a_dt1e4_motor_off_reference.yaml",
+  "user_review_required": false,
+  "user_review_command": null,
   "user_review_outputs": [
-    "<torque-sweep-run-root>/manifest.json",
-    "<torque-sweep-run-root>/<condition>/run_summary.json",
-    "<torque-sweep-run-root>/summary.csv",
-    "<torque-sweep-analysis-root>/decision.json",
-    "<torque-sweep-run-root>/replay/grid_swim3d.mp4"
+    "outputs/2026-08-10/122926/torque_dt_validation/replay/grid_swim3d_2x.mp4",
+    "outputs/2026-08-10/122926/torque_dt_validation/replay/grid_swim3d_final.png",
+    "outputs/2026-08-10/122926/torque_dt_validation/manifest.json"
   ],
   "user_review_points": [
-    "dt_star=1e-4はproject用の非canonical referenceに留め、2015 project/paper共通defaultはdt_star=1e-5を維持する。",
-    "torque sweepでは形状、motor action-reaction residual、net rotation・方向一貫性、遊泳運動を分離して確認する。",
-    "profile採否やdefault変更はreplay目視とADR要否の確認なしに行わない。"
+    "project後方束化の2×3 gridをdt_star行・torque列で確認した。",
+    "この記録は短時間安定性の可視化であり、dataset v2採択やdt_star=1e-4の正式採用ではない。"
   ],
   "adr_required": false,
-  "adr_reason": "現時点は既存の2015 project/paper profileを比較する検証基盤の追加であり、profile採用、brace、物理解釈の決定はしていない。結果に基づく重要判断が生じた時点でADR要否を再評価する。",
-  "commit_type": "wip",
+  "adr_reason": "canonical profile、dt_star default、reference torque policy、dataset採択を変更していない。これらの判断はIssue #61、#183、#184で必要に応じてADR要否を再評価する。",
+  "commit_type": "docs",
   "commit_hash": "pending",
-  "push_status": "not_pushed_after_rebase",
+  "push_status": "pending",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/176",
   "next_actions": [
-    "Codexとユーザーでmotor-onの回転・遊泳gateとtorque sweep範囲を固定する。",
-    "ユーザーが複数torqueの長時間runを実行し、conditionごとのmanifest.jsonとrun_summary.jsonを共有する。",
-    "Codexがtorque依存性を解析し、replay時系列のユーザー目視を受けてprofile採否とADR要否を判断する。"
+    "Issue #61で2010 / 2015 projectのdt_star有効性を、トルク・力学量・実時間から定量的に説明する。",
+    "Issue #183でreference torqueを変えた場合の同一実時間比較と時間換算policyを決める。",
+    "Issue #184でdataset v2採択前のtorque・dt_star・べん毛数の形状／遊泳安定性と計算効率を検証する。"
   ]
 }

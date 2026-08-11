@@ -8,7 +8,7 @@
 
 - 標準simulation profile: `conf/sim_swim_2010.yaml`
 - 2010 project profile: supported baseline
-- 2015 project / paper profile: 実装済み，Issue #168 Stage A完了まではpending
+- 2015 project / paper profile: Stage A検証は完了，supported採択まではpending
 - Phase 3 / 4 handoff: dataset v1のRUN固定`n_flagella=1,2,3`
 - `n_flagella=4`: diagnostic-only
 - `n_flagella>=5`: canonical training scope外
@@ -22,7 +22,8 @@
 
 ### Issue #168 / PR #176: 2015 refined model Stage A
 
-2015 project / paper profileのmotor-offおよびmotor-on RUN条件について，短時間安定性，integration step感度，回転・遊泳安定性を検証している．
+2015 project / paper profileのStage A検証（motor-off `0.1 tau`、motor-on `1 tau`）と、project後方束化の
+torque × `dt_star` replay gridを完了した。これは短時間の形状・遊泳安定性の確認であり、supported採択ではない．
 
 完了済み:
 
@@ -32,27 +33,27 @@
 - motor-off pilot
 - `dt_star=1e-4` / `1e-5` reference比較（共通defaultは`1e-5`を維持）
 - canonical motor-on `1 tau`とreplay
+- project後方束化のtorque scale `0.5, 1, 2` × `dt_star=1e-5, 1e-4` の6-cell replay gridとユーザー目視
 
 未完:
 
-- project profileの`dt_star=1e-4`正式採用条件
-- torque sweepによる形状・回転・遊泳安定性評価
-- motor-on回転gateの物理的な採否基準
-- replay定性評価の最終記録
-- 2015 profile採否
+- `dt_star`の定量的な有効性・妥当性の説明（Issue #61）
+- reference torqueの物理解釈と同一実時間比較のpolicy（Issue #183）
+- dataset v2採択向けのtorque・`dt_star`・べん毛数の形状／遊泳安定性評価（Issue #184）
+- 2015 profileのsupported採否
 
 参照: Issue #168，PR #176，`phase2_168_2015_stage_a_validation.md`，Decision P2-D18．
 
 ## Next queue
 
-1. **Issue #154:** Stage A結果から2015 Stage Bの評価条件とproject / paper profileの目的を決める．
-2. **Issue #158:** dataset v1 r1の`n_flagella=3`長時間非定常回転とproximal failureを診断する．参照: `phase2_158_v1_r1_nf3_proximal_diagnostics.md`，P2-D19．
-3. **Issue #157:** 修正後モデルでRUN固定`n_flagella=1,2,3`のdataset v2 coreをfreezeする．5 s source，attach × phase独立run，全時間strict passを候補とする．
+1. **Issue #61:** 2010 / 2015 projectを対象に、トルク・力学量・実時間から`dt_star`の有効範囲を定量的に説明する．
+2. **Issue #183:** reference torqueを変えたときの同一実時間比較と時間換算policyを確定する．
+3. **Issue #184:** dataset v2採択前に、torque・`dt_star`・べん毛数の安定性と計算効率を検証する．
 
 ## Current blockers
 
-- 2015 supported昇格とStage B: Issue #168の刻み感度・安定性・定性評価待ち
-- dataset v2: Issue #158のfailure診断とIssue #157のquality gate確定待ち
+- 2015 supported昇格とStage B: Issue #61、#183、#184の定量評価・採択判断待ち
+- dataset v2: Issue #158のfailure診断、Issue #184の安定性検証、Issue #157のquality gate確定待ち
 - RUN–TUMBLE: dataset v2 RUN core完了後にIssue #69で扱う
 - `n_flagella>=4`: 現行training scope外．必要時はIssue #124で安定化する
 - flagella-body貫通: 必要時はIssue #93で検証する

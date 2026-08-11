@@ -2,10 +2,10 @@
 
 ## 現在地
 
-2015 project / paper profileはgeometryとdynamicsが実装済みで、Stage A評価を実行できる。
-profile自体は`pending`のままとする。2026-08-03にmotor-off pilot、dt reference群、canonical
-motor-on RUNを完了した。現在は、project profileにおける`dt_star=1e-4`の正式採用条件と、
-torque sweepを用いた回転・遊泳安定性評価を確定する段階である。
+2015 project / paper profileはgeometryとdynamicsが実装済みである。本PRのStage A検証は
+完了したが、profile自体は`pending`のままとする。正式採択（dataset v2へ用いる条件の決定）は
+Issue #184、`dt_star`の定量的な有効性・妥当性の説明はIssue #61、reference torqueの扱いは
+Issue #183へ分離する。
 
 Stage Aは次の順に進める。
 
@@ -88,6 +88,26 @@ body-relative回転最大値から導いた旧`8.133947 rev / 1 tau`は、motor-
   用いない。pitch/torsion/torque balanceの挙動はtorque sweepで再評価する。
 - `grid_swim3d.mp4`の2015表示は`τ`基準時間、固定小数の秒、積分step数を併記する。
 
+### Stage A完了記録（2026-08-10）
+
+本PRの受入対象であるmotor-off `0.1 tau`とmotor-on `1 tau`は完走済みである。通常の確認は
+各conditionの`run_summary.json`とcampaignの`summary.csv`に限定し、巨大な`step_summary.csv`は
+直接読み込んでいない。
+
+| 条件 | 実行結果 | 記録先 |
+| --- | --- | --- |
+| motor-off `0.1 tau`, project/paper, `dt_star=1e-5` | 両profileで10,000 steps完走、body gate PASS | `outputs/2026-08-03/111818` |
+| motor-on `1 tau`, project/paper, reference torque | 両profileで100,000 steps完走、body shape維持 | 既存Stage A run root |
+| project後方束化、torque scale `0.5, 1, 2`、`dt_star=1e-5, 1e-4` | 6 conditionすべて完走し、有限性・shape・motor action-reaction gate PASS | `outputs/2026-08-10/122926/torque_dt_validation` |
+
+2×3 grid replayの最終成果物は
+`outputs/2026-08-10/122926/torque_dt_validation/replay/grid_swim3d_2x.mp4`および
+`outputs/2026-08-10/122926/torque_dt_validation/replay/grid_swim3d_final.png`である。ユーザー目視で
+明瞭なcollapse / fly-awayは認められず、PRの定性可視化条件を満たした。
+
+これは短時間の形状・遊泳安定性の記録であり、2015 profileの`supported`昇格、`dt_star=1e-4`の
+正式採用、またはdataset v2採択を意味しない。
+
 ## ユーザー実行
 
 ### torque screen: 広域・短時間
@@ -133,20 +153,10 @@ PRの結果可視化は、project profileの後方束化条件
 列をmotor torque scale（`0.5`, `1`, `2`）とする2×3 replay gridでまとめる。全cellは
 `duration_tau=1`、同一の`reference_torque_Nm=1.2e-18 N m`、201 state archiveで揃える。
 
-既存結果は`dt_star=1e-5 × {0.5,1,2}`および`dt_star=1e-4 × {1}`を満たす。欠ける
-`dt_star=1e-4 × {0.5,2}`だけは、次をuser実行する。`×1`は再実行しない。
-
-```bash
-uv run python scripts/01_simulate_swimming/run_sweep.py \
-  config=conf/phase2_sweeps/2015_stage_a_project_torque_dt1e4_missing.yaml \
-  dry_run=true
-
-uv run python scripts/01_simulate_swimming/run_sweep.py \
-  config=conf/phase2_sweeps/2015_stage_a_project_torque_dt1e4_missing.yaml
-```
-
-6 cellが揃った後、Codexはsimulationを再実行せず、各state archiveを使ってgrid replayを生成し、
-自動判定とは別に定性比較を記録する。
+6 cellは揃っている。`dt_star=1e-5 × {0.5,1,2}`は`outputs/2026-08-09/113646`、
+`dt_star=1e-4 × {1}`は`outputs/2026-08-10/102953`、`dt_star=1e-4 × {0.5,2}`は
+`outputs/2026-08-10/122926`で実行した。再実行せずstate archiveからrenderし、6 conditionを
+`outputs/2026-08-10/122926/torque_dt_validation`へ集約した。
 
 ### `dt_star=1e-4`参考・採用候補評価
 
@@ -238,4 +248,5 @@ body gateが失敗したprofileだけ、同じstage/profileに
 brace採用、profileの`supported`昇格、Stage B移行は自動化せず、結果とユーザー目視後に判断する。
 
 目視項目はcollapse / fly-away、body変形、Hook長・角度、helix形状、flagellumの軸中心回転、
-body反作用である。目視未完了の間はIssue #168のreview resultを`FAIL`に保つ。
+body反作用である。上記grid replayの目視は完了し、本PRのreview resultは`PASS`とする。profile採択と
+dataset v2向けの追加検証はIssue #184で継続する。
