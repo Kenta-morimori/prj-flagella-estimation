@@ -73,9 +73,10 @@ def _condition_row(
         )
         execution = dict(summary.get("execution", {}) or {})
         gates = dict(summary.get("gates", {}) or {})
+        metrics = dict(summary.get("all_step_metrics", {}) or {})
         nonbody = dict(gates.get("shape_nonbody", {}) or {})
         body = dict(gates.get("shape_body", {}) or {})
-        return {
+        result = {
             "condition_id": condition["condition_id"],
             "condition_label": condition["condition_label"],
             "output_policy": "compact",
@@ -88,6 +89,11 @@ def _condition_row(
             "body_shape_pass": not bool(body.get("any_fail", False)),
             "body_fail_category": body.get("first_failure_category"),
         }
+        for field in SUMMARY_FIELDS:
+            metric = metrics.get(field)
+            if isinstance(metric, dict):
+                result.setdefault(field, metric.get("max"))
+        return result
     rows = _read_step_rows(step_path)
     axis_center_summary = _axis_center_phase_summary(
         _read_step_rows(condition_dir / "flag_helix_axis_diagnostics.csv")

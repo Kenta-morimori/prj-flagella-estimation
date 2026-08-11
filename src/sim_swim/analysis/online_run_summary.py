@@ -96,14 +96,24 @@ class OnlineRunSummary:
             passed, category = False, "body_area"
         else:
             passed, category = True, "none"
+        for key, value in row.items():
+            try:
+                number = float(value)
+            except (TypeError, ValueError):
+                continue
+            item = self.extrema.setdefault(
+                key, {"min": None, "max": None, "final": None, "finite": True}
+            )
+            item["final"] = number if math.isfinite(number) else None
+            item["finite"] = bool(item["finite"]) and math.isfinite(number)
+            if math.isfinite(number):
+                item["min"] = (
+                    number if item["min"] is None else min(float(item["min"]), number)
+                )
+                item["max"] = (
+                    number if item["max"] is None else max(float(item["max"]), number)
+                )
         self._record_gate("shape_body", passed, t_s, category, "body")
-        self._record_gate(
-            "shape_nonbody",
-            bool(row.get("shape_pass_nonbody", False)),
-            t_s,
-            str(row.get("first_fail_category_nonbody") or "shape_nonbody"),
-            str(row.get("first_fail_flag_id_nonbody") or "nonbody"),
-        )
 
     def _record_gate(
         self, name: str, passed: bool, t_s: float, category: str, target: str
