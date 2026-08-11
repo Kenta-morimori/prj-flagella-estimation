@@ -72,6 +72,9 @@ def _condition_row(
             (condition_dir / "run_summary.json").read_text(encoding="utf-8")
         )
         execution = dict(summary.get("execution", {}) or {})
+        gates = dict(summary.get("gates", {}) or {})
+        nonbody = dict(gates.get("shape_nonbody", {}) or {})
+        body = dict(gates.get("shape_body", {}) or {})
         return {
             "condition_id": condition["condition_id"],
             "condition_label": condition["condition_label"],
@@ -79,6 +82,11 @@ def _condition_row(
             "completed": execution.get("status") == "completed",
             "total_steps": execution.get("expected_total_steps"),
             "final_t_s": execution.get("observed_final_t_s"),
+            "final_shape_pass_nonbody": nonbody.get("final_pass"),
+            "first_fail_t_s": nonbody.get("first_observed_fail_t_s"),
+            "first_fail_category_nonbody": nonbody.get("first_failure_category"),
+            "body_shape_pass": body.get("final_pass"),
+            "body_fail_category": body.get("first_failure_category"),
         }
     rows = _read_step_rows(step_path)
     axis_center_summary = _axis_center_phase_summary(

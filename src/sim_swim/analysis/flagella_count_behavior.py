@@ -24,7 +24,10 @@ def validate_replay_fps(states: list[SimulationState], fps: float) -> None:
         return
     gaps = [later.t - earlier.t for earlier, later in zip(states, states[1:])]
     max_gap = max(gaps)
-    if max_gap > 0.0 and fps > (1.0 / max_gap) + 1.0e-9:
+    # Archive states are observed on the first integrator step at/after the
+    # requested physical time.  Permit only a tiny timing quantization margin,
+    # never interpolation or a materially denser replay.
+    if max_gap > 0.0 and fps > (1.0 / max_gap) * (1.0 + 1.0e-4):
         raise ValueError(
             f"requested replay fps={fps:g} exceeds archive density "
             f"({1.0 / max_gap:g} fps); interpolation is not supported"

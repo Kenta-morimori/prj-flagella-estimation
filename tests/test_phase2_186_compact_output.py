@@ -26,6 +26,7 @@ def test_compact_keeps_every_step_qc_without_step_csv(tmp_path: Path) -> None:
     assert not (tmp_path / "step_summary.csv").exists()
     assert summary["execution"]["row_count"] == cfg.total_steps
     assert summary["gates"]["finite"]["status"] == "available"
+    assert summary["gates"]["shape_body"]["status"] == "available"
     assert states[0].t == 0.0 and states[-1].t == pytest.approx(cfg.time.duration_s)
     performance = json.loads((tmp_path / "performance.json").read_text())
     assert performance["saved_state_count"] == len(states)

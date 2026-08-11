@@ -673,9 +673,14 @@ class Simulator:
             else bool(record_body_diagnostics)
         )
         if output_policy == "compact":
-            record_body_diag = False
+            record_body_diag = True
         body_diag_recorder = (
-            BodyConstraintDiagnosticsRecorder(self.model, self.config, step_summary_dir)
+            BodyConstraintDiagnosticsRecorder(
+                self.model,
+                self.config,
+                step_summary_dir,
+                emit_csv=output_policy == "debug",
+            )
             if step_summary_dir is not None and record_body_diag
             else None
         )
@@ -719,6 +724,8 @@ class Simulator:
                     body_diag_recorder.record(
                         step=step, t_s=t_star_before * tau_s, diag=step_diag
                     )
+                    if body_diag_recorder.last_row is not None:
+                        online_summary.record_body(body_diag_recorder.last_row)
                 if body_local_diag_recorder is not None:
                     body_local_diag_recorder.record(
                         step=step,

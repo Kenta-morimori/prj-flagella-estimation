@@ -9,6 +9,13 @@ from pathlib import Path
 from typing import Any, Mapping
 from zoneinfo import ZoneInfo
 
+from sim_swim.sim.body_shape_gate import (
+    BODY_BEND_ERR_MAX_DEG_LIMIT,
+    BODY_CENTERLINE_DEV_UM_MAX_LIMIT,
+    BODY_SPRING_STRETCH_RATIO_MAX_LIMIT,
+    BODY_TRIANGLE_AREA_RATIO_MIN_LIMIT,
+)
+
 
 class OnlineRunSummary:
     """Aggregate diagnostic rows without retaining their time series."""
@@ -18,7 +25,10 @@ class OnlineRunSummary:
         self.count = 0
         self.last_t_s: float | None = None
         self.extrema: dict[str, dict[str, float | None]] = {}
-        self.gates = {key: self._gate() for key in ("finite", "shape_nonbody")}
+        self.gates = {
+            key: self._gate() for key in ("finite", "shape_nonbody", "shape_body")
+        }
+        self._initial_body_area: float | None = None
 
     @staticmethod
     def _gate() -> dict[str, Any]:
@@ -59,6 +69,34 @@ class OnlineRunSummary:
         self._record_gate(
             "finite", bool(row.get("finite_pass", False)), t_s, "finite", "all"
         )
+
+    def record_body(self, row: Mapping[str, Any]) -> None:
+        """Apply the existing body gate to every step without emitting a CSV."""
+
+        t_s = float(row.get("t_s", float("nan")))
+        area = float(row.get("body_triangle_area_min", float("nan")))
+        if self._initial_body_area is None and math.isfinite(area) and area > 0.0:
+            self._initial_body_area = area
+        stretch = float(row.get("body_spring_max_stretch_ratio", float("nan")))
+        bend = float(row.get("body_bend_max_error_deg", float("nan")))
+        center = float(row.get("body_centerline_max_deviation_um", float("nan")))
+        ratio = (
+            area / self._initial_body_area if self._initial_body_area else float("nan")
+        )
+        values = (stretch, bend, center, ratio)
+        if not all(math.isfinite(value) for value in values):
+            passed, category = False, "body_nonfinite"
+        elif stretch > BODY_SPRING_STRETCH_RATIO_MAX_LIMIT:
+            passed, category = False, "body_spring"
+        elif bend > BODY_BEND_ERR_MAX_DEG_LIMIT:
+            passed, category = False, "body_bend"
+        elif center > BODY_CENTERLINE_DEV_UM_MAX_LIMIT:
+            passed, category = False, "body_centerline"
+        elif ratio < BODY_TRIANGLE_AREA_RATIO_MIN_LIMIT:
+            passed, category = False, "body_area"
+        else:
+            passed, category = True, "none"
+        self._record_gate("shape_body", passed, t_s, category, "body")
         self._record_gate(
             "shape_nonbody",
             bool(row.get("shape_pass_nonbody", False)),
@@ -90,10 +128,6 @@ class OnlineRunSummary:
         time_manifest: Mapping[str, Any],
         policy: str,
     ) -> dict[str, Any]:
-        body_unavailable = {
-            "status": "unavailable",
-            "reason": "not recorded by compact output policy",
-        }
         return {
             "schema_version": "1.0",
             "kind": "phase2_run_summary",
@@ -123,7 +157,7 @@ class OnlineRunSummary:
                 "episode_storage_limit_per_gate": 1,
                 "output_policy": policy,
             },
-            "gates": {**self.gates, "shape_body": body_unavailable},
+            "gates": self.gates,
             "all_step_metrics": self.extrema,
             "extrema": {
                 key: {"value": val["max"], "t_s": None}

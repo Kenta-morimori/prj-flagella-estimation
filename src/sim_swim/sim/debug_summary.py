@@ -1159,17 +1159,20 @@ class BodyConstraintDiagnosticsRecorder:
     model: SimModel
     cfg: SimulationConfig
     out_dir: Path
+    emit_csv: bool = True
     _csv_fp: TextIO | None = field(init=False, default=None, repr=False)
     _writer: csv.DictWriter | None = field(init=False, default=None, repr=False)
 
     def __post_init__(self) -> None:
         self.out_dir.mkdir(parents=True, exist_ok=True)
         self.body_diag_path = self.out_dir / "body_constraint_diagnostics.csv"
-        self._csv_fp = self.body_diag_path.open("w", encoding="utf-8", newline="")
-        self._writer = csv.DictWriter(
-            self._csv_fp, fieldnames=BODY_CONSTRAINT_DIAGNOSTICS_COLUMNS
-        )
-        self._writer.writeheader()
+        if self.emit_csv:
+            self._csv_fp = self.body_diag_path.open("w", encoding="utf-8", newline="")
+            self._writer = csv.DictWriter(
+                self._csv_fp, fieldnames=BODY_CONSTRAINT_DIAGNOSTICS_COLUMNS
+            )
+            self._writer.writeheader()
+        self.last_row: dict[str, float | int] | None = None
 
         self.body_indices = self.model.body_indices.astype(int, copy=False)
         self.body_mask = self.model.bead_is_body.astype(bool)
@@ -1191,9 +1194,6 @@ class BodyConstraintDiagnosticsRecorder:
         ]
 
     def record(self, step: int, t_s: float, diag: StepDiagnostics) -> None:
-        if self._writer is None or self._csv_fp is None:
-            raise RuntimeError("body diagnostics writer is not initialized")
-
         pos_after = diag.positions_after_m
 
         if self.body_spring_rows.size > 0:
@@ -1288,8 +1288,10 @@ class BodyConstraintDiagnosticsRecorder:
             ),
             "F_total_mean_body": _mean_norm(diag.total_forces, self.body_mask),
         }
-        self._writer.writerow(row)
-        self._csv_fp.flush()
+        self.last_row = row
+        if self._writer is not None and self._csv_fp is not None:
+            self._writer.writerow(row)
+            self._csv_fp.flush()
 
     def write_csv(self) -> Path:
         if self._csv_fp is not None:
