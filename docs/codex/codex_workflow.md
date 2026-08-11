@@ -177,17 +177,13 @@ CodexまたはCopilotが作成した，未解決かつoutdatedでないreview th
 
 PR comments may trigger a Codex Cloud / ChatGPT connector review when the comment contains `@codex review`.
 
-For merge-gated PRs, request review only after the PR is a merge-ready final candidate and the latest intended changes have been pushed. Include a PR commit SHA:
-
-`@codex review <PR-commit-short-sha>`
-
-`codex-review-gate` が request と review を対応付けるには、SHA は**最低10桁**必要である。7桁の Git short SHA は使わず、たとえば `git rev-parse --short=10 HEAD` の出力を貼る。review feedback を修正して thread を resolve した後は、同じ PR history 内の有効な review signal が残るため、追加の重複 review は依頼しない。
+For merge-gated PRs, request review only after the PR is a merge-ready final candidate and the latest intended changes have been pushed. A commit SHA in the request is optional: GitHub's review record is the source of the reviewed commit.
 
 Codex Cloud reviewは原則1回のfinal-candidate reviewとする。指摘が出た場合はactionable threadを一括修正し，対象checkを再実行してからthreadをresolveする。修正不要と判断してresolveする場合は，該当threadに理由commentを残す。
 
 Codex Cloud feedback修正後は，修正commitでPR headが変わっても再度`@codex review <new-head-sha>`を投げない。品質担保はmerge-final self-check，CI，必要なthreadへの理由comment，current thread resolveで行う。
 
-Cloud connector loginは`chatgpt-codex-connector`または`chatgpt-codex-connector[bot]`の完全一致だけを許可する。review request SHA，connector response時刻，review commit，reaction author，thread状態をGitHub APIから検証する。
+Cloud connector loginは`chatgpt-codex-connector`または`chatgpt-codex-connector[bot]`の完全一致だけを許可する。PR履歴上のreview commitとthread状態をGitHub APIから検証する。trusted Codex/Copilot reviewの指摘は、修正または理由を記録したうえで必ずresolveする。未解決threadが1件でもあるPRはmergeしない。
 
 This connector review is a PR review assistant, not the source of truth for task completion. Its `PASS` / `FAIL` verdict does not replace the required local `docs/codex-runs/<run-id>/review_result.json`.
 
