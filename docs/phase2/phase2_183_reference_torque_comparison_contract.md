@@ -78,6 +78,8 @@ manifestの `time.paper_notation` はこの表記を正本の表示層として�
 
 `tracking-reference` scale=1はfixed-reference scale=1と完全に同一のため実行しなかった。2010 projectは`tau_s=1 s`固定なので、この結果は物性scale連動の先行screenであり、reference torqueに時間scaleも連動する2015相似条件のruntime検証ではない。body diagnosticsは当該runでunavailableであり、body PASSを主張しない。これらの結果はtorque / policyの採択根拠ではない。
 
+各runのcompact evidence、hook-only diagnostic、視覚比較を作らない理由は [2010先行screen結果](phase2_183_reference_torque_2010_screen_results.md) に記録する。
+
 ### hook-only diagnostic 結果（2026-08-12）
 
 run root `outputs/phase2_reference_torque/2010_project/tracking_reference_same_real_time_motor_scale_2_hook_diagnostic/2026-08-12/223908`で、`tracking-reference` scale=2の`local_hook_scale`だけを`1.0 / 1.25 / 1.5 / 2.0`に変えた。各conditionは`0.02 s`、200 stepsで完走し、finiteはPASSした。しかし全条件が`0.0001 s`（最初の観測step）からhook categoryでFAILした。

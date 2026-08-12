@@ -8,6 +8,7 @@
     "2010 project の legacy fixed tau と 2015 project の reference-torque tau を manifest equivalence flag で区別した。",
     "2010 tracking-reference scale=2のhook-first failureを、hook local scaleだけを変える短時間diagnosticへ分離した。",
     "ユーザー実行のhook-only diagnosticは全4 scaleで最初の観測stepからhook FAILとなり、1 s confirmationを開始しない判断を記録した。",
+    "2010先行screenの定量結果、動画の解釈範囲、比較replayを作成しない理由をcompactな結果記録へ分離した。",
     "#168 / PR #176 の Stage A output と採択判断は変更していない。"
   ],
   "checks": [
@@ -34,6 +35,10 @@
     {
       "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/reference_torque_2010_tracking_scale2_hook_diagnostic.yaml --dry-run",
       "result": "PASS: hook_1p0, hook_1p25, hook_1p5, hook_2p0"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS after origin/main rebase conflict resolution"
     }
   ],
   "long_simulation_required": true,
