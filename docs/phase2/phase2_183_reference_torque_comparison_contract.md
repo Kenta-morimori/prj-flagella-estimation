@@ -78,6 +78,30 @@ manifestの `time.paper_notation` はこの表記を正本の表示層として�
 
 `tracking-reference` scale=1はfixed-reference scale=1と完全に同一のため実行しなかった。2010 projectは`tau_s=1 s`固定なので、この結果は物性scale連動の先行screenであり、reference torqueに時間scaleも連動する2015相似条件のruntime検証ではない。body diagnosticsは当該runでunavailableであり、body PASSを主張しない。これらの結果はtorque / policyの採択根拠ではない。
 
+### hook-only diagnostic 結果（2026-08-12）
+
+run root `outputs/phase2_reference_torque/2010_project/tracking_reference_same_real_time_motor_scale_2_hook_diagnostic/2026-08-12/223908`で、`tracking-reference` scale=2の`local_hook_scale`だけを`1.0 / 1.25 / 1.5 / 2.0`に変えた。各conditionは`0.02 s`、200 stepsで完走し、finiteはPASSした。しかし全条件が`0.0001 s`（最初の観測step）からhook categoryでFAILした。
+
+| `local_hook_scale` | non-body shape | first observed failure | max hook relative error |
+| ---: | --- | ---: | ---: |
+| 1.0 | FAIL | `0.0001 s` | 43.70 |
+| 1.25 | FAIL | `0.0001 s` | 51.51 |
+| 1.5 | FAIL | `0.0001 s` | 46.48 |
+| 2.0 | FAIL | `0.0001 s` | 49.57 |
+
+この結果は、現行`tracking-reference` scale=2の初期hook failureを`local_hook_scale`を上げるだけでは救えないことを示す。1秒runは開始しない。次にspring/bend/torsionを追加して変更する前に、このhigh-torque tracking条件を候補から外すか、初期force / hook geometry / motor applicationを別Issueで原因切り分けするかを判断する。複数のlocal scaleを同時に上げて採択候補へ寄せることは、このIssueの比較契約の範囲外とする。
+
+## 遊泳安定性とPR merge条件
+
+shape stabilityと遊泳安定性は別のgateである。shape PASSは、遊泳速度、body roll、flagellum spin、helix-axisのbody相対回転、進行方向の一貫性を保証しない。遊泳安定性は、shape / body diagnosticsが利用可能で全期間PASSした条件にだけ、同一実時間のtrajectory・replayを用いて評価する。shape FAIL conditionを遊泳採択へ進めない。
+
+PR #185のmerge対象は最終torque採択ではなく、比較契約・plan CLI・diagnostic config・実行済みscreenの記録である。mergeには次を満たす。
+
+1. config / manifestがfixed/trackingと二つの時間基準を区別し、対象テストとdry-runがPASSすること。
+2. 2010先行screenとhook-only diagnosticの結果・限界・未実施2015条件を文書化すること。
+3. `review_result.json`がPASSであり、PR checksと`codex-review-gate`がPASSすること。
+4. 2015の長時間run、遊泳安定性の最終評価、torque / policy / dataset v2の採択をmerge前提にしないこと。これらは#61/#184および後続Issue / ADRの責務とする。
+
 ## ユーザー実行
 
 まず plan を作る。これは simulation を起動しない。

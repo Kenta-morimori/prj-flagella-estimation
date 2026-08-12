@@ -7,6 +7,7 @@
     "fixed-reference / tracking-reference と same-real-time / same-dimensionless-time を機械可読な plan に分離した。",
     "2010 project の legacy fixed tau と 2015 project の reference-torque tau を manifest equivalence flag で区別した。",
     "2010 tracking-reference scale=2のhook-first failureを、hook local scaleだけを変える短時間diagnosticへ分離した。",
+    "ユーザー実行のhook-only diagnosticは全4 scaleで最初の観測stepからhook FAILとなり、1 s confirmationを開始しない判断を記録した。",
     "#168 / PR #176 の Stage A output と採択判断は変更していない。"
   ],
   "checks": [
@@ -39,7 +40,7 @@
   "long_simulation_executed": true,
   "long_simulation_reason": "ユーザーが2010 projectのsame-real-time 5条件を実行した。2015の長時間条件は費用対効果により途中停止し、完走済み結果だけを性能目安としてIssue #61へ記録した。",
   "user_visual_review_required": true,
-  "user_visual_review_reason": "#184 の replay / dataset v2 採択時に実施する。",
+  "user_visual_review_reason": "shape PASS後の遊泳安定性評価と#184のreplay / dataset v2採択時に実施する。hook diagnosticは全condition shape FAILのためreplayを作らない。",
   "adr_required": false,
   "adr_reason": "最終 torque / policy の採択を留保した比較契約であり、物理解釈・dataset policy の正式変更ではない。",
   "next_actions": [
