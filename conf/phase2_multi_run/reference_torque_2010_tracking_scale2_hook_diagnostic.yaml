@@ -1,0 +1,50 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  description: Issue #183: 2010 project tracking-reference scale=2 の hook-first failure 切り分け
+  source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/183
+  model_notes:
+    - The baseline is the completed 1 s tracking-reference scale=2 run, which first failed in the hook category at 0.0001 s.
+    - Sweep only motor.local_hook_scale; torque, reference torque, torque-scaled material coefficients, seeds, geometry, and dt_star remain fixed.
+    - This is a short diagnostic, not a torque-policy or dataset-adoption candidate.
+
+base_config: conf/sim_swim_2010.yaml
+
+base_overrides:
+  time.duration_s: 0.02
+  time.dt_star: 1.0e-4
+  motor.torque_Nm: 5.0e-20
+  motor.reference_torque_Nm: 5.0e-20
+  motor.torque_for_forces_override_Nm: 0.0
+  motor.enable_switching: false
+  motor.force_distribution: root_torque_segment_couples
+  flagella.initial_helix_axis_from_rear_deg: 0
+  seed.global_seed: 0
+  output_sampling.out_all_steps_3d: false
+
+sweep:
+  axes:
+    hook_scale:
+      key: motor.local_hook_scale
+      short_name: hook
+      values: [1.0, 1.25, 1.5, 2.0]
+      labels: ["1.0", "1.25", "1.5", "2.0"]
+      ids: [hook_1p0, hook_1p25, hook_1p5, hook_2p0]
+
+replay:
+  mode: none
+
+plot:
+  default_x_axis: hook_scale
+  default_y_axis: null
+  metrics:
+    - first_fail_t_s
+    - hook_len_rel_err_max
+    - max_flag_bond_rel_err
+
+output:
+  base_dir: outputs/phase2_reference_torque/2010_project/tracking_reference_same_real_time_motor_scale_2_hook_diagnostic
+  timestamp_subdir: true
+  save_state_archive: false
+  progress_interval: 100
