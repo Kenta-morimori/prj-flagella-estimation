@@ -1142,6 +1142,18 @@ class SimulationConfig:
                 else "motor.reference_torque_Nm"
             ),
             "material_coefficients": self.material_coefficients_manifest(),
+            "paper_notation": {
+                "t": {
+                    "requested_s": float(self.time.duration_s),
+                    "final_state_s": float(self.final_state_t_s),
+                },
+                "tau": {"s": float(self.tau_s)},
+                "delta_t": {"s": float(self.dt_s)},
+                "t_over_tau": {
+                    "requested": float(self.duration_star),
+                },
+                "delta_t_over_tau": {"value": float(self.dt_star)},
+            },
             "time_schema_source": str(self.time.schema_source),
             "legacy_time_keys_used": list(self.time.legacy_keys_used),
         }

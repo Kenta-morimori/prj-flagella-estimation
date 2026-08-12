@@ -42,6 +42,12 @@ def test_plan_separates_fixed_and_tracking_scales_and_manifest() -> None:
     assert tracking["time"]["material_coefficients"]["bend_k_Nm"] == pytest.approx(
         fixed["time"]["material_coefficients"]["bend_k_Nm"] * 0.5
     )
+    assert tracking["time"]["paper_notation"]["tau"]["s"] == pytest.approx(
+        tracking["time"]["tau_s"]
+    )
+    assert tracking["time"]["paper_notation"]["delta_t"]["s"] == pytest.approx(
+        tracking["time"]["dt_internal_s"]
+    )
 
 
 def test_2010_project_keeps_legacy_tau_explicit() -> None:

@@ -69,6 +69,18 @@ final state time:
 
 ## Manifest
 
+user-facing logとmanifestの論文表記は、次を優先する。
+
+```text
+t       実時間 [s]
+τ       時間尺度 [s]
+Δt      実時間の積分刻み [s]
+t/τ     無次元時刻 [-]
+Δt/τ    無次元積分刻み [-]
+```
+
+machine-readable manifestでは `time.paper_notation` にASCII keyの `t`、`tau`、`delta_t`、`t_over_tau`、`delta_t_over_tau` を保存する。`t_star`、`dt_star`、`duration_tau`、`tau_s`、`dt_internal_s` は既存分析・runとの互換keyとして維持する。`dt`単独は、実時間刻みと無次元刻みを区別できないため、user-facing log・文書では使用しない。
+
 single-run manifest と generic multi-run `run_manifest.json` には、正規化済み時間量として次を保存する。
 
 ```text

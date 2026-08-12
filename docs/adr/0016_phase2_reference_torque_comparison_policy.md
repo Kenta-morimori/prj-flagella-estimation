@@ -10,6 +10,8 @@
 
 従って reference torque を motor torque に追従させると、単に `tau_s = eta*b^3/abs(T_ref)` と `dt_s = dt_star*tau_s` が変わるだけではない。spring `H`、bend/torsion/hook stiffness、spring-spring repulsion `A` も `torque_for_forces_Nm` に比例して変わる。実際の係数は run manifest の `time.material_coefficients` に保存する。
 
+時間は論文表記を優先して、`t`（実時間[s]）、`τ` / `tau`（時間尺度[s]）、`Δt` / `delta_t`（実時間の積分刻み[s]）としてlogと `time.paper_notation` に保存する。無次元量は説明・互換用に `t/τ` / `t_over_tau` と `Δt/τ` / `delta_t_over_tau` として併記し、`t_star` と `dt_star` は内部実装・既存I/O互換の別名に留める。JSON keyはASCIIの `tau`、`delta_t` を使う。
+
 ## Decision
 
 torque sweep は次の二つを別 campaign として扱う。

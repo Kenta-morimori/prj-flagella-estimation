@@ -5,7 +5,7 @@
   "summary": [
     "fixed-reference / tracking-reference と same-real-time / same-dimensionless-time を、configとcampaign planで機械可読に分離した。",
     "manifestにmotor/reference/force-scale torque、source、物性係数を保存し、tracking時の物性連動をengine-level unit testで固定した。",
-    "ADR 0016に#61・#184・#157への採用済みpolicyと未決事項を記録し、0.5秒run、dataset v2、2015 supported昇格は行っていない。"
+    "ADR 0016に#61・#184・#157への採用済みpolicyと未決事項を記録し、論文表記のt・τ・Δtをlogとmanifestの表示層へ追加した。0.5秒run、dataset v2、2015 supported昇格は行っていない。"
   ],
   "checks": [
     {
@@ -13,12 +13,12 @@
       "result": "PASS"
     },
     {
-      "command": "uv run pytest tests/test_reference_torque_comparison.py tests/test_params.py -q",
-      "result": "PASS: 94 passed"
+      "command": ".venv/bin/pytest tests/test_reference_torque_comparison.py tests/test_params.py tests/test_e2e_cli.py -q",
+      "result": "PASS: 95 passed"
     },
     {
       "command": "plan_reference_torque_comparison.py for 2010_project.yaml and 2015_project.yaml",
-      "result": "PASS: 12 conditions per profile; simulation was not started"
+      "result": "PASS: 12 conditions per profile; time.paper_notation is present; simulation was not started"
     },
     {
       "command": "git diff --check",

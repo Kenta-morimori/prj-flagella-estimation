@@ -186,17 +186,16 @@ def main(
             cfg.tau_s,
         )
     logger.info(
-        "[time-step ] Δt_internal=%.6e s, τ=%.6e s, Δt*=dt_star=%.6e (=Δt/τ)",
+        "[time-step ] Δt=%.6e s, τ=%.6e s, Δt/τ=%.6e",
         cfg.dt_s,
         cfg.tau_s,
         cfg.dt_star,
     )
-    logger.info("[time-step ] output_dt_s(config)=%.6e s", cfg.output_dt_s)
     logger.info(
-        (
-            "[duration  ] t_end=duration_s=%.6e s, "
-            "t_end*=duration_star=%.6e (=t_end/τ), steps=%d"
-        ),
+        "[time-step ] output interval (legacy time.dt_s)=%.6e s", cfg.output_dt_s
+    )
+    logger.info(
+        ("[duration  ] t_end=%.6e s, t_end/τ=%.6e, steps=%d"),
         cfg.time.duration_s,
         cfg.duration_star,
         cfg.total_steps,
