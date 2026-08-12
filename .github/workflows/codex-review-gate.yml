@@ -283,7 +283,9 @@ jobs:
                   ? [
                       {
                         requestedCommitSha,
-                        createdAt: Date.parse(comment.created_at || ""),
+                        requestedAt: Date.parse(
+                          comment.updated_at || comment.created_at || ""
+                        ),
                       },
                     ]
                   : [];
@@ -307,8 +309,8 @@ jobs:
                 return validCodexRequests.some(
                   (request) =>
                     Number.isFinite(responseAt) &&
-                    Number.isFinite(request.createdAt) &&
-                    responseAt >= request.createdAt &&
+                    Number.isFinite(request.requestedAt) &&
+                    responseAt >= request.requestedAt &&
                     request.requestedCommitSha === reviewedCommitSha
                 );
               });

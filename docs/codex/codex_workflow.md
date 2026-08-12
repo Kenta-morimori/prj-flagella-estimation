@@ -183,7 +183,7 @@ Codex Cloud reviewは原則1回のfinal-candidate reviewとする。指摘が出
 
 Codex Cloud feedback修正後は，修正commitでPR headが変わっても再度`@codex review <new-head-sha>`を投げない。品質担保はmerge-final self-check，CI，必要なthreadへの理由comment，current thread resolveで行う。
 
-Cloud connector loginは`chatgpt-codex-connector`または`chatgpt-codex-connector[bot]`の完全一致だけを許可する。Cloud connectorが正式reviewではなくPR commentで応答する場合は、`@codex review <SHA>`要求後の`Reviewed commit: <SHA>`と`Didn't find any major issues`の定型応答を、現在のPR履歴にある同じ一意のcommitへ照合する。trusted Codex/Copilot reviewの指摘は、修正または理由を記録したうえで必ずresolveする。未解決threadが1件でもあるPRはmergeしない。
+Cloud connector loginは`chatgpt-codex-connector`または`chatgpt-codex-connector[bot]`の完全一致だけを許可する。Cloud connectorが正式reviewではなくPR commentで応答する場合は、`@codex review <SHA>`要求（編集後は`updated_at`、未編集時は`created_at`以後）の`Reviewed commit: <SHA>`と`Didn't find any major issues`の定型応答を、現在のPR履歴にある同じ一意のcommitへ照合する。trusted Codex/Copilot reviewの指摘は、修正または理由を記録したうえで必ずresolveする。未解決threadが1件でもあるPRはmergeしない。
 
 This connector review is a PR review assistant, not the source of truth for task completion. Its `PASS` / `FAIL` verdict does not replace the required local `docs/codex-runs/<run-id>/review_result.json`.
 
