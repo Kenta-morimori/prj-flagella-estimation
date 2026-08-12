@@ -1,0 +1,25 @@
+{
+  "status": "PASS",
+  "task": "Codex Cloud comment response accepted by review gate",
+  "summary": "正式PR reviewを作らないCloud connectorのno-major-issues commentを、要求SHA・応答SHA・時刻・allowlisted loginの照合を条件にcodex-review-gateの有効review信号として受理する。",
+  "checks": [
+    {
+      "command": "python3 -c 'import yaml; yaml.safe_load(...)'",
+      "result": "PASS: workflow YAML parse"
+    },
+    {
+      "command": "node --check and positive/negative comment-SHA contract smoke",
+      "result": "PASS: matching requested/reviewed SHA is accepted; unrelated SHA is rejected"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": false,
+  "adr_required": false,
+  "adr_reason": "ADR 0008に既に定めたno-major-issues comment成功シグナルをworkflowへ整合実装する変更であり、新しいpolicyは導入しない。",
+  "next_actions": [
+    "PR作成後、Codex Cloud connectorのcomment responseを含む実PRでgateのstatusを確認する。"
+  ]
+}

@@ -99,6 +99,12 @@ jobs:
             const reviewIsSubmitted = (review) =>
               Boolean(review?.submitted_at) &&
               String(review?.state || "").toUpperCase() !== "DISMISSED";
+            const CODEX_REVIEW_REQUEST =
+              /(?:^|\s)@codex\s+review\s+([0-9a-f]{7,40})\b/i;
+            const CODEX_REVIEWED_COMMIT =
+              /reviewed\s+commit:\s*`?([0-9a-f]{7,40})`?/i;
+            const CODEX_NO_MAJOR_ISSUES =
+              /codex\s+review:\s*didn't find any major issues\./i;
 
             async function listReviewThreads(prNumber) {
               const query = `
@@ -197,15 +203,17 @@ jobs:
               const prCommitShas = prCommits.map((commit) =>
                 normalizedSha(commit.sha)
               );
-              const shaBelongsToPr = (sha) => {
+              const resolvePrCommitSha = (sha) => {
                 const candidate = normalizedSha(sha);
-                return (
-                  candidate.length >= 10 &&
-                  prCommitShas.some((commitSha) =>
-                    commitSha.startsWith(candidate)
-                  )
+                if (candidate.length < 10) {
+                  return "";
+                }
+                const matches = prCommitShas.filter((commitSha) =>
+                  commitSha.startsWith(candidate)
                 );
+                return matches.length === 1 ? matches[0] : "";
               };
+              const shaBelongsToPr = (sha) => Boolean(resolvePrCommitSha(sha));
 
               const reviewThreads = await listReviewThreads(prNumber);
               const classifyThread = (thread) => {
@@ -266,10 +274,53 @@ jobs:
                   reviewIsSubmitted(review) &&
                   shaBelongsToPr(review.commit_id)
               );
-              // GitHub already binds reviews to commits.  A trusted review on
-              // any commit still in this PR is valid; unresolved trusted
-              // threads above are the only review-follow-up blocker.
-              const codexReviewAccepted = validCodexReviews.length > 0;
+              const validCodexRequests = comments.flatMap((comment) => {
+                const match = String(comment.body || "").match(
+                  CODEX_REVIEW_REQUEST
+                );
+                const requestedCommitSha = resolvePrCommitSha(match?.[1]);
+                return requestedCommitSha
+                  ? [
+                      {
+                        requestedCommitSha,
+                        requestedAt: Date.parse(
+                          comment.updated_at || comment.created_at || ""
+                        ),
+                      },
+                    ]
+                  : [];
+              });
+              const validCodexCommentResponses = comments.filter((comment) => {
+                if (
+                  !isCodexConnector(comment.user?.login) ||
+                  !CODEX_NO_MAJOR_ISSUES.test(String(comment.body || ""))
+                ) {
+                  return false;
+                }
+                const reviewedCommitSha = resolvePrCommitSha(
+                  String(comment.body || "").match(
+                    CODEX_REVIEWED_COMMIT
+                  )?.[1]
+                );
+                if (!reviewedCommitSha) {
+                  return false;
+                }
+                const responseAt = Date.parse(comment.created_at || "");
+                return validCodexRequests.some(
+                  (request) =>
+                    Number.isFinite(responseAt) &&
+                    Number.isFinite(request.requestedAt) &&
+                    responseAt >= request.requestedAt &&
+                    request.requestedCommitSha === reviewedCommitSha
+                );
+              });
+              // GitHub binds submitted reviews to commits. Some Cloud connector
+              // responses are issue comments instead, so accept only the
+              // allowlisted no-major-issues response that names a requested,
+              // in-PR commit. Unresolved trusted threads still block merging.
+              const codexReviewAccepted =
+                validCodexReviews.length > 0 ||
+                validCodexCommentResponses.length > 0;
               const copilotReviewAccepted = validCopilotReviews.length > 0;
 
               let state = "failure";
