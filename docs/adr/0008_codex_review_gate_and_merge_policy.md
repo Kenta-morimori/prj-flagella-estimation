@@ -45,7 +45,8 @@ repository側には，PR metadata，comments，reviews，reactions，review thre
 - Cloud connector loginは`chatgpt-codex-connector`または`chatgpt-codex-connector[bot]`の完全一致だけを許可する。
 - request commentへのallowlisted connectorのthumbs-up reactionは，request更新時刻以後のreactionだけを有効とする。
 - PR review responseはallowlisted login，submitted state，review対象commit，request後の時刻をAPIから検証する。
-- 問題なし応答は`APPROVED` review，`Final verdict PASS`，no-major-issues comment，またはrequestへのthumbs-upを成功シグナルとして扱う。
+- Cloud connectorがGitHubの正式reviewではなくPR commentで応答する場合は、`@codex review <SHA>`要求後に、allowlisted loginが現在のPR履歴にある同じSHAを`Reviewed commit`として明記し、`Didn't find any major issues`を返した場合だけ成功シグナルとして扱う。
+- `APPROVED` review，`Final verdict PASS`，またはrequestへのthumbs-upも、同じreview対象commit・時刻検証を満たす場合の成功シグナルとして扱う。
 - feedbackを伴うreviewは，current Codex-authored threadがすべてresolvedまたはoutdatedになった時点で完了とする。
 - feedback修正後にPR headが変わっても，再度`@codex review`を要求しない。
 
