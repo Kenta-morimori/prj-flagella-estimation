@@ -102,7 +102,7 @@ jobs:
             const CODEX_REVIEW_REQUEST =
               /(?:^|\s)@codex\s+review\s+([0-9a-f]{7,40})\b/i;
             const CODEX_REVIEWED_COMMIT =
-              /reviewed\s+commit:\s*`?([0-9a-f]{7,40})`?/i;
+              /\*{0,2}reviewed\s+commit:\*{0,2}\s*`?([0-9a-f]{7,40})`?/i;
             const CODEX_NO_MAJOR_ISSUES =
               /codex\s+review:\s*didn't find any major issues\./i;
 

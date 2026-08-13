@@ -249,7 +249,6 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Decision:** `fixed-reference` は物性を固定した駆動torque感度、`tracking-reference` はreference torqueと物性を同時に連動させる相似候補として分離する。さらに `same-real-time` と `same-dimensionless-time` を直交して記録し、#61の`dt_star`・計算効率比較は fixed-reference / same-real-time 内に限定する。
 - **Interpretation:** 2010 projectは `tau_s=1` legacy policyのためtrackingを時間相似と呼ばない。#184は #61 が許容した`dt_star`とper-flag torque policyを使い、dataset v2・0.5秒run・2015 supported採択はこのDecisionから導かない。
 - **Evidence:** Issue #183，ADR 0016，`docs/phase2/phase2_183_reference_torque_comparison_contract.md`，`conf/phase2_reference_torque/*.yaml`．
-
 ### P2-D19: 大量step runはcompact output policyを明示選択する
 
 - **Decision:** 既存短時間 workflow は `output.policy: debug` の全step state/CSV 互換を維持する。長時間候補は `compact` を明示し、全内部step QC をオンライン集約しながら state archive を物理時間一様に保存する。標準 cadence は 1 ms とする。compact archive は replay/通常解析用であり、未定義の全step将来指標の完全再構成を保証しない。

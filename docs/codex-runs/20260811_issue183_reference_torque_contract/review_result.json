@@ -1,0 +1,55 @@
+{
+  "status": "PASS",
+  "task": "Phase 2 Issue #183 reference torque comparison contract",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/183",
+  "branch": "issue-183-reference-torque-comparison",
+  "summary": [
+    "fixed-reference / tracking-reference と same-real-time / same-dimensionless-time を機械可読な plan に分離した。",
+    "2010 project の legacy fixed tau と 2015 project の reference-torque tau を manifest equivalence flag で区別した。",
+    "2010 tracking-reference scale=2のhook-first failureを、hook local scaleだけを変える短時間diagnosticへ分離した。",
+    "ユーザー実行のhook-only diagnosticは全4 scaleで最初の観測stepからhook FAILとなり、1 s confirmationを開始しない判断を記録した。",
+    "2010先行screenの定量結果、動画の解釈範囲、比較replayを作成しない理由をcompactな結果記録へ分離した。",
+    "#168 / PR #176 の Stage A output と採択判断は変更していない。"
+  ],
+  "checks": [
+    {
+      "command": "uv run pytest tests/test_reference_torque_comparison.py tests/test_params.py -q",
+      "result": "PASS: 93 passed"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/analysis/reference_torque_comparison.py scripts/01_simulate_swimming/plan_reference_torque_comparison.py tests/test_reference_torque_comparison.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/plan_reference_torque_comparison.py --config conf/phase2_reference_torque/2015_project.yaml --output /private/tmp/issue183-plan/plan.json",
+      "result": "PASS: 12 conditions, including effective torque/time/equivalence fields and execution commands"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest tests/test_reference_torque_comparison.py tests/test_reference_torque_hook_diagnostic_config.py tests/test_phase2_generic_multi_run.py -q",
+      "result": "PASS: 50 passed"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/reference_torque_2010_tracking_scale2_hook_diagnostic.yaml --dry-run",
+      "result": "PASS: hook_1p0, hook_1p25, hook_1p5, hook_2p0"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS after origin/main rebase conflict resolution"
+    }
+  ],
+  "long_simulation_required": true,
+  "long_simulation_executed": true,
+  "long_simulation_reason": "ユーザーが2010 projectのsame-real-time 5条件を実行した。2015の長時間条件は費用対効果により途中停止し、完走済み結果だけを性能目安としてIssue #61へ記録した。",
+  "user_visual_review_required": true,
+  "user_visual_review_reason": "shape PASS後の遊泳安定性評価と#184のreplay / dataset v2採択時に実施する。hook diagnosticは全condition shape FAILのためreplayを作らない。",
+  "adr_required": false,
+  "adr_reason": "最終 torque / policy の採択を留保した比較契約であり、物理解釈・dataset policy の正式変更ではない。",
+  "next_actions": [
+    "#61 は same-real-time 条件で dt_star の数値妥当性と performance を評価する。",
+    "#184 は #61 で許容された dt_star とこの比較契約を入力に torque x n_flagella の replay / heatmap を実行する。"
+  ]
+}
