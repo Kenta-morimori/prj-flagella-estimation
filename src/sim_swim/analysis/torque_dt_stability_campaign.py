@@ -7,6 +7,7 @@ the legacy 2010 ``tau_s=1`` baseline or the #183 tracking-reference outputs.
 from __future__ import annotations
 
 import csv
+from dataclasses import asdict
 from datetime import datetime
 import json
 import math
@@ -144,6 +145,17 @@ def _validate_campaign_contract(raw: dict[str, Any]) -> None:
     active_dt = {float(value) for value in raw.get("dt_stars", [])}
     if active_dt != {1.0e-3, 1.0e-4}:
         raise ValueError("initial_screen must contain exactly dt_star=1e-3 and 1e-4")
+    if {float(value) for value in raw.get("torques_Nm", [])} != {
+        1.0e-21,
+        2.5e-20,
+        1.0e-19,
+        1.2e-18,
+    }:
+        raise ValueError("initial_screen must contain its fixed four-torque grid")
+    if not math.isclose(float(raw.get("duration_tau", 0.0)), 1.0, rel_tol=0.0):
+        raise ValueError("initial_screen requires duration_tau=1")
+    if int(raw.get("comparison_sample_count", 0)) != 201:
+        raise ValueError("initial_screen requires comparison_sample_count=201")
     if float(contract.get("deferred_reference_dt_star", 0.0)) != 1.0e-5:
         raise ValueError(
             "initial_screen must defer dt_star=1e-5 as its formal reference"
@@ -291,6 +303,7 @@ def _run_condition(
         directory / "effective_config.json",
         {
             "config_overrides": condition["config_overrides"],
+            "effective_config": asdict(cfg),
             "time": cfg.time_manifest(),
         },
     )
@@ -383,6 +396,17 @@ def _observables(record: dict[str, Any], cfg: SimulationConfig) -> dict[str, Any
     }
 
 
+def _effective_config(record: dict[str, Any], base: dict[str, Any]) -> SimulationConfig:
+    """Load the run-time config snapshot, with legacy-run fallback only."""
+
+    snapshot_path = Path(str(record["output_dir"])) / "effective_config.json"
+    if snapshot_path.is_file():
+        snapshot = _read_json(snapshot_path).get("effective_config")
+        if isinstance(snapshot, dict):
+            return SimulationConfig.from_dict(snapshot)
+    return SimulationConfig.from_dict(base).with_overrides(record["config_overrides"])
+
+
 def _compare_same_torque(
     reference: dict[str, Any],
     candidate: dict[str, Any],
@@ -457,7 +481,7 @@ def summarize_campaign(root: Path, *, config_path: Path) -> dict[str, Any]:
     configs: dict[str, SimulationConfig] = {}
     safety_rows: list[dict[str, Any]] = []
     for row in records:
-        cfg = SimulationConfig.from_dict(base).with_overrides(row["config_overrides"])
+        cfg = _effective_config(row, base)
         configs[row["condition_id"]] = cfg
         safety = _safety(row, qc)
         row["safety"] = safety

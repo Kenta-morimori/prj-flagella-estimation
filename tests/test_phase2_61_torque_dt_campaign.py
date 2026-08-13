@@ -1,5 +1,6 @@
 import json
 import logging
+from dataclasses import asdict
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -10,6 +11,7 @@ from sim_swim.analysis.multi_run_campaign import load_yaml
 from sim_swim.analysis.torque_dt_stability import build_plan
 from sim_swim.analysis.torque_dt_stability_campaign import (
     _assert_condition,
+    _effective_config,
     _validate_campaign_contract,
     summarize_campaign,
 )
@@ -59,6 +61,9 @@ def _campaign_fixture(root: Path) -> None:
             bead_positions_um=np.tile(frame, (samples, 1, 1)),
         )
         (directory / "run_summary.json").write_text(json.dumps(_summary()))
+        (directory / "effective_config.json").write_text(
+            json.dumps({"effective_config": asdict(cfg)}), encoding="utf-8"
+        )
         records.append(
             {
                 "condition_id": condition["condition_id"],
@@ -127,7 +132,27 @@ def test_contract_rejects_torque_mismatch_and_generic_dry_run_starts_no_simulati
     with pytest.raises(ValueError, match="torques"):
         _assert_condition(bad, condition)
     _validate_campaign_contract(raw)
+    bad_contract = dict(raw)
+    bad_contract["torques_Nm"] = [1.0e-21]
+    with pytest.raises(ValueError, match="fixed four-torque grid"):
+        _validate_campaign_contract(bad_contract)
     assert run_campaign(["--campaign-config", str(CONFIG), "--dry-run"]) == Path()
+
+
+def test_reanalysis_prefers_the_run_time_effective_config_snapshot(
+    tmp_path: Path,
+) -> None:
+    _campaign_fixture(tmp_path)
+    manifest = json.loads((tmp_path / "run_manifest.json").read_text())
+    record = manifest["conditions"][0]
+    snapshot_path = Path(record["output_dir"]) / "effective_config.json"
+    snapshot = json.loads(snapshot_path.read_text())
+    snapshot["effective_config"]["scale"]["b_um"] = 2.0
+    snapshot_path.write_text(json.dumps(snapshot))
+
+    cfg = _effective_config(record, load_yaml(Path("conf/sim_swim_2010.yaml")))
+
+    assert cfg.scale.b_um == pytest.approx(2.0)
 
 
 def test_initial_screen_rejects_partial_execution_and_cli_overrides() -> None:
