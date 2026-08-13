@@ -854,6 +854,15 @@ def test_replay_marks_no_first_fail_as_pass() -> None:
     assert module._row_passes_nonbody(row) is True
 
 
+def test_replay_marks_compact_campaign_status_pass() -> None:
+    module = _load_script(
+        Path("src/sim_swim/analysis/phase2_replay.py"),
+        "phase2_replay_compact_campaign_pass",
+    )
+
+    assert module._fail_label({"status": "pass"}) == "PASS"
+
+
 def test_replay_status_lines_include_motor_torque_after_time() -> None:
     module = _load_script(
         Path("src/sim_swim/analysis/phase2_replay.py"),
@@ -901,6 +910,33 @@ def test_replay_status_lines_show_2015_tau_seconds_and_steps() -> None:
         "RUN",
         "t = 1.000 τ (0.000833 s, 100,000 steps)",
         "motor torque / flag = 1.20e-18 N m",
+        "PASS",
+    ]
+
+
+def test_replay_status_lines_show_reference_torque_2010_in_tau() -> None:
+    module = _load_script(
+        Path("src/sim_swim/analysis/phase2_replay.py"),
+        "phase2_replay_2010_reference_torque_time_label",
+    )
+    state = type("State", (), {"t": 0.04, "reverse_flagella": (), "flag_states": ()})()
+    cfg = type(
+        "Config",
+        (),
+        {
+            "tau_s": 0.04,
+            "dt_star": 1.0e-3,
+            "time_scale_policy": "reference_torque",
+            "motor_torque_Nm": 2.5e-20,
+            "model_profile": type("Profile", (), {"year": 2010})(),
+            "motor": type("Motor", (), {"enable_switching": False})(),
+        },
+    )()
+
+    assert module._replay_status_lines(state, cfg, "PASS") == [
+        "RUN",
+        "t = 1.000 τ (0.040000 s, 1,000 steps)",
+        "motor torque / flag = 2.50e-20 N m",
         "PASS",
     ]
 

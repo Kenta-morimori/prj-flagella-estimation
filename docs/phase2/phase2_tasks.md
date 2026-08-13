@@ -217,6 +217,7 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Result:** 2010 projectは15 body + 11×3 flagellum，2010 paperは15 body + 15×3 flagellum，2015 project/paperは30 body + 30×3 flagellumとした．2010 projectは`tau_s=1.0`互換を維持し，2010 paper／2015はreference torqueから`tau_s`を導出する．durationは`tau`と`s`を同一schemaで扱える．
 - **Interpretation:** profileごとにgeometry，time scale，motor model，implementation statusを追跡する必要がある．
 - **Decision:** default profileを`conf/sim_swim_2010.yaml`とする．legacy time keyはdeprecated compatibilityとして残し，新旧time keyの矛盾はerrorとする．canonical profileでは`motor.torque_Nm=-1` sentinelを使用せず，profile provenanceをmanifestへ保存する．
+- **Update (2026-08-13):** 2010 paper profileの標準configでは、原著確認値として各motor `T=1.2e-18 N m`、`Δt/τ=1e-3`を明示する。sentinelは入力互換だけに残す。2010 projectと#61実験専用conditionは変更しない（ADR 0018）。
 - **Evidence:** Tasks P2-MODEL-164，P2-MODEL-165，Issues #164，#165，ADRs 0010，0012．
 
 ### P2-D17: 2015 refined profileでは120-bead geometryとpaper-inspired body reactionを使用する

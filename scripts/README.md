@@ -67,6 +67,27 @@ campaign root の `qc_summary.json` を最初に読みます。`summary.csv` は
 `dt_comparison.csv` は同一torque内の`1e-3` / `1e-4` screen一致度、`torque_similarity.csv` は
 異torque無次元相似性の暫定診断です。`1e-5` formal reference比較は、初期screenで候補を絞った後に別campaignで行います。1 tauの遊泳速度・姿勢は記録し、単独では採否に使いません。
 
+既存campaignの形状・後方軸整列・束化診断をtorque × `dt_star` heatmapへまとめる場合は、simulationを再起動せず次を使います。
+
+```bash
+uv run python scripts/02_phase2_analysis/visualize_2010_torque_dt_stability.py \
+  --run-dir <campaign-root>
+```
+
+`analysis/torque_dt_visuals/torque_dt_feature_heatmaps.png`と、同じ値を持つCSVを出力します。`1 tau`のheatmapは短時間診断であり、論文モデルの長時間束化や`dt_star`の正式採用を表すものではありません。
+
+同じ8条件を同一の無次元時刻で3D replay gridへ並べる場合は次を使います。
+
+```bash
+uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
+  --run-dir <campaign-root> \
+  --mode render-only \
+  --target-frame-count 101 \
+  --max-panels-per-grid 8
+```
+
+`reference_torque` time-scaleのconditionは、replay上で`t/τ`と実時間・step数を併記する。
+
 主な出力は `outputs/YYYY-MM-DD/HHMMSS/` 配下に作成され、`manifest.json` と `run.log` に実行条件が記録されます。Issue #61 torque-dt screenでは、terminalと`run.log`へ全8条件の開始・完了/失敗と経過時間が出力され、実行中のconditionは`run_manifest.json`の`execution.status`で確認できます。
 
 ### Sweep

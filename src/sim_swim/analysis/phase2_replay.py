@@ -167,9 +167,10 @@ def _has_first_fail(row: dict[str, str]) -> bool:
 
 
 def _row_passes_nonbody(row: dict[str, str]) -> bool:
-    return row.get("final_shape_pass_nonbody", "") == "True" and not _has_first_fail(
-        row
-    )
+    return (
+        row.get("final_shape_pass_nonbody", "") == "True"
+        or row.get("status", "").strip().lower() == "pass"
+    ) and not _has_first_fail(row)
 
 
 def _fail_label(row: dict[str, str]) -> str:
@@ -186,7 +187,10 @@ def _replay_status_lines(st: Any, cfg: Any, fail_label: str) -> list[str]:
     from sim_swim.render.render3d import _run_tumble_label
 
     profile = getattr(cfg, "model_profile", None)
-    if getattr(profile, "year", None) == 2015:
+    if (
+        getattr(profile, "year", None) == 2015
+        or getattr(cfg, "time_scale_policy", None) == "reference_torque"
+    ):
         tau = st.t / max(cfg.tau_s, 1e-30)
         dt_s = cfg.dt_star * cfg.tau_s
         steps = int(round(st.t / max(dt_s, 1e-30)))

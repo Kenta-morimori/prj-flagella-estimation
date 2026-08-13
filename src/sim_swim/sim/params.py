@@ -1266,6 +1266,11 @@ class SimulationConfig:
             and self.model_profile is not None
             and self.model_profile.variant == "paper"
         )
+        is_2010_paper = bool(
+            self.model_profile is not None
+            and self.model_profile.year == 2010
+            and self.model_profile.variant == "paper"
+        )
         add("flagella.n_flagella", self.flagella.n_flagella, 3)
         add(
             "scale.bead_radius_a_over_b",
@@ -1341,6 +1346,11 @@ class SimulationConfig:
             )
             add("time.integration.dt_star", self.dt_star, 1.0e-5)
             add("brownian.enabled", self.brownian.enabled, False)
+        if is_2010_paper:
+            add("motor.enabled", self.motor.enabled, True)
+            add("motor.torque_Nm", self.motor.torque_Nm, 1.2e-18)
+            add("motor.reference_torque_Nm", self.reference_torque_Nm, 1.2e-18)
+            add("time.integration.dt_star", self.dt_star, 1.0e-3)
         add("run_tumble.run_tau", self.run_tumble.run_tau, 1200.0)
         add("run_tumble.tumble_tau", self.run_tumble.tumble_tau, 800.0)
         add("run_tumble.semicoiled_tau", self.run_tumble.semicoiled_tau, 400.0)

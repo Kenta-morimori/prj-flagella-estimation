@@ -1,0 +1,34 @@
+{
+  "status": "PASS",
+  "task": "2010 paper numeric-profile correction and Issue #61 offline visual review",
+  "branch": "feature/issue-61-2010-torque-dt-campaign",
+  "summary": [
+    "2010 paper profileの標準configを、各flagellum T=1.2e-18 N m、Δt/τ=1e-3へ更新した。2010 project defaultとIssue #61 project campaignは変更していない。",
+    "既存のIssue #61 8条件archiveから、形状・後方軸整列・束化特徴量heatmapと101-frame replay gridを生成した。simulationは再起動していない。",
+    "replayはreference-torque conditionをt/τ、実時間、step数で表示し、compact campaignのstatus=passをPASSとして表示する。"
+  ],
+  "checks": [
+    {
+      "command": "uv run pytest tests/test_model_profiles.py tests/test_params.py tests/test_phase2_61_torque_dt_campaign.py tests/test_phase2_61_torque_dt_visuals.py tests/test_script_layout.py",
+      "result": "PASS: 118 passed"
+    },
+    {
+      "command": "uv run pytest tests/test_phase2_generic_multi_run.py tests/test_model_profiles.py tests/test_phase2_61_torque_dt_visuals.py tests/test_phase2_61_torque_dt_campaign.py",
+      "result": "PASS: 74 passed"
+    },
+    {
+      "command": "visualize_2010_torque_dt_stability.py --run-dir existing campaign; render_phase2_replay.py --mode render-only",
+      "result": "PASS: heatmap CSV/PNG and 101-frame MP4/final PNG created from existing archives"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "既存state archiveの可視化だけを実行し、simulationは開始していない。",
+  "adr_required": true,
+  "adr": "ADR 0018",
+  "user_review_required": true,
+  "user_review_outputs": [
+    "outputs/phase2_torque_dt_stability/2010_project/initial_screen/2026-08-13/171815/analysis/torque_dt_visuals/torque_dt_feature_heatmaps.png",
+    "outputs/phase2_torque_dt_stability/2010_project/initial_screen/2026-08-13/171815/analysis/torque_dt_replay/grid_swim3d.mp4"
+  ],
+  "next_action": "heatmap/replayを短時間診断としてユーザーが確認し、paper profileの長時間再現検証と#61 projectのdt採択を別途判断する。"
+}

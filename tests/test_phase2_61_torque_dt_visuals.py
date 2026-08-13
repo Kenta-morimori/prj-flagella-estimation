@@ -1,0 +1,68 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+from sim_swim.analysis.torque_dt_stability_visuals import build_visuals, feature_rows
+
+
+pytestmark = pytest.mark.light
+
+
+def _summary() -> dict[str, object]:
+    return {
+        "execution": {"status": "completed"},
+        "gates": {
+            "finite": {"any_fail": False},
+            "shape_nonbody": {"any_fail": False},
+            "shape_body": {"any_fail": False},
+        },
+        "all_step_metrics": {
+            "flag_bond_rel_err_max": {"max": 0.01},
+            "hook_len_rel_err_max": {"max": 0.02},
+            "flag_helix_axis_mean_deviation_deg_max": {"max": 3.0},
+            "flag_helix_axis_rearward_projection_min": {"min": 0.99},
+            "bundle_participation_ratio": {"final": 2.0 / 3.0},
+            "flag_helix_bundle_radius_max_um": {"max": 1.5},
+        },
+    }
+
+
+def _fixture(run_dir: Path) -> None:
+    conditions = []
+    for torque in (1.0e-21, 1.2e-18):
+        for dt_star in (1.0e-3, 1.0e-4):
+            condition_id = f"T{torque:.0e}_dt{dt_star:.0e}"
+            condition_dir = run_dir / condition_id
+            condition_dir.mkdir(parents=True)
+            (condition_dir / "run_summary.json").write_text(
+                json.dumps(_summary()), encoding="utf-8"
+            )
+            conditions.append(
+                {
+                    "condition_id": condition_id,
+                    "output_dir": str(condition_dir),
+                    "torque_Nm_per_flagellum": torque,
+                    "dt_star": dt_star,
+                    "time": {"tau_s": 1.0e-3, "duration_s": 1.0e-3},
+                }
+            )
+    (run_dir / "run_manifest.json").write_text(
+        json.dumps({"conditions": conditions}), encoding="utf-8"
+    )
+
+
+def test_visuals_extract_features_and_write_heatmap(tmp_path: Path) -> None:
+    _fixture(tmp_path)
+
+    rows = feature_rows(tmp_path)
+    assert len(rows) == 4
+    assert all(row["qc_pass"] == 1 for row in rows)
+    assert rows[0]["max_axis_mean_deviation_deg"] == pytest.approx(3.0)
+
+    outputs = build_visuals(tmp_path, tmp_path / "analysis")
+    assert outputs["csv"].is_file()
+    assert outputs["heatmap"].is_file()
+    assert outputs["manifest"].is_file()
