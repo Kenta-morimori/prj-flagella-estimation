@@ -67,7 +67,7 @@ campaign root の `qc_summary.json` を最初に読みます。`summary.csv` は
 `dt_comparison.csv` は同一torque内の`1e-3` / `1e-4` screen一致度、`torque_similarity.csv` は
 異torque無次元相似性の暫定診断です。`1e-5` formal reference比較は、初期screenで候補を絞った後に別campaignで行います。1 tauの遊泳速度・姿勢は記録し、単独では採否に使いません。
 
-主な出力は `outputs/YYYY-MM-DD/HHMMSS/` 配下に作成され、`manifest.json` と `run.log` に実行条件が記録されます。
+主な出力は `outputs/YYYY-MM-DD/HHMMSS/` 配下に作成され、`manifest.json` と `run.log` に実行条件が記録されます。Issue #61 torque-dt screenでは、terminalと`run.log`へ全8条件の開始・完了/失敗と経過時間が出力され、実行中のconditionは`run_manifest.json`の`execution.status`で確認できます。
 
 ### Sweep
 

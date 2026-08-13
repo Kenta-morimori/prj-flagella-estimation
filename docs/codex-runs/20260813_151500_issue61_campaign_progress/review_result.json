@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "task": "Issue #61 torque-dt initial-screen campaign progress visibility",
+  "branch": "feature/issue-61-2010-torque-dt-campaign",
+  "summary": [
+    "torque-dt campaignは全8条件の開始・完了/失敗・経過時間をterminalとroot run.logへJST時刻付きで出力する。",
+    "run_manifest.jsonは開始前のplanned、実行中のrunning、終了後のcompleted/failedを条件ごとに逐次保存する。",
+    "内部stepの進捗行は出力しない。"
+  ],
+  "checks": [
+    {
+      "command": "uv run ruff format --check src/sim_swim/analysis/torque_dt_stability_campaign.py tests/test_phase2_61_torque_dt_campaign.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/analysis/torque_dt_stability_campaign.py tests/test_phase2_61_torque_dt_campaign.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest tests/test_phase2_61_torque_dt_campaign.py tests/test_phase2_190_torque_dt_stability.py tests/test_phase2_generic_multi_run.py",
+      "result": "PASS: 56 passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "進捗表示のテストはsimulationをstub化したunit testであり、campaign本実行は開始していない。",
+  "adr_required": false,
+  "user_review_required": false,
+  "next_action": "PR #192へこの変更をcommit・pushし、ユーザーが最新headでcampaignを実行する。"
+}

@@ -7,10 +7,13 @@ the legacy 2010 ``tau_s=1`` baseline or the #183 tracking-reference outputs.
 from __future__ import annotations
 
 import csv
+from datetime import datetime
 import json
 import math
 from pathlib import Path
+import time
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import numpy as np
 
@@ -42,6 +45,61 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         writer = csv.DictWriter(handle, fieldnames=keys)
         writer.writeheader()
         writer.writerows(rows)
+
+
+def _now_jst() -> str:
+    """Return a human-readable JST timestamp for the live campaign manifest."""
+
+    return datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(timespec="seconds")
+
+
+def _format_elapsed(seconds: float) -> str:
+    """Format elapsed wall-clock time for terminal and run.log progress lines."""
+
+    total_seconds = max(0, int(round(seconds)))
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours:
+        return f"{hours}h{minutes:02d}m{seconds:02d}s"
+    if minutes:
+        return f"{minutes}m{seconds:02d}s"
+    return f"{seconds}s"
+
+
+def _write_run_manifest(
+    root: Path,
+    *,
+    config_path: Path,
+    raw: dict[str, Any],
+    plan: dict[str, Any],
+    records: list[dict[str, Any]],
+    execution_status: str,
+    started_at_jst: str,
+    finished_at_jst: str | None = None,
+    wall_seconds: float | None = None,
+) -> None:
+    """Persist campaign progress so it remains inspectable while the run is active."""
+
+    execution: dict[str, Any] = {
+        "status": execution_status,
+        "started_at_jst": started_at_jst,
+    }
+    if finished_at_jst is not None:
+        execution["finished_at_jst"] = finished_at_jst
+    if wall_seconds is not None:
+        execution["wall_seconds"] = wall_seconds
+    _write_json(
+        root / "run_manifest.json",
+        {
+            "kind": "phase2_2010_torque_linked_dt_stability_campaign",
+            "contract_version": 1,
+            "campaign_config": str(config_path),
+            "base_config": raw["base_config"],
+            "campaign_plan": str(root / "campaign_plan.json"),
+            "execution": execution,
+            "conditions": records,
+        },
+    )
 
 
 def _assert_condition(cfg: SimulationConfig, condition: dict[str, Any]) -> None:
@@ -224,7 +282,6 @@ def _run_condition(
     base: dict[str, Any],
     condition: dict[str, Any],
     qc: dict[str, Any],
-    progress: int,
 ) -> dict[str, Any]:
     cfg = SimulationConfig.from_dict(base).with_overrides(condition["config_overrides"])
     _assert_condition(cfg, condition)
@@ -243,7 +300,6 @@ def _run_condition(
             cfg.time.duration_s,
             step_summary_dir=directory,
             stop_on_shape_fail=False,
-            progress_interval=progress,
             record_body_diagnostics=True,
         )
         save_state_archive(directory / "state_archive.npz", states)
@@ -586,22 +642,104 @@ def run_torque_linked_campaign(
     _write_json(root / "campaign_plan.json", plan)
     qc = dict(raw["qc"])
     base = load_yaml(Path(str(raw["base_config"])))
-    records = [
-        _run_condition(
-            root, base, condition, qc, int(output.get("progress_interval", 1000))
-        )
+    started_at_jst = _now_jst()
+    campaign_started = time.perf_counter()
+    records: list[dict[str, Any]] = [
+        {
+            "condition_id": condition["condition_id"],
+            "torque_Nm_per_flagellum": condition["torque_Nm_per_flagellum"],
+            "dt_star": condition["dt_star"],
+            "comparison_role": condition["comparison_role"],
+            "output_dir": str(root / condition["condition_id"]),
+            "execution": {"status": "planned"},
+        }
         for condition in plan["conditions"]
     ]
-    _write_json(
-        root / "run_manifest.json",
-        {
-            "kind": "phase2_2010_torque_linked_dt_stability_campaign",
-            "contract_version": 1,
-            "campaign_config": str(config_path),
-            "base_config": raw["base_config"],
-            "campaign_plan": str(root / "campaign_plan.json"),
-            "conditions": records,
-        },
+    _write_run_manifest(
+        root,
+        config_path=config_path,
+        raw=raw,
+        plan=plan,
+        records=records,
+        execution_status="running",
+        started_at_jst=started_at_jst,
+    )
+    ctx.logger.info("Torque-dt campaign start: conditions=%d", len(records))
+    for index, condition in enumerate(plan["conditions"]):
+        condition_started_at_jst = _now_jst()
+        condition_started = time.perf_counter()
+        records[index]["execution"] = {
+            "status": "running",
+            "started_at_jst": condition_started_at_jst,
+        }
+        _write_run_manifest(
+            root,
+            config_path=config_path,
+            raw=raw,
+            plan=plan,
+            records=records,
+            execution_status="running",
+            started_at_jst=started_at_jst,
+        )
+        ctx.logger.info(
+            "Condition start [%d/%d]: %s",
+            index + 1,
+            len(records),
+            condition["condition_id"],
+        )
+        record = _run_condition(root, base, condition, qc)
+        condition_wall_seconds = time.perf_counter() - condition_started
+        condition_finished_at_jst = _now_jst()
+        condition_status = "failed" if record.get("error_type") else "completed"
+        record["execution"] = {
+            "status": condition_status,
+            "started_at_jst": condition_started_at_jst,
+            "finished_at_jst": condition_finished_at_jst,
+            "wall_seconds": condition_wall_seconds,
+        }
+        records[index] = record
+        _write_run_manifest(
+            root,
+            config_path=config_path,
+            raw=raw,
+            plan=plan,
+            records=records,
+            execution_status="running",
+            started_at_jst=started_at_jst,
+        )
+        ctx.logger.info(
+            "Condition %s [%d/%d]: %s (elapsed=%s, completed=%d/%d)",
+            condition_status,
+            index + 1,
+            len(records),
+            condition["condition_id"],
+            _format_elapsed(condition_wall_seconds),
+            sum(
+                1
+                for item in records
+                if item.get("execution", {}).get("status") in {"completed", "failed"}
+            ),
+            len(records),
+        )
+    campaign_wall_seconds = time.perf_counter() - campaign_started
+    campaign_finished_at_jst = _now_jst()
+    _write_run_manifest(
+        root,
+        config_path=config_path,
+        raw=raw,
+        plan=plan,
+        records=records,
+        execution_status="completed",
+        started_at_jst=started_at_jst,
+        finished_at_jst=campaign_finished_at_jst,
+        wall_seconds=campaign_wall_seconds,
+    )
+    failed_count = sum(1 for record in records if record.get("error_type"))
+    ctx.logger.info(
+        "Torque-dt campaign completed: completed=%d, failed=%d, elapsed=%s",
+        len(records) - failed_count,
+        failed_count,
+        _format_elapsed(campaign_wall_seconds),
     )
     summarize_campaign(root, config_path=config_path)
     root_manifest_path = root / "manifest.json"

@@ -24,7 +24,7 @@ uv run python scripts/01_simulate_swimming/run_multi_run.py \
   config=conf/phase2_multi_run/2010_project_torque_dt_initial_screen.yaml
 ```
 
-実行者はclean worktreeで実行する。出力はJST timestamp付き`outputs/phase2_torque_dt_stability/2010_project/initial_screen/YYYY-MM-DD/HHMMSS/`となる。再集計だけを行う場合は次を使い、simulationを再起動しない。
+実行者はclean worktreeで実行する。出力はJST timestamp付き`outputs/phase2_torque_dt_stability/2010_project/initial_screen/YYYY-MM-DD/HHMMSS/`となる。実行中はterminalとrootの`run.log`へ全8条件の開始・完了/失敗・経過時間を記録し、`run_manifest.json`のconditionごとの`execution.status`（`planned` / `running` / `completed` / `failed`）とJST時刻で現在位置を確認できる。再集計だけを行う場合は次を使い、simulationを再起動しない。
 
 ```bash
 uv run python scripts/02_phase2_analysis/analyze_2010_torque_dt_stability.py \

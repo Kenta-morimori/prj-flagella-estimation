@@ -1,5 +1,7 @@
 import json
+import logging
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -11,6 +13,7 @@ from sim_swim.analysis.torque_dt_stability_campaign import (
     _validate_campaign_contract,
     summarize_campaign,
 )
+from sim_swim.analysis import torque_dt_stability_campaign as campaign
 from sim_swim.analysis.sweeps.generic_multi_run import run_campaign
 from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import SimulationConfig
@@ -158,3 +161,59 @@ def test_campaign_motor_reaction_is_balanced_in_a_representative_step(
     metrics = summary["all_step_metrics"]
     assert metrics["motor_force_balance_residual_ratio"]["max"] <= 1.0e-8
     assert metrics["motor_torque_balance_residual_ratio"]["max"] <= 1.0e-8
+
+
+def test_campaign_persists_condition_boundary_progress(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The live manifest identifies the active condition before it is run."""
+
+    logger = logging.getLogger("test_phase2_61_campaign_progress")
+    logger.handlers.clear()
+    logger.addHandler(logging.NullHandler())
+    active_condition_ids: list[str] = []
+
+    def fake_init_run(*args: object, **kwargs: object) -> SimpleNamespace:
+        (tmp_path / "manifest.json").write_text("{}", encoding="utf-8")
+        return SimpleNamespace(out=SimpleNamespace(root=tmp_path), logger=logger)
+
+    def fake_run_condition(
+        root: Path,
+        base: dict[str, object],
+        condition: dict[str, object],
+        qc: dict[str, object],
+    ) -> dict[str, object]:
+        del base
+        manifest = json.loads((root / "run_manifest.json").read_text(encoding="utf-8"))
+        active = [
+            row["condition_id"]
+            for row in manifest["conditions"]
+            if row.get("execution", {}).get("status") == "running"
+        ]
+        assert active == [condition["condition_id"]]
+        active_condition_ids.extend(active)
+        return {
+            "condition_id": condition["condition_id"],
+            "torque_Nm_per_flagellum": condition["torque_Nm_per_flagellum"],
+            "dt_star": condition["dt_star"],
+            "comparison_role": condition["comparison_role"],
+            "output_dir": str(root / str(condition["condition_id"])),
+            "config_overrides": condition["config_overrides"],
+            "qc": qc,
+        }
+
+    monkeypatch.setattr(campaign, "init_run", fake_init_run)
+    monkeypatch.setattr(campaign, "_run_condition", fake_run_condition)
+    monkeypatch.setattr(campaign, "summarize_campaign", lambda *args, **kwargs: {})
+
+    assert campaign.run_torque_linked_campaign(CONFIG, output_root=tmp_path) == tmp_path
+
+    manifest = json.loads((tmp_path / "run_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["execution"]["status"] == "completed"
+    assert len(active_condition_ids) == 8
+    for record in manifest["conditions"]:
+        execution = record["execution"]
+        assert execution["status"] == "completed"
+        assert execution["started_at_jst"].endswith("+09:00")
+        assert execution["finished_at_jst"].endswith("+09:00")
+        assert execution["wall_seconds"] >= 0.0
