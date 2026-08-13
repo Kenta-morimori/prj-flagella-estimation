@@ -78,6 +78,18 @@ def test_2010_paper_profile_uses_fourteen_bonds_at_paper_spacing() -> None:
     assert cfg.flagella.length_over_b == pytest.approx(14 * 0.58)
 
 
+def test_2010_paper_profile_uses_documented_torque_and_time_step() -> None:
+    raw = yaml.safe_load(
+        (ROOT / "conf" / "sim_swim_2010_paper.yaml").read_text(encoding="utf-8")
+    )
+    cfg = SimulationConfig.from_dict(raw)
+
+    assert cfg.motor_torque_Nm == pytest.approx(1.2e-18)
+    assert cfg.reference_torque_Nm == pytest.approx(1.2e-18)
+    assert cfg.dt_star == pytest.approx(1.0e-3)
+    assert cfg.dt_s == pytest.approx(cfg.tau_s * 1.0e-3)
+
+
 @pytest.mark.parametrize(("filename", "expected"), INITIAL_HELIX_AXIS_CASES)
 def test_project_profiles_default_to_posterior_helix_axis(
     filename: str,

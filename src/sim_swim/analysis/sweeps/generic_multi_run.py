@@ -189,6 +189,21 @@ def _summary_fieldnames(rows: list[dict[str, Any]]) -> list[str]:
 def run_campaign(argv: list[str] | None = None) -> Path:
     args, passthrough = _parse_args(argv)
     raw_campaign = load_yaml(args.campaign_config)
+    contract = dict(raw_campaign.get("campaign_contract", {}) or {})
+    if contract.get("name") == "2010_torque_linked_dt_stability":
+        if args.sample_limit is not None or passthrough:
+            raise ValueError(
+                "The torque-linked dt campaign has a fixed condition contract; "
+                "sample_limit and CLI overrides are not supported."
+            )
+        from sim_swim.analysis.torque_dt_stability_campaign import (
+            run_torque_linked_campaign,
+        )
+
+        return run_torque_linked_campaign(
+            args.campaign_config,
+            dry_run=args.dry_run,
+        )
     campaign = apply_campaign_cli_overrides(raw_campaign, passthrough)
     conditions = build_campaign_conditions(campaign)
     if args.sample_limit is not None:

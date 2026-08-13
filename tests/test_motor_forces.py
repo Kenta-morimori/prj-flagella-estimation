@@ -490,6 +490,7 @@ def test_root_torque_segment_couples_applies_local_balanced_torque() -> None:
         body_indices=body_indices,
         torque_per_flag=np.array([torque], dtype=float),
         segment_weights=segment_weights,
+        full_vector_body_reaction=True,
     )
 
     assert diag.degenerate_axis_count == 0
@@ -508,7 +509,7 @@ def test_root_torque_segment_couples_applies_local_balanced_torque() -> None:
 
     assert np.isclose(abs(float(flag_torque @ axis)), torque, rtol=1.0e-8)
     assert np.isclose(abs(float(body_torque @ axis)), torque, rtol=1.0e-8)
-    assert np.isclose(float((flag_torque + body_torque) @ axis), 0.0, atol=1e-28)
+    assert np.allclose(flag_torque + body_torque, np.zeros(3), atol=1e-28)
 
 
 def test_root_torque_segment_couples_reacts_to_applied_flag_torque() -> None:

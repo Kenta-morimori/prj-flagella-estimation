@@ -40,19 +40,19 @@ def _load_script(name: str, rel_path: str):
 
 build_dataset = _load_script(
     "build_dataset",
-    "scripts/02_phase2_analysis/build_dataset.py",
+    "src/sim_swim/analysis/behavior_dataset.py",
 )
 render_sample = _load_script(
     "render_sample",
-    "scripts/02_phase2_analysis/render_sample.py",
+    "src/sim_swim/analysis/behavior_dataset_replay.py",
 )
 plot_distributions = _load_script(
     "plot_distributions",
-    "scripts/02_phase2_analysis/plot_distributions.py",
+    "src/sim_swim/analysis/behavior_dataset_distributions.py",
 )
 analyze_2d_separability = _load_script(
     "analyze_2d_separability",
-    "scripts/02_phase2_analysis/analyze_2d_separability.py",
+    "src/sim_swim/analysis/behavior_dataset_separability.py",
 )
 
 

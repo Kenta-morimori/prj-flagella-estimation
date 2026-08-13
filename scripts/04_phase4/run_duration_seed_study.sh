@@ -41,7 +41,7 @@ if [[ "${overwrite_requested}" == "true" ]]; then
     config="${campaign_config}" \
     "${campaign_overrides[@]}" \
     overwrite=true
-  uv run python scripts/02_phase2_analysis/build_dataset.py \
+  uv run python scripts/03_dataset_building/build_dataset.py \
     config="${campaign_config}" \
     run_dir="${run_dir}" \
     "${campaign_overrides[@]}" \
@@ -50,7 +50,7 @@ else
   uv run python scripts/01_simulate_swimming/run_multi_run.py \
     config="${campaign_config}" \
     "${campaign_overrides[@]}"
-  uv run python scripts/02_phase2_analysis/build_dataset.py \
+  uv run python scripts/03_dataset_building/build_dataset.py \
     config="${campaign_config}" \
     run_dir="${run_dir}" \
     "${campaign_overrides[@]}"

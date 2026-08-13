@@ -31,7 +31,7 @@ CLI、sweep、multi-run、replay fallbackのdefaultは `conf/sim_swim_2010.yaml`
 
 ## Paper と project の区別
 
-`sim_swim_2010.yaml` は既存runとの互換を優先するproject profileである。`sim_swim_2010_paper.yaml` は15 beads/flagellum、bond長 `0.58 b`、14 bondsに対応するcontour length `8.12 b` と、ADR 0009で採用した `fene_fraenkel` を用い、project固有のattach-frame補強を無効相当へ戻す。
+`sim_swim_2010.yaml` は既存runとの互換を優先するproject profileである。`sim_swim_2010_paper.yaml` は15 beads/flagellum、bond長 `0.58 b`、14 bondsに対応するcontour length `8.12 b`、各motorの`T=1.2e-18 N m`、`Δt/τ=1e-3` と、ADR 0009で採用した `fene_fraenkel` を用い、project固有のattach-frame補強を無効相当へ戻す。
 
 ただし `implementation_status: supported` は現行実装でsimulationを開始できることを示し、論文の完全再現を保証しない。現行builderが常時生成するbody diagonal braceや、paperと完全一致しないtorque/counter-torque実装などの制限はconfigコメントと本ADRで追跡する。
 

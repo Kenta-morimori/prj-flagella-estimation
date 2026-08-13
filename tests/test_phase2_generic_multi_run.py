@@ -396,7 +396,7 @@ def test_generic_multi_run_plot_outputs_line_plots(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     module = _load_script(
-        Path("scripts/01_simulate_swimming/plot_heatmap.py"),
+        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
         "phase2_plot_heatmap_wrapper_generic_multi",
     )
 
@@ -428,7 +428,7 @@ def test_generic_multi_run_plot_filters_extra_axes(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     module = _load_script(
-        Path("scripts/01_simulate_swimming/plot_heatmap.py"),
+        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
         "phase2_plot_heatmap_wrapper_generic_multi_filter_axes",
     )
 
@@ -484,7 +484,7 @@ def test_generic_multi_run_plot_accepts_run_dir(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     module = _load_script(
-        Path("scripts/01_simulate_swimming/plot_heatmap.py"),
+        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
         "phase2_plot_heatmap_wrapper_generic_multi_run_dir",
     )
 
@@ -516,7 +516,7 @@ def test_generic_multi_run_plot_uses_fixed_output_base_dir(tmp_path: Path) -> No
         encoding="utf-8",
     )
     module = _load_script(
-        Path("scripts/01_simulate_swimming/plot_heatmap.py"),
+        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
         "phase2_plot_heatmap_wrapper_generic_multi_fixed_output",
     )
 
@@ -536,7 +536,7 @@ def test_generic_multi_run_plot_requires_run_dir_for_timestamped_output(
         timestamp_subdir=True,
     )
     module = _load_script(
-        Path("scripts/01_simulate_swimming/plot_heatmap.py"),
+        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
         "phase2_plot_heatmap_wrapper_generic_multi_timestamped_output",
     )
 
@@ -546,7 +546,7 @@ def test_generic_multi_run_plot_requires_run_dir_for_timestamped_output(
 
 def test_plot_heatmap_lists_generic_multi_run_profiles(capsys) -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/plot_heatmap.py"),
+        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
         "phase2_plot_heatmap_wrapper_generic_multi_list",
     )
 
@@ -560,7 +560,7 @@ def test_replay_load_inputs_uses_manifest_condition_order_and_output_dir(
     tmp_path: Path,
 ) -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        Path("src/sim_swim/analysis/phase2_replay.py"),
         "phase2_replay_generic_multi_inputs",
     )
     input_dir = tmp_path / "replay"
@@ -616,7 +616,7 @@ def test_replay_load_inputs_uses_manifest_condition_order_and_output_dir(
 
 def test_replay_builds_refined_2015_geometry_from_campaign_record() -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        Path("src/sim_swim/analysis/phase2_replay.py"),
         "phase2_replay_refined_2015_geometry",
     )
     cfg = module._build_cfg(
@@ -637,7 +637,7 @@ def test_replay_builds_refined_2015_geometry_from_campaign_record() -> None:
 
 def test_replay_applies_dotted_stage_a_condition_overrides() -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        Path("src/sim_swim/analysis/phase2_replay.py"),
         "phase2_replay_dotted_stage_a_overrides",
     )
 
@@ -660,7 +660,7 @@ def test_replay_applies_dotted_stage_a_condition_overrides() -> None:
 
 def test_replay_resamples_archived_states_for_display_only() -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        Path("src/sim_swim/analysis/phase2_replay.py"),
         "phase2_replay_state_resampling",
     )
     from sim_swim.sim.core import SimulationState
@@ -688,7 +688,7 @@ def test_replay_resamples_archived_states_for_display_only() -> None:
 
 def test_replay_wrapper_accepts_config_run_dir_defaults(tmp_path: Path) -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        Path("src/sim_swim/analysis/phase2_replay.py"),
         "phase2_replay_generic_multi_run_dir_args",
     )
 
@@ -716,7 +716,7 @@ def test_replay_wrapper_uses_fixed_output_base_dir(tmp_path: Path) -> None:
     profile = tmp_path / "fixed_profile.yaml"
     _write_generic_profile(profile, run_dir, timestamp_subdir=False)
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        Path("src/sim_swim/analysis/phase2_replay.py"),
         "phase2_replay_generic_multi_fixed_output_args",
     )
 
@@ -731,7 +731,7 @@ def test_replay_wrapper_uses_fixed_output_base_dir(tmp_path: Path) -> None:
 
 def test_replay_wrapper_reads_max_panels_per_grid_from_profile() -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        Path("src/sim_swim/analysis/phase2_replay.py"),
         "phase2_replay_max_panels_from_profile",
     )
 
@@ -760,7 +760,7 @@ def test_replay_auto_grid_shape_is_near_square(
     expected_shape: tuple[int, int],
 ) -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        Path("src/sim_swim/analysis/phase2_replay.py"),
         f"phase2_replay_auto_grid_shape_{n_conditions}",
     )
 
@@ -769,7 +769,7 @@ def test_replay_auto_grid_shape_is_near_square(
 
 def test_replay_auto_grid_layout_preserves_condition_order() -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        Path("src/sim_swim/analysis/phase2_replay.py"),
         "phase2_replay_auto_grid_layout_order",
     )
     rows = [{"condition_id": f"cond_{index}"} for index in range(5)]
@@ -782,7 +782,7 @@ def test_replay_auto_grid_layout_preserves_condition_order() -> None:
 
 def test_replay_grid_layout_keeps_explicit_summary_positions() -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        Path("src/sim_swim/analysis/phase2_replay.py"),
         "phase2_replay_explicit_grid_layout",
     )
     rows = [
@@ -798,7 +798,7 @@ def test_replay_grid_layout_keeps_explicit_summary_positions() -> None:
 
 def test_replay_page_index_groups_preserve_condition_order() -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        Path("src/sim_swim/analysis/phase2_replay.py"),
         "phase2_replay_page_index_groups",
     )
 
@@ -813,7 +813,7 @@ def test_replay_page_index_groups_preserve_condition_order() -> None:
 
 def test_replay_expands_flagella_count_condition_labels() -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        Path("src/sim_swim/analysis/phase2_replay.py"),
         "phase2_replay_expanded_condition_labels",
     )
 
@@ -826,7 +826,7 @@ def test_replay_expands_flagella_count_condition_labels() -> None:
 
 def test_replay_marks_transient_first_fail_as_failure() -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        Path("src/sim_swim/analysis/phase2_replay.py"),
         "phase2_replay_transient_first_fail",
     )
     row = {
@@ -841,7 +841,7 @@ def test_replay_marks_transient_first_fail_as_failure() -> None:
 
 def test_replay_marks_no_first_fail_as_pass() -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        Path("src/sim_swim/analysis/phase2_replay.py"),
         "phase2_replay_no_first_fail",
     )
     row = {
@@ -854,9 +854,18 @@ def test_replay_marks_no_first_fail_as_pass() -> None:
     assert module._row_passes_nonbody(row) is True
 
 
+def test_replay_marks_compact_campaign_status_pass() -> None:
+    module = _load_script(
+        Path("src/sim_swim/analysis/phase2_replay.py"),
+        "phase2_replay_compact_campaign_pass",
+    )
+
+    assert module._fail_label({"status": "pass"}) == "PASS"
+
+
 def test_replay_status_lines_include_motor_torque_after_time() -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        Path("src/sim_swim/analysis/phase2_replay.py"),
         "phase2_replay_status_motor_torque",
     )
     state = type("State", (), {"t": 0.125, "reverse_flagella": (), "flag_states": ()})()
@@ -879,7 +888,7 @@ def test_replay_status_lines_include_motor_torque_after_time() -> None:
 
 def test_replay_status_lines_show_2015_tau_seconds_and_steps() -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        Path("src/sim_swim/analysis/phase2_replay.py"),
         "phase2_replay_2015_time_label",
     )
     state = type(
@@ -905,9 +914,36 @@ def test_replay_status_lines_show_2015_tau_seconds_and_steps() -> None:
     ]
 
 
+def test_replay_status_lines_show_reference_torque_2010_in_tau() -> None:
+    module = _load_script(
+        Path("src/sim_swim/analysis/phase2_replay.py"),
+        "phase2_replay_2010_reference_torque_time_label",
+    )
+    state = type("State", (), {"t": 0.04, "reverse_flagella": (), "flag_states": ()})()
+    cfg = type(
+        "Config",
+        (),
+        {
+            "tau_s": 0.04,
+            "dt_star": 1.0e-3,
+            "time_scale_policy": "reference_torque",
+            "motor_torque_Nm": 2.5e-20,
+            "model_profile": type("Profile", (), {"year": 2010})(),
+            "motor": type("Motor", (), {"enable_switching": False})(),
+        },
+    )()
+
+    assert module._replay_status_lines(state, cfg, "PASS") == [
+        "RUN",
+        "t = 1.000 τ (0.040000 s, 1,000 steps)",
+        "motor torque / flag = 2.50e-20 N m",
+        "PASS",
+    ]
+
+
 def test_replay_seed_offsets_are_deterministic() -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        Path("src/sim_swim/analysis/phase2_replay.py"),
         "phase2_replay_seed_offsets",
     )
     rows = [
@@ -928,7 +964,7 @@ def test_replay_n_flagella_metrics_plot_has_explanatory_labels(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        Path("src/sim_swim/analysis/phase2_replay.py"),
         "phase2_replay_explanatory_metrics_plot",
     )
     rows = []
@@ -978,7 +1014,7 @@ def test_replay_generic_campaign_with_n_flagella_column_uses_bar_plot(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     module = _load_script(
-        Path("scripts/01_simulate_swimming/render_shape_stability_grid_replay.py"),
+        Path("src/sim_swim/analysis/phase2_replay.py"),
         "phase2_replay_generic_campaign_metrics_plot",
     )
     rows = [

@@ -8,8 +8,6 @@ import json
 from pathlib import Path
 import sys
 
-sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
-
 from sim_swim.analysis.cli_profiles import key_value_args_to_cli_args
 from sim_swim.analysis.spring_formulation_comparison import (
     write_decision_artifacts,

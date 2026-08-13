@@ -79,12 +79,12 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 
 - **Status:** adopted
 - **Background:** bead-position-onlyのtriplet motorでは，root方位は変化しても，flagellum chain全体へ軸方向torqueが十分に伝わらなかった．material frame，segment twist，axial torque fluxに相当する明示的な状態量が不足していた．
-- **Change:** `axial_torque_flux_probe`，`local_twist_transmission_probe`，全体軸投影方式を比較した後，segmentごとの局所force coupleでroot torqueを伝える`root_torque_segment_couples`を実装した．
+- **Change:** `axial_torque_flux_probe`，`local_twist_transmission_probe`，全体軸投影方式を比較した後，segmentごとの局所force coupleでroot torqueを伝える`root_torque_segment_couples`を実装した。Issue #61では、実際に発生した回転力の全ベクトルを全body beadsの逆向きforce coupleで相殺するよう修正した（ADR 0017）。
 - **Comparison:** `triplet`はroot付近の回転・変形に留まりやすく，`root_torque_axis_projection`は全体へtorqueが届く場合の比較・診断に有用だった．probe modesは仮説検証には有効だが正式modeにはしなかった．
 - **Result:** 0.5 s代表条件でshape gateを保ちながらhelix net 1回転以上を確認した．既存torsion forceをOFFにするとshape gateが破綻した．
 - **Interpretation:** 既存torsion potentialは螺旋形状維持，`root_torque_segment_couples`はroot torque伝搬という異なる役割を持つ．新方式は参照論文を完全再現するものではなく，project-specific extensionである．
 - **Decision:** 2010 projectの正式modeとして`root_torque_segment_couples`を採用する．`triplet`と`root_torque_axis_projection`は比較用として残し，probe modesは正式実行modeから削除する．既存torsion forceは維持する．
-- **Evidence:** Tasks P2-6-007，P2-6-008，ADRs 0002，0003，0004．
+- **Evidence:** Tasks P2-6-007，P2-6-008，Issues #61・#88，ADRs 0002，0003，0004，0017．
 
 ### P2-D05: 2010 projectでは標準torque帯とcanonical motor名を固定する
 
@@ -147,7 +147,7 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 
 - **Status:** adopted
 - **Background:** `dt_star=1.0e-4`では内部step数が多く，全stepを画像化すると実行時間とファイル数が大きくなる一方，保存時にstateを間引くと後続解析・再描画ができなくなる．
-- **Change:** user-facingな複数条件実行を`run_multi_run.py`，診断gridを`run_sweep.py`，定量plotを`plot_heatmap.py`，保存済みstateの再描画をreplay CLIへ分離した．
+- **Change:** user-facingな複数条件実行を`01_simulate_swimming/run_multi_run.py`，診断gridを`01_simulate_swimming/run_sweep.py`，planner・定量plot・保存済みstateの再描画を`02_phase2_analysis/`へ分離した。dataset作成は`03_dataset_building/`に独立させ、各`scripts/` entrypointの実装本体は`src/`へ置く．
 - **Result:** `summary.csv`, `trajectory.csv`, `state_archive.npz`, `run_manifest.json`をreplayable output contractとして固定した．raw sampleは全step情報を保持し，軽量化はrender側のfps samplingで行う方針となった．保存段階のstrideは廃止し，canonical sweep名を`shape_stability_grid`，sweep summary名を`summary.csv`とした．通常診断は軽量な`run_summary.json`を先に読み，raw `step_summary.csv` は限定抽出時のみ使う．
 - **Interpretation:** simulation情報を保存段階で不可逆に削減せず，描画・レビュー時にsamplingする方が，再現性と実行効率を両立できる．
 - **Decision:** raw outputを解析・replay可能な形で保持し，通常renderでは全内部stepを描画しない．full-step renderは診断時のみ明示指定し，Issue番号付き使い捨てscriptをcanonical entrypointにしない．
@@ -217,6 +217,7 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Result:** 2010 projectは15 body + 11×3 flagellum，2010 paperは15 body + 15×3 flagellum，2015 project/paperは30 body + 30×3 flagellumとした．2010 projectは`tau_s=1.0`互換を維持し，2010 paper／2015はreference torqueから`tau_s`を導出する．durationは`tau`と`s`を同一schemaで扱える．
 - **Interpretation:** profileごとにgeometry，time scale，motor model，implementation statusを追跡する必要がある．
 - **Decision:** default profileを`conf/sim_swim_2010.yaml`とする．legacy time keyはdeprecated compatibilityとして残し，新旧time keyの矛盾はerrorとする．canonical profileでは`motor.torque_Nm=-1` sentinelを使用せず，profile provenanceをmanifestへ保存する．
+- **Update (2026-08-13):** 2010 paper profileの標準configでは、原著確認値として各motor `T=1.2e-18 N m`、`Δt/τ=1e-3`を明示する。sentinelは入力互換だけに残す。2010 projectと#61実験専用conditionは変更しない（ADR 0018）。
 - **Evidence:** Tasks P2-MODEL-164，P2-MODEL-165，Issues #164，#165，ADRs 0010，0012．
 
 ### P2-D17: 2015 refined profileでは120-bead geometryとpaper-inspired body reactionを使用する

@@ -1,0 +1,56 @@
+{
+  "status": "PASS",
+  "summary": [
+    "Issue #61の2010 project torque連動time-scale初期screenを、標準multi-run実行と実行後の専用analysisへ分離して実装した。",
+    "2010 defaultのlegacy tau_s=1 s、#183 tracking-reference結果、2015 project、0.5秒run、dataset採択は変更していない。",
+    "長時間simulationは実行しておらず、実行者がcampaign rootのqc_summary.jsonから評価する。",
+    "既存の2026-08-13 1 tau結果を、JST timestamp直下にcampaign名を置く規約へ移し、simulationを再起動せずにQC集計とheatmapを再生成した。",
+    "heatmapの先頭panelは誤差の合計ではなく、必須short-screen QCのANDをPASS/FAILで示す明示的なcategorical gateに修正した。"
+  ],
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "初期screenはdt_star=1e-3/1e-4だけであり、1e-5 comparisonまではdt採否をdiagnostic_onlyとして扱う。",
+    "1 tauの遊泳速度・姿勢はdiagnostic_review_requiredとして記録し、未較正の絶対閾値でdt採否を自動化しない。",
+    "2015 projectへの反映可否、0.5秒run、dataset採択はこのcampaign結果の評価後に別途判断する。",
+    "heatmapは短時間の形状・束化診断であり、1 tauの結果だけで長時間束化やdt_star採用を決めない。"
+  ],
+  "tests_reviewed": [
+    "uv run ruff format --check src/sim_swim/analysis/torque_dt_stability_campaign.py tests/test_phase2_61_torque_dt_campaign.py",
+    "uv run ruff check src/sim_swim/analysis/torque_dt_stability.py src/sim_swim/analysis/torque_dt_stability_campaign.py src/sim_swim/analysis/sweeps/generic_multi_run.py scripts/02_phase2_analysis/analyze_2010_torque_dt_stability.py tests/test_phase2_61_torque_dt_campaign.py",
+    "uv run pytest -q tests/test_phase2_190_torque_dt_stability.py tests/test_phase2_61_torque_dt_campaign.py tests/test_phase2_generic_multi_run.py (52 passed)",
+    "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/2010_project_torque_dt_initial_screen.yaml dry_run=true (8 conditions; simulation not started)",
+    "uv run pytest tests/test_run_context.py tests/test_phase2_61_torque_dt_visuals.py tests/test_phase2_61_torque_dt_campaign.py (15 passed)",
+    "uv run ruff format --check . (155 files already formatted)",
+    "uv run ruff check . (PASS)",
+    "uv run pytest -q (PASS)",
+    "git diff --check (PASS)",
+    "uv run python scripts/02_phase2_analysis/analyze_2010_torque_dt_stability.py --run-dir outputs/2026-08-13/171815/phase2_issue61_2010_project_torque_dt_initial_screen (PASS; no simulation)",
+    "uv run python scripts/02_phase2_analysis/visualize_2010_torque_dt_stability.py --run-dir outputs/2026-08-13/171815/phase2_issue61_2010_project_torque_dt_initial_screen (PASS; no simulation)"
+  ],
+  "user_review_required": false,
+  "user_review_command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/2010_project_torque_dt_initial_screen.yaml",
+  "user_review_outputs": [
+    "outputs/YYYY-MM-DD/HHMMSS/phase2_issue61_2010_project_torque_dt_initial_screen/qc_summary.json",
+    "<campaign-root>/summary.csv",
+    "<campaign-root>/dt_comparison.csv",
+    "<campaign-root>/torque_similarity.csv",
+    "<campaign-root>/run_manifest.json"
+  ],
+  "user_review_points": [
+    "各conditionのsafety statusがpassであること",
+    "同一torqueのdt_comparisonはdiagnostic_onlyであり、1e-5後まで正式dt採否に使わないこと",
+    "reference failure/archive mismatchがnot_comparableとして記録されること",
+    "torque_similarityはdt採否ではなく診断として読むこと"
+  ],
+  "adr_required": false,
+  "adr_reason": "ADR 0016の実験専用reference_torque opt-inを実装しただけで、physical interpretationやbaseline policyを変更していない。",
+  "commit_type": "complete",
+  "commit_hash": "pending",
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "以後の1 tauの8-condition initial-screen campaignは、named campaign rootの下に実行する。",
+    "結果をqc_summary.jsonから評価し、必要ならanalysis CLIで再集計する。",
+    "結果を受けて#61で1e-4採否と2015 projectへの反映可否を判断する。"
+  ]
+}

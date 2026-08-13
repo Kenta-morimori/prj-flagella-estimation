@@ -1008,6 +1008,9 @@ class DynamicsEngine:
                     body_indices=self.model.body_indices,
                     torque_per_flag=torque_per_flag,
                     segment_weights=segment_weights,
+                    full_vector_body_reaction=(
+                        self.cfg.motor.body_reaction_full_vector
+                    ),
                 )
             else:
                 raise ValueError(

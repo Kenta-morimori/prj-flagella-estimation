@@ -182,6 +182,61 @@ class SimulationState:
     reverse_flagella: Tuple[int, ...] = ()
 
 
+def _interpolate_state(
+    before: SimulationState, after: SimulationState, target_t: float
+) -> SimulationState:
+    """Interpolate an archive-only state at an exact physical time.
+
+    The integrator still advances with its configured fixed ``dt_star``.  This
+    only makes compact archive timestamps comparable when an archive interval
+    is not an integer multiple of that internal step.
+    """
+
+    span = max(float(after.t - before.t), 1e-30)
+    fraction = float(np.clip((target_t - before.t) / span, 0.0, 1.0))
+
+    q0 = np.asarray(before.quaternion, dtype=float)
+    q1 = np.asarray(after.quaternion, dtype=float)
+    if float(np.dot(q0, q1)) < 0.0:
+        q1 = -q1
+    dot = float(np.clip(np.dot(q0, q1), -1.0, 1.0))
+    angle = math.acos(dot)
+    if angle <= 1e-12:
+        quaternion = q0 + fraction * (q1 - q0)
+    else:
+        scale = math.sin(angle)
+        quaternion = (
+            math.sin((1.0 - fraction) * angle) / scale * q0
+            + math.sin(fraction * angle) / scale * q1
+        )
+    quaternion /= max(float(np.linalg.norm(quaternion)), 1e-30)
+
+    def linear(first: Tuple[float, float, float], second: Tuple[float, float, float]):
+        return tuple(
+            (
+                np.asarray(first, dtype=float)
+                + fraction
+                * (np.asarray(second, dtype=float) - np.asarray(first, dtype=float))
+            ).tolist()
+        )
+
+    return SimulationState(
+        t=float(target_t),
+        position_um=linear(before.position_um, after.position_um),
+        quaternion=tuple(quaternion.tolist()),
+        velocity_um_s=linear(before.velocity_um_s, after.velocity_um_s),
+        omega_rad_s=linear(before.omega_rad_s, after.omega_rad_s),
+        bead_positions_um=(
+            before.bead_positions_um
+            + fraction * (after.bead_positions_um - before.bead_positions_um)
+        ),
+        flag_states=after.flag_states if fraction > 0.0 else before.flag_states,
+        reverse_flagella=(
+            after.reverse_flagella if fraction > 0.0 else before.reverse_flagella
+        ),
+    )
+
+
 class Simulator:
     """時間ループと出力変換を担う薄いラッパ。"""
 
@@ -557,7 +612,7 @@ class Simulator:
             omega = _omega_from_quats(prev_q, q, dt)
 
         return SimulationState(
-            t=round(t, 9),
+            t=float(t),
             position_um=tuple((center_m * M_TO_UM).tolist()),
             quaternion=tuple(q.tolist()),
             velocity_um_s=tuple(vel_um_s.tolist()),
@@ -645,6 +700,7 @@ class Simulator:
 
         prev = None
         states.append(self._observe(0.0, prev))
+        compact_step_start = states[0]
         debug_recorder = (
             StepSummaryRecorder(
                 self.model,
@@ -735,21 +791,26 @@ class Simulator:
                     )
 
                 t_now = self.engine.t_star * tau_s
-                should_archive = (
+                if output_policy == "compact":
+                    compact_step_end = self._observe(t_now, compact_step_start)
+                    while next_archive_t_s <= t_now + 1e-15:
+                        states.append(
+                            _interpolate_state(
+                                compact_step_start,
+                                compact_step_end,
+                                next_archive_t_s,
+                            )
+                        )
+                        next_archive_t_s += archive_interval_s
+                    if completed == total_steps and states[-1].t < t_now - 1e-15:
+                        states.append(compact_step_end)
+                    compact_step_start = compact_step_end
+                elif (
                     completed == total_steps
-                    or (
-                        output_policy == "debug"
-                        and completed % state_sample_interval_steps == 0
-                    )
-                    or (
-                        output_policy == "compact" and t_now + 1e-15 >= next_archive_t_s
-                    )
-                )
-                if should_archive:
+                    or completed % state_sample_interval_steps == 0
+                ):
                     prev = states[-1]
                     states.append(self._observe(t_now, prev))
-                    while next_archive_t_s <= t_now + 1e-15:
-                        next_archive_t_s += archive_interval_s
 
                 if logger is not None and (
                     completed % progress_interval == 0 or completed == total_steps

@@ -43,9 +43,10 @@ fluid:
 
 motor:
   enabled: true
-  # -1 sentinelは現行legacyでT=eta*b^3、tau_s=1 sとするnondimensional paper reference。
-  # #165以降は2010 paper profile由来のdeprecated compatibilityとしてのみ受け付ける。
-  torque_Nm: -1.0
+  # Watari & Larson (2010) のmotor torque。各flagellumへ同じ大きさを与える。
+  torque_Nm: 1.2e-18
+  # τ = η b^3 / T の参照トルク。paper profileではmotor torqueと一致させる。
+  reference_torque_Nm: 1.2e-18
   # tripletはroot局所のforce coupleで、現行実装中のclosest approximation。
   # 論文の駆動条件を厳密に再現する実装は#167の範囲。
   force_distribution: "triplet"
@@ -111,7 +112,7 @@ time:
     unit: tau
   dt_s: 1.0e-3                 # [s] deprecated: 出力・記録間隔。内部積分刻みではない
   integration:
-    dt_star: 1.0e-4
+    dt_star: 1.0e-3            # 原著の Δt / τ
 
 output_sampling:
   out_all_steps_3d: false

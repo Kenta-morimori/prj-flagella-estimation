@@ -402,6 +402,7 @@ class MotorParams:
     torque_Nm: float = 4.0e-18
     reference_torque_Nm: float | None = None
     force_distribution: str = MOTOR_FORCE_DISTRIBUTION_DEFAULT
+    body_reaction_full_vector: bool = False
     torque_distribution_profile: str = MOTOR_TORQUE_DISTRIBUTION_PROFILE_DEFAULT
     reverse_n_flagella: int = 1
     enable_switching: bool = False
@@ -965,6 +966,13 @@ class SimulationConfig:
                 )
             if reaction_fallback_used is not None:
                 dynamics["reaction_fallback_used"] = bool(reaction_fallback_used)
+        elif (
+            force_distribution == "root_torque_segment_couples"
+            and self.motor.body_reaction_full_vector
+        ):
+            dynamics["body_reaction_model"] = (
+                "all_body_beads_zero_net_force_full_vector_torque_couple"
+            )
 
         manifest = {
             "dynamics": dynamics,
@@ -1258,6 +1266,11 @@ class SimulationConfig:
             and self.model_profile is not None
             and self.model_profile.variant == "paper"
         )
+        is_2010_paper = bool(
+            self.model_profile is not None
+            and self.model_profile.year == 2010
+            and self.model_profile.variant == "paper"
+        )
         add("flagella.n_flagella", self.flagella.n_flagella, 3)
         add(
             "scale.bead_radius_a_over_b",
@@ -1333,6 +1346,11 @@ class SimulationConfig:
             )
             add("time.integration.dt_star", self.dt_star, 1.0e-5)
             add("brownian.enabled", self.brownian.enabled, False)
+        if is_2010_paper:
+            add("motor.enabled", self.motor.enabled, True)
+            add("motor.torque_Nm", self.motor.torque_Nm, 1.2e-18)
+            add("motor.reference_torque_Nm", self.reference_torque_Nm, 1.2e-18)
+            add("time.integration.dt_star", self.dt_star, 1.0e-3)
         add("run_tumble.run_tau", self.run_tumble.run_tau, 1200.0)
         add("run_tumble.tumble_tau", self.run_tumble.tumble_tau, 800.0)
         add("run_tumble.semicoiled_tau", self.run_tumble.semicoiled_tau, 400.0)
@@ -1530,6 +1548,9 @@ class SimulationConfig:
                     "force_distribution",
                     MOTOR_FORCE_DISTRIBUTION_DEFAULT,
                 )
+            ),
+            body_reaction_full_vector=bool(
+                _get(motor_raw, "body_reaction_full_vector", False)
             ),
             torque_distribution_profile=normalize_motor_torque_distribution_profile(
                 profile_raw

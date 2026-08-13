@@ -13,10 +13,6 @@ from typing import Any
 
 import yaml
 
-import sys
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
-
 from sim_swim.analysis.flagella_count_behavior import (
     archive_metadata,
     load_state_archive,

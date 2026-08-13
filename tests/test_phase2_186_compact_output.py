@@ -48,6 +48,22 @@ def test_compact_archive_fps_limit_and_debug_csv_compatibility(tmp_path: Path) -
     assert (tmp_path / "debug" / "step_summary.csv").is_file()
 
 
+def test_compact_archive_interpolates_to_the_requested_time_grid() -> None:
+    cfg = SimulationConfig.from_dict(
+        {
+            "time": {"duration_s": 0.003, "dt_s": 0.0001, "dt_star": 0.0001},
+            "output": {"policy": "compact", "archive_interval_s": 0.00015},
+            "flagella": {"n_flagella": 0},
+        }
+    )
+
+    states = Simulator(cfg).run(cfg.time.duration_s)
+
+    assert [state.t for state in states] == pytest.approx(
+        [0.00015 * index for index in range(21)]
+    )
+
+
 def test_compact_exception_writes_partial_summary(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

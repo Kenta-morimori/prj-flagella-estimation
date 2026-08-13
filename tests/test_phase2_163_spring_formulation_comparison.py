@@ -325,7 +325,7 @@ def test_comparison_cli_writes_run_contract(tmp_path: Path, monkeypatch) -> None
     _write_summary(motor_off, fene_pass=True)
     _write_summary(motor_on, fene_pass=True)
 
-    script_path = ROOT / "scripts/01_simulate_swimming/analyze_spring_formulations.py"
+    script_path = ROOT / "scripts/02_phase2_analysis/analyze_spring_formulations.py"
     spec = importlib.util.spec_from_file_location(
         "analyze_spring_formulations", script_path
     )

@@ -88,6 +88,37 @@ def test_init_run_can_use_base_dir_as_root(
     assert not (run_dir / "2026-02-18").exists()
 
 
+def test_init_run_places_named_campaign_below_jst_timestamp(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("sim_swim.core.run_context._require_clean_git", lambda: None)
+    monkeypatch.setattr(
+        "sim_swim.core.run_context._now_jst",
+        lambda: ("2026-02-18", "210000"),
+    )
+
+    ctx = init_run(
+        base_dir=tmp_path,
+        input_info={"config": "conf/sim_swim_2010.yaml"},
+        run_name="phase2_issue61_screen",
+    )
+
+    assert ctx.out.root == tmp_path / "2026-02-18" / "210000" / "phase2_issue61_screen"
+
+
+def test_init_run_rejects_path_like_run_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("sim_swim.core.run_context._require_clean_git", lambda: None)
+
+    with pytest.raises(ValueError, match="single directory name"):
+        init_run(
+            base_dir=tmp_path,
+            input_info={"config": "conf/sim_swim_2010.yaml"},
+            run_name="campaign/nested",
+        )
+
+
 def test_init_run_fixed_root_requires_overwrite(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
