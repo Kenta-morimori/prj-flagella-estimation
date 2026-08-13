@@ -16,8 +16,10 @@ dt_stars: [1.0e-3, 1.0e-4]
 comparison_sample_count: 201
 
 output:
-  base_dir: outputs/phase2_torque_dt_stability/2010_project/initial_screen
+  # Run root: outputs/YYYY-MM-DD/HHMMSS/phase2_issue61_2010_project_torque_dt_initial_screen/
+  base_dir: outputs
   timestamp_subdir: true
+  run_name: phase2_issue61_2010_project_torque_dt_initial_screen
   policy: compact
   progress_interval: 1000
 qc:

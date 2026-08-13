@@ -15,7 +15,7 @@ matplotlib.use("Agg")
 
 
 FEATURES: tuple[tuple[str, str, str], ...] = (
-    ("qc_pass", "QC pass (1=pass)", "status"),
+    ("required_qc_pass", "required short-screen QC (PASS=1)", "status"),
     ("max_flag_bond_rel_err", "max flag bond relative error", "max"),
     ("max_hook_len_rel_err", "max hook length relative error", "max"),
     ("max_axis_mean_deviation_deg", "max axis mean deviation [deg]", "max"),
@@ -23,6 +23,17 @@ FEATURES: tuple[tuple[str, str, str], ...] = (
     ("final_bundle_participation_ratio", "final bundle participation ratio", "final"),
     ("max_bundle_radius_um", "max bundle radius [um]", "max"),
 )
+
+# Fixed, physically meaningful ranges prevent tiny numerical differences from
+# being visually exaggerated.  The first entry is handled as a categorical gate.
+FEATURE_LIMITS = {
+    "max_flag_bond_rel_err": (0.0, 0.10),
+    "max_hook_len_rel_err": (0.0, 0.10),
+    "max_axis_mean_deviation_deg": (0.0, 15.0),
+    "min_axis_rearward_projection": (0.90, 1.00),
+    "final_bundle_participation_ratio": (0.0, 1.0),
+    "max_bundle_radius_um": (0.0, 2.0),
+}
 
 METRIC_KEYS = {
     "max_flag_bond_rel_err": "flag_bond_rel_err_max",
@@ -49,22 +60,24 @@ def feature_rows(run_dir: Path) -> list[dict[str, Any]]:
     """Extract compact shape and bundling diagnostics without restarting a run."""
 
     manifest = _read_json(run_dir / "run_manifest.json")
+    qc_summary = _read_json(run_dir / "qc_summary.json")
+    condition_qc = {
+        str(condition["condition_id"]): condition
+        for condition in qc_summary.get("conditions", [])
+    }
     rows: list[dict[str, Any]] = []
     for record in manifest["conditions"]:
         output_dir = Path(str(record["output_dir"]))
         summary = _read_json(output_dir / "run_summary.json")
-        gates = dict(summary.get("gates", {}) or {})
-        passes = summary.get("execution", {}).get("status") == "completed" and all(
-            not bool(gates.get(name, {}).get("any_fail", True))
-            for name in ("finite", "shape_nonbody", "shape_body")
-        )
+        qc_record = condition_qc.get(str(record["condition_id"]), {})
+        passes = qc_record.get("status") == "pass"
         row: dict[str, Any] = {
             "condition_id": record["condition_id"],
             "torque_Nm_per_flagellum": float(record["torque_Nm_per_flagellum"]),
             "dt_star": float(record["dt_star"]),
             "tau_s": float(record["time"]["tau_s"]),
             "duration_s": float(record["time"]["duration_s"]),
-            "qc_pass": int(passes),
+            "required_qc_pass": int(passes),
         }
         for key, _, statistic in FEATURES[1:]:
             row[key] = _metric(summary, key, statistic)
@@ -96,7 +109,26 @@ def _heatmap(rows: list[dict[str, Any]], *, output_path: Path, title: str) -> No
                 row = by_cell.get((torque, dt_star))
                 if row is not None:
                     matrix[row_index, column_index] = float(row[key])
-        image = axis.imshow(matrix, origin="lower", aspect="auto", cmap="viridis")
+        if key == "required_qc_pass":
+            from matplotlib.colors import BoundaryNorm, ListedColormap
+
+            image = axis.imshow(
+                matrix,
+                origin="lower",
+                aspect="auto",
+                cmap=ListedColormap(["#c53d3d", "#278b6e"]),
+                norm=BoundaryNorm([-0.5, 0.5, 1.5], 2),
+            )
+        else:
+            vmin, vmax = FEATURE_LIMITS[key]
+            image = axis.imshow(
+                matrix,
+                origin="lower",
+                aspect="auto",
+                cmap="viridis",
+                vmin=vmin,
+                vmax=vmax,
+            )
         axis.set_title(label, fontsize=10)
         axis.set_xticks(range(len(dt_stars)), [f"{value:.0e}" for value in dt_stars])
         axis.set_yticks(range(len(torques)), [f"{value:.2g}" for value in torques])
@@ -106,15 +138,39 @@ def _heatmap(rows: list[dict[str, Any]], *, output_path: Path, title: str) -> No
             axis.text(
                 column_index,
                 row_index,
-                "—" if not np.isfinite(value) else f"{value:.3g}",
+                (
+                    "—"
+                    if not np.isfinite(value)
+                    else (
+                        "PASS" if key == "required_qc_pass" and value == 1 else "FAIL"
+                    )
+                    if key == "required_qc_pass"
+                    else f"{value:.3g}"
+                ),
                 ha="center",
                 va="center",
-                color="white"
-                if np.isfinite(value) and value > np.nanmean(matrix)
-                else "black",
+                color="white" if key == "required_qc_pass" and value == 1 else "black",
                 fontsize=9,
             )
-        figure.colorbar(image, ax=axis, shrink=0.8)
+        colorbar = figure.colorbar(image, ax=axis, shrink=0.8)
+        if key == "required_qc_pass":
+            colorbar.set_ticks([0, 1], labels=["FAIL", "PASS"])
+
+    note_axis = axes.flat[len(FEATURES)]
+    note_axis.axis("off")
+    note_axis.text(
+        0.0,
+        1.0,
+        "How to read\n\n"
+        "Rows: torque per flagellum\nColumns: dimensionless dt_star\n\n"
+        "PASS is the conjunction of the campaign's required QC checks; it is not\n"
+        "a summed error. Other panels are full-run extrema, except final bundle\n"
+        "participation, which is sampled at the final 1 tau frame.\n\n"
+        "This is a short-time diagnostic, not evidence of long-time bundling\n"
+        "or a final dt_star decision.",
+        va="top",
+        fontsize=9,
+    )
     axes.flat[-1].axis("off")
     figure.suptitle(title)
     figure.savefig(output_path, dpi=220)

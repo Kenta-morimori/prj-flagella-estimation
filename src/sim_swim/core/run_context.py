@@ -130,6 +130,7 @@ def init_run(
     input_info: dict[str, Any],
     *,
     timestamp_subdir: bool = True,
+    run_name: str | None = None,
     overwrite: bool = False,
     source_config_path: str | Path | None = None,
     model_profile: dict[str, Any] | None = None,
@@ -139,6 +140,8 @@ def init_run(
     Args:
         base_dir: 実行結果の保存先ルート。
         input_info: 実行入力情報（configパス、overrideなど）。
+        run_name: timestamp付き出力の末尾に付ける、安全な単一ディレクトリ名。
+            例: ``outputs/YYYY-MM-DD/HHMMSS/<run_name>/``。
 
     Returns:
         初期化済みの実行コンテキスト。
@@ -146,8 +149,19 @@ def init_run(
 
     _require_clean_git()
 
+    if run_name is not None:
+        name_path = Path(run_name)
+        if not run_name or name_path.name != run_name or run_name in {".", ".."}:
+            raise ValueError(
+                "run_name must be a non-empty single directory name without path separators"
+            )
+        if not timestamp_subdir:
+            raise ValueError("run_name requires timestamp_subdir=true")
+
     date_str, time_str = _now_jst()
     root = Path(base_dir) / date_str / time_str if timestamp_subdir else Path(base_dir)
+    if run_name is not None:
+        root = root / run_name
     sim_dir = root / "sim"
     render_dir = root / "render"
     render2d_dir = root / "render2d"

@@ -632,6 +632,7 @@ def run_torque_linked_campaign(
     ctx = init_run(
         base_dir=output_root or Path(str(output.get("base_dir"))),
         timestamp_subdir=bool(output.get("timestamp_subdir", True)),
+        run_name=(str(output["run_name"]) if output.get("run_name") else None),
         input_info={"campaign_config": str(config_path), "campaign_plan": plan},
         source_config_path=raw["base_config"],
         model_profile=SimulationConfig.from_dict(

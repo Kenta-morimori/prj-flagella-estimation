@@ -74,7 +74,7 @@ uv run python scripts/02_phase2_analysis/visualize_2010_torque_dt_stability.py \
   --run-dir <campaign-root>
 ```
 
-`analysis/torque_dt_visuals/torque_dt_feature_heatmaps.png`と、同じ値を持つCSVを出力します。`1 tau`のheatmapは短時間診断であり、論文モデルの長時間束化や`dt_star`の正式採用を表すものではありません。
+`analysis/torque_dt_visuals/torque_dt_feature_heatmaps.png`と、同じ値を持つCSVを出力します。最初のpanelは誤差の合計ではなく、完走・有限性・形状・motor action-reactionを含む必須QCのAND（`PASS` / `FAIL`）です。ほかのpanelは、flag bond/hook長の最大相対誤差、べん毛軸の最大平均ずれ、後方軸への最小投影、最終frameの束参加率、束半径の最大値を示します。`1 tau`のheatmapは短時間診断であり、論文モデルの長時間束化や`dt_star`の正式採用を表すものではありません。
 
 同じ8条件を同一の無次元時刻で3D replay gridへ並べる場合は次を使います。
 
@@ -88,7 +88,7 @@ uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
 
 `reference_torque` time-scaleのconditionは、replay上で`t/τ`と実時間・step数を併記する。
 
-主な出力は `outputs/YYYY-MM-DD/HHMMSS/` 配下に作成され、`manifest.json` と `run.log` に実行条件が記録されます。Issue #61 torque-dt screenでは、terminalと`run.log`へ全8条件の開始・完了/失敗と経過時間が出力され、実行中のconditionは`run_manifest.json`の`execution.status`で確認できます。
+主な出力は `outputs/YYYY-MM-DD/HHMMSS/` 配下に作成され、`manifest.json` と `run.log` に実行条件が記録されます。Issue #61 torque-dt screenのrun rootは`outputs/YYYY-MM-DD/HHMMSS/phase2_issue61_2010_project_torque_dt_initial_screen/`です。terminalと`run.log`へ全8条件の開始・完了/失敗と経過時間が出力され、実行中のconditionは`run_manifest.json`の`execution.status`で確認できます。
 
 ### Sweep
 

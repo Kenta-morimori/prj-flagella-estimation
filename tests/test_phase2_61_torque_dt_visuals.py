@@ -52,6 +52,17 @@ def _fixture(run_dir: Path) -> None:
     (run_dir / "run_manifest.json").write_text(
         json.dumps({"conditions": conditions}), encoding="utf-8"
     )
+    (run_dir / "qc_summary.json").write_text(
+        json.dumps(
+            {
+                "conditions": [
+                    {"condition_id": condition["condition_id"], "status": "pass"}
+                    for condition in conditions
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 def test_visuals_extract_features_and_write_heatmap(tmp_path: Path) -> None:
@@ -59,7 +70,7 @@ def test_visuals_extract_features_and_write_heatmap(tmp_path: Path) -> None:
 
     rows = feature_rows(tmp_path)
     assert len(rows) == 4
-    assert all(row["qc_pass"] == 1 for row in rows)
+    assert all(row["required_qc_pass"] == 1 for row in rows)
     assert rows[0]["max_axis_mean_deviation_deg"] == pytest.approx(3.0)
 
     outputs = build_visuals(tmp_path, tmp_path / "analysis")
