@@ -49,6 +49,24 @@ uv run python scripts/01_simulate_swimming/plan_2010_torque_dt_stability.py \
 初期screenは`1 tau`であり、4 torque × 3 `dt_star`の12条件をsimulationなしで展開する。
 `dt_star=1e-4`が候補default、`1e-3`が境界screen、`1e-5`が比較referenceである。
 
+Issue #61の初期screenは`dt_star=1e-3,1e-4`だけを標準multi-runで実行する。
+`1e-5`は初期screenで絞った候補を正式に検証するための後続referenceであり、初期screenの
+`diagnostic_only`結果を正式採否に読み替えない。実行と既存campaignの再集計は次です。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_multi_run.py \
+  config=conf/phase2_multi_run/2010_project_torque_dt_initial_screen.yaml \
+  dry_run=true
+uv run python scripts/01_simulate_swimming/run_multi_run.py \
+  config=conf/phase2_multi_run/2010_project_torque_dt_initial_screen.yaml
+uv run python scripts/02_phase2_analysis/analyze_2010_torque_dt_stability.py \
+  --run-dir <campaign-root>
+```
+
+campaign root の `qc_summary.json` を最初に読みます。`summary.csv` はcondition safety、
+`dt_comparison.csv` は同一torque内の`1e-5` reference比較、`torque_similarity.csv` は
+異torque無次元相似性の診断です。1 tauの遊泳速度・姿勢は記録し、単独では採否に使いません。
+
 主な出力は `outputs/YYYY-MM-DD/HHMMSS/` 配下に作成され、`manifest.json` と `run.log` に実行条件が記録されます。
 
 ### Sweep

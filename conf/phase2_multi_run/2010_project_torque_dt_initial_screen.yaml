@@ -1,0 +1,30 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  description: Issue #61 2010 project torque-linked dt initial screen; the 1e-5 reference is deferred.
+
+campaign_contract:
+  name: 2010_torque_linked_dt_stability
+  stage: initial_screen
+  deferred_reference_dt_star: 1.0e-5
+
+base_config: conf/sim_swim_2010.yaml
+duration_tau: 1.0
+torques_Nm: [1.0e-21, 2.5e-20, 1.0e-19, 1.2e-18]
+dt_stars: [1.0e-3, 1.0e-4]
+comparison_sample_count: 201
+
+output:
+  base_dir: outputs/phase2_torque_dt_stability/2010_project/initial_screen
+  timestamp_subdir: true
+  policy: compact
+  progress_interval: 1000
+qc:
+  max_motor_force_balance_residual_ratio: 1.0e-8
+  max_motor_torque_balance_residual_ratio: 1.0e-8
+  max_rotation_relative_error: 0.10
+  max_body_orientation_difference_deg: 5.0
+  max_bead_rms_over_b: 0.10
+  max_bead_displacement_over_b: 0.25
+  swimming_stability_policy: diagnostic_review_required

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,8 @@ def build_plan(config_path: Path) -> dict[str, Any]:
         )
     torques = [float(v) for v in raw["torques_Nm"]]
     dt_stars = [float(v) for v in raw["dt_stars"]]
+    contract = dict(raw.get("campaign_contract", {}) or {})
+    formal_reference = float(contract.get("formal_reference_dt_star", 0.0))
     if not torques or not dt_stars or any(v <= 0 for v in torques + dt_stars):
         raise ValueError("torques_Nm and dt_stars must contain positive values")
     base = load_yaml(base_path)
@@ -59,9 +62,15 @@ def build_plan(config_path: Path) -> dict[str, Any]:
                     "condition_id": f"T{torque:.0e}_dt{dt_star:.0e}",
                     "torque_Nm_per_flagellum": torque,
                     "dt_star": dt_star,
-                    "comparison_role": "reference"
-                    if dt_star == min(dt_stars)
-                    else "candidate",
+                    "comparison_role": (
+                        "formal_reference"
+                        if math.isclose(dt_star, formal_reference, rel_tol=0.0)
+                        else (
+                            "screen_comparator"
+                            if math.isclose(dt_star, min(dt_stars), rel_tol=0.0)
+                            else "candidate"
+                        )
+                    ),
                     "comparison_sample_count": samples,
                     "comparison_archive_interval_s": archive_interval_s,
                     "config_overrides": overrides,
