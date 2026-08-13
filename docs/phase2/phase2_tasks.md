@@ -79,12 +79,12 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 
 - **Status:** adopted
 - **Background:** bead-position-onlyのtriplet motorでは，root方位は変化しても，flagellum chain全体へ軸方向torqueが十分に伝わらなかった．material frame，segment twist，axial torque fluxに相当する明示的な状態量が不足していた．
-- **Change:** `axial_torque_flux_probe`，`local_twist_transmission_probe`，全体軸投影方式を比較した後，segmentごとの局所force coupleでroot torqueを伝える`root_torque_segment_couples`を実装した．
+- **Change:** `axial_torque_flux_probe`，`local_twist_transmission_probe`，全体軸投影方式を比較した後，segmentごとの局所force coupleでroot torqueを伝える`root_torque_segment_couples`を実装した。Issue #61では、実際に発生した回転力の全ベクトルを全body beadsの逆向きforce coupleで相殺するよう修正した（ADR 0017）。
 - **Comparison:** `triplet`はroot付近の回転・変形に留まりやすく，`root_torque_axis_projection`は全体へtorqueが届く場合の比較・診断に有用だった．probe modesは仮説検証には有効だが正式modeにはしなかった．
 - **Result:** 0.5 s代表条件でshape gateを保ちながらhelix net 1回転以上を確認した．既存torsion forceをOFFにするとshape gateが破綻した．
 - **Interpretation:** 既存torsion potentialは螺旋形状維持，`root_torque_segment_couples`はroot torque伝搬という異なる役割を持つ．新方式は参照論文を完全再現するものではなく，project-specific extensionである．
 - **Decision:** 2010 projectの正式modeとして`root_torque_segment_couples`を採用する．`triplet`と`root_torque_axis_projection`は比較用として残し，probe modesは正式実行modeから削除する．既存torsion forceは維持する．
-- **Evidence:** Tasks P2-6-007，P2-6-008，ADRs 0002，0003，0004．
+- **Evidence:** Tasks P2-6-007，P2-6-008，Issues #61・#88，ADRs 0002，0003，0004，0017．
 
 ### P2-D05: 2010 projectでは標準torque帯とcanonical motor名を固定する
 

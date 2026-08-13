@@ -138,3 +138,23 @@ def test_initial_screen_rejects_partial_execution_and_cli_overrides() -> None:
                 "time.integration.dt_star=1e-5",
             ]
         )
+
+
+def test_campaign_motor_reaction_is_balanced_in_a_representative_step(
+    tmp_path: Path,
+) -> None:
+    raw = load_yaml(CONFIG)
+    base = load_yaml(Path(raw["base_config"]))
+    condition = next(
+        row
+        for row in build_plan(CONFIG)["conditions"]
+        if row["condition_id"] == "T2p5e-20_dt1e-4"
+    )
+    cfg = SimulationConfig.from_dict(base).with_overrides(condition["config_overrides"])
+
+    Simulator(cfg).run(cfg.dt_s, step_summary_dir=tmp_path)
+
+    summary = json.loads((tmp_path / "run_summary.json").read_text())
+    metrics = summary["all_step_metrics"]
+    assert metrics["motor_force_balance_residual_ratio"]["max"] <= 1.0e-8
+    assert metrics["motor_torque_balance_residual_ratio"]["max"] <= 1.0e-8

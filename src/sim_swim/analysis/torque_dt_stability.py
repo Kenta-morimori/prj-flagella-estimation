@@ -11,6 +11,14 @@ from sim_swim.analysis.multi_run_campaign import load_yaml
 from sim_swim.sim.params import SimulationConfig
 
 
+def _condition_number_label(value: float) -> str:
+    """Return an exact, filesystem-safe scientific label without rounding values."""
+
+    mantissa, exponent = f"{float(value):.12e}".split("e")
+    mantissa = mantissa.rstrip("0").rstrip(".").replace("-", "m").replace(".", "p")
+    return f"{mantissa}e{int(exponent):+d}"
+
+
 def build_plan(config_path: Path) -> dict[str, Any]:
     raw = load_yaml(config_path)
     base_path = Path(str(raw["base_config"]))
@@ -40,6 +48,7 @@ def build_plan(config_path: Path) -> dict[str, Any]:
                     "torque_Nm": torque,
                     "reference_torque_Nm": torque,
                     "torque_for_forces_override_Nm": 0.0,
+                    "body_reaction_full_vector": True,
                 },
                 "brownian": {"enabled": False},
                 "output": {"policy": "compact"},
@@ -59,7 +68,10 @@ def build_plan(config_path: Path) -> dict[str, Any]:
             overrides["output"]["archive_interval_s"] = archive_interval_s
             conditions.append(
                 {
-                    "condition_id": f"T{torque:.0e}_dt{dt_star:.0e}",
+                    "condition_id": (
+                        f"T{_condition_number_label(torque)}"
+                        f"_dt{_condition_number_label(dt_star)}"
+                    ),
                     "torque_Nm_per_flagellum": torque,
                     "dt_star": dt_star,
                     "comparison_role": (

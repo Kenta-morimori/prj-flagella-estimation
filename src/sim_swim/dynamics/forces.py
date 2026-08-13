@@ -981,6 +981,7 @@ def compute_root_torque_segment_couples_forces(
     body_indices: np.ndarray,
     torque_per_flag: np.ndarray,
     segment_weights: list[np.ndarray],
+    full_vector_body_reaction: bool = False,
 ) -> tuple[np.ndarray, MotorForceDiagnostics]:
     """root torque を segment ごとの local force couple として分配する。"""
 
@@ -1062,28 +1063,34 @@ def compute_root_torque_segment_couples_forces(
             degenerate_count += local_degenerate
             continue
 
-        applied_flag_torque = float(
-            np.dot(
-                np.sum(
-                    np.cross(positions_m[flag_idx] - origin, flag_forces[flag_idx]),
-                    axis=0,
-                ),
-                axis,
-            )
+        applied_flag_torque = np.sum(
+            np.cross(positions_m[flag_idx] - origin, flag_forces[flag_idx]),
+            axis=0,
         )
-        if abs(applied_flag_torque) <= 1e-30:
+        if float(np.linalg.norm(applied_flag_torque)) <= 1e-30:
             degenerate_count += local_degenerate + 1
             continue
 
-        body_forces, body_degenerate, body_torque, body_force = (
-            _zero_net_force_torque_drive(
-                positions_m=positions_m,
-                indices=body_idx,
-                origin=origin,
-                axis=axis,
-                target_torque_Nm=-applied_flag_torque,
+        if full_vector_body_reaction:
+            body_forces, body_degenerate, body_torque, body_force = (
+                _zero_net_force_vector_torque_drive(
+                    positions_m=positions_m,
+                    indices=body_idx,
+                    origin=origin,
+                    target_torque_Nm=-applied_flag_torque,
+                )
             )
-        )
+        else:
+            applied_axis_torque = float(np.dot(applied_flag_torque, axis))
+            body_forces, body_degenerate, body_torque, body_force = (
+                _zero_net_force_torque_drive(
+                    positions_m=positions_m,
+                    indices=body_idx,
+                    origin=origin,
+                    axis=axis,
+                    target_torque_Nm=-applied_axis_torque,
+                )
+            )
         if body_degenerate:
             degenerate_count += body_degenerate
             continue
@@ -1091,8 +1098,8 @@ def compute_root_torque_segment_couples_forces(
         forces += flag_forces + body_forces
         valid_count += 1
         degenerate_count += local_degenerate
-        flag_torque_sum += abs(applied_flag_torque)
-        body_torque_sum += body_torque
+        flag_torque_sum += float(np.linalg.norm(applied_flag_torque))
+        body_torque_sum += float(np.linalg.norm(body_torque))
         flag_force_sum += (
             float(np.mean(flag_force_norms)) if flag_force_norms else float("nan")
         )

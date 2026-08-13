@@ -56,6 +56,8 @@ def _assert_condition(cfg: SimulationConfig, condition: dict[str, Any]) -> None:
         raise ValueError("This campaign requires time.scale_policy=reference_torque")
     if cfg.brownian.enabled:
         raise ValueError("This campaign requires brownian.enabled=false")
+    if not cfg.motor.body_reaction_full_vector:
+        raise ValueError("This campaign requires motor.body_reaction_full_vector=true")
     torque = float(condition["torque_Nm_per_flagellum"])
     if not (
         math.isclose(abs(cfg.motor_torque_Nm), torque, rel_tol=1e-12)

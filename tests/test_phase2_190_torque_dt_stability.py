@@ -20,7 +20,7 @@ def test_issue_190_plan_links_all_torques_and_derives_tau() -> None:
     plan = build_plan(CONFIG)
     assert len(plan["conditions"]) == 12
     high = next(
-        row for row in plan["conditions"] if row["condition_id"] == "T1e-18_dt1e-04"
+        row for row in plan["conditions"] if row["condition_id"] == "T1p2e-18_dt1e-4"
     )
     assert high["time"]["tau_s"] == pytest.approx(1.0e-3 * (1.0e-6**3) / 1.2e-18)
     assert high["time"]["total_steps"] == 10000
@@ -31,3 +31,10 @@ def test_issue_190_plan_links_all_torques_and_derives_tau() -> None:
         high["time"]["duration_s"] / 200
     )
     assert "output.archive_interval_s=" in high["execution_command"]
+
+
+def test_issue_190_condition_ids_preserve_non_power_of_ten_torques() -> None:
+    ids = {row["condition_id"] for row in build_plan(CONFIG)["conditions"]}
+
+    assert "T2p5e-20_dt1e-4" in ids
+    assert "T1p2e-18_dt1e-5" in ids
