@@ -1,0 +1,31 @@
+{
+  "status": "PASS",
+  "task": "Accept Markdown-formatted Codex reviewed-commit comment in the merge gate",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/183",
+  "source_pr": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/185",
+  "summary": [
+    "codex-review-gate が、Cloud connectorの標準コメント形式 **Reviewed commit:** `SHA` を、従来の素の Reviewed commit: `SHA` と同じSHA照合対象として受理するようにした。",
+    "allowlisted login、review request、PR内commit、応答時刻、未解決trusted threadの既存検証は変更していない。"
+  ],
+  "checks": [
+    {
+      "command": "node -e '<regex assertions>'",
+      "result": "PASS: raw and Markdown-bold Reviewed commit forms match their SHA; an unrelated string does not match."
+    },
+    {
+      "command": "uv run python -c 'import yaml, pathlib; yaml.safe_load(pathlib.Path(\".github/workflows/codex-review-gate.yml\").read_text())'",
+      "result": "PASS: workflow YAML parses."
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "long_simulation_required": false,
+  "user_visual_review_required": false,
+  "adr_required": false,
+  "adr_reason": "既存のCodex review comment受理方針を、connectorの実際のMarkdown表記へ適合させるparser bug fixである。",
+  "next_actions": [
+    "PR #185 のCIとcodex-review-gateを再確認する。"
+  ]
+}
