@@ -22,6 +22,9 @@ from sim_swim.sim.params import SimulationConfig
 
 
 CONFIG = Path("conf/phase2_multi_run/2010_project_torque_dt_initial_screen.yaml")
+PERFORMANCE_CONFIG = Path(
+    "conf/phase2_multi_run/2010_project_torque_fixed_real_time_0p5s_performance.yaml"
+)
 
 
 def _summary() -> dict[str, object]:
@@ -38,10 +41,10 @@ def _summary() -> dict[str, object]:
     }
 
 
-def _campaign_fixture(root: Path) -> None:
-    raw = load_yaml(CONFIG)
+def _campaign_fixture(root: Path, config_path: Path = CONFIG) -> None:
+    raw = load_yaml(config_path)
     base = load_yaml(Path(raw["base_config"]))
-    plan = build_plan(CONFIG)
+    plan = build_plan(config_path)
     records = []
     for condition in plan["conditions"]:
         cfg = SimulationConfig.from_dict(base).with_overrides(
@@ -54,7 +57,7 @@ def _campaign_fixture(root: Path) -> None:
         samples = int(condition["comparison_sample_count"])
         np.savez_compressed(
             directory / "state_archive.npz",
-            t=np.linspace(0.0, cfg.tau_s, samples),
+            t=np.linspace(0.0, cfg.time.duration_s, samples),
             position_um=np.zeros((samples, 3)),
             quaternion=np.tile(np.array([0.0, 0.0, 0.0, 1.0]), (samples, 1)),
             velocity_um_s=np.zeros((samples, 3)),
@@ -63,6 +66,16 @@ def _campaign_fixture(root: Path) -> None:
         (directory / "run_summary.json").write_text(json.dumps(_summary()))
         (directory / "effective_config.json").write_text(
             json.dumps({"effective_config": asdict(cfg)}), encoding="utf-8"
+        )
+        (directory / "performance.json").write_text(
+            json.dumps(
+                {
+                    "wall_time_s": 10.0,
+                    "steps_per_s": cfg.total_steps / 10.0,
+                    "total_steps": cfg.total_steps,
+                    "completed_steps": cfg.total_steps,
+                }
+            )
         )
         records.append(
             {
@@ -153,6 +166,47 @@ def test_reanalysis_prefers_the_run_time_effective_config_snapshot(
     cfg = _effective_config(record, load_yaml(Path("conf/sim_swim_2010.yaml")))
 
     assert cfg.scale.b_um == pytest.approx(2.0)
+
+
+def test_fixed_real_time_performance_plan_records_expected_steps() -> None:
+    raw = load_yaml(PERFORMANCE_CONFIG)
+    _validate_campaign_contract(raw)
+    plan = build_plan(PERFORMANCE_CONFIG)
+
+    assert plan["duration"] == {"value": 0.5, "unit": "s"}
+    assert len(plan["conditions"]) == 4
+    expected_steps = {
+        "T1e-21_dt1e-3": 500,
+        "T2p5e-20_dt1e-3": 12501,
+        "T1e-19_dt1e-3": 50001,
+        "T1p2e-18_dt1e-3": 600000,
+    }
+    assert {
+        row["condition_id"]: row["time"]["total_steps"] for row in plan["conditions"]
+    } == expected_steps
+    assert (
+        run_campaign(["--campaign-config", str(PERFORMANCE_CONFIG), "--dry-run"])
+        == Path()
+    )
+
+
+def test_fixed_real_time_performance_summary_is_not_a_similarity_verdict(
+    tmp_path: Path,
+) -> None:
+    _campaign_fixture(tmp_path, PERFORMANCE_CONFIG)
+
+    payload = summarize_campaign(tmp_path, config_path=PERFORMANCE_CONFIG)
+
+    assert payload["interpretation"]["scope"] == "fixed_real_time_performance_only"
+    assert len(payload["performance"]) == 4
+    assert {row["total_steps"] for row in payload["performance"]} == {
+        500,
+        12501,
+        50001,
+        600000,
+    }
+    assert (tmp_path / "performance_summary.csv").is_file()
+    assert not (tmp_path / "dt_comparison.csv").exists()
 
 
 def test_initial_screen_rejects_partial_execution_and_cli_overrides() -> None:

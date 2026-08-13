@@ -136,12 +136,27 @@ def _assert_condition(cfg: SimulationConfig, condition: dict[str, Any]) -> None:
 
 def _validate_campaign_contract(raw: dict[str, Any]) -> None:
     contract = dict(raw.get("campaign_contract", {}) or {})
-    if contract.get("name") != "2010_torque_linked_dt_stability":
-        raise ValueError("Missing 2010_torque_linked_dt_stability campaign contract")
-    if contract.get("stage") != "initial_screen":
-        raise ValueError(
-            "Only the initial_screen stage is executable from this profile"
-        )
+    name = contract.get("name")
+    stage = contract.get("stage")
+    if name not in {
+        "2010_torque_linked_dt_stability",
+        "2010_torque_linked_fixed_real_time_performance",
+    }:
+        raise ValueError("Missing supported 2010 torque-linked campaign contract")
+    if stage == "fixed_real_time_performance":
+        if name != "2010_torque_linked_fixed_real_time_performance":
+            raise ValueError(
+                "fixed_real_time_performance requires its dedicated contract"
+            )
+        if "duration_s" not in raw or "duration_tau" in raw:
+            raise ValueError("fixed_real_time_performance requires duration_s only")
+        if not math.isclose(float(raw["duration_s"]), 0.5, rel_tol=0.0):
+            raise ValueError("fixed_real_time_performance requires duration_s=0.5")
+        if {float(value) for value in raw.get("dt_stars", [])} != {1.0e-3}:
+            raise ValueError("fixed_real_time_performance requires dt_star=1e-3")
+        return
+    if name != "2010_torque_linked_dt_stability" or stage != "initial_screen":
+        raise ValueError("Only supported 2010 torque-linked stages are executable")
     active_dt = {float(value) for value in raw.get("dt_stars", [])}
     if active_dt != {1.0e-3, 1.0e-4}:
         raise ValueError("initial_screen must contain exactly dt_star=1e-3 and 1e-4")
@@ -176,15 +191,16 @@ def _archive_arrays(path: Path) -> dict[str, np.ndarray]:
         }
 
 
-def _validate_archive(path: Path, *, tau_s: float, count: int) -> dict[str, np.ndarray]:
+def _validate_archive(
+    path: Path, *, duration_s: float, count: int
+) -> dict[str, np.ndarray]:
     values = _archive_arrays(path)
-    t_over_tau = values["t"] / tau_s
-    expected = np.linspace(0.0, 1.0, count)
-    if t_over_tau.shape != expected.shape or not np.allclose(
-        t_over_tau, expected, rtol=0.0, atol=2e-10
+    expected = np.linspace(0.0, duration_s, count)
+    if values["t"].shape != expected.shape or not np.allclose(
+        values["t"], expected, rtol=0.0, atol=max(2e-14, duration_s * 2e-10)
     ):
         raise ValueError(
-            "comparison archive must contain exactly the configured normalized-time grid"
+            "comparison archive must contain exactly the configured time grid"
         )
     return values
 
@@ -318,7 +334,7 @@ def _run_condition(
         save_state_archive(directory / "state_archive.npz", states)
         _validate_archive(
             directory / "state_archive.npz",
-            tau_s=cfg.tau_s,
+            duration_s=cfg.time.duration_s,
             count=int(condition["comparison_sample_count"]),
         )
         return _condition_record(root, condition, cfg, qc)
@@ -369,10 +385,40 @@ def _safety(record: dict[str, Any], qc: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _performance_rows(
+    records: list[dict[str, Any]], safety_rows: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Combine simulator loop performance with mandatory safety results."""
+
+    safety_by_id = {str(row["condition_id"]): row for row in safety_rows}
+    rows: list[dict[str, Any]] = []
+    for record in records:
+        performance_path = Path(str(record["output_dir"])) / "performance.json"
+        performance = _read_json(performance_path) if performance_path.is_file() else {}
+        time_info = dict(record.get("time", {}) or {})
+        rows.append(
+            {
+                "condition_id": record["condition_id"],
+                "torque_Nm_per_flagellum": record["torque_Nm_per_flagellum"],
+                "dt_star": record["dt_star"],
+                "duration_s": time_info.get("duration_s"),
+                "duration_tau": time_info.get("duration_tau"),
+                "tau_s": time_info.get("tau_s"),
+                "dt_internal_s": time_info.get("dt_internal_s"),
+                "total_steps": performance.get("total_steps"),
+                "completed_steps": performance.get("completed_steps"),
+                "simulation_wall_time_s": performance.get("wall_time_s"),
+                "steps_per_s": performance.get("steps_per_s"),
+                "safety_status": safety_by_id[str(record["condition_id"])]["status"],
+            }
+        )
+    return rows
+
+
 def _observables(record: dict[str, Any], cfg: SimulationConfig) -> dict[str, Any]:
     archive = _validate_archive(
         Path(record["output_dir"]) / "state_archive.npz",
-        tau_s=cfg.tau_s,
+        duration_s=cfg.time.duration_s,
         count=int(record["comparison_sample_count"]),
     )
     displacement = archive["position_um"] - archive["position_um"][0]
@@ -493,6 +539,39 @@ def summarize_campaign(root: Path, *, config_path: Path) -> dict[str, Any]:
                 **safety,
             }
         )
+    stage = dict(raw.get("campaign_contract", {}) or {}).get("stage")
+    if stage == "fixed_real_time_performance":
+        performance_rows = _performance_rows(records, safety_rows)
+        _write_csv(root / "summary.csv", safety_rows)
+        _write_csv(root / "performance_summary.csv", performance_rows)
+        payload = {
+            "kind": "phase2_2010_torque_linked_fixed_real_time_performance_qc",
+            "contract_version": 1,
+            "source_config": str(config_path),
+            "campaign_plan_kind": plan["kind"],
+            "qc_thresholds": qc,
+            "conditions": safety_rows,
+            "performance": performance_rows,
+            "interpretation": {
+                "scope": "fixed_real_time_performance_only",
+                "duration_s": float(raw["duration_s"]),
+                "dt_star": 1.0e-3,
+                "prohibitions": [
+                    "Do not interpret this as a same-normalized-time similarity test.",
+                    "Do not use this campaign to adopt dt_star or torque.",
+                ],
+            },
+        }
+        _write_json(root / "qc_summary.json", payload)
+        manifest = _read_json(root / "run_manifest.json")
+        manifest["conditions"] = records
+        manifest["outputs"] = {
+            "summary_csv": str(root / "summary.csv"),
+            "performance_summary_csv": str(root / "performance_summary.csv"),
+            "qc_summary_json": str(root / "qc_summary.json"),
+        }
+        _write_json(root / "run_manifest.json", manifest)
+        return payload
     comparisons: list[dict[str, Any]] = []
     torques = sorted({float(row["torque_Nm_per_flagellum"]) for row in records})
     refs = {
@@ -769,21 +848,30 @@ def run_torque_linked_campaign(
     summarize_campaign(root, config_path=config_path)
     root_manifest_path = root / "manifest.json"
     root_manifest = _read_json(root_manifest_path)
+    stage = dict(raw.get("campaign_contract", {}) or {}).get("stage")
+    campaign_outputs = {
+        "campaign_plan_json": str(root / "campaign_plan.json"),
+        "run_manifest_json": str(root / "run_manifest.json"),
+        "summary_csv": str(root / "summary.csv"),
+        "qc_summary_json": str(root / "qc_summary.json"),
+    }
+    if stage == "fixed_real_time_performance":
+        campaign_outputs["performance_summary_csv"] = str(
+            root / "performance_summary.csv"
+        )
+    else:
+        campaign_outputs.update(
+            {
+                "dt_comparison_csv": str(root / "dt_comparison.csv"),
+                "torque_similarity_csv": str(root / "torque_similarity.csv"),
+            }
+        )
     root_manifest.setdefault("input", {})["campaign"] = {
         "kind": "phase2_2010_torque_linked_dt_stability_campaign",
         "config": str(config_path),
         "plan": str(root / "campaign_plan.json"),
         "condition_count": len(records),
     }
-    root_manifest.setdefault("outputs", {}).update(
-        {
-            "campaign_plan_json": str(root / "campaign_plan.json"),
-            "run_manifest_json": str(root / "run_manifest.json"),
-            "summary_csv": str(root / "summary.csv"),
-            "dt_comparison_csv": str(root / "dt_comparison.csv"),
-            "torque_similarity_csv": str(root / "torque_similarity.csv"),
-            "qc_summary_json": str(root / "qc_summary.json"),
-        }
-    )
+    root_manifest.setdefault("outputs", {}).update(campaign_outputs)
     _write_json(root_manifest_path, root_manifest)
     return root

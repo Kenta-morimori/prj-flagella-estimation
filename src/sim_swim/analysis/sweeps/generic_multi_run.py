@@ -190,7 +190,10 @@ def run_campaign(argv: list[str] | None = None) -> Path:
     args, passthrough = _parse_args(argv)
     raw_campaign = load_yaml(args.campaign_config)
     contract = dict(raw_campaign.get("campaign_contract", {}) or {})
-    if contract.get("name") == "2010_torque_linked_dt_stability":
+    if contract.get("name") in {
+        "2010_torque_linked_dt_stability",
+        "2010_torque_linked_fixed_real_time_performance",
+    }:
         if args.sample_limit is not None or passthrough:
             raise ValueError(
                 "The torque-linked dt campaign has a fixed condition contract; "
