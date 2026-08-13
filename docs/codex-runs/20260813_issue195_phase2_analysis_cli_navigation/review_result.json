@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "task": "Phase 2 Issue #195 analysis CLI navigation",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/195",
+  "summary": [
+    "scripts/02_phase2_analysis/ の全CLIを、共通運用、active diagnostic / campaign、結果再現 / policy参照に分類する索引を追加した。",
+    "scripts/README.md の同directory節は共通入口と索引への導線に縮約した。",
+    "plot_heatmap、inspect_step_summary、Issue #158 diagnosticの実装をsrcへ移し、公開CLIは同名の薄いwrapperとして維持した。",
+    "CLIのパス、引数、物理モデル、config schema、出力契約は変更していない。"
+  ],
+  "checks": [
+    {
+      "command": "for script_path in scripts/02_phase2_analysis/*.py; do uv run python \"$script_path\" --help >/dev/null || exit 1; done",
+      "result": "PASS: 全13 CLIが起動"
+    },
+    {
+      "command": "uv run pytest -q tests/test_script_layout.py tests/test_phase2_run_summary.py tests/test_phase2_generic_multi_run.py tests/test_phase2_sweep_profiles.py",
+      "result": "PASS: 87 passed"
+    },
+    {
+      "command": "git diff --check && rg -n <Phase 2 analysis CLI paths>",
+      "result": "PASS: whitespace errorなし、live contract参照を確認"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "Issue #195はCLI導線のドキュメント整理であり、simulation、sweep、training、renderは実行対象外。",
+  "user_review_required": false,
+  "adr_required": false,
+  "adr_reason": "公開CLIの互換性と既存の責務分離を維持するドキュメント整理であり、物理解釈・出力契約・ML policyを変更しない。",
+  "commit_type": "complete",
+  "push_status": "not_pushed",
+  "next_actions": [
+    "PR #194 merge後にmainへrebaseし、fixed-real-time performance analyzerの索引行を追加してREADME競合を解消する。"
+  ]
+}

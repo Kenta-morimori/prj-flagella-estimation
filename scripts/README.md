@@ -277,61 +277,27 @@ uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
 
 ## 02_phase2_analysis
 
-Phase 2 の planner、比較集計、plot、既存archiveのreplayを置きます。raw 出力は `scripts/01_simulate_swimming/run_multi_run.py` で作り、同じ `conf/phase2_multi_run/*.yaml` を解析CLIでも使います。
+Phase 2 の planner、既存runの比較集計、plot、archive replayを置きます。simulation は
+`01_simulate_swimming/`、behavior / clip dataset の作成・replayは `03_dataset_building/` が担当します。
+
+CLIの分類、owner Issue、実装モジュール、対応contractは
+[`02_phase2_analysis/README.md`](02_phase2_analysis/README.md)を参照してください。新しい調査は
+まず共通運用CLIを使い、Issue固有の解析は対応する live contract の手順に従います。
+
+代表的な既存出力の確認手順:
 
 ```bash
-uv run python scripts/01_simulate_swimming/run_multi_run.py \
-  config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml \
-  dry_run=true sample_limit=3
-uv run python scripts/01_simulate_swimming/run_multi_run.py \
-  config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
-uv run python scripts/03_dataset_building/build_dataset.py \
-  config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
+uv run python scripts/02_phase2_analysis/build_run_summary.py \
+  --input-dir <run-dir>
+uv run python scripts/02_phase2_analysis/inspect_step_summary.py \
+  --input-dir <run-dir> \
+  --gate <gate-name> \
+  --episode 1 \
+  --columns t_s,finite,shape_pass
 ```
 
-標準設定:
-
-| config | 用途 |
-| --- | --- |
-| `conf/phase2_multi_run/flagella_count_behavior_v0.yaml` | Issue #71 の診断用 dataset v0。run / heatmap / replay / dataset 作成で共通に使う |
-
-Issue #71 の診断用 dataset v0 は次で実行します。36 sample の長時間 run なので、まず `dry_run=true` や `sample_limit=1` で確認してください。
-
-```bash
-uv run python scripts/01_simulate_swimming/run_multi_run.py \
-  config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
-uv run python scripts/02_phase2_analysis/plot_heatmap.py \
-  config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
-uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
-  config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
-uv run python scripts/03_dataset_building/build_dataset.py \
-  config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
-uv run python scripts/02_phase2_analysis/plot_distributions.py \
-  --dataset-id v0
-```
-
-raw condition は `step_summary.csv`、`trajectory.csv`、`state_archive.npz` を保存します。dataset directory から 3D / 2D render を作る場合は次を使います。
-
-```bash
-uv run python scripts/03_dataset_building/render_sample.py \
-  --dataset-dir outputs/phase2_analysis/flagella_count_behavior/datasets/v0
-```
-
-dataset の分布 plot は次で生成します。
-
-```bash
-uv run python scripts/02_phase2_analysis/plot_distributions.py \
-  --dataset-id v0
-```
-
-dataset v1 の `n_flagella=1,2,3` について，2D投影後の運動特徴量と grouped baseline を確認する場合は次を使います。
-
-```bash
-uv run python scripts/02_phase2_analysis/analyze_2d_separability.py \
-  --dataset-dir outputs/phase2_analysis/flagella_count_behavior/datasets/v1 \
-  --output-dir outputs/phase2_analysis/flagella_count_behavior/datasets/v1/analysis/projection_2d \
-  --overwrite
-```
+summaryのprofile-driven plotと保存済みarchiveからのreplayは、このREADMEの
+[Heatmap](#heatmap) / [Replay Render](#replay-render) 節を参照してください。
 
 ## 03_dataset_building
 

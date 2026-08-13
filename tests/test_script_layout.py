@@ -31,3 +31,5 @@ def test_moved_phase2_implementations_live_under_src() -> None:
     assert (analysis_dir / "behavior_dataset_distributions.py").is_file()
     assert (analysis_dir / "behavior_dataset_separability.py").is_file()
     assert (analysis_dir / "phase2_replay.py").is_file()
+    assert (analysis_dir / "phase2_heatmap.py").is_file()
+    assert (analysis_dir / "step_summary_inspection.py").is_file()
