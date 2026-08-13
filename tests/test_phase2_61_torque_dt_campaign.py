@@ -11,6 +11,7 @@ from sim_swim.analysis.multi_run_campaign import load_yaml
 from sim_swim.analysis.torque_dt_stability import build_plan
 from sim_swim.analysis.torque_dt_stability_campaign import (
     _assert_condition,
+    _comparison_archive_states,
     _effective_config,
     _validate_campaign_contract,
     summarize_campaign,
@@ -207,6 +208,18 @@ def test_fixed_real_time_performance_summary_is_not_a_similarity_verdict(
     }
     assert (tmp_path / "performance_summary.csv").is_file()
     assert not (tmp_path / "dt_comparison.csv").exists()
+
+
+def test_fixed_real_time_archive_discards_only_ceil_overshoot_state() -> None:
+    states = [
+        SimpleNamespace(t=0.0),
+        SimpleNamespace(t=0.5),
+        SimpleNamespace(t=0.50001),
+    ]
+
+    selected = _comparison_archive_states(states, duration_s=0.5)
+
+    assert [state.t for state in selected] == [0.0, 0.5]
 
 
 def test_initial_screen_rejects_partial_execution_and_cli_overrides() -> None:

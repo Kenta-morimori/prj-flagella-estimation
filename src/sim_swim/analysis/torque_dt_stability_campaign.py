@@ -205,6 +205,16 @@ def _validate_archive(
     return values
 
 
+def _comparison_archive_states(states: list[Any], *, duration_s: float) -> list[Any]:
+    """Exclude only the ceil-induced state after a requested final archive time."""
+
+    tolerance = max(1e-15, duration_s * 1e-12)
+    selected = [state for state in states if float(state.t) <= duration_s + tolerance]
+    if not selected:
+        raise ValueError("comparison archive has no states at or before duration")
+    return selected
+
+
 def _quat_angle_deg(first: np.ndarray, second: np.ndarray) -> np.ndarray:
     dot = np.abs(np.sum(first * second, axis=1))
     return np.degrees(2.0 * np.arccos(np.clip(dot, -1.0, 1.0)))
@@ -331,7 +341,10 @@ def _run_condition(
             stop_on_shape_fail=False,
             record_body_diagnostics=True,
         )
-        save_state_archive(directory / "state_archive.npz", states)
+        save_state_archive(
+            directory / "state_archive.npz",
+            _comparison_archive_states(states, duration_s=cfg.time.duration_s),
+        )
         _validate_archive(
             directory / "state_archive.npz",
             duration_s=cfg.time.duration_s,
