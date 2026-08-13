@@ -78,7 +78,7 @@ uv run python scripts/01_simulate_swimming/run_sweep.py list_canonical_profiles=
 canonical な heatmap profile を見たい場合:
 
 ```bash
-uv run python scripts/01_simulate_swimming/plot_heatmap.py list_canonical_profiles=true
+uv run python scripts/02_phase2_analysis/plot_heatmap.py list_canonical_profiles=true
 ```
 
 個別 profile の role / canonical / 推奨対応先を見たい場合:

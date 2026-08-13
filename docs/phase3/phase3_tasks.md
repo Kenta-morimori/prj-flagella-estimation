@@ -31,7 +31,7 @@ Issue単位の進捗台帳ではない．現在の作業状態は`phase3_current
 * **Change:** state archiveからwindow生成，rasterize，metadata生成，grouped split，QC summaryまでを行うPhase 3 pipelineを実装した．
 * **Result:** `.npy` clipと共通metadataを生成し，Phase 4が再検出せず読み込めるようになった．
 * **Decision:** pseudo dataはGT passthroughを標準経路とし，将来の実動画経路はadapter境界の後段で同じmetadata builderへ接続する．
-* **Evidence:** Issue #6，PR #144，`src/flagella_estimation/phase3/`，`scripts/03_phase3/build_clip_dataset.py`，`tests/test_phase3_gt_passthrough_pipeline.py`
+* **Evidence:** Issue #6，PR #144，`src/flagella_estimation/phase3/`，`scripts/03_dataset_building/build_clip_dataset.py`，`tests/test_phase3_gt_passthrough_pipeline.py`
 
 ## P3-D04: dataset v1 r1 common clip dataset
 

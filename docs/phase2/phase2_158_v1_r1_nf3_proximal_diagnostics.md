@@ -41,7 +41,7 @@ uv run python scripts/02_phase2_analysis/diagnose_v1_r1_nf3_failures.py \
 replay は既存 `state_archive.npz` から生成する。長時間simulationは再実行しない。
 
 ```bash
-uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py \
+uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
   --config conf/phase2_multi_run/flagella_count_duration_3s_r1.yaml \
   --input-dir outputs/phase2_multi_run/flagella_count_duration_3s_r1 \
   --output-dir outputs/2026-07-31/phase2_158_probe/replay \

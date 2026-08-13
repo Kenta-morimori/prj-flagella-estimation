@@ -1,0 +1,46 @@
+{
+  "status": "PASS",
+  "task": "Phase 2 Issue #61 2010 torque-linked time-scale initial-screen campaign",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/61",
+  "branch": "feature/issue-61-2010-torque-dt-campaign",
+  "summary": [
+    "標準run_multi_run.pyを入口に、2010 project限定・reference-torque time scaleの1 tau initial screenを実行可能にした。defaultのlegacy tau_s=1 sは変更していない。",
+    "initial screenは4 torque x dt_star=1e-3,1e-4の8 conditionとし、1e-5は候補を絞った後のformal referenceへ延期した。QC、manifest、comparison集計、専用analysis entrypointは実装済みである。",
+    "CLI責務を固定し、01_simulate_swimmingをsimulation専用、02_phase2_analysisをplanner/analysis/plot/replay、03_dataset_buildingをdataset作成とdataset replayに分離した。scriptsは薄いentrypointとし、Phase 2実装本体をsrcへ移した。"
+  ],
+  "checks": [
+    {
+      "command": "uv run pytest tests/test_script_layout.py tests/test_phase2_61_torque_dt_campaign.py tests/test_flagella_count_behavior_dataset.py tests/test_phase2_generic_multi_run.py tests/test_phase2_sweep_profiles.py tests/test_phase2_163_spring_formulation_comparison.py",
+      "result": "PASS: 117 passed"
+    },
+    {
+      "command": "uv run ruff check scripts/01_simulate_swimming scripts/02_phase2_analysis scripts/03_dataset_building src/sim_swim/analysis tests/test_script_layout.py tests/test_phase2_61_torque_dt_campaign.py tests/test_flagella_count_behavior_dataset.py tests/test_phase2_generic_multi_run.py tests/test_phase2_sweep_profiles.py tests/test_phase2_163_spring_formulation_comparison.py",
+      "result": "PASS"
+    },
+    {
+      "command": ".githooks/pre-commit",
+      "result": "PASS: ruff format/check and 286 light tests"
+    },
+    {
+      "command": "uv run python scripts/02_phase2_analysis/plan_2010_torque_dt_stability.py --help; uv run python scripts/03_dataset_building/build_dataset.py --help; uv run python scripts/02_phase2_analysis/render_phase2_replay.py --help",
+      "result": "PASS: relocated entrypoints import and expose their CLI without starting simulation or rendering"
+    },
+    {
+      "command": "git diff --check and stale-path search excluding docs/codex-runs",
+      "result": "PASS"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "ユーザーが後で実行するため、campaign本実行、動画render、dataset作成は開始していない。",
+  "user_review_required": false,
+  "adr_required": false,
+  "adr_reason": "既存の物理モデル、default time scale、dataset採択、2015 projectの採否を変更しないCLI責務整理と実験限定campaign実装であり、reference-torque policyはADR 0016とIssue #183 contractに既に記録されている。",
+  "commit_type": "complete",
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "実行者は scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/2010_project_torque_dt_initial_screen.yaml を実行し、campaign rootのqc_summary.jsonを最初に確認する。",
+    "scripts/02_phase2_analysis/analyze_2010_torque_dt_stability.py --run-dir <campaign-root> で、simulationを再起動せずcomparisonとQCを再集計する。",
+    "1e-5 formal reference、0.5秒run、dataset採択、2015 projectへの反映は、initial screenの結果とユーザー判断後に別taskで扱う。"
+  ]
+}

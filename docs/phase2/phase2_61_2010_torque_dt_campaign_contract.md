@@ -43,4 +43,6 @@ uv run python scripts/02_phase2_analysis/analyze_2010_torque_dt_stability.py \
 
 ## Entry-point responsibility
 
-simulation条件の展開・実行は`conf/phase2_multi_run/2010_project_torque_dt_initial_screen.yaml`と標準の`run_multi_run.py`を入口とする。Issue専用の実装は`src/sim_swim/analysis/`に置き、`scripts/01_simulate_swimming/`へ専用runnerを追加しない。実行後のQC再集計・heatmap/replayなどの結果整理は、raw runを再起動しない`02_phase2_analysis`の専用entrypointが担う。既存generic replayの大規模移設・整理はこのIssueのblockにしない。
+simulation条件の展開・実行は`conf/phase2_multi_run/2010_project_torque_dt_initial_screen.yaml`と標準の`run_multi_run.py`を入口とする。Issue専用の実装は`src/sim_swim/analysis/`に置き、`scripts/01_simulate_swimming/`へ専用runnerを追加しない。実行後のQC再集計・heatmap/replayなどの結果整理は、raw runを再起動しない`02_phase2_analysis`の専用entrypointが担う。
+
+CLI責務は次に固定する。`01_simulate_swimming/`は単発simulation、`run_sweep.py`、`run_multi_run.py`だけを置く。planner・結果解析・plot・既存archiveのreplayは`02_phase2_analysis/`、Phase 2 behavior datasetとPhase 3 clip datasetの作成・replayは`03_dataset_building/`に置く。`scripts/`は薄いentrypointとし、実装本体は`src/`に置く。旧CLI pathには互換wrapperを残さず、active documentationとtestsを新pathへ更新する。

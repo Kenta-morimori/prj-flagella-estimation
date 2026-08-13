@@ -4,7 +4,7 @@
 
 ## 01_simulate_swimming
 
-Phase 2 の 3D 遊泳シミュレーション、条件 sweep、sweep 結果の heatmap 生成を扱います。
+Phase 2 の 3D 遊泳シミュレーションと条件 sweep を扱います。解析、plot、replay は `02_phase2_analysis/`、dataset作成は `03_dataset_building/` に置きます。
 
 ### 単発シミュレーション
 
@@ -41,7 +41,7 @@ uv run python -m scripts.01_simulate_swimming \
 これは短時間の数値安定性実験であり、既存baseline、dataset、2015 profileを採択しない。
 
 ```bash
-uv run python scripts/01_simulate_swimming/plan_2010_torque_dt_stability.py \
+uv run python scripts/02_phase2_analysis/plan_2010_torque_dt_stability.py \
   --config conf/phase2_sweeps/2010_project_torque_linked_dt_stability.yaml \
   --output /private/tmp/issue190_campaign_plan.json
 ```
@@ -64,8 +64,8 @@ uv run python scripts/02_phase2_analysis/analyze_2010_torque_dt_stability.py \
 ```
 
 campaign root の `qc_summary.json` を最初に読みます。`summary.csv` はcondition safety、
-`dt_comparison.csv` は同一torque内の`1e-5` reference比較、`torque_similarity.csv` は
-異torque無次元相似性の診断です。1 tauの遊泳速度・姿勢は記録し、単独では採否に使いません。
+`dt_comparison.csv` は同一torque内の`1e-3` / `1e-4` screen一致度、`torque_similarity.csv` は
+異torque無次元相似性の暫定診断です。`1e-5` formal reference比較は、初期screenで候補を絞った後に別campaignで行います。1 tauの遊泳速度・姿勢は記録し、単独では採否に使いません。
 
 主な出力は `outputs/YYYY-MM-DD/HHMMSS/` 配下に作成され、`manifest.json` と `run.log` に実行条件が記録されます。
 
@@ -174,7 +174,7 @@ uv run python scripts/01_simulate_swimming/run_multi_run.py \
 各コマンドが出力したrun rootの `summary.csv` を解析CLIへ渡します。
 
 ```bash
-uv run python scripts/01_simulate_swimming/analyze_spring_formulations.py \
+uv run python scripts/02_phase2_analysis/analyze_spring_formulations.py \
   motor_off_summary=<motor-off-run-root>/summary.csv \
   motor_on_summary=<motor-on-run-root>/summary.csv
 ```
@@ -189,7 +189,7 @@ Issue #168はmotor-off pilotを先に実行し、閾値を固定してからmoto
 uv run python scripts/01_simulate_swimming/run_sweep.py \
   config=conf/phase2_sweeps/2015_stage_a_motor_off.yaml
 
-uv run python scripts/01_simulate_swimming/analyze_2015_stage_a.py \
+uv run python scripts/02_phase2_analysis/analyze_2015_stage_a.py \
   --motor-off-run <motor-off-run-root>
 ```
 
@@ -202,7 +202,7 @@ lockする前にmotor-on採否は行いません。
 sweep summary から heatmap を作る場合は `plot_heatmap.py` を使います。
 
 ```bash
-uv run python scripts/01_simulate_swimming/plot_heatmap.py \
+uv run python scripts/02_phase2_analysis/plot_heatmap.py \
   config=conf/phase2_sweeps/shape_stability_heatmap.yaml \
   summary_csv=/private/tmp/phase2_smoke/summary.csv \
   mode=first-second-grid
@@ -214,7 +214,7 @@ heatmap profile は出力先を固定しません。`output_dir` を省略する
 generic multi-run の summary plot も `plot_heatmap.py` から行います。同じ config をそのまま使います。`plot.default_y_axis` が未設定の profile では heatmap ではなく 1 軸 line plot を出します。
 
 ```bash
-uv run python scripts/01_simulate_swimming/plot_heatmap.py \
+uv run python scripts/02_phase2_analysis/plot_heatmap.py \
   config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml
 ```
 
@@ -237,16 +237,16 @@ heatmap も `shape_stability_heatmap.yaml` を正本として使います。
 利用可能な heatmap profile を CLI から確認する場合:
 
 ```bash
-uv run python scripts/01_simulate_swimming/plot_heatmap.py \
+uv run python scripts/02_phase2_analysis/plot_heatmap.py \
   list_canonical_profiles=true
 ```
 
 ### Replay Render
 
-既存 sweep 出力の `summary.csv`、`run_manifest.json`、各 condition directory の `state_archive.npz` から、再シミュレーションなしで比較 plot / 3D replay を生成する場合は `render_shape_stability_grid_replay.py` を使います。generic multi-run 出力でも同じ CLI を使います。
+既存 sweep 出力の `summary.csv`、`run_manifest.json`、各 condition directory の `state_archive.npz` から、再シミュレーションなしで比較 plot / 3D replay を生成する場合は `02_phase2_analysis/render_phase2_replay.py` を使います。generic multi-run 出力でも同じ CLI を使います。
 
 ```bash
-uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py \
+uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
   config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml \
   overwrite=true
 ```
@@ -256,7 +256,7 @@ uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py
 
 ## 02_phase2_analysis
 
-Phase 2.8 の RUN 固定べん毛数差分析用 dataset 作成 CLI です。raw 出力は `scripts/01_simulate_swimming/run_multi_run.py` で作り、同じ `conf/phase2_multi_run/*.yaml` を dataset builder / heatmap / replay でも使います。
+Phase 2 の planner、比較集計、plot、既存archiveのreplayを置きます。raw 出力は `scripts/01_simulate_swimming/run_multi_run.py` で作り、同じ `conf/phase2_multi_run/*.yaml` を解析CLIでも使います。
 
 ```bash
 uv run python scripts/01_simulate_swimming/run_multi_run.py \
@@ -264,7 +264,7 @@ uv run python scripts/01_simulate_swimming/run_multi_run.py \
   dry_run=true sample_limit=3
 uv run python scripts/01_simulate_swimming/run_multi_run.py \
   config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
-uv run python scripts/02_phase2_analysis/build_dataset.py \
+uv run python scripts/03_dataset_building/build_dataset.py \
   config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
 ```
 
@@ -279,11 +279,11 @@ Issue #71 の診断用 dataset v0 は次で実行します。36 sample の長時
 ```bash
 uv run python scripts/01_simulate_swimming/run_multi_run.py \
   config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
-uv run python scripts/01_simulate_swimming/plot_heatmap.py \
+uv run python scripts/02_phase2_analysis/plot_heatmap.py \
   config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
-uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py \
+uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
   config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
-uv run python scripts/02_phase2_analysis/build_dataset.py \
+uv run python scripts/03_dataset_building/build_dataset.py \
   config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
 uv run python scripts/02_phase2_analysis/plot_distributions.py \
   --dataset-id v0
@@ -292,7 +292,7 @@ uv run python scripts/02_phase2_analysis/plot_distributions.py \
 raw condition は `step_summary.csv`、`trajectory.csv`、`state_archive.npz` を保存します。dataset directory から 3D / 2D render を作る場合は次を使います。
 
 ```bash
-uv run python scripts/02_phase2_analysis/render_sample.py \
+uv run python scripts/03_dataset_building/render_sample.py \
   --dataset-dir outputs/phase2_analysis/flagella_count_behavior/datasets/v0
 ```
 
@@ -312,7 +312,9 @@ uv run python scripts/02_phase2_analysis/analyze_2d_separability.py \
   --overwrite
 ```
 
-## 03_phase3
+## 03_dataset_building
+
+Phase 2のbehavior datasetとPhase 3のclip datasetを、既存simulation/archiveから独立して作成します。解析は `02_phase2_analysis/`、Phase 4の学習・評価は `04_phase4/` が担当します。
 
 ### v1 r1 3秒runから0.5秒clip datasetを作成
 
@@ -323,7 +325,7 @@ Issue #159 の Phase 3 common clip dataset は、既存の3秒 state archive か
 probe は1 classあたり1 runだけ処理します。probe 出力は実行ごとの timestamp path に置き、最終 dataset v1 には使いません。
 
 ```bash
-uv run python scripts/03_phase3/build_clip_dataset.py \
+uv run python scripts/03_dataset_building/build_clip_dataset.py \
   config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml \
   filters.max_per_class=1
 ```
@@ -331,7 +333,7 @@ uv run python scripts/03_phase3/build_clip_dataset.py \
 final build は27 runすべてを処理し、Phase 3 common clip dataset v1 の canonical path として `outputs/phase3_common_clip/datasets/v1/` に出力します。期待値は5 clips/run、合計135 clips、独立group 27です。
 
 ```bash
-uv run python scripts/03_phase3/build_clip_dataset.py \
+uv run python scripts/03_dataset_building/build_clip_dataset.py \
   config=conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml \
   output_dir=outputs/phase3_common_clip/datasets/v1
 ```
@@ -348,12 +350,12 @@ MP4 grid replay は source state archive から同じclip windowを再構成し�
 `--max-clips` を省略すると、filterに一致する全clipを処理します。1本のMP4に描画する上限はdefault 12 clipで、対象が12 clipを超える場合は `3d_2d_grid_001.mp4`、`3d_2d_grid_002.mp4` のように分割します。この上限は `--clips-per-video` で変更できます。`--max-clips` は全体の処理件数を明示的に制限したいprobe用途に使います。
 
 ```bash
-uv run python scripts/03_phase3/replay_clip_dataset.py \
+uv run python scripts/03_dataset_building/replay_clip_dataset.py \
   outputs/phase3_common_clip/datasets/v1
-uv run python scripts/03_phase3/replay_clip_dataset.py \
+uv run python scripts/03_dataset_building/replay_clip_dataset.py \
   outputs/phase3_common_clip/datasets/v1 \
   --qc-label diagnostic
-uv run python scripts/03_phase3/replay_clip_dataset.py \
+uv run python scripts/03_dataset_building/replay_clip_dataset.py \
   outputs/phase3_common_clip/datasets/v1 \
   --training-candidate true \
   --n-flagella 3 \
@@ -363,10 +365,10 @@ uv run python scripts/03_phase3/replay_clip_dataset.py \
 MP4 panelは必要に応じて選択できます。defaultは `--panel-layout 3d+2d` です。
 
 ```bash
-uv run python scripts/03_phase3/replay_clip_dataset.py \
+uv run python scripts/03_dataset_building/replay_clip_dataset.py \
   outputs/phase3_common_clip/datasets/v1 \
   --panel-layout 3d
-uv run python scripts/03_phase3/replay_clip_dataset.py \
+uv run python scripts/03_dataset_building/replay_clip_dataset.py \
   outputs/phase3_common_clip/datasets/v1 \
   --panel-layout 2d
 ```
@@ -374,7 +376,7 @@ uv run python scripts/03_phase3/replay_clip_dataset.py \
 従来の `.npy` tensor contact sheetを確認したい場合は `--mode contact-sheet` を付けます。
 
 ```bash
-uv run python scripts/03_phase3/replay_clip_dataset.py \
+uv run python scripts/03_dataset_building/replay_clip_dataset.py \
   outputs/phase3_common_clip/datasets/v1 \
   --mode contact-sheet \
   --max-clips 12
@@ -424,7 +426,7 @@ outputs/YYYY-MM-DD/HHMMSS/phase4_duration_seed_study/
 
 ```bash
 RUN_DIR=outputs/phase2_multi_run/flagella_count_duration_3s_r1
-uv run python scripts/02_phase2_analysis/build_dataset.py \
+uv run python scripts/03_dataset_building/build_dataset.py \
   config=conf/phase2_multi_run/flagella_count_duration_3s_r1.yaml \
   run_dir="${RUN_DIR}" \
   dataset.output_dir="${RUN_DIR}/dataset/v1_r1_duration_3s"
@@ -437,7 +439,7 @@ uv run python scripts/04_phase4/evaluate_duration_seed_study.py \
 3秒raw runを再シミュレーションせず3D比較renderする場合:
 
 ```bash
-uv run python scripts/01_simulate_swimming/render_shape_stability_grid_replay.py \
+uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
   config=conf/phase2_multi_run/flagella_count_duration_3s_r1.yaml \
   run_dir="${RUN_DIR}" \
   mode=render-only \

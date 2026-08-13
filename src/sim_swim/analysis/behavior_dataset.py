@@ -17,8 +17,6 @@ from zoneinfo import ZoneInfo
 
 import yaml
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
-
 from sim_swim.analysis.cli_profiles import (
     key_value_args_to_cli_args,
     split_config_key,
