@@ -24,6 +24,8 @@ manifestの `time.paper_notation` はこの表記を正本の表示層として�
 
 2010 project は `legacy_fixed_tau_s_1` のため、tracking-reference でも `tau_s` は変わらない。これは物性連動を検査する比較であり、2015 のような時間相似を主張できない。plan manifest の `tau_tracks_reference_torque=false` を必ず確認する。
 
+Issue #190はこのtracking-referenceとは別の実験用conditionである。2010 project defaultを変えず、専用campaignのみで`time.scale_policy=reference_torque`を明示して`tau_tracks_reference_torque=true`にする。3 torqueの等値、無次元時刻での比較sample、短時間`torque × dt_star` screenを検証するためであり、#183の先行screenと同一policyとして比較しない。
+
 ## Config / manifest 契約
 
 入力 config は [2010 project](../../conf/phase2_reference_torque/2010_project.yaml)、[2015 project](../../conf/phase2_reference_torque/2015_project.yaml) である。plan CLI は condition ごとに以下を `campaign_plan.json` へ固定する。

@@ -60,6 +60,10 @@ TIME_SCHEMA_SOURCES = frozenset(
 )
 TIME_SCALE_POLICY_LEGACY_FIXED_TAU = "legacy_fixed_tau_s_1"
 TIME_SCALE_POLICY_REFERENCE_TORQUE = "reference_torque"
+TIME_SCALE_POLICY_PROFILE_DEFAULT = "profile_default"
+TIME_SCALE_POLICIES = frozenset(
+    {TIME_SCALE_POLICY_PROFILE_DEFAULT, TIME_SCALE_POLICY_REFERENCE_TORQUE}
+)
 MOTOR_LOCAL_SCALE_KEYS = (
     "local_hook_scale",
     "local_spring_scale",
@@ -525,6 +529,7 @@ class TimeParams:
     legacy_keys_used: tuple[str, ...] = ()
     legacy_duration_s: float | None = None
     legacy_dt_star: float | None = None
+    scale_policy: str = TIME_SCALE_POLICY_PROFILE_DEFAULT
 
 
 @dataclass(frozen=True)
@@ -609,7 +614,12 @@ def _is_2010_paper_profile(profile: ModelProfileParams | None) -> bool:
     )
 
 
-def _time_scale_policy(profile: ModelProfileParams | None) -> str:
+def _time_scale_policy(
+    profile: ModelProfileParams | None,
+    requested_policy: str = TIME_SCALE_POLICY_PROFILE_DEFAULT,
+) -> str:
+    if requested_policy == TIME_SCALE_POLICY_REFERENCE_TORQUE:
+        return TIME_SCALE_POLICY_REFERENCE_TORQUE
     if _is_2010_project_profile(profile):
         return TIME_SCALE_POLICY_LEGACY_FIXED_TAU
     return TIME_SCALE_POLICY_REFERENCE_TORQUE
@@ -726,6 +736,11 @@ def _parse_time_params(raw: dict[str, Any]) -> TimeParams:
 
     if schema_source not in TIME_SCHEMA_SOURCES:
         raise ValueError(f"Unsupported time schema source: {schema_source}")
+    scale_policy = str(time_raw.get("scale_policy", TIME_SCALE_POLICY_PROFILE_DEFAULT))
+    if scale_policy not in TIME_SCALE_POLICIES:
+        raise ValueError(
+            "time.scale_policy must be 'profile_default' or 'reference_torque'"
+        )
 
     legacy_keys = tuple(dict.fromkeys(legacy_keys_used))
     return TimeParams(
@@ -741,6 +756,7 @@ def _parse_time_params(raw: dict[str, Any]) -> TimeParams:
             float(time_raw["duration_s"]) if legacy_duration_present else None
         ),
         legacy_dt_star=(float(time_raw["dt_star"]) if legacy_dt_star_present else None),
+        scale_policy=scale_policy,
     )
 
 
@@ -793,6 +809,7 @@ class SimulationConfig:
             legacy_keys_used=self.time.legacy_keys_used,
             legacy_duration_s=self.time.legacy_duration_s,
             legacy_dt_star=self.time.legacy_dt_star,
+            scale_policy=self.time.scale_policy,
         )
         object.__setattr__(self, "time", resolved_time)
 
@@ -1014,7 +1031,7 @@ class SimulationConfig:
 
     @property
     def time_scale_policy(self) -> str:
-        return _time_scale_policy(self.model_profile)
+        return _time_scale_policy(self.model_profile, self.time.scale_policy)
 
     @property
     def reference_torque_Nm(self) -> float:

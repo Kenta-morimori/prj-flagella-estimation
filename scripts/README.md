@@ -33,6 +33,22 @@ uv run python -m scripts.01_simulate_swimming \
 - `time.dt_s` は deprecated な出力・記録間隔で、内部積分刻みではありません。
 - `total_steps = ceil(duration_tau / dt_star)`。`step_summary.csv` はstep開始時刻を記録するため最終state時刻は指定durationをわずかに超える場合があります。
 
+### Issue #190: 2010 project torque連動time-scaleの短時間screen
+
+既存の2010 project defaultは`tau_s=1 s`固定のまま保持する。Issue #190のplanだけは
+`time.scale_policy=reference_torque`により、各conditionで`motor.torque_Nm`、
+`reference_torque_Nm`、物性scale torqueを同一値にし、`tau_s=eta*b^3/T`を使う。
+これは短時間の数値安定性実験であり、既存baseline、dataset、2015 profileを採択しない。
+
+```bash
+uv run python scripts/01_simulate_swimming/plan_2010_torque_dt_stability.py \
+  --config conf/phase2_sweeps/2010_project_torque_linked_dt_stability.yaml \
+  --output /private/tmp/issue190_campaign_plan.json
+```
+
+初期screenは`1 tau`であり、4 torque × 3 `dt_star`の12条件をsimulationなしで展開する。
+`dt_star=1e-4`が候補default、`1e-3`が境界screen、`1e-5`が比較referenceである。
+
 主な出力は `outputs/YYYY-MM-DD/HHMMSS/` 配下に作成され、`manifest.json` と `run.log` に実行条件が記録されます。
 
 ### Sweep

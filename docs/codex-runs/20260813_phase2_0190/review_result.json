@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "task": "Phase 2 Issue #190 2010 torque-linked time-scale short-screen environment",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/190",
+  "summary": [
+    "2010 project defaultのlegacy tau_s=1 sを維持したまま、実験conditionだけでreference-torque time scaleをopt-inできるようにした。",
+    "per-flag torque、reference torque、force-scale torqueを同一にする4 torque x 3 dt_starの1 tau planを機械可読に生成できる。",
+    "0.5秒run、dtの採択、2015 projectへの反映、dataset採択は実行していない。"
+  ],
+  "checks": [
+    {
+      "command": "uv run pytest -q tests/test_phase2_190_torque_dt_stability.py tests/test_params.py tests/test_reference_torque_comparison.py",
+      "result": "PASS: 96 passed"
+    },
+    {
+      "command": "uv run ruff check ... && git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "plan_2010_torque_dt_stability.py --config conf/phase2_sweeps/2010_project_torque_linked_dt_stability.yaml",
+      "result": "PASS: 12 conditions with 201-point normalized-time archive intervals; simulation was not started"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "Issue #190は短時間screenの実験環境整備であり、simulation結果の採択は後続taskで行う。",
+  "user_review_required": false,
+  "adr_required": false,
+  "adr_reason": "既存baselineを変更しない実験限定のopt-inであることをADR 0016とIssue #183 comparison contractへ明記した。",
+  "commit_type": "complete",
+  "push_status": "not_pushed",
+  "next_actions": [
+    "#190の1 tau screenを別PCで実行し、dt_star=1e-3/1e-4/1e-5のshape・遊泳・一致度を記録する。",
+    "結果を評価してから、#61に2015 projectへの適用可否を追記する。"
+  ]
+}

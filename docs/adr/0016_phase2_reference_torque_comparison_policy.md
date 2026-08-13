@@ -25,6 +25,12 @@ torque sweep は次の二つを別 campaign として扱う。
 
 2010 project は `legacy_fixed_tau_s_1` の互換 policy のため、tracking-referenceでも `tau_s=1 s` のままである。物性連動は検査対象だが、2015のような時間相似を主張しない。
 
+Issue #190の2010短時間screenだけは、`tracking-reference`とは別の明示的な実験conditionとして
+`time.scale_policy=reference_torque`をopt-inする。このconditionは
+`abs(motor.torque_Nm)=reference_torque_Nm=torque_for_forces_Nm`と
+`tau_s=eta*b^3/T`を要求する。既存2010 project baseline、#183のtracking-reference結果、#61/#184の正式な
+fixed/tracking比較契約を変更・再解釈しない。#190の結果を2015 projectまたはdataset採択へ適用するには別途判断を要する。
+
 ## Consequences
 
 * plan config と `campaign_plan.json` は `comparison_policy`、`time_basis`、3種類の torque、`tau_s`、`dt_star`、`dt_internal_s`、`total_steps`、物性係数を保存する。
