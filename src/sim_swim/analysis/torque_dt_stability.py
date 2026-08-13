@@ -50,6 +50,10 @@ def build_plan(config_path: Path) -> dict[str, Any]:
                 raise ValueError(
                     "torque-linked condition is not equal across motor/reference/forces"
                 )
+            archive_interval_s = cfg.time.duration_s / float(samples - 1)
+            if archive_interval_s <= 0.0:
+                raise ValueError("derived comparison archive interval must be positive")
+            overrides["output"]["archive_interval_s"] = archive_interval_s
             conditions.append(
                 {
                     "condition_id": f"T{torque:.0e}_dt{dt_star:.0e}",
@@ -59,6 +63,7 @@ def build_plan(config_path: Path) -> dict[str, Any]:
                     if dt_star == min(dt_stars)
                     else "candidate",
                     "comparison_sample_count": samples,
+                    "comparison_archive_interval_s": archive_interval_s,
                     "config_overrides": overrides,
                     "execution_command": (
                         "uv run python -m scripts.01_simulate_swimming "
@@ -70,6 +75,7 @@ def build_plan(config_path: Path) -> dict[str, Any]:
                         f"motor.reference_torque_Nm={torque:.12g} "
                         "motor.torque_for_forces_override_Nm=0 "
                         "brownian.enabled=false output.policy=compact"
+                        f" output.archive_interval_s={archive_interval_s:.12g}"
                     ),
                     "time": cfg.time_manifest(),
                 }

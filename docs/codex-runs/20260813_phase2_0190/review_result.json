@@ -9,8 +9,8 @@
   ],
   "checks": [
     {
-      "command": "uv run pytest -q tests/test_phase2_190_torque_dt_stability.py tests/test_params.py",
-      "result": "PASS: 93 passed"
+      "command": "uv run pytest -q tests/test_phase2_190_torque_dt_stability.py tests/test_params.py tests/test_reference_torque_comparison.py",
+      "result": "PASS: 96 passed"
     },
     {
       "command": "uv run ruff check ... && git diff --check",
@@ -18,14 +18,14 @@
     },
     {
       "command": "plan_2010_torque_dt_stability.py --config conf/phase2_sweeps/2010_project_torque_linked_dt_stability.yaml",
-      "result": "PASS: 12 conditions; simulation was not started"
+      "result": "PASS: 12 conditions with 201-point normalized-time archive intervals; simulation was not started"
     }
   ],
   "long_simulation_executed": false,
   "long_simulation_reason": "Issue #190は短時間screenの実験環境整備であり、simulation結果の採択は後続taskで行う。",
   "user_review_required": false,
   "adr_required": false,
-  "adr_reason": "既存baselineのtime policyを変更せず、実験configに限定したopt-inである。",
+  "adr_reason": "既存baselineを変更しない実験限定のopt-inであることをADR 0016とIssue #183 comparison contractへ明記した。",
   "commit_type": "complete",
   "push_status": "not_pushed",
   "next_actions": [

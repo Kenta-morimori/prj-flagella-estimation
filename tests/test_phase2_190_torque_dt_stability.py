@@ -27,3 +27,7 @@ def test_issue_190_plan_links_all_torques_and_derives_tau() -> None:
     assert high["time"]["motor_torque_Nm"] == pytest.approx(1.2e-18)
     assert high["time"]["reference_torque_Nm"] == pytest.approx(1.2e-18)
     assert high["time"]["torque_for_forces_Nm"] == pytest.approx(1.2e-18)
+    assert high["comparison_archive_interval_s"] == pytest.approx(
+        high["time"]["duration_s"] / 200
+    )
+    assert "output.archive_interval_s=" in high["execution_command"]
