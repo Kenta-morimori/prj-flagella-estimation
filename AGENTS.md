@@ -46,7 +46,8 @@ Do not read large files under `outputs/` unless compact summaries and manifests 
 * Do not commit secrets, tokens, credentials, private data, or generated authentication files.
 * Do not run remote scripts such as `curl ... | sh` without explicit user approval.
 * Target the branch specified by the task or Issue; otherwise target the default branch.
-* Link the source Issue from a PR when the PR is intended to complete it.
+* Track related work with GitHub-native relationships: make a bounded child task a sub-issue of its parent, and add `blocking` / `blockedBy` only for a real completion dependency. Do not create a dependency edge merely because work is related.
+* Link the source Issue from a PR. Use `Closes #<issue>` only when merge completes that Issue; otherwise use a non-closing reference and state what remains (for example, a user-run experiment or result review).
 * Do not mark a task complete without a local `review_result.json` whose status is `PASS`.
 * Do not merge unless required checks and `codex-review-gate` pass.
 * Do not merge changes to physical interpretation, dataset adoption, phase boundaries, output contracts, or ML policy without explicit user approval.
