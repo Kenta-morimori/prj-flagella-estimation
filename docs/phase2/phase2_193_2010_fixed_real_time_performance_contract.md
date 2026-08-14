@@ -43,3 +43,24 @@ uv run python scripts/02_phase2_analysis/analyze_2010_torque_fixed_real_time_per
 これはsimulationを再実行しない。`analysis/fixed_real_time_qualitative_replay/`に3D grid MP4と最終frame PNG、manifestを保存する。rootの`qc_summary.json`とreplay manifestには、除外したcondition ID・停止状態・不足artifactを記録する。
 
 replayは同一実時間`0.5 s`の比較であり、各torqueの`duration_tau`は異なる。したがって、未完了conditionをPASS/FAILとして扱わず、無次元相似性、`dt_star`採択、torque採択、dataset採択の根拠には用いない。
+
+## 2026-08-14 body stability intervention screen の解釈
+
+`T=1e-19 N m`、`dt_star=1e-3`、`3.2 tau`で、diagonal braceの有無と
+`stiffness_scales.body=[1.0, 1.5, 2.0]`を比較した。全6条件がbody shape gateを通過した。
+braceを残したままbody scaleを上げると、screen内の最大spring伸びは
+`0.0812 -> 0.0767 -> 0.0732`、最大body bend誤差は
+`23.0 -> 20.5 -> 19.0 deg`に低下した。一方、braceを外すと同一scaleで
+centerline偏差が大きく、除去を対策候補として支持する証拠は得られなかった。
+
+ただし、このscreenのbaseline（brace ON, body scale 1.0）は、先行した
+fixed-real-time runで`2.725 tau`に観測したbody spring failureを再現しなかった。
+同一PCで`output.policy=debug`と`compact`を比較したところ、3.2 tauまでの
+state archiveは一致したため、出力・集計形式が原因ではない。先行runとの初期形状差は
+丸め誤差レベルであり、`2.5--2.8 tau`付近で増幅される数値的に敏感な領域であることが
+示唆される。
+
+従って、このscreenは「brace除去よりbody scale増加のほうが短時間指標を悪化させない」
+という候補選別に限って使う。body scaleのdefault採用、torque採択、dataset採択はしない。
+それらには、同一実行環境でbaselineと候補を並べた固定実時間の長時間検証と、初期位相・
+attachment seedまたは実行環境を変えた再現性評価が必要である。
