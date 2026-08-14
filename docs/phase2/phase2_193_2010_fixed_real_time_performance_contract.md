@@ -81,4 +81,12 @@ uv run python scripts/01_simulate_swimming/run_multi_run.py \
   dry_run=true
 uv run python scripts/01_simulate_swimming/run_multi_run.py \
   config=conf/phase2_multi_run/2010_project_body_stability_robustness_0p5s.yaml
+uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
+  config=conf/phase2_multi_run/2010_project_body_stability_robustness_0p5s.yaml \
+  run_dir=<campaign-root> \
+  --mode both
 ```
+
+解析はsimulationを再実行しない。`<campaign-root>`はrun出力の
+`outputs/YYYY-MM-DD/HHMMSS/`であり、`analysis/body_stability_robustness_replay/`に
+feature metrics CSV/PNGと3D grid replayを保存する。
