@@ -1,0 +1,62 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  description: >
+    PR #194: isolate the 2010 project T=1e-19 N m body_spring failure near
+    2.725 tau. This is not a supported-profile or dataset-adoption campaign.
+
+base_config: conf/sim_swim_2010.yaml
+
+base_overrides:
+  time.scale_policy: reference_torque
+  time.duration.value: 3.2
+  time.duration.unit: tau
+  time.integration.dt_star: 1.0e-3
+  motor.torque_Nm: 1.0e-19
+  motor.reference_torque_Nm: 1.0e-19
+  motor.torque_for_forces_override_Nm: 0.0
+  motor.body_reaction_full_vector: true
+  brownian.enabled: false
+  seed.attach_seed: 0
+  seed.phase_seed: 0
+  output.policy: debug
+  output.archive_interval_s: 1.0e-5
+
+sweep:
+  axes:
+    diagonal_braces:
+      key: body.prism.diagonal_braces_enabled
+      short_name: brace
+      values: [true, false]
+      labels: ["on", "off"]
+      ids: [brace_on, brace_off]
+    body_stiffness:
+      key: stiffness_scales.body
+      short_name: body
+      values: [1.0, 1.5, 2.0]
+      labels: ["1.0", "1.5", "2.0"]
+      ids: [body1p0, body1p5, body2p0]
+
+replay:
+  mode: render-only
+  fps_out_3d: 20.0
+  target_frame_count: 101
+  max_panels_per_grid: 6
+  output_subdir: analysis/body_stability_intervention_replay
+
+plot:
+  default_x_axis: body_stiffness
+  default_y_axis: diagonal_braces
+  metrics:
+    - first_fail_t_s
+    - body_spring_max_stretch_ratio
+    - body_bend_max_error_deg
+    - body_centerline_max_deviation_um
+    - body_triangle_area_ratio_min
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 500
