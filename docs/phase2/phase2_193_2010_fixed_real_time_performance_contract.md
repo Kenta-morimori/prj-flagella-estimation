@@ -28,3 +28,18 @@ uv run python scripts/02_phase2_analysis/analyze_2010_torque_fixed_real_time_per
 run rootは`outputs/YYYY-MM-DD/HHMMSS/phase2_issue193_2010_torque_fixed_real_time_0p5s_performance/`である。`performance_summary.csv`はconditionごとの実時間、`duration_tau`、`tau_s`、内部刻み、step数、wall time、steps/s、必須safety statusを保存する。
 
 全conditionで完走、finite、body/non-body shape、motor action-reaction residualを確認する。評価はperformance-onlyであり、`dt_star=1e-4` / `1e-5`との一致度、2015 project、dataset採択には使わない。
+
+## Interrupted campaign の定性replay
+
+手動停止などでconditionが未完了の場合、通常の集計は失敗する。未完了conditionを暗黙に落とさないためである。既存archiveを用いて完了conditionだけを定性確認する場合に限り、明示opt-inで次を実行する。
+
+```bash
+uv run python scripts/02_phase2_analysis/analyze_2010_torque_fixed_real_time_performance.py \
+  --run-dir <campaign-root> \
+  --allow-incomplete \
+  --render-qualitative-replay
+```
+
+これはsimulationを再実行しない。`analysis/fixed_real_time_qualitative_replay/`に3D grid MP4と最終frame PNG、manifestを保存する。rootの`qc_summary.json`とreplay manifestには、除外したcondition ID・停止状態・不足artifactを記録する。
+
+replayは同一実時間`0.5 s`の比較であり、各torqueの`duration_tau`は異なる。したがって、未完了conditionをPASS/FAILとして扱わず、無次元相似性、`dt_star`採択、torque採択、dataset採択の根拠には用いない。

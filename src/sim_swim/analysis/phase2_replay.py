@@ -536,6 +536,7 @@ def _render_grid_movie(
     fps_out_3d: float,
     max_panels_per_grid: int,
     target_frame_count: int | None,
+    figure_note: str | None = None,
 ) -> Any:
     import cv2
 
@@ -604,7 +605,12 @@ def _render_grid_movie(
                     title=page_titles[page_idx],
                     fail_label=page_fail_labels[page_idx],
                 )
-            fig.tight_layout()
+            if figure_note:
+                fig.tight_layout()
+                fig.subplots_adjust(bottom=0.06)
+                fig.text(0.5, 0.012, figure_note, ha="center", fontsize=9)
+            else:
+                fig.tight_layout()
             canvas = FigureCanvasAgg(fig)
             canvas.draw()
             buf = np.asarray(canvas.buffer_rgba())
@@ -954,6 +960,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--fps-out-3d", type=float, default=None)
     parser.add_argument("--target-frame-count", type=int, default=None)
     parser.add_argument("--max-panels-per-grid", type=int, default=None)
+    parser.add_argument(
+        "--figure-note",
+        type=str,
+        default=None,
+        help="Optional note shown beneath every replay grid frame.",
+    )
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(parser_argv)
@@ -1056,6 +1068,7 @@ def main(argv: list[str] | None = None) -> None:
             fps_out_3d=args.fps_out_3d,
             max_panels_per_grid=args.max_panels_per_grid,
             target_frame_count=args.target_frame_count,
+            figure_note=args.figure_note,
         )
         logger.info(
             "Rendered grid videos: pages=%d",
@@ -1072,6 +1085,7 @@ def main(argv: list[str] | None = None) -> None:
             "fps_out_3d": args.fps_out_3d,
             "target_frame_count": args.target_frame_count,
             "max_panels_per_grid": args.max_panels_per_grid,
+            "figure_note": args.figure_note,
         },
         "conditions": [row["condition_id"] for row in rows],
         "outputs": {

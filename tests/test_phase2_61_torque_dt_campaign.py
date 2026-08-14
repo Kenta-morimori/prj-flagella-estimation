@@ -1,3 +1,4 @@
+import csv
 import json
 import logging
 from dataclasses import asdict
@@ -14,6 +15,7 @@ from sim_swim.analysis.torque_dt_stability_campaign import (
     _comparison_archive_states,
     _effective_config,
     _validate_campaign_contract,
+    render_fixed_real_time_qualitative_replay,
     summarize_campaign,
 )
 from sim_swim.analysis import torque_dt_stability_campaign as campaign
@@ -87,9 +89,13 @@ def _campaign_fixture(root: Path, config_path: Path = CONFIG) -> None:
                 "output_dir": str(directory),
                 "config_overrides": condition["config_overrides"],
                 "comparison_sample_count": samples,
+                "time": cfg.time_manifest(),
+                "execution": {"status": "completed"},
             }
         )
-    (root / "run_manifest.json").write_text(json.dumps({"conditions": records}))
+    (root / "run_manifest.json").write_text(
+        json.dumps({"base_config": raw["base_config"], "conditions": records})
+    )
 
 
 def test_initial_screen_is_diagnostic_only_and_records_similarity(
@@ -208,6 +214,56 @@ def test_fixed_real_time_performance_summary_is_not_a_similarity_verdict(
     }
     assert (tmp_path / "performance_summary.csv").is_file()
     assert not (tmp_path / "dt_comparison.csv").exists()
+
+
+def test_fixed_real_time_partial_review_records_the_unrun_condition(
+    tmp_path: Path,
+) -> None:
+    _campaign_fixture(tmp_path, PERFORMANCE_CONFIG)
+    manifest_path = tmp_path / "run_manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    unrun = next(
+        row
+        for row in manifest["conditions"]
+        if row["condition_id"] == "T1p2e-18_dt1e-3"
+    )
+    unrun["execution"] = {"status": "running"}
+    directory = Path(unrun["output_dir"])
+    (directory / "run_summary.json").unlink()
+    (directory / "state_archive.npz").unlink()
+    manifest_path.write_text(json.dumps(manifest))
+
+    with pytest.raises(ValueError, match="Campaign is incomplete"):
+        summarize_campaign(tmp_path, config_path=PERFORMANCE_CONFIG)
+
+    payload = summarize_campaign(
+        tmp_path, config_path=PERFORMANCE_CONFIG, allow_incomplete=True
+    )
+
+    assert len(payload["conditions"]) == 3
+    assert payload["interpretation"]["completion_status"] == (
+        "partial_qualitative_review_only"
+    )
+    assert payload["exclusions"] == [
+        {
+            "condition_id": "T1p2e-18_dt1e-3",
+            "reason": "execution=running; missing run_summary.json, state_archive.npz",
+            "included_in_qualitative_replay": False,
+        }
+    ]
+    with (tmp_path / "summary.csv").open(newline="", encoding="utf-8") as handle:
+        assert len(list(csv.DictReader(handle))) == 3
+
+
+def test_partial_qualitative_replay_requires_explicit_opt_in(tmp_path: Path) -> None:
+    _campaign_fixture(tmp_path, PERFORMANCE_CONFIG)
+
+    with pytest.raises(ValueError, match="explicit allow_incomplete"):
+        render_fixed_real_time_qualitative_replay(
+            tmp_path,
+            config_path=PERFORMANCE_CONFIG,
+            allow_incomplete=False,
+        )
 
 
 def test_fixed_real_time_archive_discards_only_ceil_overshoot_state() -> None:
