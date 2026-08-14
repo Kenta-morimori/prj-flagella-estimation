@@ -1,0 +1,63 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  description: >
+    PR #194 follow-up: test whether the T=1e-19 N m body-stability candidate
+    is robust at fixed real time. This is experiment-only and does not change
+    the 2010 project default body parameters.
+
+base_config: conf/sim_swim_2010.yaml
+
+base_overrides:
+  time.scale_policy: reference_torque
+  time.duration.value: 0.5
+  time.duration.unit: s
+  time.integration.dt_star: 1.0e-3
+  motor.torque_Nm: 1.0e-19
+  motor.reference_torque_Nm: 1.0e-19
+  motor.torque_for_forces_override_Nm: 0.0
+  motor.body_reaction_full_vector: true
+  brownian.enabled: false
+  seed.attach_seed: 0
+  body.prism.diagonal_braces_enabled: true
+  output.policy: compact
+  output.archive_interval_s: 1.0e-3
+
+sweep:
+  axes:
+    body_stiffness:
+      key: stiffness_scales.body
+      short_name: body
+      values: [1.0, 2.0]
+      labels: [baseline, candidate_2p0]
+      ids: [body1p0, body2p0]
+    phase_seed:
+      key: seed.phase_seed
+      short_name: phase
+      values: [0, 1, 2]
+      labels: [seed0, seed1, seed2]
+      ids: [phase0, phase1, phase2]
+
+replay:
+  mode: render-only
+  fps_out_3d: 20.0
+  target_frame_count: 101
+  max_panels_per_grid: 6
+  output_subdir: analysis/body_stability_robustness_replay
+
+plot:
+  default_x_axis: phase_seed
+  default_y_axis: body_stiffness
+  metrics:
+    - first_fail_t_s
+    - body_spring_max_stretch_ratio
+    - body_bend_max_error_deg
+    - body_centerline_max_deviation_um
+    - body_triangle_area_ratio_min
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 1000

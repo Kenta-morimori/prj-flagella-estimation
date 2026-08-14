@@ -64,3 +64,21 @@ state archiveは一致したため、出力・集計形式が原因ではない�
 という候補選別に限って使う。body scaleのdefault採用、torque採択、dataset採択はしない。
 それらには、同一実行環境でbaselineと候補を並べた固定実時間の長時間検証と、初期位相・
 attachment seedまたは実行環境を変えた再現性評価が必要である。
+
+### 次の長時間検証（user-executed）
+
+`conf/phase2_multi_run/2010_project_body_stability_robustness_0p5s.yaml`は、
+braceを維持したbaseline（body scale `1.0`）と短時間screen候補（`2.0`）を、
+phase seed `0, 1, 2`で比較する6 conditionのcampaignである。すべて
+`T=1e-19 N m`, `dt_star=1e-3`, `0.5 s = 50 tau`、各50,001 stepである。
+同一PCで実行し、各seedでbaseline/candidateを比較する。candidateをdefaultへ
+採用するには、baselineよりfail countが増えず、body gateとmotor residualを満たし、
+replay上で明瞭な非物理的変形がないことを要求する。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_multi_run.py \
+  config=conf/phase2_multi_run/2010_project_body_stability_robustness_0p5s.yaml \
+  dry_run=true
+uv run python scripts/01_simulate_swimming/run_multi_run.py \
+  config=conf/phase2_multi_run/2010_project_body_stability_robustness_0p5s.yaml
+```
