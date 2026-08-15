@@ -90,3 +90,22 @@ uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
 解析はsimulationを再実行しない。`<campaign-root>`はrun出力の
 `outputs/YYYY-MM-DD/HHMMSS/`であり、`analysis/body_stability_robustness_replay/`に
 feature metrics CSV/PNGと3D grid replayを保存する。
+
+### 2026-08-14 robustness結果
+
+出力`outputs/2026-08-14/172229/`で6 conditionすべてが計画した50,001 stepを完走した。
+ただし、完走はbody shape PASSを意味しない。baseline（body scale `1.0`）はphase seed
+`0`で`0.02725 s = 2.725 tau`、seed `2`で`0.15597 s = 15.597 tau`にbody spring failure、
+seed `1`のみPASSであり、`2/3`がFAILだった。候補（body scale `2.0`）は全seedでFAILし、
+failure時刻はseed `0, 1, 2`で順に`0.04130, 0.06518, 0.16083 s`だった。
+
+motor action-reaction force/torque residualは全conditionで約`1e-15`以下であり、今回の
+body failureをmotor反作用の不釣合いとしては説明しない。最終replayでは候補の3 condition
+すべてでbody/flagellaの大変形が視認できる。`stiffness_scales.body`はbody springだけでなく
+body bendも同時に強化するため、固定`dt_star=1e-3`の明示積分では硬化による数値安定性悪化が
+もっとも直接的な解釈である。ただし、この仮説を確定するにはcandidateを小さい`dt_star`で
+比較する短時間検証が必要である。
+
+**Decision:** body scale `2.0`は候補から除外し、2010 project defaultは変更しない。
+diagonal brace除去も短時間screenで支持されなかった。次の対策検討は、body topologyを変更せず、
+body scale `1.0`でのphase依存性と`dt_star`依存性を切り分けてから行う。

@@ -173,11 +173,29 @@ def _row_passes_nonbody(row: dict[str, str]) -> bool:
     ) and not _has_first_fail(row)
 
 
+def _has_body_failure(row: dict[str, str]) -> bool:
+    """Return whether an explicitly recorded body gate failed.
+
+    Older shape-stability summaries do not have body fields, so their absence
+    must not turn an otherwise valid non-body PASS into a failure.
+    """
+
+    return str(row.get("body_shape_pass", "")).strip().lower() == "false"
+
+
 def _fail_label(row: dict[str, str]) -> str:
     fail_t = str(row.get("first_fail_t_s", ""))
     fail_c = str(row.get("first_fail_category_nonbody", ""))
     if _has_first_fail(row):
         return f"FAIL {fail_c}@{fail_t[:6]}"
+    if _has_body_failure(row):
+        body_category = str(row.get("body_fail_category", "body")).strip()
+        body_t = str(row.get("body_first_fail_t_s", "")).strip()
+        if body_t:
+            return f"FAIL {body_category}@{body_t[:6]}"
+        return f"FAIL {body_category}"
+    if str(row.get("body_shape_pass", "")).strip().lower() == "true":
+        return "PASS"
     if _row_passes_nonbody(row):
         return "PASS"
     return f"FAIL {fail_c}@{fail_t[:6]}"
@@ -344,6 +362,16 @@ def _load_inputs(
             raise FileNotFoundError(
                 f"Missing state archive for {condition_id}: {archive_path}"
             )
+        # Generic compact summaries keep the body gate in run_summary.json.
+        # Copy the first body-failure time into the in-memory row so a replay
+        # does not incorrectly label a body PASS/FAIL using only non-body QC.
+        run_summary_path = archive_path.parent / "run_summary.json"
+        if run_summary_path.is_file() and _has_body_failure(row):
+            run_summary = _load_json(run_summary_path)
+            body_gate = dict(run_summary.get("gates", {}).get("shape_body", {}) or {})
+            first_body_fail_t = body_gate.get("first_observed_fail_t_s")
+            if first_body_fail_t is not None:
+                row["body_first_fail_t_s"] = str(first_body_fail_t)
     return ordered_rows, records, base_cfg_path
 
 

@@ -854,6 +854,35 @@ def test_replay_marks_no_first_fail_as_pass() -> None:
     assert module._row_passes_nonbody(row) is True
 
 
+def test_replay_uses_body_gate_for_generic_campaign_status() -> None:
+    module = _load_script(
+        Path("src/sim_swim/analysis/phase2_replay.py"),
+        "phase2_replay_body_gate_status",
+    )
+
+    assert (
+        module._fail_label(
+            {
+                "final_shape_pass_nonbody": "",
+                "body_shape_pass": "True",
+                "body_fail_category": "none",
+            }
+        )
+        == "PASS"
+    )
+    assert (
+        module._fail_label(
+            {
+                "final_shape_pass_nonbody": "True",
+                "body_shape_pass": "False",
+                "body_fail_category": "body_spring",
+                "body_first_fail_t_s": "0.02725",
+            }
+        )
+        == "FAIL body_spring@0.0272"
+    )
+
+
 def test_replay_marks_compact_campaign_status_pass() -> None:
     module = _load_script(
         Path("src/sim_swim/analysis/phase2_replay.py"),
@@ -1070,3 +1099,45 @@ def test_generic_multi_run_summary_fieldnames_include_body_shape_gate() -> None:
     assert "body_bend_max_error_deg" in fields
     assert "body_centerline_max_deviation_um" in fields
     assert "body_triangle_area_ratio_min" in fields
+
+
+def test_generic_heatmap_hydrates_compact_body_gate_and_axes(tmp_path: Path) -> None:
+    module = _load_script(
+        Path("src/sim_swim/analysis/heatmaps/generic_multi_run.py"),
+        "generic_heatmap_compact_hydration",
+    )
+    condition_dir = tmp_path / "body2p0__phase0"
+    condition_dir.mkdir()
+    (condition_dir / "run_summary.json").write_text(
+        json.dumps(
+            {
+                "gates": {
+                    "shape_body": {"first_observed_fail_t_s": 0.0413},
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "run_manifest.json").write_text(
+        json.dumps(
+            {
+                "conditions": [
+                    {
+                        "condition_id": "body2p0__phase0",
+                        "output_dir": str(condition_dir),
+                        "axis_values": {"body_stiffness": 2.0},
+                        "axis_labels": {"body_stiffness": "candidate_2p0"},
+                        "axis_order": {"body_stiffness": 1},
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    rows = [{"condition_id": "body2p0__phase0", "body_shape_pass": "False"}]
+
+    module._hydrate_compact_rows_from_manifest(rows, tmp_path)
+
+    assert rows[0]["axis_body_stiffness_label"] == "candidate_2p0"
+    assert rows[0]["axis_body_stiffness_index"] == "1"
+    assert rows[0]["body_first_fail_t_s"] == "0.0413"

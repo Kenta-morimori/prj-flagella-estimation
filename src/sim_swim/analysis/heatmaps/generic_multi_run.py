@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 from pathlib import Path
 from typing import Any
 
@@ -68,6 +69,50 @@ def _load_rows(summary_csv: Path) -> list[dict[str, str]]:
     if not rows:
         raise ValueError(f"summary.csv is empty: {summary_csv}")
     return rows
+
+
+def _hydrate_compact_rows_from_manifest(
+    rows: list[dict[str, str]], run_dir: Path | None
+) -> None:
+    """Restore generic compact summary fields retained in ``run_manifest.json``.
+
+    Older compact campaigns recorded condition axes and body-gate timing in the
+    manifest/run summaries but omitted them from ``summary.csv``.  Hydrating
+    them here makes post-hoc heatmaps correct without re-running simulations.
+    """
+
+    if run_dir is None:
+        return
+    manifest_path = run_dir / "run_manifest.json"
+    if not manifest_path.is_file():
+        return
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    records = {
+        str(record.get("condition_id", "")): dict(record)
+        for record in (manifest.get("conditions", []) or [])
+    }
+    for row in rows:
+        record = records.get(str(row.get("condition_id", "")))
+        if record is None:
+            continue
+        for axis_name, value in dict(record.get("axis_values", {}) or {}).items():
+            row.setdefault(f"axis_{axis_name}_value", str(value))
+            row.setdefault(
+                f"axis_{axis_name}_label",
+                str(dict(record.get("axis_labels", {}) or {}).get(axis_name, value)),
+            )
+            row.setdefault(
+                f"axis_{axis_name}_index",
+                str(dict(record.get("axis_order", {}) or {}).get(axis_name, "")),
+            )
+        run_summary_path = Path(str(record.get("output_dir", ""))) / "run_summary.json"
+        if not run_summary_path.is_file():
+            continue
+        run_summary = json.loads(run_summary_path.read_text(encoding="utf-8"))
+        body_gate = dict(run_summary.get("gates", {}).get("shape_body", {}) or {})
+        first_body_fail_t = body_gate.get("first_observed_fail_t_s")
+        if first_body_fail_t is not None:
+            row.setdefault("body_first_fail_t_s", str(first_body_fail_t))
 
 
 def _axis_lookup(campaign: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -251,6 +296,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     _resolve_input_paths(args, campaign)
     rows = _load_rows(args.summary_csv)
+    _hydrate_compact_rows_from_manifest(rows, args.run_dir)
     output_dir = args.output_dir or (args.summary_csv.parent / "plots")
     output_dir.mkdir(parents=True, exist_ok=True)
 

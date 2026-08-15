@@ -50,7 +50,7 @@ plot:
   default_x_axis: phase_seed
   default_y_axis: body_stiffness
   metrics:
-    - first_fail_t_s
+    - body_first_fail_t_s
     - body_spring_max_stretch_ratio
     - body_bend_max_error_deg
     - body_centerline_max_deviation_um

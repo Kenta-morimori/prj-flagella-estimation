@@ -88,11 +88,13 @@ def _condition_row(
             "first_fail_category_nonbody": nonbody.get("first_failure_category"),
             "body_shape_pass": not bool(body.get("any_fail", False)),
             "body_fail_category": body.get("first_failure_category"),
+            "body_first_fail_t_s": body.get("first_observed_fail_t_s"),
         }
         for field in SUMMARY_FIELDS:
             metric = metrics.get(field)
-            if isinstance(metric, dict):
-                result.setdefault(field, metric.get("max"))
+        if isinstance(metric, dict):
+            result.setdefault(field, metric.get("max"))
+        result.update(summary_axis_fields(condition))
         return result
     rows = _read_step_rows(step_path)
     axis_center_summary = _axis_center_phase_summary(
