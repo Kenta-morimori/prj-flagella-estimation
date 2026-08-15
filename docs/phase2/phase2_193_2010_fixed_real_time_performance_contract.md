@@ -109,3 +109,12 @@ body bendも同時に強化するため、固定`dt_star=1e-3`の明示積分で
 **Decision:** body scale `2.0`は候補から除外し、2010 project defaultは変更しない。
 diagonal brace除去も短時間screenで支持されなかった。次の対策検討は、body topologyを変更せず、
 body scale `1.0`でのphase依存性と`dt_star`依存性を切り分けてから行う。
+
+### broad short screen
+
+`conf/phase2_multi_run/2010_project_body_stiffness_broad_short_screen.yaml`は、
+phase seed `0`、`T=1e-19 N m`、`dt_star=1e-3`を固定し、body scale
+`0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0`を`5 tau`で比較する8 condition screenである。
+baseline failure（`2.725 tau`）とscale `2.0` failure（`4.130 tau`）の双方を観測可能な
+長さに限定する。これは最終的な安定性・default採用の判定ではなく、scale依存性を絞るための
+診断である。
