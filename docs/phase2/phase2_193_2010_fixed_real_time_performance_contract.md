@@ -118,3 +118,16 @@ phase seed `0`、`T=1e-19 N m`、`dt_star=1e-3`を固定し、body scale
 baseline failure（`2.725 tau`）とscale `2.0` failure（`4.130 tau`）の双方を観測可能な
 長さに限定する。これは最終的な安定性・default採用の判定ではなく、scale依存性を絞るための
 診断である。
+
+### 2026-08-15 broad short screen結果
+
+出力`outputs/2026-08-15/163039/`で8 conditionすべてが`5 tau`（5,000 step）を完走した。
+body QCはscale `0.25`と`1.25`のみPASSで、その他はFAILだった。`0.5, 0.75, 1.0`は
+`3.159--3.722 tau`でbody bend failure、`1.5, 2.0, 3.0`は
+`3.717, 4.018, 4.398 tau`でbody spring failureだった。全conditionのmotor
+action-reaction residualは約`4e-15`以下である。
+
+結果はscaleに対して単調ではない。とくにscale `1.25`は短時間phase-0条件で形状を保ったが、
+単一seed・5 tauだけでは採用根拠にならない。scale `1.25`は、次に固定実時間`0.5 s`・
+phase seed複数で検証する唯一の候補とする。`0.25`は形状PASSだが、defaultより大幅に軟化しており、
+まずは候補に含めない。defaultは変更しない。

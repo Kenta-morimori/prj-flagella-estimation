@@ -13,7 +13,11 @@ from sim_swim.analysis.multi_run_campaign import (
     build_campaign_conditions,
     load_yaml,
 )
-from sim_swim.analysis.sweeps.generic_multi_run import _summary_fieldnames, run_campaign
+from sim_swim.analysis.sweeps.generic_multi_run import (
+    _condition_row,
+    _summary_fieldnames,
+    run_campaign,
+)
 
 
 def _load_script(path: Path, name: str):
@@ -1113,7 +1117,10 @@ def test_generic_heatmap_hydrates_compact_body_gate_and_axes(tmp_path: Path) -> 
             {
                 "gates": {
                     "shape_body": {"first_observed_fail_t_s": 0.0413},
-                }
+                },
+                "all_step_metrics": {
+                    "body_spring_max_stretch_ratio": {"max": 1.25},
+                },
             }
         ),
         encoding="utf-8",
@@ -1141,3 +1148,45 @@ def test_generic_heatmap_hydrates_compact_body_gate_and_axes(tmp_path: Path) -> 
     assert rows[0]["axis_body_stiffness_label"] == "candidate_2p0"
     assert rows[0]["axis_body_stiffness_index"] == "1"
     assert rows[0]["body_first_fail_t_s"] == "0.0413"
+    assert rows[0]["body_spring_max_stretch_ratio"] == "1.25"
+
+
+def test_generic_compact_summary_retains_all_body_metrics(tmp_path: Path) -> None:
+    (tmp_path / "run_summary.json").write_text(
+        json.dumps(
+            {
+                "execution": {"status": "completed", "expected_total_steps": 100},
+                "gates": {
+                    "shape_nonbody": {},
+                    "shape_body": {
+                        "any_fail": True,
+                        "first_failure_category": "body_spring",
+                        "first_observed_fail_t_s": 0.0123,
+                    },
+                },
+                "all_step_metrics": {
+                    "body_spring_max_stretch_ratio": {"max": 1.2},
+                    "body_bend_max_error_deg": {"max": 61.0},
+                    "body_centerline_max_deviation_um": {"max": 2.1},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    condition = {
+        "condition_id": "body1p0",
+        "condition_index": 0,
+        "condition_label": "body=baseline",
+        "axis_values": {"body_stiffness": 1.0},
+        "axis_labels": {"body_stiffness": "baseline"},
+        "axis_ids": {"body_stiffness": "body1p0"},
+        "axis_order": {"body_stiffness": 0},
+    }
+
+    row = _condition_row(None, condition, tmp_path)  # type: ignore[arg-type]
+
+    assert row["body_first_fail_t_s"] == 0.0123
+    assert row["body_spring_max_stretch_ratio"] == 1.2
+    assert row["body_bend_max_error_deg"] == 61.0
+    assert row["body_centerline_max_deviation_um"] == 2.1
+    assert row["axis_body_stiffness_label"] == "baseline"

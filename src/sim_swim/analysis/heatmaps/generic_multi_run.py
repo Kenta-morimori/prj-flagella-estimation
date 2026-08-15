@@ -113,6 +113,11 @@ def _hydrate_compact_rows_from_manifest(
         first_body_fail_t = body_gate.get("first_observed_fail_t_s")
         if first_body_fail_t is not None:
             row.setdefault("body_first_fail_t_s", str(first_body_fail_t))
+        for metric_name, metric_summary in dict(
+            run_summary.get("all_step_metrics", {}) or {}
+        ).items():
+            if isinstance(metric_summary, dict) and not row.get(metric_name):
+                row[metric_name] = str(metric_summary.get("max", ""))
 
 
 def _axis_lookup(campaign: dict[str, Any]) -> dict[str, dict[str, Any]]:

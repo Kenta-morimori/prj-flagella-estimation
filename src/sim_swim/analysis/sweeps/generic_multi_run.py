@@ -92,8 +92,8 @@ def _condition_row(
         }
         for field in SUMMARY_FIELDS:
             metric = metrics.get(field)
-        if isinstance(metric, dict):
-            result.setdefault(field, metric.get("max"))
+            if isinstance(metric, dict):
+                result.setdefault(field, metric.get("max"))
         result.update(summary_axis_fields(condition))
         return result
     rows = _read_step_rows(step_path)
