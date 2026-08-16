@@ -131,3 +131,16 @@ action-reaction residualは約`4e-15`以下である。
 単一seed・5 tauだけでは採用根拠にならない。scale `1.25`は、次に固定実時間`0.5 s`・
 phase seed複数で検証する唯一の候補とする。`0.25`は形状PASSだが、defaultより大幅に軟化しており、
 まずは候補に含めない。defaultは変更しない。
+
+### merge前のpriority 1--3 execution
+
+次の3 configを順に実行する。すべて2010 project専用・experiment-onlyであり、defaultやdatasetを
+変更しない。
+
+1. `2010_project_body1p25_fixed_real_time_0p5s_phase_robustness.yaml`:
+   `T=1e-19 N m`, `dt_star=1e-3`, `0.5 s = 50 tau`, phase seed 3本。
+2. `2010_project_body1p25_dt1e4_short.yaml`: `T=1e-19 N m`, phase 0,
+   body scale `1.25`, `5 tau`, `dt_star=1e-4`の1本。
+3. `2010_project_t1p2e18_body1p25_short_phase_robustness.yaml`:
+   2010 paper torque `1.2e-18 N m`, body scale `1.25`, `dt_star=1e-3`,
+   `5 tau`、phase seed 3本。

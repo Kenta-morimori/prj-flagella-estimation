@@ -1,0 +1,56 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  description: >
+    PR #194 priority 1: fixed-real-time robustness test of body scale 1.25
+    across phase seeds. Experiment-only; the 2010 project default is unchanged.
+
+base_config: conf/sim_swim_2010.yaml
+
+base_overrides:
+  time.scale_policy: reference_torque
+  time.duration.value: 0.5
+  time.duration.unit: s
+  time.integration.dt_star: 1.0e-3
+  motor.torque_Nm: 1.0e-19
+  motor.reference_torque_Nm: 1.0e-19
+  motor.torque_for_forces_override_Nm: 0.0
+  motor.body_reaction_full_vector: true
+  brownian.enabled: false
+  seed.attach_seed: 0
+  stiffness_scales.body: 1.25
+  body.prism.diagonal_braces_enabled: true
+  output.policy: compact
+  output.archive_interval_s: 1.0e-3
+
+sweep:
+  axes:
+    phase_seed:
+      key: seed.phase_seed
+      short_name: phase
+      values: [0, 1, 2]
+      labels: [seed0, seed1, seed2]
+      ids: [phase0, phase1, phase2]
+
+replay:
+  mode: both
+  fps_out_3d: 20.0
+  target_frame_count: 101
+  max_panels_per_grid: 6
+  output_subdir: analysis/body1p25_fixed_real_time_replay
+
+plot:
+  default_x_axis: phase_seed
+  default_y_axis: null
+  metrics:
+    - body_first_fail_t_s
+    - body_spring_max_stretch_ratio
+    - body_bend_max_error_deg
+    - body_centerline_max_deviation_um
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 1000

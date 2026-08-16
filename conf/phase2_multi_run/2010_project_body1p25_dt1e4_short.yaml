@@ -1,0 +1,57 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  description: >
+    PR #194 priority 2: isolate the effect of a smaller internal time step for
+    body scale 1.25 at the phase-0 condition. Experiment-only.
+
+base_config: conf/sim_swim_2010.yaml
+
+base_overrides:
+  time.scale_policy: reference_torque
+  time.duration.value: 5.0
+  time.duration.unit: tau
+  time.integration.dt_star: 1.0e-4
+  motor.torque_Nm: 1.0e-19
+  motor.reference_torque_Nm: 1.0e-19
+  motor.torque_for_forces_override_Nm: 0.0
+  motor.body_reaction_full_vector: true
+  brownian.enabled: false
+  seed.attach_seed: 0
+  seed.phase_seed: 0
+  stiffness_scales.body: 1.25
+  body.prism.diagonal_braces_enabled: true
+  output.policy: compact
+  output.archive_interval_s: 1.0e-4
+
+sweep:
+  axes:
+    dt_star:
+      key: time.integration.dt_star
+      short_name: dt
+      values: [1.0e-4]
+      labels: [1e-4]
+      ids: [dt1e-4]
+
+replay:
+  mode: both
+  fps_out_3d: 20.0
+  target_frame_count: 101
+  max_panels_per_grid: 1
+  output_subdir: analysis/body1p25_dt1e4_short_replay
+
+plot:
+  default_x_axis: dt_star
+  default_y_axis: null
+  metrics:
+    - body_first_fail_t_s
+    - body_spring_max_stretch_ratio
+    - body_bend_max_error_deg
+    - body_centerline_max_deviation_um
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 10000
