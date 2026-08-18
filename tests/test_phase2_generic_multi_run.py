@@ -930,6 +930,8 @@ def test_replay_status_lines_include_motor_torque_after_time() -> None:
         "Config",
         (),
         {
+            "tau_s": 1.0,
+            "dt_star": 1.0e-5,
             "motor_torque_Nm": 2.0e-20,
             "motor": type("Motor", (), {"enable_switching": False})(),
         },
@@ -937,7 +939,7 @@ def test_replay_status_lines_include_motor_torque_after_time() -> None:
 
     assert module._replay_status_lines(state, cfg, "PASS") == [
         "RUN",
-        "t = 0.125 s",
+        "t = 0.125 τ (0.125000 s, 12,500 steps)",
         "motor torque / flag = 2.00e-20 N m",
         "PASS",
     ]

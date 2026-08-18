@@ -202,22 +202,14 @@ def _fail_label(row: dict[str, str]) -> str:
 
 
 def _replay_status_lines(st: Any, cfg: Any, fail_label: str) -> list[str]:
-    from sim_swim.render.render3d import _run_tumble_label
+    from sim_swim.render.render3d import (
+        _run_tumble_label,
+        format_simulation_time_label,
+    )
 
-    profile = getattr(cfg, "model_profile", None)
-    if (
-        getattr(profile, "year", None) == 2015
-        or getattr(cfg, "time_scale_policy", None) == "reference_torque"
-    ):
-        tau = st.t / max(cfg.tau_s, 1e-30)
-        dt_s = cfg.dt_star * cfg.tau_s
-        steps = int(round(st.t / max(dt_s, 1e-30)))
-        time_label = f"t = {tau:.3f} τ ({st.t:.6f} s, {steps:,} steps)"
-    else:
-        time_label = f"t = {st.t:.3f} s"
     return [
         _run_tumble_label(st, cfg),
-        time_label,
+        format_simulation_time_label(st.t, cfg),
         f"motor torque / flag = {cfg.motor_torque_Nm:.2e} N m",
         fail_label,
     ]

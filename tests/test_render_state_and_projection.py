@@ -123,12 +123,12 @@ def test_frame_status_lines_include_time_torque_and_camera_mode() -> None:
     lines = _frame_status_lines(_state(), cfg)
 
     assert lines[0] == "RUN"
-    assert "t = 0.000 s" in lines
+    assert "t = 0.000 τ (0.000000 s, 0 steps)" in lines
     assert "motor_torque_Nm = 1.000e-18" in lines
     assert "follow_camera_3d = True" in lines
 
 
-def test_frame_status_lines_support_tau_seconds_placeholder() -> None:
+def test_frame_status_lines_always_include_tau_seconds_and_steps() -> None:
     base_cfg = _make_cfg(
         center_body_in_2d=True,
         follow_camera_2d=False,
@@ -138,13 +138,14 @@ def test_frame_status_lines_support_tau_seconds_placeholder() -> None:
         base_cfg,
         render=replace(
             base_cfg.render,
+            timestamp_3d=False,
             timestamp_fmt="t = {t:.3f} s (τ = {tau_s:.3e} s)",
         ),
     )
 
     lines = _frame_status_lines(_state(), cfg)
 
-    assert f"t = 0.000 s (τ = {cfg.tau_s:.3e} s)" in lines
+    assert lines[1] == "t = 0.000 τ (0.000000 s, 0 steps)"
 
 
 def test_hook_edges_expand_triplets_into_two_segments() -> None:

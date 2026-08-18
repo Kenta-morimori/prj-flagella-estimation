@@ -86,7 +86,7 @@ uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
   --max-panels-per-grid 8
 ```
 
-`reference_torque` time-scaleのconditionは、replay上で`t/τ`と実時間・step数を併記する。
+すべての3D renderは、policyにかかわらず` t = … τ (… s, … steps)`を表示する。motor torque・scale・QCなどの条件情報はこの時刻行の後へ続けて表示する。
 
 主な出力は `outputs/YYYY-MM-DD/HHMMSS/` 配下に作成され、`manifest.json` と `run.log` に実行条件が記録されます。Issue #61 torque-dt screenのrun rootは`outputs/YYYY-MM-DD/HHMMSS/phase2_issue61_2010_project_torque_dt_initial_screen/`です。terminalと`run.log`へ全8条件の開始・完了/失敗と経過時間が出力され、実行中のconditionは`run_manifest.json`の`execution.status`で確認できます。
 

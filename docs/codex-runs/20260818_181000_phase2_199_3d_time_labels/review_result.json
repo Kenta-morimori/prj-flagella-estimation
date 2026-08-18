@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "summary": "全3D renderの時刻表示を `t = … τ (… s, … steps)` に統一した。共通renderer、Phase 2 replay、behavior dataset replay、Phase 3 3D panelが同じ共通関数を利用する。時刻行はrender.timestamp_3dの設定にかかわらず表示し、motor torque・scale・QCなどの情報は後続行へ保持する。Task Aのtau-fixed / torque-linked 6条件gridを各151 frame・20 fpsで新表記へ再生成した。",
+  "checks": [
+    {
+      "command": "uv run pytest tests/test_render_state_and_projection.py tests/test_phase2_generic_multi_run.py tests/test_phase3_gt_passthrough_pipeline.py -q",
+      "result": "PASS: 86 passed"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/render/render3d.py src/sim_swim/analysis/phase2_replay.py tests/test_render_state_and_projection.py tests/test_phase2_generic_multi_run.py",
+      "result": "PASS"
+    }
+  ],
+  "generated_replays": [
+    "outputs/2026-08-18/143520/phase2_issue199_2010_project_tau_policy_torque_dt_0p05s/replay/tau_fixed_control_151frames_20fps_tau_steps/grid_swim3d.mp4",
+    "outputs/2026-08-18/143520/phase2_issue199_2010_project_tau_policy_torque_dt_0p05s/replay/torque_linked_tau_151frames_20fps_tau_steps/grid_swim3d.mp4"
+  ]
+}
