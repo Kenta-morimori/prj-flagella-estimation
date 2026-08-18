@@ -9,10 +9,12 @@ import numpy as np
 import pytest
 
 from flagella_estimation.phase3.metadata import build_gt_passthrough_metadata
+from flagella_estimation.phase3.feature_comparison import pixel_features
 from flagella_estimation.phase3.pipeline import (
     Phase3Config,
     build_clip_dataset,
     load_config,
+    select_samples,
     validate_training_candidate,
 )
 from flagella_estimation.phase3.replay import (
@@ -203,6 +205,49 @@ def test_phase3_config_uses_output_sampling_and_render_keys(tmp_path: Path) -> N
     assert cfg.pixel_size_um == pytest.approx(0.2)
     assert cfg.body_length_um == pytest.approx(2.5)
     assert cfg.body_width_um == pytest.approx(0.8)
+
+
+@pytest.mark.light
+def test_phase3_keeps_configured_diagnostic_class_out_of_ml_scope() -> None:
+    cfg = Phase3Config(
+        dataset_id="fixture",
+        input_dataset=Path("input"),
+        output_dir=Path("out"),
+        allowed_n_flagella=(1, 2, 3),
+        diagnostic_n_flagella=(4,),
+        baseline_torque_Nm=2.5e-20,
+    )
+    rows = [
+        {
+            "sample_id": "nf03",
+            "n_flagella": "3",
+            "torque_Nm": "2.5e-20",
+            "use_for_ml_candidate": "true",
+        },
+        {
+            "sample_id": "nf04",
+            "n_flagella": "4",
+            "torque_Nm": "2.5e-20",
+            "use_for_ml_candidate": "true",
+        },
+    ]
+
+    assert [row["sample_id"] for row in select_samples(rows, cfg)] == ["nf03", "nf04"]
+    assert validate_training_candidate(rows[1], cfg) == (
+        False,
+        "n_flagella_not_in_mvp_scope",
+    )
+
+
+@pytest.mark.light
+def test_phase3_pixel_features_measure_rendered_silhouette() -> None:
+    frames = np.full((2, 16, 16), 255, dtype=np.uint8)
+    frames[:, 6:10, 3:13] = 60
+    features = pixel_features(frames, 25.0)
+
+    assert features["2d_area_px_mean"] == pytest.approx(40.0)
+    assert features["2d_aspect_ratio_mean"] > 1.0
+    assert features["2d_axis_angular_velocity_rms_rad_s"] == pytest.approx(0.0)
 
 
 @pytest.mark.light

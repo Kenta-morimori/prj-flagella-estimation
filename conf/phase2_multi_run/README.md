@@ -13,6 +13,7 @@
 | `conf/phase2_multi_run/flagella_count_behavior_v0.yaml` | Issue #71 / #117 / #118 の RUN 固定べん毛本数差 diagnostic dataset v0 canonical config |
 | `conf/phase2_multi_run/flagella_count_behavior_v1.yaml` | Issue #119 の改善モデル analysis dataset v1 canonical config |
 | `conf/phase2_multi_run/flagella_count_duration_3s_r1.yaml` | Issue #129 のv1 r1 3 s duration / seed study |
+| `conf/phase2_multi_run/flagella_count_behavior_v1_r2_tau_linked_3s.yaml` | Issue #199 のv1 r2 tau-linked 3 s / 36 source-run feature study |
 | `conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml` | Issue #113 の n=4,5,6 seed固定多べん毛破綻境界診断 |
 | `conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml` | Issue #116 の n=4,5,6 seed固定 `flag_spring/body` 狭域 sweep |
 | `conf/phase2_multi_run/flagella_count_stability_smoke_seed00.yaml` | Issue #116 の候補通過後に使う n=1,2,3 seed固定 smoke check |

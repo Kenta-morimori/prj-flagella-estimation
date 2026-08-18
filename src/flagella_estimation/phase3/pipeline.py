@@ -51,6 +51,7 @@ class Phase3Config:
     body_width_um: float = 1.0
     body_intensity: int = 60
     allowed_n_flagella: tuple[int, ...] = (1, 2, 3)
+    diagnostic_n_flagella: tuple[int, ...] = ()
     max_per_class: int | None = None
     baseline_torque_Nm: float = 2.0e-20
     require_use_for_ml_candidate: bool = True
@@ -228,6 +229,9 @@ def load_config(path: Path | None, overrides: list[str] | None = None) -> Phase3
         allowed_n_flagella=tuple(
             int(v) for v in filters.get("allowed_n_flagella", [1, 2, 3])
         ),
+        diagnostic_n_flagella=tuple(
+            int(v) for v in filters.get("diagnostic_n_flagella", [])
+        ),
         max_per_class=(
             None
             if filters.get("max_per_class") in (None, "")
@@ -292,10 +296,10 @@ def select_samples(
     selected: list[dict[str, str]] = []
     per_class: dict[int, int] = {}
     for row in rows:
-        ok, _reason = validate_training_candidate(row, cfg)
-        if not ok:
-            continue
         n_flagella = int(_to_float(row["n_flagella"]))
+        ok, _reason = validate_training_candidate(row, cfg)
+        if not ok and n_flagella not in cfg.diagnostic_n_flagella:
+            continue
         current_count = per_class.get(n_flagella, 0)
         if cfg.max_per_class is not None and current_count >= cfg.max_per_class:
             continue
@@ -400,6 +404,11 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
                 run_shape_pass=run_shape_pass,
                 run_first_fail_t_s=run_first_fail_t_s,
             )
+            if n_flagella in cfg.diagnostic_n_flagella:
+                training_candidate = False
+                diagnostic_only = True
+                exclusion_reason = "n_flagella_diagnostic_only"
+                qc_label = "diagnostic_n_flagella"
             run_training_count += int(training_candidate)
             run_diagnostic_count += int(diagnostic_only)
             np.save(output_path, clip_array)
@@ -548,6 +557,7 @@ def build_clip_dataset(cfg: Phase3Config) -> Path:
         },
         "filters": {
             "allowed_n_flagella": list(cfg.allowed_n_flagella),
+            "diagnostic_n_flagella": list(cfg.diagnostic_n_flagella),
             "require_use_for_ml_candidate": cfg.require_use_for_ml_candidate,
             "source_require_use_for_ml_candidate": (
                 cfg.source_require_use_for_ml_candidate

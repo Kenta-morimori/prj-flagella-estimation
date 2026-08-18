@@ -1,0 +1,74 @@
+kind: generic_multi_run
+metadata:
+  role: dataset_build
+  canonical: false
+  description: Issue 199 Task B/C; v1 follow-on 3 s dataset source under the selected tau-linked condition
+  source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/199
+  model_id: project_tau_linked_T2p5e-20_dt1e-3_body1
+  dataset_version: v1
+  dataset_revision: r2
+  dataset_scope: nf1_2_3_4_as3_ps3_dur3p0
+  model_revision: issue199_tau_linked_T2p5e-20_dt1e-3_body1
+  version_role: integrated_3d_2d_feature_study
+  training_candidate: pending_integrated_feature_review
+  model_notes:
+    - Inherits the Issue 199 selected physical condition: torque-linked time policy, T=2.5e-20 N m, dt*=1e-3, body scale=1.0.
+    - RUN fixed; attach_seed and phase_seed are independently swept over 0, 1, 2.
+    - n_flagella=4 is retained for diagnostic-only comparison and is not an ML candidate.
+
+base_config: conf/sim_swim_2010.yaml
+base_overrides:
+  time.duration_s: 3.0
+  time.scale_policy: reference_torque
+  time.integration.dt_star: 1.0e-3
+  motor.torque_Nm: 2.5e-20
+  motor.enable_switching: false
+  stiffness_scales.body: 1.0
+  flagella.placement_mode: seeded_surface
+  flagella.initial_phase_mode: seeded
+  flagella.initial_helix_axis_from_rear_deg: 0
+  output_sampling.out_all_steps_3d: false
+  output_sampling.fps_out_3d: 25.0
+  output_sampling.fps_out_2d: 25.0
+
+sweep:
+  axes:
+    attach_seed:
+      key: seed.attach_seed
+      short_name: as
+      values: [0, 1, 2]
+      labels: ["0", "1", "2"]
+      ids: [as000, as001, as002]
+    phase_seed:
+      key: seed.phase_seed
+      short_name: ps
+      values: [0, 1, 2]
+      labels: ["0", "1", "2"]
+      ids: [ps000, ps001, ps002]
+    n_flagella:
+      key: flagella.n_flagella
+      short_name: nf
+      values: [1, 2, 3, 4]
+      labels: ["1", "2", "3", "4"]
+      ids: [nf01, nf02, nf03, nf04]
+
+dataset:
+  dataset_id: v1_r2_tau_linked_3s
+  dataset_version: v1
+  dataset_revision: r2
+  feature_schema: conf/phase2_analysis/flagella_count_behavior_features.yaml
+  output_dir: outputs/phase2_multi_run/flagella_count_behavior_v1_r2/dataset/v1_r2_tau_linked_3s
+  sample_id_template: "nf{n_flagella:02d}_as{attach_seed:03d}_ps{phase_seed:03d}"
+  timeseries_sampling: all_steps
+
+replay:
+  mode: both
+  fps_out_3d: 10.0
+  max_panels_per_grid: 9
+  output_subdir: replay
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 1000

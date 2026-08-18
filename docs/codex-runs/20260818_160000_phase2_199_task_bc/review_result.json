@@ -1,0 +1,34 @@
+{
+  "status": "PASS",
+  "summary": "Issue #199 Task B/C の実行契約を実装した。v1 r2はtau-linked T=2.5e-20 N m, dt*=1e-3, body scale 1.0の3秒・36 source runとし、n=4をdiagnostic-onlyとして4つのnon-overlap window datasetへ保持する。3D source summaryと実2D clip pixelsを同一feature reportへ出力する。長時間simulation・canonical replayはユーザー実行待ち。",
+  "checks": [
+    {
+      "command": "uv run pytest tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase3_clip_metadata_schema.py -q",
+      "result": "PASS: 23 passed"
+    },
+    {
+      "command": "uv run ruff check src/flagella_estimation/phase3/pipeline.py src/flagella_estimation/phase3/feature_comparison.py scripts/03_dataset_building/evaluate_clip_dataset_features.py tests/test_phase3_gt_passthrough_pipeline.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run python -c \"from pathlib import Path; import yaml; from flagella_estimation.phase3.pipeline import load_config; [yaml.safe_load(Path(p).read_text()) for p in ['conf/phase2_multi_run/flagella_count_behavior_v1_r2_tau_linked_3s.yaml','conf/phase3/gt_passthrough_v1_r2_tau_linked_3s_clips.yaml']]; c=load_config(Path('conf/phase3/gt_passthrough_v1_r2_tau_linked_3s_clips.yaml')); assert c.diagnostic_n_flagella == (4,)\"",
+      "result": "PASS"
+    }
+  ],
+  "user_run_commands": [
+    "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_behavior_v1_r2_tau_linked_3s.yaml",
+    "uv run python scripts/03_dataset_building/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r2_tau_linked_3s_clips.yaml output_dir=outputs/phase3_common_clip/datasets/v1_r2/window_0p25 dataset_id=phase3_v1_r2_tau_linked_clip_0p25 clip.duration_s=0.25",
+    "uv run python scripts/03_dataset_building/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r2_tau_linked_3s_clips.yaml output_dir=outputs/phase3_common_clip/datasets/v1_r2/window_0p5 dataset_id=phase3_v1_r2_tau_linked_clip_0p5 clip.duration_s=0.5",
+    "uv run python scripts/03_dataset_building/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r2_tau_linked_3s_clips.yaml output_dir=outputs/phase3_common_clip/datasets/v1_r2/window_1p0 dataset_id=phase3_v1_r2_tau_linked_clip_1p0 clip.duration_s=1.0",
+    "uv run python scripts/03_dataset_building/build_clip_dataset.py config=conf/phase3/gt_passthrough_v1_r2_tau_linked_3s_clips.yaml output_dir=outputs/phase3_common_clip/datasets/v1_r2/window_1p5 dataset_id=phase3_v1_r2_tau_linked_clip_1p5 clip.duration_s=1.5",
+    "uv run python scripts/03_dataset_building/replay_clip_dataset.py outputs/phase3_common_clip/datasets/v1_r2/window_0p5 --panel-layout 3d+2d",
+    "uv run python scripts/03_dataset_building/evaluate_clip_dataset_features.py outputs/phase3_common_clip/datasets/v1_r2/window_0p5"
+  ],
+  "expected_counts": {
+    "source_runs": 36,
+    "window_0p25": 432,
+    "window_0p5": 216,
+    "window_1p0": 108,
+    "window_1p5": 72
+  }
+}

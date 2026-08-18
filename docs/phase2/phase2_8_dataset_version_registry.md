@@ -43,6 +43,7 @@ config と manifest が実行条件の source of truth であり，この regist
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `v0` | `r0` | `nf1_2_3_6_as3_ps3_dur1p0` | current diagnostic baseline | `diagnostic_baseline` | false | `current_v0` | `conf/phase2_multi_run/flagella_count_behavior_v0.yaml` | `v0` | `not_generated` | `outputs/phase2_analysis/flagella_count_behavior/datasets/fc_nf1_2_3_6_as3_ps3_torque2p0_dur1p0` | 現状モデルの diagnostic baseline。`n=1,2,3` は特徴分離を見る baseline，`n>=4` は diagnostic-only。 |
 | `v1` | `r0` | `nf1_2_3_4_as3_ps3_dur1p0` | complete; visual review approved | `training_candidate` | `n=1,2,3`; `n=4` diagnostic-only | `flag_spring2p25_body2p5_candidate` | `conf/phase2_multi_run/flagella_count_behavior_v1.yaml` | `v1` | `generated` | `outputs/phase2_multi_run/flagella_count_behavior_v1` | `n=1,2,3` は27/27 strict passかつvisual review承認済み。`n=4` は3/9でtransientを含む `flag` failと非等速回転がありtraining対象外。`n=5,6` も対象外。 |
+| `v1` | `r2` | `nf1_2_3_4_as3_ps3_dur3p0` | planned; user-run | `integrated_3d_2d_feature_study` | pending feature review; `n=4` diagnostic-only | `issue199_tau_linked_T2p5e-20_dt1e-3_body1` | `conf/phase2_multi_run/flagella_count_behavior_v1_r2_tau_linked_3s.yaml` | `v1_r2_tau_linked_3s` | `not_generated` | `outputs/phase2_multi_run/flagella_count_behavior_v1_r2` | Issue #199選定条件の3秒・36 source run。物理条件がv1 r0と異なるため、既存training baselineを置換せずfeature比較後に採否を判断する。 |
 
 ## v0 details
 

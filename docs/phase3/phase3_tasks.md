@@ -44,7 +44,15 @@ Issue単位の進捗台帳ではない．現在の作業状態は`phase3_current
 * **Decision:** 全windowをartifactとして保持し，first-failを含むwindowとそれ以後をdiagnostic-onlyとする．canonical renderは`body_capsule_orthographic_v1`とする．
 * **Evidence:** Issue #159，PR #161，`conf/phase3/gt_passthrough_v1_r1_duration_3s_clips.yaml`，Phase 3 replay，Phase 4 freeze audit
 
-## P3-D05: dataset mixingとversion境界
+## P3-D05: Issue #199 v1 r2 follow-on window / feature study
+
+* **Status:** planned
+* **Background:** dataset v1 r1とは異なるIssue #199のtau-linked物理条件で，べん毛本数による3D運動・2D silhouette差をML前に確認する．
+* **Change:** identifierを`dataset_version=v1`, `dataset_revision=r2`, `dataset_id=v1_r2_tau_linked_3s`とする．36 source run（n=1..4, attach_seed=0..2, phase_seed=0..2）を3秒実行し，`0.25/0.5/1.0/1.5 s` non-overlap windowを作る．n=4はdataset artifactと分布比較に含めるが，`diagnostic_only=true`でML候補から除外する．
+* **Decision:** physical sourceは`time.scale_policy=reference_torque`, `T=2.5e-20 N m`, `dt*=1e-3`, `stiffness_scales.body=1.0`を固定する．2D特徴はbody-centred trajectoryではなく生成clipのpixel silhouetteから測定し，評価時は`group_key`単位で分離する．
+* **Evidence:** Issue #199，`conf/phase2_multi_run/flagella_count_behavior_v1_r2_tau_linked_3s.yaml`，`conf/phase3/gt_passthrough_v1_r2_tau_linked_3s_clips.yaml`，`scripts/03_dataset_building/evaluate_clip_dataset_features.py`
+
+## P3-D06: dataset mixingとversion境界
 
 * **Status:** adopted
 * **Background:** render variation，seed違い，物理条件変更，model変更を同一datasetへ混在させると，split leakageとdataset解釈の不整合が生じる．
@@ -53,7 +61,7 @@ Issue単位の進捗台帳ではない．現在の作業状態は`phase3_current
 * **Decision:** 同一raw run由来のvariationは同じ`group_key`を維持する．domain variationやmodel変更をbaselineへ無条件に混ぜない．詳細はADR 0015を正本とする．
 * **Evidence:** Issue #128，`docs/adr/0015_dataset_mixing_and_versioning.md`，`conf/phase4/dataset_freeze_v1.yaml`，`conf/phase4/dataset_freeze_v1_r1.yaml`
 
-## P3-D06: 実動画のdetection / tracking経路
+## P3-D07: 実動画のdetection / tracking経路
 
 * **Status:** pending
 * **Background:** 実動画にはPhase 2のGround Truth trackと`n_flagella` labelが存在せず，低コントラスト菌体と背景artifactを区別する必要がある．
