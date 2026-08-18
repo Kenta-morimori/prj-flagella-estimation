@@ -132,10 +132,12 @@ action-reaction residualは約`4e-15`以下である。
 phase seed複数で検証する唯一の候補とする。`0.25`は形状PASSだが、defaultより大幅に軟化しており、
 まずは候補に含めない。defaultは変更しない。
 
-### merge前のpriority 1--3 execution
+### 後続のbody stability diagnostics
 
-次の3 configを順に実行する。すべて2010 project専用・experiment-onlyであり、defaultやdatasetを
-変更しない。
+次の3 configは、body scale `1.25`の候補を追加診断するために残す。すべて2010 project専用・
+experiment-onlyであり、defaultやdatasetを変更しない。これらはPR #194のmerge条件ではない。
+#199のτ固定／連動screenと#200の`dt_star`収束評価で採用候補を固定してから、必要なconditionだけを
+実行・分析する。
 
 1. `2010_project_body1p25_fixed_real_time_0p5s_phase_robustness.yaml`:
    `T=1e-19 N m`, `dt_star=1e-3`, `0.5 s = 50 tau`, phase seed 3本。
