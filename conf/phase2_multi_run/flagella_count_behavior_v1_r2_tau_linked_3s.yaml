@@ -1,6 +1,6 @@
 kind: generic_multi_run
 metadata:
-  role: dataset_build
+  role: sweep
   canonical: false
   description: Issue 199 Task B/C; v1 follow-on 3 s dataset source under the selected tau-linked condition
   source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/199

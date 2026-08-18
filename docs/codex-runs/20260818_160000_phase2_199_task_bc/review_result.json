@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #199 Task B/C の実行契約を実装した。v1 r2はtau-linked T=2.5e-20 N m, dt*=1e-3, body scale 1.0の3秒・36 source runとし、n=4をdiagnostic-onlyとして4つのnon-overlap window datasetへ保持する。3D source summaryと実2D clip pixelsを同一feature reportへ出力する。長時間simulation・canonical replayはユーザー実行待ち。",
+  "summary": "Issue #199 Task B/C の実行契約を実装した。v1 r2はtau-linked T=2.5e-20 N m, dt*=1e-3, body scale 1.0の3秒・36 source runとし、n=4をdiagnostic-onlyとして4つのnon-overlap window datasetへ保持する。3D source summaryと実2D clip pixelsを同一feature reportへ出力する。長時間simulation・canonical replayはユーザー実行待ち。metadata.roleはgeneric runner互換のsweepである。",
   "checks": [
     {
       "command": "uv run pytest tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase3_clip_metadata_schema.py -q",
