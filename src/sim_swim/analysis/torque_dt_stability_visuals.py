@@ -16,6 +16,7 @@ matplotlib.use("Agg")
 
 FEATURES: tuple[tuple[str, str, str], ...] = (
     ("required_qc_pass", "required short-screen QC (PASS=1)", "status"),
+    ("max_body_spring_rel_err", "max body spring relative error", "max"),
     ("max_flag_bond_rel_err", "max flag bond relative error", "max"),
     ("max_hook_len_rel_err", "max hook length relative error", "max"),
     ("max_axis_mean_deviation_deg", "max axis mean deviation [deg]", "max"),
@@ -27,6 +28,7 @@ FEATURES: tuple[tuple[str, str, str], ...] = (
 # Fixed, physically meaningful ranges prevent tiny numerical differences from
 # being visually exaggerated.  The first entry is handled as a categorical gate.
 FEATURE_LIMITS = {
+    "max_body_spring_rel_err": (0.0, 0.10),
     "max_flag_bond_rel_err": (0.0, 0.10),
     "max_hook_len_rel_err": (0.0, 0.10),
     "max_axis_mean_deviation_deg": (0.0, 15.0),
@@ -36,6 +38,7 @@ FEATURE_LIMITS = {
 }
 
 METRIC_KEYS = {
+    "max_body_spring_rel_err": "body_spring_max_stretch_ratio",
     "max_flag_bond_rel_err": "flag_bond_rel_err_max",
     "max_hook_len_rel_err": "hook_len_rel_err_max",
     "max_axis_mean_deviation_deg": "flag_helix_axis_mean_deviation_deg_max",

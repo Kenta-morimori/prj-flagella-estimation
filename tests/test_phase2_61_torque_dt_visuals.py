@@ -20,6 +20,7 @@ def _summary() -> dict[str, object]:
             "shape_body": {"any_fail": False},
         },
         "all_step_metrics": {
+            "body_spring_max_stretch_ratio": {"max": 0.01},
             "flag_bond_rel_err_max": {"max": 0.01},
             "hook_len_rel_err_max": {"max": 0.02},
             "flag_helix_axis_mean_deviation_deg_max": {"max": 3.0},
