@@ -11,7 +11,7 @@ Phase 3の目的は，実顕微鏡動画とPhase 2擬似動画を，Phase 4で�
 * 実動画と擬似動画で共通のclip metadata schemaを採用している．
 * Phase 2擬似dataはGround Truth passthroughにより，再検出せずclip datasetへ変換できる．
 * dataset v1 r1の3秒runから，0.5秒non-overlap clipを生成するpipelineを実装済みである．
-* Issue #199のv1 r2 follow-on条件では，3秒sourceを`0.25/0.5/1.0/1.5 s` non-overlap windowへ分割し，n=4をdiagnostic-onlyとして保持する準備を完了した．
+* Issue #199のv1 r2 follow-on条件では，2秒sourceを`0.25/0.5/1.0/1.5 s` non-overlap windowへ分割し，n=4をdiagnostic-onlyとして保持する準備を完了した．
 * canonical renderは`body_capsule_orthographic_v1`である．
 * Phase 4のloader，baseline，grouped learning curve，freeze auditへ接続済みである．
 * 実動画のdetection / tracking経路は未実装である．

@@ -1,6 +1,6 @@
 dataset_id: phase3_v1_r2_tau_linked_clip_0p5
 output_name: phase3_v1_r2_tau_linked_clip_0p5
-input_dataset: outputs/phase2_multi_run/flagella_count_behavior_v1_r2/dataset/v1_r2_tau_linked_3s
+input_dataset: outputs/phase2_multi_run/flagella_count_behavior_v1_r2/dataset/v1_r2_tau_linked_2s
 output_dir:
 metadata:
   dataset_version: v1
