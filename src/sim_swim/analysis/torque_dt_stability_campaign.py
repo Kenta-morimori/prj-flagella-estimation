@@ -136,12 +136,27 @@ def _assert_condition(cfg: SimulationConfig, condition: dict[str, Any]) -> None:
 
 def _validate_campaign_contract(raw: dict[str, Any]) -> None:
     contract = dict(raw.get("campaign_contract", {}) or {})
-    if contract.get("name") != "2010_torque_linked_dt_stability":
-        raise ValueError("Missing 2010_torque_linked_dt_stability campaign contract")
-    if contract.get("stage") != "initial_screen":
-        raise ValueError(
-            "Only the initial_screen stage is executable from this profile"
-        )
+    name = contract.get("name")
+    stage = contract.get("stage")
+    if name not in {
+        "2010_torque_linked_dt_stability",
+        "2010_torque_linked_fixed_real_time_performance",
+    }:
+        raise ValueError("Missing supported 2010 torque-linked campaign contract")
+    if stage == "fixed_real_time_performance":
+        if name != "2010_torque_linked_fixed_real_time_performance":
+            raise ValueError(
+                "fixed_real_time_performance requires its dedicated contract"
+            )
+        if "duration_s" not in raw or "duration_tau" in raw:
+            raise ValueError("fixed_real_time_performance requires duration_s only")
+        if not math.isclose(float(raw["duration_s"]), 0.5, rel_tol=0.0):
+            raise ValueError("fixed_real_time_performance requires duration_s=0.5")
+        if {float(value) for value in raw.get("dt_stars", [])} != {1.0e-3}:
+            raise ValueError("fixed_real_time_performance requires dt_star=1e-3")
+        return
+    if name != "2010_torque_linked_dt_stability" or stage != "initial_screen":
+        raise ValueError("Only supported 2010 torque-linked stages are executable")
     active_dt = {float(value) for value in raw.get("dt_stars", [])}
     if active_dt != {1.0e-3, 1.0e-4}:
         raise ValueError("initial_screen must contain exactly dt_star=1e-3 and 1e-4")
@@ -176,17 +191,28 @@ def _archive_arrays(path: Path) -> dict[str, np.ndarray]:
         }
 
 
-def _validate_archive(path: Path, *, tau_s: float, count: int) -> dict[str, np.ndarray]:
+def _validate_archive(
+    path: Path, *, duration_s: float, count: int
+) -> dict[str, np.ndarray]:
     values = _archive_arrays(path)
-    t_over_tau = values["t"] / tau_s
-    expected = np.linspace(0.0, 1.0, count)
-    if t_over_tau.shape != expected.shape or not np.allclose(
-        t_over_tau, expected, rtol=0.0, atol=2e-10
+    expected = np.linspace(0.0, duration_s, count)
+    if values["t"].shape != expected.shape or not np.allclose(
+        values["t"], expected, rtol=0.0, atol=max(2e-14, duration_s * 2e-10)
     ):
         raise ValueError(
-            "comparison archive must contain exactly the configured normalized-time grid"
+            "comparison archive must contain exactly the configured time grid"
         )
     return values
+
+
+def _comparison_archive_states(states: list[Any], *, duration_s: float) -> list[Any]:
+    """Exclude only the ceil-induced state after a requested final archive time."""
+
+    tolerance = max(1e-15, duration_s * 1e-12)
+    selected = [state for state in states if float(state.t) <= duration_s + tolerance]
+    if not selected:
+        raise ValueError("comparison archive has no states at or before duration")
+    return selected
 
 
 def _quat_angle_deg(first: np.ndarray, second: np.ndarray) -> np.ndarray:
@@ -315,10 +341,13 @@ def _run_condition(
             stop_on_shape_fail=False,
             record_body_diagnostics=True,
         )
-        save_state_archive(directory / "state_archive.npz", states)
+        save_state_archive(
+            directory / "state_archive.npz",
+            _comparison_archive_states(states, duration_s=cfg.time.duration_s),
+        )
         _validate_archive(
             directory / "state_archive.npz",
-            tau_s=cfg.tau_s,
+            duration_s=cfg.time.duration_s,
             count=int(condition["comparison_sample_count"]),
         )
         return _condition_record(root, condition, cfg, qc)
@@ -369,10 +398,126 @@ def _safety(record: dict[str, Any], qc: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _performance_rows(
+    records: list[dict[str, Any]], safety_rows: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Combine simulator loop performance with mandatory safety results."""
+
+    safety_by_id = {str(row["condition_id"]): row for row in safety_rows}
+    rows: list[dict[str, Any]] = []
+    for record in records:
+        performance_path = Path(str(record["output_dir"])) / "performance.json"
+        performance = _read_json(performance_path) if performance_path.is_file() else {}
+        time_info = dict(record.get("time", {}) or {})
+        rows.append(
+            {
+                "condition_id": record["condition_id"],
+                "torque_Nm_per_flagellum": record["torque_Nm_per_flagellum"],
+                "dt_star": record["dt_star"],
+                "duration_s": time_info.get("duration_s"),
+                "duration_tau": time_info.get("duration_tau"),
+                "tau_s": time_info.get("tau_s"),
+                "dt_internal_s": time_info.get("dt_internal_s"),
+                "total_steps": performance.get("total_steps"),
+                "completed_steps": performance.get("completed_steps"),
+                "simulation_wall_time_s": performance.get("wall_time_s"),
+                "steps_per_s": performance.get("steps_per_s"),
+                "safety_status": safety_by_id[str(record["condition_id"])]["status"],
+            }
+        )
+    return rows
+
+
+def _completed_result_record(record: dict[str, Any]) -> bool:
+    """Return whether a record has the artifacts needed for offline analysis."""
+
+    output = Path(str(record["output_dir"]))
+    return (
+        dict(record.get("execution", {}) or {}).get("status") == "completed"
+        and (output / "run_summary.json").is_file()
+        and (output / "state_archive.npz").is_file()
+        and _performance_artifact_error(output) is None
+    )
+
+
+def _performance_artifact_error(output: Path) -> str | None:
+    """Return why a performance artifact cannot support a completed result."""
+
+    path = output / "performance.json"
+    if not path.is_file():
+        return "missing performance.json"
+    try:
+        performance = _read_json(path)
+    except (json.JSONDecodeError, OSError):
+        return "invalid performance.json"
+    required = ("wall_time_s", "steps_per_s", "total_steps", "completed_steps")
+    for key in required:
+        value = performance.get(key)
+        try:
+            if not math.isfinite(float(value)):
+                return f"invalid performance.json ({key})"
+        except (TypeError, ValueError):
+            return f"invalid performance.json ({key})"
+    return None
+
+
+def _incomplete_reason(record: dict[str, Any]) -> str:
+    execution = dict(record.get("execution", {}) or {})
+    status = str(execution.get("status") or "unknown")
+    output = Path(str(record["output_dir"]))
+    missing = [
+        name
+        for name in ("run_summary.json", "state_archive.npz")
+        if not (output / name).is_file()
+    ]
+    if missing:
+        return f"execution={status}; missing {', '.join(missing)}"
+    performance_error = _performance_artifact_error(output)
+    if performance_error is not None:
+        return f"execution={status}; {performance_error}"
+    return f"execution={status}"
+
+
+def _replay_summary_row(
+    record: dict[str, Any], safety: dict[str, Any]
+) -> dict[str, Any]:
+    """Make the generic replay's small CSV row from the compact QC summary."""
+
+    summary = _read_json(Path(str(record["output_dir"])) / "run_summary.json")
+    gates = dict(summary.get("gates", {}) or {})
+    first_fail: tuple[float, str] | None = None
+    for gate in gates.values():
+        item = dict(gate or {})
+        observed = item.get("first_observed_fail_t_s")
+        if observed is None:
+            continue
+        candidate = (float(observed), str(item.get("first_failure_category") or ""))
+        if first_fail is None or candidate[0] < first_fail[0]:
+            first_fail = candidate
+    time_info = dict(record.get("time", {}) or {})
+    return {
+        "condition_id": record["condition_id"],
+        "condition_label": (
+            f"T={float(record['torque_Nm_per_flagellum']):.2e} N m\n"
+            f"dt*={float(record['dt_star']):.0e}"
+        ),
+        "torque_Nm_per_flagellum": record["torque_Nm_per_flagellum"],
+        "dt_star": record["dt_star"],
+        "duration_s": time_info.get("duration_s"),
+        "duration_tau": time_info.get("duration_tau"),
+        "status": safety["status"],
+        "final_shape_pass_nonbody": safety["gates_pass"],
+        # phase2_replay historically calls this nonbody, but a body-gate failure
+        # must be visible in a qualitative replay as well.
+        "first_fail_t_s": first_fail[0] if first_fail is not None else "",
+        "first_fail_category_nonbody": first_fail[1] if first_fail else "",
+    }
+
+
 def _observables(record: dict[str, Any], cfg: SimulationConfig) -> dict[str, Any]:
     archive = _validate_archive(
         Path(record["output_dir"]) / "state_archive.npz",
-        tau_s=cfg.tau_s,
+        duration_s=cfg.time.duration_s,
         count=int(record["comparison_sample_count"]),
     )
     displacement = archive["position_um"] - archive["position_um"][0]
@@ -471,20 +616,51 @@ def _compare_same_torque(
     return {"status": "pass" if passed else "fail", **values}
 
 
-def summarize_campaign(root: Path, *, config_path: Path) -> dict[str, Any]:
+def summarize_campaign(
+    root: Path, *, config_path: Path, allow_incomplete: bool = False
+) -> dict[str, Any]:
+    """Rebuild campaign summaries without simulation.
+
+    ``allow_incomplete`` is only available for the fixed-real-time performance
+    stage.  It is an explicit qualitative-review mode: missing conditions are
+    recorded as exclusions and are never silently omitted from a conclusion.
+    """
+
     raw = load_yaml(config_path)
     _validate_campaign_contract(raw)
     plan = build_plan(config_path)
     qc = dict(raw.get("qc", {}) or {})
     base = load_yaml(Path(str(raw["base_config"])))
-    records = _read_json(root / "run_manifest.json")["conditions"]
+    manifest = _read_json(root / "run_manifest.json")
+    records = list(manifest["conditions"])
+    stage = dict(raw.get("campaign_contract", {}) or {}).get("stage")
+    if stage == "fixed_real_time_performance":
+        completed_records = [row for row in records if _completed_result_record(row)]
+        incomplete_records = [row for row in records if row not in completed_records]
+    else:
+        # Preserve the #61 initial-screen contract and its validation behavior.
+        completed_records = records
+        incomplete_records: list[dict[str, Any]] = []
+    if incomplete_records and not allow_incomplete:
+        details = "; ".join(
+            f"{row['condition_id']} ({_incomplete_reason(row)})"
+            for row in incomplete_records
+        )
+        raise ValueError(
+            "Campaign is incomplete; pass allow_incomplete=True only for "
+            f"fixed-real-time qualitative review. Incomplete: {details}"
+        )
+    if not completed_records:
+        raise ValueError("No completed condition has replayable artifacts")
     configs: dict[str, SimulationConfig] = {}
     safety_rows: list[dict[str, Any]] = []
-    for row in records:
+    replay_rows: list[dict[str, Any]] = []
+    for row in completed_records:
         cfg = _effective_config(row, base)
         configs[row["condition_id"]] = cfg
         safety = _safety(row, qc)
         row["safety"] = safety
+        replay_rows.append(_replay_summary_row(row, safety))
         safety_rows.append(
             {
                 "condition_id": row["condition_id"],
@@ -493,16 +669,62 @@ def summarize_campaign(root: Path, *, config_path: Path) -> dict[str, Any]:
                 **safety,
             }
         )
+    if stage == "fixed_real_time_performance":
+        performance_rows = _performance_rows(completed_records, safety_rows)
+        exclusions = [
+            {
+                "condition_id": row["condition_id"],
+                "reason": _incomplete_reason(row),
+                "included_in_qualitative_replay": False,
+            }
+            for row in incomplete_records
+        ]
+        _write_csv(root / "summary.csv", replay_rows)
+        _write_csv(root / "performance_summary.csv", performance_rows)
+        payload = {
+            "kind": "phase2_2010_torque_linked_fixed_real_time_performance_qc",
+            "contract_version": 1,
+            "source_config": str(config_path),
+            "campaign_plan_kind": plan["kind"],
+            "qc_thresholds": qc,
+            "conditions": safety_rows,
+            "performance": performance_rows,
+            "exclusions": exclusions,
+            "interpretation": {
+                "scope": "fixed_real_time_performance_only",
+                "duration_s": float(raw["duration_s"]),
+                "dt_star": 1.0e-3,
+                "completion_status": (
+                    "partial_qualitative_review_only" if exclusions else "complete"
+                ),
+                "prohibitions": [
+                    "Do not interpret this as a same-normalized-time similarity test.",
+                    "Do not use this campaign to adopt dt_star or torque.",
+                    "Do not treat excluded conditions as pass, fail, or replay evidence.",
+                ],
+            },
+        }
+        _write_json(root / "qc_summary.json", payload)
+        manifest["conditions"] = records
+        manifest["outputs"] = {
+            "summary_csv": str(root / "summary.csv"),
+            "performance_summary_csv": str(root / "performance_summary.csv"),
+            "qc_summary_json": str(root / "qc_summary.json"),
+        }
+        _write_json(root / "run_manifest.json", manifest)
+        return payload
     comparisons: list[dict[str, Any]] = []
-    torques = sorted({float(row["torque_Nm_per_flagellum"]) for row in records})
+    torques = sorted(
+        {float(row["torque_Nm_per_flagellum"]) for row in completed_records}
+    )
     refs = {
         float(row["torque_Nm_per_flagellum"]): row
-        for row in records
+        for row in completed_records
         if row["comparison_role"] == "formal_reference"
     }
     screen_comparators = {
         float(row["torque_Nm_per_flagellum"]): row
-        for row in records
+        for row in completed_records
         if row["comparison_role"] == "screen_comparator"
     }
     for torque in torques:
@@ -514,7 +736,7 @@ def summarize_campaign(root: Path, *, config_path: Path) -> dict[str, Any]:
             comparison_stage = "formal_reference"
         if reference is None:
             continue
-        for candidate in records:
+        for candidate in completed_records:
             if (
                 float(candidate["torque_Nm_per_flagellum"]) == torque
                 and candidate["condition_id"] != reference["condition_id"]
@@ -630,7 +852,6 @@ def summarize_campaign(root: Path, *, config_path: Path) -> dict[str, Any]:
         },
     }
     _write_json(root / "qc_summary.json", payload)
-    manifest = _read_json(root / "run_manifest.json")
     manifest["conditions"] = records
     manifest["outputs"] = {
         "summary_csv": str(root / "summary.csv"),
@@ -640,6 +861,80 @@ def summarize_campaign(root: Path, *, config_path: Path) -> dict[str, Any]:
     }
     _write_json(root / "run_manifest.json", manifest)
     return payload
+
+
+def render_fixed_real_time_qualitative_replay(
+    root: Path,
+    *,
+    config_path: Path,
+    allow_incomplete: bool,
+    fps_out_3d: float = 20.0,
+    target_frame_count: int = 101,
+) -> Path:
+    """Render completed fixed-real-time conditions without restarting simulation.
+
+    This deliberately delegates drawing to the common Phase 2 replay renderer.
+    The summary generated immediately before rendering contains only completed
+    artifacts, while the root QC and replay manifests retain every excluded
+    condition and its reason.
+    """
+
+    if not allow_incomplete:
+        raise ValueError(
+            "Qualitative replay requires explicit allow_incomplete=True; "
+            "it must not silently omit planned conditions"
+        )
+    raw = load_yaml(config_path)
+    _validate_campaign_contract(raw)
+    stage = dict(raw.get("campaign_contract", {}) or {}).get("stage")
+    if stage != "fixed_real_time_performance":
+        raise ValueError(
+            "Qualitative partial replay is only for fixed_real_time_performance"
+        )
+    payload = summarize_campaign(
+        root, config_path=config_path, allow_incomplete=allow_incomplete
+    )
+    output_dir = root / "analysis" / "fixed_real_time_qualitative_replay"
+    exclusions = list(payload.get("exclusions", []) or [])
+    figure_note = (
+        "Partial qualitative review: "
+        + "; ".join(f"{row['condition_id']} not run (excluded)" for row in exclusions)
+        if exclusions
+        else ""
+    )
+    from sim_swim.analysis.phase2_replay import main as render_phase2_replay
+
+    render_phase2_replay(
+        [
+            "--input-dir",
+            str(root),
+            "--output-dir",
+            str(output_dir),
+            "--mode",
+            "render-only",
+            "--fps-out-3d",
+            str(fps_out_3d),
+            "--target-frame-count",
+            str(target_frame_count),
+            "--overwrite",
+        ]
+        + (["--figure-note", figure_note] if figure_note else [])
+    )
+    replay_manifest_path = output_dir / "manifest.json"
+    replay_manifest = _read_json(replay_manifest_path)
+    replay_manifest["qualitative_review"] = {
+        "scope": "same-real-time completed conditions only",
+        "source_duration_s": float(raw["duration_s"]),
+        "excluded_conditions": exclusions,
+        "not_a_same_normalized_time_comparison": True,
+    }
+    _write_json(replay_manifest_path, replay_manifest)
+    root_manifest = _read_json(root / "run_manifest.json")
+    root_manifest.setdefault("outputs", {})["qualitative_replay_manifest_json"] = str(
+        replay_manifest_path
+    )
+    _write_json(root / "run_manifest.json", root_manifest)
+    return output_dir
 
 
 def run_torque_linked_campaign(
@@ -769,21 +1064,30 @@ def run_torque_linked_campaign(
     summarize_campaign(root, config_path=config_path)
     root_manifest_path = root / "manifest.json"
     root_manifest = _read_json(root_manifest_path)
+    stage = dict(raw.get("campaign_contract", {}) or {}).get("stage")
+    campaign_outputs = {
+        "campaign_plan_json": str(root / "campaign_plan.json"),
+        "run_manifest_json": str(root / "run_manifest.json"),
+        "summary_csv": str(root / "summary.csv"),
+        "qc_summary_json": str(root / "qc_summary.json"),
+    }
+    if stage == "fixed_real_time_performance":
+        campaign_outputs["performance_summary_csv"] = str(
+            root / "performance_summary.csv"
+        )
+    else:
+        campaign_outputs.update(
+            {
+                "dt_comparison_csv": str(root / "dt_comparison.csv"),
+                "torque_similarity_csv": str(root / "torque_similarity.csv"),
+            }
+        )
     root_manifest.setdefault("input", {})["campaign"] = {
         "kind": "phase2_2010_torque_linked_dt_stability_campaign",
         "config": str(config_path),
         "plan": str(root / "campaign_plan.json"),
         "condition_count": len(records),
     }
-    root_manifest.setdefault("outputs", {}).update(
-        {
-            "campaign_plan_json": str(root / "campaign_plan.json"),
-            "run_manifest_json": str(root / "run_manifest.json"),
-            "summary_csv": str(root / "summary.csv"),
-            "dt_comparison_csv": str(root / "dt_comparison.csv"),
-            "torque_similarity_csv": str(root / "torque_similarity.csv"),
-            "qc_summary_json": str(root / "qc_summary.json"),
-        }
-    )
+    root_manifest.setdefault("outputs", {}).update(campaign_outputs)
     _write_json(root_manifest_path, root_manifest)
     return root

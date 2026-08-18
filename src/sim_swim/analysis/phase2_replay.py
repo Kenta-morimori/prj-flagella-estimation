@@ -173,11 +173,29 @@ def _row_passes_nonbody(row: dict[str, str]) -> bool:
     ) and not _has_first_fail(row)
 
 
+def _has_body_failure(row: dict[str, str]) -> bool:
+    """Return whether an explicitly recorded body gate failed.
+
+    Older shape-stability summaries do not have body fields, so their absence
+    must not turn an otherwise valid non-body PASS into a failure.
+    """
+
+    return str(row.get("body_shape_pass", "")).strip().lower() == "false"
+
+
 def _fail_label(row: dict[str, str]) -> str:
     fail_t = str(row.get("first_fail_t_s", ""))
     fail_c = str(row.get("first_fail_category_nonbody", ""))
     if _has_first_fail(row):
         return f"FAIL {fail_c}@{fail_t[:6]}"
+    if _has_body_failure(row):
+        body_category = str(row.get("body_fail_category", "body")).strip()
+        body_t = str(row.get("body_first_fail_t_s", "")).strip()
+        if body_t:
+            return f"FAIL {body_category}@{body_t[:6]}"
+        return f"FAIL {body_category}"
+    if str(row.get("body_shape_pass", "")).strip().lower() == "true":
+        return "PASS"
     if _row_passes_nonbody(row):
         return "PASS"
     return f"FAIL {fail_c}@{fail_t[:6]}"
@@ -344,6 +362,16 @@ def _load_inputs(
             raise FileNotFoundError(
                 f"Missing state archive for {condition_id}: {archive_path}"
             )
+        # Generic compact summaries keep the body gate in run_summary.json.
+        # Copy the first body-failure time into the in-memory row so a replay
+        # does not incorrectly label a body PASS/FAIL using only non-body QC.
+        run_summary_path = archive_path.parent / "run_summary.json"
+        if run_summary_path.is_file() and _has_body_failure(row):
+            run_summary = _load_json(run_summary_path)
+            body_gate = dict(run_summary.get("gates", {}).get("shape_body", {}) or {})
+            first_body_fail_t = body_gate.get("first_observed_fail_t_s")
+            if first_body_fail_t is not None:
+                row["body_first_fail_t_s"] = str(first_body_fail_t)
     return ordered_rows, records, base_cfg_path
 
 
@@ -536,6 +564,7 @@ def _render_grid_movie(
     fps_out_3d: float,
     max_panels_per_grid: int,
     target_frame_count: int | None,
+    figure_note: str | None = None,
 ) -> Any:
     import cv2
 
@@ -604,7 +633,12 @@ def _render_grid_movie(
                     title=page_titles[page_idx],
                     fail_label=page_fail_labels[page_idx],
                 )
-            fig.tight_layout()
+            if figure_note:
+                fig.tight_layout()
+                fig.subplots_adjust(bottom=0.06)
+                fig.text(0.5, 0.012, figure_note, ha="center", fontsize=9)
+            else:
+                fig.tight_layout()
             canvas = FigureCanvasAgg(fig)
             canvas.draw()
             buf = np.asarray(canvas.buffer_rgba())
@@ -954,6 +988,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--fps-out-3d", type=float, default=None)
     parser.add_argument("--target-frame-count", type=int, default=None)
     parser.add_argument("--max-panels-per-grid", type=int, default=None)
+    parser.add_argument(
+        "--figure-note",
+        type=str,
+        default=None,
+        help="Optional note shown beneath every replay grid frame.",
+    )
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(parser_argv)
@@ -1056,6 +1096,7 @@ def main(argv: list[str] | None = None) -> None:
             fps_out_3d=args.fps_out_3d,
             max_panels_per_grid=args.max_panels_per_grid,
             target_frame_count=args.target_frame_count,
+            figure_note=args.figure_note,
         )
         logger.info(
             "Rendered grid videos: pages=%d",
@@ -1072,6 +1113,7 @@ def main(argv: list[str] | None = None) -> None:
             "fps_out_3d": args.fps_out_3d,
             "target_frame_count": args.target_frame_count,
             "max_panels_per_grid": args.max_panels_per_grid,
+            "figure_note": args.figure_note,
         },
         "conditions": [row["condition_id"] for row in rows],
         "outputs": {

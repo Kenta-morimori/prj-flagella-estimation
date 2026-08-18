@@ -88,11 +88,14 @@ def _condition_row(
             "first_fail_category_nonbody": nonbody.get("first_failure_category"),
             "body_shape_pass": not bool(body.get("any_fail", False)),
             "body_fail_category": body.get("first_failure_category"),
+            "body_first_fail_t_s": body.get("first_observed_fail_t_s"),
         }
         for field in SUMMARY_FIELDS:
             metric = metrics.get(field)
             if isinstance(metric, dict):
-                result.setdefault(field, metric.get("max"))
+                statistic = "min" if field == "body_triangle_area_ratio_min" else "max"
+                result.setdefault(field, metric.get(statistic))
+        result.update(summary_axis_fields(condition))
         return result
     rows = _read_step_rows(step_path)
     axis_center_summary = _axis_center_phase_summary(
@@ -190,7 +193,10 @@ def run_campaign(argv: list[str] | None = None) -> Path:
     args, passthrough = _parse_args(argv)
     raw_campaign = load_yaml(args.campaign_config)
     contract = dict(raw_campaign.get("campaign_contract", {}) or {})
-    if contract.get("name") == "2010_torque_linked_dt_stability":
+    if contract.get("name") in {
+        "2010_torque_linked_dt_stability",
+        "2010_torque_linked_fixed_real_time_performance",
+    }:
         if args.sample_limit is not None or passthrough:
             raise ValueError(
                 "The torque-linked dt campaign has a fixed condition contract; "

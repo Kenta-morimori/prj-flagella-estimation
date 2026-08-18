@@ -46,7 +46,7 @@ torque × `dt_star` replay gridを完了した。これは短時間の形状・�
 
 ## Next queue
 
-1. **Issue #61:** 2010 torque連動time-scaleの`1 tau` campaignは、比較archiveの時刻ずれとmotor反作用不整合を修正して再実行待ち。修正前の2026-08-13出力は採択・比較に使わない。runner/QC契約は`phase2_61_2010_torque_dt_campaign_contract.md`、実行結果の評価後に2015 projectへの反映可否を判断する．既存archiveのtorque × `dt_star`形状・束化heatmapとreplayは再simulationなしで生成する。
+1. **Issue #61:** 2010 torque連動time-scaleの`1 tau` campaignは、比較archiveの時刻ずれとmotor反作用不整合を修正して再実行待ち。修正前の2026-08-13出力は採択・比較に使わない。#193はexperiment-onlyの固定実時間performance/body診断を記録したが、torque・`dt_star`・datasetの採択根拠ではない。τ固定／連動のscreenは#199、採用候補の`dt_star`収束性は子Issue #200で評価する。runner/QC契約は`phase2_61_2010_torque_dt_campaign_contract.md`、実行結果の評価後に2015 projectへの反映可否を判断する．
 2. **Issue #183:** fixed / tracking reference と同一実時間 / 無次元時間を分離した比較policyを ADR 0016 に固定し、2010先行screenとhook-only diagnosticを比較契約・結果記録へ残した。torque・`dt_star`・dataset v2 の採択は #61・#184 の結果後とする（`phase2_183_reference_torque_comparison_contract.md`）。
 3. **Issue #184:** dataset v2採択前に、torque・`dt_star`・べん毛数の安定性と計算効率を検証する．
 

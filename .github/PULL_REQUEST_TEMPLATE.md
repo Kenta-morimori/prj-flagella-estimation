@@ -16,6 +16,10 @@
 - [ ] 小タスクとしてCodex merge可能，またはユーザー判断待ちであることを明記
 
 ## 関連項目
-- 関連Issue:
+- Source Issue:
+- Parent Issue:
+- Blocking / Blocked by:
 - 関連PR:
 - 関連ドキュメント:
+
+`Closes #<issue>` はmergeだけでIssueを完了できる場合だけに使う。実行結果・ユーザー評価などが残る場合はnon-closing referenceを使い、残作業を本文へ明記する。

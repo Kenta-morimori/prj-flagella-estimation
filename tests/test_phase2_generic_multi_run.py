@@ -13,7 +13,12 @@ from sim_swim.analysis.multi_run_campaign import (
     build_campaign_conditions,
     load_yaml,
 )
-from sim_swim.analysis.sweeps.generic_multi_run import _summary_fieldnames, run_campaign
+from sim_swim.analysis.online_run_summary import OnlineRunSummary
+from sim_swim.analysis.sweeps.generic_multi_run import (
+    _condition_row,
+    _summary_fieldnames,
+    run_campaign,
+)
 
 
 def _load_script(path: Path, name: str):
@@ -854,6 +859,35 @@ def test_replay_marks_no_first_fail_as_pass() -> None:
     assert module._row_passes_nonbody(row) is True
 
 
+def test_replay_uses_body_gate_for_generic_campaign_status() -> None:
+    module = _load_script(
+        Path("src/sim_swim/analysis/phase2_replay.py"),
+        "phase2_replay_body_gate_status",
+    )
+
+    assert (
+        module._fail_label(
+            {
+                "final_shape_pass_nonbody": "",
+                "body_shape_pass": "True",
+                "body_fail_category": "none",
+            }
+        )
+        == "PASS"
+    )
+    assert (
+        module._fail_label(
+            {
+                "final_shape_pass_nonbody": "True",
+                "body_shape_pass": "False",
+                "body_fail_category": "body_spring",
+                "body_first_fail_t_s": "0.02725",
+            }
+        )
+        == "FAIL body_spring@0.0272"
+    )
+
+
 def test_replay_marks_compact_campaign_status_pass() -> None:
     module = _load_script(
         Path("src/sim_swim/analysis/phase2_replay.py"),
@@ -1070,3 +1104,111 @@ def test_generic_multi_run_summary_fieldnames_include_body_shape_gate() -> None:
     assert "body_bend_max_error_deg" in fields
     assert "body_centerline_max_deviation_um" in fields
     assert "body_triangle_area_ratio_min" in fields
+
+
+def test_generic_heatmap_hydrates_compact_body_gate_and_axes(tmp_path: Path) -> None:
+    module = _load_script(
+        Path("src/sim_swim/analysis/heatmaps/generic_multi_run.py"),
+        "generic_heatmap_compact_hydration",
+    )
+    condition_dir = tmp_path / "body2p0__phase0"
+    condition_dir.mkdir()
+    (condition_dir / "run_summary.json").write_text(
+        json.dumps(
+            {
+                "gates": {
+                    "shape_body": {"first_observed_fail_t_s": 0.0413},
+                },
+                "all_step_metrics": {
+                    "body_spring_max_stretch_ratio": {"max": 1.25},
+                    "body_triangle_area_ratio_min": {"min": 0.95, "max": 1.0},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "run_manifest.json").write_text(
+        json.dumps(
+            {
+                "conditions": [
+                    {
+                        "condition_id": "body2p0__phase0",
+                        "output_dir": str(condition_dir),
+                        "axis_values": {"body_stiffness": 2.0},
+                        "axis_labels": {"body_stiffness": "candidate_2p0"},
+                        "axis_order": {"body_stiffness": 1},
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    rows = [{"condition_id": "body2p0__phase0", "body_shape_pass": "False"}]
+
+    module._hydrate_compact_rows_from_manifest(rows, tmp_path)
+
+    assert rows[0]["axis_body_stiffness_label"] == "candidate_2p0"
+    assert rows[0]["axis_body_stiffness_index"] == "1"
+    assert rows[0]["body_first_fail_t_s"] == "0.0413"
+    assert rows[0]["body_spring_max_stretch_ratio"] == "1.25"
+    assert rows[0]["body_triangle_area_ratio_min"] == "0.95"
+
+
+def test_generic_compact_summary_retains_all_body_metrics(tmp_path: Path) -> None:
+    (tmp_path / "run_summary.json").write_text(
+        json.dumps(
+            {
+                "execution": {"status": "completed", "expected_total_steps": 100},
+                "gates": {
+                    "shape_nonbody": {},
+                    "shape_body": {
+                        "any_fail": True,
+                        "first_failure_category": "body_spring",
+                        "first_observed_fail_t_s": 0.0123,
+                    },
+                },
+                "all_step_metrics": {
+                    "body_spring_max_stretch_ratio": {"max": 1.2},
+                    "body_bend_max_error_deg": {"max": 61.0},
+                    "body_centerline_max_deviation_um": {"max": 2.1},
+                    "body_triangle_area_ratio_min": {"min": 0.95, "max": 1.0},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    condition = {
+        "condition_id": "body1p0",
+        "condition_index": 0,
+        "condition_label": "body=baseline",
+        "axis_values": {"body_stiffness": 1.0},
+        "axis_labels": {"body_stiffness": "baseline"},
+        "axis_ids": {"body_stiffness": "body1p0"},
+        "axis_order": {"body_stiffness": 0},
+    }
+
+    row = _condition_row(None, condition, tmp_path)  # type: ignore[arg-type]
+
+    assert row["body_first_fail_t_s"] == 0.0123
+    assert row["body_spring_max_stretch_ratio"] == 1.2
+    assert row["body_bend_max_error_deg"] == 61.0
+    assert row["body_centerline_max_deviation_um"] == 2.1
+    assert row["body_triangle_area_ratio_min"] == 0.95
+    assert row["axis_body_stiffness_label"] == "baseline"
+
+
+def test_compact_summary_records_minimum_body_triangle_area_ratio() -> None:
+    summary = OnlineRunSummary(expected_steps=2)
+    initial = {
+        "t_s": 0.0,
+        "body_triangle_area_min": 4.0,
+        "body_spring_max_stretch_ratio": 0.1,
+        "body_bend_max_error_deg": 2.0,
+        "body_centerline_max_deviation_um": 0.05,
+    }
+    summary.record_body(initial)
+    summary.record_body({**initial, "t_s": 0.1, "body_triangle_area_min": 3.0})
+
+    metric = summary.extrema["body_triangle_area_ratio_min"]
+    assert metric["min"] == pytest.approx(0.75)
+    assert metric["final"] == pytest.approx(0.75)

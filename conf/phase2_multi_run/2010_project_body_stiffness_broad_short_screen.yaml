@@ -1,0 +1,58 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  description: >
+    PR #194 diagnostic: broad body stiffness screen around the phase-0 body
+    spring failure. This is experiment-only and does not modify the 2010
+    project default body parameters.
+
+base_config: conf/sim_swim_2010.yaml
+
+base_overrides:
+  time.scale_policy: reference_torque
+  time.duration.value: 5.0
+  time.duration.unit: tau
+  time.integration.dt_star: 1.0e-3
+  motor.torque_Nm: 1.0e-19
+  motor.reference_torque_Nm: 1.0e-19
+  motor.torque_for_forces_override_Nm: 0.0
+  motor.body_reaction_full_vector: true
+  brownian.enabled: false
+  seed.attach_seed: 0
+  seed.phase_seed: 0
+  body.prism.diagonal_braces_enabled: true
+  output.policy: compact
+  output.archive_interval_s: 1.0e-4
+
+sweep:
+  axes:
+    body_stiffness:
+      key: stiffness_scales.body
+      short_name: body
+      values: [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0]
+      labels: [0.25, 0.5, 0.75, baseline, 1.25, 1.5, 2.0, 3.0]
+      ids: [body0p25, body0p5, body0p75, body1p0, body1p25, body1p5, body2p0, body3p0]
+
+replay:
+  mode: both
+  fps_out_3d: 20.0
+  target_frame_count: 101
+  max_panels_per_grid: 8
+  output_subdir: analysis/body_stiffness_broad_short_replay
+
+plot:
+  default_x_axis: body_stiffness
+  default_y_axis: null
+  metrics:
+    - body_first_fail_t_s
+    - body_spring_max_stretch_ratio
+    - body_bend_max_error_deg
+    - body_centerline_max_deviation_um
+    - body_triangle_area_ratio_min
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 1000

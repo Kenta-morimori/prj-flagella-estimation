@@ -1,0 +1,31 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  description: Issue #193 fixed-real-time cost measurement; this is not a same-normalized-time comparison.
+
+campaign_contract:
+  name: 2010_torque_linked_fixed_real_time_performance
+  stage: fixed_real_time_performance
+
+base_config: conf/sim_swim_2010.yaml
+duration_s: 0.5
+torques_Nm: [1.0e-21, 2.5e-20, 1.0e-19, 1.2e-18]
+dt_stars: [1.0e-3]
+comparison_sample_count: 501
+
+output:
+  # Run root: outputs/YYYY-MM-DD/HHMMSS/phase2_issue193_2010_torque_fixed_real_time_0p5s_performance/
+  base_dir: outputs
+  timestamp_subdir: true
+  run_name: phase2_issue193_2010_torque_fixed_real_time_0p5s_performance
+  policy: compact
+  progress_interval: 1000
+qc:
+  max_motor_force_balance_residual_ratio: 1.0e-8
+  max_motor_torque_balance_residual_ratio: 1.0e-8
+  max_rotation_relative_error: 0.10
+  max_body_orientation_difference_deg: 5.0
+  max_bead_rms_over_b: 0.10
+  max_bead_displacement_over_b: 0.25
+  swimming_stability_policy: diagnostic_review_required

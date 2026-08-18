@@ -90,6 +90,17 @@ uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
 
 主な出力は `outputs/YYYY-MM-DD/HHMMSS/` 配下に作成され、`manifest.json` と `run.log` に実行条件が記録されます。Issue #61 torque-dt screenのrun rootは`outputs/YYYY-MM-DD/HHMMSS/phase2_issue61_2010_project_torque_dt_initial_screen/`です。terminalと`run.log`へ全8条件の開始・完了/失敗と経過時間が出力され、実行中のconditionは`run_manifest.json`の`execution.status`で確認できます。
 
+Issue #193は、2010 torque-linked条件で同じ物理`0.5 s`を回すcostだけを測ります。無次元時間の同等性や`dt_star`採択は判断しません。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_multi_run.py \
+  config=conf/phase2_multi_run/2010_project_torque_fixed_real_time_0p5s_performance.yaml
+uv run python scripts/02_phase2_analysis/analyze_2010_torque_fixed_real_time_performance.py \
+  --run-dir <campaign-root>
+```
+
+`performance_summary.csv`には、各torqueの`duration_tau`、総step数、simulation-loop wall time、steps/sと必須safety QCを出力します。
+
 ### Sweep
 
 開発用・診断用の task-specific sweep は `run_sweep.py` を使います。対象 profile は `conf/phase2_sweeps/` に置きます。

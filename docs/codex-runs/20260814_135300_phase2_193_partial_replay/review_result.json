@@ -1,0 +1,42 @@
+{
+  "status": "PASS",
+  "task": "Issue #193 interrupted fixed-real-time campaignの明示的partial qualitative replay",
+  "branch": "feature/issue-193-fixed-time-performance",
+  "summary": [
+    "未完了conditionを黙って除外しない通常集計を維持し、fixed-real-time performance stageだけに明示opt-inのpartial qualitative replayを追加した。",
+    "完了した3条件だけから同一実時間0.5 sの101-frame replayを生成し、T1p2e-18_dt1e-3を未実施・除外としてroot QC/replay manifestと図内に記録した。",
+    "既存archiveを読むだけであり、simulationを再実行していない。"
+  ],
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "T1p2e-18_dt1e-3は手動停止され、0.5 sのperformance結果を持たない。"
+  ],
+  "tests_reviewed": [
+    "uv run ruff check src/sim_swim/analysis/torque_dt_stability_campaign.py src/sim_swim/analysis/phase2_replay.py scripts/02_phase2_analysis/analyze_2010_torque_fixed_real_time_performance.py tests/test_phase2_61_torque_dt_campaign.py: PASS",
+    "uv run pytest tests/test_phase2_61_torque_dt_campaign.py tests/test_phase2_generic_multi_run.py -q: PASS (61 passed)",
+    "partial replay command: PASS; MP4/final PNG/manifest generated from existing archives"
+  ],
+  "user_review_required": true,
+  "user_review_command": "uv run python scripts/02_phase2_analysis/analyze_2010_torque_fixed_real_time_performance.py --run-dir outputs/2026-08-13/202956/phase2_issue193_2010_torque_fixed_real_time_0p5s_performance --allow-incomplete --render-qualitative-replay",
+  "user_review_outputs": [
+    "outputs/2026-08-13/202956/phase2_issue193_2010_torque_fixed_real_time_0p5s_performance/analysis/fixed_real_time_qualitative_replay/grid_swim3d.mp4",
+    "outputs/2026-08-13/202956/phase2_issue193_2010_torque_fixed_real_time_0p5s_performance/analysis/fixed_real_time_qualitative_replay/grid_swim3d_final.png",
+    "outputs/2026-08-13/202956/phase2_issue193_2010_torque_fixed_real_time_0p5s_performance/analysis/fixed_real_time_qualitative_replay/manifest.json"
+  ],
+  "user_review_points": [
+    "T1e-21_dt1e-3とT2p5e-20_dt1e-3の0.5 s最終形状を確認する。",
+    "T1e-19_dt1e-3のbody_spring QC failure注記と形状破綻を確認する。",
+    "T1p2e-18_dt1e-3が未実施・除外であり、比較セルとして扱われていないことを確認する。"
+  ],
+  "adr_required": false,
+  "adr_reason": "既存のexperiment-only・fixed-real-time performance contractの範囲内で、未完了runの結果表示を明示化する実装である。",
+  "commit_type": "complete",
+  "commit_hash": "recorded in Git/PR after this review record",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/194",
+  "next_actions": [
+    "PR #194のCIとCodex reviewを確認する。",
+    "ユーザーがreplayを確認後、T1p2e-18_dt1e-3を未実施のまま扱うか、早期停止を含む別campaignを設計する。",
+    "PR #194はperformance結果の結論とユーザー確認後までmergeしない。"
+  ]
+}

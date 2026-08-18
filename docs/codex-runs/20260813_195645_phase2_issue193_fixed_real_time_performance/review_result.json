@@ -1,0 +1,47 @@
+{
+  "status": "PASS",
+  "task": "Phase 2 Issue #193 2010 torque-linked fixed-real-time performance characterization",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/193",
+  "branch": "feature/issue-193-fixed-time-performance",
+  "summary": [
+    "2010 projectのexperiment-only torque-linked条件に、固定実時間duration_s=0.5のperformance-only campaignを追加した。",
+    "duration_sと既存duration_tauは排他的で、実時間、到達duration_tau、内部刻み、step数、simulation-loop wall time、steps/s、必須safety QCをperformance_summary.csvへ出力する。",
+    "同一無次元時間の相似性、dt_star採択、2015 project、dataset採択を対象外として明記した。"
+  ],
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "数理上のstep数は500/12,500/50,000/600,000だが、integratorのceil規則と浮動小数点境界により中間2条件はmanifest上で1 step多くなる場合がある。実測値はperformance.jsonを正本とする。",
+    "長時間simulationはユーザー実行とし、この変更では開始していない。"
+  ],
+  "tests_reviewed": [
+    "uv run pytest tests/test_phase2_61_torque_dt_campaign.py tests/test_phase2_61_torque_dt_visuals.py tests/test_phase2_generic_multi_run.py tests/test_run_context.py -q (67 passed)",
+    "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/2010_project_torque_fixed_real_time_0p5s_performance.yaml dry_run=true (4 conditions; simulation not started)",
+    "uv run python scripts/02_phase2_analysis/analyze_2010_torque_fixed_real_time_performance.py --help (PASS)",
+    "uv run ruff format --check . (156 files already formatted)",
+    "uv run ruff check . (PASS)",
+    "uv run pytest -q (PASS)",
+    "git diff --check (PASS)"
+  ],
+  "user_review_required": true,
+  "user_review_command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/2010_project_torque_fixed_real_time_0p5s_performance.yaml",
+  "user_review_outputs": [
+    "<campaign-root>/performance_summary.csv",
+    "<campaign-root>/qc_summary.json",
+    "<campaign-root>/run_manifest.json"
+  ],
+  "user_review_points": [
+    "4 conditionすべてのsafety_statusがpassであること",
+    "performance_summary.csvのtotal_steps、simulation_wall_time_s、steps_per_sを比較すること",
+    "固定実時間結果を600 tauの無次元相似性やdt_star採択として解釈しないこと"
+  ],
+  "adr_required": false,
+  "adr_reason": "既存のexperiment-only torque-linked opt-inを利用する性能計測campaignであり、物理モデル、baseline policy、dataset policyを変更しないため。",
+  "commit_type": "complete",
+  "commit_hash": "pending",
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "ユーザーが固定実時間0.5秒の4-condition campaignを実行する。",
+    "結果から低torque条件の実測step数・wall timeを記録するが、無次元的な物理同等性は主張しない。"
+  ]
+}

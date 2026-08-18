@@ -22,11 +22,18 @@ def _condition_number_label(value: float) -> str:
 def build_plan(config_path: Path) -> dict[str, Any]:
     raw = load_yaml(config_path)
     base_path = Path(str(raw["base_config"]))
-    duration_tau = float(raw["duration_tau"])
+    has_duration_tau = "duration_tau" in raw
+    has_duration_s = "duration_s" in raw
+    if has_duration_tau == has_duration_s:
+        raise ValueError("Specify exactly one of duration_tau or duration_s")
+    duration_value = float(
+        raw["duration_tau"] if has_duration_tau else raw["duration_s"]
+    )
+    duration_unit = "tau" if has_duration_tau else "s"
     samples = int(raw.get("comparison_sample_count", 201))
-    if duration_tau <= 0 or samples < 2:
+    if duration_value <= 0 or samples < 2:
         raise ValueError(
-            "duration_tau must be positive and comparison_sample_count >= 2"
+            "duration_tau/duration_s must be positive and comparison_sample_count >= 2"
         )
     torques = [float(v) for v in raw["torques_Nm"]]
     dt_stars = [float(v) for v in raw["dt_stars"]]
@@ -41,7 +48,7 @@ def build_plan(config_path: Path) -> dict[str, Any]:
             overrides = {
                 "time": {
                     "scale_policy": "reference_torque",
-                    "duration": {"value": duration_tau, "unit": "tau"},
+                    "duration": {"value": duration_value, "unit": duration_unit},
                     "integration": {"dt_star": dt_star},
                 },
                 "motor": {
@@ -90,7 +97,7 @@ def build_plan(config_path: Path) -> dict[str, Any]:
                         "uv run python -m scripts.01_simulate_swimming "
                         f"config={base_path} "
                         "time.scale_policy=reference_torque "
-                        f"time.duration.value={duration_tau:g} time.duration.unit=tau "
+                        f"time.duration.value={duration_value:g} time.duration.unit={duration_unit} "
                         f"time.integration.dt_star={dt_star:.12g} "
                         f"motor.torque_Nm={torque:.12g} "
                         f"motor.reference_torque_Nm={torque:.12g} "
@@ -105,7 +112,7 @@ def build_plan(config_path: Path) -> dict[str, Any]:
         "kind": "phase2_2010_torque_linked_dt_stability_plan",
         "contract_version": 1,
         "source_config": str(base_path),
-        "duration_tau": duration_tau,
+        "duration": {"value": duration_value, "unit": duration_unit},
         "conditions": conditions,
         "interpretation_prohibitions": [
             "This plan does not change the supported 2010 project baseline.",

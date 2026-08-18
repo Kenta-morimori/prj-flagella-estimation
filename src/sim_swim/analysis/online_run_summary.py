@@ -113,6 +113,23 @@ class OnlineRunSummary:
                 item["max"] = (
                     number if item["max"] is None else max(float(item["max"]), number)
                 )
+        ratio_item = self.extrema.setdefault(
+            "body_triangle_area_ratio_min",
+            {"min": None, "max": None, "final": None, "finite": True},
+        )
+        ratio_item["final"] = ratio if math.isfinite(ratio) else None
+        ratio_item["finite"] = bool(ratio_item["finite"]) and math.isfinite(ratio)
+        if math.isfinite(ratio):
+            ratio_item["min"] = (
+                ratio
+                if ratio_item["min"] is None
+                else min(float(ratio_item["min"]), ratio)
+            )
+            ratio_item["max"] = (
+                ratio
+                if ratio_item["max"] is None
+                else max(float(ratio_item["max"]), ratio)
+            )
         self._record_gate("shape_body", passed, t_s, category, "body")
 
     def _record_gate(
