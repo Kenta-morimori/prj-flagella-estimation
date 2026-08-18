@@ -989,6 +989,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--target-frame-count", type=int, default=None)
     parser.add_argument("--max-panels-per-grid", type=int, default=None)
     parser.add_argument(
+        "--condition-id",
+        action="append",
+        default=[],
+        help="Replay only this condition ID; repeat the option to select several.",
+    )
+    parser.add_argument(
         "--figure-note",
         type=str,
         default=None,
@@ -1036,6 +1042,13 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
     rows, records, base_cfg_path = _load_inputs(args.input_dir)
+    if args.condition_id:
+        requested = set(args.condition_id)
+        known = {row["condition_id"] for row in rows}
+        unknown = sorted(requested - known)
+        if unknown:
+            raise ValueError(f"Unknown condition IDs: {', '.join(unknown)}")
+        rows = [row for row in rows if row["condition_id"] in requested]
     if args.dry_run:
         for row in rows:
             print(row["condition_id"])

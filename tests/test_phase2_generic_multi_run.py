@@ -619,6 +619,29 @@ def test_replay_load_inputs_uses_manifest_condition_order_and_output_dir(
     assert base_cfg_path == Path("conf/sim_swim_2010.yaml")
 
 
+def test_replay_accepts_repeated_condition_id_filter(tmp_path: Path) -> None:
+    module = _load_script(
+        Path("src/sim_swim/analysis/phase2_replay.py"),
+        "phase2_replay_condition_id_filter",
+    )
+
+    args = module._parse_args(
+        [
+            "--input-dir",
+            str(tmp_path),
+            "--condition-id",
+            "tau_fixed_control_T1e-21_dt1e-3",
+            "--condition-id",
+            "tau_fixed_control_T1e-21_dt1e-4",
+        ]
+    )
+
+    assert args.condition_id == [
+        "tau_fixed_control_T1e-21_dt1e-3",
+        "tau_fixed_control_T1e-21_dt1e-4",
+    ]
+
+
 def test_replay_builds_refined_2015_geometry_from_campaign_record() -> None:
     module = _load_script(
         Path("src/sim_swim/analysis/phase2_replay.py"),
