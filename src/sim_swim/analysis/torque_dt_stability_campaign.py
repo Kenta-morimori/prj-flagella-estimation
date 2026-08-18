@@ -111,8 +111,14 @@ def _assert_condition(cfg: SimulationConfig, condition: dict[str, Any]) -> None:
         or profile.get("resolution") != "legacy_project"
     ):
         raise ValueError("This campaign only supports the 2010 project profile")
-    if cfg.time_scale_policy != "reference_torque":
-        raise ValueError("This campaign requires time.scale_policy=reference_torque")
+    tau_policy = str(condition.get("tau_policy") or "torque_linked_tau")
+    expected_scale_policy = (
+        "legacy_fixed_tau_s_1"
+        if tau_policy == "tau_fixed_control"
+        else "reference_torque"
+    )
+    if cfg.time_scale_policy != expected_scale_policy:
+        raise ValueError(f"Unexpected time scale policy for {tau_policy}")
     if cfg.brownian.enabled:
         raise ValueError("This campaign requires brownian.enabled=false")
     if not cfg.motor.body_reaction_full_vector:
@@ -126,7 +132,10 @@ def _assert_condition(cfg: SimulationConfig, condition: dict[str, Any]) -> None:
         raise ValueError(
             "motor/reference/force torques must all equal condition torque"
         )
-    if not math.isclose(
+    if tau_policy == "tau_fixed_control":
+        if not math.isclose(cfg.tau_s, 1.0, rel_tol=0.0, abs_tol=1e-12):
+            raise ValueError("tau_fixed_control requires tau_s=1 s")
+    elif not math.isclose(
         cfg.tau_s, cfg.viscosity_Pa_s * cfg.b_m**3 / torque, rel_tol=1e-12
     ):
         raise ValueError("tau_s does not follow eta*b^3/T")
@@ -138,6 +147,31 @@ def _validate_campaign_contract(raw: dict[str, Any]) -> None:
     contract = dict(raw.get("campaign_contract", {}) or {})
     name = contract.get("name")
     stage = contract.get("stage")
+    if name == "2010_project_tau_policy_torque_dt_fixed_real_time":
+        if stage != "tau_policy_screen" or "duration_tau" in raw:
+            raise ValueError("tau_policy_screen requires duration_s only")
+        if not math.isclose(float(raw.get("duration_s", 0.0)), 0.05, rel_tol=0.0):
+            raise ValueError("tau_policy_screen requires duration_s=0.05")
+        if {float(value) for value in raw.get("torques_Nm", [])} != {
+            1.0e-21,
+            2.5e-20,
+            1.0e-19,
+        } or {float(value) for value in raw.get("dt_stars", [])} != {1.0e-3, 1.0e-4}:
+            raise ValueError("tau_policy_screen requires the fixed 3x2 torque-dt grid")
+        policies = list(contract.get("time_policies") or [])
+        observed = {
+            (str(row.get("id")), str(row.get("time_scale_policy"))) for row in policies
+        }
+        if observed != {
+            ("tau_fixed_control", "profile_default"),
+            ("torque_linked_tau", "reference_torque"),
+        }:
+            raise ValueError(
+                "tau_policy_screen requires fixed and torque-linked policies"
+            )
+        if int(raw.get("comparison_sample_count", 0)) != 201:
+            raise ValueError("tau_policy_screen requires comparison_sample_count=201")
+        return
     if name not in {
         "2010_torque_linked_dt_stability",
         "2010_torque_linked_fixed_real_time_performance",
@@ -296,6 +330,8 @@ def _condition_record(
     output = root / condition["condition_id"]
     record: dict[str, Any] = {
         "condition_id": condition["condition_id"],
+        "tau_policy": condition.get("tau_policy"),
+        "condition_label": condition.get("condition_label"),
         "torque_Nm_per_flagellum": condition["torque_Nm_per_flagellum"],
         "dt_star": condition["dt_star"],
         "comparison_role": condition["comparison_role"],
@@ -498,9 +534,11 @@ def _replay_summary_row(
     return {
         "condition_id": record["condition_id"],
         "condition_label": (
-            f"T={float(record['torque_Nm_per_flagellum']):.2e} N m\n"
+            (f"tau_policy={record['tau_policy']}\n" if record.get("tau_policy") else "")
+            + f"T={float(record['torque_Nm_per_flagellum']):.2e} N m\n"
             f"dt*={float(record['dt_star']):.0e}"
         ),
+        "tau_policy": record.get("tau_policy", ""),
         "torque_Nm_per_flagellum": record["torque_Nm_per_flagellum"],
         "dt_star": record["dt_star"],
         "duration_s": time_info.get("duration_s"),
@@ -669,6 +707,100 @@ def summarize_campaign(
                 **safety,
             }
         )
+    if stage == "tau_policy_screen":
+        for summary, record in zip(safety_rows, completed_records, strict=True):
+            summary["tau_policy"] = record.get("tau_policy")
+            summary["tau_s"] = record["time"].get("tau_s")
+            summary["dt_internal_s"] = record["time"].get("dt_internal_s")
+            summary["duration_s"] = record["time"].get("duration_s")
+            summary["duration_tau"] = record["time"].get("duration_tau")
+            summary["total_steps"] = record["time"].get("total_steps")
+        by_key = {
+            (
+                str(row.get("tau_policy")),
+                float(row["torque_Nm_per_flagellum"]),
+                float(row["dt_star"]),
+            ): row
+            for row in completed_records
+        }
+        dt_comparisons: list[dict[str, Any]] = []
+        policy_comparisons: list[dict[str, Any]] = []
+        for torque in sorted(
+            {float(row["torque_Nm_per_flagellum"]) for row in completed_records}
+        ):
+            for policy in ("tau_fixed_control", "torque_linked_tau"):
+                reference = by_key.get((policy, torque, 1.0e-4))
+                candidate = by_key.get((policy, torque, 1.0e-3))
+                if reference and candidate:
+                    dt_comparisons.append(
+                        {
+                            "tau_policy": policy,
+                            "torque_Nm_per_flagellum": torque,
+                            "reference_condition_id": reference["condition_id"],
+                            "candidate_condition_id": candidate["condition_id"],
+                            "reference_dt_star": 1.0e-4,
+                            "candidate_dt_star": 1.0e-3,
+                            **_compare_same_torque(
+                                reference,
+                                candidate,
+                                configs[reference["condition_id"]],
+                                configs[candidate["condition_id"]],
+                                qc,
+                            ),
+                        }
+                    )
+            for dt_star in (1.0e-3, 1.0e-4):
+                fixed = by_key.get(("tau_fixed_control", torque, dt_star))
+                linked = by_key.get(("torque_linked_tau", torque, dt_star))
+                if fixed and linked:
+                    policy_comparisons.append(
+                        {
+                            "torque_Nm_per_flagellum": torque,
+                            "dt_star": dt_star,
+                            "reference_condition_id": fixed["condition_id"],
+                            "candidate_condition_id": linked["condition_id"],
+                            "reference_tau_policy": "tau_fixed_control",
+                            "candidate_tau_policy": "torque_linked_tau",
+                            **_compare_same_torque(
+                                fixed,
+                                linked,
+                                configs[fixed["condition_id"]],
+                                configs[linked["condition_id"]],
+                                qc,
+                            ),
+                        }
+                    )
+        _write_csv(root / "summary.csv", replay_rows)
+        _write_csv(root / "dt_comparison.csv", dt_comparisons)
+        _write_csv(root / "tau_policy_comparison.csv", policy_comparisons)
+        payload = {
+            "kind": "phase2_2010_tau_policy_torque_dt_qc",
+            "contract_version": 1,
+            "source_config": str(config_path),
+            "campaign_plan_kind": plan["kind"],
+            "qc_thresholds": qc,
+            "conditions": safety_rows,
+            "dt_comparisons": dt_comparisons,
+            "tau_policy_comparisons": policy_comparisons,
+            "interpretation": {
+                "scope": "fixed_real_time_tau_policy_screen",
+                "duration_s": 0.05,
+                "prohibitions": [
+                    "Do not use this campaign to adopt torque, dt_star, or a dataset.",
+                    "Do not interpret cross-torque results as same-normalized-time stability.",
+                ],
+            },
+        }
+        _write_json(root / "qc_summary.json", payload)
+        manifest["conditions"] = records
+        manifest["outputs"] = {
+            "summary_csv": str(root / "summary.csv"),
+            "dt_comparison_csv": str(root / "dt_comparison.csv"),
+            "tau_policy_comparison_csv": str(root / "tau_policy_comparison.csv"),
+            "qc_summary_json": str(root / "qc_summary.json"),
+        }
+        _write_json(root / "run_manifest.json", manifest)
+        return payload
     if stage == "fixed_real_time_performance":
         performance_rows = _performance_rows(completed_records, safety_rows)
         exclusions = [
@@ -967,6 +1099,8 @@ def run_torque_linked_campaign(
     records: list[dict[str, Any]] = [
         {
             "condition_id": condition["condition_id"],
+            "tau_policy": condition.get("tau_policy"),
+            "condition_label": condition.get("condition_label"),
             "torque_Nm_per_flagellum": condition["torque_Nm_per_flagellum"],
             "dt_star": condition["dt_star"],
             "comparison_role": condition["comparison_role"],
@@ -1082,6 +1216,10 @@ def run_torque_linked_campaign(
                 "torque_similarity_csv": str(root / "torque_similarity.csv"),
             }
         )
+        if stage == "tau_policy_screen":
+            campaign_outputs["tau_policy_comparison_csv"] = str(
+                root / "tau_policy_comparison.csv"
+            )
     root_manifest.setdefault("input", {})["campaign"] = {
         "kind": "phase2_2010_torque_linked_dt_stability_campaign",
         "config": str(config_path),

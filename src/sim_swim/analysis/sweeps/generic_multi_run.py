@@ -196,6 +196,7 @@ def run_campaign(argv: list[str] | None = None) -> Path:
     if contract.get("name") in {
         "2010_torque_linked_dt_stability",
         "2010_torque_linked_fixed_real_time_performance",
+        "2010_project_tau_policy_torque_dt_fixed_real_time",
     }:
         if args.sample_limit is not None or passthrough:
             raise ValueError(

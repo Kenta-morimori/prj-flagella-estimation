@@ -92,6 +92,19 @@ uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
 
 Issue #193は、2010 torque-linked条件で同じ物理`0.5 s`を回すcostだけを測ります。無次元時間の同等性や`dt_star`採択は判断しません。
 
+Issue #199は、τ固定controlとtorque-linked τを同じ物理`0.05 s`で比較する12条件screenです。実行後は同じcampaign rootを再解析・可視化・replayへ渡します。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_multi_run.py \
+  config=conf/phase2_multi_run/2010_project_tau_policy_torque_dt_0p05s.yaml \
+  dry_run=true
+uv run python scripts/02_phase2_analysis/analyze_2010_torque_dt_stability.py \
+  --config conf/phase2_multi_run/2010_project_tau_policy_torque_dt_0p05s.yaml \
+  --run-dir <campaign-root>
+uv run python scripts/02_phase2_analysis/visualize_2010_torque_dt_stability.py \
+  --run-dir <campaign-root>
+```
+
 ```bash
 uv run python scripts/01_simulate_swimming/run_multi_run.py \
   config=conf/phase2_multi_run/2010_project_torque_fixed_real_time_0p5s_performance.yaml

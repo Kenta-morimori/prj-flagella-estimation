@@ -23,6 +23,8 @@
 
 `2010_project_torque_dt_initial_screen.yaml` はIssue #61の実験専用profileであり、`dt_star=1e-3,1e-4`だけを実行する。`1e-5`は初期screen後に候補条件だけへ適用するformal referenceである。実行は標準`run_multi_run.py`、結果再集計は`02_phase2_analysis/analyze_2010_torque_dt_stability.py`を使う。詳細契約は`docs/phase2/phase2_61_2010_torque_dt_campaign_contract.md`を正本とする。
 
+`2010_project_tau_policy_torque_dt_0p05s.yaml` はIssue #199の固定実時間`0.05 s` screenである。τ固定controlとtorque-linked τを、`T=1e-21,2.5e-20,1e-19 N m`、`dt_star=1e-3,1e-4`の12条件で比較する。詳細契約は`docs/phase2/phase2_199_tau_policy_torque_dt_campaign_contract.md`を正本とする。
+
 `flagella_count_duration_3s_r1.yaml`はcanonical dataset更新ではなく，v1と同じ物理条件のsource durationを3 sへ延長した比較用revisionである。`n_flagella=1,2,3`とattach / phase seed各3のfull factorial 27 runを生成し，#129 / #155のwindow時間長・seed差・初期過渡状態評価へ渡す。
 
 #158 の `n_flagella=3` proximal failure 診断は，長時間simulationを再実行せず既存 raw output を読む。

@@ -38,76 +38,98 @@ def build_plan(config_path: Path) -> dict[str, Any]:
     torques = [float(v) for v in raw["torques_Nm"]]
     dt_stars = [float(v) for v in raw["dt_stars"]]
     contract = dict(raw.get("campaign_contract", {}) or {})
+    time_policies = list(contract.get("time_policies") or [])
+    has_explicit_time_policies = bool(time_policies)
+    if not time_policies:
+        time_policies = [
+            {
+                "id": "torque_linked_tau",
+                "time_scale_policy": "reference_torque",
+            }
+        ]
     formal_reference = float(contract.get("formal_reference_dt_star", 0.0))
     if not torques or not dt_stars or any(v <= 0 for v in torques + dt_stars):
         raise ValueError("torques_Nm and dt_stars must contain positive values")
     base = load_yaml(base_path)
     conditions: list[dict[str, Any]] = []
-    for torque in torques:
-        for dt_star in dt_stars:
-            overrides = {
-                "time": {
-                    "scale_policy": "reference_torque",
-                    "duration": {"value": duration_value, "unit": duration_unit},
-                    "integration": {"dt_star": dt_star},
-                },
-                "motor": {
-                    "torque_Nm": torque,
-                    "reference_torque_Nm": torque,
-                    "torque_for_forces_override_Nm": 0.0,
-                    "body_reaction_full_vector": True,
-                },
-                "brownian": {"enabled": False},
-                "output": {"policy": "compact"},
-            }
-            cfg = SimulationConfig.from_dict(base).with_overrides(overrides)
-            if not (
-                abs(cfg.motor_torque_Nm)
-                == cfg.reference_torque_Nm
-                == cfg.torque_for_forces_Nm
-            ):
-                raise ValueError(
-                    "torque-linked condition is not equal across motor/reference/forces"
-                )
-            archive_interval_s = cfg.time.duration_s / float(samples - 1)
-            if archive_interval_s <= 0.0:
-                raise ValueError("derived comparison archive interval must be positive")
-            overrides["output"]["archive_interval_s"] = archive_interval_s
-            conditions.append(
-                {
-                    "condition_id": (
-                        f"T{_condition_number_label(torque)}"
-                        f"_dt{_condition_number_label(dt_star)}"
-                    ),
-                    "torque_Nm_per_flagellum": torque,
-                    "dt_star": dt_star,
-                    "comparison_role": (
-                        "formal_reference"
-                        if math.isclose(dt_star, formal_reference, rel_tol=0.0)
-                        else (
-                            "screen_comparator"
-                            if math.isclose(dt_star, min(dt_stars), rel_tol=0.0)
-                            else "candidate"
-                        )
-                    ),
-                    "comparison_sample_count": samples,
-                    "comparison_archive_interval_s": archive_interval_s,
-                    "config_overrides": overrides,
-                    "execution_command": (
-                        "uv run python -m scripts.01_simulate_swimming "
-                        f"config={base_path} "
-                        "time.scale_policy=reference_torque "
-                        f"time.duration.value={duration_value:g} time.duration.unit={duration_unit} "
-                        f"time.integration.dt_star={dt_star:.12g} "
-                        f"motor.torque_Nm={torque:.12g} "
-                        f"motor.reference_torque_Nm={torque:.12g} "
-                        "motor.torque_for_forces_override_Nm=0 "
-                        "brownian.enabled=false output.policy=compact"
-                        f" output.archive_interval_s={archive_interval_s:.12g}"
-                    ),
-                    "time": cfg.time_manifest(),
-                }
+    for policy in time_policies:
+        policy_id = str(policy.get("id") or "").strip()
+        scale_policy = str(policy.get("time_scale_policy") or "").strip()
+        if not policy_id or scale_policy not in {"profile_default", "reference_torque"}:
+            raise ValueError(
+                "campaign_contract.time_policies requires id and time_scale_policy"
             )
+        for torque in torques:
+            for dt_star in dt_stars:
+                overrides = {
+                    "time": {
+                        "scale_policy": scale_policy,
+                        "duration": {"value": duration_value, "unit": duration_unit},
+                        "integration": {"dt_star": dt_star},
+                    },
+                    "motor": {
+                        "torque_Nm": torque,
+                        "reference_torque_Nm": torque,
+                        "torque_for_forces_override_Nm": 0.0,
+                        "body_reaction_full_vector": True,
+                    },
+                    "brownian": {"enabled": False},
+                    "output": {"policy": "compact"},
+                }
+                cfg = SimulationConfig.from_dict(base).with_overrides(overrides)
+                if not (
+                    abs(cfg.motor_torque_Nm)
+                    == cfg.reference_torque_Nm
+                    == cfg.torque_for_forces_Nm
+                ):
+                    raise ValueError(
+                        "torque-linked condition is not equal across motor/reference/forces"
+                    )
+                archive_interval_s = cfg.time.duration_s / float(samples - 1)
+                if archive_interval_s <= 0.0:
+                    raise ValueError(
+                        "derived comparison archive interval must be positive"
+                    )
+                overrides["output"]["archive_interval_s"] = archive_interval_s
+                conditions.append(
+                    {
+                        "condition_id": (
+                            f"{policy_id}_" if has_explicit_time_policies else ""
+                        )
+                        + f"T{_condition_number_label(torque)}_dt{_condition_number_label(dt_star)}",
+                        "tau_policy": policy_id,
+                        "condition_label": (
+                            f"tau_policy={policy_id}, T={torque:.2e}, dt_star={dt_star:.0e}"
+                        ),
+                        "torque_Nm_per_flagellum": torque,
+                        "dt_star": dt_star,
+                        "comparison_role": (
+                            "formal_reference"
+                            if math.isclose(dt_star, formal_reference, rel_tol=0.0)
+                            else (
+                                "screen_comparator"
+                                if math.isclose(dt_star, min(dt_stars), rel_tol=0.0)
+                                else "candidate"
+                            )
+                        ),
+                        "comparison_sample_count": samples,
+                        "comparison_archive_interval_s": archive_interval_s,
+                        "config_overrides": overrides,
+                        "execution_command": (
+                            "uv run python -m scripts.01_simulate_swimming "
+                            f"config={base_path} "
+                            f"time.scale_policy={scale_policy} "
+                            f"time.duration.value={duration_value:g} time.duration.unit={duration_unit} "
+                            f"time.integration.dt_star={dt_star:.12g} "
+                            f"motor.torque_Nm={torque:.12g} "
+                            f"motor.reference_torque_Nm={torque:.12g} "
+                            "motor.torque_for_forces_override_Nm=0 "
+                            "brownian.enabled=false output.policy=compact"
+                            f" output.archive_interval_s={archive_interval_s:.12g}"
+                        ),
+                        "time": cfg.time_manifest(),
+                    }
+                )
     return {
         "kind": "phase2_2010_torque_linked_dt_stability_plan",
         "contract_version": 1,
