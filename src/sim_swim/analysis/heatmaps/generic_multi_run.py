@@ -117,7 +117,10 @@ def _hydrate_compact_rows_from_manifest(
             run_summary.get("all_step_metrics", {}) or {}
         ).items():
             if isinstance(metric_summary, dict) and not row.get(metric_name):
-                row[metric_name] = str(metric_summary.get("max", ""))
+                statistic = (
+                    "min" if metric_name == "body_triangle_area_ratio_min" else "max"
+                )
+                row[metric_name] = str(metric_summary.get(statistic, ""))
 
 
 def _axis_lookup(campaign: dict[str, Any]) -> dict[str, dict[str, Any]]:

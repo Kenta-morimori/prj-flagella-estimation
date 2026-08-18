@@ -255,6 +255,50 @@ def test_fixed_real_time_partial_review_records_the_unrun_condition(
         assert len(list(csv.DictReader(handle))) == 3
 
 
+def test_fixed_real_time_missing_performance_is_incomplete(tmp_path: Path) -> None:
+    _campaign_fixture(tmp_path, PERFORMANCE_CONFIG)
+    manifest_path = tmp_path / "run_manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    record = manifest["conditions"][0]
+    (Path(record["output_dir"]) / "performance.json").unlink()
+    manifest_path.write_text(json.dumps(manifest))
+
+    with pytest.raises(ValueError, match="performance.json"):
+        summarize_campaign(tmp_path, config_path=PERFORMANCE_CONFIG)
+
+    payload = summarize_campaign(
+        tmp_path, config_path=PERFORMANCE_CONFIG, allow_incomplete=True
+    )
+
+    assert len(payload["performance"]) == 3
+    assert payload["exclusions"] == [
+        {
+            "condition_id": record["condition_id"],
+            "reason": "execution=completed; missing performance.json",
+            "included_in_qualitative_replay": False,
+        }
+    ]
+
+
+def test_fixed_real_time_invalid_performance_is_incomplete(tmp_path: Path) -> None:
+    _campaign_fixture(tmp_path, PERFORMANCE_CONFIG)
+    manifest = json.loads((tmp_path / "run_manifest.json").read_text())
+    record = manifest["conditions"][0]
+    (Path(record["output_dir"]) / "performance.json").write_text("{")
+
+    with pytest.raises(ValueError, match="invalid performance.json"):
+        summarize_campaign(tmp_path, config_path=PERFORMANCE_CONFIG)
+
+    payload = summarize_campaign(
+        tmp_path, config_path=PERFORMANCE_CONFIG, allow_incomplete=True
+    )
+
+    assert payload["exclusions"][0]["condition_id"] == record["condition_id"]
+    assert payload["exclusions"][0]["reason"] == (
+        "execution=completed; invalid performance.json"
+    )
+
+
 def test_partial_qualitative_replay_requires_explicit_opt_in(tmp_path: Path) -> None:
     _campaign_fixture(tmp_path, PERFORMANCE_CONFIG)
 

@@ -13,6 +13,7 @@ from sim_swim.analysis.multi_run_campaign import (
     build_campaign_conditions,
     load_yaml,
 )
+from sim_swim.analysis.online_run_summary import OnlineRunSummary
 from sim_swim.analysis.sweeps.generic_multi_run import (
     _condition_row,
     _summary_fieldnames,
@@ -1120,6 +1121,7 @@ def test_generic_heatmap_hydrates_compact_body_gate_and_axes(tmp_path: Path) -> 
                 },
                 "all_step_metrics": {
                     "body_spring_max_stretch_ratio": {"max": 1.25},
+                    "body_triangle_area_ratio_min": {"min": 0.95, "max": 1.0},
                 },
             }
         ),
@@ -1149,6 +1151,7 @@ def test_generic_heatmap_hydrates_compact_body_gate_and_axes(tmp_path: Path) -> 
     assert rows[0]["axis_body_stiffness_index"] == "1"
     assert rows[0]["body_first_fail_t_s"] == "0.0413"
     assert rows[0]["body_spring_max_stretch_ratio"] == "1.25"
+    assert rows[0]["body_triangle_area_ratio_min"] == "0.95"
 
 
 def test_generic_compact_summary_retains_all_body_metrics(tmp_path: Path) -> None:
@@ -1168,6 +1171,7 @@ def test_generic_compact_summary_retains_all_body_metrics(tmp_path: Path) -> Non
                     "body_spring_max_stretch_ratio": {"max": 1.2},
                     "body_bend_max_error_deg": {"max": 61.0},
                     "body_centerline_max_deviation_um": {"max": 2.1},
+                    "body_triangle_area_ratio_min": {"min": 0.95, "max": 1.0},
                 },
             }
         ),
@@ -1189,4 +1193,22 @@ def test_generic_compact_summary_retains_all_body_metrics(tmp_path: Path) -> Non
     assert row["body_spring_max_stretch_ratio"] == 1.2
     assert row["body_bend_max_error_deg"] == 61.0
     assert row["body_centerline_max_deviation_um"] == 2.1
+    assert row["body_triangle_area_ratio_min"] == 0.95
     assert row["axis_body_stiffness_label"] == "baseline"
+
+
+def test_compact_summary_records_minimum_body_triangle_area_ratio() -> None:
+    summary = OnlineRunSummary(expected_steps=2)
+    initial = {
+        "t_s": 0.0,
+        "body_triangle_area_min": 4.0,
+        "body_spring_max_stretch_ratio": 0.1,
+        "body_bend_max_error_deg": 2.0,
+        "body_centerline_max_deviation_um": 0.05,
+    }
+    summary.record_body(initial)
+    summary.record_body({**initial, "t_s": 0.1, "body_triangle_area_min": 3.0})
+
+    metric = summary.extrema["body_triangle_area_ratio_min"]
+    assert metric["min"] == pytest.approx(0.75)
+    assert metric["final"] == pytest.approx(0.75)

@@ -93,7 +93,8 @@ def _condition_row(
         for field in SUMMARY_FIELDS:
             metric = metrics.get(field)
             if isinstance(metric, dict):
-                result.setdefault(field, metric.get("max"))
+                statistic = "min" if field == "body_triangle_area_ratio_min" else "max"
+                result.setdefault(field, metric.get(statistic))
         result.update(summary_axis_fields(condition))
         return result
     rows = _read_step_rows(step_path)

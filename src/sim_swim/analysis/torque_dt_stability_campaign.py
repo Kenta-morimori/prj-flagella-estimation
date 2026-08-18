@@ -436,7 +436,29 @@ def _completed_result_record(record: dict[str, Any]) -> bool:
         dict(record.get("execution", {}) or {}).get("status") == "completed"
         and (output / "run_summary.json").is_file()
         and (output / "state_archive.npz").is_file()
+        and _performance_artifact_error(output) is None
     )
+
+
+def _performance_artifact_error(output: Path) -> str | None:
+    """Return why a performance artifact cannot support a completed result."""
+
+    path = output / "performance.json"
+    if not path.is_file():
+        return "missing performance.json"
+    try:
+        performance = _read_json(path)
+    except (json.JSONDecodeError, OSError):
+        return "invalid performance.json"
+    required = ("wall_time_s", "steps_per_s", "total_steps", "completed_steps")
+    for key in required:
+        value = performance.get(key)
+        try:
+            if not math.isfinite(float(value)):
+                return f"invalid performance.json ({key})"
+        except (TypeError, ValueError):
+            return f"invalid performance.json ({key})"
+    return None
 
 
 def _incomplete_reason(record: dict[str, Any]) -> str:
@@ -450,6 +472,9 @@ def _incomplete_reason(record: dict[str, Any]) -> str:
     ]
     if missing:
         return f"execution={status}; missing {', '.join(missing)}"
+    performance_error = _performance_artifact_error(output)
+    if performance_error is not None:
+        return f"execution={status}; {performance_error}"
     return f"execution={status}"
 
 
