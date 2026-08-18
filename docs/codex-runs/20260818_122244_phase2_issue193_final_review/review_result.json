@@ -1,5 +1,5 @@
 {
-  "status": "PASS",
+  "status": "BLOCKED",
   "task": "Phase 2 Issue #193 / PR #194 final merge review",
   "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/193",
   "parent_issue_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/61",
@@ -9,9 +9,12 @@
     "#193のfixed-real-time performance/body診断はexperiment-onlyのままとし、2010 project defaultのtau_s=1 sおよびADR 0016を変更しないことを確認した。",
     "body scale 2.0は候補から除外し、body scale 1.25、torque、dt_star、tau policyの採用は#199と#200の結果待ちとして記録した。",
     "後続のbody stability diagnosticsはPR #194のmerge条件から外し、#199/#200で候補を固定してから必要なconditionを実行する契約に更新した。",
-    "Codex Cloud reviewはa9b0e36に対して1回実行され、actionable feedbackはなかった。"
+    "Codex Cloud reviewはa9b0e36に対して1回実行され、performance.jsonの必須化とbody triangle area ratioのcompact summary保存に関する2件のactionable feedbackが出た。"
   ],
-  "blocking_issues": [],
+  "blocking_issues": [
+    "PR #194のCodex review thread 1: performance characterizationの完了conditionでperformance.jsonを必須artifactとして検査する必要がある。",
+    "PR #194のCodex review thread 2: body_triangle_area_ratio_minをcompact summaryへ保存してheatmapに供給する必要がある。"
+  ],
   "non_blocking_issues": [
     "Issue #199: tau固定/torque-linked screenは、2010 default変更の判断材料の一つである。",
     "Issue #200: dt_star=1e-3の収束性・複数seed安定性を評価する。"
@@ -31,23 +34,24 @@
     },
     {
       "command": "Codex Cloud review (@codex review a9b0e36)",
-      "result": "PASS: 2026-08-18にa9b0e36をreview、actionable feedbackなし。"
+      "result": "BLOCKED: 2026-08-18にa9b0e36をreview。2件のactionable feedbackを確認。"
     },
     {
       "command": "codex-review-gate",
-      "result": "PASS: PR #194でSUCCESS。"
+      "result": "BLOCKED: active trusted review thread 2件のためFAIL。"
     }
   ],
   "user_review_required": false,
   "user_review_reason": "ユーザーは#193の実行結果・replayを確認済みであり、この最終commitはreview結果の管理記録のみである。",
   "adr_required": false,
   "adr_reason": "既定の物理解釈、tau policy、dataset policy、phase boundaryを変更しない。",
-  "commit_type": "complete",
+  "commit_type": "incomplete",
   "commit_hash": "pending administrative review-record commit",
   "push_status": "pending",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/194",
   "next_actions": [
-    "PR #194はmerge候補。mergeはユーザーが明示的に指示するまで実行しない。",
+    "2件のCodex review feedbackを修正し、threadをresolveする方針をユーザーと決める。",
+    "修正commitに対する追加Codex reviewの要否は、ユーザーのreview-once方針に従って判断する。",
     "#199のscreen後に、#200でdt_star収束性と複数seed安定性を評価する。"
   ]
 }
