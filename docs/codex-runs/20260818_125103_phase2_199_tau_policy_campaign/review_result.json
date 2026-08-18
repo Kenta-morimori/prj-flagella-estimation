@@ -37,9 +37,9 @@
   "adr_required": false,
   "adr_reason": "Issue #199で指定済みの実験screenを実装したものであり、物理モデル・baseline・採択policyの新規判断を追加していない。",
   "commit_type": "complete",
-  "commit_hash": "pending",
-  "push_status": "pending",
-  "pull_request_url": "pending",
+  "commit_hash": "eb3f00ccb288999766d9e69378ab4de4ddf97345",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/201",
   "next_actions": [
     "ユーザーが12条件campaignを実行し、required outputsを確認する。",
     "結果を採択根拠へ使う場合は、Issue #200のdt_star収束・複数seed評価を行う。"
