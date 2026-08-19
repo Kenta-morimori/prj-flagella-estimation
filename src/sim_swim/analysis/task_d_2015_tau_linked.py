@@ -12,7 +12,10 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from sim_swim.analysis.stage_a_2015_analysis import load_threshold_contract
+from sim_swim.analysis.stage_a_2015_analysis import (
+    _observed_metrics,
+    load_threshold_contract,
+)
 
 DT_ORDER = (1.0e-4, 1.0e-3)
 TORQUE_ORDER = (0.5, 1.0, 2.0)
@@ -50,6 +53,11 @@ def _truth(value: Any) -> bool:
 
 def _close(actual: Any, expected: float) -> bool:
     return math.isclose(_float(actual), expected, rel_tol=1.0e-12, abs_tol=1.0e-15)
+
+
+def _grid_key(dt_star: Any, torque_scale: Any) -> tuple[float, float]:
+    """Canonical grid key, avoiding YAML/float representation noise."""
+    return (round(_float(dt_star), 10), round(_float(torque_scale), 10))
 
 
 def _load_campaign(
@@ -127,16 +135,17 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
 
 
 def _plot_heatmaps(rows: list[dict[str, Any]], path: Path) -> None:
-    lookup = {
-        (_float(row["dt_star"]), _float(row["motor_torque_scale"])): row for row in rows
-    }
+    lookup = {_grid_key(row["dt_star"], row["motor_torque_scale"]): row for row in rows}
     panels: list[tuple[str, str, bool]] = [("safety_pass", "required safety QC", True)]
     panels += [(metric, metric.replace("_", " "), False) for metric in QC_METRICS]
     fig, axes = plt.subplots(2, 3, figsize=(14, 8), constrained_layout=True)
     for ax, (field, title, is_bool) in zip(axes.flat, panels):
         values = np.array(
             [
-                [_float(lookup[(dt, scale)].get(field)) for scale in TORQUE_ORDER]
+                [
+                    _float(lookup[_grid_key(dt, scale)].get(field))
+                    for scale in TORQUE_ORDER
+                ]
                 for dt in DT_ORDER
             ]
         )
@@ -195,8 +204,12 @@ def assemble(
         by_scale = {_float(row.get("motor_torque_scale")): row for row in source_rows}
         for grid_col, scale in enumerate(TORQUE_ORDER):
             source = dict(by_scale[scale])
-            passed, failures = _safety(source, thresholds)
             condition = _condition_by_scale(manifest, scale)
+            # Stage A's summary has maxima useful for a compact display, but
+            # the locked contract also includes body drifts.  Recompute those
+            # from each condition's bounded diagnostics before screening.
+            source.update(_observed_metrics(Path(str(condition["output_dir"]))))
+            passed, failures = _safety(source, thresholds)
             replay_id = f"dt{dt:.0e}_project_torque_x{scale:g}".replace(
                 "-", "m"
             ).replace(".", "p")
