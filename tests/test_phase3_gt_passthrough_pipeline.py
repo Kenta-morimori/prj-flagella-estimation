@@ -29,6 +29,10 @@ from flagella_estimation.phase3.splits import (
     assert_no_group_leakage,
 )
 from flagella_estimation.phase3.windows import FrameWindow, generate_windows
+from flagella_estimation.phase3.feature_comparison import (
+    PIXEL_FEATURES,
+    grouped_nearest_centroid_pixel_baseline,
+)
 from sim_swim.analysis.flagella_count_behavior import save_state_archive
 from sim_swim.render.body2d import render_body_capsule_frame
 from sim_swim.sim.core import SimulationState
@@ -138,6 +142,30 @@ def test_phase3_window_generation_supports_0p25s_1p0s_and_overlap() -> None:
     assert [window.frame_count for window in short] == [7, 7, 7]
     assert long == [FrameWindow(0, 25)]
     assert overlap[:3] == [FrameWindow(0, 13), FrameWindow(6, 19), FrameWindow(12, 25)]
+
+
+@pytest.mark.light
+def test_grouped_nearest_centroid_pixel_baseline_holds_out_source_groups() -> None:
+    rows = []
+    for n_flagella in (1, 2, 3):
+        for seed in (0, 1):
+            value = float(n_flagella * 10 + seed * 0.1)
+            rows.append(
+                {
+                    "clip_id": f"n{n_flagella}_s{seed}",
+                    "group_key": f"source-n{n_flagella}-s{seed}",
+                    "n_flagella": n_flagella,
+                    "training_candidate": True,
+                    **{feature: value for feature in PIXEL_FEATURES},
+                }
+            )
+
+    predictions, summary = grouped_nearest_centroid_pixel_baseline(rows)
+
+    assert len(predictions) == 6
+    assert summary["group_holdout"] is True
+    assert summary["eligible_group_count"] == 6
+    assert summary["accuracy"] == pytest.approx(1.0)
 
 
 @pytest.mark.light

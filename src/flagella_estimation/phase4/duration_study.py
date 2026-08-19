@@ -19,9 +19,11 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import numpy as np
 import yaml
 
+from flagella_estimation.phase3.feature_comparison import pixel_features
 from flagella_estimation.phase3.render import render_clip_array, select_frames
 from flagella_estimation.phase3.windows import generate_windows
 from flagella_estimation.phase4.baseline import FEATURE_NAMES, extract_clip_features
@@ -39,22 +41,37 @@ THREE_D_FEATURE_NAMES = (
     "cell_angular_velocity_std_rad_s",
     "cell_angular_velocity_rms_rad_s",
     "body_axis_angle_change_deg",
+    "body_axis_deviation_rms_deg",
+    "body_axis_deviation_max_deg",
     "flagella_axis_alignment_mean",
     "cell_flagella_axis_angle_mean_deg",
     "cell_flagella_axis_angle_std_deg",
     "hook_len_rel_err_max",
 )
 
+TWO_D_FEATURE_NAMES = (
+    *FEATURE_NAMES,
+    "axis_angle_change_rad",
+    "axis_angular_velocity_rms_rad_s",
+    "projected_centroid_speed_um_s",
+)
+
 PLOT_FEATURES = {
     "3d": (
         "cell_mean_speed_um_s",
         "cell_angular_velocity_rms_rad_s",
+        "body_axis_angle_change_deg",
+        "body_axis_deviation_rms_deg",
+        "body_axis_deviation_max_deg",
         "flagella_axis_alignment_mean",
     ),
     "2d": (
         "temporal_diff_mean",
         "centroid_step_mean",
         "radial_spread_mean",
+        "axis_angle_change_rad",
+        "axis_angular_velocity_rms_rad_s",
+        "projected_centroid_speed_um_s",
     ),
 }
 
@@ -97,6 +114,7 @@ class DurationStudyConfig:
     crop_size_px: int = 96
     pixel_size_um: float = 0.1
     allowed_n_flagella: tuple[int, ...] = (1, 2, 3)
+    seed_presentation: str = "factorial"
     overwrite: bool = False
 
 
@@ -153,6 +171,7 @@ def load_duration_study_config(
         allowed_n_flagella=tuple(
             int(value) for value in study.get("allowed_n_flagella", [1, 2, 3])
         ),
+        seed_presentation=str(study.get("seed_presentation", "factorial")),
         overwrite=bool(data.get("overwrite", False)),
     )
 
@@ -254,6 +273,26 @@ def _angle_deg(first: np.ndarray, last: np.ndarray) -> float:
     return float(np.rad2deg(np.arccos(cosine)))
 
 
+def _body_axis_deviation_stats_deg(axes: np.ndarray) -> tuple[float, float]:
+    """Return RMS and maximum angular deviations from the window mean axis."""
+    if axes.ndim != 2 or axes.shape[1] != 3 or not np.isfinite(axes).all():
+        return float("nan"), float("nan")
+    mean_axis = np.mean(axes, axis=0)
+    mean_norm = float(np.linalg.norm(mean_axis))
+    if not math.isfinite(mean_norm) or mean_norm <= 0.0:
+        return float("nan"), float("nan")
+    normalized_mean = mean_axis / mean_norm
+    axis_norms = np.linalg.norm(axes, axis=1)
+    if np.any(axis_norms <= 0.0) or not np.isfinite(axis_norms).all():
+        return float("nan"), float("nan")
+    cosine = np.clip((axes / axis_norms[:, np.newaxis]) @ normalized_mean, -1.0, 1.0)
+    deviations_deg = np.rad2deg(np.arccos(cosine))
+    return (
+        float(np.sqrt(np.mean(deviations_deg**2))),
+        float(np.max(deviations_deg)),
+    )
+
+
 def summarize_states_3d(states: list[Any]) -> dict[str, float]:
     if len(states) < 2:
         return {name: float("nan") for name in THREE_D_FEATURE_NAMES}
@@ -268,6 +307,10 @@ def summarize_states_3d(states: list[Any]) -> dict[str, float]:
     speed = np.linalg.norm(velocities, axis=1)
     speed_mean = float(np.mean(speed))
     speed_std = float(np.std(speed, ddof=1)) if len(speed) > 1 else 0.0
+    body_axes = np.asarray([_body_axis(state.quaternion) for state in states])
+    body_axis_deviation_rms_deg, body_axis_deviation_max_deg = (
+        _body_axis_deviation_stats_deg(body_axes)
+    )
     result = {
         "cell_displacement_um": displacement,
         "cell_path_length_um": path_length,
@@ -284,11 +327,39 @@ def summarize_states_3d(states: list[Any]) -> dict[str, float]:
         if len(omega) > 1
         else 0.0,
         "cell_angular_velocity_rms_rad_s": float(np.sqrt(np.mean(omega**2))),
-        "body_axis_angle_change_deg": _angle_deg(
-            _body_axis(states[0].quaternion), _body_axis(states[-1].quaternion)
-        ),
+        "body_axis_angle_change_deg": _angle_deg(body_axes[0], body_axes[-1]),
+        "body_axis_deviation_rms_deg": body_axis_deviation_rms_deg,
+        "body_axis_deviation_max_deg": body_axis_deviation_max_deg,
     }
     return result
+
+
+def summarize_2d_motion(
+    clip: np.ndarray,
+    states: list[Any],
+    *,
+    frame_rate_hz: float,
+) -> dict[str, float]:
+    """Measure image-axis motion and pre-centering XY centroid speed.
+
+    The canonical 2D render is body-centred, so image centroids cannot encode
+    translational swimming speed. The velocity is calculated from source
+    positions projected onto the image XY plane before centering.
+    """
+    if len(clip) != len(states):
+        raise ValueError("clip and states must contain the same number of frames")
+    image_motion = pixel_features(clip, frame_rate_hz)
+    positions_xy = np.asarray([state.position_um[:2] for state in states], dtype=float)
+    steps_um = np.linalg.norm(np.diff(positions_xy, axis=0), axis=1)
+    return {
+        "axis_angle_change_rad": image_motion["2d_axis_angle_change_rad"],
+        "axis_angular_velocity_rms_rad_s": image_motion[
+            "2d_axis_angular_velocity_rms_rad_s"
+        ],
+        "projected_centroid_speed_um_s": (
+            float(np.mean(steps_um) * frame_rate_hz) if len(steps_um) else 0.0
+        ),
+    }
 
 
 def _step_rows_for_window(
@@ -299,6 +370,16 @@ def _step_rows_for_window(
         for row in rows
         if start_s - 1.0e-12 <= _to_float(row.get("t_s")) < end_s - 1.0e-12
     ]
+
+
+def _resolve_raw_dir(raw_dir: Path, *, dataset_dir: Path) -> Path:
+    """Resolve a source run after its containing timestamp directory was renamed."""
+    if raw_dir.is_dir():
+        return raw_dir
+    if len(dataset_dir.parents) < 3:
+        return raw_dir
+    relocated = dataset_dir.parents[2] / raw_dir.name
+    return relocated if relocated.is_dir() else raw_dir
 
 
 def _window_quality(rows: list[dict[str, str]]) -> dict[str, Any]:
@@ -658,12 +739,89 @@ def _plot_seed_heatmaps(
     return paths
 
 
+def _plot_phase_seed_heatmaps(
+    run_means: list[dict[str, Any]],
+    *,
+    output_dir: Path,
+) -> list[str]:
+    """Show n-by-phase values when attach seed is intentionally fixed."""
+    paths: list[str] = []
+    for domain, features in PLOT_FEATURES.items():
+        for feature in features:
+            matching = [
+                row
+                for row in run_means
+                if row["domain"] == domain and row["feature"] == feature
+            ]
+            durations = sorted({float(row["requested_duration_s"]) for row in matching})
+            classes = sorted({int(row["n_flagella"]) for row in matching})
+            phases = sorted({int(row["phase_seed"]) for row in matching})
+            for duration in durations:
+                rows = [
+                    row
+                    for row in matching
+                    if math.isclose(
+                        float(row["requested_duration_s"]), duration, abs_tol=1.0e-12
+                    )
+                ]
+                observed = np.asarray([float(row["run_mean"]) for row in rows])
+                vmin, vmax = float(np.min(observed)), float(np.max(observed))
+                if math.isclose(vmin, vmax):
+                    vmax = vmin + 1.0
+                matrix = np.full((len(classes), len(phases)), np.nan, dtype=float)
+                strict = np.zeros_like(matrix, dtype=bool)
+                for row in rows:
+                    row_index = classes.index(int(row["n_flagella"]))
+                    column_index = phases.index(int(row["phase_seed"]))
+                    matrix[row_index, column_index] = float(row["run_mean"])
+                    strict[row_index, column_index] = bool(
+                        row["run_shape_pass"]
+                    ) and bool(row["all_windows_shape_pass"])
+                figure, axis = plt.subplots(
+                    figsize=(1.65 * len(phases) + 2.2, 0.8 * len(classes) + 2.2)
+                )
+                image = axis.imshow(matrix, vmin=vmin, vmax=vmax, cmap="viridis")
+                for row_index in range(matrix.shape[0]):
+                    for column_index in range(matrix.shape[1]):
+                        if math.isfinite(matrix[row_index, column_index]):
+                            suffix = "" if strict[row_index, column_index] else " !"
+                            axis.text(
+                                column_index,
+                                row_index,
+                                f"{matrix[row_index, column_index]:.3g}{suffix}",
+                                ha="center",
+                                va="center",
+                                color="white",
+                                fontsize=9,
+                            )
+                attach_levels = sorted({int(row["attach_seed"]) for row in rows})
+                axis.set_xticks(range(len(phases)), [f"ps={phase}" for phase in phases])
+                axis.set_yticks(
+                    range(len(classes)), [f"n={value}" for value in classes]
+                )
+                axis.set_xlabel("phase seed (attach seed fixed)")
+                axis.set_title(
+                    f"{feature}: requested {duration:g} s, attach={attach_levels} (! = QC fail)"
+                )
+                figure.colorbar(image, ax=axis, shrink=0.82, label=feature)
+                figure.tight_layout()
+                path = (
+                    output_dir
+                    / f"{domain}_{feature}_{duration:g}s_phase_seed_heatmap.png"
+                )
+                figure.savefig(path, dpi=150)
+                plt.close(figure)
+                paths.append(str(path))
+    return paths
+
+
 def _plot_time_features(
     rows: list[dict[str, Any]],
     *,
     domain: str,
     features: tuple[str, ...],
     output_dir: Path,
+    phase_seed_presentation: bool = False,
 ) -> list[str]:
     paths: list[str] = []
     durations = sorted({float(row["requested_duration_s"]) for row in rows})
@@ -687,14 +845,25 @@ def _plot_time_features(
                 by_run: dict[str, list[dict[str, Any]]] = {}
                 for row in class_rows:
                     by_run.setdefault(str(row["run_id"]), []).append(row)
-                for run_rows in by_run.values():
+                for run_id, run_rows in by_run.items():
                     run_rows.sort(key=lambda row: float(row["t_start_s"]))
+                    phase_seed = int(run_rows[0]["phase_seed"])
                     axis.plot(
                         [float(row["t_start_s"]) for row in run_rows],
                         [_to_float(row.get(feature)) for row in run_rows],
                         color=colors.get(n_flagella, "#666666"),
-                        alpha=0.22,
-                        linewidth=0.8,
+                        alpha=0.55,
+                        linewidth=1.1,
+                        linestyle=("-", "--", ":")[phase_seed % 3]
+                        if phase_seed_presentation
+                        else "-",
+                        label=(
+                            f"n={n_flagella}, ps={phase_seed}"
+                            if phase_seed_presentation
+                            and duration == durations[0]
+                            and run_id == sorted(by_run)[0]
+                            else None
+                        ),
                     )
                 time_values = sorted({float(row["t_start_s"]) for row in class_rows})
                 means = [
@@ -713,10 +882,10 @@ def _plot_time_features(
                     time_values,
                     means,
                     color=colors.get(n_flagella, "#666666"),
-                    linewidth=2.2,
+                    linewidth=2.6,
                     marker="o",
                     markersize=3,
-                    label=f"n={n_flagella}",
+                    label=None,
                 )
             failed_rows = [
                 row
@@ -734,11 +903,52 @@ def _plot_time_features(
                     linewidths=0.8,
                     label="QC fail" if axis is axes[0, 0] else None,
                 )
-            axis.set_title(f"requested {duration:g} s")
+            title = f"requested {duration:g} s"
+            if phase_seed_presentation:
+                title += " (ps0 solid, ps1 dash, ps2 dot)"
+            axis.set_title(title)
             axis.set_xlabel("window start (s)")
             axis.set_ylabel(feature)
             axis.grid(alpha=0.25)
-        axes[0, 0].legend(frameon=False)
+        n_levels = sorted({int(row["n_flagella"]) for row in rows})
+        legend_handles = [
+            Line2D(
+                [0],
+                [0],
+                color=colors.get(n_flagella, "#666666"),
+                linewidth=2.6,
+                marker="o",
+                markersize=3,
+                label=f"n={n_flagella} mean",
+            )
+            for n_flagella in n_levels
+        ]
+        if phase_seed_presentation:
+            phase_levels = sorted({int(row["phase_seed"]) for row in rows})
+            legend_handles.extend(
+                Line2D(
+                    [0],
+                    [0],
+                    color="#555555",
+                    alpha=0.8,
+                    linewidth=1.1,
+                    linestyle=("-", "--", ":")[phase_seed % 3],
+                    label=f"ps={phase_seed}",
+                )
+                for phase_seed in phase_levels
+            )
+        if any(not bool(row["window_shape_pass"]) for row in rows):
+            legend_handles.append(
+                Line2D(
+                    [0],
+                    [0],
+                    color="#111111",
+                    marker="x",
+                    linestyle="None",
+                    label="QC fail",
+                )
+            )
+        axes[0, 0].legend(handles=legend_handles, frameon=False)
         figure.tight_layout()
         path = output_dir / f"{domain}_{feature}_by_time.png"
         figure.savefig(path, dpi=150)
@@ -748,6 +958,8 @@ def _plot_time_features(
 
 
 def analyze_duration_seed_study(cfg: DurationStudyConfig) -> Path:
+    if cfg.seed_presentation not in {"factorial", "phase_only"}:
+        raise ValueError("study.seed_presentation must be factorial or phase_only")
     summary_path = cfg.dataset_dir / "summary.csv"
     if not summary_path.is_file():
         raise FileNotFoundError(summary_path)
@@ -757,7 +969,10 @@ def analyze_duration_seed_study(cfg: DurationStudyConfig) -> Path:
         shutil.rmtree(cfg.output_dir)
     cfg.output_dir.mkdir(parents=True)
     plots_dir = cfg.output_dir / "plots"
-    plots_dir.mkdir()
+    time_series_dir = plots_dir / "time_series"
+    heatmaps_dir = plots_dir / "heatmaps"
+    time_series_dir.mkdir(parents=True)
+    heatmaps_dir.mkdir()
 
     dataset_manifest_path = cfg.dataset_dir / "dataset_manifest.json"
     dataset_manifest = (
@@ -784,9 +999,19 @@ def analyze_duration_seed_study(cfg: DurationStudyConfig) -> Path:
     ]
     if not eligible_samples:
         raise ValueError("No eligible samples found")
+    if (
+        cfg.seed_presentation == "phase_only"
+        and len({int(_to_float(row.get("attach_seed"))) for row in eligible_samples})
+        != 1
+    ):
+        raise ValueError(
+            "study.seed_presentation=phase_only requires exactly one attach seed"
+        )
 
     for sample in eligible_samples:
-        raw_dir = Path(str(sample.get("raw_dir", "")))
+        raw_dir = _resolve_raw_dir(
+            Path(str(sample.get("raw_dir", ""))), dataset_dir=cfg.dataset_dir
+        )
         archive_path = raw_dir / "state_archive.npz"
         step_path = raw_dir / "step_summary.csv"
         if not archive_path.is_file():
@@ -854,6 +1079,11 @@ def analyze_duration_seed_study(cfg: DurationStudyConfig) -> Path:
                                 strict=True,
                             )
                         ),
+                        **summarize_2d_motion(
+                            clip,
+                            frame_states,
+                            frame_rate_hz=cfg.frame_rate_hz,
+                        ),
                     }
                 )
 
@@ -869,11 +1099,11 @@ def analyze_duration_seed_study(cfg: DurationStudyConfig) -> Path:
     _write_csv(
         features_2d_path,
         rows_2d,
-        [*COMMON_FIELDS, *FEATURE_NAMES],
+        [*COMMON_FIELDS, *TWO_D_FEATURE_NAMES],
     )
     run_mean_rows = [
         *_run_feature_mean_rows(rows_3d, THREE_D_FEATURE_NAMES, "3d"),
-        *_run_feature_mean_rows(rows_2d, FEATURE_NAMES, "2d"),
+        *_run_feature_mean_rows(rows_2d, TWO_D_FEATURE_NAMES, "2d"),
     ]
     _write_csv(
         run_means_path,
@@ -923,14 +1153,20 @@ def analyze_duration_seed_study(cfg: DurationStudyConfig) -> Path:
             rows_3d,
             domain="3d",
             features=PLOT_FEATURES["3d"],
-            output_dir=plots_dir,
+            output_dir=time_series_dir,
+            phase_seed_presentation=cfg.seed_presentation == "phase_only",
         ),
-        *_plot_seed_heatmaps(run_mean_rows, output_dir=plots_dir),
+        *(
+            _plot_phase_seed_heatmaps(run_mean_rows, output_dir=heatmaps_dir)
+            if cfg.seed_presentation == "phase_only"
+            else _plot_seed_heatmaps(run_mean_rows, output_dir=heatmaps_dir)
+        ),
         *_plot_time_features(
             rows_2d,
             domain="2d",
             features=PLOT_FEATURES["2d"],
-            output_dir=plots_dir,
+            output_dir=time_series_dir,
+            phase_seed_presentation=cfg.seed_presentation == "phase_only",
         ),
     ]
     window_counts: dict[str, int] = {}
@@ -952,6 +1188,7 @@ def analyze_duration_seed_study(cfg: DurationStudyConfig) -> Path:
         "study": {
             "allowed_n_flagella": list(cfg.allowed_n_flagella),
             "durations_s": list(cfg.durations_s),
+            "seed_presentation": cfg.seed_presentation,
         },
         "clip": {
             "frame_rate_hz": cfg.frame_rate_hz,

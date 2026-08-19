@@ -32,6 +32,17 @@ THREED_FEATURES = (
     "cell_flagella_axis_stability",
 )
 
+PIXEL_FEATURES = (
+    "2d_area_px_mean",
+    "2d_area_px_std",
+    "2d_major_axis_px_mean",
+    "2d_minor_axis_px_mean",
+    "2d_aspect_ratio_mean",
+    "2d_aspect_ratio_std",
+    "2d_axis_angle_change_rad",
+    "2d_axis_angular_velocity_rms_rad_s",
+)
+
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
     with path.open(encoding="utf-8", newline="") as handle:
@@ -78,6 +89,83 @@ def pixel_features(clip: np.ndarray, fps: float) -> dict[str, float]:
         )
         if len(angular_velocity)
         else 0.0,
+    }
+
+
+def grouped_nearest_centroid_pixel_baseline(
+    rows: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Evaluate pixel features with source-run-held-out nearest centroids.
+
+    ``group_key`` is held out as a whole, so sibling windows from a source run
+    never contribute to the centroid used for that source's prediction.
+    """
+    candidate_rows = [
+        row
+        for row in rows
+        if bool(row["training_candidate"]) and int(row["n_flagella"]) in {1, 2, 3}
+    ]
+    groups = sorted({str(row["group_key"]) for row in candidate_rows})
+    predictions: list[dict[str, Any]] = []
+    for held_out_group in groups:
+        train = [row for row in candidate_rows if row["group_key"] != held_out_group]
+        test = [row for row in candidate_rows if row["group_key"] == held_out_group]
+        if not train or not test:
+            continue
+        train_x = np.asarray(
+            [[float(row[key]) for key in PIXEL_FEATURES] for row in train], dtype=float
+        )
+        center = np.nanmean(train_x, axis=0)
+        scale = np.nanstd(train_x, axis=0)
+        usable = np.isfinite(center) & np.isfinite(scale) & (scale > 1.0e-12)
+        if not np.any(usable):
+            continue
+        centroids = {
+            n: np.nanmean(
+                np.asarray(
+                    [
+                        [float(row[key]) for key in PIXEL_FEATURES]
+                        for row in train
+                        if int(row["n_flagella"]) == n
+                    ],
+                    dtype=float,
+                )[:, usable],
+                axis=0,
+            )
+            for n in (1, 2, 3)
+        }
+        for row in test:
+            x = np.asarray([float(row[key]) for key in PIXEL_FEATURES], dtype=float)
+            x = (x[usable] - center[usable]) / scale[usable]
+            distances = {
+                n: float(
+                    np.linalg.norm(x - (centroid - center[usable]) / scale[usable])
+                )
+                for n, centroid in centroids.items()
+            }
+            predicted = min(distances, key=distances.get)
+            predictions.append(
+                {
+                    "clip_id": row["clip_id"],
+                    "group_key": held_out_group,
+                    "n_flagella": int(row["n_flagella"]),
+                    "predicted_n_flagella": predicted,
+                    "correct": predicted == int(row["n_flagella"]),
+                    "nearest_centroid_distance": distances[predicted],
+                }
+            )
+    accuracy = (
+        float(np.mean([bool(row["correct"]) for row in predictions]))
+        if predictions
+        else float("nan")
+    )
+    return predictions, {
+        "feature_set": "2d_pixel",
+        "evaluation_unit": "clip",
+        "group_holdout": True,
+        "eligible_group_count": len(groups),
+        "prediction_count": len(predictions),
+        "accuracy": accuracy,
     }
 
 
@@ -141,6 +229,12 @@ def evaluate(dataset_dir: Path, output_dir: Path) -> Path:
         summary,
         list(summary[0]) if summary else ["n_flagella"],
     )
+    predictions, baseline = grouped_nearest_centroid_pixel_baseline(rows)
+    _write_csv(
+        output_dir / "grouped_nearest_centroid_pixel.csv",
+        predictions,
+        list(predictions[0]) if predictions else ["clip_id"],
+    )
     (output_dir / "manifest.json").write_text(
         json.dumps(
             {
@@ -150,6 +244,7 @@ def evaluate(dataset_dir: Path, output_dir: Path) -> Path:
                     "2d": [key for key in numeric if key.startswith("2d_")],
                 },
                 "evaluation_policy": "n=4 distribution-only; grouped downstream evaluation must hold out group_key",
+                "grouped_nearest_centroid_pixel": baseline,
             },
             ensure_ascii=False,
             indent=2,

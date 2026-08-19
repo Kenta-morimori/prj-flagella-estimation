@@ -12,8 +12,12 @@ import pytest
 from flagella_estimation.phase4.duration_study import (
     DurationStudyConfig,
     analyze_duration_seed_study,
+    _resolve_raw_dir,
     load_duration_study_config,
+    summarize_2d_motion,
+    summarize_states_3d,
 )
+from flagella_estimation.phase3.render import render_clip_array
 from sim_swim.analysis.flagella_count_behavior import save_state_archive
 from sim_swim.sim.core import SimulationState
 
@@ -26,9 +30,11 @@ def _write_csv(path: Path, rows: list[dict[str, object]]) -> None:
         writer.writerows(rows)
 
 
-def _write_fixture(dataset_dir: Path) -> None:
+def _write_fixture(
+    dataset_dir: Path, *, attach_seeds: tuple[int, ...] = (0, 1)
+) -> None:
     summary_rows: list[dict[str, object]] = []
-    for attach_seed in (0, 1):
+    for attach_seed in attach_seeds:
         for phase_seed in (0, 1):
             sample_id = f"nf01_as{attach_seed:03d}_ps{phase_seed:03d}"
             raw_dir = dataset_dir / "raw" / sample_id
@@ -133,6 +139,15 @@ def test_duration_study_writes_window_qc_and_seed_artifacts(tmp_path: Path) -> N
         )
     )
     assert rows_3d and len(rows_3d) == len(rows_2d)
+    assert {
+        "body_axis_deviation_rms_deg",
+        "body_axis_deviation_max_deg",
+    }.issubset(rows_3d[0])
+    assert {
+        "axis_angle_change_rad",
+        "axis_angular_velocity_rms_rad_s",
+        "projected_centroid_speed_um_s",
+    }.issubset(rows_2d[0])
     assert {row["dataset_revision"] for row in rows_3d} == {"r1"}
     assert {row["group_key"] for row in rows_3d} == {
         f"phase2:v1:nf01_as{attach:03d}_ps{phase:03d}"
@@ -198,11 +213,78 @@ def test_duration_study_writes_window_qc_and_seed_artifacts(tmp_path: Path) -> N
     assert manifest["environment"]["python"]
     assert (output_dir / "run.log").is_file()
     assert len(manifest["outputs"]["plots"]) >= 6
+    assert all(
+        Path(path).parent.name in {"time_series", "heatmaps"}
+        for path in manifest["outputs"]["plots"]
+    )
     plot_names = {Path(path).name for path in manifest["outputs"]["plots"]}
     assert "2d_centroid_step_mean_seed_heatmap.png" in plot_names
     assert not any(
         name.startswith("2d_centroid_step_mean_seed_heatmap_") for name in plot_names
     )
+
+
+@pytest.mark.light
+def test_summarize_states_3d_reports_body_axis_window_deviation() -> None:
+    def state_at_axis_angle(angle_deg: float) -> SimulationState:
+        half_angle = np.deg2rad(angle_deg) / 2.0
+        return SimulationState(
+            t=angle_deg / 90.0,
+            position_um=(0.0, 0.0, 0.0),
+            quaternion=(0.0, 0.0, np.sin(half_angle), np.cos(half_angle)),
+            velocity_um_s=(0.0, 0.0, 0.0),
+            omega_rad_s=(0.0, 0.0, 0.0),
+            bead_positions_um=np.asarray([[0.0, 0.0, 0.0]]),
+        )
+
+    features = summarize_states_3d(
+        [state_at_axis_angle(angle) for angle in (0.0, 45.0, 90.0)]
+    )
+
+    assert features["body_axis_angle_change_deg"] == pytest.approx(90.0)
+    assert features["body_axis_deviation_rms_deg"] == pytest.approx(
+        np.sqrt(2.0 * 45.0**2 / 3.0)
+    )
+    assert features["body_axis_deviation_max_deg"] == pytest.approx(45.0)
+
+
+@pytest.mark.light
+def test_summarize_2d_motion_uses_precentering_projected_speed() -> None:
+    def state(index: int, angle_deg: float) -> SimulationState:
+        half_angle = np.deg2rad(angle_deg) / 2.0
+        return SimulationState(
+            t=index * 0.1,
+            position_um=(index * 0.1, 0.0, 0.0),
+            quaternion=(0.0, 0.0, np.sin(half_angle), np.cos(half_angle)),
+            velocity_um_s=(1.0, 0.0, 0.0),
+            omega_rad_s=(0.0, 0.0, 0.0),
+            bead_positions_um=np.asarray([[0.0, 0.0, 0.0]]),
+        )
+
+    states = [state(0, 0.0), state(1, 45.0)]
+    clip, _ = render_clip_array(states, image_size_px=96, pixel_size_um=0.1)
+    motion = summarize_2d_motion(clip, states, frame_rate_hz=10.0)
+
+    assert motion["projected_centroid_speed_um_s"] == pytest.approx(1.0)
+    assert abs(motion["axis_angle_change_rad"]) == pytest.approx(
+        np.deg2rad(45.0), abs=0.05
+    )
+
+
+@pytest.mark.light
+def test_resolve_raw_dir_recovers_condition_after_run_root_rename(
+    tmp_path: Path,
+) -> None:
+    dataset_dir = tmp_path / "renamed_run" / "analysis" / "dataset" / "v1"
+    dataset_dir.mkdir(parents=True)
+    relocated = tmp_path / "renamed_run" / "as000__ps000__nf01"
+    relocated.mkdir()
+
+    resolved = _resolve_raw_dir(
+        Path("outputs/old_run/as000__ps000__nf01"), dataset_dir=dataset_dir
+    )
+
+    assert resolved == relocated
 
 
 @pytest.mark.light
@@ -227,13 +309,54 @@ def test_duration_study_config_accepts_key_value_overrides(tmp_path: Path) -> No
         [
             "study.durations_s=[0.25,0.5,1.0]",
             "clip.frame_rate_hz=20.0",
+            "study.seed_presentation=phase_only",
             "overwrite=true",
         ],
     )
 
     assert cfg.durations_s == (0.25, 0.5, 1.0)
     assert cfg.frame_rate_hz == pytest.approx(20.0)
+    assert cfg.seed_presentation == "phase_only"
     assert cfg.overwrite is True
+
+
+@pytest.mark.light
+def test_duration_study_phase_only_presentation_uses_n_by_phase_plots(
+    tmp_path: Path,
+) -> None:
+    dataset_dir = tmp_path / "dataset"
+    output_dir = tmp_path / "study"
+    _write_fixture(dataset_dir, attach_seeds=(0,))
+
+    analyze_duration_seed_study(
+        DurationStudyConfig(
+            dataset_dir=dataset_dir,
+            output_dir=output_dir,
+            durations_s=(0.5,),
+            frame_rate_hz=2.0,
+            crop_size_px=32,
+            pixel_size_um=0.1,
+            seed_presentation="phase_only",
+        )
+    )
+
+    manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
+    plot_names = {Path(path).name for path in manifest["outputs"]["plots"]}
+    assert manifest["study"]["seed_presentation"] == "phase_only"
+    assert "2d_centroid_step_mean_0.5s_phase_seed_heatmap.png" in plot_names
+    assert "2d_centroid_step_mean_seed_heatmap.png" not in plot_names
+    assert (
+        output_dir
+        / "plots"
+        / "time_series"
+        / "3d_body_axis_deviation_rms_deg_by_time.png"
+    ).is_file()
+    assert (
+        output_dir
+        / "plots"
+        / "heatmaps"
+        / "3d_body_axis_deviation_max_deg_0.5s_phase_seed_heatmap.png"
+    ).is_file()
 
 
 @pytest.mark.light
