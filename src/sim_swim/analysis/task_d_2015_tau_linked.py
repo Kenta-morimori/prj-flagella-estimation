@@ -136,10 +136,40 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
 
 def _plot_heatmaps(rows: list[dict[str, Any]], path: Path) -> None:
     lookup = {_grid_key(row["dt_star"], row["motor_torque_scale"]): row for row in rows}
-    panels: list[tuple[str, str, bool]] = [("safety_pass", "required safety QC", True)]
-    panels += [(metric, metric.replace("_", " "), False) for metric in QC_METRICS]
-    fig, axes = plt.subplots(2, 3, figsize=(14, 8), constrained_layout=True)
-    for ax, (field, title, is_bool) in zip(axes.flat, panels):
+    # Match the common Issue #199 heatmap layout: diagnostic QC first, then
+    # shape/helix quantities, and a compact reading guide in the last panel.
+    panels: list[tuple[str, str, float, bool]] = [
+        ("safety_pass", "required safety QC (PASS=1)", 1.0, True),
+        (
+            "body_spring_max_stretch_ratio",
+            "max body spring relative error",
+            0.10,
+            False,
+        ),
+        ("max_flag_bond_rel_err", "max flag bond relative error", 0.10, False),
+        ("max_hook_len_rel_err", "max hook length relative error", 0.10, False),
+        (
+            "max_flag_helix_radius_abs_err_over_b",
+            "max flag helix radius error / b",
+            0.05,
+            False,
+        ),
+        (
+            "max_flag_helix_pitch_rel_err",
+            "max flag helix pitch relative error",
+            0.10,
+            False,
+        ),
+        ("max_flag_torsion_err_deg", "max flag torsion error [deg]", 30.0, False),
+        (
+            "max_motor_torque_balance_residual_ratio",
+            "max motor torque-balance residual ratio",
+            0.10,
+            False,
+        ),
+    ]
+    fig, axes = plt.subplots(3, 3, figsize=(18, 15))
+    for ax, (field, title, cap, is_bool) in zip(axes.flat, panels):
         values = np.array(
             [
                 [
@@ -157,8 +187,9 @@ def _plot_heatmaps(rows: list[dict[str, Any]], path: Path) -> None:
                 for line in values
             ]
         else:
-            cap = max(1.0e-12, np.nanmax(values))
-            image = ax.imshow(values, vmin=0, vmax=cap, cmap="viridis")
+            image = ax.imshow(
+                np.clip(values, 0.0, cap), vmin=0, vmax=cap, cmap="viridis"
+            )
             labels = [
                 [f"{value:.3g}" if math.isfinite(value) else "nan" for value in line]
                 for line in values
@@ -176,7 +207,26 @@ def _plot_heatmaps(rows: list[dict[str, Any]], path: Path) -> None:
             ylabel="dt_star",
         )
         fig.colorbar(image, ax=ax, fraction=0.046, pad=0.04)
-    fig.suptitle("Issue #199 Task D: 2015 project tau-linked torque × dt safety screen")
+    guide = axes.flat[8]
+    guide.axis("off")
+    guide.text(
+        0.0,
+        1.0,
+        "How to read\n\n"
+        "Rows: dimensionless dt_star\n"
+        "Columns: torque scale relative to 1.2e-18 N m\n\n"
+        "PASS is the conjunction of the locked Stage A safety checks. "
+        "Other panels are full-run extrema; colors are clipped at the "
+        "display cap while annotations retain the raw value.\n\n"
+        "This is a τ-linked, 1τ diagnostic screen. It does not adopt "
+        "dt_star=1e-3 or promote the 2015 project profile.",
+        ha="left",
+        va="top",
+        fontsize=11,
+        wrap=True,
+    )
+    fig.suptitle("Issue #199 Task D: 2015 project τ-linked torque × dt diagnostics")
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
     fig.savefig(path, dpi=180)
     plt.close(fig)
 
