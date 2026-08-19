@@ -120,6 +120,40 @@ def _safety(row: dict[str, str], thresholds: dict[str, Any]) -> tuple[bool, list
     return not failures, failures
 
 
+def _task_a_style_features(condition_dir: Path) -> dict[str, float]:
+    """Stream the four axis/bundle diagnostics used by the Task A heatmap."""
+    fields = {
+        "max_axis_mean_deviation_deg": (
+            "flag_helix_axis_mean_deviation_deg_max",
+            max,
+        ),
+        "min_axis_rearward_projection": (
+            "flag_helix_axis_rearward_projection_min",
+            min,
+        ),
+        "max_bundle_radius_um": ("flag_helix_bundle_radius_max_um", max),
+    }
+    values: dict[str, list[float]] = {name: [] for name in fields}
+    final_bundle_participation_ratio = float("nan")
+    with (condition_dir / "step_summary.csv").open(
+        "r", encoding="utf-8", newline=""
+    ) as handle:
+        for row in csv.DictReader(handle):
+            for name, (column, _) in fields.items():
+                value = _float(row.get(column))
+                if math.isfinite(value):
+                    values[name].append(value)
+            value = _float(row.get("bundle_participation_ratio"))
+            if math.isfinite(value):
+                final_bundle_participation_ratio = value
+    result = {
+        name: reducer(values[name]) if values[name] else float("nan")
+        for name, (_, reducer) in fields.items()
+    }
+    result["final_bundle_participation_ratio"] = final_bundle_participation_ratio
+    return result
+
+
 def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
     fields: list[str] = []
     for row in rows:
@@ -150,23 +184,18 @@ def _plot_heatmaps(rows: list[dict[str, Any]], path: Path) -> None:
         ),
         ("max_flag_bond_rel_err", "max flag bond relative error", 0.10, False),
         ("max_hook_len_rel_err", "max hook length relative error", 0.10, False),
+        ("max_axis_mean_deviation_deg", "max axis mean deviation [deg]", 15.0, False),
+        ("min_axis_rearward_projection", "min axis rearward projection", 1.00, False),
         (
-            "max_flag_helix_radius_abs_err_over_b",
-            "max flag helix radius error / b",
-            0.05,
+            "final_bundle_participation_ratio",
+            "final bundle participation ratio",
+            1.0,
             False,
         ),
         (
-            "max_flag_helix_pitch_rel_err",
-            "max flag helix pitch relative error",
-            0.10,
-            False,
-        ),
-        ("max_flag_torsion_err_deg", "max flag torsion error [deg]", 30.0, False),
-        (
-            "max_motor_torque_balance_residual_ratio",
-            "max motor torque-balance residual ratio",
-            0.10,
+            "max_bundle_radius_um",
+            "max bundle radius [um]",
+            2.0,
             False,
         ),
     ]
@@ -186,8 +215,9 @@ def _plot_heatmaps(rows: list[dict[str, Any]], path: Path) -> None:
                 for line in values
             ]
         else:
+            vmin = 0.90 if field == "min_axis_rearward_projection" else 0.0
             image = ax.imshow(
-                np.clip(values, 0.0, cap), vmin=0, vmax=cap, cmap="viridis"
+                np.clip(values, vmin, cap), vmin=vmin, vmax=cap, cmap="viridis"
             )
             labels = [
                 [f"{value:.3g}" if math.isfinite(value) else "nan" for value in line]
@@ -215,8 +245,9 @@ def _plot_heatmaps(rows: list[dict[str, Any]], path: Path) -> None:
         "Rows: torque [N m / flagellum]\n"
         "Columns: dimensionless dt_star\n\n"
         "PASS is the conjunction of the locked Stage A safety checks. "
-        "Other panels are full-run extrema; colors are clipped at the "
-        "display cap while annotations retain the raw value.\n\n"
+        "Other panels are full-run extrema, except final bundle "
+        "participation. Colors are clipped at the display cap while "
+        "annotations retain the raw value.\n\n"
         "This is a τ-linked, 1τ diagnostic screen. It does not adopt "
         "dt_star=1e-3 or promote the 2015 project profile.",
         ha="left",
@@ -256,7 +287,9 @@ def assemble(
             # Stage A's summary has maxima useful for a compact display, but
             # the locked contract also includes body drifts.  Recompute those
             # from each condition's bounded diagnostics before screening.
-            source.update(_observed_metrics(Path(str(condition["output_dir"]))))
+            condition_dir = Path(str(condition["output_dir"]))
+            source.update(_observed_metrics(condition_dir))
+            source.update(_task_a_style_features(condition_dir))
             passed, failures = _safety(source, thresholds)
             replay_id = f"torque_{torque_Nm:.0e}_dt{dt:.0e}".replace("-", "m")
             source.update(
