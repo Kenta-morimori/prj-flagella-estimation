@@ -53,6 +53,11 @@ def _grid_key(dt_star: Any, torque_Nm: Any) -> tuple[float, float]:
     return (round(_float(dt_star), 10), round(_float(torque_Nm), 30))
 
 
+def _row_torque_Nm(row: dict[str, Any]) -> float:
+    """Read new physical-torque summaries and pre-migration summaries alike."""
+    return _float(row.get("motor_torque_Nm") or row.get("torque_Nm"))
+
+
 def _load_campaign(
     run_root: Path, expected_dt: float
 ) -> tuple[dict[str, Any], list[dict[str, str]]]:
@@ -128,7 +133,11 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
 
 
 def _plot_heatmaps(rows: list[dict[str, Any]], path: Path) -> None:
-    lookup = {_grid_key(row["dt_star"], row["motor_torque_Nm"]): row for row in rows}
+    dt_order = tuple(sorted({_float(row["dt_star"]) for row in rows}, reverse=True))
+    torque_order = tuple(sorted({_row_torque_Nm(row) for row in rows}, reverse=True))
+    if len(dt_order) != 2 or len(torque_order) != 3:
+        raise ValueError("Task D heatmap requires a 3-torque by 2-dt grid")
+    lookup = {_grid_key(row["dt_star"], _row_torque_Nm(row)): row for row in rows}
     # Match the common Issue #199 heatmap layout: diagnostic QC first, then
     # shape/helix quantities, and a compact reading guide in the last panel.
     panels: list[tuple[str, str, float, bool]] = [
@@ -165,8 +174,8 @@ def _plot_heatmaps(rows: list[dict[str, Any]], path: Path) -> None:
     for ax, (field, title, cap, is_bool) in zip(axes.flat, panels):
         values = np.array(
             [
-                [_float(lookup[_grid_key(dt, torque_Nm)].get(field)) for dt in DT_ORDER]
-                for torque_Nm in TORQUE_ORDER_NM
+                [_float(lookup[_grid_key(dt, torque_Nm)].get(field)) for dt in dt_order]
+                for torque_Nm in torque_order
             ]
         )
         if is_bool:
@@ -190,9 +199,9 @@ def _plot_heatmaps(rows: list[dict[str, Any]], path: Path) -> None:
         ax.set(
             title=title,
             xticks=range(2),
-            xticklabels=[f"{dt:.0e}" for dt in DT_ORDER],
+            xticklabels=[f"{dt:.0e}" for dt in dt_order],
             yticks=range(3),
-            yticklabels=[f"{torque:.1e}" for torque in TORQUE_ORDER_NM],
+            yticklabels=[f"{torque:.1e}" for torque in torque_order],
             xlabel="dt_star",
             ylabel="torque [N m / flagellum]",
         )
