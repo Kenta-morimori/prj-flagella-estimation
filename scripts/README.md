@@ -242,6 +242,10 @@ uv run python scripts/02_phase2_analysis/analyze_2015_stage_a.py \
 `docs/phase2/phase2_168_2015_stage_a_validation.md`を参照してください。motor-off pilotから具体的閾値を
 lockする前にmotor-on採否は行いません。
 
+Issue #199 Task D の2015 project τ-linked torque × `dt_star` screen は、reference/candidateの
+2 runを完了後に統合します。実行条件と診断限定の扱いは
+`docs/phase2/phase2_199_tau_policy_torque_dt_campaign_contract.md` を正本とします。
+
 ### Heatmap
 
 sweep summary から heatmap を作る場合は `plot_heatmap.py` を使います。

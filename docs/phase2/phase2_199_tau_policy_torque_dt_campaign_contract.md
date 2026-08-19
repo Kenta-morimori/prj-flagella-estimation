@@ -34,3 +34,31 @@ uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
 解析はsimulationを再起動しない。campaign root の `qc_summary.json`、`dt_comparison.csv`、
 `tau_policy_comparison.csv`、policy別heatmap、`replay/` を確認する。これらは採択判断ではなく、
 #200 の収束・複数seed評価に先立つscreenである。
+
+## Task D: 2015 project τ-linked torque × `dt_star` safety screen
+
+2015 project profile を対象に、`motor.torque_Nm` と `motor.reference_torque_Nm` を同じ倍率で変え、
+`time.scale_policy=reference_torque` とする。これにより material force scale と `tau_s` も条件ごとに
+連動する。`duration=1 tau`、`n_flagella=3`、seed 0 のまま、torque scale `0.5, 1.0, 2.0` と
+`dt_star=1e-4`（reference）/`1e-3`（candidate）の6条件を実行する。
+
+これは locked Stage A threshold による safety screen と replay/heatmap 用の診断であり、
+`dt_star=1e-3`の採用、2015 profile のsupported化、dataset条件の変更を意味しない。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_sweep.py \
+  config=conf/phase2_sweeps/2015_task_d_tau_linked_dt1e4.yaml
+uv run python scripts/01_simulate_swimming/run_sweep.py \
+  config=conf/phase2_sweeps/2015_task_d_tau_linked_dt1e3.yaml
+
+uv run python scripts/02_phase2_analysis/assemble_2015_task_d.py \
+  --reference-run <dt1e-4-run-root> \
+  --candidate-run <dt1e-3-run-root> \
+  --threshold-contract conf/phase2_validation/2015_stage_a_thresholds.yaml \
+  --output-dir <analysis-root>
+
+uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
+  --input-dir <analysis-root>/replay_input \
+  --output-dir <analysis-root>/replay \
+  --mode render-only --target-frame-count 201 --max-panels-per-grid 6
+```

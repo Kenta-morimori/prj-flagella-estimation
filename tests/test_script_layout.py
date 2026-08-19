@@ -17,6 +17,7 @@ def test_phase2_and_dataset_cli_responsibilities_are_separated() -> None:
     assert (analysis_dir / "plan_2010_torque_dt_stability.py").is_file()
     assert (analysis_dir / "plot_heatmap.py").is_file()
     assert (analysis_dir / "render_phase2_replay.py").is_file()
+    assert (analysis_dir / "assemble_2015_task_d.py").is_file()
     assert (analysis_dir / "visualize_2010_torque_dt_stability.py").is_file()
     assert (dataset_dir / "build_dataset.py").is_file()
     assert (dataset_dir / "build_clip_dataset.py").is_file()
