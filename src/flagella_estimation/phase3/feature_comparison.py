@@ -69,12 +69,18 @@ def _shape(frame: np.ndarray) -> tuple[float, float, float, float]:
     return float(len(xs)), float(major), float(minor), angle
 
 
+def body_axis_angles_rad(clip: np.ndarray) -> np.ndarray:
+    """Return unwrapped, pi-periodic long-axis angles from body silhouettes."""
+    values = np.asarray([_shape(frame) for frame in clip], dtype=float)
+    # Capsule orientation is axial (pi-periodic), hence unwrap doubled angles.
+    return np.unwrap(2.0 * values[:, 3]) / 2.0
+
+
 def pixel_features(clip: np.ndarray, fps: float) -> dict[str, float]:
     values = np.asarray([_shape(frame) for frame in clip], dtype=float)
-    area, major, minor, angle = values.T
+    area, major, minor, _ = values.T
     aspect = np.divide(major, minor, out=np.full_like(major, np.nan), where=minor > 0)
-    # Capsule orientation is axial (pi-periodic), hence unwrap doubled angles.
-    angle = np.unwrap(2.0 * angle) / 2.0
+    angle = body_axis_angles_rad(clip)
     angular_velocity = np.diff(angle) * fps
     return {
         "2d_area_px_mean": float(np.nanmean(area)),

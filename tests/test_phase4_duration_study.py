@@ -144,9 +144,10 @@ def test_duration_study_writes_window_qc_and_seed_artifacts(tmp_path: Path) -> N
         "body_axis_deviation_max_deg",
     }.issubset(rows_3d[0])
     assert {
-        "axis_angle_change_rad",
-        "axis_angular_velocity_rms_rad_s",
-        "projected_centroid_speed_um_s",
+        "cell_mean_speed_um_s",
+        "body_axis_angle_change_deg",
+        "body_axis_deviation_rms_deg",
+        "body_axis_deviation_max_deg",
     }.issubset(rows_2d[0])
     assert {row["dataset_revision"] for row in rows_3d} == {"r1"}
     assert {row["group_key"] for row in rows_3d} == {
@@ -218,9 +219,9 @@ def test_duration_study_writes_window_qc_and_seed_artifacts(tmp_path: Path) -> N
         for path in manifest["outputs"]["plots"]
     )
     plot_names = {Path(path).name for path in manifest["outputs"]["plots"]}
-    assert "2d_centroid_step_mean_seed_heatmap.png" in plot_names
+    assert "2d_cell_mean_speed_um_s_seed_heatmap.png" in plot_names
     assert not any(
-        name.startswith("2d_centroid_step_mean_seed_heatmap_") for name in plot_names
+        name.startswith("2d_centroid_step_mean_seed_heatmap") for name in plot_names
     )
 
 
@@ -249,26 +250,29 @@ def test_summarize_states_3d_reports_body_axis_window_deviation() -> None:
 
 
 @pytest.mark.light
-def test_summarize_2d_motion_uses_precentering_projected_speed() -> None:
+def test_summarize_2d_motion_uses_projected_velocity_and_axial_axis_stats() -> None:
     def state(index: int, angle_deg: float) -> SimulationState:
         half_angle = np.deg2rad(angle_deg) / 2.0
         return SimulationState(
             t=index * 0.1,
-            position_um=(index * 0.1, 0.0, 0.0),
+            position_um=(0.0, 0.0, 0.0),
             quaternion=(0.0, 0.0, np.sin(half_angle), np.cos(half_angle)),
-            velocity_um_s=(1.0, 0.0, 0.0),
+            velocity_um_s=(3.0, 4.0, 12.0),
             omega_rad_s=(0.0, 0.0, 0.0),
             bead_positions_um=np.asarray([[0.0, 0.0, 0.0]]),
         )
 
-    states = [state(0, 0.0), state(1, 45.0)]
+    states = [state(0, 0.0), state(1, 90.0), state(2, 0.0)]
     clip, _ = render_clip_array(states, image_size_px=96, pixel_size_um=0.1)
     motion = summarize_2d_motion(clip, states, frame_rate_hz=10.0)
 
-    assert motion["projected_centroid_speed_um_s"] == pytest.approx(1.0)
-    assert abs(motion["axis_angle_change_rad"]) == pytest.approx(
-        np.deg2rad(45.0), abs=0.05
+    assert motion["cell_mean_speed_um_s"] == pytest.approx(5.0)
+    assert summarize_states_3d(states)["cell_mean_speed_um_s"] == pytest.approx(13.0)
+    assert motion["body_axis_angle_change_deg"] == pytest.approx(0.0, abs=2.0)
+    assert motion["body_axis_deviation_rms_deg"] == pytest.approx(
+        np.sqrt(90.0**2 / 3.0), abs=3.0
     )
+    assert motion["body_axis_deviation_max_deg"] == pytest.approx(90.0, abs=2.0)
 
 
 @pytest.mark.light
@@ -343,19 +347,25 @@ def test_duration_study_phase_only_presentation_uses_n_by_phase_plots(
     manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
     plot_names = {Path(path).name for path in manifest["outputs"]["plots"]}
     assert manifest["study"]["seed_presentation"] == "phase_only"
-    assert "2d_centroid_step_mean_0.5s_phase_seed_heatmap.png" in plot_names
+    assert "2d_cell_mean_speed_um_s_0.5s_phase_seed_heatmap.png" in plot_names
     assert "2d_centroid_step_mean_seed_heatmap.png" not in plot_names
+    assert "2d_centroid_step_mean_by_time.png" not in plot_names
+    assert "2d_radial_spread_mean_by_time.png" not in plot_names
+    assert "2d_cell_angular_velocity_rms_rad_s_by_time.png" not in plot_names
+    assert (
+        output_dir / "plots" / "time_series" / "2d_cell_mean_speed_um_s_by_time.png"
+    ).is_file()
     assert (
         output_dir
         / "plots"
         / "time_series"
-        / "3d_body_axis_deviation_rms_deg_by_time.png"
+        / "2d_body_axis_angle_change_deg_by_time.png"
     ).is_file()
     assert (
         output_dir
         / "plots"
         / "heatmaps"
-        / "3d_body_axis_deviation_max_deg_0.5s_phase_seed_heatmap.png"
+        / "2d_body_axis_deviation_max_deg_0.5s_phase_seed_heatmap.png"
     ).is_file()
 
 

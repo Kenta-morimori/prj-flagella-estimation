@@ -23,7 +23,7 @@ from matplotlib.lines import Line2D
 import numpy as np
 import yaml
 
-from flagella_estimation.phase3.feature_comparison import pixel_features
+from flagella_estimation.phase3.feature_comparison import body_axis_angles_rad
 from flagella_estimation.phase3.render import render_clip_array, select_frames
 from flagella_estimation.phase3.windows import generate_windows
 from flagella_estimation.phase4.baseline import FEATURE_NAMES, extract_clip_features
@@ -51,9 +51,10 @@ THREE_D_FEATURE_NAMES = (
 
 TWO_D_FEATURE_NAMES = (
     *FEATURE_NAMES,
-    "axis_angle_change_rad",
-    "axis_angular_velocity_rms_rad_s",
-    "projected_centroid_speed_um_s",
+    "cell_mean_speed_um_s",
+    "body_axis_angle_change_deg",
+    "body_axis_deviation_rms_deg",
+    "body_axis_deviation_max_deg",
 )
 
 PLOT_FEATURES = {
@@ -67,11 +68,10 @@ PLOT_FEATURES = {
     ),
     "2d": (
         "temporal_diff_mean",
-        "centroid_step_mean",
-        "radial_spread_mean",
-        "axis_angle_change_rad",
-        "axis_angular_velocity_rms_rad_s",
-        "projected_centroid_speed_um_s",
+        "cell_mean_speed_um_s",
+        "body_axis_angle_change_deg",
+        "body_axis_deviation_rms_deg",
+        "body_axis_deviation_max_deg",
     ),
 }
 
@@ -334,6 +334,43 @@ def summarize_states_3d(states: list[Any]) -> dict[str, float]:
     return result
 
 
+def _axial_angle_delta_rad(angles: np.ndarray, reference_rad: float) -> np.ndarray:
+    """Return shortest signed angle deltas for pi-periodic body axes."""
+    return 0.5 * np.angle(np.exp(2.0j * (angles - reference_rad)))
+
+
+def _summarize_2d_body_axis(clip: np.ndarray) -> dict[str, float]:
+    angles = body_axis_angles_rad(clip)
+    finite_angles = angles[np.isfinite(angles)]
+    if not len(finite_angles):
+        return {
+            "body_axis_angle_change_deg": float("nan"),
+            "body_axis_deviation_rms_deg": float("nan"),
+            "body_axis_deviation_max_deg": float("nan"),
+        }
+    mean_vector = np.mean(np.exp(2.0j * finite_angles))
+    if abs(mean_vector) <= 1.0e-12:
+        return {
+            "body_axis_angle_change_deg": float("nan"),
+            "body_axis_deviation_rms_deg": float("nan"),
+            "body_axis_deviation_max_deg": float("nan"),
+        }
+    mean_angle = 0.5 * float(np.angle(mean_vector))
+    deviations_deg = np.rad2deg(
+        np.abs(_axial_angle_delta_rad(finite_angles, mean_angle))
+    )
+    endpoint_delta_deg = abs(
+        float(
+            np.rad2deg(_axial_angle_delta_rad(finite_angles[-1:], finite_angles[0])[0])
+        )
+    )
+    return {
+        "body_axis_angle_change_deg": endpoint_delta_deg,
+        "body_axis_deviation_rms_deg": float(np.sqrt(np.mean(deviations_deg**2))),
+        "body_axis_deviation_max_deg": float(np.max(deviations_deg)),
+    }
+
+
 def summarize_2d_motion(
     clip: np.ndarray,
     states: list[Any],
@@ -348,17 +385,12 @@ def summarize_2d_motion(
     """
     if len(clip) != len(states):
         raise ValueError("clip and states must contain the same number of frames")
-    image_motion = pixel_features(clip, frame_rate_hz)
-    positions_xy = np.asarray([state.position_um[:2] for state in states], dtype=float)
-    steps_um = np.linalg.norm(np.diff(positions_xy, axis=0), axis=1)
+    velocities_xy = np.asarray(
+        [state.velocity_um_s[:2] for state in states], dtype=float
+    )
     return {
-        "axis_angle_change_rad": image_motion["2d_axis_angle_change_rad"],
-        "axis_angular_velocity_rms_rad_s": image_motion[
-            "2d_axis_angular_velocity_rms_rad_s"
-        ],
-        "projected_centroid_speed_um_s": (
-            float(np.mean(steps_um) * frame_rate_hz) if len(steps_um) else 0.0
-        ),
+        "cell_mean_speed_um_s": float(np.mean(np.linalg.norm(velocities_xy, axis=1))),
+        **_summarize_2d_body_axis(clip),
     }
 
 
@@ -1194,6 +1226,28 @@ def analyze_duration_seed_study(cfg: DurationStudyConfig) -> Path:
             "frame_rate_hz": cfg.frame_rate_hz,
             "crop_size_px": cfg.crop_size_px,
             "pixel_size_um": cfg.pixel_size_um,
+        },
+        "feature_definitions": {
+            "2d_cell_mean_speed_um_s": {
+                "unit": "um/s",
+                "definition": "mean XY norm of source instantaneous body-centre velocity before body centering",
+            },
+            "2d_body_axis_angle_change_deg": {
+                "unit": "degree",
+                "definition": "shortest start-to-end body-axis angle change from pi-periodic body-only 2D silhouettes",
+            },
+            "2d_body_axis_deviation_rms_deg": {
+                "unit": "degree",
+                "definition": "RMS body-axis deviation from the axial circular mean of body-only 2D silhouettes",
+            },
+            "2d_body_axis_deviation_max_deg": {
+                "unit": "degree",
+                "definition": "maximum body-axis deviation from the axial circular mean of body-only 2D silhouettes",
+            },
+            "2d_temporal_diff_mean": {
+                "unit": "normalized intensity difference",
+                "definition": "mean absolute frame-to-frame silhouette intensity difference",
+            },
         },
         "seeds": {
             "attach": attach_seeds,
