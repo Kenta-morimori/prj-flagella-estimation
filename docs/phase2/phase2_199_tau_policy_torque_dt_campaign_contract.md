@@ -37,19 +37,19 @@ uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
 
 ## Task D: 2015 project τ-linked torque × `dt_star` safety screen
 
-2015 project profile を対象に、`motor.torque_Nm` と `motor.reference_torque_Nm` を同じ倍率で変え、
-`time.scale_policy=reference_torque` とする。これにより material force scale と `tau_s` も条件ごとに
-連動する。`duration=1 tau`、`n_flagella=3`、seed 0 のまま、torque scale `0.5, 1.0, 2.0` と
-`dt_star=1e-4`（reference）/`1e-3`（candidate）の6条件を実行する。
+2015 project profile を対象に、Task Aと同じ物理トルク `1e-21`, `2.5e-20`, `1e-19 N m / flagellum`
+を使う。`motor.torque_Nm` と `motor.reference_torque_Nm` は各条件で同じ物理値とし、
+`time.scale_policy=reference_torque` を使う。これにより material force scale と `tau_s` も条件ごとに
+連動する。`duration=1 tau`、`n_flagella=3`、seed 0、`dt_star=1e-3` / `1e-4` の6条件を実行する。
 
 これは locked Stage A threshold による safety screen と replay/heatmap 用の診断であり、
 `dt_star=1e-3`の採用、2015 profile のsupported化、dataset条件の変更を意味しない。
 
 ```bash
 uv run python scripts/01_simulate_swimming/run_sweep.py \
-  config=conf/phase2_sweeps/2015_task_d_tau_linked_dt1e4.yaml
+  config=conf/phase2_sweeps/2015_task_d_physical_torque_tau_linked_dt1e3.yaml
 uv run python scripts/01_simulate_swimming/run_sweep.py \
-  config=conf/phase2_sweeps/2015_task_d_tau_linked_dt1e3.yaml
+  config=conf/phase2_sweeps/2015_task_d_physical_torque_tau_linked_dt1e4.yaml
 
 uv run python scripts/02_phase2_analysis/assemble_2015_task_d.py \
   --reference-run <dt1e-4-run-root> \

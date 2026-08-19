@@ -4,7 +4,7 @@ from sim_swim.analysis.task_d_2015_tau_linked import _grid_key, _safety
 
 
 def test_task_d_grid_key_normalizes_floating_point_dt_representation() -> None:
-    assert _grid_key(0.00010000000000000002, 0.5) == _grid_key(1.0e-4, 0.5)
+    assert _grid_key(0.00010000000000000002, 1.0e-21) == _grid_key(1.0e-4, 1.0e-21)
 
 
 def test_task_d_safety_requires_every_locked_metric_to_be_finite_and_within_limit() -> (

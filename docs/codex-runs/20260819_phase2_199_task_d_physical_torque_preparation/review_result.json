@@ -1,0 +1,36 @@
+{
+  "status": "PASS",
+  "summary": "Issue #199 Task Dを、2015 project既定値の倍率gridから、Task Aと同じ物理トルク1e-21・2.5e-20・1e-19 N m / flagellumのτ-linked gridへ切り替えた。各条件でmotor torqueとreference torqueを同値にし、duration=1 tau、dt_star=1e-3/1e-4とする。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "長時間simulation、統合解析、replayはユーザー実行待ちであり、dt_starや2015 profileの採択は行わない。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "run_sweep.py config=2015_task_d_physical_torque_tau_linked_dt1e3.yaml dry_run=true; dt1e4も同様",
+      "result": "PASS: 各configは物理トルク1e-21, 2.5e-20, 1e-19の3条件に展開"
+    },
+    {
+      "command": "uv run pytest tests/test_phase2_168_stage_a.py tests/test_phase2_199_task_d.py tests/test_script_layout.py -q",
+      "result": "PASS: 25 passed"
+    },
+    {
+      "command": "uv run ruff check (changed Python files) && git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "ユーザーが実行する方針のため。",
+  "user_review_required": true,
+  "user_review_command": "2本のsweep完走後、物理トルク行・dt_star列のheatmapと6条件replayを確認する。",
+  "adr_required": false,
+  "adr_reason": "実験gridと診断表示を変更するだけで、default profile、dataset、dt_star採択を変更しないため。",
+  "commit_type": "feat",
+  "commit_hash": "",
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/201",
+  "next_actions": [
+    "ユーザーが2本のphysical-torque sweepを実行する。",
+    "run rootを指定して統合解析とreplayを再生成する。"
+  ]
+}

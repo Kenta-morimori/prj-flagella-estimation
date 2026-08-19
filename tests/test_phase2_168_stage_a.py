@@ -251,6 +251,26 @@ def test_issue199_task_d_profiles_link_tau_and_reference_torque(
     assert int(round(args.duration_tau / args.dt_star)) == expected_steps
 
 
+@pytest.mark.parametrize(
+    ("profile_name", "dt_star", "expected_steps"),
+    [
+        ("2015_task_d_physical_torque_tau_linked_dt1e4.yaml", 1.0e-4, 10_000),
+        ("2015_task_d_physical_torque_tau_linked_dt1e3.yaml", 1.0e-3, 1_000),
+    ],
+)
+def test_issue199_task_d_physical_torque_profiles_use_task_a_grid(
+    profile_name: str, dt_star: float, expected_steps: int
+) -> None:
+    profile = load_profile(ROOT / "conf/phase2_sweeps" / profile_name)
+    args = stage_a_2015._parse_args(args_from_profile(profile))
+
+    assert args.link_reference_torque is True
+    assert args.motor_torque_scales == [1.0]
+    assert args.motor_torques_nm == [1.0e-21, 2.5e-20, 1.0e-19]
+    assert args.dt_star == pytest.approx(dt_star)
+    assert int(round(args.duration_tau / args.dt_star)) == expected_steps
+
+
 def test_simulator_can_sample_states_without_sampling_step_diagnostics(
     tmp_path: Path,
 ) -> None:

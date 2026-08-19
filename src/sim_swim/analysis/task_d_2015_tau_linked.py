@@ -17,15 +17,8 @@ from sim_swim.analysis.stage_a_2015_analysis import (
     load_threshold_contract,
 )
 
-DT_ORDER = (1.0e-4, 1.0e-3)
-TORQUE_ORDER = (0.5, 1.0, 2.0)
-QC_METRICS = (
-    "body_spring_max_stretch_ratio",
-    "max_flag_bond_rel_err",
-    "max_hook_len_rel_err",
-    "max_flag_helix_radius_abs_err_over_b",
-    "max_flag_helix_pitch_rel_err",
-)
+DT_ORDER = (1.0e-3, 1.0e-4)
+TORQUE_ORDER_NM = (1.0e-19, 2.5e-20, 1.0e-21)
 
 
 def _float(value: Any) -> float:
@@ -55,9 +48,9 @@ def _close(actual: Any, expected: float) -> bool:
     return math.isclose(_float(actual), expected, rel_tol=1.0e-12, abs_tol=1.0e-15)
 
 
-def _grid_key(dt_star: Any, torque_scale: Any) -> tuple[float, float]:
+def _grid_key(dt_star: Any, torque_Nm: Any) -> tuple[float, float]:
     """Canonical grid key, avoiding YAML/float representation noise."""
-    return (round(_float(dt_star), 10), round(_float(torque_scale), 10))
+    return (round(_float(dt_star), 10), round(_float(torque_Nm), 30))
 
 
 def _load_campaign(
@@ -76,22 +69,22 @@ def _load_campaign(
     if manifest.get("link_reference_torque") is not True:
         raise ValueError(f"{run_root}: link_reference_torque must be true")
     rows = _read_rows(run_root / "summary.csv")
-    scales = {_float(row.get("motor_torque_scale")) for row in rows}
-    if scales != set(TORQUE_ORDER):
+    torques = {_float(row.get("motor_torque_Nm")) for row in rows}
+    if torques != set(TORQUE_ORDER_NM):
         raise ValueError(
-            f"{run_root}: expected torque scales {TORQUE_ORDER}, got {sorted(scales)}"
+            f"{run_root}: expected torques {TORQUE_ORDER_NM}, got {sorted(torques)}"
         )
     return manifest, rows
 
 
-def _condition_by_scale(manifest: dict[str, Any], scale: float) -> dict[str, Any]:
+def _condition_by_torque(manifest: dict[str, Any], torque_Nm: float) -> dict[str, Any]:
     matches = [
         item
         for item in manifest.get("conditions", [])
-        if _close(item.get("motor_torque_scale"), scale)
+        if _close(item.get("motor_torque_Nm"), torque_Nm)
     ]
     if len(matches) != 1:
-        raise ValueError(f"Expected one condition manifest at torque scale {scale}")
+        raise ValueError(f"Expected one condition manifest at torque {torque_Nm}")
     condition = matches[0]
     overrides = condition.get("config_overrides", {})
     if overrides.get("time.scale_policy") != "reference_torque":
@@ -135,7 +128,7 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
 
 
 def _plot_heatmaps(rows: list[dict[str, Any]], path: Path) -> None:
-    lookup = {_grid_key(row["dt_star"], row["motor_torque_scale"]): row for row in rows}
+    lookup = {_grid_key(row["dt_star"], row["motor_torque_Nm"]): row for row in rows}
     # Match the common Issue #199 heatmap layout: diagnostic QC first, then
     # shape/helix quantities, and a compact reading guide in the last panel.
     panels: list[tuple[str, str, float, bool]] = [
@@ -172,11 +165,8 @@ def _plot_heatmaps(rows: list[dict[str, Any]], path: Path) -> None:
     for ax, (field, title, cap, is_bool) in zip(axes.flat, panels):
         values = np.array(
             [
-                [
-                    _float(lookup[_grid_key(dt, scale)].get(field))
-                    for scale in TORQUE_ORDER
-                ]
-                for dt in DT_ORDER
+                [_float(lookup[_grid_key(dt, torque_Nm)].get(field)) for dt in DT_ORDER]
+                for torque_Nm in TORQUE_ORDER_NM
             ]
         )
         if is_bool:
@@ -194,17 +184,17 @@ def _plot_heatmaps(rows: list[dict[str, Any]], path: Path) -> None:
                 [f"{value:.3g}" if math.isfinite(value) else "nan" for value in line]
                 for line in values
             ]
-        for i in range(2):
-            for j in range(3):
+        for i in range(3):
+            for j in range(2):
                 ax.text(j, i, labels[i][j], ha="center", va="center", fontsize=9)
         ax.set(
             title=title,
-            xticks=range(3),
-            xticklabels=[f"x{x:g}" for x in TORQUE_ORDER],
-            yticks=range(2),
-            yticklabels=["1e-4 ref", "1e-3 candidate"],
-            xlabel="torque scale",
-            ylabel="dt_star",
+            xticks=range(2),
+            xticklabels=[f"{dt:.0e}" for dt in DT_ORDER],
+            yticks=range(3),
+            yticklabels=[f"{torque:.1e}" for torque in TORQUE_ORDER_NM],
+            xlabel="dt_star",
+            ylabel="torque [N m / flagellum]",
         )
         fig.colorbar(image, ax=ax, fraction=0.046, pad=0.04)
     guide = axes.flat[8]
@@ -213,8 +203,8 @@ def _plot_heatmaps(rows: list[dict[str, Any]], path: Path) -> None:
         0.0,
         1.0,
         "How to read\n\n"
-        "Rows: dimensionless dt_star\n"
-        "Columns: torque scale relative to 1.2e-18 N m\n\n"
+        "Rows: torque [N m / flagellum]\n"
+        "Columns: dimensionless dt_star\n\n"
         "PASS is the conjunction of the locked Stage A safety checks. "
         "Other panels are full-run extrema; colors are clipped at the "
         "display cap while annotations retain the raw value.\n\n"
@@ -245,28 +235,25 @@ def assemble(
     output_dir.mkdir(parents=True, exist_ok=False)
     all_rows: list[dict[str, Any]] = []
     replay_conditions: list[dict[str, Any]] = []
-    for grid_row, (dt, manifest, source_rows, role) in enumerate(
-        (
-            (1.0e-4, ref_manifest, ref_rows, "reference"),
-            (1.0e-3, candidate_manifest, candidate_rows, "candidate"),
-        )
-    ):
-        by_scale = {_float(row.get("motor_torque_scale")): row for row in source_rows}
-        for grid_col, scale in enumerate(TORQUE_ORDER):
-            source = dict(by_scale[scale])
-            condition = _condition_by_scale(manifest, scale)
+    campaigns = (
+        (1.0e-3, candidate_manifest, candidate_rows, "candidate"),
+        (1.0e-4, ref_manifest, ref_rows, "reference"),
+    )
+    for grid_row, torque_Nm in enumerate(TORQUE_ORDER_NM):
+        for grid_col, (dt, manifest, source_rows, role) in enumerate(campaigns):
+            by_torque = {_float(row.get("motor_torque_Nm")): row for row in source_rows}
+            source = dict(by_torque[torque_Nm])
+            condition = _condition_by_torque(manifest, torque_Nm)
             # Stage A's summary has maxima useful for a compact display, but
             # the locked contract also includes body drifts.  Recompute those
             # from each condition's bounded diagnostics before screening.
             source.update(_observed_metrics(Path(str(condition["output_dir"]))))
             passed, failures = _safety(source, thresholds)
-            replay_id = f"dt{dt:.0e}_project_torque_x{scale:g}".replace(
-                "-", "m"
-            ).replace(".", "p")
+            replay_id = f"torque_{torque_Nm:.0e}_dt{dt:.0e}".replace("-", "m")
             source.update(
                 {
                     "condition_id": replay_id,
-                    "condition_label": f"dt*={dt:.0e}, torque x{scale:g} ({role})",
+                    "condition_label": f"torque={torque_Nm:.0e} N m / flagellum, dt*={dt:.0e}",
                     "grid_row_index": grid_row,
                     "grid_col_index": grid_col,
                     "dt_role": role,
