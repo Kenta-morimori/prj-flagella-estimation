@@ -45,7 +45,7 @@ def _truth(value: Any) -> bool:
 
 
 def _close(actual: Any, expected: float) -> bool:
-    return math.isclose(_float(actual), expected, rel_tol=1.0e-12, abs_tol=1.0e-15)
+    return math.isclose(_float(actual), expected, rel_tol=1.0e-12, abs_tol=1.0e-30)
 
 
 def _grid_key(dt_star: Any, torque_Nm: Any) -> tuple[float, float]:

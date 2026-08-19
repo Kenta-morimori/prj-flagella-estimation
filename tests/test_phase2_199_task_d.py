@@ -1,10 +1,15 @@
 from __future__ import annotations
 
-from sim_swim.analysis.task_d_2015_tau_linked import _grid_key, _safety
+from sim_swim.analysis.task_d_2015_tau_linked import _close, _grid_key, _safety
 
 
 def test_task_d_grid_key_normalizes_floating_point_dt_representation() -> None:
     assert _grid_key(0.00010000000000000002, 1.0e-21) == _grid_key(1.0e-4, 1.0e-21)
+
+
+def test_task_d_torque_comparison_distinguishes_physical_grid_values() -> None:
+    assert _close(1.0e-19, 1.0e-19)
+    assert not _close(1.0e-19, 2.5e-20)
 
 
 def test_task_d_safety_requires_every_locked_metric_to_be_finite_and_within_limit() -> (
