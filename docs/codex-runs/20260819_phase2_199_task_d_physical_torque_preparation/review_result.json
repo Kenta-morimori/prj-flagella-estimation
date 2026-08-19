@@ -26,8 +26,8 @@
   "adr_required": false,
   "adr_reason": "実験gridと診断表示を変更するだけで、default profile、dataset、dt_star採択を変更しないため。",
   "commit_type": "feat",
-  "commit_hash": "",
-  "push_status": "pending",
+  "commit_hash": "6629508",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/201",
   "next_actions": [
     "ユーザーが2本のphysical-torque sweepを実行する。",
