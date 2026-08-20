@@ -15,6 +15,7 @@ base_overrides:
   time.duration_s: 1.0
   time.dt_star: 1.0e-4
   motor.torque_Nm: 2.0e-20
+  motor.reference_torque_Nm: 2.0e-20
   motor.enable_switching: false
   motor.force_distribution: root_torque_segment_couples
   flagella.placement_mode: seeded_surface

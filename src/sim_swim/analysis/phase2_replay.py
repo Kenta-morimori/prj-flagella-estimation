@@ -680,6 +680,16 @@ def _render_grid_movie(
     }
 
 
+def _select_2d_replay_states(
+    states: list[Any], *, fps_out_2d: float, target_frame_count: int | None
+) -> list[Any]:
+    if target_frame_count is not None:
+        return _resample_states_for_replay(states, target_frame_count)
+    from sim_swim.render.render3d import _select_frames
+
+    return _select_frames(states, out_all_steps_3d=False, fps_hint=fps_out_2d)
+
+
 def _render_grid_movie_2d(
     *,
     states_by_condition: list[list[Any]],
@@ -704,9 +714,11 @@ def _render_grid_movie_2d(
     )
 
     render_states = [
-        _resample_states_for_replay(states, target_frame_count)
-        if target_frame_count is not None
-        else states
+        _select_2d_replay_states(
+            states,
+            fps_out_2d=fps_out_2d,
+            target_frame_count=target_frame_count,
+        )
         for states in states_by_condition
     ]
     frame_count = min(len(states) for states in render_states)

@@ -8,6 +8,7 @@ from sim_swim.analysis.multi_run_campaign import load_yaml
 from sim_swim.analysis.torque_dt_stability import build_plan
 from sim_swim.analysis.torque_dt_stability_campaign import (
     _assert_condition,
+    _campaign_output_paths,
     _validate_campaign_contract,
 )
 from sim_swim.analysis.sweeps.generic_multi_run import run_campaign
@@ -59,3 +60,12 @@ def test_issue199_contract_rejects_extra_torque() -> None:
     raw["torques_Nm"].append(1.2e-18)
     with pytest.raises(ValueError, match="fixed 3x2 torque-dt grid"):
         _validate_campaign_contract(raw)
+
+
+def test_tau_policy_manifest_omits_uncreated_similarity_output(tmp_path: Path) -> None:
+    tau_policy_outputs = _campaign_output_paths(tmp_path, stage="tau_policy_screen")
+    initial_screen_outputs = _campaign_output_paths(tmp_path, stage="initial_screen")
+
+    assert "torque_similarity_csv" not in tau_policy_outputs
+    assert "tau_policy_comparison_csv" in tau_policy_outputs
+    assert "torque_similarity_csv" in initial_screen_outputs

@@ -67,6 +67,28 @@ def _format_elapsed(seconds: float) -> str:
     return f"{seconds}s"
 
 
+def _campaign_output_paths(root: Path, *, stage: str | None) -> dict[str, str]:
+    outputs = {
+        "campaign_plan_json": str(root / "campaign_plan.json"),
+        "run_manifest_json": str(root / "run_manifest.json"),
+        "summary_csv": str(root / "summary.csv"),
+        "qc_summary_json": str(root / "qc_summary.json"),
+    }
+    if stage == "fixed_real_time_performance":
+        outputs["performance_summary_csv"] = str(root / "performance_summary.csv")
+    elif stage == "tau_policy_screen":
+        outputs["dt_comparison_csv"] = str(root / "dt_comparison.csv")
+        outputs["tau_policy_comparison_csv"] = str(root / "tau_policy_comparison.csv")
+    else:
+        outputs.update(
+            {
+                "dt_comparison_csv": str(root / "dt_comparison.csv"),
+                "torque_similarity_csv": str(root / "torque_similarity.csv"),
+            }
+        )
+    return outputs
+
+
 def _write_run_manifest(
     root: Path,
     *,
@@ -1199,27 +1221,7 @@ def run_torque_linked_campaign(
     root_manifest_path = root / "manifest.json"
     root_manifest = _read_json(root_manifest_path)
     stage = dict(raw.get("campaign_contract", {}) or {}).get("stage")
-    campaign_outputs = {
-        "campaign_plan_json": str(root / "campaign_plan.json"),
-        "run_manifest_json": str(root / "run_manifest.json"),
-        "summary_csv": str(root / "summary.csv"),
-        "qc_summary_json": str(root / "qc_summary.json"),
-    }
-    if stage == "fixed_real_time_performance":
-        campaign_outputs["performance_summary_csv"] = str(
-            root / "performance_summary.csv"
-        )
-    else:
-        campaign_outputs.update(
-            {
-                "dt_comparison_csv": str(root / "dt_comparison.csv"),
-                "torque_similarity_csv": str(root / "torque_similarity.csv"),
-            }
-        )
-        if stage == "tau_policy_screen":
-            campaign_outputs["tau_policy_comparison_csv"] = str(
-                root / "tau_policy_comparison.csv"
-            )
+    campaign_outputs = _campaign_output_paths(root, stage=stage)
     root_manifest.setdefault("input", {})["campaign"] = {
         "kind": "phase2_2010_torque_linked_dt_stability_campaign",
         "config": str(config_path),

@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -560,6 +561,20 @@ def test_plot_heatmap_lists_generic_multi_run_profiles(capsys) -> None:
 
     output = capsys.readouterr().out
     assert "conf/phase2_multi_run/latest_model_torque_shape_stability.yaml" in output
+
+
+def test_raw_2d_replay_selects_states_at_requested_fps() -> None:
+    from sim_swim.analysis.phase2_replay import _select_2d_replay_states
+
+    states = [SimpleNamespace(t=index / 1000.0) for index in range(1001)]
+    selected = _select_2d_replay_states(
+        states, fps_out_2d=25.0, target_frame_count=None
+    )
+
+    assert len(selected) == 26
+    assert [state.t for state in selected] == pytest.approx(
+        [index / 25.0 for index in range(26)]
+    )
 
 
 def test_replay_load_inputs_uses_manifest_condition_order_and_output_dir(

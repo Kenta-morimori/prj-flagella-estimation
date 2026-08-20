@@ -19,6 +19,10 @@
     {
       "command": "uv run ruff format --check . && uv run ruff check . && git diff --check && uv run python tools/codex/check_issue_script_lifecycle.py --base origin/main",
       "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase2_torque_reference_configs.py tests/test_phase2_generic_multi_run.py tests/test_phase2_199_tau_policy_campaign.py tests/test_phase2_61_torque_dt_campaign.py tests/test_common_replay_cli.py",
+      "result": "PASS (102 passed)"
     }
   ],
   "user_review_required": false,
