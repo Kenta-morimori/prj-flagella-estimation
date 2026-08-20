@@ -27,19 +27,7 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     dataset_dir = args.dataset_dir.resolve()
     output_dir = args.output_dir or dataset_dir / "analysis" / "common"
-    output_dir.mkdir(parents=True, exist_ok=True)
     outputs: dict[str, object] = {}
-    if args.view in {"2d", "both"}:
-        n_flagella = tuple(int(value) for value in args.n_flagella.split(",") if value)
-        outputs["2d"] = str(
-            analyze_2d_separability(
-                dataset_dir=dataset_dir,
-                output_dir=output_dir / "projection_2d",
-                n_flagella=n_flagella,
-                ml_candidates_only=not args.include_non_ml_candidates,
-                overwrite=args.overwrite,
-            )
-        )
     if args.view in {"3d", "both"}:
         # The distribution workflow reads the source 3D summary features recorded
         # in the behavior dataset and writes its own reproducible subdirectory.
@@ -51,6 +39,18 @@ def main(argv: list[str] | None = None) -> None:
                 dataset_dir=dataset_dir, overwrite=args.overwrite
             ).items()
         }
+    output_dir.mkdir(parents=True, exist_ok=True)
+    if args.view in {"2d", "both"}:
+        n_flagella = tuple(int(value) for value in args.n_flagella.split(",") if value)
+        outputs["2d"] = str(
+            analyze_2d_separability(
+                dataset_dir=dataset_dir,
+                output_dir=output_dir / "projection_2d",
+                n_flagella=n_flagella,
+                ml_candidates_only=not args.include_non_ml_candidates,
+                overwrite=args.overwrite,
+            )
+        )
     (output_dir / "manifest.json").write_text(
         json.dumps(
             {

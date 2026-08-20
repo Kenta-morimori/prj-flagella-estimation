@@ -59,6 +59,7 @@ def build_plan(raw: dict[str, Any]) -> dict[str, Any]:
                         "torque_Nm": motor_torque,
                         "reference_torque_Nm": motor_torque if tracking else reference,
                         "torque_for_forces_override_Nm": 0.0 if tracking else reference,
+                        "allow_reference_torque_mismatch": not tracking,
                     },
                     "time": {
                         "duration": {
@@ -97,6 +98,7 @@ def build_plan(raw: dict[str, Any]) -> dict[str, Any]:
                             f"motor.torque_Nm={motor_torque:.12g} "
                             f"motor.reference_torque_Nm={overrides['motor']['reference_torque_Nm']:.12g} "
                             f"motor.torque_for_forces_override_Nm={overrides['motor']['torque_for_forces_override_Nm']:.12g} "
+                            f"motor.allow_reference_torque_mismatch={str(not tracking).lower()} "
                             f"time.duration.value={overrides['time']['duration']['value']:.12g} "
                             f"time.duration.unit={overrides['time']['duration']['unit']} "
                             f"output.base_dir={output_base_dir}/{condition_id}"
