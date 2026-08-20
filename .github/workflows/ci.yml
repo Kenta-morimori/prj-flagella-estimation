@@ -32,6 +32,11 @@ jobs:
           uv run ruff format --check .
           uv run ruff check .
 
+      - name: Check deleted issue scripts have no active consumers
+        if: github.event_name == 'pull_request'
+        run: |
+          uv run python tools/codex/check_issue_script_lifecycle.py --base "${{ github.event.pull_request.base.sha }}"
+
       - name: Test (pytest)
         run: |
           uv run pytest -q || test $? -eq 5

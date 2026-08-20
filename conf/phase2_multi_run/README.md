@@ -22,7 +22,7 @@
 `flagella_count_behavior_v0.yaml` と `flagella_count_behavior_v1.yaml` はさらに `dataset:` section を持ち，dataset 作成にも同じ config を使う。
 旧 `flagella_count_behavior_diagnostic.yaml` は既存出力との互換用 historical alias として残す。
 
-`2010_project_torque_dt_initial_screen.yaml` はIssue #61の実験専用profileであり、`dt_star=1e-3,1e-4`だけを実行する。`1e-5`は初期screen後に候補条件だけへ適用するformal referenceである。実行は標準`run_multi_run.py`、結果再集計は`02_phase2_analysis/analyze_2010_torque_dt_stability.py`を使う。詳細契約は`docs/phase2/phase2_61_2010_torque_dt_campaign_contract.md`を正本とする。
+`2010_project_torque_dt_initial_screen.yaml` はIssue #61の実験専用profileであり、`dt_star=1e-3,1e-4`だけを実行する。`1e-5`は初期screen後に候補条件だけへ適用するformal referenceである。実行は標準`run_multi_run.py`、結果再集計は共通 `analyze_dataset.py --analysis-kind 2010-torque-dt` を使う。詳細契約は`docs/phase2/phase2_61_2010_torque_dt_campaign_contract.md`を正本とする。
 
 `2010_project_tau_policy_torque_dt_0p05s.yaml` はIssue #199の固定実時間`0.05 s` screenである。τ固定controlとtorque-linked τを、`T=1e-21,2.5e-20,1e-19 N m`、`dt_star=1e-3,1e-4`の12条件で比較する。詳細契約は`docs/phase2/phase2_199_tau_policy_torque_dt_campaign_contract.md`を正本とする。
 
@@ -31,7 +31,7 @@
 #158 の `n_flagella=3` proximal failure 診断は，長時間simulationを再実行せず既存 raw output を読む。
 
 ```bash
-uv run python scripts/02_phase2_analysis/diagnose_v1_r1_nf3_failures.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind diagnose-158 \
   --output-dir outputs/2026-07-31/phase2_158_probe \
   --overwrite
 ```
@@ -110,9 +110,9 @@ multi-run，plot，replay は 3 コマンドに分けて実行する。
 ```bash
 uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml overwrite=true
 
-uv run python scripts/02_phase2_analysis/plot_heatmap.py config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml
+uv run python scripts/03_dataset_building/analyze_dataset.py config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml
 
-uv run python scripts/02_phase2_analysis/render_phase2_replay.py config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml overwrite=true
+uv run python scripts/03_dataset_building/replay_dataset.py --run-dir <run-root> --view 3d+2d overwrite=true
 ```
 
 `run_multi_run.py` は simulation の複数条件実行だけを担当する。plot と replay は，生成済みの `summary.csv` と各 condition の出力を別コマンドで読む。
@@ -122,13 +122,13 @@ Issue #71 の diagnostic dataset v0 は，同じ profile から dataset 作成�
 ```bash
 uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml overwrite=true
 
-uv run python scripts/02_phase2_analysis/plot_heatmap.py config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
+uv run python scripts/03_dataset_building/analyze_dataset.py config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
 
-uv run python scripts/02_phase2_analysis/render_phase2_replay.py config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml overwrite=true
+uv run python scripts/03_dataset_building/replay_dataset.py --run-dir <run-root> --view 3d+2d overwrite=true
 
 uv run python scripts/03_dataset_building/build_dataset.py config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml overwrite=true
 
-uv run python scripts/02_phase2_analysis/plot_distributions.py --dataset-id v0 --overwrite
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind distributions --dataset-id v0 --overwrite
 ```
 
 36 sample の本実行は長時間 run として扱う。確認だけなら `dry_run=true sample_limit=5` を使う。
@@ -138,13 +138,13 @@ Issue #119 の改善モデル dataset v1 も，同じ profile から dataset 作
 ```bash
 uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_behavior_v1.yaml overwrite=true
 
-uv run python scripts/02_phase2_analysis/plot_heatmap.py config=conf/phase2_multi_run/flagella_count_behavior_v1.yaml
+uv run python scripts/03_dataset_building/analyze_dataset.py config=conf/phase2_multi_run/flagella_count_behavior_v1.yaml
 
-uv run python scripts/02_phase2_analysis/render_phase2_replay.py config=conf/phase2_multi_run/flagella_count_behavior_v1.yaml overwrite=true
+uv run python scripts/03_dataset_building/replay_dataset.py --run-dir <run-root> --view 3d+2d overwrite=true
 
 uv run python scripts/03_dataset_building/build_dataset.py config=conf/phase2_multi_run/flagella_count_behavior_v1.yaml overwrite=true
 
-uv run python scripts/02_phase2_analysis/plot_distributions.py --dataset-id v1 --overwrite
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind distributions --dataset-id v1 --overwrite
 ```
 
 36 sample の本実行と replay は長時間 run として扱う。確認だけなら `dry_run=true sample_limit=5` を使う。
@@ -154,9 +154,9 @@ Issue #113 の n>=4 seed固定診断は，まず `n_flagella=4,5,6` の3条件�
 ```bash
 uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml overwrite=true
 
-uv run python scripts/02_phase2_analysis/plot_heatmap.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml
+uv run python scripts/03_dataset_building/analyze_dataset.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml
 
-uv run python scripts/02_phase2_analysis/render_phase2_replay.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml overwrite=true
+uv run python scripts/03_dataset_building/replay_dataset.py --run-dir <run-root> --view 3d+2d overwrite=true
 
 uv run python scripts/03_dataset_building/build_dataset.py config=conf/phase2_multi_run/flagella_count_failure_boundary_seed00.yaml overwrite=true
 ```
@@ -168,7 +168,7 @@ Issue #116 の n>=4 安定化候補は，#115 の改善域周辺だけを seed �
 ```bash
 uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml overwrite=true
 
-uv run python scripts/02_phase2_analysis/plot_heatmap.py config=conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml
+uv run python scripts/03_dataset_building/analyze_dataset.py config=conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml
 ```
 
 この本実行も長時間 run として扱う。条件確認だけなら `dry_run=true` を使う。候補が出た場合は，n=1,2,3 smoke check を実行して v0 baseline を壊していないか確認する。Issue #116 の handoff 候補は `stiffness_scales.flag_spring=2.25` と `stiffness_scales.body=2.5` を明示して実行する。
@@ -188,7 +188,7 @@ output:
   timestamp_subdir: false
 ```
 
-`output.timestamp_subdir: false` の profile では，`02_phase2_analysis/plot_heatmap.py config=...` と `02_phase2_analysis/render_phase2_replay.py config=...` が `output.base_dir` を参照する。
+`output.timestamp_subdir: false` の profile では，`analyze_dataset.py config=...` と `replay_dataset.py --run-dir <run-root>` が既存runの `summary.csv` と archive を参照する。
 そのため，通常は `summary_csv=...` や `run_dir=...` を毎回指定しなくてよい。
 
 代表的な出力は次の構成になる。
@@ -318,7 +318,7 @@ uv run python scripts/03_dataset_building/build_dataset.py \
 
 ## replay 設定
 
-`replay` section は，`02_phase2_analysis/render_phase2_replay.py` の出力を決める。
+`replay` section は，共通 `replay_dataset.py` のraw-run出力を決める。
 
 ```yaml
 replay:

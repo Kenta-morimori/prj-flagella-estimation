@@ -117,7 +117,7 @@ uv run python scripts/01_simulate_swimming/run_multi_run.py \
 uv run python scripts/01_simulate_swimming/run_multi_run.py \
   config=conf/phase2_multi_run/spring_formulation_motor_on.yaml
 
-uv run python scripts/02_phase2_analysis/analyze_spring_formulations.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind spring-formulations \
   motor_off_summary=<motor-off-run-root>/summary.csv \
   motor_on_summary=<motor-on-run-root>/summary.csv
 ```

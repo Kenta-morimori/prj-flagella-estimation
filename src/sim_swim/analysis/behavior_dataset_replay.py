@@ -162,6 +162,8 @@ def render_sample(
     out_all_steps_3d: bool | None = False,
     fps_out_3d: float | None = None,
     fps_out_2d: float | None = None,
+    render_3d: bool = True,
+    render_2d: bool = True,
 ) -> Path:
     sample_dir = sample_dir.resolve()
     config_path = (config_path or _infer_config_path(sample_dir)).resolve()
@@ -197,8 +199,12 @@ def render_sample(
 
     trajectory_path = output_dir / "trajectory.csv"
     write_trajectory_csv(trajectory_path, states)
-    render3d_video = save_swim_movie(states, cfg, simulator.rig, render_dir)
-    render2d_video = project_states(states, cfg, simulator.rig, render2d_dir)
+    render3d_video = (
+        save_swim_movie(states, cfg, simulator.rig, render_dir) if render_3d else None
+    )
+    render2d_video = (
+        project_states(states, cfg, simulator.rig, render2d_dir) if render_2d else None
+    )
     if render3d_video is not None:
         logger.info("render3d_video=%s", render3d_video.to_manifest())
     if render2d_video is not None:
@@ -249,6 +255,8 @@ def render_dataset(
     out_all_steps_3d: bool | None = False,
     fps_out_3d: float | None = None,
     fps_out_2d: float | None = None,
+    render_3d: bool = True,
+    render_2d: bool = True,
 ) -> Path:
     dataset_dir = dataset_dir.resolve()
     dataset_manifest_path = dataset_dir / "dataset_manifest.json"
@@ -274,6 +282,8 @@ def render_dataset(
             out_all_steps_3d=out_all_steps_3d,
             fps_out_3d=fps_out_3d,
             fps_out_2d=fps_out_2d,
+            render_3d=render_3d,
+            render_2d=render_2d,
         )
         samples_out.append(
             {
@@ -343,6 +353,9 @@ def main(argv: list[str] | None = None) -> None:
         default=None,
         help="2D replay frame rate.",
     )
+    parser.add_argument("--no-render-3d", dest="render_3d", action="store_false")
+    parser.add_argument("--no-render-2d", dest="render_2d", action="store_false")
+    parser.set_defaults(render_3d=True, render_2d=True)
     args = parser.parse_args(argv)
 
     if args.dataset_dir is not None:
@@ -354,6 +367,8 @@ def main(argv: list[str] | None = None) -> None:
             out_all_steps_3d=args.out_all_steps_3d,
             fps_out_3d=args.fps_out_3d,
             fps_out_2d=args.fps_out_2d,
+            render_3d=args.render_3d,
+            render_2d=args.render_2d,
         )
     else:
         sample_dir = args.sample_dir
@@ -366,6 +381,8 @@ def main(argv: list[str] | None = None) -> None:
             out_all_steps_3d=args.out_all_steps_3d,
             fps_out_3d=args.fps_out_3d,
             fps_out_2d=args.fps_out_2d,
+            render_3d=args.render_3d,
+            render_2d=args.render_2d,
         )
     print(output_dir)
 

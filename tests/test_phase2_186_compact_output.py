@@ -13,6 +13,7 @@ from sim_swim.sim.params import SimulationConfig
 def _cfg(*, policy: str) -> SimulationConfig:
     raw = {
         "time": {"duration_s": 0.002, "dt_s": 0.001, "dt_star": 0.001},
+        "motor": {"torque_Nm": 1.0e-21, "reference_torque_Nm": 1.0e-21},
         "output": {"policy": policy, "archive_interval_s": 0.001},
         "flagella": {"n_flagella": 0},
     }
@@ -52,6 +53,7 @@ def test_compact_archive_interpolates_to_the_requested_time_grid() -> None:
     cfg = SimulationConfig.from_dict(
         {
             "time": {"duration_s": 0.003, "dt_s": 0.0001, "dt_star": 0.0001},
+            "motor": {"torque_Nm": 1.0e-21, "reference_torque_Nm": 1.0e-21},
             "output": {"policy": "compact", "archive_interval_s": 0.00015},
             "flagella": {"n_flagella": 0},
         }

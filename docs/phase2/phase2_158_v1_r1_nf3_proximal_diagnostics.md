@@ -20,7 +20,7 @@
 既存の `step_summary.csv` / `state_archive.npz` を読み，長時間simulationは再実行しない。
 
 ```bash
-uv run python scripts/02_phase2_analysis/diagnose_v1_r1_nf3_failures.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind diagnose-158 \
   --output-dir outputs/2026-07-31/phase2_158_probe \
   --overwrite
 ```
@@ -41,7 +41,7 @@ uv run python scripts/02_phase2_analysis/diagnose_v1_r1_nf3_failures.py \
 replay は既存 `state_archive.npz` から生成する。長時間simulationは再実行しない。
 
 ```bash
-uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
+uv run python scripts/03_dataset_building/replay_dataset.py --run-dir \
   --config conf/phase2_multi_run/flagella_count_duration_3s_r1.yaml \
   --input-dir outputs/phase2_multi_run/flagella_count_duration_3s_r1 \
   --output-dir outputs/2026-07-31/phase2_158_probe/replay \

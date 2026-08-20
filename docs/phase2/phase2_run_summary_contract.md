@@ -14,8 +14,8 @@ Issue #186 の `output.policy: compact` では、全内部 step の診断・stri
 Read `manifest.json` and `run_summary.json` first. Inspect raw diagnostics only through the bounded CLI below; do not load a complete `step_summary.csv` into Codex context during routine analysis.
 
 ```bash
-uv run python scripts/02_phase2_analysis/inspect_step_summary.py \
-  --input-dir outputs/.../condition_001 \
+uv run python scripts/03_dataset_building/inspect_run.py \
+  --run-dir outputs/.../condition_001 \
   --gate shape_nonbody --episode 1 \
   --columns t_s,shape_pass_nonbody,first_fail_category_nonbody,hook_len_rel_err_max
 ```
@@ -40,7 +40,7 @@ Each gate stores at most 32 episodes. When that limit is exceeded, it retains ea
 New simulations generate the file automatically after their diagnostics are written. Existing outputs can be summarized without re-simulation:
 
 ```bash
-uv run python scripts/02_phase2_analysis/build_run_summary.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind run-summary \
   --input-dir outputs/.../condition_001
 ```
 

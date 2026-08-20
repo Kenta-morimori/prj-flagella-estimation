@@ -45,13 +45,13 @@ uv run python scripts/01_simulate_swimming/run_sweep.py \
 uv run python scripts/01_simulate_swimming/run_sweep.py \
   config=conf/phase2_sweeps/2015_task_d_physical_torque_tau_linked_dt1e4.yaml
 
-uv run python scripts/02_phase2_analysis/assemble_2015_task_d.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind task-d-2015 \
   --reference-run <dt1e-4-run-root> \
   --candidate-run <dt1e-3-run-root> \
   --threshold-contract conf/phase2_validation/2015_stage_a_thresholds.yaml \
   --output-dir <analysis-root>
 
-uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
+uv run python scripts/03_dataset_building/replay_dataset.py --run-dir \
   --input-dir <analysis-root>/replay_input \
   --output-dir <analysis-root>/replay \
   --mode render-only --target-frame-count 201 --max-panels-per-grid 6

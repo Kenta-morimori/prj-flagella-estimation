@@ -744,6 +744,7 @@ def _overrides_for_condition(
 ) -> dict[str, Any]:
     motor_overrides = {
         "torque_Nm": args.torque_nm,
+        "reference_torque_Nm": args.torque_nm,
         "enable_switching": False,
         "force_distribution": "root_torque_segment_couples",
     }

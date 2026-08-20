@@ -459,7 +459,9 @@ def _build_config(
         initial_helix_axis_from_rear_deg
     )
     flagella_overrides["n_flagella"] = int(n_flagella)
-    override_dict.setdefault("motor", {})["torque_Nm"] = float(torque_Nm)
+    motor_overrides = override_dict.setdefault("motor", {})
+    motor_overrides["torque_Nm"] = float(torque_Nm)
+    motor_overrides["reference_torque_Nm"] = float(torque_Nm)
     override_dict.setdefault("time", {})["duration_s"] = float(duration_s)
     override_dict.setdefault("time", {})["dt_star"] = float(dt_star)
     return SimulationConfig.from_dict(raw_cfg).with_overrides(override_dict)

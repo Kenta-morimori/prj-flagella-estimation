@@ -425,7 +425,7 @@ def test_plot_heatmap_wrapper_rejects_unknown_kind(tmp_path: Path) -> None:
     profile = tmp_path / "bad_heatmap.yaml"
     profile.write_text("kind: missing\n", encoding="utf-8")
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper",
     )
 
@@ -439,7 +439,7 @@ def test_plot_heatmap_wrapper_rejects_unknown_kind(tmp_path: Path) -> None:
 
 def test_plot_heatmap_wrapper_lists_canonical_profiles(capsys) -> None:
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper_list_profiles",
     )
 
@@ -453,7 +453,7 @@ def test_plot_heatmap_wrapper_lists_canonical_profiles(capsys) -> None:
 
 def test_plot_heatmap_wrapper_describes_alias_profile(capsys) -> None:
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper_describe",
     )
 
@@ -472,7 +472,7 @@ def test_plot_heatmap_wrapper_describes_alias_profile(capsys) -> None:
 
 def test_plot_heatmap_wrapper_rejects_sweep_profile() -> None:
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper_wrong_role",
     )
 
@@ -501,7 +501,7 @@ def test_plot_heatmap_wrapper_defaults_output_dir_next_to_summary(
     summary_csv = tmp_path / "summary.csv"
     captured: dict[str, list[str]] = {}
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper_default_output",
     )
     module.HEATMAP_MAIN["shape_stability_grid"] = lambda args: captured.setdefault(
@@ -525,7 +525,7 @@ def test_plot_heatmap_wrapper_accepts_position_only_mode_override(
     summary_csv = tmp_path / "summary.csv"
     captured: dict[str, list[str]] = {}
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper_position_only",
     )
     module.HEATMAP_MAIN["shape_stability_grid"] = lambda args: captured.setdefault(
@@ -552,7 +552,7 @@ def test_plot_heatmap_wrapper_keeps_hook_overstretch_heatmap_alias(
     summary_csv = tmp_path / "summary.csv"
     captured: dict[str, list[str]] = {}
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper_alias",
     )
     module.HEATMAP_MAIN["hook_overstretch"] = lambda args: captured.setdefault(
@@ -589,7 +589,7 @@ def test_plot_heatmap_wrapper_keeps_explicit_output_dir(tmp_path: Path) -> None:
     summary_csv = tmp_path / "summary.csv"
     captured: dict[str, list[str]] = {}
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper_explicit_output",
     )
     module.HEATMAP_MAIN["shape_stability_grid"] = lambda args: captured.setdefault(

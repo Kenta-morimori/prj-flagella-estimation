@@ -14,9 +14,32 @@ from sim_swim.analysis.behavior_dataset_distributions import (
     analyze_dataset as analyze_3d,
 )
 from sim_swim.analysis.behavior_dataset_separability import analyze_2d_separability
+from sim_swim.analysis import common_analysis
+
+HEATMAP_MAIN = common_analysis.HEATMAP_MAIN
+dispatch = common_analysis.dispatch
 
 
 def main(argv: list[str] | None = None) -> None:
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
+    if "--analysis-kind" in raw_argv:
+        index = raw_argv.index("--analysis-kind")
+        try:
+            analysis_kind = raw_argv[index + 1]
+        except IndexError as error:
+            raise SystemExit("--analysis-kind requires a value") from error
+        dispatch(analysis_kind, raw_argv[:index] + raw_argv[index + 2 :])
+        return
+    if raw_argv and (
+        any(value.startswith("config=") for value in raw_argv)
+        or "--config" in raw_argv
+        or any(
+            value in {"list_profiles=true", "list_canonical_profiles=true"}
+            for value in raw_argv
+        )
+    ):
+        dispatch("heatmap", raw_argv)
+        return
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, default=None)
@@ -24,7 +47,27 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--n-flagella", default="1,2,3")
     parser.add_argument("--include-non-ml-candidates", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
-    args = parser.parse_args(argv)
+    parser.add_argument(
+        "--analysis-kind",
+        choices=(
+            "heatmap",
+            "2010-torque-dt",
+            "2010-fixed-performance",
+            "2015-stage-a",
+            "spring-formulations",
+            "task-d-2015",
+            "diagnose-158",
+            "partial-generic",
+            "plan-2010-torque-dt",
+            "plan-reference-torque",
+            "visualize-2010-torque-dt",
+            "phase-seed-2d",
+            "distributions",
+            "run-summary",
+        ),
+        help="Run a reusable raw-run or campaign analysis instead of dataset analysis.",
+    )
+    args = parser.parse_args(raw_argv)
     dataset_dir = args.dataset_dir.resolve()
     output_dir = args.output_dir or dataset_dir / "analysis" / "common"
     outputs: dict[str, object] = {}

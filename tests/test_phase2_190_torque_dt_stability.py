@@ -10,10 +10,10 @@ from sim_swim.sim.params import SimulationConfig
 CONFIG = Path("conf/phase2_sweeps/2010_project_torque_linked_dt_stability.yaml")
 
 
-def test_2010_project_keeps_legacy_time_scale_by_default() -> None:
+def test_2010_project_links_time_scale_to_motor_torque_by_default() -> None:
     cfg = SimulationConfig.from_dict(load_yaml(Path("conf/sim_swim_2010.yaml")))
-    assert cfg.tau_s == pytest.approx(1.0)
-    assert cfg.time_scale_policy == "legacy_fixed_tau_s_1"
+    assert cfg.tau_s == pytest.approx(0.04)
+    assert cfg.time_scale_policy == "reference_torque"
 
 
 def test_issue_190_plan_links_all_torques_and_derives_tau() -> None:

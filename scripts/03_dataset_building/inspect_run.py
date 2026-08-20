@@ -29,7 +29,9 @@ def _episode_window(run_dir: Path, gate: str, episode: int) -> tuple[float, floa
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--run-dir", type=Path, required=True)
+    parser.add_argument(
+        "--run-dir", "--input-dir", dest="run_dir", type=Path, required=True
+    )
     parser.add_argument(
         "--columns", required=True, help="Comma-separated columns; max 12."
     )

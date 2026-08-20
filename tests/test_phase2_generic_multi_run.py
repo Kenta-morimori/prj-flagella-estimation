@@ -278,6 +278,7 @@ def test_generic_multi_run_manifests_record_model_profile(
                 "base_overrides:",
                 "  time.duration_s: 0.0001",
                 "  motor.force_distribution: hook_coupled_body_reaction",
+                "  motor.reference_torque_Nm: 2.0e-20",
                 "sweep:",
                 "  axes:",
                 "    torque:",
@@ -401,7 +402,7 @@ def test_generic_multi_run_plot_outputs_line_plots(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper_generic_multi",
     )
 
@@ -433,7 +434,7 @@ def test_generic_multi_run_plot_filters_extra_axes(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper_generic_multi_filter_axes",
     )
 
@@ -489,7 +490,7 @@ def test_generic_multi_run_plot_accepts_run_dir(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper_generic_multi_run_dir",
     )
 
@@ -521,7 +522,7 @@ def test_generic_multi_run_plot_uses_fixed_output_base_dir(tmp_path: Path) -> No
         encoding="utf-8",
     )
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper_generic_multi_fixed_output",
     )
 
@@ -541,7 +542,7 @@ def test_generic_multi_run_plot_requires_run_dir_for_timestamped_output(
         timestamp_subdir=True,
     )
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper_generic_multi_timestamped_output",
     )
 
@@ -551,7 +552,7 @@ def test_generic_multi_run_plot_requires_run_dir_for_timestamped_output(
 
 def test_plot_heatmap_lists_generic_multi_run_profiles(capsys) -> None:
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper_generic_multi_list",
     )
 

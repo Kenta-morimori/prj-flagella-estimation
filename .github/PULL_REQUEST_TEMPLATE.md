@@ -14,6 +14,7 @@
 - [ ] `@codex review <head-short-sha>` をfinal candidateで実施し，指摘があれば一括対応・self-check・thread resolve済み
 - [ ] ユーザー定性評価が不要，または必要な評価結果を記録済み
 - [ ] 小タスクとしてCodex merge可能，またはユーザー判断待ちであることを明記
+- [ ] Issue専用scriptを `promoted` / `deleted` / `retained-temporarily` に分類し、削除時は active consumer を移行済み
 
 ## 関連項目
 - Source Issue:

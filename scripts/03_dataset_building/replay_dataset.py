@@ -24,12 +24,23 @@ def main(argv: list[str] | None = None) -> None:
     args, passthrough = parser.parse_known_args(argv)
     if args.dataset_dir is not None:
         replay_args = ["--dataset-dir", str(args.dataset_dir)]
+        if args.view == "2d":
+            replay_args.append("--no-render-3d")
+        elif args.view == "3d":
+            replay_args.append("--no-render-2d")
         if args.output_dir is not None:
             replay_args.extend(["--output-dir", str(args.output_dir)])
         replay_args.extend(passthrough)
         replay_dataset(replay_args)
         return
-    replay_args = ["--run-dir", str(args.run_dir), "--mode", "render-only"]
+    replay_args = [
+        "--run-dir",
+        str(args.run_dir),
+        "--mode",
+        "render-only",
+        "--view",
+        args.view,
+    ]
     if args.output_dir is not None:
         replay_args.extend(["--output-dir", str(args.output_dir)])
     if args.overwrite:

@@ -111,7 +111,7 @@ PR #185のmerge対象は最終torque採択ではなく、比較契約・plan CLI
 まず plan を作る。これは simulation を起動しない。
 
 ```bash
-uv run python scripts/02_phase2_analysis/plan_reference_torque_comparison.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind plan-reference-torque \
   --config conf/phase2_reference_torque/2015_project.yaml \
   --output /private/tmp/issue183-2015-plan.json
 ```
