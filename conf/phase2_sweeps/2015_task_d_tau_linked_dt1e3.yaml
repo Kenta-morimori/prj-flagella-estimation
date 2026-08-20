@@ -1,0 +1,17 @@
+kind: stage_a_2015
+metadata:
+  role: sweep
+  canonical: false
+  description: Issue #199 Task D, 2015 project tau-linked torque x dt safety screen (dt*=1e-3 candidate)
+args:
+  stage: motor_on
+  project_config: conf/sim_swim_2015.yaml
+  profiles: [project]
+  output_base_dir: outputs
+  state_sample_count: 201
+  progress_interval: 500
+  dt_star: 1.0e-3
+  duration_tau: 1.0
+  motor_torque_scales: [0.5, 1.0, 2.0]
+  link_reference_torque: true
+  comparison_role: issue199_task_d_tau_linked_dt1e3_candidate

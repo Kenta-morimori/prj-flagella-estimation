@@ -1,0 +1,42 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  description: Issue #199 2010 project fixed-real-time tau-policy torque x dt_star stability screen.
+
+campaign_contract:
+  name: 2010_project_tau_policy_torque_dt_fixed_real_time
+  stage: tau_policy_screen
+  time_policies:
+    - id: tau_fixed_control
+      time_scale_policy: legacy_fixed_tau_s_1
+    - id: torque_linked_tau
+      time_scale_policy: reference_torque
+
+base_config: conf/sim_swim_2010.yaml
+duration_s: 0.05
+torques_Nm: [1.0e-21, 2.5e-20, 1.0e-19]
+dt_stars: [1.0e-3, 1.0e-4]
+comparison_sample_count: 201
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  run_name: phase2_issue199_2010_project_tau_policy_torque_dt_0p05s
+  policy: compact
+  progress_interval: 1000
+
+replay:
+  mode: render-only
+  target_frame_count: 201
+  max_panels_per_grid: 12
+  output_subdir: replay
+
+qc:
+  max_motor_force_balance_residual_ratio: 1.0e-8
+  max_motor_torque_balance_residual_ratio: 1.0e-8
+  max_rotation_relative_error: 0.10
+  max_body_orientation_difference_deg: 5.0
+  max_bead_rms_over_b: 0.10
+  max_bead_displacement_over_b: 0.25
+  swimming_stability_policy: diagnostic_review_required

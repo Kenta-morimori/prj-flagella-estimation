@@ -16,6 +16,7 @@ matplotlib.use("Agg")
 
 FEATURES: tuple[tuple[str, str, str], ...] = (
     ("required_qc_pass", "required short-screen QC (PASS=1)", "status"),
+    ("max_body_spring_rel_err", "max body spring relative error", "max"),
     ("max_flag_bond_rel_err", "max flag bond relative error", "max"),
     ("max_hook_len_rel_err", "max hook length relative error", "max"),
     ("max_axis_mean_deviation_deg", "max axis mean deviation [deg]", "max"),
@@ -27,6 +28,7 @@ FEATURES: tuple[tuple[str, str, str], ...] = (
 # Fixed, physically meaningful ranges prevent tiny numerical differences from
 # being visually exaggerated.  The first entry is handled as a categorical gate.
 FEATURE_LIMITS = {
+    "max_body_spring_rel_err": (0.0, 0.10),
     "max_flag_bond_rel_err": (0.0, 0.10),
     "max_hook_len_rel_err": (0.0, 0.10),
     "max_axis_mean_deviation_deg": (0.0, 15.0),
@@ -36,6 +38,7 @@ FEATURE_LIMITS = {
 }
 
 METRIC_KEYS = {
+    "max_body_spring_rel_err": "body_spring_max_stretch_ratio",
     "max_flag_bond_rel_err": "flag_bond_rel_err_max",
     "max_hook_len_rel_err": "hook_len_rel_err_max",
     "max_axis_mean_deviation_deg": "flag_helix_axis_mean_deviation_deg_max",
@@ -73,6 +76,7 @@ def feature_rows(run_dir: Path) -> list[dict[str, Any]]:
         passes = qc_record.get("status") == "pass"
         row: dict[str, Any] = {
             "condition_id": record["condition_id"],
+            "tau_policy": str(record.get("tau_policy") or ""),
             "torque_Nm_per_flagellum": float(record["torque_Nm_per_flagellum"]),
             "dt_star": float(record["dt_star"]),
             "tau_s": float(record["time"]["tau_s"]),
@@ -185,13 +189,22 @@ def build_visuals(run_dir: Path, output_dir: Path) -> dict[str, Path]:
         raise ValueError(f"No conditions found in {run_dir / 'run_manifest.json'}")
     output_dir.mkdir(parents=True, exist_ok=True)
     csv_path = output_dir / "torque_dt_feature_summary.csv"
-    heatmap_path = output_dir / "torque_dt_feature_heatmaps.png"
     _write_csv(csv_path, rows)
-    _heatmap(
-        rows,
-        output_path=heatmap_path,
-        title="Issue #61: 2010 project torque-linked 1 tau diagnostics",
-    )
+    policy_groups: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        policy_groups.setdefault(str(row["tau_policy"]), []).append(row)
+    heatmaps: list[Path] = []
+    for policy, policy_rows in policy_groups.items():
+        suffix = f"_{policy}" if policy else ""
+        heatmap_path = output_dir / f"torque_dt_feature_heatmaps{suffix}.png"
+        title = (
+            f"Issue #199: 2010 project {policy} fixed-real-time diagnostics"
+            if policy
+            else "Issue #61: 2010 project torque-linked 1 tau diagnostics"
+        )
+        _heatmap(policy_rows, output_path=heatmap_path, title=title)
+        heatmaps.append(heatmap_path)
+    heatmap_path = heatmaps[0]
     manifest_path = output_dir / "manifest.json"
     manifest_path.write_text(
         json.dumps(
@@ -200,7 +213,7 @@ def build_visuals(run_dir: Path, output_dir: Path) -> dict[str, Path]:
                 "input_run_dir": str(run_dir),
                 "outputs": {
                     "feature_summary_csv": str(csv_path),
-                    "feature_heatmaps_png": str(heatmap_path),
+                    "feature_heatmaps_png": [str(path) for path in heatmaps],
                 },
                 "interpretation": "Qualitative diagnostics only; 1 tau does not establish long-time bundling or dt adoption.",
             },

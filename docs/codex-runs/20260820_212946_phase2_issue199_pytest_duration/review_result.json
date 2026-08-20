@@ -1,0 +1,34 @@
+{
+  "status": "PASS",
+  "task": "Phase 2 Issue #199: τ連動既定化後のhistorical fixed-τ回帰とpytest実行時間の是正",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/199",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/201",
+  "summary": [
+    "新規runのreference_torque既定を維持し、Phase 2-6のhistorical regressionだけでlegacy_fixed_tau_s_1を明示した。",
+    "reference torque比較planは明示legacy controlを受理・記録し、2010 projectの未指定値がτ連動することをテストで固定した。",
+    "2010固定τcontrolと新規τ連動既定の文書・ADR参照を整合させた。"
+  ],
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    "uv run ruff check src/sim_swim/analysis/reference_torque_comparison.py tests/test_reference_torque_comparison.py tests/test_run_state_fixed.py: PASS",
+    "uv run pytest -q tests/test_reference_torque_comparison.py --durations=10: PASS (4 passed)",
+    "uv run pytest -q --durations=30: PASS (650 passed, 111.31s)",
+    "git diff --check: PASS",
+    "pre-commit: ruff format/check, issue script lifecycle, pytest -m light: PASS (301 passed, 349 deselected)"
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "長時間simulation、sweep、training、renderは実行していない。pytest内の物理回帰だけを実行した。",
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "τ連動既定の決定は既存ADR 0019で済んでおり、今回の変更はhistorical controlと既存ADRの整合化である。",
+  "commit_type": "test",
+  "commit_hash": "f66042affc71352291527cf874881f16359cac53",
+  "push_status": "pushed to origin/agent/issue-199-tau-policy-torque-dt",
+  "next_actions": [
+    "PR #201のCIとCodex review gateを確認する。"
+  ]
+}

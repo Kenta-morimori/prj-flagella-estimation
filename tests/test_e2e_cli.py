@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import yaml
+import pytest
 
 
 def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
@@ -155,7 +156,7 @@ def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
     assert manifest["input"]["effective_overrides"]["time"]["duration_s"] == 5.0e-5
     assert manifest["time"]["duration_s"] == 5.0e-5
     assert manifest["time"]["duration_unit"] == "s"
-    assert manifest["time"]["dt_star"] == 1.0e-3
+    assert manifest["time"]["dt_star"] == pytest.approx(2.5e-2)
     assert manifest["time"]["time_schema_source"] == "cli_shorthand"
     assert manifest["time"]["total_steps"] == 1
     assert manifest["time"]["final_state_t_s"] == 1.0e-3

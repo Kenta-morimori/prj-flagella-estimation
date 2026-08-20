@@ -177,7 +177,7 @@ uv run python scripts/01_simulate_swimming/run_sweep.py \
 各run rootを指定して解析する。
 
 ```bash
-uv run python scripts/02_phase2_analysis/analyze_2015_stage_a.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind 2015-stage-a \
   --motor-off-run outputs/2026-08-03/111818 \
   --threshold-contract conf/phase2_validation/2015_stage_a_thresholds.yaml \
   --coarse-motor-off-run <dt1e-4-motor-off-run-root> \
@@ -211,7 +211,7 @@ uv run python scripts/01_simulate_swimming/run_sweep.py \
 出力されたrun rootを解析する。
 
 ```bash
-uv run python scripts/02_phase2_analysis/analyze_2015_stage_a.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind 2015-stage-a \
   --motor-off-run <motor-off-run-root>
 ```
 
@@ -226,7 +226,7 @@ uv run python scripts/01_simulate_swimming/run_sweep.py \
 motor-on解析:
 
 ```bash
-uv run python scripts/02_phase2_analysis/analyze_2015_stage_a.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind 2015-stage-a \
   --motor-off-run <motor-off-run-root> \
   --motor-on-run <motor-on-run-root> \
   --threshold-contract conf/phase2_validation/2015_stage_a_thresholds.yaml
@@ -235,7 +235,7 @@ uv run python scripts/02_phase2_analysis/analyze_2015_stage_a.py \
 replay:
 
 ```bash
-uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
+uv run python scripts/03_dataset_building/replay_dataset.py --run-dir \
   input_dir=<motor-on-run-root> \
   output_dir=<motor-on-run-root>/replay \
   mode=render-only

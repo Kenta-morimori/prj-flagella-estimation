@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -278,6 +279,7 @@ def test_generic_multi_run_manifests_record_model_profile(
                 "base_overrides:",
                 "  time.duration_s: 0.0001",
                 "  motor.force_distribution: hook_coupled_body_reaction",
+                "  motor.reference_torque_Nm: 2.0e-20",
                 "sweep:",
                 "  axes:",
                 "    torque:",
@@ -401,7 +403,7 @@ def test_generic_multi_run_plot_outputs_line_plots(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper_generic_multi",
     )
 
@@ -433,7 +435,7 @@ def test_generic_multi_run_plot_filters_extra_axes(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper_generic_multi_filter_axes",
     )
 
@@ -489,7 +491,7 @@ def test_generic_multi_run_plot_accepts_run_dir(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper_generic_multi_run_dir",
     )
 
@@ -521,7 +523,7 @@ def test_generic_multi_run_plot_uses_fixed_output_base_dir(tmp_path: Path) -> No
         encoding="utf-8",
     )
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper_generic_multi_fixed_output",
     )
 
@@ -541,7 +543,7 @@ def test_generic_multi_run_plot_requires_run_dir_for_timestamped_output(
         timestamp_subdir=True,
     )
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper_generic_multi_timestamped_output",
     )
 
@@ -551,7 +553,7 @@ def test_generic_multi_run_plot_requires_run_dir_for_timestamped_output(
 
 def test_plot_heatmap_lists_generic_multi_run_profiles(capsys) -> None:
     module = _load_script(
-        Path("scripts/02_phase2_analysis/plot_heatmap.py"),
+        Path("scripts/03_dataset_building/analyze_dataset.py"),
         "phase2_plot_heatmap_wrapper_generic_multi_list",
     )
 
@@ -559,6 +561,20 @@ def test_plot_heatmap_lists_generic_multi_run_profiles(capsys) -> None:
 
     output = capsys.readouterr().out
     assert "conf/phase2_multi_run/latest_model_torque_shape_stability.yaml" in output
+
+
+def test_raw_2d_replay_selects_states_at_requested_fps() -> None:
+    from sim_swim.analysis.phase2_replay import _select_2d_replay_states
+
+    states = [SimpleNamespace(t=index / 1000.0) for index in range(1001)]
+    selected = _select_2d_replay_states(
+        states, fps_out_2d=25.0, target_frame_count=None
+    )
+
+    assert len(selected) == 26
+    assert [state.t for state in selected] == pytest.approx(
+        [index / 25.0 for index in range(26)]
+    )
 
 
 def test_replay_load_inputs_uses_manifest_condition_order_and_output_dir(
@@ -617,6 +633,29 @@ def test_replay_load_inputs_uses_manifest_condition_order_and_output_dir(
         external_root / "torque_1p5e20"
     )
     assert base_cfg_path == Path("conf/sim_swim_2010.yaml")
+
+
+def test_replay_accepts_repeated_condition_id_filter(tmp_path: Path) -> None:
+    module = _load_script(
+        Path("src/sim_swim/analysis/phase2_replay.py"),
+        "phase2_replay_condition_id_filter",
+    )
+
+    args = module._parse_args(
+        [
+            "--input-dir",
+            str(tmp_path),
+            "--condition-id",
+            "tau_fixed_control_T1e-21_dt1e-3",
+            "--condition-id",
+            "tau_fixed_control_T1e-21_dt1e-4",
+        ]
+    )
+
+    assert args.condition_id == [
+        "tau_fixed_control_T1e-21_dt1e-3",
+        "tau_fixed_control_T1e-21_dt1e-4",
+    ]
 
 
 def test_replay_builds_refined_2015_geometry_from_campaign_record() -> None:
@@ -907,6 +946,8 @@ def test_replay_status_lines_include_motor_torque_after_time() -> None:
         "Config",
         (),
         {
+            "tau_s": 1.0,
+            "dt_star": 1.0e-5,
             "motor_torque_Nm": 2.0e-20,
             "motor": type("Motor", (), {"enable_switching": False})(),
         },
@@ -914,7 +955,7 @@ def test_replay_status_lines_include_motor_torque_after_time() -> None:
 
     assert module._replay_status_lines(state, cfg, "PASS") == [
         "RUN",
-        "t = 0.125 s",
+        "t = 0.125 τ (0.125000 s, 12,500 steps)",
         "motor torque / flag = 2.00e-20 N m",
         "PASS",
     ]

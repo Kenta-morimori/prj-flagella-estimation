@@ -1,6 +1,6 @@
 # ADR 0017: root torque segment couplesの全ベクトル反作用
 
-- Status: Accepted
+- Status: Superseded in part by ADR 0019
 - Date: 2026-08-13
 - Issue: #61
 
@@ -21,6 +21,6 @@ Issue #61のexperiment conditionでは、`motor.body_reaction_full_vector=true`�
 ## Consequences
 
 - #61のmotor action-reaction gateを、閾値緩和ではなく力学実装の整合で満たせる。
-- 2010 project defaultの`tau_s=1 s`、reference-torque opt-in条件、dataset採択、2015 profileの採否は変更しない。
+- 固定τcontrol、dataset採択、2015 profileの採否は変更しない。新規runのτ policyはADR 0019に従う。
 - run manifestには`root_torque_segment_couples`の全body・全ベクトル反作用を記録する。
 - full-vector reactionは力の分配を変えるため、既存baseline screenの数値値と直接同一視しない。#61の1 tau再実行後に形状・遊泳・dt一致度を評価する。

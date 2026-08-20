@@ -1,0 +1,47 @@
+{
+  "status": "PASS",
+  "summary": "Issue #199 タスクAとして、2010 project の固定実時間0.05 sにおけるτ固定control/torque-linked τ、3 torque、2 dt_starの12条件multi-run、再解析、policy別heatmap、12-panel replay設定を追加した。既存baseline、2015 project、dataset採択は変更していない。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "実 campaign、heatmap、replayの生成と結果解釈はユーザー実行待ち。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "PYTHONPYCACHEPREFIX=/private/tmp/issue199_pycache .venv/bin/python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/2010_project_tau_policy_torque_dt_0p05s.yaml dry_run=true",
+      "result": "PASS: 12 conditions"
+    },
+    {
+      "command": "PYTHONPYCACHEPREFIX=/private/tmp/issue199_pycache .venv/bin/pytest tests/test_phase2_199_tau_policy_campaign.py tests/test_phase2_61_torque_dt_campaign.py tests/test_phase2_61_torque_dt_visuals.py",
+      "result": "PASS: 20 passed"
+    },
+    {
+      "command": ".venv/bin/ruff check ... && .venv/bin/ruff format --check ... && git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": true,
+  "user_review_command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/2010_project_tau_policy_torque_dt_0p05s.yaml && uv run python scripts/02_phase2_analysis/analyze_2010_torque_dt_stability.py --config conf/phase2_multi_run/2010_project_tau_policy_torque_dt_0p05s.yaml --run-dir <campaign-root> && uv run python scripts/02_phase2_analysis/visualize_2010_torque_dt_stability.py --run-dir <campaign-root> && uv run python scripts/02_phase2_analysis/render_phase2_replay.py config=conf/phase2_multi_run/2010_project_tau_policy_torque_dt_0p05s.yaml run_dir=<campaign-root>",
+  "user_review_outputs": [
+    "qc_summary.json",
+    "dt_comparison.csv",
+    "tau_policy_comparison.csv",
+    "analysis/torque_dt_visuals/torque_dt_feature_heatmaps_tau_fixed_control.png",
+    "analysis/torque_dt_visuals/torque_dt_feature_heatmaps_torque_linked_tau.png",
+    "replay/"
+  ],
+  "user_review_points": [
+    "T=1e-21 N m の両τ policyが許容差内で一致すること。",
+    "各conditionのshape QC、最初のfailure時刻、body/flag/hook指標を確認すること。",
+    "異torque比較を同一無次元時間の安定性採択として解釈しないこと。"
+  ],
+  "adr_required": false,
+  "adr_reason": "Issue #199で指定済みの実験screenを実装したものであり、物理モデル・baseline・採択policyの新規判断を追加していない。",
+  "commit_type": "complete",
+  "commit_hash": "eb3f00ccb288999766d9e69378ab4de4ddf97345",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/201",
+  "next_actions": [
+    "ユーザーが12条件campaignを実行し、required outputsを確認する。",
+    "結果を採択根拠へ使う場合は、Issue #200のdt_star収束・複数seed評価を行う。"
+  ]
+}

@@ -13,6 +13,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # lifecycle checker uses <base>...HEAD and requires the merge base.
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,6 +34,11 @@ jobs:
         run: |
           uv run ruff format --check .
           uv run ruff check .
+
+      - name: Check deleted issue scripts have no active consumers
+        if: github.event_name == 'pull_request'
+        run: |
+          uv run python tools/codex/check_issue_script_lifecycle.py --base "${{ github.event.pull_request.base.sha }}"
 
       - name: Test (pytest)
         run: |

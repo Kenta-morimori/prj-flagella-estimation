@@ -202,22 +202,14 @@ def _fail_label(row: dict[str, str]) -> str:
 
 
 def _replay_status_lines(st: Any, cfg: Any, fail_label: str) -> list[str]:
-    from sim_swim.render.render3d import _run_tumble_label
+    from sim_swim.render.render3d import (
+        _run_tumble_label,
+        format_simulation_time_label,
+    )
 
-    profile = getattr(cfg, "model_profile", None)
-    if (
-        getattr(profile, "year", None) == 2015
-        or getattr(cfg, "time_scale_policy", None) == "reference_torque"
-    ):
-        tau = st.t / max(cfg.tau_s, 1e-30)
-        dt_s = cfg.dt_star * cfg.tau_s
-        steps = int(round(st.t / max(dt_s, 1e-30)))
-        time_label = f"t = {tau:.3f} τ ({st.t:.6f} s, {steps:,} steps)"
-    else:
-        time_label = f"t = {st.t:.3f} s"
     return [
         _run_tumble_label(st, cfg),
-        time_label,
+        format_simulation_time_label(st.t, cfg),
         f"motor torque / flag = {cfg.motor_torque_Nm:.2e} N m",
         fail_label,
     ]
@@ -688,6 +680,106 @@ def _render_grid_movie(
     }
 
 
+def _select_2d_replay_states(
+    states: list[Any], *, fps_out_2d: float, target_frame_count: int | None
+) -> list[Any]:
+    if target_frame_count is not None:
+        return _resample_states_for_replay(states, target_frame_count)
+    from sim_swim.render.render3d import _select_frames
+
+    return _select_frames(states, out_all_steps_3d=False, fps_hint=fps_out_2d)
+
+
+def _render_grid_movie_2d(
+    *,
+    states_by_condition: list[list[Any]],
+    cfg_by_condition: list[SimulationConfig],
+    condition_rows: list[dict[str, str]],
+    out_dir: Path,
+    fps_out_2d: float,
+    max_panels_per_grid: int,
+    target_frame_count: int | None,
+) -> Any:
+    """Render a condition grid of the configured 2D body projection."""
+    import cv2
+
+    from sim_swim.render.body2d import (
+        BodyCapsuleRenderConfig,
+        render_body_capsule_frame,
+    )
+    from sim_swim.render.grid_movie import (
+        GridLayout,
+        compose_grid_frame,
+        write_mp4_grid,
+    )
+
+    render_states = [
+        _select_2d_replay_states(
+            states,
+            fps_out_2d=fps_out_2d,
+            target_frame_count=target_frame_count,
+        )
+        for states in states_by_condition
+    ]
+    frame_count = min(len(states) for states in render_states)
+    if frame_count <= 0:
+        raise RuntimeError("No frames selected for 2D grid render.")
+    page_groups = _page_index_groups(
+        len(condition_rows), max_panels_per_grid=max_panels_per_grid
+    )
+    pages: list[dict[str, Any]] = []
+    for page_number, indexes in enumerate(page_groups, start=1):
+        rows, cols, _ = _grid_layout_for_rows(
+            [condition_rows[index] for index in indexes]
+        )
+        cfg = cfg_by_condition[indexes[0]]
+        panel_size = int(cfg.render.image_size_px)
+        layout = GridLayout(
+            rows=rows, cols=cols, cell_width_px=panel_size, cell_height_px=panel_size
+        )
+        title = (
+            "grid_projection2d"
+            if len(page_groups) == 1
+            else f"grid_projection2d_page{page_number:02d}"
+        )
+        movie_path = out_dir / f"{title}.mp4"
+
+        def frames() -> Any:
+            for frame_index in range(frame_count):
+                panels = []
+                for index in indexes:
+                    render_cfg = BodyCapsuleRenderConfig(
+                        image_size_px=cfg_by_condition[index].render.image_size_px,
+                        pixel_size_um=cfg_by_condition[index].render.pixel_size_um,
+                        body_length_um=cfg_by_condition[index].body.length_total_um,
+                        body_width_um=(
+                            2.0
+                            * cfg_by_condition[index].body.prism.radius_over_b
+                            * cfg_by_condition[index].scale.b_um
+                        ),
+                        tracking_center=cfg_by_condition[
+                            index
+                        ].render.center_body_in_2d,
+                    )
+                    panel, _ = render_body_capsule_frame(
+                        render_states[index][frame_index], render_cfg
+                    )
+                    panels.append(cv2.cvtColor(panel, cv2.COLOR_GRAY2BGR))
+                yield compose_grid_frame(panels, layout)
+
+        result = write_mp4_grid(movie_path, frames=frames(), fps=fps_out_2d)
+        pages.append(
+            {
+                "page": page_number,
+                "conditions": [
+                    condition_rows[index]["condition_id"] for index in indexes
+                ],
+                "video": result.to_manifest(),
+            }
+        )
+    return {"page_count": len(pages), "pages": pages}
+
+
 def _write_metrics(
     *,
     rows: list[dict[str, str]],
@@ -986,8 +1078,16 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
     )
     parser.add_argument("--fps-out-3d", type=float, default=None)
+    parser.add_argument("--fps-out-2d", type=float, default=None)
+    parser.add_argument("--view", choices=("2d", "3d", "3d+2d"), default="3d")
     parser.add_argument("--target-frame-count", type=int, default=None)
     parser.add_argument("--max-panels-per-grid", type=int, default=None)
+    parser.add_argument(
+        "--condition-id",
+        action="append",
+        default=[],
+        help="Replay only this condition ID; repeat the option to select several.",
+    )
     parser.add_argument(
         "--figure-note",
         type=str,
@@ -1019,6 +1119,8 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error(f"Invalid replay mode: {args.mode}")
     if args.fps_out_3d is None:
         args.fps_out_3d = float(replay_cfg.get("fps_out_3d") or 25.0)
+    if args.fps_out_2d is None:
+        args.fps_out_2d = float(replay_cfg.get("fps_out_2d") or 25.0)
     if args.target_frame_count is not None and args.target_frame_count <= 0:
         parser.error("--target-frame-count must be positive")
     if args.max_panels_per_grid is None:
@@ -1036,6 +1138,13 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
     rows, records, base_cfg_path = _load_inputs(args.input_dir)
+    if args.condition_id:
+        requested = set(args.condition_id)
+        known = {row["condition_id"] for row in rows}
+        unknown = sorted(requested - known)
+        if unknown:
+            raise ValueError(f"Unknown condition IDs: {', '.join(unknown)}")
+        rows = [row for row in rows if row["condition_id"] in requested]
     if args.dry_run:
         for row in rows:
             print(row["condition_id"])
@@ -1087,21 +1196,30 @@ def main(argv: list[str] | None = None) -> None:
             states_by_condition.append(states)
             cfg_by_condition.append(cfg)
             rig_by_condition.append(simulator.rig)
-        render_result = _render_grid_movie(
-            states_by_condition=states_by_condition,
-            cfg_by_condition=cfg_by_condition,
-            rig_by_condition=rig_by_condition,
-            condition_rows=rows,
-            out_dir=output_dir,
-            fps_out_3d=args.fps_out_3d,
-            max_panels_per_grid=args.max_panels_per_grid,
-            target_frame_count=args.target_frame_count,
-            figure_note=args.figure_note,
-        )
-        logger.info(
-            "Rendered grid videos: pages=%d",
-            int(render_result["page_count"]),
-        )
+        render_result = {}
+        if args.view in {"3d", "3d+2d"}:
+            render_result["grid_swim3d"] = _render_grid_movie(
+                states_by_condition=states_by_condition,
+                cfg_by_condition=cfg_by_condition,
+                rig_by_condition=rig_by_condition,
+                condition_rows=rows,
+                out_dir=output_dir,
+                fps_out_3d=args.fps_out_3d,
+                max_panels_per_grid=args.max_panels_per_grid,
+                target_frame_count=args.target_frame_count,
+                figure_note=args.figure_note,
+            )
+        if args.view in {"2d", "3d+2d"}:
+            render_result["grid_projection2d"] = _render_grid_movie_2d(
+                states_by_condition=states_by_condition,
+                cfg_by_condition=cfg_by_condition,
+                condition_rows=rows,
+                out_dir=output_dir,
+                fps_out_2d=args.fps_out_2d,
+                max_panels_per_grid=args.max_panels_per_grid,
+                target_frame_count=args.target_frame_count,
+            )
+        logger.info("Rendered grid videos: %s", ", ".join(render_result))
 
     manifest = {
         "git": _git_info(),
@@ -1111,6 +1229,8 @@ def main(argv: list[str] | None = None) -> None:
             "base_config": str(base_cfg_path),
             "mode": args.mode,
             "fps_out_3d": args.fps_out_3d,
+            "fps_out_2d": args.fps_out_2d,
+            "view": args.view,
             "target_frame_count": args.target_frame_count,
             "max_panels_per_grid": args.max_panels_per_grid,
             "figure_note": args.figure_note,
@@ -1126,7 +1246,7 @@ def main(argv: list[str] | None = None) -> None:
         },
     }
     if render_result is not None:
-        manifest["render_video"] = {"grid_swim3d": render_result}
+        manifest["render_video"] = render_result
     (output_dir / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2),
         encoding="utf-8",

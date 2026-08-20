@@ -1,0 +1,17 @@
+kind: stage_a_2015
+metadata:
+  role: sweep
+  canonical: false
+  description: Issue #199 Task D, 2015 project physical-torque tau-linked screen (dt*=1e-3)
+args:
+  stage: motor_on
+  project_config: conf/sim_swim_2015.yaml
+  profiles: [project]
+  output_base_dir: outputs
+  state_sample_count: 201
+  progress_interval: 500
+  dt_star: 1.0e-3
+  duration_tau: 1.0
+  motor_torques_nm: [1.0e-21, 2.5e-20, 1.0e-19]
+  link_reference_torque: true
+  comparison_role: issue199_task_d_physical_torque_dt1e3

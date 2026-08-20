@@ -1,0 +1,28 @@
+dataset_id: phase3_v1_r2_tau_linked_clip_0p5
+output_name: phase3_v1_r2_tau_linked_clip_0p5
+input_dataset: outputs/phase2_multi_run/flagella_count_behavior_v1_r2/dataset/v1_r2_tau_linked_2s
+output_dir:
+metadata:
+  dataset_version: v1
+  dataset_revision: r2
+clip:
+  duration_s: 0.5
+  window_policy: non_overlap
+  overlap_stride_fraction: 0.5
+output_sampling:
+  fps_out: 25.0
+render:
+  mode: body_capsule_orthographic_v1
+  image_size_px: 96
+  pixel_size_um: 0.1
+  body_length_um: 2.0
+  body_width_um: 1.0
+  body_intensity: 60
+filters:
+  allowed_n_flagella: [1, 2, 3]
+  diagnostic_n_flagella: [4]
+  require_use_for_ml_candidate: true
+  source_require_use_for_ml_candidate: false
+  max_per_class:
+freeze:
+  baseline_torque_Nm: 2.5e-20

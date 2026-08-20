@@ -1,6 +1,6 @@
 # ADR 0012: Phase 2 time schema と profile別時間スケール
 
-- status: accepted
+- status: superseded in part by ADR 0019
 - date: 2026-08-02
 - scope: Phase 2 / Issue #165
 
@@ -29,12 +29,14 @@ profile別の時間スケールは次のように固定する。
 
 | profile | `tau_s` policy |
 | --- | --- |
-| `conf/sim_swim_2010.yaml` | legacy fixed `tau_s=1.0` |
+| `conf/sim_swim_2010.yaml` | `eta * b_m^3 / abs(reference_torque_Nm)` |
 | `conf/sim_swim_2010_paper.yaml` | `eta * b_m^3 / abs(reference_torque_Nm)` |
 | `conf/sim_swim_2015.yaml` | `eta * b_m^3 / abs(reference_torque_Nm)` |
 | `conf/sim_swim_2015_paper.yaml` | `eta * b_m^3 / abs(reference_torque_Nm)` |
 
 `motor.enabled` は実駆動ON/OFF、`motor.torque_Nm` は実際に加える符号付きtorque、`motor.reference_torque_Nm` は時間換算と無次元係数の参照torqueを表す。motor-offでも `reference_torque_Nm` は保持する。
+
+ADR 0019により、未指定の `time.scale_policy` は全profileで `reference_torque` となる。過去の2010 project結果を再現する場合だけ `legacy_fixed_tau_s_1` を明示する。
 
 `motor.torque_Nm=-1` sentinel は 2010 paper profile由来の legacy compatibility としてだけ `reference_torque_Nm = eta b^3`, `motor_torque_Nm = eta b^3`, `motor_enabled = true` に正規化する。profileなしの古いfixtureは parser互換のため維持するが、canonical 2010 project / 2015 profileでは拒否する。
 

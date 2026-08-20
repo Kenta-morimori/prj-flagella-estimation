@@ -4,7 +4,7 @@
 
 ## 01_simulate_swimming
 
-Phase 2 の 3D 遊泳シミュレーションと条件 sweep を扱います。解析、plot、replay は `02_phase2_analysis/`、dataset作成は `03_dataset_building/` に置きます。
+Phase 2 の 3D 遊泳シミュレーションと条件 sweep を扱います。解析、plot、replay、dataset作成は `03_dataset_building/` の共通CLIに置きます。
 
 ### 単発シミュレーション
 
@@ -41,7 +41,7 @@ uv run python -m scripts.01_simulate_swimming \
 これは短時間の数値安定性実験であり、既存baseline、dataset、2015 profileを採択しない。
 
 ```bash
-uv run python scripts/02_phase2_analysis/plan_2010_torque_dt_stability.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind plan-2010-torque-dt \
   --config conf/phase2_sweeps/2010_project_torque_linked_dt_stability.yaml \
   --output /private/tmp/issue190_campaign_plan.json
 ```
@@ -59,7 +59,7 @@ uv run python scripts/01_simulate_swimming/run_multi_run.py \
   dry_run=true
 uv run python scripts/01_simulate_swimming/run_multi_run.py \
   config=conf/phase2_multi_run/2010_project_torque_dt_initial_screen.yaml
-uv run python scripts/02_phase2_analysis/analyze_2010_torque_dt_stability.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind 2010-torque-dt \
   --run-dir <campaign-root>
 ```
 
@@ -70,7 +70,7 @@ campaign root の `qc_summary.json` を最初に読みます。`summary.csv` は
 既存campaignの形状・後方軸整列・束化診断をtorque × `dt_star` heatmapへまとめる場合は、simulationを再起動せず次を使います。
 
 ```bash
-uv run python scripts/02_phase2_analysis/visualize_2010_torque_dt_stability.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind visualize-2010-torque-dt \
   --run-dir <campaign-root>
 ```
 
@@ -79,23 +79,36 @@ uv run python scripts/02_phase2_analysis/visualize_2010_torque_dt_stability.py \
 同じ8条件を同一の無次元時刻で3D replay gridへ並べる場合は次を使います。
 
 ```bash
-uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
+uv run python scripts/03_dataset_building/replay_dataset.py \
   --run-dir <campaign-root> \
   --mode render-only \
   --target-frame-count 101 \
   --max-panels-per-grid 8
 ```
 
-`reference_torque` time-scaleのconditionは、replay上で`t/τ`と実時間・step数を併記する。
+すべての3D renderは、policyにかかわらず` t = … τ (… s, … steps)`を表示する。motor torque・scale・QCなどの条件情報はこの時刻行の後へ続けて表示する。
 
 主な出力は `outputs/YYYY-MM-DD/HHMMSS/` 配下に作成され、`manifest.json` と `run.log` に実行条件が記録されます。Issue #61 torque-dt screenのrun rootは`outputs/YYYY-MM-DD/HHMMSS/phase2_issue61_2010_project_torque_dt_initial_screen/`です。terminalと`run.log`へ全8条件の開始・完了/失敗と経過時間が出力され、実行中のconditionは`run_manifest.json`の`execution.status`で確認できます。
 
 Issue #193は、2010 torque-linked条件で同じ物理`0.5 s`を回すcostだけを測ります。無次元時間の同等性や`dt_star`採択は判断しません。
 
+Issue #199は、τ固定controlとtorque-linked τを同じ物理`0.05 s`で比較する12条件screenです。実行後は同じcampaign rootを再解析・可視化・replayへ渡します。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_multi_run.py \
+  config=conf/phase2_multi_run/2010_project_tau_policy_torque_dt_0p05s.yaml \
+  dry_run=true
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind 2010-torque-dt \
+  --config conf/phase2_multi_run/2010_project_tau_policy_torque_dt_0p05s.yaml \
+  --run-dir <campaign-root>
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind visualize-2010-torque-dt \
+  --run-dir <campaign-root>
+```
+
 ```bash
 uv run python scripts/01_simulate_swimming/run_multi_run.py \
   config=conf/phase2_multi_run/2010_project_torque_fixed_real_time_0p5s_performance.yaml
-uv run python scripts/02_phase2_analysis/analyze_2010_torque_fixed_real_time_performance.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind 2010-fixed-performance \
   --run-dir <campaign-root>
 ```
 
@@ -206,7 +219,7 @@ uv run python scripts/01_simulate_swimming/run_multi_run.py \
 各コマンドが出力したrun rootの `summary.csv` を解析CLIへ渡します。
 
 ```bash
-uv run python scripts/02_phase2_analysis/analyze_spring_formulations.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind spring-formulations \
   motor_off_summary=<motor-off-run-root>/summary.csv \
   motor_on_summary=<motor-on-run-root>/summary.csv
 ```
@@ -221,7 +234,7 @@ Issue #168はmotor-off pilotを先に実行し、閾値を固定してからmoto
 uv run python scripts/01_simulate_swimming/run_sweep.py \
   config=conf/phase2_sweeps/2015_stage_a_motor_off.yaml
 
-uv run python scripts/02_phase2_analysis/analyze_2015_stage_a.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind 2015-stage-a \
   --motor-off-run <motor-off-run-root>
 ```
 
@@ -229,12 +242,16 @@ uv run python scripts/02_phase2_analysis/analyze_2015_stage_a.py \
 `docs/phase2/phase2_168_2015_stage_a_validation.md`を参照してください。motor-off pilotから具体的閾値を
 lockする前にmotor-on採否は行いません。
 
+Issue #199 Task D の2015 project τ-linked torque × `dt_star` screen は、reference/candidateの
+2 runを完了後に統合します。実行条件と診断限定の扱いは
+`docs/phase2/phase2_199_tau_policy_torque_dt_campaign_contract.md` を正本とします。
+
 ### Heatmap
 
 sweep summary から heatmap を作る場合は `plot_heatmap.py` を使います。
 
 ```bash
-uv run python scripts/02_phase2_analysis/plot_heatmap.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py \
   config=conf/phase2_sweeps/shape_stability_heatmap.yaml \
   summary_csv=/private/tmp/phase2_smoke/summary.csv \
   mode=first-second-grid
@@ -246,7 +263,7 @@ heatmap profile は出力先を固定しません。`output_dir` を省略する
 generic multi-run の summary plot も `plot_heatmap.py` から行います。同じ config をそのまま使います。`plot.default_y_axis` が未設定の profile では heatmap ではなく 1 軸 line plot を出します。
 
 ```bash
-uv run python scripts/02_phase2_analysis/plot_heatmap.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py \
   config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml
 ```
 
@@ -269,16 +286,16 @@ heatmap も `shape_stability_heatmap.yaml` を正本として使います。
 利用可能な heatmap profile を CLI から確認する場合:
 
 ```bash
-uv run python scripts/02_phase2_analysis/plot_heatmap.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py \
   list_canonical_profiles=true
 ```
 
 ### Replay Render
 
-既存 sweep 出力の `summary.csv`、`run_manifest.json`、各 condition directory の `state_archive.npz` から、再シミュレーションなしで比較 plot / 3D replay を生成する場合は `02_phase2_analysis/render_phase2_replay.py` を使います。generic multi-run 出力でも同じ CLI を使います。
+既存 sweep 出力の `summary.csv`、`run_manifest.json`、各 condition directory の `state_archive.npz` から、再シミュレーションなしで比較 plot / 2D・3D replay を生成する場合は `03_dataset_building/replay_dataset.py` を使います。generic multi-run 出力でも同じ CLI を使います。
 
 ```bash
-uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
+uv run python scripts/03_dataset_building/replay_dataset.py \
   config=conf/phase2_multi_run/latest_model_torque_shape_stability.yaml \
   overwrite=true
 ```
@@ -286,7 +303,19 @@ uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
 `--mode plot-only` は metrics CSV / PNG のみ、`--mode render-only` は 3D grid movie のみ、`--mode both` は両方を生成します。
 `output.timestamp_subdir=false` の multi-run profile では、`run_dir` / `input_dir` を省略すると `output.base_dir` を読み、`output.base_dir/replay/` へ出力します。legacy 互換として `summary_csv=...` や `--input-dir ... --output-dir ...` も引き続き使えます。
 
-## 02_phase2_analysis
+## 共通 dataset workflow
+
+`scripts/02_phase2_analysis/` は廃止した。既存 raw run / dataset の再利用は次の4操作だけを使う。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_multi_run.py config=<campaign.yaml>
+uv run python scripts/03_dataset_building/build_dataset.py config=<campaign.yaml> run_dir=<run-root>
+uv run python scripts/03_dataset_building/replay_dataset.py --dataset-dir <dataset-dir> --view 3d+2d
+uv run python scripts/03_dataset_building/analyze_dataset.py --dataset-dir <dataset-dir> --view both
+```
+
+`inspect_run.py` は `run_summary.json` を入口にした限定診断用であり、large `step_summary.csv` を
+全件読みする代替ではない。歴史的な以下の command 例は、結果の来歴を説明するためだけに残す。
 
 Phase 2 の planner、比較集計、plot、既存archiveのreplayを置きます。raw 出力は `scripts/01_simulate_swimming/run_multi_run.py` で作り、同じ `conf/phase2_multi_run/*.yaml` を解析CLIでも使います。
 
@@ -311,13 +340,13 @@ Issue #71 の診断用 dataset v0 は次で実行します。36 sample の長時
 ```bash
 uv run python scripts/01_simulate_swimming/run_multi_run.py \
   config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
-uv run python scripts/02_phase2_analysis/plot_heatmap.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py \
   config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
-uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
+uv run python scripts/03_dataset_building/replay_dataset.py \
   config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
 uv run python scripts/03_dataset_building/build_dataset.py \
   config=conf/phase2_multi_run/flagella_count_behavior_v0.yaml
-uv run python scripts/02_phase2_analysis/plot_distributions.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind distributions \
   --dataset-id v0
 ```
 
@@ -331,14 +360,14 @@ uv run python scripts/03_dataset_building/render_sample.py \
 dataset の分布 plot は次で生成します。
 
 ```bash
-uv run python scripts/02_phase2_analysis/plot_distributions.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind distributions \
   --dataset-id v0
 ```
 
 dataset v1 の `n_flagella=1,2,3` について，2D投影後の運動特徴量と grouped baseline を確認する場合は次を使います。
 
 ```bash
-uv run python scripts/02_phase2_analysis/analyze_2d_separability.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py \
   --dataset-dir outputs/phase2_analysis/flagella_count_behavior/datasets/v1 \
   --output-dir outputs/phase2_analysis/flagella_count_behavior/datasets/v1/analysis/projection_2d \
   --overwrite
@@ -346,7 +375,7 @@ uv run python scripts/02_phase2_analysis/analyze_2d_separability.py \
 
 ## 03_dataset_building
 
-Phase 2のbehavior datasetとPhase 3のclip datasetを、既存simulation/archiveから独立して作成します。解析は `02_phase2_analysis/`、Phase 4の学習・評価は `04_phase4/` が担当します。
+Phase 2のbehavior datasetとPhase 3のclip datasetを、既存simulation/archiveから独立して作成します。解析とdataset作成は `03_dataset_building/`、Phase 4の学習・評価は `04_phase4/` が担当します。
 
 ### v1 r1 3秒runから0.5秒clip datasetを作成
 
@@ -471,7 +500,7 @@ uv run python scripts/04_phase4/evaluate_duration_seed_study.py \
 3秒raw runを再シミュレーションせず3D比較renderする場合:
 
 ```bash
-uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
+uv run python scripts/03_dataset_building/replay_dataset.py \
   config=conf/phase2_multi_run/flagella_count_duration_3s_r1.yaml \
   run_dir="${RUN_DIR}" \
   mode=render-only \

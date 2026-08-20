@@ -83,6 +83,17 @@ def _run_tumble_label(st: SimulationState, cfg: SimulationConfig) -> str:
     return "TUMBLE" if bool(is_tumble) else "RUN"
 
 
+def format_simulation_time_label(t_s: float, cfg: SimulationConfig) -> str:
+    """Return the required time label for every 3D render path."""
+
+    tau_s = max(float(cfg.tau_s), 1.0e-30)
+    dt_internal_s = max(float(cfg.dt_star) * tau_s, 1.0e-30)
+    return (
+        f"t = {float(t_s) / tau_s:.3f} τ "
+        f"({float(t_s):.6f} s, {int(round(float(t_s) / dt_internal_s)):,} steps)"
+    )
+
+
 def _frame_status_lines(
     st: SimulationState,
     cfg: SimulationConfig,
@@ -90,8 +101,7 @@ def _frame_status_lines(
     extra_lines: Iterable[str] = (),
 ) -> list[str]:
     lines = [_run_tumble_label(st, cfg)]
-    if cfg.render.timestamp_3d:
-        lines.append(cfg.render.timestamp_fmt.format(t=st.t, tau_s=cfg.tau_s))
+    lines.append(format_simulation_time_label(st.t, cfg))
     lines.append(f"motor_torque_Nm = {cfg.motor_torque_Nm:.3e}")
     lines.append(f"follow_camera_3d = {cfg.render.follow_camera_3d}")
     lines.extend(str(line) for line in extra_lines if str(line).strip())

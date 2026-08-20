@@ -20,6 +20,7 @@ def _summary() -> dict[str, object]:
             "shape_body": {"any_fail": False},
         },
         "all_step_metrics": {
+            "body_spring_max_stretch_ratio": {"max": 0.01},
             "flag_bond_rel_err_max": {"max": 0.01},
             "hook_len_rel_err_max": {"max": 0.02},
             "flag_helix_axis_mean_deviation_deg_max": {"max": 3.0},
@@ -77,3 +78,22 @@ def test_visuals_extract_features_and_write_heatmap(tmp_path: Path) -> None:
     assert outputs["csv"].is_file()
     assert outputs["heatmap"].is_file()
     assert outputs["manifest"].is_file()
+
+
+def test_visuals_split_issue199_heatmaps_by_tau_policy(tmp_path: Path) -> None:
+    _fixture(tmp_path)
+    manifest_path = tmp_path / "run_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for index, condition in enumerate(manifest["conditions"]):
+        condition["tau_policy"] = (
+            "tau_fixed_control" if index % 2 == 0 else "torque_linked_tau"
+        )
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    outputs = build_visuals(tmp_path, tmp_path / "analysis")
+    payload = json.loads(outputs["manifest"].read_text(encoding="utf-8"))
+
+    assert len(payload["outputs"]["feature_heatmaps_png"]) == 2
+    assert all(
+        Path(path).is_file() for path in payload["outputs"]["feature_heatmaps_png"]
+    )

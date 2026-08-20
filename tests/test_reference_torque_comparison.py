@@ -50,7 +50,7 @@ def test_plan_separates_fixed_and_tracking_scales_and_manifest() -> None:
     )
 
 
-def test_2010_project_keeps_legacy_tau_explicit() -> None:
+def test_2010_project_default_tau_tracks_reference_torque() -> None:
     raw = _raw("conf/sim_swim_2010.yaml")
     raw["reference_torque_Nm"] = 2.5e-20
     plan = build_plan(raw)
@@ -59,6 +59,21 @@ def test_2010_project_keeps_legacy_tau_explicit() -> None:
         for row in plan["conditions"]
         if row["comparison_policy"] == "tracking-reference"
     )
+    assert tracking["equivalence"]["tau_tracks_reference_torque"] is True
+    assert tracking["time"]["tau_s"] != pytest.approx(1.0)
+
+
+def test_2010_project_keeps_legacy_tau_when_explicit() -> None:
+    raw = _raw("conf/sim_swim_2010.yaml")
+    raw["reference_torque_Nm"] = 2.5e-20
+    raw["time_scale_policy"] = "legacy_fixed_tau_s_1"
+    plan = build_plan(raw)
+    tracking = next(
+        row
+        for row in plan["conditions"]
+        if row["comparison_policy"] == "tracking-reference"
+    )
+    assert plan["time_scale_policy"] == "legacy_fixed_tau_s_1"
     assert tracking["equivalence"]["tau_tracks_reference_torque"] is False
     assert tracking["time"]["tau_s"] == pytest.approx(1.0)
 

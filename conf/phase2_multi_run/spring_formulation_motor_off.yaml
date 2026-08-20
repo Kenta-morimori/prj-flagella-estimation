@@ -11,6 +11,7 @@ base_overrides:
   time.dt_star: 1.0e-4
   motor.torque_Nm: 0.0
   motor.torque_for_forces_override_Nm: 2.5e-20
+  motor.allow_reference_torque_mismatch: true
   motor.enable_switching: false
   seed.attach_seed: 0
   seed.phase_seed: 0

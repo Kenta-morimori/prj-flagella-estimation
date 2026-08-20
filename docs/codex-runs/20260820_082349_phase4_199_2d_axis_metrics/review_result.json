@@ -1,0 +1,47 @@
+{
+  "status": "PASS",
+  "summary": "Issue #199 Task B/C の Phase 4 可視化について、2D 角速度指標を廃止し、body-only 2D silhouette のπ周期長軸から算出する開始終端角変化・平均軸からのRMS偏差・最大偏差へ置換した。2D 速度は位置差ではなく元の瞬時速度のXYノルム平均へ変更し、3D速度との比較で投影差だけを表すようにした。既存の部分データセットを用いて phase-only 表示を再生成した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "2D長軸は前後を区別できないため、角度指標はπ周期（0–90°の最短軸差）であり、向きを持つ3D body axisとは数値範囲が異なる。",
+    "2D/3D速度は同じ時刻の速度ベクトルを使うが、平均ノルムであるため、比率は厳密な速度エネルギー分率ではない。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": ".venv/bin/pytest tests/test_partial_generic_multi_run.py tests/test_phase_seed_2d_replay.py tests/test_flagella_count_behavior_dataset.py tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase4_duration_study.py -q",
+      "result": "PASS (45 passed)"
+    },
+    {
+      "command": "uv run ruff format src/flagella_estimation/phase3/feature_comparison.py src/flagella_estimation/phase4/duration_study.py tests/test_phase4_duration_study.py && uv run ruff check src/flagella_estimation/phase3/feature_comparison.py src/flagella_estimation/phase4/duration_study.py tests/test_phase4_duration_study.py",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "PYTHONPATH=src .venv/bin/python scripts/04_phase4/evaluate_duration_seed_study.py config=conf/phase4/duration_seed_study_v1_r1.yaml dataset_dir=outputs/2026-08-18/174828_tmp_result/analysis/dataset/v1_r2_tau_linked_2s_partial_as000 output_dir=outputs/2026-08-18/174828_tmp_result/analysis/phase4_phase_seed_visuals overwrite=true study.seed_presentation=phase_only",
+      "result": "PASS (2D time_series と heatmaps を再生成)"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "outputs/2026-08-18/174828_tmp_result/analysis/phase4_phase_seed_visuals/plots/time_series/2d_cell_mean_speed_um_s_by_time.png",
+    "outputs/2026-08-18/174828_tmp_result/analysis/phase4_phase_seed_visuals/plots/time_series/2d_body_axis_angle_change_deg_by_time.png",
+    "outputs/2026-08-18/174828_tmp_result/analysis/phase4_phase_seed_visuals/plots/time_series/2d_body_axis_deviation_rms_deg_by_time.png",
+    "outputs/2026-08-18/174828_tmp_result/analysis/phase4_phase_seed_visuals/plots/time_series/2d_body_axis_deviation_max_deg_by_time.png"
+  ],
+  "user_review_points": [
+    "旧 2d_cell_angular_velocity_rms_rad_s_by_time は生成されない。",
+    "2D速度はXY投影、3D速度はXYZ全成分の同一時刻瞬時速度ノルムである。",
+    "2D body-axis 指標はシルエットから得る見かけの長軸揺れである。"
+  ],
+  "adr_required": false,
+  "adr_reason": "物理モデル、データセット採択、出力契約の意味論を変更せず、既存 Phase 4 解析表示の2D特徴量を依頼どおり整理したため。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/201",
+  "next_actions": []
+}

@@ -62,6 +62,16 @@ def _parse_positive_scales(raw: str) -> list[float]:
     return values
 
 
+def _parse_positive_torques(raw: str) -> list[float]:
+    try:
+        values = [float(item.strip()) for item in raw.split(",") if item.strip()]
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("motor_torques_Nm must be numeric") from exc
+    if not values or any(not math.isfinite(value) or value <= 0.0 for value in values):
+        raise argparse.ArgumentTypeError("motor_torques_Nm must be finite and positive")
+    return values
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stage", choices=sorted(STAGE_CONTRACT), required=True)
@@ -81,6 +91,20 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--motor-torque-scales", type=_parse_positive_scales, default=[1.0]
     )
+    parser.add_argument(
+        "--motor-torques-nm",
+        type=_parse_positive_torques,
+        default=None,
+        help="Physical motor/reference torque values [N m]; mutually exclusive with scales.",
+    )
+    parser.add_argument(
+        "--link-reference-torque",
+        action="store_true",
+        help=(
+            "Scale motor torque, reference torque, material force scale, and "
+            "tau together for each torque condition."
+        ),
+    )
     parser.add_argument("--diagonal-braces-enabled", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
@@ -93,6 +117,15 @@ def _condition_id(profile_name: str, torque_scale: float, scale_count: int) -> s
         return profile_name
     label = f"{torque_scale:g}".replace("-", "m").replace(".", "p")
     return f"{profile_name}_torque_x{label}"
+
+
+def _physical_torque_condition_id(
+    profile_name: str, torque_Nm: float, torque_count: int
+) -> str:
+    if torque_count == 1:
+        return profile_name
+    label = f"{torque_Nm:.0e}".replace("+", "").replace("-", "m")
+    return f"{profile_name}_torque_{label}"
 
 
 def _max_numeric(rows: list[dict[str, str]], field: str) -> float:
@@ -215,6 +248,10 @@ def _write_summary(path: Path, rows: list[dict[str, Any]]) -> None:
 def run_stage_a(argv: list[str] | None = None) -> Path:
     args = _parse_args(argv)
     contract = STAGE_CONTRACT[args.stage]
+    if args.motor_torques_nm is not None and args.motor_torque_scales != [1.0]:
+        raise ValueError("Use either motor_torques_Nm or motor_torque_scales, not both")
+    if args.motor_torques_nm is not None and not args.link_reference_torque:
+        raise ValueError("motor_torques_Nm requires --link-reference-torque")
     if not math.isfinite(args.dt_star) or args.dt_star <= 0.0:
         raise ValueError("dt_star must be finite and positive")
     if args.duration_tau is not None and (
@@ -239,11 +276,24 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
     }
     if args.dry_run:
         for profile_name in args.profiles:
-            for torque_scale in args.motor_torque_scales:
+            torque_values = args.motor_torques_nm or args.motor_torque_scales
+            for torque_value in torque_values:
+                torque_label = (
+                    f"motor_torque_Nm={torque_value}"
+                    if args.motor_torques_nm is not None
+                    else f"torque_scale={torque_value}"
+                )
+                condition_id = (
+                    _physical_torque_condition_id(
+                        profile_name, torque_value, len(torque_values)
+                    )
+                    if args.motor_torques_nm is not None
+                    else _condition_id(profile_name, torque_value, len(torque_values))
+                )
                 print(
-                    f"{_condition_id(profile_name, torque_scale, len(args.motor_torque_scales))}\t"
+                    f"{condition_id}\t"
                     f"stage={args.stage}\tduration_tau={duration_tau}\t"
-                    f"dt_star={args.dt_star}\ttorque_scale={torque_scale}\t"
+                    f"dt_star={args.dt_star}\t{torque_label}\t"
                     f"motor_enabled={contract['motor_enabled']}\t"
                     f"comparison_role={args.comparison_role}\t"
                     f"config={config_paths[profile_name]}"
@@ -264,6 +314,8 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
             "duration_tau": duration_tau,
             "comparison_role": args.comparison_role,
             "motor_torque_scales": args.motor_torque_scales,
+            "motor_torques_Nm": args.motor_torques_nm,
+            "link_reference_torque": args.link_reference_torque,
         },
         source_config_path=config_paths[args.profiles[0]],
         model_profile=first_cfg.model_profile_manifest(),
@@ -275,29 +327,48 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
     condition_records: list[dict[str, Any]] = []
     summary_path = ctx.out.root / "summary.csv"
     for profile_name in args.profiles:
-        for torque_scale in args.motor_torque_scales:
+        torque_values = args.motor_torques_nm or args.motor_torque_scales
+        for torque_value in torque_values:
             config_path = config_paths[profile_name]
-            condition_id = _condition_id(
-                profile_name, torque_scale, len(args.motor_torque_scales)
-            )
+            raw = load_yaml(config_path)
+            base_cfg = SimulationConfig.from_dict(raw)
+            if args.motor_torques_nm is not None:
+                motor_torque_Nm = torque_value
+                reference_torque_Nm = torque_value
+                torque_scale = motor_torque_Nm / base_cfg.motor.torque_Nm
+                condition_id = _physical_torque_condition_id(
+                    profile_name, motor_torque_Nm, len(torque_values)
+                )
+            else:
+                torque_scale = torque_value
+                motor_torque_Nm = base_cfg.motor.torque_Nm * torque_scale
+                reference_torque_Nm = base_cfg.reference_torque_Nm * torque_scale
+                condition_id = _condition_id(
+                    profile_name, torque_scale, len(torque_values)
+                )
             condition_dir = ctx.out.root / condition_id
             condition_dir.mkdir(parents=True, exist_ok=False)
-            raw = load_yaml(config_path)
+            motor_overrides: dict[str, Any] = {
+                "enabled": contract["motor_enabled"],
+                "enable_switching": False,
+                "torque_Nm": motor_torque_Nm,
+            }
+            time_overrides: dict[str, Any] = {
+                "duration": {"value": duration_tau, "unit": "tau"},
+                "integration": {"dt_star": args.dt_star},
+            }
+            if args.link_reference_torque:
+                motor_overrides.update(
+                    {
+                        "reference_torque_Nm": reference_torque_Nm,
+                        "torque_for_forces_override_Nm": 0.0,
+                    }
+                )
+                time_overrides["scale_policy"] = "reference_torque"
             cfg = SimulationConfig.from_dict(raw).with_overrides(
                 {
-                    "time": {
-                        "duration": {
-                            "value": duration_tau,
-                            "unit": "tau",
-                        },
-                        "integration": {"dt_star": args.dt_star},
-                    },
-                    "motor": {
-                        "enabled": contract["motor_enabled"],
-                        "enable_switching": False,
-                        "torque_Nm": SimulationConfig.from_dict(raw).motor.torque_Nm
-                        * torque_scale,
-                    },
+                    "time": time_overrides,
+                    "motor": motor_overrides,
                     "body": {
                         "prism": {
                             "diagonal_braces_enabled": args.diagonal_braces_enabled
@@ -344,6 +415,7 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
                 )
                 row["condition_id"] = condition_id
                 row["motor_torque_scale"] = torque_scale
+                row["motor_torque_Nm"] = cfg.motor.torque_Nm
                 implementation_manifest = simulator.implementation_manifest()
             except Exception as exc:  # noqa: BLE001 - campaign must preserve other conditions
                 elapsed_s = time.perf_counter() - started
@@ -381,12 +453,14 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
                 }
                 logger.exception("Stage A condition failed: profile=%s", profile_name)
 
+            row.setdefault("motor_torque_Nm", cfg.motor.torque_Nm)
             summary_rows.append(row)
             _write_summary(summary_path, summary_rows)
             condition_record = {
                 "condition_id": condition_id,
                 "profile": profile_name,
                 "motor_torque_scale": torque_scale,
+                "motor_torque_Nm": cfg.motor.torque_Nm,
                 "source_config_path": str(config_path),
                 "config_overrides": {
                     "time.duration": {"value": duration_tau, "unit": "tau"},
@@ -412,6 +486,14 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
                     "body_beads": cfg.model_profile.body_beads,
                 },
             }
+            if args.link_reference_torque:
+                condition_record["config_overrides"].update(
+                    {
+                        "time.scale_policy": "reference_torque",
+                        "motor.reference_torque_Nm": cfg.reference_torque_Nm,
+                        "motor.torque_for_forces_override_Nm": 0.0,
+                    }
+                )
             if implementation_manifest is not None:
                 condition_record.update(implementation_manifest)
             condition_records.append(condition_record)
@@ -423,6 +505,8 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
         "duration_tau": duration_tau,
         "comparison_role": args.comparison_role,
         "motor_torque_scales": args.motor_torque_scales,
+        "motor_torques_Nm": args.motor_torques_nm,
+        "link_reference_torque": args.link_reference_torque,
         "created_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
         "short_profile_reference": {
             "condition": "2015 paper motor-on, 1 step, cProfile",
@@ -456,6 +540,8 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
         "comparison_role": args.comparison_role,
         "motor_enabled": contract["motor_enabled"],
         "diagonal_braces_enabled": args.diagonal_braces_enabled,
+        "link_reference_torque": args.link_reference_torque,
+        "motor_torques_Nm": args.motor_torques_nm,
         "state_sample_count_target": args.state_sample_count,
         "smoke_steps": args.smoke_steps,
         "base_config": str(config_paths[args.profiles[0]]),

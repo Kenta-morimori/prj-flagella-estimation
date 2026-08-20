@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from sim_swim.analysis.multi_run_campaign import load_yaml
-from sim_swim.sim.params import SimulationConfig
+from sim_swim.sim.params import TIME_SCALE_POLICIES, SimulationConfig
 
 POLICIES = frozenset({"fixed-reference", "tracking-reference"})
 TIME_BASES = frozenset({"same-real-time", "same-dimensionless-time"})
@@ -27,6 +27,14 @@ def build_plan(raw: dict[str, Any]) -> dict[str, Any]:
     base_config = Path(str(raw["base_config"]))
     base = SimulationConfig.from_dict(load_yaml(base_config))
     base.validate_execution_supported()
+    requested_scale_policy = raw.get("time_scale_policy")
+    if requested_scale_policy is not None:
+        requested_scale_policy = str(requested_scale_policy)
+        if requested_scale_policy not in TIME_SCALE_POLICIES:
+            raise ValueError(
+                "time_scale_policy must be 'profile_default', 'reference_torque', or "
+                "'legacy_fixed_tau_s_1'"
+            )
     reference = float(raw["reference_torque_Nm"])
     if reference <= 0.0:
         raise ValueError("reference_torque_Nm must be positive")
@@ -59,14 +67,20 @@ def build_plan(raw: dict[str, Any]) -> dict[str, Any]:
                         "torque_Nm": motor_torque,
                         "reference_torque_Nm": motor_torque if tracking else reference,
                         "torque_for_forces_override_Nm": 0.0 if tracking else reference,
+                        "allow_reference_torque_mismatch": not tracking,
                     },
                     "time": {
+                        **(
+                            {"scale_policy": requested_scale_policy}
+                            if requested_scale_policy is not None
+                            else {}
+                        ),
                         "duration": {
                             "value": real_time_s
                             if time_basis == "same-real-time"
                             else dimensionless_tau,
                             "unit": "s" if time_basis == "same-real-time" else "tau",
-                        }
+                        },
                     },
                 }
                 cfg = base.with_overrides(overrides)
@@ -97,6 +111,8 @@ def build_plan(raw: dict[str, Any]) -> dict[str, Any]:
                             f"motor.torque_Nm={motor_torque:.12g} "
                             f"motor.reference_torque_Nm={overrides['motor']['reference_torque_Nm']:.12g} "
                             f"motor.torque_for_forces_override_Nm={overrides['motor']['torque_for_forces_override_Nm']:.12g} "
+                            f"motor.allow_reference_torque_mismatch={str(not tracking).lower()} "
+                            f"time.scale_policy={cfg.time_scale_policy} "
                             f"time.duration.value={overrides['time']['duration']['value']:.12g} "
                             f"time.duration.unit={overrides['time']['duration']['unit']} "
                             f"output.base_dir={output_base_dir}/{condition_id}"
@@ -109,12 +125,15 @@ def build_plan(raw: dict[str, Any]) -> dict[str, Any]:
         "base_config": str(base_config),
         "model_profile": base.model_profile_manifest(),
         "reference_torque_Nm": reference,
+        "time_scale_policy": base.time_scale_policy
+        if requested_scale_policy is None
+        else requested_scale_policy,
         "output_base_dir": output_base_dir,
         "conditions": conditions,
         "interpretation_prohibitions": [
             "fixed-reference と tracking-reference を同じ物理系の感度差として混同しない。",
             "same-dimensionless-time の wall time / step 数を same-real-time の計算効率と比較しない。",
-            "2010 project の legacy_fixed_tau_s_1 では reference torque を変えても tau_s は連動しない。",
+            "明示した legacy_fixed_tau_s_1 では reference torque を変えても tau_s は連動しない。",
             "この比較planは torque、dt_star、policy、dataset v2、supported status の正式採択を表さない。",
         ],
     }

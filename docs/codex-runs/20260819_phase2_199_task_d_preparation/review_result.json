@@ -1,0 +1,45 @@
+{
+  "status": "PASS",
+  "summary": "Issue #199 Task D 用に、2015 project のτ-linked torque × dt_star safety screenを準備した。motor torqueとreference torqueを同倍率で連動させ、material force scaleおよびtauもreference torque基準にする。dt_star=1e-4 referenceと1e-3 candidateの各3 torque scaleを、再simulationなしでheatmapと6条件replay入力へ統合できる。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "長時間simulation、heatmap生成、replay renderはユーザー実行待ちであり、結果の物理解釈やdt_star採用は未実施。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_sweep.py config=conf/phase2_sweeps/2015_task_d_tau_linked_dt1e4.yaml dry_run=true; dt1e3も同様",
+      "result": "PASS: 各configはproject torque scale 0.5, 1, 2の3条件へ展開"
+    },
+    {
+      "command": "uv run pytest tests/test_phase2_168_stage_a.py tests/test_phase2_199_task_d.py tests/test_script_layout.py -q",
+      "result": "PASS: 22 passed"
+    },
+    {
+      "command": "uv run ruff check (changed Python files) && git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "ユーザーが実行する方針のため。",
+  "user_review_required": true,
+  "user_review_command": "実行後にtask_d_feature_heatmaps.pngとreplay/grid_swim3d.mp4を確認する。",
+  "user_review_outputs": [
+    "<analysis-root>/task_d_summary.csv",
+    "<analysis-root>/task_d_feature_heatmaps.png",
+    "<analysis-root>/replay/grid_swim3d.mp4"
+  ],
+  "user_review_points": [
+    "6条件すべてでlocked Stage A safety gateの成否を確認する。",
+    "replayをdt行・torque列で確認し、candidateは診断限定として扱う。"
+  ],
+  "adr_required": false,
+  "adr_reason": "default profile、dataset、dt_star採択、reference torqueの全体方針を変更しない実験準備のみである。",
+  "commit_type": "feat",
+  "commit_hash": "26b0e39",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/201",
+  "next_actions": [
+    "ユーザーが2本のsweepを実行する。",
+    "run rootを指定して統合解析とreplayを実行し、結果を別途評価する。"
+  ]
+}

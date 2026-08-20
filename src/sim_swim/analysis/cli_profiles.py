@@ -19,6 +19,7 @@ BOOLEAN_KEYS = {
     "list_canonical_profiles",
     "list_kind",
     "list_profiles",
+    "link_reference_torque",
     "no_stop_on_shape_fail",
     "overwrite",
     "stop_on_shape_fail",

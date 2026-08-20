@@ -30,6 +30,9 @@ has_pytest_targets() {
 if command -v uv >/dev/null 2>&1; then
   run_cmd uv run ruff format --check .
   run_cmd uv run ruff check .
+  if git rev-parse --is-inside-work-tree >/dev/null 2>&1 && git rev-parse --verify origin/main >/dev/null 2>&1; then
+    run_cmd uv run python tools/codex/check_issue_script_lifecycle.py --base "$(git merge-base HEAD origin/main)"
+  fi
   if has_pytest_targets; then
     if [ "${FULL_TEST:-0}" = "1" ]; then
       run_cmd uv run pytest -q
@@ -42,6 +45,9 @@ if command -v uv >/dev/null 2>&1; then
 else
   run_cmd ruff format --check .
   run_cmd ruff check .
+  if git rev-parse --is-inside-work-tree >/dev/null 2>&1 && git rev-parse --verify origin/main >/dev/null 2>&1; then
+    run_cmd python tools/codex/check_issue_script_lifecycle.py --base "$(git merge-base HEAD origin/main)"
+  fi
   if has_pytest_targets; then
     if [ "${FULL_TEST:-0}" = "1" ]; then
       PYTHONPATH=src run_cmd pytest -q

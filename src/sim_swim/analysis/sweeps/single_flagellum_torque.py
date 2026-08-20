@@ -178,6 +178,7 @@ def _base_overrides(
 ) -> dict[str, Any]:
     motor = {
         "torque_Nm": float(torque_Nm),
+        "reference_torque_Nm": float(torque_Nm),
         "force_distribution": "root_torque_segment_couples",
         "local_hook_scale": float(local_scales["local_hook_scale"]),
         "local_spring_scale": float(local_scales["local_spring_scale"]),

@@ -127,7 +127,7 @@ def test_run_summary_caps_episode_storage_and_preserves_file(tmp_path: Path) -> 
 
 
 def _load_inspector() -> object:
-    path = Path("scripts/02_phase2_analysis/inspect_step_summary.py")
+    path = Path("scripts/03_dataset_building/inspect_run.py")
     spec = importlib.util.spec_from_file_location("inspect_step_summary", path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)

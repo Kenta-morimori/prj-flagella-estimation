@@ -2,7 +2,7 @@
 
 ## Scope
 
-この契約は2010 projectの実験専用`1 tau` campaignを定義する。2010 project defaultのlegacy `tau_s=1 s`、#183/ADR 0016のtracking-reference結果、2015 project、0.5秒run、dataset採択を変更しない。
+この契約は2010 projectの`1 tau` campaignを定義する。新規runの既定 `reference_torque` policy、固定τcontrolとして保存した#183/ADR 0016のtracking-reference結果、2015 project、0.5秒run、dataset採択を変更しない。
 
 初期screenのconditionはper-flagellum torque `1e-21, 2.5e-20, 1e-19, 1.2e-18 N m`と`dt_star=1e-3, 1e-4`の直積である。`1e-5`は、初期screenで候補を絞った後に実行するformal referenceであり、初期screenの実行対象に含めない。runnerは次を実行前に検証し、違反時はconditionを実行しない。
 
@@ -27,7 +27,7 @@ uv run python scripts/01_simulate_swimming/run_multi_run.py \
 実行者はclean worktreeで実行する。出力はJST timestamp付き`outputs/YYYY-MM-DD/HHMMSS/phase2_issue61_2010_project_torque_dt_initial_screen/`となる。実行中はterminalとrootの`run.log`へ全8条件の開始・完了/失敗・経過時間を記録し、`run_manifest.json`のconditionごとの`execution.status`（`planned` / `running` / `completed` / `failed`）とJST時刻で現在位置を確認できる。再集計だけを行う場合は次を使い、simulationを再起動しない。
 
 ```bash
-uv run python scripts/02_phase2_analysis/analyze_2010_torque_dt_stability.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind 2010-torque-dt \
   --run-dir <campaign-root>
 ```
 
@@ -43,10 +43,10 @@ uv run python scripts/02_phase2_analysis/analyze_2010_torque_dt_stability.py \
 
 ## Entry-point responsibility
 
-simulation条件の展開・実行は`conf/phase2_multi_run/2010_project_torque_dt_initial_screen.yaml`と標準の`run_multi_run.py`を入口とする。Issue専用の実装は`src/sim_swim/analysis/`に置き、`scripts/01_simulate_swimming/`へ専用runnerを追加しない。実行後のQC再集計・heatmap/replayなどの結果整理は、raw runを再起動しない`02_phase2_analysis`の専用entrypointが担う。
+simulation条件の展開・実行は`conf/phase2_multi_run/2010_project_torque_dt_initial_screen.yaml`と標準の`run_multi_run.py`を入口とする。Issue専用の実装は`src/sim_swim/analysis/`に置き、`scripts/01_simulate_swimming/`へ専用runnerを追加しない。実行後のQC再集計・heatmap/replayなどの結果整理は、raw runを再起動しない`03_dataset_building`の共通entrypointが担う。
 
 定性レビューでは、全8条件の3D replay gridと、torque × `dt_star`の形状・後方軸整列・束化指標heatmapを使う。これらは既存`state_archive.npz`と`run_summary.json`だけを読み、simulationを再起動しない。`1 tau`のため、後方軸整列の短時間診断として扱い、論文条件での自発的な長時間bundle形成を主張しない。
 
 condition IDはtorqueと`dt_star`の値を丸めずfilesystem-safeに表す。例えば`2.5e-20`は`T2p5e-20`、`1.2e-18`は`T1p2e-18`となる。旧IDを持つrunはこのcontractの比較対象にしない。
 
-CLI責務は次に固定する。`01_simulate_swimming/`は単発simulation、`run_sweep.py`、`run_multi_run.py`だけを置く。planner・結果解析・plot・既存archiveのreplayは`02_phase2_analysis/`、Phase 2 behavior datasetとPhase 3 clip datasetの作成・replayは`03_dataset_building/`に置く。`scripts/`は薄いentrypointとし、実装本体は`src/`に置く。旧CLI pathには互換wrapperを残さず、active documentationとtestsを新pathへ更新する。
+CLI責務は次に固定する。`01_simulate_swimming/`は単発simulation、`run_sweep.py`、`run_multi_run.py`だけを置く。planner・結果解析・plot・既存archiveのreplay、Phase 2 behavior datasetとPhase 3 clip datasetの作成・replayは`03_dataset_building/`に置く。`scripts/`は薄いentrypointとし、実装本体は`src/`に置く。旧CLI pathには互換wrapperを残さず、active documentationとtestsを新pathへ更新する。

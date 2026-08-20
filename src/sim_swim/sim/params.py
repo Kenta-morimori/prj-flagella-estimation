@@ -62,7 +62,11 @@ TIME_SCALE_POLICY_LEGACY_FIXED_TAU = "legacy_fixed_tau_s_1"
 TIME_SCALE_POLICY_REFERENCE_TORQUE = "reference_torque"
 TIME_SCALE_POLICY_PROFILE_DEFAULT = "profile_default"
 TIME_SCALE_POLICIES = frozenset(
-    {TIME_SCALE_POLICY_PROFILE_DEFAULT, TIME_SCALE_POLICY_REFERENCE_TORQUE}
+    {
+        TIME_SCALE_POLICY_PROFILE_DEFAULT,
+        TIME_SCALE_POLICY_REFERENCE_TORQUE,
+        TIME_SCALE_POLICY_LEGACY_FIXED_TAU,
+    }
 )
 MOTOR_LOCAL_SCALE_KEYS = (
     "local_hook_scale",
@@ -401,6 +405,7 @@ class MotorParams:
     enabled: bool = True
     torque_Nm: float = 4.0e-18
     reference_torque_Nm: float | None = None
+    allow_reference_torque_mismatch: bool = False
     force_distribution: str = MOTOR_FORCE_DISTRIBUTION_DEFAULT
     body_reaction_full_vector: bool = False
     torque_distribution_profile: str = MOTOR_TORQUE_DISTRIBUTION_PROFILE_DEFAULT
@@ -619,10 +624,10 @@ def _time_scale_policy(
     profile: ModelProfileParams | None,
     requested_policy: str = TIME_SCALE_POLICY_PROFILE_DEFAULT,
 ) -> str:
+    if requested_policy == TIME_SCALE_POLICY_LEGACY_FIXED_TAU:
+        return TIME_SCALE_POLICY_LEGACY_FIXED_TAU
     if requested_policy == TIME_SCALE_POLICY_REFERENCE_TORQUE:
         return TIME_SCALE_POLICY_REFERENCE_TORQUE
-    if _is_2010_project_profile(profile):
-        return TIME_SCALE_POLICY_LEGACY_FIXED_TAU
     return TIME_SCALE_POLICY_REFERENCE_TORQUE
 
 
@@ -740,7 +745,8 @@ def _parse_time_params(raw: dict[str, Any]) -> TimeParams:
     scale_policy = str(time_raw.get("scale_policy", TIME_SCALE_POLICY_PROFILE_DEFAULT))
     if scale_policy not in TIME_SCALE_POLICIES:
         raise ValueError(
-            "time.scale_policy must be 'profile_default' or 'reference_torque'"
+            "time.scale_policy must be 'profile_default', 'reference_torque', or "
+            "'legacy_fixed_tau_s_1'"
         )
 
     legacy_keys = tuple(dict.fromkeys(legacy_keys_used))
@@ -1045,12 +1051,12 @@ class SimulationConfig:
     def reference_torque_Nm(self) -> float:
         if self.use_eta_b3_torque:
             return self.torque_eta_b3_Nm
+        if self.is_motor_off_torque:
+            return self.torque_eta_b3_Nm
         if self.motor.reference_torque_Nm is not None:
             return float(self.motor.reference_torque_Nm)
         if self.time_scale_policy == TIME_SCALE_POLICY_REFERENCE_TORQUE:
             return abs(self.input_torque_Nm)
-        if self.is_motor_off_torque:
-            return self.torque_eta_b3_Nm
         return abs(self.input_torque_Nm)
 
     @property
@@ -1117,6 +1123,31 @@ class SimulationConfig:
             or abs(self.reference_torque_Nm) <= 0.0
         ):
             raise ValueError("motor.reference_torque_Nm must be finite and non-zero.")
+        if (
+            not self.is_motor_off_torque
+            and not self.use_eta_b3_torque
+            and not self.motor.allow_reference_torque_mismatch
+            and not math.isclose(
+                abs(self.input_torque_Nm),
+                abs(self.reference_torque_Nm),
+                rel_tol=1.0e-12,
+                abs_tol=1.0e-30,
+            )
+        ):
+            raise ValueError(
+                "motor.torque_Nm and motor.reference_torque_Nm must match for "
+                "a standard configuration; set "
+                "motor.allow_reference_torque_mismatch=true only for an "
+                "explicit comparison experiment."
+            )
+        if (
+            float(self.motor.torque_for_forces_override_Nm) > 0.0
+            and not self.motor.allow_reference_torque_mismatch
+        ):
+            raise ValueError(
+                "motor.torque_for_forces_override_Nm requires "
+                "motor.allow_reference_torque_mismatch=true."
+            )
         if (
             math.isclose(self.input_torque_Nm, -1.0, rel_tol=0.0, abs_tol=1.0e-12)
             and not self.use_eta_b3_torque
@@ -1541,6 +1572,9 @@ class SimulationConfig:
                 float(motor_raw["reference_torque_Nm"])
                 if motor_raw.get("reference_torque_Nm") not in (None, "")
                 else None
+            ),
+            allow_reference_torque_mismatch=bool(
+                _get(motor_raw, "allow_reference_torque_mismatch", False)
             ),
             force_distribution=normalize_motor_force_distribution(
                 _get(

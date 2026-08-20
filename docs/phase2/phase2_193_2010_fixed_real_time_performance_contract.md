@@ -21,7 +21,7 @@ uv run python scripts/01_simulate_swimming/run_multi_run.py \
   dry_run=true
 uv run python scripts/01_simulate_swimming/run_multi_run.py \
   config=conf/phase2_multi_run/2010_project_torque_fixed_real_time_0p5s_performance.yaml
-uv run python scripts/02_phase2_analysis/analyze_2010_torque_fixed_real_time_performance.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind 2010-fixed-performance \
   --run-dir <campaign-root>
 ```
 
@@ -34,7 +34,7 @@ run rootは`outputs/YYYY-MM-DD/HHMMSS/phase2_issue193_2010_torque_fixed_real_tim
 手動停止などでconditionが未完了の場合、通常の集計は失敗する。未完了conditionを暗黙に落とさないためである。既存archiveを用いて完了conditionだけを定性確認する場合に限り、明示opt-inで次を実行する。
 
 ```bash
-uv run python scripts/02_phase2_analysis/analyze_2010_torque_fixed_real_time_performance.py \
+uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind 2010-fixed-performance \
   --run-dir <campaign-root> \
   --allow-incomplete \
   --render-qualitative-replay
@@ -81,7 +81,7 @@ uv run python scripts/01_simulate_swimming/run_multi_run.py \
   dry_run=true
 uv run python scripts/01_simulate_swimming/run_multi_run.py \
   config=conf/phase2_multi_run/2010_project_body_stability_robustness_0p5s.yaml
-uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
+uv run python scripts/03_dataset_building/replay_dataset.py --run-dir \
   config=conf/phase2_multi_run/2010_project_body_stability_robustness_0p5s.yaml \
   run_dir=<campaign-root> \
   --mode both
