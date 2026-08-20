@@ -27,7 +27,7 @@
   "adr_reason": "τ連動既定の決定は既存ADR 0019で済んでおり、今回の変更はhistorical controlと既存ADRの整合化である。",
   "commit_type": "test",
   "commit_hash": "f66042affc71352291527cf874881f16359cac53",
-  "push_status": "pending",
+  "push_status": "pushed to origin/agent/issue-199-tau-policy-torque-dt",
   "next_actions": [
     "PR #201のCIとCodex review gateを確認する。"
   ]
