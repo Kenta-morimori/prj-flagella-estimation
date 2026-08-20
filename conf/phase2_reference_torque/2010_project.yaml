@@ -1,5 +1,7 @@
 base_config: conf/sim_swim_2010.yaml
 reference_torque_Nm: 2.5e-20
+# Issue #183 の過去比較を再現するための明示control。新規runの既定値は reference_torque。
+time_scale_policy: legacy_fixed_tau_s_1
 output_base_dir: outputs/phase2_reference_torque/2010_project
 policies: [fixed-reference, tracking-reference]
 time_bases: [same-real-time, same-dimensionless-time]

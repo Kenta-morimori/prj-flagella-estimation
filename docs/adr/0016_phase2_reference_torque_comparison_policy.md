@@ -1,6 +1,6 @@
 # ADR 0016: Phase 2 reference torque 比較 policy
 
-* Status: Accepted
+* Status: Superseded in part by ADR 0019
 * Date: 2026-08-12
 * Issues: #183, #61, #184, #157
 
@@ -23,13 +23,7 @@ torque sweep は次の二つを別 campaign として扱う。
 
 各 policy を `same-real-time` と `same-dimensionless-time` に直交させる。#61 の `dt_star` 比較と性能主張は、同一 seed、geometry、物性、per-flag torque policy、duration **を固定した `fixed-reference` / `same-real-time`** 内でのみ行う。`same-dimensionless-time` は無次元軌道を比べる補助比較であり、実時間計算効率を主張しない。
 
-2010 project は `legacy_fixed_tau_s_1` の互換 policy のため、tracking-referenceでも `tau_s=1 s` のままである。物性連動は検査対象だが、2015のような時間相似を主張しない。
-
-Issue #190の2010短時間screenだけは、`tracking-reference`とは別の明示的な実験conditionとして
-`time.scale_policy=reference_torque`をopt-inする。このconditionは
-`abs(motor.torque_Nm)=reference_torque_Nm=torque_for_forces_Nm`と
-`tau_s=eta*b^3/T`を要求する。既存2010 project baseline、#183のtracking-reference結果、#61/#184の正式な
-fixed/tracking比較契約を変更・再解釈しない。#190の結果を2015 projectまたはdataset採択へ適用するには別途判断を要する。
+このADR制定時の2010 project固定τ扱いは、ADR 0019により置換された。現在は2010 / 2015、paper / projectを問わず、未指定時に `reference_torque` を使う。過去の2010比較を再現する場合だけ `legacy_fixed_tau_s_1` を明示し、そのcontrolではtracking-referenceでも `tau_s=1 s` のままとする。固定τcontrolの結果を、現在のτ連動条件の時間相似または採択根拠として再解釈しない。
 
 ## Consequences
 

@@ -1,5 +1,5 @@
 base_config: conf/sim_swim_2010.yaml
-# Short screen only.  Do not replace the legacy supported 2010 project profile.
+# Short screen only.  Do not replace the historical fixed-tau 2010 control.
 duration_tau: 1.0
 torques_Nm: [1.0e-21, 2.5e-20, 1.0e-19, 1.2e-18]
 dt_stars: [1.0e-3, 1.0e-4, 1.0e-5]

@@ -2,7 +2,7 @@
 
 ## 目的と範囲
 
-これはreference torqueを採択するための結果ではない。[比較契約](phase2_183_reference_torque_comparison_contract.md)とADR 0016に従い、#61 が比較条件を固定して `dt_star` と実行性能を評価し、#184 が候補を検証する前の、2010 projectにおける短い安全性screenである。2010 projectは `tau_s=1 s` 固定のため、`tracking-reference` は物性scale連動を確認する条件であって時間相似の主張ではない。
+これはreference torqueを採択するための結果ではない。[比較契約](phase2_183_reference_torque_comparison_contract.md)とADR 0016に従い、#61 が比較条件を固定して `dt_star` と実行性能を評価し、#184 が候補を検証する前の、2010 projectにおける短い安全性screenである。この実行は明示した `legacy_fixed_tau_s_1` controlであるため、`tracking-reference` は物性scale連動を確認する条件であって時間相似の主張ではない。新規runの既定値はADR 0019の `reference_torque` である。
 
 全runは `same-real-time=1 s`、`dt_star=1e-4`、10,000 steps、default seedで実行した。確認には各runの `sim/run_summary.json` を用い、巨大な `step_summary.csv` は読み込んでいない。body gateは全runでunavailableである。
 

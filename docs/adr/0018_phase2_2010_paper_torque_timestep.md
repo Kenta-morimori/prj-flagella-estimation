@@ -8,7 +8,7 @@
 
 2010 paper profileの各flagellum motor torqueとreference torqueを`1.2e-18 N m`、積分刻みを`Δt/τ = dt_star = 1e-3`に設定する。`τ`は`η b^3/T`から導出する。
 
-`-1` sentinelの読取り互換は`SimulationConfig`に残すが、2010 paper profileの標準configには使わない。2010 projectのlegacy `tau_s=1 s`、#61の実験専用reference-torque condition、既存runは変更・再解釈しない。
+`-1` sentinelの読取り互換は`SimulationConfig`に残すが、2010 paper profileの標準configには使わない。新規runのτ policyはADR 0019に従い、過去の固定τcontrol、#61のcampaign、既存runは変更・再解釈しない。
 
 ## Consequences
 

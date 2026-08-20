@@ -95,7 +95,14 @@ def _make_cfg(
                 "semicoiled_tau": 4.0,
                 "curly1_tau": 4.0,
             },
-            "time": {"duration_s": duration_s, "dt_s": 1.0e-3, "dt_star": dt_star},
+            # Phase 2-6 のhistorical regressionは固定τ基準で保持する。
+            # 新規runの既定 reference_torque policyは別の設定・テストで検証する。
+            "time": {
+                "duration_s": duration_s,
+                "dt_s": 1.0e-3,
+                "dt_star": dt_star,
+                "scale_policy": "legacy_fixed_tau_s_1",
+            },
             "output_sampling": {"out_all_steps_3d": True, "fps_out_2d": 25.0},
             "brownian": {
                 "enabled": False,

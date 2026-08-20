@@ -16,15 +16,15 @@ manifestの `time.paper_notation` はこの表記を正本の表示層として�
 
 `fixed-reference` と `tracking-reference`、`same-real-time` と `same-dimensionless-time` は必ず別 condition とする。前者は同一物性での駆動感度、後者は時間と物性を連動させた相似候補である。同一無次元時間を、同一実時間でのstep数・wall time・計算効率の比較に使わない。
 
-2010 projectは `tau_s=1 s` 固定であり、tracking-referenceは時間相似でない。2015 projectは `tau_s=eta*b^3/abs(reference_torque_Nm)` である。#61 の `dt_star` 評価は `fixed-reference` / `same-real-time` に限定して、seed・geometry・物性・per-flag torque policyを固定する。
+新規runでは2010 / 2015とも `tau_s=eta*b^3/abs(reference_torque_Nm)` を使う。過去の2010比較を再現する固定τcontrolだけは、campaign configで `time_scale_policy=legacy_fixed_tau_s_1` を明示し、`tau_s=1 s` とする。#61 の `dt_star` 評価は `fixed-reference` / `same-real-time` に限定して、seed・geometry・物性・per-flag torque policyを固定する。
 
 ## 実行準備（simulationは起動しない）
 
 各 policy はさらに別々に、`same-real-time`（`time.duration.unit=s`）と `same-dimensionless-time`（`unit=tau`）を実行する。前者だけが #61 の計算効率、wall time、steps/s の主比較である。後者は無次元軌道・離散化の補助比較であり、実時間効率の根拠にしてはならない。
 
-2010 project は `legacy_fixed_tau_s_1` のため、tracking-reference でも `tau_s` は変わらない。これは物性連動を検査する比較であり、2015 のような時間相似を主張できない。plan manifest の `tau_tracks_reference_torque=false` を必ず確認する。
+`conf/phase2_reference_torque/2010_project.yaml` は過去結果の再現のため `legacy_fixed_tau_s_1` を明示したcontrolである。このcontrolではtracking-referenceでも `tau_s` は変わらず、時間相似を主張できない。新規の2010 project比較ではpolicyを省略し、plan manifest の `tau_tracks_reference_torque=true` を確認する。
 
-Issue #190はこのtracking-referenceとは別の実験用conditionである。2010 project defaultを変えず、専用campaignのみで`time.scale_policy=reference_torque`を明示して`tau_tracks_reference_torque=true`にする。3 torqueの等値、無次元時刻での比較sample、短時間`torque × dt_star` screenを検証するためであり、#183の先行screenと同一policyとして比較しない。
+Issue #190のtorque × `dt_star` campaignは既定の `reference_torque` policyを使う。過去の固定τcontrolと同一policyとして比較せず、3 torqueの等値と無次元時刻での比較sampleを検証する。
 
 ## Config / manifest 契約
 
@@ -78,7 +78,7 @@ Issue #190はこのtracking-referenceとは別の実験用conditionである。2
 | tracking-reference | 0.5 | PASS | - |
 | tracking-reference | 2.0 | FAIL | `0.0001 s`、hook |
 
-`tracking-reference` scale=1はfixed-reference scale=1と完全に同一のため実行しなかった。2010 projectは`tau_s=1 s`固定なので、この結果は物性scale連動の先行screenであり、reference torqueに時間scaleも連動する2015相似条件のruntime検証ではない。body diagnosticsは当該runでunavailableであり、body PASSを主張しない。これらの結果はtorque / policyの採択根拠ではない。
+`tracking-reference` scale=1はfixed-reference scale=1と完全に同一のため実行しなかった。この実行は固定τcontrolであるため、この結果は物性scale連動の先行screenであり、reference torqueに時間scaleも連動する現在の既定条件のruntime検証ではない。body diagnosticsは当該runでunavailableであり、body PASSを主張しない。これらの結果はtorque / policyの採択根拠ではない。
 
 各runのcompact evidence、hook-only diagnostic、視覚比較を作らない理由は [2010先行screen結果](phase2_183_reference_torque_2010_screen_results.md) に記録する。
 

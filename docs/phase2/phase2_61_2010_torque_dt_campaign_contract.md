@@ -2,7 +2,7 @@
 
 ## Scope
 
-この契約は2010 projectの実験専用`1 tau` campaignを定義する。2010 project defaultのlegacy `tau_s=1 s`、#183/ADR 0016のtracking-reference結果、2015 project、0.5秒run、dataset採択を変更しない。
+この契約は2010 projectの`1 tau` campaignを定義する。新規runの既定 `reference_torque` policy、固定τcontrolとして保存した#183/ADR 0016のtracking-reference結果、2015 project、0.5秒run、dataset採択を変更しない。
 
 初期screenのconditionはper-flagellum torque `1e-21, 2.5e-20, 1e-19, 1.2e-18 N m`と`dt_star=1e-3, 1e-4`の直積である。`1e-5`は、初期screenで候補を絞った後に実行するformal referenceであり、初期screenの実行対象に含めない。runnerは次を実行前に検証し、違反時はconditionを実行しない。
 
