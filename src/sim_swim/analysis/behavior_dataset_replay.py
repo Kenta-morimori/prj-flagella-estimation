@@ -309,7 +309,7 @@ def render_dataset(
     return replay_root
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--sample-dir", type=Path)
@@ -343,7 +343,7 @@ def main() -> None:
         default=None,
         help="2D replay frame rate.",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.dataset_dir is not None:
         if args.config is not None or args.archive is not None:

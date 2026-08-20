@@ -1,0 +1,36 @@
+{
+  "status": "PASS",
+  "summary": "PR #201 のτ policy既定化、標準dataset workflow、旧scripts/02_phase2_analysis撤去を検証した。既存の12 completed条件はローカル正式パス outputs/2026-08-18/174828/ に保持し、partial diagnostic datasetとして再解析する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "10 GBのraw outputは.gitignore配下のローカル成果物であり、別cloneへの配布は保証しない。",
+    "partial runは12 completed条件のみで、残り24条件はnot_completedのままcanonical/training採択に使わない。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_params.py tests/test_script_layout.py tests/test_phase2_199_tau_policy_campaign.py tests/test_phase2_61_torque_dt_campaign.py -q",
+      "result": "PASS (113 passed)"
+    },
+    {
+      "command": "uv run python scripts/03_dataset_building/replay_dataset.py --help && uv run python scripts/03_dataset_building/analyze_dataset.py --help && uv run python scripts/03_dataset_building/inspect_run.py --help",
+      "result": "PASS"
+    },
+    {
+      "command": "ruff format --check ... && ruff check ... && git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": true,
+  "adr_reason": "τの既定値とtorque/reference torqueの標準不変条件を変更したため、ADR 0019に記録した。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/201",
+  "next_actions": [
+    "merge前にcurrent PR commitに対するCodexまたはCopilot reviewとcodex-review-gateを通す。"
+  ]
+}

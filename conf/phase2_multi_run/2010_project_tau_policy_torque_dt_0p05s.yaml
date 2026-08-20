@@ -9,7 +9,7 @@ campaign_contract:
   stage: tau_policy_screen
   time_policies:
     - id: tau_fixed_control
-      time_scale_policy: profile_default
+      time_scale_policy: legacy_fixed_tau_s_1
     - id: torque_linked_tau
       time_scale_policy: reference_torque
 

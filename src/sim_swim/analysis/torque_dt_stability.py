@@ -55,7 +55,10 @@ def build_plan(config_path: Path) -> dict[str, Any]:
     for policy in time_policies:
         policy_id = str(policy.get("id") or "").strip()
         scale_policy = str(policy.get("time_scale_policy") or "").strip()
-        if not policy_id or scale_policy not in {"profile_default", "reference_torque"}:
+        if not policy_id or scale_policy not in {
+            "legacy_fixed_tau_s_1",
+            "reference_torque",
+        }:
             raise ValueError(
                 "campaign_contract.time_policies requires id and time_scale_policy"
             )

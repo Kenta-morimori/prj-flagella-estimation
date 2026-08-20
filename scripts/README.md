@@ -303,7 +303,19 @@ uv run python scripts/02_phase2_analysis/render_phase2_replay.py \
 `--mode plot-only` は metrics CSV / PNG のみ、`--mode render-only` は 3D grid movie のみ、`--mode both` は両方を生成します。
 `output.timestamp_subdir=false` の multi-run profile では、`run_dir` / `input_dir` を省略すると `output.base_dir` を読み、`output.base_dir/replay/` へ出力します。legacy 互換として `summary_csv=...` や `--input-dir ... --output-dir ...` も引き続き使えます。
 
-## 02_phase2_analysis
+## 共通 dataset workflow
+
+`scripts/02_phase2_analysis/` は廃止した。既存 raw run / dataset の再利用は次の4操作だけを使う。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_multi_run.py config=<campaign.yaml>
+uv run python scripts/03_dataset_building/build_dataset.py config=<campaign.yaml> run_dir=<run-root>
+uv run python scripts/03_dataset_building/replay_dataset.py --dataset-dir <dataset-dir> --view 3d+2d
+uv run python scripts/03_dataset_building/analyze_dataset.py --dataset-dir <dataset-dir> --view both
+```
+
+`inspect_run.py` は `run_summary.json` を入口にした限定診断用であり、large `step_summary.csv` を
+全件読みする代替ではない。歴史的な以下の command 例は、結果の来歴を説明するためだけに残す。
 
 Phase 2 の planner、比較集計、plot、既存archiveのreplayを置きます。raw 出力は `scripts/01_simulate_swimming/run_multi_run.py` で作り、同じ `conf/phase2_multi_run/*.yaml` を解析CLIでも使います。
 

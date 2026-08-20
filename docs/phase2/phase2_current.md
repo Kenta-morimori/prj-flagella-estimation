@@ -14,6 +14,7 @@
 - `n_flagella>=5`: canonical training scope外
 - training candidate: 全時間strict passを要求
 - CLI例: `KEY=VALUE`形式を第一表記とする
+- 新規runの時間scale: `reference_torque`（`tau_s=eta*b^3/|T|`）。過去再現は`legacy_fixed_tau_s_1`を明示する
 - parameter・閾値・dataset条件: config，test，registryを正本とする
 
 採択判断は`docs/phase2/phase2_tasks.md`のDecision Indexから確認する．

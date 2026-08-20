@@ -163,7 +163,7 @@ def _validate_campaign_contract(raw: dict[str, Any]) -> None:
             (str(row.get("id")), str(row.get("time_scale_policy"))) for row in policies
         }
         if observed != {
-            ("tau_fixed_control", "profile_default"),
+            ("tau_fixed_control", "legacy_fixed_tau_s_1"),
             ("torque_linked_tau", "reference_torque"),
         }:
             raise ValueError(

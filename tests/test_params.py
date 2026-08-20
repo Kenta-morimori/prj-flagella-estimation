@@ -177,15 +177,17 @@ def test_canonical_time_schema_resolves_tau_duration_from_reference_torque() -> 
     assert sim_cfg.time_manifest()["time_schema_source"] == "canonical"
 
 
-def test_legacy_project_profile_keeps_tau_s_fixed_at_one() -> None:
+def test_explicit_legacy_policy_keeps_tau_s_fixed_at_one() -> None:
     cfg = _base_cfg()
     cfg["model_profile"] = _model_profile()
     cfg["motor"]["torque_Nm"] = 2.0e-20
     cfg["motor"]["reference_torque_Nm"] = 1.2e-18
+    cfg["motor"]["allow_reference_torque_mismatch"] = True
     cfg["time"] = {
         "duration": {"value": 0.2, "unit": "tau"},
         "dt_s": 1.0e-3,
         "integration": {"dt_star": 1.0e-4},
+        "scale_policy": "legacy_fixed_tau_s_1",
     }
 
     sim_cfg = SimulationConfig.from_dict(cfg)
@@ -469,8 +471,8 @@ def test_default_config_sets_phase2_local_scales() -> None:
     assert sim_cfg.motor.local_first_second_spring_scale == pytest.approx(1.0)
     assert sim_cfg.motor.local_attach_frame_position_scale == pytest.approx(1.25)
     assert sim_cfg.motor.local_attach_frame_tangent_scale == pytest.approx(1.0)
-    assert sim_cfg.tau_s == pytest.approx(1.0)
-    assert sim_cfg.dt_s == pytest.approx(1.0e-4)
+    assert sim_cfg.tau_s == pytest.approx(0.04)
+    assert sim_cfg.dt_s == pytest.approx(4.0e-6)
     assert sim_cfg.dt_star == pytest.approx(1.0e-4)
     assert sim_cfg.output_dt_s == pytest.approx(1.0e-3)
     assert sim_cfg.output_sampling.out_all_steps_3d is False
@@ -519,9 +521,9 @@ def test_validate_time_scaling_for_explicit_torque_is_always_fixed() -> None:
     sim_cfg = SimulationConfig.from_dict(cfg)
 
     sim_cfg.validate_time_scaling()
-    assert sim_cfg.tau_s == pytest.approx(1.0)
+    assert sim_cfg.tau_s == pytest.approx(1.0e-3)
     assert sim_cfg.dt_s == pytest.approx(1.0e-3)
-    assert sim_cfg.dt_star == pytest.approx(1.0e-3)
+    assert sim_cfg.dt_star == pytest.approx(1.0)
 
 
 def test_torque_minus_one_uses_eta_b3_and_tau_is_one() -> None:
@@ -635,18 +637,44 @@ def test_torque_non_minus_one_uses_input_value() -> None:
     assert sim_cfg.torque_for_forces_Nm == pytest.approx(abs(9.9e-18))
     assert sim_cfg.motor_torque_Nm == pytest.approx(9.9e-18)
     assert sim_cfg.torque_Nm == pytest.approx(9.9e-18)
-    assert sim_cfg.tau_s == pytest.approx(1.0)
+    assert sim_cfg.tau_s == pytest.approx(1.0 / 9.9e3)
 
 
 def test_torque_for_forces_override_decouples_from_motor_torque() -> None:
     cfg = _base_cfg()
     cfg["motor"]["torque_Nm"] = 4.0e-21
     cfg["motor"]["torque_for_forces_override_Nm"] = 1.0e-21
+    cfg["motor"]["allow_reference_torque_mismatch"] = True
     cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
     sim_cfg = SimulationConfig.from_dict(cfg)
 
     assert sim_cfg.motor_torque_Nm == pytest.approx(4.0e-21)
     assert sim_cfg.torque_for_forces_Nm == pytest.approx(1.0e-21)
+
+
+def test_standard_torque_reference_mismatch_is_rejected() -> None:
+    cfg = _base_cfg()
+    cfg["motor"] = {"torque_Nm": 2.0e-20, "reference_torque_Nm": 1.0e-20}
+    cfg["time"] = {"duration_s": 0.1, "dt_s": 1.0e-3}
+
+    with pytest.raises(ValueError, match="must match"):
+        SimulationConfig.from_dict(cfg).validate_time_scaling()
+
+
+def test_project_profile_default_is_reference_torque_linked() -> None:
+    cfg = _base_cfg()
+    cfg["model_profile"] = _model_profile()
+    cfg["motor"] = {"torque_Nm": 2.0e-20}
+    cfg["time"] = {
+        "duration": {"value": 1.0, "unit": "tau"},
+        "dt_s": 1.0e-3,
+        "integration": {"dt_star": 1.0e-4},
+    }
+
+    sim_cfg = SimulationConfig.from_dict(cfg)
+
+    assert sim_cfg.time_scale_policy == "reference_torque"
+    assert sim_cfg.reference_torque_Nm == pytest.approx(2.0e-20)
 
 
 def test_torque_for_forces_override_non_positive_uses_default_coupling() -> None:

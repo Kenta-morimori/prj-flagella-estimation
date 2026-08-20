@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import csv
-import importlib.util
 import json
 from pathlib import Path
 
@@ -18,6 +17,7 @@ from sim_swim.analysis.spring_formulation_comparison import (
     write_decision_artifacts,
     write_force_extension_artifacts,
 )
+from sim_swim.analysis.spring_formulations_workflow import main as run_comparison
 from sim_swim.sim.params import SimulationConfig
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -325,16 +325,9 @@ def test_comparison_cli_writes_run_contract(tmp_path: Path, monkeypatch) -> None
     _write_summary(motor_off, fene_pass=True)
     _write_summary(motor_on, fene_pass=True)
 
-    script_path = ROOT / "scripts/02_phase2_analysis/analyze_spring_formulations.py"
-    spec = importlib.util.spec_from_file_location(
-        "analyze_spring_formulations", script_path
-    )
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
     monkeypatch.setattr("sim_swim.core.run_context._require_clean_git", lambda: None)
 
-    output_root = module.main(
+    output_root = run_comparison(
         [
             f"motor_off_summary={motor_off}",
             f"motor_on_summary={motor_on}",
