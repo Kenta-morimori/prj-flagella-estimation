@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "summary": "Issue #195をPR #201後のCLI導線・lifecycle監査へ再定義し、scripts/README.mdに現行CLIの分類、owner、実装先、lifecycle一覧を追加した。廃止済みscripts/02_phase2_analysisの説明を現行workflowへ整合させ、Codex reviewを受けてanalyze_datasetの実装先とreplay_clip_dataset.pyのlifecycle分類を訂正した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "PR #201で集約されたCLIの物理条件・campaign契約・出力契約は本変更の対象外である。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py --help && uv run python scripts/03_dataset_building/analyze_dataset.py --help && uv run python scripts/03_dataset_building/replay_dataset.py --help && uv run python scripts/03_dataset_building/inspect_run.py --help",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q tests/test_script_layout.py tests/test_common_replay_cli.py tests/test_issue_script_lifecycle.py",
+      "result": "PASS (8 passed)"
+    },
+    {
+      "command": "uv run python tools/codex/check_issue_script_lifecycle.py --base origin/main && git diff --check && rg -n \"scripts/02_phase2_analysis\" --glob '!docs/codex-runs/**' .",
+      "result": "PASS; active consumer参照はREADMEの廃止説明とlayout testのみ"
+    },
+    {
+      "command": "uv run ruff check scripts tests/test_script_layout.py tests/test_common_replay_cli.py tests/test_issue_script_lifecycle.py",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "CLI導線の文書化のみで、物理モデル・出力契約・採択判断を変更しない。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": []
+}
