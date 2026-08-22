@@ -28,4 +28,6 @@ raw artifactは約24 GBのためGit管理しない。`data/`は入力data用か�
 
 `scripts/03_dataset_building/analyze_motion_features.py --config conf/phase2_analysis/issue204_motion_feature_study.yaml` はgeneric multi-runのraw runを直接読む共通解析である．3D / 2Dのbody mean speed，body-axis angular velocity，mean flagella-axis angular velocity，body--flagella axis angleをframe時系列と`0.25 / 0.5 / 1.0 s` non-overlap windowへ保存する．
 
+解析結果は参照run配下の`analysis/motion_features/`へ置く。`time_series/`には元時系列の`3D_*.png` / `2D_*.png`、`windows/`には3つのwindow幅を横並びにした同名形式のplotを置く。各CSVは同rootに保持し、strict QCに失敗した`n=4`条件はCSVとmanifestには残すが、両plot群から除外する。
+
 2D body axisはcanonical body-only silhouetteから得るpixel-observable量である。一方、tracking-center前のprojected centroid速度、mean flagella axis、body--flagella relationはsimulation GT由来のprojected latent featureとしてmanifestへ明記する。投影面はYAMLの直交2基底で指定し、既定はXY面である。

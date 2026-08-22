@@ -31,6 +31,15 @@ FEATURES = (
     "mean_body_flagella_axis_angle_deg",
 )
 
+PLOT_NAMES = {
+    "speed_um_s": "speed",
+    "body_axis_angular_velocity_rad_s": "body_axis_angular_velocity",
+    "mean_flagella_axis_angular_velocity_rad_s": "flagella_axis_angular_velocity",
+    "body_flagella_axis_angle_deg": "body_flagella_axis_angle",
+}
+
+WINDOW_FEATURES = dict(zip(FEATURES, PLOT_NAMES.values(), strict=True))
+
 
 @dataclass(frozen=True)
 class MotionFeatureStudyConfig:
@@ -258,6 +267,20 @@ def _window_qc(path: Path, windows: list[tuple[float, float]]) -> list[dict[str,
     return output
 
 
+def _strict_run_pass(path: Path) -> bool:
+    """Return whether every recorded source step passes the strict QC."""
+    with path.open(encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle):
+            finite = str(row.get("finite_pass", "")).lower() in {"true", "1"}
+            shape = str(row.get("shape_pass_nonbody_strict", "")).lower() in {
+                "true",
+                "1",
+            }
+            if not finite or not shape:
+                return False
+    return True
+
+
 def _mean(values: np.ndarray) -> float:
     values = values[np.isfinite(values)]
     return float(np.mean(values)) if len(values) else float("nan")
@@ -271,36 +294,34 @@ def _write(path: Path, rows: list[dict[str, Any]]) -> None:
         writer.writerows(rows)
 
 
-def _plot(rows: list[dict[str, Any]], output_dir: Path, domain: str) -> list[str]:
+def _plot_series(
+    rows: list[dict[str, Any]], output_dir: Path, domain: str
+) -> list[str]:
     output_dir.mkdir(parents=True, exist_ok=True)
     paths: list[str] = []
     colors = {1: "#0072B2", 2: "#D55E00", 3: "#009E73", 4: "#CC79A7"}
-    for feature in FEATURES:
+    for feature, name in PLOT_NAMES.items():
         figure, axis = plt.subplots(figsize=(7, 4))
         for n in sorted({int(row["n_flagella"]) for row in rows}):
             subset = [row for row in rows if int(row["n_flagella"]) == n]
             for sample in sorted({str(row["sample_id"]) for row in subset}):
                 part = sorted(
                     (row for row in subset if row["sample_id"] == sample),
-                    key=lambda x: float(x["t_start_s"]),
+                    key=lambda x: float(x["t_s"]),
                 )
                 axis.plot(
-                    [float(x["t_start_s"]) for x in part],
+                    [float(x["t_s"]) for x in part],
                     [float(x[feature]) for x in part],
                     color=colors[n],
                     alpha=0.3,
                 )
-            times = sorted({float(row["t_start_s"]) for row in subset})
+            times = sorted({float(row["t_s"]) for row in subset})
             axis.plot(
                 times,
                 [
                     _mean(
                         np.asarray(
-                            [
-                                float(x[feature])
-                                for x in subset
-                                if float(x["t_start_s"]) == t
-                            ]
+                            [float(x[feature]) for x in subset if float(x["t_s"]) == t]
                         )
                     )
                     for t in times
@@ -309,13 +330,73 @@ def _plot(rows: list[dict[str, Any]], output_dir: Path, domain: str) -> list[str
                 label=f"n={n}" + (" diagnostic" if n == 4 else ""),
                 linewidth=2.4,
             )
-        axis.set(
-            title=f"{domain}: {feature}", xlabel="window start (s)", ylabel=feature
-        )
+        axis.set(title=f"{domain}: {name}", xlabel="time (s)", ylabel=name)
         axis.grid(alpha=0.25)
         axis.legend(frameon=False)
-        path = output_dir / f"{domain}_{feature}_by_n.png"
+        path = output_dir / f"{domain}_{name}.png"
         figure.tight_layout()
+        figure.savefig(path, dpi=150)
+        plt.close(figure)
+        paths.append(str(path))
+    return paths
+
+
+def _plot_windows(
+    rows: list[dict[str, Any]], output_dir: Path, domain: str
+) -> list[str]:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    paths: list[str] = []
+    colors = {1: "#0072B2", 2: "#D55E00", 3: "#009E73", 4: "#CC79A7"}
+    durations = sorted({float(row["requested_duration_s"]) for row in rows})
+    for feature, name in WINDOW_FEATURES.items():
+        figure, axes = plt.subplots(
+            1,
+            len(durations),
+            figsize=(5 * len(durations), 4),
+            sharey=True,
+            squeeze=False,
+        )
+        for axis, duration in zip(axes[0], durations, strict=True):
+            duration_rows = [
+                row for row in rows if float(row["requested_duration_s"]) == duration
+            ]
+            for n in sorted({int(row["n_flagella"]) for row in duration_rows}):
+                subset = [row for row in duration_rows if int(row["n_flagella"]) == n]
+                for sample in sorted({str(row["sample_id"]) for row in subset}):
+                    part = sorted(
+                        (row for row in subset if row["sample_id"] == sample),
+                        key=lambda x: float(x["t_start_s"]),
+                    )
+                    axis.plot(
+                        [float(x["t_start_s"]) for x in part],
+                        [float(x[feature]) for x in part],
+                        color=colors[n],
+                        alpha=0.3,
+                    )
+                times = sorted({float(row["t_start_s"]) for row in subset})
+                axis.plot(
+                    times,
+                    [
+                        _mean(
+                            np.asarray(
+                                [
+                                    float(x[feature])
+                                    for x in subset
+                                    if float(x["t_start_s"]) == t
+                                ]
+                            )
+                        )
+                        for t in times
+                    ],
+                    color=colors[n],
+                    linewidth=2.4,
+                    label=f"n={n}" + (" diagnostic" if n == 4 else ""),
+                )
+            axis.set(title=f"{duration:g} s", xlabel="window start (s)", ylabel=name)
+            axis.grid(alpha=0.25)
+        axes[0, 0].legend(frameon=False)
+        figure.tight_layout()
+        path = output_dir / f"{domain}_{name}.png"
         figure.savefig(path, dpi=150)
         plt.close(figure)
         paths.append(str(path))
@@ -356,6 +437,7 @@ def analyze_motion_feature_study(cfg: MotionFeatureStudyConfig) -> Path:
         ]
         if not all(path.is_file() for path in required):
             raise FileNotFoundError(f"{sample_id}: missing required raw artifact")
+        run_strict_pass = _strict_run_pass(required[1])
         with np.load(required[0], allow_pickle=False) as archive:
             indices = _select_indices(
                 np.asarray(archive["t"], dtype=float), cfg.frame_rate_hz
@@ -404,6 +486,7 @@ def analyze_motion_feature_study(cfg: MotionFeatureStudyConfig) -> Path:
             "attach_seed": int(values.get("attach_seed", -1)),
             "phase_seed": int(values.get("phase_seed", -1)),
             "diagnostic_only": n == 4,
+            "run_strict_pass": run_strict_pass,
         }
         for i in range(len(t)):
             series3d.append(
@@ -473,13 +556,36 @@ def analyze_motion_feature_study(cfg: MotionFeatureStudyConfig) -> Path:
                             "mean_body_flagella_axis_angle_deg": _mean(relation[sl]),
                         }
                     )
+    excluded_n4 = sorted(
+        {
+            str(row["sample_id"])
+            for row in windows3d
+            if int(row["n_flagella"]) == 4 and not bool(row["run_strict_pass"])
+        }
+    )
+    plot_windows3d = [
+        row for row in windows3d if str(row["sample_id"]) not in excluded_n4
+    ]
+    plot_windows2d = [
+        row for row in windows2d if str(row["sample_id"]) not in excluded_n4
+    ]
+    plot_series3d = [
+        row for row in series3d if str(row["sample_id"]) not in excluded_n4
+    ]
+    plot_series2d = [
+        row for row in series2d if str(row["sample_id"]) not in excluded_n4
+    ]
     _write(cfg.output_dir / "time_series_3d.csv", series3d)
     _write(cfg.output_dir / "time_series_2d.csv", series2d)
     _write(cfg.output_dir / "window_features_3d.csv", windows3d)
     _write(cfg.output_dir / "window_features_2d.csv", windows2d)
-    plots = _plot(windows3d, cfg.output_dir / "plots", "3d") + _plot(
-        windows2d, cfg.output_dir / "plots", "2d"
-    )
+    time_dir, window_dir = cfg.output_dir / "time_series", cfg.output_dir / "windows"
+    plots = {
+        "time_series": _plot_series(plot_series3d, time_dir, "3D")
+        + _plot_series(plot_series2d, time_dir, "2D"),
+        "windows": _plot_windows(plot_windows3d, window_dir, "3D")
+        + _plot_windows(plot_windows2d, window_dir, "2D"),
+    }
     output = {
         "pipeline_name": "phase2_motion_feature_study",
         "run_dir": str(cfg.run_dir),
@@ -499,6 +605,7 @@ def analyze_motion_feature_study(cfg: MotionFeatureStudyConfig) -> Path:
             "window_features_2d": str(cfg.output_dir / "window_features_2d.csv"),
             "plots": plots,
         },
+        "plot_exclusions": {"n4_strict_failure": excluded_n4},
         "skipped_conditions": skipped,
         "created_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
     }

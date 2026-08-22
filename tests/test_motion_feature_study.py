@@ -24,7 +24,7 @@ def _csv(path: Path, rows: list[dict[str, object]]) -> None:
         writer.writerows(rows)
 
 
-def _fixture(root: Path) -> None:
+def _fixture(root: Path, *, broken_n4: bool = False) -> None:
     conditions = []
     for n in (1, 4):
         sample = f"as000__ps000__nf{n:02d}"
@@ -48,7 +48,9 @@ def _fixture(root: Path) -> None:
                 {
                     "t_s": state.t,
                     "finite_pass": True,
-                    "shape_pass_nonbody_strict": True,
+                    "shape_pass_nonbody_strict": not (
+                        broken_n4 and n == 4 and state.t == 0.5
+                    ),
                     "first_fail_category_nonbody_strict": "none",
                 }
                 for state in states
@@ -102,7 +104,28 @@ def test_motion_feature_study_raw_campaign_writes_feature_contract(
         ]
         == "pixel_observable"
     )
-    assert list((output_dir / "plots").glob("*.png"))
+    assert (output_dir / "time_series" / "3D_speed.png").is_file()
+    assert (output_dir / "windows" / "2D_speed.png").is_file()
+
+
+@pytest.mark.light
+def test_motion_feature_study_excludes_strict_failing_n4_from_plots(
+    tmp_path: Path,
+) -> None:
+    run_dir, output_dir = tmp_path / "run", tmp_path / "analysis"
+    _fixture(run_dir, broken_n4=True)
+    analyze_motion_feature_study(
+        MotionFeatureStudyConfig(
+            run_dir=run_dir,
+            output_dir=output_dir,
+            durations_s=(1.0,),
+            frame_rate_hz=2.0,
+        )
+    )
+    manifest = json.loads((output_dir / "manifest.json").read_text())
+    assert manifest["plot_exclusions"]["n4_strict_failure"] == ["as000__ps000__nf04"]
+    rows = list(csv.DictReader((output_dir / "window_features_3d.csv").open()))
+    assert {row["n_flagella"] for row in rows} == {"1", "4"}
 
 
 @pytest.mark.light

@@ -1,5 +1,5 @@
 run_dir: outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_nf1_4_as3_ps3_2026-08-18
-output_dir: outputs/2026-08-22/211545/phase2_issue204_motion_feature_study
+output_dir: outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_nf1_4_as3_ps3_2026-08-18/analysis/motion_features
 overwrite: false
 study:
   durations_s: [0.25, 0.5, 1.0]
