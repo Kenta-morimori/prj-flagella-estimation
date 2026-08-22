@@ -330,6 +330,7 @@ uv run python scripts/03_dataset_building/analyze_dataset.py --dataset-dir <data
 | active diagnostic | `analyze_dataset.py --analysis-kind plan-2010-torque-dt`, `plan-reference-torque` | #61 / #183 campaign plan | `torque_dt_stability.py`, `reference_torque_comparison.py` | active diagnostic |
 | active diagnostic | `analyze_dataset.py --analysis-kind diagnose-158` / `inspect_run.py` | #158 failure・限定run診断 | `phase2_158_diagnostics.py`, `run_summary.py` | active diagnostic |
 | active diagnostic | `analyze_dataset.py --analysis-kind task-d-2015`, `phase-seed-2d` / `evaluate_clip_dataset_features.py` | #199 Task D・v1 r2 feature確認 | `task_d_2015_tau_linked.py`, `phase_seed_2d_replay.py`, `src/flagella_estimation/phase3/feature_comparison.py` | active diagnostic |
+| active diagnostic | `analyze_motion_features.py --config ...` | #204 raw multi-runの共通3D / 2D運動特徴量・window解析 | `src/sim_swim/analysis/motion_feature_study.py` | active diagnostic |
 | result reproduction | `analyze_dataset.py --analysis-kind spring-formulations`, `2015-stage-a` | #163 / #168の既存結果・診断再現 | `spring_formulations_workflow.py`, `stage_a_2015_workflow.py` | historical result reproduction |
 | canonical | `replay_clip_dataset.py` | Phase 3 canonical clip datasetのQC replay | `src/flagella_estimation/phase3/` | canonical |
 | result reproduction | `render_sample.py` | Phase 3 dataset sampleの再現 | `src/flagella_estimation/phase3/` | historical result reproduction |

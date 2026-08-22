@@ -23,3 +23,9 @@ outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/
 これはIssue #204のfeature解析入力として固定する診断参照である．datasetのfreeze，物理modelの採択，ML training candidateの採択を自動的に意味しない．`n_flagella=4` はdiagnostic-onlyであり，現行training scopeには含めない．
 
 raw artifactは約24 GBのためGit管理しない。`data/`は入力data用かつGit ignoreであり，本simulation outputの保管先には使用しない．
+
+## Analysis contract
+
+`scripts/03_dataset_building/analyze_motion_features.py --config conf/phase2_analysis/issue204_motion_feature_study.yaml` はgeneric multi-runのraw runを直接読む共通解析である．3D / 2Dのbody mean speed，body-axis angular velocity，mean flagella-axis angular velocity，body--flagella axis angleをframe時系列と`0.25 / 0.5 / 1.0 s` non-overlap windowへ保存する．
+
+2D body axisはcanonical body-only silhouetteから得るpixel-observable量である。一方、tracking-center前のprojected centroid速度、mean flagella axis、body--flagella relationはsimulation GT由来のprojected latent featureとしてmanifestへ明記する。投影面はYAMLの直交2基底で指定し、既定はXY面である。
