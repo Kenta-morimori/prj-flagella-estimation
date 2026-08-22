@@ -1,0 +1,41 @@
+{
+  "status": "PASS",
+  "task": "Issue #204: 2010 project 2 s full-factorial feature-study runの固定参照化",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/204",
+  "summary": "2010 project tau-linked 2 sのn=1..4、attach seed 3×phase seed 3の36 independent runs（約24 GB）を、意味のあるPhase 2 reference artifact pathへ移動した。旧timestamp pathは互換symlinkとして残し、Phase 2 / 4のcurrent文書からlive reference文書へ導線を追加した。これはIssue #204の診断用feature解析入力であり、dataset、物理model、ML candidateの採択は変更しない。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "raw artifactはoutputs/配下のGit ignore対象であり、Git cloneだけでの配布・復元は保証しない。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "archive / legacy symlink existence check",
+      "result": "PASS: legacy path resolves to the fixed reference path"
+    },
+    {
+      "command": "find <archive> -maxdepth 1 -name 'as???__ps???__nf??'",
+      "result": "PASS: 36 condition directories found"
+    },
+    {
+      "command": "manifest / run_manifest / summary / run.log existence and jq provenance checks",
+      "result": "PASS: required root artifacts exist; config and git commit match the recorded run"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "既存raw artifactの保管・文書化のみであり、simulation、render、trainingを再実行していない。",
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "物理解釈、dataset採択、output schema、ML policyを変更せず、既存artifactの保管先と参照導線だけを固定したため。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": []
+}
