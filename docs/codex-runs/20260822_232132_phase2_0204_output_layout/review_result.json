@@ -1,0 +1,44 @@
+{
+  "status": "PASS",
+  "task": "Issue #204: motion-feature study output layout and n=4 plot exclusion",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/204",
+  "summary": "固定参照run配下へ解析出力を置き、元時系列とwindow比較plotを分離した。各featureは3D_*.png/2D_*.pngとし、window plotは0.25/0.5/1.0 sを横並びで比較する。strict QCに失敗したn=4条件はCSVを保持したまま両plot群から除外し、manifestへ記録する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "36条件の実データ解析は、この実行環境の30秒プロセス制限により完走していない。simulationの再実行はしていない。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": ".venv/bin/pytest -q tests/test_motion_feature_study.py tests/test_script_layout.py tests/test_phase4_duration_study.py",
+      "result": "PASS (12 passed)"
+    },
+    {
+      "command": ".venv/bin/ruff format src/sim_swim/analysis/motion_feature_study.py tests/test_motion_feature_study.py && .venv/bin/ruff check src/sim_swim/analysis/motion_feature_study.py tests/test_motion_feature_study.py",
+      "result": "PASS"
+    },
+    {
+      "command": ".venv/bin/python tools/codex/check_issue_script_lifecycle.py --base origin/main && git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "既存raw outputを読む解析であり、simulation/render/trainingは再実行していない。",
+  "user_review_required": true,
+  "user_review_command": ".venv/bin/python scripts/03_dataset_building/analyze_motion_features.py --config conf/phase2_analysis/issue204_motion_feature_study.yaml",
+  "user_review_outputs": [
+    "outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_nf1_4_as3_ps3_2026-08-18/analysis/motion_features/time_series/",
+    "outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_nf1_4_as3_ps3_2026-08-18/analysis/motion_features/windows/"
+  ],
+  "user_review_points": [
+    "time_series/とwindows/が分離され、各featureが3D_*.pngと2D_*.pngであること。",
+    "windows/の各plotが0.25/0.5/1.0 sの横3面比較であり、幅別ディレクトリがないこと。",
+    "manifest.jsonのplot_exclusions.n4_strict_failureに該当sample_idが記録され、該当n=4がplotに描かれないこと。"
+  ],
+  "adr_required": false,
+  "adr_reason": "物理model、dataset採択、ML policyを変更せず、Issue #204の診断解析出力構造を具体化したため。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/206",
+  "next_actions": []
+}

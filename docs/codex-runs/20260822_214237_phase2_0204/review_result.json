@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "task": "Issue #204: generic multi-run 3D/2D motion-feature study",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/204",
+  "summary": "generic multi-run raw artifactを直接入力とする共通3D/2D運動特徴量解析を追加した。n=1..4、attach/phase seed、0.25/0.5/1.0 s windowを扱い、2Dのpixel-observable body-axisとsimulation GT由来projected latent featureをmanifestで分離する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "固定36条件の全解析は長時間simulationを伴わないが、実行時間が長いため本commitでは完走していない。CLIとcompact raw-campaign fixtureで入力・出力contractを検証した。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": ".venv/bin/pytest -q tests/test_motion_feature_study.py tests/test_script_layout.py tests/test_phase4_duration_study.py",
+      "result": "PASS (11 passed)"
+    },
+    {
+      "command": ".venv/bin/ruff check src/sim_swim/analysis/motion_feature_study.py scripts/03_dataset_building/analyze_motion_features.py tests/test_motion_feature_study.py",
+      "result": "PASS"
+    },
+    {
+      "command": ".venv/bin/python tools/codex/check_issue_script_lifecycle.py --base origin/main && git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "既存raw outputの解析実装でありsimulation/render/trainingを再実行していない。",
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "物理model、dataset採択、ML policy、既存output contractを変更せず、診断解析を追加したため。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/206",
+  "next_actions": []
+}

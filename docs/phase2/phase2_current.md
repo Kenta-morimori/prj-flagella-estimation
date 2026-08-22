@@ -80,6 +80,7 @@ torque × `dt_star` replay gridを完了した。これは短時間の形状・�
 - Phase 3 handoff: `docs/phase2/phase2_8_phase2_to_phase3_handoff.md`
 - Dataset registry: `docs/phase2/phase2_8_dataset_version_registry.md`
 - Run summary contract: `docs/phase2/phase2_run_summary_contract.md`
+- Issue #204 feature-study reference: `docs/phase2/phase2_204_feature_study_reference.md`
 - Axis / feature contracts: `phase2_7_flag_helix_axis_diagnostics.md`, `phase2_8_flagella_count_feature_definitions.md`
 - Model correspondence: `phase2_163_2010_potential_correspondence.md`, `phase2_167_2015_paper_conditions.md`
 - ADRs: `docs/adr/`
