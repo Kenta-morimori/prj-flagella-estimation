@@ -16,12 +16,12 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import numpy as np
 import yaml
 
 from flagella_estimation.phase3.feature_comparison import body_axis_angles_rad
 from flagella_estimation.phase3.render import render_clip_array
-from flagella_estimation.phase3.windows import generate_windows
 
 
 FEATURES = (
@@ -47,7 +47,7 @@ class MotionFeatureStudyConfig:
     output_dir: Path
     config_path: Path | None = None
     durations_s: tuple[float, ...] = (0.25, 0.5, 1.0)
-    frame_rate_hz: float = 25.0
+    observation_frame_rate_hz: float | None = None
     allowed_n_flagella: tuple[int, ...] = (1, 2, 3, 4)
     projection_basis: tuple[tuple[float, float, float], tuple[float, float, float]] = (
         (1.0, 0.0, 0.0),
@@ -87,6 +87,12 @@ def load_config(
     for raw in overrides or []:
         _override(data, raw)
     study, projection = data.get("study", {}) or {}, data.get("projection", {}) or {}
+    observation = data.get("observation", {}) or {}
+    if "frame_rate_hz" in study:
+        raise ValueError(
+            "study.frame_rate_hz is ambiguous; use observation.frame_rate_hz "
+            "for 2D output-frame sampling"
+        )
     basis = projection.get("basis", [[1, 0, 0], [0, 1, 0]])
     if len(basis) != 2 or any(len(row) != 3 for row in basis):
         raise ValueError("projection.basis must contain two 3D vectors")
@@ -95,7 +101,11 @@ def load_config(
         output_dir=Path(str(data.get("output_dir") or _default_output_dir())),
         config_path=path,
         durations_s=tuple(float(x) for x in study.get("durations_s", [0.25, 0.5, 1.0])),
-        frame_rate_hz=float(study.get("frame_rate_hz", 25.0)),
+        observation_frame_rate_hz=(
+            float(observation["frame_rate_hz"])
+            if observation.get("frame_rate_hz") is not None
+            else None
+        ),
         allowed_n_flagella=tuple(
             int(x) for x in study.get("allowed_n_flagella", [1, 2, 3, 4])
         ),
@@ -133,13 +143,56 @@ def _condition_dir(run_dir: Path, condition: dict[str, Any]) -> Path:
 
 def _select_indices(t: np.ndarray, fps: float) -> np.ndarray:
     if fps <= 0 or not len(t):
-        raise ValueError("frame_rate_hz must be > 0 and archive must not be empty")
+        raise ValueError(
+            "observation frame rate must be > 0 and archive must not be empty"
+        )
     wanted = np.arange(float(t[0]), float(t[-1]) + 1e-12, 1.0 / fps)
     result = np.searchsorted(t, wanted, side="left")
     result = np.clip(result, 0, len(t) - 1)
     if result[-1] != len(t) - 1:
         result = np.append(result, len(t) - 1)
     return np.unique(result)
+
+
+def _time_windows(t: np.ndarray, duration_s: float) -> list[tuple[float, float, slice]]:
+    """Return complete non-overlapping windows bounded in physical time."""
+    if duration_s <= 0 or not len(t):
+        raise ValueError("duration_s must be > 0 and source times must not be empty")
+    start, final = float(t[0]), float(t[-1])
+    starts = np.arange(start, final - duration_s + 1e-12, duration_s)
+    windows: list[tuple[float, float, slice]] = []
+    for window_start in starts:
+        window_end = float(window_start + duration_s)
+        left = int(np.searchsorted(t, window_start, side="left"))
+        right = int(np.searchsorted(t, window_end, side="left"))
+        if right > left:
+            windows.append((float(window_start), window_end, slice(left, right)))
+    return windows
+
+
+def _observation_frame_rate(
+    manifest: dict[str, Any], cfg: MotionFeatureStudyConfig
+) -> float:
+    if cfg.observation_frame_rate_hz is not None:
+        if cfg.observation_frame_rate_hz <= 0:
+            raise ValueError("observation.frame_rate_hz must be > 0")
+        return cfg.observation_frame_rate_hz
+    values = {
+        float(rate)
+        for condition in manifest.get("conditions", [])
+        if (
+            rate := condition.get("config_overrides", {})
+            .get("output_sampling", {})
+            .get("fps_out_2d")
+        )
+        is not None
+    }
+    if len(values) != 1:
+        raise ValueError(
+            "Could not determine one output_sampling.fps_out_2d from run_manifest; "
+            "set observation.frame_rate_hz explicitly"
+        )
+    return values.pop()
 
 
 def _body_axes(quaternions: np.ndarray) -> np.ndarray:
@@ -294,6 +347,36 @@ def _write(path: Path, rows: list[dict[str, Any]]) -> None:
         writer.writerows(rows)
 
 
+def _mean_trace(
+    rows: list[dict[str, Any]], feature: str, time_key: str
+) -> tuple[list[float], list[float]]:
+    grouped: dict[float, list[float]] = {}
+    for row in rows:
+        grouped.setdefault(float(row[time_key]), []).append(float(row[feature]))
+    times = sorted(grouped)
+    return times, [_mean(np.asarray(grouped[t])) for t in times]
+
+
+def _add_style_legend(axis: Any) -> None:
+    n_legend = axis.legend(frameon=False, title="mean by n")
+    axis.add_artist(n_legend)
+    axis.legend(
+        handles=[
+            Line2D(
+                [],
+                [],
+                color="#444444",
+                linestyle="--",
+                linewidth=0.9,
+                label="individual run",
+            ),
+            Line2D([], [], color="#444444", linewidth=2.4, label="mean"),
+        ],
+        frameon=False,
+        loc="upper right",
+    )
+
+
 def _plot_series(
     rows: list[dict[str, Any]], output_dir: Path, domain: str
 ) -> list[str]:
@@ -313,26 +396,21 @@ def _plot_series(
                     [float(x["t_s"]) for x in part],
                     [float(x[feature]) for x in part],
                     color=colors[n],
-                    alpha=0.3,
+                    alpha=0.35,
+                    linestyle="--",
+                    linewidth=0.9,
                 )
-            times = sorted({float(row["t_s"]) for row in subset})
+            times, values = _mean_trace(subset, feature, "t_s")
             axis.plot(
                 times,
-                [
-                    _mean(
-                        np.asarray(
-                            [float(x[feature]) for x in subset if float(x["t_s"]) == t]
-                        )
-                    )
-                    for t in times
-                ],
+                values,
                 color=colors[n],
                 label=f"n={n}" + (" diagnostic" if n == 4 else ""),
                 linewidth=2.4,
             )
         axis.set(title=f"{domain}: {name}", xlabel="time (s)", ylabel=name)
         axis.grid(alpha=0.25)
-        axis.legend(frameon=False)
+        _add_style_legend(axis)
         path = output_dir / f"{domain}_{name}.png"
         figure.tight_layout()
         figure.savefig(path, dpi=150)
@@ -371,30 +449,21 @@ def _plot_windows(
                         [float(x["t_start_s"]) for x in part],
                         [float(x[feature]) for x in part],
                         color=colors[n],
-                        alpha=0.3,
+                        alpha=0.35,
+                        linestyle="--",
+                        linewidth=0.9,
                     )
-                times = sorted({float(row["t_start_s"]) for row in subset})
+                times, values = _mean_trace(subset, feature, "t_start_s")
                 axis.plot(
                     times,
-                    [
-                        _mean(
-                            np.asarray(
-                                [
-                                    float(x[feature])
-                                    for x in subset
-                                    if float(x["t_start_s"]) == t
-                                ]
-                            )
-                        )
-                        for t in times
-                    ],
+                    values,
                     color=colors[n],
                     linewidth=2.4,
                     label=f"n={n}" + (" diagnostic" if n == 4 else ""),
                 )
             axis.set(title=f"{duration:g} s", xlabel="window start (s)", ylabel=name)
             axis.grid(alpha=0.25)
-        axes[0, 0].legend(frameon=False)
+        _add_style_legend(axes[0, 0])
         figure.tight_layout()
         path = output_dir / f"{domain}_{name}.png"
         figure.savefig(path, dpi=150)
@@ -408,6 +477,7 @@ def analyze_motion_feature_study(cfg: MotionFeatureStudyConfig) -> Path:
         raise FileNotFoundError(cfg.run_dir)
     basis = _basis(cfg.projection_basis)
     manifest = _read_json(cfg.run_dir / "run_manifest.json")
+    observation_frame_rate_hz = _observation_frame_rate(manifest, cfg)
     if cfg.output_dir.exists():
         if not cfg.overwrite:
             raise FileExistsError(cfg.output_dir)
@@ -439,40 +509,42 @@ def analyze_motion_feature_study(cfg: MotionFeatureStudyConfig) -> Path:
             raise FileNotFoundError(f"{sample_id}: missing required raw artifact")
         run_strict_pass = _strict_run_pass(required[1])
         with np.load(required[0], allow_pickle=False) as archive:
-            indices = _select_indices(
-                np.asarray(archive["t"], dtype=float), cfg.frame_rate_hz
-            )
-            t = np.asarray(archive["t"], dtype=float)[indices]
-            positions = np.asarray(archive["position_um"], dtype=float)[indices]
-            quaternions = np.asarray(archive["quaternion"], dtype=float)[indices]
-            from sim_swim.sim.core import SimulationState
+            t3d = np.asarray(archive["t"], dtype=float)
+            positions3d = np.asarray(archive["position_um"], dtype=float)
+            quaternions3d = np.asarray(archive["quaternion"], dtype=float)
+        observation_indices = _select_indices(t3d, observation_frame_rate_hz)
+        t2d = t3d[observation_indices]
+        positions2d = positions3d[observation_indices]
+        quaternions2d = quaternions3d[observation_indices]
+        from sim_swim.sim.core import SimulationState
 
-            states = [
-                SimulationState(
-                    t=float(t[i]),
-                    position_um=tuple(positions[i]),
-                    quaternion=tuple(quaternions[i]),
-                    velocity_um_s=(0.0, 0.0, 0.0),
-                    omega_rad_s=(0.0, 0.0, 0.0),
-                    bead_positions_um=np.empty((0, 3)),
-                )
-                for i in range(len(t))
-            ]
-        body3d = _body_axes(quaternions)
-        flag3d = _flag_axes(required[2], t, n)
-        body2d, body2d_omega = _pixel_axis_velocity(states, t)
-        flag2d = _project(flag3d, basis)
-        centroid2d = positions @ basis.T
+        states = [
+            SimulationState(
+                t=float(t2d[i]),
+                position_um=tuple(positions2d[i]),
+                quaternion=tuple(quaternions2d[i]),
+                velocity_um_s=(0.0, 0.0, 0.0),
+                omega_rad_s=(0.0, 0.0, 0.0),
+                bead_positions_um=np.empty((0, 3)),
+            )
+            for i in range(len(t2d))
+        ]
+        body3d = _body_axes(quaternions3d)
+        flag3d = _flag_axes(required[2], t3d, n)
+        body2d, body2d_omega = _pixel_axis_velocity(states, t2d)
+        flag2d = _project(flag3d[observation_indices], basis)
+        centroid2d = positions2d @ basis.T
         speed3d = np.r_[
-            np.nan, np.linalg.norm(np.diff(positions, axis=0), axis=1) / np.diff(t)
+            np.nan,
+            np.linalg.norm(np.diff(positions3d, axis=0), axis=1) / np.diff(t3d),
         ]
         speed2d = np.r_[
-            np.nan, np.linalg.norm(np.diff(centroid2d, axis=0), axis=1) / np.diff(t)
+            np.nan, np.linalg.norm(np.diff(centroid2d, axis=0), axis=1) / np.diff(t2d)
         ]
         body3d_omega, flag3d_omega, flag2d_omega = (
-            _axis_velocity(body3d, t),
-            _axis_velocity(flag3d, t),
-            _axis_velocity(flag2d, t),
+            _axis_velocity(body3d, t3d),
+            _axis_velocity(flag3d, t3d),
+            _axis_velocity(flag2d, t2d),
         )
         relation3d = np.rad2deg(
             np.arccos(np.clip(np.abs(np.sum(body3d * flag3d, axis=1)), -1, 1))
@@ -488,24 +560,31 @@ def analyze_motion_feature_study(cfg: MotionFeatureStudyConfig) -> Path:
             "diagnostic_only": n == 4,
             "run_strict_pass": run_strict_pass,
         }
-        for i in range(len(t)):
+        base3d = {**base, "sampling_source": "simulation_step"}
+        base2d = {
+            **base,
+            "sampling_source": "2d_output_frame",
+            "observation_frame_rate_hz": observation_frame_rate_hz,
+        }
+        for i in range(len(t3d)):
             series3d.append(
                 {
-                    **base,
-                    "t_s": t[i],
-                    "body_centroid_x_um": positions[i, 0],
-                    "body_centroid_y_um": positions[i, 1],
-                    "body_centroid_z_um": positions[i, 2],
+                    **base3d,
+                    "t_s": t3d[i],
+                    "body_centroid_x_um": positions3d[i, 0],
+                    "body_centroid_y_um": positions3d[i, 1],
+                    "body_centroid_z_um": positions3d[i, 2],
                     "speed_um_s": speed3d[i],
                     "body_axis_angular_velocity_rad_s": body3d_omega[i],
                     "mean_flagella_axis_angular_velocity_rad_s": flag3d_omega[i],
                     "body_flagella_axis_angle_deg": relation3d[i],
                 }
             )
+        for i in range(len(t2d)):
             series2d.append(
                 {
-                    **base,
-                    "t_s": t[i],
+                    **base2d,
+                    "t_s": t2d[i],
                     "projected_centroid_u_um": centroid2d[i, 0],
                     "projected_centroid_v_um": centroid2d[i, 1],
                     "speed_um_s": speed2d[i],
@@ -515,45 +594,64 @@ def analyze_motion_feature_study(cfg: MotionFeatureStudyConfig) -> Path:
                 }
             )
         for duration in cfg.durations_s:
-            frame_windows = generate_windows(
-                source_frame_count=len(t),
-                frame_rate_hz=cfg.frame_rate_hz,
-                duration_s=duration,
-                policy="non_overlap",
-            )
-            ranges = [
-                (
-                    float(t[w.start]),
-                    float(t[w.start] + w.frame_count / cfg.frame_rate_hz),
-                )
-                for w in frame_windows
-            ]
+            frame_windows = _time_windows(t3d, duration)
+            ranges = [(start, end) for start, end, _ in frame_windows]
             qcs = _window_qc(required[1], ranges)
-            for index, window in enumerate(frame_windows):
-                sl = slice(window.start, window.end)
+            for index, (start, end, slice3d) in enumerate(frame_windows):
+                slice2d = slice(
+                    int(np.searchsorted(t2d, start, side="left")),
+                    int(np.searchsorted(t2d, end, side="left")),
+                )
                 common = {
-                    **base,
                     "requested_duration_s": duration,
                     "window_index": index,
-                    "t_start_s": ranges[index][0],
-                    "t_end_s": ranges[index][1],
+                    "t_start_s": start,
+                    "t_end_s": end,
                     **qcs[index],
                 }
-                for target, speed, body_omega, flag_omega, relation in (
-                    (windows3d, speed3d, body3d_omega, flag3d_omega, relation3d),
-                    (windows2d, speed2d, body2d_omega, flag2d_omega, relation2d),
+                for (
+                    target,
+                    domain_base,
+                    sample_slice,
+                    speed,
+                    body_omega,
+                    flag_omega,
+                    relation,
+                ) in (
+                    (
+                        windows3d,
+                        base3d,
+                        slice3d,
+                        speed3d,
+                        body3d_omega,
+                        flag3d_omega,
+                        relation3d,
+                    ),
+                    (
+                        windows2d,
+                        base2d,
+                        slice2d,
+                        speed2d,
+                        body2d_omega,
+                        flag2d_omega,
+                        relation2d,
+                    ),
                 ):
                     target.append(
                         {
+                            **domain_base,
                             **common,
-                            "mean_speed_um_s": _mean(speed[sl]),
+                            "sample_count": sample_slice.stop - sample_slice.start,
+                            "mean_speed_um_s": _mean(speed[sample_slice]),
                             "mean_body_axis_angular_velocity_rad_s": _mean(
-                                body_omega[sl]
+                                body_omega[sample_slice]
                             ),
                             "mean_flagella_axis_angular_velocity_rad_s": _mean(
-                                flag_omega[sl]
+                                flag_omega[sample_slice]
                             ),
-                            "mean_body_flagella_axis_angle_deg": _mean(relation[sl]),
+                            "mean_body_flagella_axis_angle_deg": _mean(
+                                relation[sample_slice]
+                            ),
                         }
                     )
     excluded_n4 = sorted(
@@ -590,7 +688,14 @@ def analyze_motion_feature_study(cfg: MotionFeatureStudyConfig) -> Path:
         "pipeline_name": "phase2_motion_feature_study",
         "run_dir": str(cfg.run_dir),
         "durations_s": list(cfg.durations_s),
-        "frame_rate_hz": cfg.frame_rate_hz,
+        "sampling_contract": {
+            "3d": "all saved simulation steps",
+            "2d": {
+                "source": "output_sampling.fps_out_2d",
+                "frame_rate_hz": observation_frame_rate_hz,
+            },
+            "windows": "non-overlapping physical-time intervals [start_s, end_s)",
+        },
         "projection_basis": basis.tolist(),
         "n_flagella": list(cfg.allowed_n_flagella),
         "independent_unit": "condition/run",

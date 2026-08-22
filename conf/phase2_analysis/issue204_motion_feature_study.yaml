@@ -3,7 +3,10 @@ output_dir: outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/201
 overwrite: false
 study:
   durations_s: [0.25, 0.5, 1.0]
-  frame_rate_hz: 25.0
   allowed_n_flagella: [1, 2, 3, 4]
+observation:
+  # Omitted intentionally: derive the 2D observation rate from each campaign's
+  # recorded output_sampling.fps_out_2d. Set explicitly only when unavailable.
+  frame_rate_hz: null
 projection:
   basis: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]

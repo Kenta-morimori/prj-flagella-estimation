@@ -1,0 +1,43 @@
+{
+  "status": "PASS",
+  "task": "Issue #204: correct motion-feature sampling contract and window aggregation",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/204",
+  "summary": "3D GTを全simulation stepで計算し、2Dはcampaign manifestのfps_out_2dによる出力映像frame時刻で計算するsampling contractへ是正した。windowを実時間境界で集計し、個別runを破線、n平均を実線で描くようにした。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "固定36条件のfull-step再解析は、このsandboxが30秒で子プロセスを停止するため完走していない。空の出力ディレクトリは削除済みである。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": ".venv/bin/pytest -q tests/test_motion_feature_study.py tests/test_script_layout.py tests/test_phase4_duration_study.py",
+      "result": "PASS (15 passed)"
+    },
+    {
+      "command": ".venv/bin/ruff format src/sim_swim/analysis/motion_feature_study.py tests/test_motion_feature_study.py && .venv/bin/ruff check src/sim_swim/analysis/motion_feature_study.py tests/test_motion_feature_study.py",
+      "result": "PASS"
+    },
+    {
+      "command": ".venv/bin/python tools/codex/check_issue_script_lifecycle.py --base origin/main && git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "既存raw artifactを読む解析であり、simulation/render/trainingを再実行していない。",
+  "user_review_required": true,
+  "user_review_command": ".venv/bin/python scripts/03_dataset_building/analyze_motion_features.py --config conf/phase2_analysis/issue204_motion_feature_study.yaml",
+  "user_review_outputs": [
+    "outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_nf1_4_as3_ps3_2026-08-18/analysis/motion_features/"
+  ],
+  "user_review_points": [
+    "manifest.jsonのsampling_contractで3D=all saved simulation steps、2D=fps_out_2dであること。",
+    "window_features_3d.csvとwindow_features_2d.csvで0.5 sのt_start_sが0.0、0.5、1.0、1.5となること。",
+    "time_series/とwindows/で個別runが破線、平均が太い実線であり、strict失敗のn=4がplotにないこと。"
+  ],
+  "adr_required": false,
+  "adr_reason": "P2-D10のraw simulationとrender sampling分離という既存decisionを解析実装へ適用する修正であり、新たな物理model・dataset・ML policyを採択しないため。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/206",
+  "next_actions": []
+}
