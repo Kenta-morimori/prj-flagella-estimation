@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #195をPR #201後のCLI導線・lifecycle監査へ再定義し、scripts/README.mdに現行CLIの分類、owner、実装先、lifecycle一覧を追加した。廃止済みscripts/02_phase2_analysisの説明を現行workflowへ整合させた。",
+  "summary": "Issue #195をPR #201後のCLI導線・lifecycle監査へ再定義し、scripts/README.mdに現行CLIの分類、owner、実装先、lifecycle一覧を追加した。廃止済みscripts/02_phase2_analysisの説明を現行workflowへ整合させ、Codex reviewを受けてanalyze_datasetの実装先とreplay_clip_dataset.pyのlifecycle分類を訂正した。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "PR #201で集約されたCLIの物理条件・campaign契約・出力契約は本変更の対象外である。"

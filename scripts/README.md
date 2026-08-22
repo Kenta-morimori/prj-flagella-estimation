@@ -323,7 +323,7 @@ uv run python scripts/03_dataset_building/analyze_dataset.py --dataset-dir <data
 | --- | --- | --- | --- | --- |
 | canonical | `01_simulate_swimming.py` / `run_sweep.py` / `run_multi_run.py` | simulation・sweep・multi-run | `src/sim_swim/sim/`, `src/sim_swim/analysis/sweeps/` | canonical |
 | canonical | `build_dataset.py` / `build_clip_dataset.py` | behavior / clip dataset作成 | `src/sim_swim/analysis/`, `src/flagella_estimation/phase3/` | canonical |
-| canonical | `analyze_dataset.py --dataset-dir ...` | datasetの3D分布・2D識別性分析 | `src/sim_swim/analysis/behavior_dataset_*`, `src/flagella_estimation/phase3/feature_comparison.py` | canonical |
+| canonical | `analyze_dataset.py --dataset-dir ...` | datasetの3D分布・2D識別性分析 | `src/sim_swim/analysis/behavior_dataset_distributions.py`, `behavior_dataset_separability.py` | canonical |
 | canonical | `replay_dataset.py` | raw run / datasetの非再simulation replay | `src/sim_swim/analysis/phase2_replay.py`, `behavior_dataset_replay.py` | canonical |
 | canonical | `analyze_dataset.py --analysis-kind heatmap` / `run-summary` | profile heatmap / compact run summary | `src/sim_swim/analysis/common_analysis.py`, `run_summary.py` | canonical |
 | active diagnostic | `analyze_dataset.py --analysis-kind 2010-torque-dt`, `2010-fixed-performance`, `visualize-2010-torque-dt`, `partial-generic` | #61 / #193 / #199 torque・`dt_star` campaignとpartial集計 | `torque_dt_stability_campaign.py`, `torque_dt_stability_visuals.py`, `partial_generic_multi_run.py` | active diagnostic |
@@ -331,7 +331,8 @@ uv run python scripts/03_dataset_building/analyze_dataset.py --dataset-dir <data
 | active diagnostic | `analyze_dataset.py --analysis-kind diagnose-158` / `inspect_run.py` | #158 failure・限定run診断 | `phase2_158_diagnostics.py`, `run_summary.py` | active diagnostic |
 | active diagnostic | `analyze_dataset.py --analysis-kind task-d-2015`, `phase-seed-2d` / `evaluate_clip_dataset_features.py` | #199 Task D・v1 r2 feature確認 | `task_d_2015_tau_linked.py`, `phase_seed_2d_replay.py`, `src/flagella_estimation/phase3/feature_comparison.py` | active diagnostic |
 | result reproduction | `analyze_dataset.py --analysis-kind spring-formulations`, `2015-stage-a` | #163 / #168の既存結果・診断再現 | `spring_formulations_workflow.py`, `stage_a_2015_workflow.py` | historical result reproduction |
-| result reproduction | `render_sample.py` / `replay_clip_dataset.py` | Phase 3 dataset・clipの再現 | `src/flagella_estimation/phase3/` | historical result reproduction |
+| canonical | `replay_clip_dataset.py` | Phase 3 canonical clip datasetのQC replay | `src/flagella_estimation/phase3/` | canonical |
+| result reproduction | `render_sample.py` | Phase 3 dataset sampleの再現 | `src/flagella_estimation/phase3/` | historical result reproduction |
 
 Issue専用の分析kindは、campaignのlive contractから実行する。追加・削除時は
 `docs/codex/issue_script_lifecycle.md` の `promoted` / `deleted` /
