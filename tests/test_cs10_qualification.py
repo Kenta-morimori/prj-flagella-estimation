@@ -4,6 +4,8 @@ import importlib.util
 from pathlib import Path
 import sys
 
+import pytest
+
 
 def _load_script(name: str, relative_path: str):
     path = Path(__file__).resolve().parents[1] / relative_path
@@ -84,6 +86,19 @@ def test_workload_command_records_requested_duration(tmp_path: Path) -> None:
 
     assert "duration_s=0.001" in command
     assert f"output_dir={tmp_path / 'job' / 'campaign'}" in command
+
+
+def test_workload_metadata_records_effective_integration_steps() -> None:
+    benchmark = _load_script("cs10_benchmark_metadata", "scripts/cs10/benchmark.py")
+    repository_root = Path(__file__).resolve().parents[1]
+
+    screen = benchmark.workload_metadata(repository_root, 0.001)
+    smoke = benchmark.workload_metadata(repository_root, 0.00004)
+
+    assert screen["tau_s"] == pytest.approx(0.04)
+    assert screen["dt_s"] == pytest.approx(4.0e-6)
+    assert screen["total_steps"] == 251
+    assert smoke["total_steps"] == 11
 
 
 def test_summarize_existing_updates_recommendation(tmp_path: Path) -> None:

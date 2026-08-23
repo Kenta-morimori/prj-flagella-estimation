@@ -23,6 +23,14 @@ import time
 from typing import Any, Iterable
 from zoneinfo import ZoneInfo
 
+import yaml
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+SOURCE_ROOT = REPOSITORY_ROOT / "src"
+if str(SOURCE_ROOT) not in sys.path:
+    sys.path.insert(0, str(SOURCE_ROOT))
+
 
 DEFAULT_WORKERS = (1, 2, 4, 6, 8, 10)
 THREAD_ENV = {
@@ -114,6 +122,43 @@ def workload_command(*, output_dir: Path, duration_s: float) -> list[str]:
         f"output_dir={output_dir / 'campaign'}",
         "overwrite=true",
     ]
+
+
+def workload_metadata(repository_root: Path, duration_s: float) -> dict[str, Any]:
+    """Resolve the effective integration timing of the fixed workload."""
+    from sim_swim.sim.params import SimulationConfig
+
+    profile_path = repository_root / "conf/phase2_sweeps/shape_stability_grid.yaml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8")) or {}
+    args = profile["args"]
+    base_config_path = repository_root / args["config"]
+    base_config = yaml.safe_load(base_config_path.read_text(encoding="utf-8")) or {}
+    torque_nm = float(args["torque_nm"])
+    config = SimulationConfig.from_dict(base_config).with_overrides(
+        {
+            "flagella": {"n_flagella": int(args["n_flagella"])},
+            "motor": {
+                "torque_Nm": torque_nm,
+                "reference_torque_Nm": torque_nm,
+            },
+            "time": {
+                "duration_s": duration_s,
+                "dt_star": float(args["dt_star"]),
+            },
+        }
+    )
+    return {
+        "config": str(profile_path.relative_to(repository_root)),
+        "base_config": str(base_config_path.relative_to(repository_root)),
+        "sample_limit": 1,
+        "n_flagella": config.flagella.n_flagella,
+        "duration_s": config.time.duration_s,
+        "dt_star": config.dt_star,
+        "tau_s": config.tau_s,
+        "dt_s": config.dt_s,
+        "total_steps": config.total_steps,
+        "state_archive": True,
+    }
 
 
 def _run_job(
@@ -298,14 +343,7 @@ def run_benchmark(args: argparse.Namespace) -> Path:
     manifest = {
         "pipeline_name": "cs10_worker_benchmark",
         "created_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
-        "workload": {
-            "config": "conf/phase2_sweeps/shape_stability_grid.yaml",
-            "sample_limit": 1,
-            "n_flagella": 3,
-            "duration_s": args.duration_s,
-            "dt_star": 1.0e-4,
-            "state_archive": True,
-        },
+        "workload": workload_metadata(args.repository_root, args.duration_s),
         "worker_counts": list(args.worker_counts),
         "repetitions": args.repetitions,
         "thread_limited_environment": THREAD_ENV,

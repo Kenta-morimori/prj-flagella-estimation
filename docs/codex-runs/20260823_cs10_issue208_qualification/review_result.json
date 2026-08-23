@@ -2,7 +2,7 @@
   "status": "PASS",
   "task": "Issue #208: Qualify cs10 environment and determine safe worker count",
   "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/208",
-  "summary": "CentOS 7 / glibc 2.17 のcs10用にCPython 3.11.15、wheel-only runtime environment、runtime probe、fixed workload benchmark、runbookを整備した。10-step screenでは全jobが成功し、共有利用で2 physical coreを留保する通常defaultをOMP_NUM_THREADS=OPENBLAS_NUM_THREADS=MKL_NUM_THREADS=1かつ8 workersと決定した。",
+  "summary": "CentOS 7 / glibc 2.17 のcs10用にCPython 3.11.15、wheel-only runtime environment、runtime probe、fixed workload benchmark、runbookを整備した。251-step screenでは全jobが成功し、共有利用で2 physical coreを留保する通常defaultをOMP_NUM_THREADS=OPENBLAS_NUM_THREADS=MKL_NUM_THREADS=1かつ8 workersと決定した。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "worker defaultはduration_s=0.001の1 repetition screenに基づく暫定値であり、0.5秒以上の長時間campaignをcs10へ移す直前に再qualificationする。"
