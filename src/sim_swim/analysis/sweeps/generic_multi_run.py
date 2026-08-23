@@ -260,6 +260,21 @@ def run_campaign(argv: list[str] | None = None) -> Path:
     logger.info("Loaded generic multi-run config: %s", args.campaign_config)
     logger.info("Campaign conditions=%d", len(conditions))
 
+    completion_path = ctx.out.root / "campaign_completion.json"
+    completion_path.write_text(
+        json.dumps(
+            {
+                "status": "running",
+                "started_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
+                "expected_condition_count": len(conditions),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
     rows: list[dict[str, Any]] = []
     condition_time_manifests: dict[str, dict[str, Any]] = {}
     condition_implementation_manifests: dict[str, dict[str, Any]] = {}
@@ -270,25 +285,57 @@ def run_campaign(argv: list[str] | None = None) -> Path:
         )
         condition_dir = ctx.out.root / condition["condition_id"]
         condition_dir.mkdir(parents=True, exist_ok=False)
-        cfg = SimulationConfig.from_dict(base_cfg).with_overrides(
-            condition["config_overrides"]
-        )
-        condition_time_manifests[condition["condition_id"]] = cfg.time_manifest()
-        simulator = Simulator(cfg)
-        states = simulator.run(
-            cfg.time.duration_s,
-            step_summary_dir=condition_dir,
-            stop_on_shape_fail=False,
-            progress_interval=progress_interval,
-            record_body_diagnostics=True,
-        )
-        if save_state_archive_enabled:
-            save_state_archive(condition_dir / "state_archive.npz", states)
-            write_trajectory_csv(condition_dir / "trajectory.csv", states)
-        rows.append(_condition_row(cfg, condition, condition_dir))
-        condition_implementation_manifests[condition["condition_id"]] = (
-            simulator.implementation_manifest()
-        )
+        try:
+            cfg = SimulationConfig.from_dict(base_cfg).with_overrides(
+                condition["config_overrides"]
+            )
+            condition_time_manifests[condition["condition_id"]] = cfg.time_manifest()
+            simulator = Simulator(cfg)
+            states = simulator.run(
+                cfg.time.duration_s,
+                step_summary_dir=condition_dir,
+                stop_on_shape_fail=False,
+                progress_interval=progress_interval,
+                record_body_diagnostics=True,
+            )
+            if save_state_archive_enabled:
+                save_state_archive(condition_dir / "state_archive.npz", states)
+                write_trajectory_csv(condition_dir / "trajectory.csv", states)
+            rows.append(_condition_row(cfg, condition, condition_dir))
+            condition_implementation_manifests[condition["condition_id"]] = (
+                simulator.implementation_manifest()
+            )
+        except Exception as exc:
+            failure = {
+                "status": "failed",
+                "condition_id": condition["condition_id"],
+                "condition_index": index - 1,
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+                "failed_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
+            }
+            (condition_dir / "failure_record.json").write_text(
+                json.dumps(failure, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            (condition_dir / "stderr.log").write_text(
+                f"{type(exc).__name__}: {exc}\n", encoding="utf-8"
+            )
+            completion_path.write_text(
+                json.dumps(
+                    {
+                        **failure,
+                        "completed_condition_count": len(rows),
+                        "expected_condition_count": len(conditions),
+                        "exit_code": 1,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            raise
 
     summary_path = ctx.out.root / "summary.csv"
     fieldnames = _summary_fieldnames(rows)
@@ -355,6 +402,23 @@ def run_campaign(argv: list[str] | None = None) -> Path:
         )
     logger.info("Wrote summary: %s", summary_path)
     logger.info("Wrote run manifest: %s", run_manifest_path)
+    completion_path.write_text(
+        json.dumps(
+            {
+                "status": "completed",
+                "completed_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
+                "expected_condition_count": len(conditions),
+                "completed_condition_count": len(rows),
+                "exit_code": 0,
+                "summary_csv": str(summary_path),
+                "run_manifest_json": str(run_manifest_path),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     print(summary_path)
     return summary_path
 
