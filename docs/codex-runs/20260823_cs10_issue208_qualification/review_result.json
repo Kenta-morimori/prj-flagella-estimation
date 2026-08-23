@@ -1,0 +1,44 @@
+{
+  "status": "PASS",
+  "task": "Issue #208: Qualify cs10 environment and determine safe worker count",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/208",
+  "summary": "CentOS 7 / glibc 2.17 のcs10用にCPython 3.11.15、wheel-only runtime environment、runtime probe、fixed workload benchmark、runbookを整備した。251-step screenでは全jobが成功し、共有利用で2 physical coreを留保する通常defaultをOMP_NUM_THREADS=OPENBLAS_NUM_THREADS=MKL_NUM_THREADS=1かつ8 workersと決定した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "worker defaultはduration_s=0.001の1 repetition screenに基づく暫定値であり、0.5秒以上の長時間campaignをcs10へ移す直前に再qualificationする。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest -q tests/test_cs10_qualification.py",
+      "result": "PASS: 5 passed"
+    },
+    {
+      "command": "pre-commit (ruff format/check, issue script lifecycle, pytest -m light)",
+      "result": "PASS: 315 passed, 354 deselected"
+    },
+    {
+      "command": "cs10 scripts/cs10/setup_environment.sh",
+      "result": "PASS: wheel-only install 38 packages, uv pip check PASS, runtime probe PASS"
+    },
+    {
+      "command": "cs10 benchmark.py --worker-counts 1,2,4,6,8,10 --repetitions 1 --duration-s 0.001",
+      "result": "PASS: all jobs succeeded; 8 workers with thread limits selected"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "User requested a short qualification; the worker default is explicitly provisional until a long campaign preflight is run.",
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "Mac canonical environment、物理解釈、dataset contract、ML policyを変更せず、cs10固有の実行環境と暫定resource defaultだけを追加したため。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "Issue #209でconfig-level parallel launcherのdefaultへ8 workersとthread limitsを反映する。",
+    "長時間campaign前にrepresentative durationで8 workersを再qualificationする。"
+  ]
+}
