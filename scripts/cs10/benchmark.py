@@ -81,7 +81,8 @@ def recommend_worker_count(
     candidates = [
         row
         for row in rows
-        if row["worker_count"] <= limit and row["successes"] == row["repetitions"]
+        if row["worker_count"] <= limit
+        and row["successes"] == row["worker_count"] * row["repetitions"]
     ]
     if not candidates:
         return None
@@ -172,6 +173,45 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         writer.writerows(rows)
 
 
+def _recommendations(summary_rows: list[dict[str, Any]]) -> dict[str, int | None]:
+    return {
+        "threads_unset": recommend_worker_count(
+            [row for row in summary_rows if row["thread_limited"] == "0"]
+        ),
+        "threads_1": recommend_worker_count(
+            [row for row in summary_rows if row["thread_limited"] == "1"]
+        ),
+    }
+
+
+def summarize_existing(output_dir: Path) -> dict[str, int | None]:
+    """Recompute recommendations from an existing screen without rerunning jobs."""
+    with (output_dir / "summary.csv").open(encoding="utf-8", newline="") as handle:
+        rows = [
+            {
+                **row,
+                "worker_count": int(row["worker_count"]),
+                "repetitions": int(row["repetitions"]),
+                "successes": int(row["successes"]),
+                "median_throughput_jobs_per_s": float(
+                    row["median_throughput_jobs_per_s"]
+                ),
+            }
+            for row in csv.DictReader(handle)
+        ]
+    recommendations = _recommendations(rows)
+    manifest_path = output_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["recommendations"] = recommendations
+    manifest["recommendations_recomputed_at"] = datetime.now(
+        ZoneInfo("Asia/Tokyo")
+    ).isoformat()
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    return recommendations
+
+
 def run_benchmark(args: argparse.Namespace) -> Path:
     root = args.output_dir
     root.mkdir(parents=True, exist_ok=False)
@@ -254,14 +294,7 @@ def run_benchmark(args: argparse.Namespace) -> Path:
                 }
             )
     _write_csv(root / "summary.csv", summary_rows)
-    recommendations = {
-        "threads_unset": recommend_worker_count(
-            [row for row in summary_rows if row["thread_limited"] == "0"]
-        ),
-        "threads_1": recommend_worker_count(
-            [row for row in summary_rows if row["thread_limited"] == "1"]
-        ),
-    }
+    recommendations = _recommendations(summary_rows)
     manifest = {
         "pipeline_name": "cs10_worker_benchmark",
         "created_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
@@ -301,7 +334,17 @@ def main(argv: list[str] | None = None) -> Path:
     )
     parser.add_argument("--repetitions", type=int, default=5)
     parser.add_argument("--duration-s", type=float, default=0.05)
+    parser.add_argument(
+        "--summarize-existing",
+        type=Path,
+        metavar="OUTPUT_DIR",
+        help="Recompute recommendations from an existing benchmark output.",
+    )
     args = parser.parse_args(argv)
+    if args.summarize_existing is not None:
+        recommendations = summarize_existing(args.summarize_existing)
+        print(json.dumps(recommendations, ensure_ascii=False))
+        return args.summarize_existing
     if args.repetitions < 1:
         parser.error("--repetitions must be positive")
     if args.duration_s <= 0:

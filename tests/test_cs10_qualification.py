@@ -36,19 +36,19 @@ def test_worker_recommendation_reserves_two_physical_cores() -> None:
     rows = [
         {
             "worker_count": 4,
-            "successes": 5,
+            "successes": 20,
             "repetitions": 5,
             "median_throughput_jobs_per_s": 2.0,
         },
         {
             "worker_count": 8,
-            "successes": 5,
+            "successes": 40,
             "repetitions": 5,
             "median_throughput_jobs_per_s": 3.0,
         },
         {
             "worker_count": 10,
-            "successes": 5,
+            "successes": 50,
             "repetitions": 5,
             "median_throughput_jobs_per_s": 4.0,
         },
@@ -62,13 +62,13 @@ def test_worker_recommendation_rejects_failures() -> None:
     rows = [
         {
             "worker_count": 4,
-            "successes": 5,
+            "successes": 20,
             "repetitions": 5,
             "median_throughput_jobs_per_s": 2.0,
         },
         {
             "worker_count": 8,
-            "successes": 4,
+            "successes": 39,
             "repetitions": 5,
             "median_throughput_jobs_per_s": 4.0,
         },
@@ -84,3 +84,19 @@ def test_workload_command_records_requested_duration(tmp_path: Path) -> None:
 
     assert "duration_s=0.001" in command
     assert f"output_dir={tmp_path / 'job' / 'campaign'}" in command
+
+
+def test_summarize_existing_updates_recommendation(tmp_path: Path) -> None:
+    benchmark = _load_script("cs10_benchmark_summary", "scripts/cs10/benchmark.py")
+    (tmp_path / "summary.csv").write_text(
+        "thread_limited,worker_count,repetitions,successes,median_throughput_jobs_per_s\n"
+        "0,8,1,8,0.25\n"
+        "1,8,1,8,0.26\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "manifest.json").write_text("{}", encoding="utf-8")
+
+    assert benchmark.summarize_existing(tmp_path) == {
+        "threads_unset": 8,
+        "threads_1": 8,
+    }
