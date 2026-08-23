@@ -42,6 +42,12 @@ setup は uv 管理の `$HOME/.local/bin/python3.11` を使い、source build �
 
 `summary.csv` と `manifest.json` を確認し、全 5 試行成功かつ最大 throughput の setting を候補とする。共有利用のため 2 physical core を留保し、通常 default は最大 8 workers とする。10 workers は上限確認の記録のみである。短縮 benchmark の結果は暫定 default とし、0.5秒以上の長時間 campaign を移す直前に同じ worker 数を再確認する。
 
+## Qualified default (2026-08-23)
+
+cs10 実機では、10-step（`duration_s=0.001`）screen を workers `1,2,4,6,8,10`、各 1 回で実行した。全 job が成功し、`OMP_NUM_THREADS=OPENBLAS_NUM_THREADS=MKL_NUM_THREADS=1` での aggregate throughput は、8 workers で `0.2493 jobs/s`、10 workers で `0.3033 jobs/s` だった。peak RSS は約 55 MiB/job である。
+
+通常 default は共有利用のため **8 workers + thread 数各 1** とする。10 workers は2 physical coreの留保方針に反するため default にしない。screen artifact は cs10 上の `outputs/2026-08-23/174000/cs10_worker_screen/` にある。
+
 ## Scope and requalification
 
 RTX 3090 は hardware record のみであり、CUDA、PyTorch、GPU benchmark はこの scope に含まれない。OS/glibc、CPython、cs10 requirements、主要 simulation 実装、hardware が変わった場合は setup、probe、benchmark を再実行する。
