@@ -115,4 +115,12 @@ for n in 01 02 03; do for a in 000 001 002; do for p in 000 001 002; do
 done; done; done
 ```
 
+失敗時だけ、該当 child の `stderr.log` と condition の `failure_record.json` を追加転送する。
+`job_manifest.json` の失敗 record から child path を確定してから実行する。
+
+```bash
+scp Ktakemori@cs10:"$REMOTE_JOB/children/NNN_CONDITION/stderr.log" "$LOCAL/failures/"
+scp Ktakemori@cs10:"$REMOTE/conditions/CONDITION/failure_record.json" "$LOCAL/failures/"
+```
+
 比較結果の `paired_conditions.csv`、`paired_aggregate.csv`、`paired_delta.png` をレビューし、missing / unpaired / non-passをPASSとして扱わない。profile採否はUser承認後に #200 へ渡す。
