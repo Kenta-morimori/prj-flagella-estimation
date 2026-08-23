@@ -51,6 +51,27 @@ cs10 実機では、251-step（`duration_s=0.001`）screen を workers `1,2,4,6,
 
 通常 default は共有利用のため **8 workers + thread 数各 1** とする。10 workers は2 physical coreの留保方針に反するため default にしない。screen artifact は cs10 上の `outputs/2026-08-23/174000/cs10_worker_screen/` にある。
 
+## 並列 sweep job（Issue #209）
+
+複数の既存 sweep profile はコピーせず、`conf/phase2_parallel/<job_name>/job.yaml` から参照する。cs10 qualification を使う job には、`execution.max_workers: auto` と `execution.worker_policy: cs10_qualified` を指定する。この policy は最大8 workers と `OMP_NUM_THREADS=OPENBLAS_NUM_THREADS=MKL_NUM_THREADS=1` を各子 process に設定する。
+
+まず simulation を起動しない dry-run で、worker 数、command、出力 namespace を確認する。
+
+```bash
+.venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \
+  config=conf/phase2_parallel/example_stage_a_validation/job.yaml \
+  dry_run=true
+```
+
+実行時は job ごとに `outputs/parallel/<job_name>__<uuid>/` が作られる。`job_manifest.json` の `status`、`failed_configs`、各 config の `exit_code` と `wall_time_s` を確認する。失敗時も他 config は回収されるため、該当 directory の `stderr.log` を確認する。
+
+```bash
+.venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \
+  config=conf/phase2_parallel/example_stage_a_validation/job.yaml
+```
+
+所要時間は選択する profile の条件数・積分時間に依存する。`duration_s=0.5` 以上の長時間 campaign を開始する前には、同じ worker policy で representative workload を再qualificationする。
+
 ## Scope and requalification
 
 RTX 3090 は hardware record のみであり、CUDA、PyTorch、GPU benchmark はこの scope に含まれない。OS/glibc、CPython、cs10 requirements、主要 simulation 実装、hardware が変わった場合は setup、probe、benchmark を再実行する。

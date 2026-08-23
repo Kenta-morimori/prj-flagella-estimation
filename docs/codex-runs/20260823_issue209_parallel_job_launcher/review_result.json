@@ -1,0 +1,43 @@
+{
+  "status": "PASS",
+  "task": "Issue #209: Add config-level parallel job launcher and isolated outputs",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/209",
+  "summary": "既存の Phase 2 sweep profile と run_sweep.py を再利用し、job YAML から bounded parallel subprocess を起動する launcher を追加した。job/config ごとの output と log を UUID namespace に隔離し、partial failure と起動失敗を job_manifest.json に記録する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "cs10 実機での長時間 simulation はユーザー操作範囲のため未実行。0.5秒以上の campaign 前には runbook に従って再qualificationする。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run ruff check src/sim_swim/analysis/parallel_job.py scripts/01_simulate_swimming/run_parallel.py tests/test_phase2_parallel_job.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q tests/test_phase2_parallel_job.py tests/test_phase2_sweep_profiles.py tests/test_cs10_qualification.py",
+      "result": "PASS: 46 passed"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_parallel.py config=conf/phase2_parallel/example_stage_a_validation/job.yaml dry_run=true",
+      "result": "PASS: planned JSON を出力し、outputs/parallel 配下の directory 数が不変であることを確認"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "Issue の制約に従い、実機・長時間 simulation は実行しなかった。",
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "既存の物理解釈、dataset、Phase 境界、ML policy を変更せず、追加の execution workflow のみを導入したため。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "ユーザーが cs10 で dry-run を確認し、必要な job YAML を追加して実行する。"
+  ]
+}
