@@ -176,8 +176,8 @@ def _numeric_match(
     right_value = _as_float(right)
     if left_value is None or right_value is None:
         return left == right, None
-    if math.isnan(left_value) or math.isnan(right_value):
-        return math.isnan(left_value) and math.isnan(right_value), None
+    if not math.isfinite(left_value) or not math.isfinite(right_value):
+        return False, None
     difference = abs(left_value - right_value)
     allowed = max(atol, rtol * max(abs(left_value), abs(right_value)))
     return difference <= allowed, difference
@@ -294,6 +294,20 @@ def _execution_checks(campaign: Campaign, identity: str) -> list[dict[str, Any]]
     ]
 
 
+def _condition_order(manifest: dict[str, Any]) -> list[str] | None:
+    """Return a valid, non-empty manifest condition order when present."""
+
+    raw = manifest.get("condition_order")
+    if (
+        not isinstance(raw, list)
+        or not raw
+        or any(not isinstance(identity, str) or not identity for identity in raw)
+        or len(set(raw)) != len(raw)
+    ):
+        return None
+    return raw
+
+
 def compare_campaigns(
     left_path: Path,
     right_path: Path,
@@ -361,6 +375,25 @@ def compare_campaigns(
             set(left.rows) == set(right.rows),
         )
     )
+    for side, campaign in (("left", left), ("right", right)):
+        expected = _condition_order(campaign.manifest)
+        actual = sorted(campaign.rows)
+        checks.append(
+            _check(
+                f"{side}.manifest.condition_order",
+                campaign.manifest.get("condition_order"),
+                "non-empty unique condition identities",
+                expected is not None,
+            )
+        )
+        checks.append(
+            _check(
+                f"{side}.summary.identities",
+                actual,
+                sorted(expected) if expected is not None else [],
+                expected is not None and actual == sorted(expected),
+            )
+        )
     for identity in sorted(set(left.rows) & set(right.rows)):
         if left.manifest.get("kind") == "shape_stability_grid":
             checks.extend(

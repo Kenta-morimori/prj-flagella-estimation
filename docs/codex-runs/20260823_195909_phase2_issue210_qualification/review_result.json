@@ -2,7 +2,7 @@
   "status": "PASS",
   "task": "Issue #210: Mac regression と cs10 serial/parallel execution qualification",
   "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/210",
-  "summary": "2010 project の既存 sweep profile を変更せず、同一 commit `49280f5eb6035e1e7122877cb11d39d374125107`・同一 config・同一 seed/override で短縮した 251-step qualification を実施した。Mac serial、cs10 serial、cs10 parallel の各 condition は完了し、Mac vs cs10 serial の2 profile、および cs10 serial vs parallel の2 profile が、完了状態、expected/completed steps、shape/stability metric、summary/manifest provenance を含む比較で PASS した。比較器は同一失敗状態、dirty/欠落Git provenance、launcher管理出力先のkebab-case overrideも拒否する。bitwise identity は要求していない。",
+  "summary": "2010 project の既存 sweep profile を変更せず、同一 commit `49280f5eb6035e1e7122877cb11d39d374125107`・同一 config・同一 seed/override で短縮した 251-step qualification を実施した。Mac serial、cs10 serial、cs10 parallel の各 condition は完了し、Mac vs cs10 serial の2 profile、および cs10 serial vs parallel の2 profile が、完了状態、expected/completed steps、shape/stability metric、summary/manifest provenance を含む比較で PASS した。比較器は同一失敗状態、非有限値（NaN・±Inf）、dirty/欠落Git provenance、manifestと不整合な条件集合、launcher管理出力先と正規化後に重複するoverrideを拒否する。bitwise identity は要求していない。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "Issue #210 の parallel job は2 configのため、cs10_qualified policy の上限8 workersに対して実際の同時子process数は最大2だった。8 workersの安定性は Issue #208 の251-step worker screen（workers=1,2,4,6,8,10が全成功）を根拠とし、この job 自体で8子processを再実行したものではない。",
@@ -11,23 +11,23 @@
   "tests_reviewed": [
     {
       "command": "uv run pytest -q tests/test_phase2_qualification.py tests/test_phase2_parallel_job.py tests/test_phase2_sweep_profiles.py tests/test_cs10_qualification.py",
-      "result": "PASS (63 passed)"
+      "result": "PASS (66 passed)"
     },
     {
-      "command": "pre-commit light test suite",
-      "result": "PASS (315 passed, 376 deselected)"
+      "command": "uv run ruff format --check src/sim_swim/analysis/qualification.py src/sim_swim/analysis/parallel_job.py tests/test_phase2_qualification.py tests/test_phase2_parallel_job.py && uv run ruff check src/sim_swim/analysis/qualification.py src/sim_swim/analysis/parallel_job.py tests/test_phase2_qualification.py tests/test_phase2_parallel_job.py",
+      "result": "PASS"
     },
     {
-      "command": "uv run python scripts/01_simulate_swimming/compare_qualification.py --left outputs/RUN_ID/issue210/mac_serial/shape_stability_grid --right outputs/2026-08-23/200000/issue210/cs10_serial/shape_stability_grid --output-dir outputs/2026-08-23/200955/issue210/qualification/mac_vs_cs10_shape",
-      "result": "PASS (38 checks; atol=1e-9, rtol=1e-6)"
+      "command": "uv run python scripts/01_simulate_swimming/compare_qualification.py --left outputs/RUN_ID/issue210/mac_serial/shape_stability_grid --right outputs/2026-08-23/200000/issue210/cs10_serial/shape_stability_grid --output-dir outputs/2026-08-23/202824/issue210/qualification/mac_vs_cs10_shape",
+      "result": "PASS (42 checks; atol=1e-9, rtol=1e-6)"
     },
     {
-      "command": "uv run python scripts/01_simulate_swimming/compare_qualification.py --left outputs/RUN_ID/issue210/mac_serial/torque_distribution_grid --right outputs/2026-08-23/200000/issue210/cs10_serial/torque_distribution_grid --output-dir outputs/2026-08-23/200955/issue210/qualification/mac_vs_cs10_torque",
-      "result": "PASS (38 checks; atol=1e-9, rtol=1e-6)"
+      "command": "uv run python scripts/01_simulate_swimming/compare_qualification.py --left outputs/RUN_ID/issue210/mac_serial/torque_distribution_grid --right outputs/2026-08-23/200000/issue210/cs10_serial/torque_distribution_grid --output-dir outputs/2026-08-23/202824/issue210/qualification/mac_vs_cs10_torque",
+      "result": "PASS (42 checks; atol=1e-9, rtol=1e-6)"
     },
     {
-      "command": "uv run python scripts/01_simulate_swimming/compare_qualification.py --parallel-job-manifest outputs/2026-08-23/195118/parallel/issue210_2010_project__57f6a844a161/job_manifest.json --serial conf/phase2_sweeps/shape_stability_grid.yaml=outputs/2026-08-23/200000/issue210/cs10_serial/shape_stability_grid --serial conf/phase2_sweeps/torque_distribution_grid.yaml=outputs/2026-08-23/200000/issue210/cs10_serial/torque_distribution_grid --output-dir outputs/2026-08-23/200955/issue210/qualification/cs10_serial_vs_parallel",
-      "result": "PASS (82 checks; no failed config; atol=1e-9, rtol=1e-6)"
+      "command": "uv run python scripts/01_simulate_swimming/compare_qualification.py --parallel-job-manifest outputs/2026-08-23/195118/parallel/issue210_2010_project__57f6a844a161/job_manifest.json --serial conf/phase2_sweeps/shape_stability_grid.yaml=outputs/2026-08-23/200000/issue210/cs10_serial/shape_stability_grid --serial conf/phase2_sweeps/torque_distribution_grid.yaml=outputs/2026-08-23/200000/issue210/cs10_serial/torque_distribution_grid --output-dir outputs/2026-08-23/202824/issue210/qualification/cs10_serial_vs_parallel",
+      "result": "PASS (90 checks; no failed config; atol=1e-9, rtol=1e-6)"
     }
   ],
   "long_simulation_executed": false,
@@ -40,7 +40,7 @@
     "outputs/2026-08-23/200000/issue210/cs10_serial/shape_stability_grid/",
     "outputs/2026-08-23/200000/issue210/cs10_serial/torque_distribution_grid/",
     "outputs/2026-08-23/195118/parallel/issue210_2010_project__57f6a844a161/job_manifest.json",
-    "outputs/2026-08-23/200955/issue210/qualification/"
+    "outputs/2026-08-23/202824/issue210/qualification/"
   ],
   "user_review_points": [
     "3本の qualification_report.json がすべて PASS であること。",
@@ -50,11 +50,10 @@
   "adr_required": false,
   "adr_reason": "既存Mac serial CLI、既存 sweep config、Phase 2の物理解釈、dataset policy、出力contractを変更せず、qualificationの比較器と実行記録を追加したため。",
   "commit_type": "complete",
-  "commit_hash": "49280f5eb6035e1e7122877cb11d39d374125107",
-  "push_status": "pending",
+  "commit_hash": null,
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/213",
   "next_actions": [
-    "review_result.json をcommit・pushし、PR #213のrequired checksとcodex-review-gateを確認する。",
-    "merge-ready candidateに対するCloud reviewの指摘があれば解消してからmergeする。"
+    "PR #213のrequired checksとcodex-review-gateを確認し、PASSならmergeする。"
   ]
 }

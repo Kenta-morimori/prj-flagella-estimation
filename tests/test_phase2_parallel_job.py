@@ -87,6 +87,7 @@ def test_issue210_job_uses_existing_2010_project_profiles() -> None:
         ("      - output-dir=bad\n", "must not set launcher-managed output paths"),
         ("      - output-base-dir=bad\n", "must not set launcher-managed output paths"),
         ("      - duration_s=0.001\n      - duration_s=0.002\n", "must not repeat key"),
+        ("      - duration_s=0.001\n      - duration-s=0.002\n", "must not repeat key"),
     ],
 )
 def test_job_rejects_invalid_config_overrides(

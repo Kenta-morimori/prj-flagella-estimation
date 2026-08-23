@@ -139,6 +139,28 @@ def test_campaign_comparison_accepts_cross_platform_tolerance(tmp_path: Path) ->
     assert all(check["status"] == "pass" for check in report["checks"])
 
 
+def test_campaign_comparison_rejects_matching_nonfinite_metrics(tmp_path: Path) -> None:
+    for value in ("NaN", "Infinity", "-Infinity"):
+        left = _campaign(tmp_path / f"mac_{value}")
+        right = _campaign(tmp_path / f"cs10_{value}")
+        for campaign in (left, right):
+            summary_path = campaign / "summary.csv"
+            rows = list(csv.DictReader(summary_path.open(encoding="utf-8", newline="")))
+            for row in rows:
+                row["max_hook_angle_err_deg"] = value
+            with summary_path.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=rows[0].keys())
+                writer.writeheader()
+                writer.writerows(rows)
+
+        report = compare_campaigns(left, right)
+
+        assert report["status"] == "FAIL"
+        assert {
+            check["name"] for check in report["checks"] if check["status"] == "fail"
+        } >= {"project.max_hook_angle_err_deg", "paper.max_hook_angle_err_deg"}
+
+
 def test_campaign_comparison_rejects_incomplete_or_provenance_mismatch(
     tmp_path: Path,
 ) -> None:
@@ -201,6 +223,25 @@ def test_campaign_comparison_rejects_dirty_or_missing_git_provenance(
     assert report["status"] == "FAIL"
     failed = {check["name"] for check in report["checks"] if check["status"] == "fail"}
     assert {"manifest.git.commit", "manifest.git.is_clean"} <= failed
+
+
+def test_campaign_comparison_requires_manifest_condition_identities(
+    tmp_path: Path,
+) -> None:
+    left = _campaign(tmp_path / "mac")
+    right = _campaign(tmp_path / "cs10")
+    for campaign in (left, right):
+        summary_path = campaign / "summary.csv"
+        rows = list(csv.DictReader(summary_path.open(encoding="utf-8", newline="")))
+        with summary_path.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=rows[0].keys())
+            writer.writeheader()
+
+    report = compare_campaigns(left, right)
+
+    assert report["status"] == "FAIL"
+    failed = {check["name"] for check in report["checks"] if check["status"] == "fail"}
+    assert {"left.summary.identities", "right.summary.identities"} <= failed
 
 
 def test_generic_campaign_comparison_requires_completed_run_summary(

@@ -100,6 +100,6 @@ uv run python scripts/01_simulate_swimming/compare_qualification.py \
 
 251 stepsは、#208 の実機 worker screenと同じ最低 execution qualification 条件である。物理的な0.5秒 stabilityやdataset採択の根拠には使わない。比較器は compact な `summary.csv` と`run_manifest.json`、各 condition の`run_summary.json`を読み、Git commit、clean worktree、effective override、expected/completed steps、contiguous step index、finite / shape gate、failure category、主要 stability/residual metric を確認する。数値は `abs(a-b) <= max(1e-9, 1e-6 * max(abs(a), abs(b)))` とする。provenance の不一致または partial failure は数値が近くても FAIL とする。
 
-共有する最小 artifact は、runtime probe の `manifest.json`、各 serial / parallel child の `summary.csv`・`run_manifest.json`・`manifest.json`、parallel の `job_manifest.json` である。失敗時だけ対応する `stdout.log`、`stderr.log`、`failure.json`（存在すれば）を追加する。raw `step_summary.csv` と state archive は共有不要である。
+共有する最小 artifact は、runtime probe の `manifest.json`、各 serial / parallel child の `summary.csv`・`run_manifest.json`・`manifest.json`・各 condition の `run_summary.json`、parallel の `job_manifest.json` である。失敗時だけ対応する `stdout.log`、`stderr.log`、`failure.json`（存在すれば）を追加する。raw `step_summary.csv` と state archive は共有不要である。
 
 serial が失敗した場合は environment / simulation core を先に切り分け、parallel へ進まない。serial が PASS して parallel のみ失敗した場合は child command、output namespace、thread override、stderr を確認する。数値差のみの場合は failure gate と最大差分を report で確認し、根拠なく tolerance を変更しない。

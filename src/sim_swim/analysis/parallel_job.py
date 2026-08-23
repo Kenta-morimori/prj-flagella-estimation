@@ -113,13 +113,14 @@ def _validate_config_overrides(value: Any) -> tuple[str, ...]:
         key, separator, raw_value = item.partition("=")
         if not separator or not key or not raw_value or key.strip() != key:
             raise ValueError("config overrides must use KEY=VALUE")
-        if key.replace("-", "_") in {"output_dir", "output_base_dir"}:
+        normalized_key = key.replace("-", "_")
+        if normalized_key in {"output_dir", "output_base_dir"}:
             raise ValueError(
                 "config overrides must not set launcher-managed output paths"
             )
-        if key in keys:
+        if normalized_key in keys:
             raise ValueError(f"config overrides must not repeat key: {key}")
-        keys.add(key)
+        keys.add(normalized_key)
         overrides.append(item)
     return tuple(overrides)
 
