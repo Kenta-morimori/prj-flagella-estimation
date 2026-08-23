@@ -1,8 +1,17 @@
 schema_version: 1
 job_id: issue210_2010_project_qualification
 configs:
-  - conf/phase2_sweeps/shape_stability_grid.yaml
-  - conf/phase2_sweeps/bundling_alignment.yaml
+  - path: conf/phase2_sweeps/shape_stability_grid.yaml
+    overrides:
+      - sample_limit=1
+      - attach_seed=0
+      - phase_seed=0
+      - duration_s=0.001
+  - path: conf/phase2_sweeps/torque_distribution_grid.yaml
+    overrides:
+      - sample_limit=1
+      - torque_nm=2.5e-20
+      - duration_s=0.001
 execution:
   max_workers: auto
   worker_policy: cs10_qualified

@@ -68,6 +68,68 @@ def _campaign(
     return root
 
 
+def _generic_campaign(root: Path, *, completed_steps: int = 251) -> Path:
+    root.mkdir(parents=True)
+    condition_dir = root / "baseline"
+    condition_dir.mkdir()
+    run_summary = condition_dir / "run_summary.json"
+    run_summary.write_text(
+        json.dumps(
+            {
+                "execution": {
+                    "status": "completed",
+                    "row_count": completed_steps,
+                    "expected_total_steps": 251,
+                    "step_indices_contiguous_from_zero": True,
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    manifest = {
+        "kind": "shape_stability_grid",
+        "base_config": "conf/sim_swim_2010.yaml",
+        "condition_order": ["baseline"],
+        "git": {"commit": "abc123", "is_clean": True},
+        "args": {
+            "mode": "preset",
+            "duration_s": 0.001,
+            "dt_star": 1.0e-4,
+            "torque_nm": 2.5e-20,
+            "n_flagella": 3,
+            "attach_seed": 0,
+            "phase_seed": 0,
+        },
+        "summary_csv": str(root / "summary.csv"),
+        "conditions": [
+            {"condition_id": "baseline", "run_summary_json": str(run_summary)}
+        ],
+    }
+    (root / "run_manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    with (root / "summary.csv").open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "condition_id",
+                "final_shape_pass_nonbody",
+                "body_shape_pass",
+                "first_fail_category_nonbody",
+                "max_hook_len_rel_err",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "condition_id": "baseline",
+                "final_shape_pass_nonbody": "True",
+                "body_shape_pass": "True",
+                "first_fail_category_nonbody": "none",
+                "max_hook_len_rel_err": "0.01",
+            }
+        )
+    return root
+
+
 def test_campaign_comparison_accepts_cross_platform_tolerance(tmp_path: Path) -> None:
     report = compare_campaigns(
         _campaign(tmp_path / "mac"), _campaign(tmp_path / "cs10", hook_error=0.2000001)
@@ -91,6 +153,19 @@ def test_campaign_comparison_rejects_incomplete_or_provenance_mismatch(
     assert report["status"] == "FAIL"
     failed = {check["name"] for check in report["checks"] if check["status"] == "fail"}
     assert {"manifest.git.commit", "project.completed_steps"} <= failed
+
+
+def test_generic_campaign_comparison_requires_completed_run_summary(
+    tmp_path: Path,
+) -> None:
+    report = compare_campaigns(
+        _generic_campaign(tmp_path / "mac"),
+        _generic_campaign(tmp_path / "cs10", completed_steps=250),
+    )
+
+    assert report["status"] == "FAIL"
+    failed = {check["name"] for check in report["checks"] if check["status"] == "fail"}
+    assert "right.baseline.run_summary.expected_total_steps" in failed
 
 
 def test_parallel_comparison_checks_launcher_and_each_child(tmp_path: Path) -> None:

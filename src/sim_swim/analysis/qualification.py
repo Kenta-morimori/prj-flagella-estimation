@@ -63,6 +63,15 @@ MANIFEST_FIELDS = (
     ("git", "commit"),
     ("git", "is_clean"),
 )
+EXECUTION_ARGUMENT_FIELDS = (
+    "mode",
+    "duration_s",
+    "dt_star",
+    "torque_nm",
+    "n_flagella",
+    "attach_seed",
+    "phase_seed",
+)
 
 
 @dataclass(frozen=True)
@@ -197,6 +206,55 @@ def _parallel_output_path(
     return job_manifest_path.parent / relative
 
 
+def _run_summary_for(
+    campaign: Campaign, identity: str, row: dict[str, str]
+) -> Path | None:
+    candidates = []
+    raw_output_dir = row.get("output_dir")
+    if raw_output_dir:
+        candidates.append(Path(raw_output_dir) / "run_summary.json")
+    for condition in campaign.manifest.get("conditions", []):
+        if not isinstance(condition, dict) or condition.get("condition_id") != identity:
+            continue
+        raw_path = condition.get("run_summary_json")
+        if isinstance(raw_path, str):
+            candidates.append(Path(raw_path))
+    candidates.append(campaign.root / identity / "run_summary.json")
+    return next((candidate for candidate in candidates if candidate.is_file()), None)
+
+
+def _execution_checks(campaign: Campaign, identity: str) -> list[dict[str, Any]]:
+    path = _run_summary_for(campaign, identity, campaign.rows[identity])
+    prefix = f"{identity}.run_summary"
+    if path is None:
+        return [_check(prefix, "missing", "present", False)]
+    execution = _read_json(path).get("execution")
+    if not isinstance(execution, dict):
+        return [_check(prefix + ".execution", "missing", "present", False)]
+    expected_steps = execution.get("expected_total_steps")
+    row_count = execution.get("row_count")
+    return [
+        _check(
+            prefix + ".status",
+            execution.get("status"),
+            "completed",
+            execution.get("status") == "completed",
+        ),
+        _check(
+            prefix + ".step_indices_contiguous_from_zero",
+            execution.get("step_indices_contiguous_from_zero"),
+            True,
+            execution.get("step_indices_contiguous_from_zero") is True,
+        ),
+        _check(
+            prefix + ".expected_total_steps",
+            expected_steps,
+            row_count,
+            isinstance(expected_steps, int) and expected_steps == row_count,
+        ),
+    ]
+
+
 def compare_campaigns(
     left_path: Path,
     right_path: Path,
@@ -222,6 +280,18 @@ def compare_campaigns(
                 left_value == right_value,
             )
         )
+    for field in EXECUTION_ARGUMENT_FIELDS:
+        left_value = _nested(left.manifest, ("args", field))
+        right_value = _nested(right.manifest, ("args", field))
+        if left_value is not None or right_value is not None:
+            checks.append(
+                _check(
+                    "manifest.args." + field,
+                    left_value,
+                    right_value,
+                    left_value == right_value,
+                )
+            )
     checks.append(
         _check(
             "summary.identities",
@@ -231,6 +301,16 @@ def compare_campaigns(
         )
     )
     for identity in sorted(set(left.rows) & set(right.rows)):
+        if left.manifest.get("kind") == "shape_stability_grid":
+            checks.extend(
+                {**check, "name": "left." + check["name"]}
+                for check in _execution_checks(left, identity)
+            )
+        if right.manifest.get("kind") == "shape_stability_grid":
+            checks.extend(
+                {**check, "name": "right." + check["name"]}
+                for check in _execution_checks(right, identity)
+            )
         left_row = left.rows[identity]
         right_row = right.rows[identity]
         for field in DISCRETE_FIELDS:
