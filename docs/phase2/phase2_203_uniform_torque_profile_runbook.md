@@ -74,7 +74,7 @@ ssh Ktakemori@cs10 'cd ~/src/prj-flagella-estimation && \
   jq '{status,failed_configs,aggregation}' "$JOB_ROOT/job_manifest.json" && \
   cat "$JOB_ROOT/campaign/campaign_completion.json" && \
   test -f "$JOB_ROOT/campaign/summary.csv" && \
-  find "$JOB_ROOT/campaign/conditions" -name run_summary.json | wc -l'
+  find -L "$JOB_ROOT/campaign/conditions" -name run_summary.json | wc -l'
 ```
 
 ## Transfer and Mac analysis
