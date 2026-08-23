@@ -60,8 +60,6 @@ MANIFEST_FIELDS = (
     ("motor_enabled",),
     ("base_config",),
     ("condition_order",),
-    ("git", "commit"),
-    ("git", "is_clean"),
 )
 EXECUTION_ARGUMENT_FIELDS = (
     "mode",
@@ -71,6 +69,25 @@ EXECUTION_ARGUMENT_FIELDS = (
     "n_flagella",
     "attach_seed",
     "phase_seed",
+)
+SUCCESS_TRUE_FIELDS = frozenset(
+    {
+        "completion_pass",
+        "finite_pass_all",
+        "finite_pass",
+        "shape_pass_nonbody",
+        "final_shape_pass_nonbody",
+        "body_shape_pass",
+        "shape_pass",
+    }
+)
+FAILURE_CATEGORY_FIELDS = frozenset(
+    {
+        "first_fail_category_nonbody",
+        "body_fail_category",
+        "final_first_fail_category_nonbody",
+        "first_fail_category",
+    }
 )
 
 
@@ -178,6 +195,28 @@ def _check(
     }
 
 
+def _is_true(value: Any) -> bool:
+    return value is True or value == "True"
+
+
+def _is_no_failure(value: Any) -> bool:
+    return value in (None, "", "none")
+
+
+def _discrete_pass(field: str, left: Any, right: Any) -> bool:
+    """Require both equality and a success state for qualification fields."""
+
+    if left != right:
+        return False
+    if field == "status":
+        return left == "completed"
+    if field in SUCCESS_TRUE_FIELDS:
+        return left in (None, "") or _is_true(left)
+    if field in FAILURE_CATEGORY_FIELDS:
+        return _is_no_failure(left)
+    return True
+
+
 def _config_sha256(config: str) -> str | None:
     path = (REPO_ROOT / config).resolve()
     try:
@@ -280,6 +319,28 @@ def compare_campaigns(
                 left_value == right_value,
             )
         )
+    left_commit = _nested(left.manifest, ("git", "commit"))
+    right_commit = _nested(right.manifest, ("git", "commit"))
+    checks.append(
+        _check(
+            "manifest.git.commit",
+            left_commit,
+            right_commit,
+            isinstance(left_commit, str)
+            and bool(left_commit)
+            and left_commit == right_commit,
+        )
+    )
+    left_clean = _nested(left.manifest, ("git", "is_clean"))
+    right_clean = _nested(right.manifest, ("git", "is_clean"))
+    checks.append(
+        _check(
+            "manifest.git.is_clean",
+            left_clean,
+            right_clean,
+            left_clean is True and right_clean is True,
+        )
+    )
     for field in EXECUTION_ARGUMENT_FIELDS:
         left_value = _nested(left.manifest, ("args", field))
         right_value = _nested(right.manifest, ("args", field))
@@ -320,7 +381,9 @@ def compare_campaigns(
                         f"{identity}.{field}",
                         left_row.get(field),
                         right_row.get(field),
-                        left_row.get(field) == right_row.get(field),
+                        _discrete_pass(
+                            field, left_row.get(field), right_row.get(field)
+                        ),
                     )
                 )
         for field in CONTINUOUS_FIELDS:

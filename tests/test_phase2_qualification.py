@@ -155,6 +155,54 @@ def test_campaign_comparison_rejects_incomplete_or_provenance_mismatch(
     assert {"manifest.git.commit", "project.completed_steps"} <= failed
 
 
+def test_campaign_comparison_rejects_matching_failure_state(tmp_path: Path) -> None:
+    left = _campaign(tmp_path / "mac")
+    right = _campaign(tmp_path / "cs10")
+    for campaign in (left, right):
+        summary_path = campaign / "summary.csv"
+        rows = list(csv.DictReader(summary_path.open(encoding="utf-8", newline="")))
+        for row in rows:
+            row["status"] = "failed"
+            row["completion_pass"] = "False"
+            row["finite_pass_all"] = "False"
+            row["final_shape_pass_nonbody"] = "False"
+            row["first_fail_category_nonbody"] = "flag"
+        with summary_path.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=rows[0].keys())
+            writer.writeheader()
+            writer.writerows(rows)
+
+    report = compare_campaigns(left, right)
+
+    assert report["status"] == "FAIL"
+    failed = {check["name"] for check in report["checks"] if check["status"] == "fail"}
+    assert {
+        "project.status",
+        "project.completion_pass",
+        "project.finite_pass_all",
+        "project.final_shape_pass_nonbody",
+        "project.first_fail_category_nonbody",
+    } <= failed
+
+
+def test_campaign_comparison_rejects_dirty_or_missing_git_provenance(
+    tmp_path: Path,
+) -> None:
+    left = _campaign(tmp_path / "mac")
+    right = _campaign(tmp_path / "cs10")
+    for campaign in (left, right):
+        manifest_path = campaign / "run_manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["git"] = {"commit": "", "is_clean": False}
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    report = compare_campaigns(left, right)
+
+    assert report["status"] == "FAIL"
+    failed = {check["name"] for check in report["checks"] if check["status"] == "fail"}
+    assert {"manifest.git.commit", "manifest.git.is_clean"} <= failed
+
+
 def test_generic_campaign_comparison_requires_completed_run_summary(
     tmp_path: Path,
 ) -> None:

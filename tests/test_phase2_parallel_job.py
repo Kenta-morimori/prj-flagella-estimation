@@ -84,6 +84,8 @@ def test_issue210_job_uses_existing_2010_project_profiles() -> None:
     [
         ("      - duration_s\n", "config overrides must use KEY=VALUE"),
         ("      - output_dir=bad\n", "must not set launcher-managed output paths"),
+        ("      - output-dir=bad\n", "must not set launcher-managed output paths"),
+        ("      - output-base-dir=bad\n", "must not set launcher-managed output paths"),
         ("      - duration_s=0.001\n      - duration_s=0.002\n", "must not repeat key"),
     ],
 )
