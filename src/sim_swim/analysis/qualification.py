@@ -23,11 +23,15 @@ DISCRETE_FIELDS = (
     "completed_steps",
     "completion_pass",
     "finite_pass_all",
+    "finite_pass",
+    "shape_pass_nonbody",
     "final_shape_pass_nonbody",
     "body_shape_pass",
     "shape_pass",
     "first_fail_category_nonbody",
     "body_fail_category",
+    "final_first_fail_category_nonbody",
+    "first_fail_category",
 )
 CONTINUOUS_FIELDS = (
     "max_hook_angle_err_deg",
@@ -37,6 +41,16 @@ CONTINUOUS_FIELDS = (
     "max_net_torque_residual_ratio",
     "max_motor_force_balance_residual_ratio",
     "max_motor_torque_balance_residual_ratio",
+    "max_hook_len_rel_err",
+    "hook_len_rel_err_max",
+    "max_flag_bond_rel_err",
+    "flag_bond_rel_err_max",
+    "flag_bend_err_max_deg",
+    "flag_torsion_err_max_deg",
+    "body_spring_max_stretch_ratio",
+    "body_bend_max_error_deg",
+    "body_centerline_max_deviation_um",
+    "body_triangle_area_ratio_min",
 )
 MANIFEST_FIELDS = (
     ("kind",),

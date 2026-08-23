@@ -80,21 +80,21 @@ RTX 3090 は hardware record のみであり、CUDA、PyTorch、GPU benchmark �
 
 parallel launcher の実 simulation qualification は、同じ clean Git commit と同じ既存 sweep config を使い、次の順で実施する。Mac canonical environment、既存 serial CLI、既存 sweep config、物理解釈は変更しない。比較は bitwise identity を要求しない。
 
-1. Mac で `tests/test_phase2_parallel_job.py`、`tests/test_phase2_sweep_profiles.py`、`tests/test_cs10_qualification.py`、`tests/test_phase2_qualification.py` を実行し、両 Stage A config の dry-run を確認する。
-2. Mac serial と cs10 serial で、`2015_stage_a_motor_off.yaml` と `2015_stage_a_motor_on.yaml` をそれぞれ `run_sweep.py` から実行する。
-3. cs10 で同じ config 集合を `run_parallel.py` から実行する。`job_manifest.json` の status が `succeeded`、`failed_configs` が空、全 child の exit code が 0 であることを確認する。
+1. Mac で `tests/test_phase2_parallel_job.py`、`tests/test_phase2_sweep_profiles.py`、`tests/test_cs10_qualification.py`、`tests/test_phase2_qualification.py` を実行する。`shape_stability_grid.yaml` は dry-run、`bundling_alignment.yaml` は既存 CLI に dry-run がないため `--describe-profile` で profile を静的確認する。
+2. Mac serial と cs10 serial で、`shape_stability_grid.yaml` と `bundling_alignment.yaml` をそれぞれ `run_sweep.py` から実行する。
+3. cs10 で `conf/phase2_parallel/issue210_2010_project/job.yaml` を `run_parallel.py` から実行する。`job_manifest.json` の status が `succeeded`、`failed_configs` が空、全 child の exit code が 0 であることを確認する。
 4. 下記比較器を Mac vs cs10 serial の config ごと、および cs10 serial vs parallel job に対して実行する。
 
 ```bash
 uv run python scripts/01_simulate_swimming/compare_qualification.py \
   --left outputs/.../mac_serial_campaign \
   --right outputs/.../cs10_serial_campaign \
-  --output-dir outputs/YYYY-MM-DD/HHMMSS/qualification/mac_vs_cs10_motor_off
+  --output-dir outputs/YYYY-MM-DD/HHMMSS/qualification/mac_vs_cs10_shape_stability
 
 uv run python scripts/01_simulate_swimming/compare_qualification.py \
   --parallel-job-manifest outputs/.../parallel/.../job_manifest.json \
-  --serial conf/phase2_sweeps/2015_stage_a_motor_off.yaml=outputs/.../cs10_serial_motor_off \
-  --serial conf/phase2_sweeps/2015_stage_a_motor_on.yaml=outputs/.../cs10_serial_motor_on \
+  --serial conf/phase2_sweeps/shape_stability_grid.yaml=outputs/.../cs10_serial_shape_stability \
+  --serial conf/phase2_sweeps/bundling_alignment.yaml=outputs/.../cs10_serial_bundling_alignment \
   --output-dir outputs/YYYY-MM-DD/HHMMSS/qualification/cs10_serial_vs_parallel
 ```
 

@@ -1,0 +1,8 @@
+schema_version: 1
+job_id: issue210_2010_project_qualification
+configs:
+  - conf/phase2_sweeps/shape_stability_grid.yaml
+  - conf/phase2_sweeps/bundling_alignment.yaml
+execution:
+  max_workers: auto
+  worker_policy: cs10_qualified

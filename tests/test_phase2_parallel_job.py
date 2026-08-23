@@ -19,6 +19,7 @@ from sim_swim.analysis.parallel_job import (
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE = ROOT / "conf/phase2_parallel/example_stage_a_validation/job.yaml"
+ISSUE210_2010 = ROOT / "conf/phase2_parallel/issue210_2010_project/job.yaml"
 SWEEP_A = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_off.yaml"
 SWEEP_B = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_on.yaml"
 SHAPE_SWEEP = ROOT / "conf/phase2_sweeps/shape_stability_grid.yaml"
@@ -52,6 +53,16 @@ def test_load_example_job_reuses_existing_sweep_profiles() -> None:
     assert job.job_name == "example_stage_a_validation"
     assert job.configs == (SWEEP_A.resolve(), SWEEP_B.resolve())
     assert job.max_workers == "auto"
+
+
+def test_issue210_job_uses_existing_2010_project_profiles() -> None:
+    job = load_parallel_job(ISSUE210_2010)
+
+    assert [config.name for config in job.configs] == [
+        "shape_stability_grid.yaml",
+        "bundling_alignment.yaml",
+    ]
+    assert job.worker_policy == "cs10_qualified"
 
 
 @pytest.mark.parametrize(
