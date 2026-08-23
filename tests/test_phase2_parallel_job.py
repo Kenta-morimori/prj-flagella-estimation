@@ -20,6 +20,10 @@ from sim_swim.analysis.parallel_job import (
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE = ROOT / "conf/phase2_parallel/example_stage_a_validation/job.yaml"
 ISSUE210_2010 = ROOT / "conf/phase2_parallel/issue210_2010_project/job.yaml"
+ISSUE203 = ROOT / "conf/phase2_parallel/issue203_uniform_torque_profile/job.yaml"
+ISSUE203_QUALIFICATION = (
+    ROOT / "conf/phase2_parallel/issue203_uniform_torque_profile/qualification_job.yaml"
+)
 SWEEP_A = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_off.yaml"
 SWEEP_B = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_on.yaml"
 SHAPE_SWEEP = ROOT / "conf/phase2_sweeps/shape_stability_grid.yaml"
@@ -77,6 +81,79 @@ def test_issue210_job_uses_existing_2010_project_profiles() -> None:
             "duration_s=0.001",
         ),
     }
+
+
+def test_issue203_generic_job_expands_27_independent_conditions() -> None:
+    job = load_parallel_job(ISSUE203)
+    execution = resolve_execution(job, None)
+    plan = build_plan(job, execution, ROOT / ".tmp_issue203_plan")
+
+    assert job.is_generic_campaign_job
+    assert job.task_count == 27
+    assert execution.max_workers == 8
+    assert len(plan["configs"]) == 27
+    assert plan["configs"][0]["condition_id"] == "as000__ps000__nf01"
+    assert plan["configs"][-1]["condition_id"] == "as002__ps002__nf03"
+    command = plan["configs"][0]["command"]
+    assert "scripts/01_simulate_swimming/run_multi_run.py" in command
+    assert "output.timestamp_subdir=false" in command
+    assert "sweep.include_condition_ids=[as000__ps000__nf01]" in command
+
+
+def test_issue203_qualification_job_preserves_27_shards_and_duration_override() -> None:
+    job = load_parallel_job(ISSUE203_QUALIFICATION)
+    plan = build_plan(job, resolve_execution(job, None), ROOT / ".tmp_issue203_plan")
+
+    assert job.task_count == 27
+    assert all(
+        record["overrides"] == ["time.duration_s=0.001"] for record in plan["configs"]
+    )
+    assert all(
+        "time.duration_s=0.001" in record["command"] for record in plan["configs"]
+    )
+
+
+def test_generic_aggregate_requires_all_shards_and_creates_canonical_view(
+    tmp_path: Path,
+) -> None:
+    job = load_parallel_job(ISSUE203)
+    execution = resolve_execution(job, None)
+    root = tmp_path / "parallel_job"
+    manifest = build_plan(job, execution, root)
+    root.mkdir()
+    manifest["output_root"] = str(root)
+    for record in manifest["configs"]:
+        child_root = Path(record["output_dir"])
+        condition_dir = child_root / str(record["condition_id"])
+        condition_dir.mkdir(parents=True)
+        (child_root / "campaign_completion.json").write_text(
+            json.dumps({"status": "completed", "exit_code": 0}), encoding="utf-8"
+        )
+        (child_root / "run_manifest.json").write_text(
+            json.dumps({"conditions": [{"condition_id": record["condition_id"]}]}),
+            encoding="utf-8",
+        )
+        (condition_dir / "run_summary.json").write_text(
+            json.dumps(
+                {
+                    "execution": {"status": "completed"},
+                    "gates": {},
+                    "all_step_metrics": {},
+                }
+            ),
+            encoding="utf-8",
+        )
+        record["status"] = "succeeded"
+
+    campaign = parallel_job._aggregate_generic_campaign(job, manifest)
+
+    assert (campaign / "campaign_completion.json").is_file()
+    assert (campaign / "summary.csv").is_file()
+    assert (campaign / "conditions/as000__ps000__nf01").is_symlink()
+
+    manifest["failed_configs"] = [1]
+    with pytest.raises(RuntimeError, match="failed shards"):
+        parallel_job._aggregate_generic_campaign(job, manifest)
 
 
 @pytest.mark.parametrize(

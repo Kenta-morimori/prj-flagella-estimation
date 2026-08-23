@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+import csv
 import hashlib
 import json
 import os
@@ -19,13 +20,26 @@ from zoneinfo import ZoneInfo
 import yaml
 
 from sim_swim.analysis.cli_profiles import load_profile_entry, validate_profile_role
+from sim_swim.analysis.multi_run_campaign import (
+    apply_campaign_cli_overrides,
+    build_campaign_conditions,
+    campaign_axes_metadata,
+    load_yaml,
+)
+from sim_swim.analysis.sweeps.generic_multi_run import (
+    _condition_row,
+    _manifest_condition_record,
+    _summary_fieldnames,
+)
+from sim_swim.sim.params import SimulationConfig
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SWEEP_DIRECTORY = REPO_ROOT / "conf" / "phase2_sweeps"
+MULTI_RUN_DIRECTORY = REPO_ROOT / "conf" / "phase2_multi_run"
 THREAD_ENV_KEYS = ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")
 WORKER_POLICIES = {"host_cpu", "cs10_qualified"}
-JOB_KEYS = {"schema_version", "job_id", "configs", "execution"}
+JOB_KEYS = {"schema_version", "job_id", "configs", "conditions", "execution"}
 EXECUTION_KEYS = {"max_workers", "worker_policy"}
 CONFIG_ENTRY_KEYS = {"path", "overrides"}
 SUPPORTED_KINDS = {
@@ -48,6 +62,15 @@ class ParallelJob:
     max_workers: int | Literal["auto"]
     worker_policy: str
     config_overrides: dict[Path, tuple[str, ...]] = field(default_factory=dict)
+    condition_ids: tuple[str, ...] = ()
+
+    @property
+    def task_count(self) -> int:
+        return len(self.condition_ids) if self.condition_ids else len(self.configs)
+
+    @property
+    def is_generic_campaign_job(self) -> bool:
+        return bool(self.condition_ids)
 
 
 @dataclass(frozen=True)
@@ -85,17 +108,19 @@ def _validate_config_path(value: Any) -> Path:
     if not isinstance(value, str) or not value.strip():
         raise ValueError("configs entries must be non-empty paths")
     path = (REPO_ROOT / value).resolve()
-    try:
-        path.relative_to(SWEEP_DIRECTORY.resolve())
-    except ValueError as exc:
-        raise ValueError("configs entries must be under conf/phase2_sweeps/") from exc
+    is_sweep = path.is_relative_to(SWEEP_DIRECTORY.resolve())
+    is_multi_run = path.is_relative_to(MULTI_RUN_DIRECTORY.resolve())
+    if not (is_sweep or is_multi_run):
+        raise ValueError(
+            "configs entries must be under conf/phase2_sweeps/ or conf/phase2_multi_run/"
+        )
     if path.suffix not in {".yaml", ".yml"} or not path.is_file():
-        raise ValueError(f"sweep config does not exist: {value}")
+        raise ValueError(f"config does not exist: {value}")
     entry = load_profile_entry(path)
     validate_profile_role(entry, "sweep")
-    if entry["kind"] not in SUPPORTED_KINDS:
+    if entry["kind"] not in {*SUPPORTED_KINDS, "generic_multi_run"}:
         raise ValueError(
-            f"unsupported sweep kind {entry['kind']!r}: {_relative_to_repo(path)}"
+            f"unsupported config kind {entry['kind']!r}: {_relative_to_repo(path)}"
         )
     return path
 
@@ -166,6 +191,41 @@ def load_parallel_job(path: Path) -> ParallelJob:
     configs = tuple(entry[0] for entry in config_entries)
     if len(set(configs)) != len(configs):
         raise ValueError("configs must not contain duplicates")
+    generic_configs = [
+        config
+        for config in configs
+        if load_profile_entry(config)["kind"] == "generic_multi_run"
+    ]
+    raw_conditions = data.get("conditions")
+    if generic_configs:
+        if len(configs) != 1:
+            raise ValueError(
+                "generic_multi_run parallel jobs must contain exactly one config"
+            )
+        if not isinstance(raw_conditions, list) or not raw_conditions:
+            raise ValueError(
+                "generic_multi_run parallel jobs require non-empty conditions"
+            )
+        condition_ids = tuple(str(item) for item in raw_conditions)
+        if any(not item.strip() for item in condition_ids):
+            raise ValueError("conditions must contain non-empty condition IDs")
+        if len(set(condition_ids)) != len(condition_ids):
+            raise ValueError("conditions must not contain duplicates")
+        effective = apply_campaign_cli_overrides(
+            load_yaml(generic_configs[0]), list(config_entries[0][1])
+        )
+        available = {
+            item["condition_id"] for item in build_campaign_conditions(effective)
+        }
+        unknown = [item for item in condition_ids if item not in available]
+        if unknown:
+            raise ValueError(
+                "conditions contains unknown condition IDs: " + ", ".join(unknown)
+            )
+    else:
+        if raw_conditions is not None:
+            raise ValueError("conditions is supported only for generic_multi_run jobs")
+        condition_ids = ()
 
     execution = _require_mapping(data.get("execution"), name="execution")
     _reject_unknown_keys(execution, allowed=EXECUTION_KEYS, name="execution")
@@ -191,6 +251,7 @@ def load_parallel_job(path: Path) -> ParallelJob:
         max_workers=max_workers,
         worker_policy=worker_policy,
         config_overrides={config: overrides for config, overrides in config_entries},
+        condition_ids=condition_ids,
     )
 
 
@@ -216,7 +277,7 @@ def resolve_execution(
         else {}
     )
     return ResolvedExecution(
-        max_workers=min(len(job.configs), limit),
+        max_workers=min(job.task_count, limit),
         worker_policy=job.worker_policy,
         thread_environment=environment,
     )
@@ -249,22 +310,47 @@ def command_for_config(
     ]
 
 
+def _generic_command(
+    config: Path, output_dir: Path, condition_id: str, overrides: tuple[str, ...]
+) -> list[str]:
+    return [
+        sys.executable,
+        "scripts/01_simulate_swimming/run_multi_run.py",
+        f"config={_relative_to_repo(config)}",
+        f"output.base_dir={output_dir.resolve()}",
+        "output.timestamp_subdir=false",
+        f"sweep.include_condition_ids=[{condition_id}]",
+        *overrides,
+    ]
+
+
 def build_plan(
     job: ParallelJob, execution: ResolvedExecution, root: Path
 ) -> dict[str, Any]:
     records: list[dict[str, Any]] = []
-    for index, config in enumerate(job.configs, start=1):
-        config_root = root / f"{index:03d}_{config.stem}"
+    task_items = (
+        [(job.configs[0], condition_id) for condition_id in job.condition_ids]
+        if job.is_generic_campaign_job
+        else [(config, None) for config in job.configs]
+    )
+    for index, (config, condition_id) in enumerate(task_items, start=1):
+        suffix = condition_id if condition_id is not None else config.stem
+        config_root = root / "children" / f"{index:03d}_{suffix}"
         run_dir = config_root / "run"
+        kind = load_profile_entry(config)["kind"]
+        overrides = job.config_overrides.get(config, ())
         records.append(
             {
                 "index": index,
                 "config": _relative_to_repo(config),
                 "config_sha256": _sha256(config),
-                "kind": load_profile_entry(config)["kind"],
-                "overrides": list(job.config_overrides.get(config, ())),
-                "command": command_for_config(
-                    config, run_dir, job.config_overrides.get(config, ())
+                "kind": kind,
+                "condition_id": condition_id,
+                "overrides": list(overrides),
+                "command": (
+                    _generic_command(config, run_dir, condition_id, overrides)
+                    if condition_id is not None
+                    else command_for_config(config, run_dir, overrides)
                 ),
                 "output_dir": str(run_dir),
                 "stdout_log": str(config_root / "stdout.log"),
@@ -298,6 +384,7 @@ def build_plan(
         "dispatch_order": [],
         "completion_order": [],
         "failed_configs": [],
+        "aggregation": {"required": job.is_generic_campaign_job, "status": "pending"},
     }
 
 
@@ -323,6 +410,135 @@ def _git_provenance() -> dict[str, str | None]:
         check=False,
     )
     return {"commit": commit.stdout.strip() or None, "status": result.stdout.strip()}
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        raise RuntimeError(f"required artifact is missing: {path}")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise RuntimeError(f"artifact must be a JSON object: {path}")
+    return data
+
+
+def _aggregate_generic_campaign(job: ParallelJob, manifest: dict[str, Any]) -> Path:
+    """Build a canonical campaign view only after every shard completed.
+
+    The condition directories are relative symlinks to child outputs, avoiding a
+    second copy of large archives on cs10.  They are deliberately not created
+    for partial or failed jobs.
+    """
+
+    if manifest["failed_configs"]:
+        raise RuntimeError("cannot aggregate a generic campaign with failed shards")
+    root = Path(manifest["output_root"])
+    config = job.configs[0]
+    overrides = list(job.config_overrides.get(config, ()))
+    campaign = apply_campaign_cli_overrides(load_yaml(config), overrides)
+    all_conditions = {
+        item["condition_id"]: item for item in build_campaign_conditions(campaign)
+    }
+    selected = [all_conditions[condition_id] for condition_id in job.condition_ids]
+    base_config_path = Path(str(campaign["base_config"]))
+    if not base_config_path.is_absolute():
+        base_config_path = REPO_ROOT / base_config_path
+    base_cfg = load_yaml(base_config_path)
+    base_simulation = SimulationConfig.from_dict(base_cfg).with_overrides(
+        campaign.get("base_overrides", {})
+    )
+    campaign_root = root / "campaign"
+    conditions_root = campaign_root / "conditions"
+    conditions_root.mkdir(parents=True, exist_ok=False)
+
+    rows: list[dict[str, Any]] = []
+    manifests: list[dict[str, Any]] = []
+    for record, condition in zip(manifest["configs"], selected, strict=True):
+        if record["status"] != "succeeded":
+            raise RuntimeError(f"shard did not succeed: {record['index']}")
+        child_root = Path(record["output_dir"])
+        completion = _read_json(child_root / "campaign_completion.json")
+        if completion.get("status") != "completed" or completion.get("exit_code") != 0:
+            raise RuntimeError(
+                f"shard completion is not successful: {condition['condition_id']}"
+            )
+        child_manifest = _read_json(child_root / "run_manifest.json")
+        child_conditions = child_manifest.get("conditions")
+        if not isinstance(child_conditions, list) or len(child_conditions) != 1:
+            raise RuntimeError(
+                f"shard does not contain exactly one condition: {condition['condition_id']}"
+            )
+        if child_conditions[0].get("condition_id") != condition["condition_id"]:
+            raise RuntimeError(
+                f"shard condition ID mismatch: {condition['condition_id']}"
+            )
+        child_dir = child_root / condition["condition_id"]
+        summary = _read_json(child_dir / "run_summary.json")
+        if summary.get("execution", {}).get("status") != "completed":
+            raise RuntimeError(f"condition is incomplete: {condition['condition_id']}")
+        link = conditions_root / condition["condition_id"]
+        link.symlink_to(os.path.relpath(child_dir, link.parent))
+        cfg = SimulationConfig.from_dict(base_cfg).with_overrides(
+            condition["config_overrides"]
+        )
+        rows.append(_condition_row(cfg, condition, link))
+        manifests.append(
+            _manifest_condition_record(
+                campaign_root,
+                condition,
+                time_manifest=cfg.time_manifest(),
+            )
+        )
+
+    summary_path = campaign_root / "summary.csv"
+    with summary_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=_summary_fieldnames(rows))
+        writer.writeheader()
+        writer.writerows(rows)
+    run_manifest = {
+        "kind": "generic_multi_run",
+        "parallel_aggregate": True,
+        "created_at": _now(),
+        "campaign_config": _relative_to_repo(config),
+        "campaign_overrides": overrides,
+        "base_config": str(campaign["base_config"]),
+        "source_config_path": str(base_config_path),
+        "model_profile": base_simulation.model_profile_manifest(),
+        "time": base_simulation.time_manifest(),
+        "summary_csv": str(summary_path),
+        "output_root": str(campaign_root),
+        "axes": campaign_axes_metadata(campaign),
+        "condition_order": list(job.condition_ids),
+        "conditions": manifests,
+        "parallel_job_manifest": str(root / "job_manifest.json"),
+    }
+    run_manifest.update(base_simulation.implementation_manifest())
+    for name, payload in (
+        ("run_manifest.json", run_manifest),
+        ("manifest.json", run_manifest),
+    ):
+        (campaign_root / name).write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+    (campaign_root / "campaign_completion.json").write_text(
+        json.dumps(
+            {
+                "status": "completed",
+                "expected_condition_count": len(selected),
+                "completed_condition_count": len(rows),
+                "exit_code": 0,
+                "summary_csv": str(summary_path),
+                "run_manifest_json": str(campaign_root / "run_manifest.json"),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (campaign_root / "run.log").write_text(
+        "parallel generic campaign aggregation completed\n", encoding="utf-8"
+    )
+    return campaign_root
 
 
 def run_parallel_job(
@@ -407,6 +623,27 @@ def run_parallel_job(
             time.sleep(poll_interval_s)
     manifest["ended_at"] = _now()
     manifest["status"] = "succeeded" if not manifest["failed_configs"] else "failed"
+    if manifest["status"] == "succeeded" and job.is_generic_campaign_job:
+        try:
+            campaign_root = _aggregate_generic_campaign(job, manifest)
+        except Exception as exc:
+            manifest["status"] = "failed"
+            manifest["aggregation"] = {
+                "required": True,
+                "status": "failed",
+                "error": str(exc),
+            }
+        else:
+            manifest["aggregation"] = {
+                "required": True,
+                "status": "completed",
+                "campaign_root": str(campaign_root),
+            }
+    elif job.is_generic_campaign_job:
+        manifest["aggregation"] = {
+            "required": True,
+            "status": "not_created_due_to_shard_failure",
+        }
     with (root / "job.log").open("a", encoding="utf-8") as handle:
         handle.write(f"parallel job {manifest['status']}\n")
     _write_manifest(root, manifest)

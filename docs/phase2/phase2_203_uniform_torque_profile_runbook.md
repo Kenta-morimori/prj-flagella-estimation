@@ -23,31 +23,58 @@ bash scripts/cs10/setup_environment.sh
 .venv-cs10/bin/python -c 'import matplotlib, numpy, yaml; print("cs10 runtime OK")'
 ```
 
-tmux内でJST run IDを決め、実行する。cs10 qualificationの短縮runは約8.6 steps/sだったため、50,001 steps × 27条件の逐次実行は概算44時間である。これは実測ではなく保守的な開始目安である。
+このcampaignは #207 の independent-condition launcher を使う。27条件を最大8 worker
+（8 + 8 + 8 + 3）で実行し、各子 process の BLAS thread は1に固定する。直列の
+`run_multi_run.py` を直接起動してはならない。途中停止した
+`outputs/2026-08-23/213359/phase2_issue203_uniform` は canonical comparison に使わない。
+
+まず本番と同じ27 shardで `0.001 s` の parallel qualification を実施する。
 
 ```bash
+.venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \
+  config=conf/phase2_parallel/issue203_uniform_torque_profile/qualification_job.yaml \
+  dry_run=true
+
 RUN_ID=$(TZ=Asia/Tokyo date +%Y-%m-%d/%H%M%S)
-RUN_DIR="outputs/${RUN_ID}/phase2_issue203_uniform"
-.venv-cs10/bin/python scripts/01_simulate_swimming/run_multi_run.py \
-  config=conf/phase2_multi_run/2010_project_uniform_torque_profile_2s_issue203.yaml \
-  output.base_dir="$RUN_DIR" output.timestamp_subdir=false
+MARKER_DIR="outputs/${RUN_ID}/phase2_issue203_uniform_parallel_qualification"
+mkdir -p "$MARKER_DIR"
+JOB_ROOT=$(.venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \
+  config=conf/phase2_parallel/issue203_uniform_torque_profile/qualification_job.yaml)
 status=$?
-python - <<PY
-import json, pathlib
-p = pathlib.Path("$RUN_DIR") / "user_exit_marker.json"
-p.write_text(json.dumps({"exit_code": $status}) + "\\n")
-PY
+printf '{"exit_code": %s, "job_root": "%s"}\n' "$status" "$JOB_ROOT" \
+  > "$MARKER_DIR/user_exit_marker.json"
+printf '%s\n' "$JOB_ROOT" > "$MARKER_DIR/job_root.txt"
 exit "$status"
 ```
 
-完了確認（Macから）は、stdoutではなくmarker、campaign completion、summary、27件のrun summaryで行う。
+qualification が PASS（`job_manifest.json.status=succeeded`、`failed_configs=[]`、
+`campaign/campaign_completion.json.status=completed`、27 summaries）なら、同様に本番を起動する。
+本番の実時間は条件依存である。直列の約44時間という旧見積りは適用しない。8 worker の理想下限は
+約5.5時間で、I/O・condition差を含めた保守的な予約枠は **8--12時間** とする。
+
+```bash
+RUN_ID=$(TZ=Asia/Tokyo date +%Y-%m-%d/%H%M%S)
+MARKER_DIR="outputs/${RUN_ID}/phase2_issue203_uniform_parallel"
+mkdir -p "$MARKER_DIR"
+JOB_ROOT=$(.venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \
+  config=conf/phase2_parallel/issue203_uniform_torque_profile/job.yaml)
+status=$?
+printf '{"exit_code": %s, "job_root": "%s"}\n' "$status" "$JOB_ROOT" \
+  > "$MARKER_DIR/user_exit_marker.json"
+printf '%s\n' "$JOB_ROOT" > "$MARKER_DIR/job_root.txt"
+exit "$status"
+```
+
+完了確認（Macから）は stdout ではなく marker、parallel job、canonical campaign を確認する。
 
 ```bash
 ssh Ktakemori@cs10 'cd ~/src/prj-flagella-estimation && \
-  cat outputs/YYYY-MM-DD/HHMMSS/phase2_issue203_uniform/user_exit_marker.json && \
-  cat outputs/YYYY-MM-DD/HHMMSS/phase2_issue203_uniform/campaign_completion.json && \
-  test -f outputs/YYYY-MM-DD/HHMMSS/phase2_issue203_uniform/summary.csv && \
-  find outputs/YYYY-MM-DD/HHMMSS/phase2_issue203_uniform -name run_summary.json | wc -l'
+  cat outputs/YYYY-MM-DD/HHMMSS/phase2_issue203_uniform_parallel/user_exit_marker.json && \
+  JOB_ROOT=$(cat outputs/YYYY-MM-DD/HHMMSS/phase2_issue203_uniform_parallel/job_root.txt) && \
+  jq '{status,failed_configs,aggregation}' "$JOB_ROOT/job_manifest.json" && \
+  cat "$JOB_ROOT/campaign/campaign_completion.json" && \
+  test -f "$JOB_ROOT/campaign/summary.csv" && \
+  find "$JOB_ROOT/campaign/conditions" -name run_summary.json | wc -l'
 ```
 
 ## Transfer and Mac analysis
@@ -58,15 +85,17 @@ ssh Ktakemori@cs10 'cd ~/src/prj-flagella-estimation && \
 
 ```bash
 mkdir -p outputs/YYYY-MM-DD/HHMMSS
-REMOTE=~/src/prj-flagella-estimation/outputs/YYYY-MM-DD/HHMMSS/phase2_issue203_uniform
+REMOTE_JOB=~/src/prj-flagella-estimation/outputs/YYYY-MM-DD/HHMMSS/parallel/issue203_uniform_torque_profile__UUID
+REMOTE="$REMOTE_JOB/campaign"
 LOCAL=outputs/YYYY-MM-DD/HHMMSS/phase2_issue203_uniform
 mkdir -p "$LOCAL"
-scp Ktakemori@cs10:"$REMOTE"/{manifest.json,run_manifest.json,summary.csv,run.log,campaign_completion.json,user_exit_marker.json} "$LOCAL/"
+scp Ktakemori@cs10:"$REMOTE_JOB"/job_manifest.json "$LOCAL/"
+scp Ktakemori@cs10:"$REMOTE"/{manifest.json,run_manifest.json,summary.csv,run.log,campaign_completion.json} "$LOCAL/"
 for n in 01 02 03; do for a in 000 001 002; do for p in 000 001 002; do
   id="as${a}__ps${p}__nf${n}"; mkdir -p "$LOCAL/$id"
-  scp Ktakemori@cs10:"$REMOTE/$id/run_summary.json" "$LOCAL/$id/"
+  scp Ktakemori@cs10:"$REMOTE/conditions/$id/run_summary.json" "$LOCAL/$id/"
 done; done; done
-.venv-cs10/bin/python scripts/03_dataset_building/analyze_issue203_torque_profiles.py \
+uv run python scripts/03_dataset_building/analyze_issue203_torque_profiles.py \
   --config conf/phase2_analysis/issue203_uniform_paired_comparison.yaml \
   --uniform-run-dir "$LOCAL" --output-dir "$LOCAL/analysis/paired_comparison" --overwrite
 ```
@@ -76,7 +105,7 @@ done; done; done
 ```bash
 for n in 01 02 03; do for a in 000 001 002; do for p in 000 001 002; do
   id="as${a}__ps${p}__nf${n}"
-  scp Ktakemori@cs10:"$REMOTE/$id/state_archive.npz" "$LOCAL/$id/"
+  scp Ktakemori@cs10:"$REMOTE/conditions/$id/state_archive.npz" "$LOCAL/$id/"
 done; done; done
 for n in 01 02 03; do for a in 000 001 002; do for p in 000 001 002; do
   uv run python scripts/03_dataset_building/render_issue203_composite_replay.py \
