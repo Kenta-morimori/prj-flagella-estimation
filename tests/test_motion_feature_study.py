@@ -165,6 +165,9 @@ def test_motion_feature_study_rejects_ambiguous_frame_rate_config(
     path.write_text("study:\n  frame_rate_hz: 25\n", encoding="utf-8")
     with pytest.raises(ValueError, match="study.frame_rate_hz is ambiguous"):
         load_config(path)
+    path.write_text("plot:\n  flagella_axis_time_bin_s: 0\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="flagella_axis_time_bin_s must be > 0"):
+        load_config(path)
 
 
 @pytest.mark.light
@@ -217,3 +220,23 @@ def test_flagella_axis_plot_is_binned_without_changing_other_features() -> None:
         pytest.approx(5.0),
     ]
     assert _plot_rows(rows, "speed_um_s", "t_s", 0.02) is rows
+    assert (
+        _plot_rows(rows, "mean_flagella_axis_angular_velocity_rad_s", "t_s", None)
+        is rows
+    )
+
+
+@pytest.mark.light
+def test_motion_feature_defaults_to_unbinned_plot_and_protects_existing_output(
+    tmp_path: Path,
+) -> None:
+    run_dir, output_dir = tmp_path / "run", tmp_path / "analysis"
+    _fixture(run_dir)
+    config = MotionFeatureStudyConfig(run_dir=run_dir, output_dir=output_dir)
+    assert config.flagella_axis_plot_bin_s is None
+    analyze_motion_feature_study(config)
+    with pytest.raises(FileExistsError, match="--overwrite"):
+        analyze_motion_feature_study(config)
+    analyze_motion_feature_study(
+        MotionFeatureStudyConfig(run_dir=run_dir, output_dir=output_dir, overwrite=True)
+    )

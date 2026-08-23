@@ -48,7 +48,7 @@ class MotionFeatureStudyConfig:
     config_path: Path | None = None
     durations_s: tuple[float, ...] = (0.25, 0.5, 1.0)
     observation_frame_rate_hz: float | None = None
-    flagella_axis_plot_bin_s: float = 0.02
+    flagella_axis_plot_bin_s: float | None = None
     allowed_n_flagella: tuple[int, ...] = (1, 2, 3, 4)
     projection_basis: tuple[tuple[float, float, float], tuple[float, float, float]] = (
         (1.0, 0.0, 0.0),
@@ -94,6 +94,11 @@ def load_config(
             "study.frame_rate_hz is ambiguous; use observation.frame_rate_hz "
             "for 2D output-frame sampling"
         )
+    if (
+        plot.get("flagella_axis_time_bin_s") is not None
+        and float(plot["flagella_axis_time_bin_s"]) <= 0
+    ):
+        raise ValueError("plot.flagella_axis_time_bin_s must be > 0 when set")
     basis = projection.get("basis", [[1, 0, 0], [0, 1, 0]])
     if len(basis) != 2 or any(len(row) != 3 for row in basis):
         raise ValueError("projection.basis must contain two 3D vectors")
@@ -107,7 +112,11 @@ def load_config(
             if observation.get("frame_rate_hz") is not None
             else None
         ),
-        flagella_axis_plot_bin_s=float(plot.get("flagella_axis_time_bin_s", 0.02)),
+        flagella_axis_plot_bin_s=(
+            float(plot["flagella_axis_time_bin_s"])
+            if plot.get("flagella_axis_time_bin_s") is not None
+            else None
+        ),
         allowed_n_flagella=tuple(
             int(x) for x in study.get("allowed_n_flagella", [1, 2, 3, 4])
         ),
@@ -360,10 +369,10 @@ def _mean_trace(
 
 
 def _plot_rows(
-    rows: list[dict[str, Any]], feature: str, time_key: str, bin_s: float
+    rows: list[dict[str, Any]], feature: str, time_key: str, bin_s: float | None
 ) -> list[dict[str, Any]]:
     """Reduce only dense flagella-axis traces for legible rendering."""
-    if feature != "mean_flagella_axis_angular_velocity_rad_s":
+    if feature != "mean_flagella_axis_angular_velocity_rad_s" or bin_s is None:
         return rows
     if bin_s <= 0:
         raise ValueError("plot.flagella_axis_time_bin_s must be > 0")
@@ -411,7 +420,7 @@ def _plot_series(
     rows: list[dict[str, Any]],
     output_dir: Path,
     domain: str,
-    flagella_axis_plot_bin_s: float,
+    flagella_axis_plot_bin_s: float | None,
 ) -> list[str]:
     output_dir.mkdir(parents=True, exist_ok=True)
     paths: list[str] = []
@@ -443,7 +452,10 @@ def _plot_series(
                 linewidth=2.4,
             )
         axis.set(title=f"{domain}: {name}", xlabel="time (s)", ylabel=name)
-        if feature == "mean_flagella_axis_angular_velocity_rad_s":
+        if (
+            feature == "mean_flagella_axis_angular_velocity_rad_s"
+            and flagella_axis_plot_bin_s is not None
+        ):
             axis.set_title(
                 f"{domain}: {name} ({flagella_axis_plot_bin_s:g} s bin mean)"
             )
@@ -518,7 +530,10 @@ def analyze_motion_feature_study(cfg: MotionFeatureStudyConfig) -> Path:
     observation_frame_rate_hz = _observation_frame_rate(manifest, cfg)
     if cfg.output_dir.exists():
         if not cfg.overwrite:
-            raise FileExistsError(cfg.output_dir)
+            raise FileExistsError(
+                f"{cfg.output_dir} already exists; rerun with --overwrite to replace "
+                "it, or set output_dir to a new location"
+            )
         shutil.rmtree(cfg.output_dir)
     cfg.output_dir.mkdir(parents=True)
     series3d: list[dict[str, Any]] = []

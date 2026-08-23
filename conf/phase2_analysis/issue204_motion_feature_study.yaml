@@ -8,9 +8,9 @@ observation:
   # Omitted intentionally: derive the 2D observation rate from each campaign's
   # recorded output_sampling.fps_out_2d. Set explicitly only when unavailable.
   frame_rate_hz: null
-plot:
-  # Display-only reduction for high-frequency flagella-axis angular velocity.
-  # Raw CSV values remain at their original sampling source.
-  flagella_axis_time_bin_s: 0.02
+# Optional display-only reduction for high-frequency flagella-axis angular velocity.
+# Default is off. To enable, add:
+# plot:
+#   flagella_axis_time_bin_s: 0.02
 projection:
   basis: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]

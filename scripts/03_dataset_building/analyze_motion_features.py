@@ -16,9 +16,17 @@ from sim_swim.analysis.motion_feature_study import (
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Replace an existing output_dir after explicitly requesting it.",
+    )
     parser.add_argument("overrides", nargs="*")
     args = parser.parse_args(argv)
-    print(analyze_motion_feature_study(load_config(args.config, args.overrides)))
+    overrides = [*args.overrides]
+    if args.overwrite:
+        overrides.append("overwrite=true")
+    print(analyze_motion_feature_study(load_config(args.config, overrides)))
 
 
 if __name__ == "__main__":
