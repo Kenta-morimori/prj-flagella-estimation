@@ -20,9 +20,8 @@ if [[ "$glibc_line" != *"2.17"* ]]; then
   exit 2
 fi
 
-uv venv --python "$python_path" "$venv_path"
+uv venv --clear --python "$python_path" "$venv_path"
 uv pip install --python "$venv_path/bin/python" --only-binary :all: -r requirements/cs10.txt
-uv pip install --python "$venv_path/bin/python" --no-deps -e .
 uv pip check --python "$venv_path/bin/python"
 probe_dir="outputs/$(TZ=Asia/Tokyo date +%F)/$(TZ=Asia/Tokyo date +%H%M%S)/cs10_setup_probe"
 "$venv_path/bin/python" scripts/cs10/probe_runtime.py --output-dir "$probe_dir"
