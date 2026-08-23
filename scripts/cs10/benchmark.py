@@ -100,6 +100,21 @@ def _read_time_metrics(path: Path) -> tuple[int | None, int | None]:
     return (int(rss.group(1)) if rss else None, int(cpu.group(1)) if cpu else None)
 
 
+def workload_command(*, output_dir: Path, duration_s: float) -> list[str]:
+    """Build the fixed qualification workload command without launching it."""
+    return [
+        sys.executable,
+        "scripts/01_simulate_swimming/run_sweep.py",
+        "config=conf/phase2_sweeps/shape_stability_grid.yaml",
+        "sample_limit=1",
+        "attach_seed=0",
+        "phase_seed=0",
+        f"duration_s={duration_s}",
+        f"output_dir={output_dir / 'campaign'}",
+        "overwrite=true",
+    ]
+
+
 def _run_job(
     *,
     repository_root: Path,
@@ -108,20 +123,12 @@ def _run_job(
     repetition: int,
     job_index: int,
     thread_limited: bool,
+    duration_s: float,
 ) -> JobResult:
     output_dir.mkdir(parents=True, exist_ok=False)
     stdout_path = output_dir / "stdout.log"
     time_path = output_dir / "time.txt"
-    command = [
-        sys.executable,
-        "scripts/01_simulate_swimming/run_sweep.py",
-        "config=conf/phase2_sweeps/shape_stability_grid.yaml",
-        "sample_limit=1",
-        "attach_seed=0",
-        "phase_seed=0",
-        f"output_dir={output_dir / 'campaign'}",
-        "overwrite=true",
-    ]
+    command = workload_command(output_dir=output_dir, duration_s=duration_s)
     time_binary = shutil.which("/usr/bin/time") or shutil.which("time")
     if time_binary:
         command = [time_binary, "-v", "-o", str(time_path), *command]
@@ -187,6 +194,7 @@ def run_benchmark(args: argparse.Namespace) -> Path:
                             repetition=repetition,
                             job_index=index,
                             thread_limited=thread_limited,
+                            duration_s=args.duration_s,
                         )
                         for index in range(1, worker_count + 1)
                     ]
@@ -261,7 +269,7 @@ def run_benchmark(args: argparse.Namespace) -> Path:
             "config": "conf/phase2_sweeps/shape_stability_grid.yaml",
             "sample_limit": 1,
             "n_flagella": 3,
-            "duration_s": 0.5,
+            "duration_s": args.duration_s,
             "dt_star": 1.0e-4,
             "state_archive": True,
         },
@@ -292,9 +300,12 @@ def main(argv: list[str] | None = None) -> Path:
         "--worker-counts", type=_parse_worker_counts, default=DEFAULT_WORKERS
     )
     parser.add_argument("--repetitions", type=int, default=5)
+    parser.add_argument("--duration-s", type=float, default=0.05)
     args = parser.parse_args(argv)
     if args.repetitions < 1:
         parser.error("--repetitions must be positive")
+    if args.duration_s <= 0:
+        parser.error("--duration-s must be positive")
     root = run_benchmark(args)
     print(root)
     return root

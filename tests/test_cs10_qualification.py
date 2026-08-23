@@ -75,3 +75,12 @@ def test_worker_recommendation_rejects_failures() -> None:
     ]
 
     assert benchmark.recommend_worker_count(rows) == 4
+
+
+def test_workload_command_records_requested_duration(tmp_path: Path) -> None:
+    benchmark = _load_script("cs10_benchmark_duration", "scripts/cs10/benchmark.py")
+
+    command = benchmark.workload_command(output_dir=tmp_path / "job", duration_s=0.001)
+
+    assert "duration_s=0.001" in command
+    assert f"output_dir={tmp_path / 'job' / 'campaign'}" in command

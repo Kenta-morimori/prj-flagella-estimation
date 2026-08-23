@@ -31,9 +31,16 @@ setup は uv 管理の `$HOME/.local/bin/python3.11` を使い、source build �
 .venv-cs10/bin/python scripts/cs10/benchmark.py
 ```
 
-benchmark は `shape_stability_grid.yaml` の 1 条件を、`n_flagella=3`、`duration_s=0.5`、`dt_star=1e-4`、固定 seed、state archive 有効で実行する。workers `1,2,4,6,8,10` と、thread 数未設定 / `OMP_NUM_THREADS=OPENBLAS_NUM_THREADS=MKL_NUM_THREADS=1` を各 5 回比較する。
+最初に 10-step smoke を実行する。
 
-`summary.csv` と `manifest.json` を確認し、全 5 試行成功かつ最大 throughput の setting を候補とする。共有利用のため 2 physical core を留保し、通常 default は最大 8 workers とする。10 workers は上限確認の記録のみである。
+```bash
+.venv-cs10/bin/python scripts/cs10/benchmark.py \
+  --worker-counts 1 --repetitions 1 --duration-s 0.001
+```
+
+通常の短縮 benchmark は `shape_stability_grid.yaml` の 1 条件を、`n_flagella=3`、`duration_s=0.05`（500 steps）、`dt_star=1e-4`、固定 seed、state archive 有効で実行する。workers `1,2,4,6,8,10` と、thread 数未設定 / `OMP_NUM_THREADS=OPENBLAS_NUM_THREADS=MKL_NUM_THREADS=1` を各 5 回比較する。`--duration-s` で測定時間を明示的に変更できる。
+
+`summary.csv` と `manifest.json` を確認し、全 5 試行成功かつ最大 throughput の setting を候補とする。共有利用のため 2 physical core を留保し、通常 default は最大 8 workers とする。10 workers は上限確認の記録のみである。短縮 benchmark の結果は暫定 default とし、0.5秒以上の長時間 campaign を移す直前に同じ worker 数を再確認する。
 
 ## Scope and requalification
 
