@@ -12,12 +12,23 @@ cs10へCodexは接続しない。Userは次でtmuxを開始する。
 ssh -t Ktakemori@cs10 'cd ~/src/prj-flagella-estimation && tmux new -As issue203'
 ```
 
+cs10ではMac用`.venv`や`uv run`を使わない。Issue #208のwheel-only runtime
+`.venv-cs10`を準備し、以降のPython commandには必ず`.venv-cs10/bin/python`を使う。
+
+```bash
+export CS10_PYTHON="$(readlink -f .venv/bin/python)"
+export CS10_VENV="$PWD/.venv-cs10"
+unset C_INCLUDE_PATH LIBRARY_PATH
+bash scripts/cs10/setup_environment.sh
+.venv-cs10/bin/python -c 'import matplotlib, numpy, yaml; print("cs10 runtime OK")'
+```
+
 tmux内でJST run IDを決め、実行する。cs10 qualificationの短縮runは約8.6 steps/sだったため、50,001 steps × 27条件の逐次実行は概算44時間である。これは実測ではなく保守的な開始目安である。
 
 ```bash
 RUN_ID=$(TZ=Asia/Tokyo date +%Y-%m-%d/%H%M%S)
 RUN_DIR="outputs/${RUN_ID}/phase2_issue203_uniform"
-uv run python scripts/01_simulate_swimming/run_multi_run.py \
+.venv-cs10/bin/python scripts/01_simulate_swimming/run_multi_run.py \
   config=conf/phase2_multi_run/2010_project_uniform_torque_profile_2s_issue203.yaml \
   output.base_dir="$RUN_DIR" output.timestamp_subdir=false
 status=$?
@@ -55,7 +66,7 @@ for n in 01 02 03; do for a in 000 001 002; do for p in 000 001 002; do
   id="as${a}__ps${p}__nf${n}"; mkdir -p "$LOCAL/$id"
   scp Ktakemori@cs10:"$REMOTE/$id/run_summary.json" "$LOCAL/$id/"
 done; done; done
-uv run python scripts/03_dataset_building/analyze_issue203_torque_profiles.py \
+.venv-cs10/bin/python scripts/03_dataset_building/analyze_issue203_torque_profiles.py \
   --config conf/phase2_analysis/issue203_uniform_paired_comparison.yaml \
   --uniform-run-dir "$LOCAL" --output-dir "$LOCAL/analysis/paired_comparison" --overwrite
 ```
