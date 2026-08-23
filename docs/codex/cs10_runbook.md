@@ -63,7 +63,7 @@ cs10 実機では、251-step（`duration_s=0.001`）screen を workers `1,2,4,6,
   dry_run=true
 ```
 
-実行時は job ごとに `outputs/parallel/<job_name>__<uuid>/` が作られる。`job_manifest.json` の `status`、`failed_configs`、各 config の `exit_code` と `wall_time_s` を確認する。失敗時も他 config は回収されるため、該当 directory の `stderr.log` を確認する。
+実行時は job ごとに `outputs/YYYY-MM-DD/HHMMSS/parallel/<job_name>__<uuid>/` が作られる。`job_manifest.json` の `status`、`failed_configs`、各 config の `exit_code` と `wall_time_s` を確認する。失敗時も他 config は回収されるため、該当 directory の `stderr.log` を確認する。
 
 ```bash
 .venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \

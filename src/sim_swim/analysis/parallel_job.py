@@ -169,6 +169,8 @@ def resolve_execution(
         limit = requested
     else:
         raise ValueError("max_workers override must be a positive integer or 'auto'")
+    if job.worker_policy == "cs10_qualified":
+        limit = min(limit, 8)
     environment = (
         {key: "1" for key in THREAD_ENV_KEYS}
         if job.worker_policy == "cs10_qualified"
@@ -182,9 +184,16 @@ def resolve_execution(
 
 
 def job_output_root(job: ParallelJob, *, output_base_dir: Path | None = None) -> Path:
-    base = output_base_dir or REPO_ROOT / "outputs" / "parallel"
+    base = output_base_dir or REPO_ROOT / "outputs"
     safe_name = job.job_name.replace("/", "_")
-    return base / f"{safe_name}__{uuid4().hex[:12]}"
+    now = datetime.now(ZoneInfo("Asia/Tokyo"))
+    return (
+        base
+        / now.strftime("%Y-%m-%d")
+        / now.strftime("%H%M%S")
+        / "parallel"
+        / f"{safe_name}__{uuid4().hex[:12]}"
+    )
 
 
 def command_for_config(config: Path, output_dir: Path) -> list[str]:

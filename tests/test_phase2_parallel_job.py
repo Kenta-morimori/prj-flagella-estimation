@@ -120,6 +120,21 @@ def test_auto_worker_policies_and_thread_environment(
     assert resolve_execution(host_job, "auto").max_workers == 1
     assert resolve_execution(host_job, 2).thread_environment == {}
 
+    oversized_cs10_job = ParallelJob(
+        **{**job.__dict__, "configs": (SWEEP_A.resolve(),) * 9}
+    )
+    assert resolve_execution(oversized_cs10_job, 20).max_workers == 8
+
+
+def test_job_output_root_uses_jst_date_and_time_namespace(tmp_path: Path) -> None:
+    root = parallel_job.job_output_root(_job(), output_base_dir=tmp_path)
+
+    assert root.parent.parent.parent.parent == tmp_path
+    assert root.parent.parent.name.isdigit() and len(root.parent.parent.name) == 6
+    assert root.parent.parent.parent.name.count("-") == 2
+    assert root.parent.name == "parallel"
+    assert root.name.startswith("test_job__")
+
 
 def test_build_plan_uses_stage_a_output_base_dir(tmp_path: Path) -> None:
     plan = build_plan(_job(), resolve_execution(_job(), None), tmp_path / "root")

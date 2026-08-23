@@ -2,7 +2,7 @@
   "status": "PASS",
   "task": "Issue #209: Add config-level parallel job launcher and isolated outputs",
   "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/209",
-  "summary": "既存の Phase 2 sweep profile と run_sweep.py を再利用し、job YAML から bounded parallel subprocess を起動する launcher を追加した。job/config ごとの output と log を UUID namespace に隔離し、partial failure と起動失敗を job_manifest.json に記録する。Codex review 指摘に従い、job YAML の top-level と execution の未知 key も reject する。",
+  "summary": "既存の Phase 2 sweep profile と run_sweep.py を再利用し、job YAML から bounded parallel subprocess を起動する launcher を追加した。job/config ごとの output と log を JST date/time + UUID namespace に隔離し、partial failure と起動失敗を job_manifest.json に記録する。Codex review 指摘に従い、job YAML の未知 key を reject し、cs10-qualified policy は明示 worker 指定時も最大8 workersに制限する。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "cs10 実機での長時間 simulation はユーザー操作範囲のため未実行。0.5秒以上の campaign 前には runbook に従って再qualificationする。"
@@ -14,7 +14,7 @@
     },
     {
       "command": "uv run pytest -q tests/test_phase2_parallel_job.py tests/test_phase2_sweep_profiles.py tests/test_cs10_qualification.py",
-      "result": "PASS: 48 passed"
+      "result": "PASS: 49 passed"
     },
     {
       "command": "uv run python scripts/01_simulate_swimming/run_parallel.py config=conf/phase2_parallel/example_stage_a_validation/job.yaml dry_run=true",
