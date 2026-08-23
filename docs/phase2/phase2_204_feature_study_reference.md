@@ -34,4 +34,6 @@ raw artifactは約24 GBのためGit管理しない。`data/`は入力data用か�
 
 既存の固定出力を置換して再解析する場合は、意図を明示してCLIの`--overwrite`を付ける。未指定時は既存成果物を保護して停止する。
 
-2D body axisはcanonical body-only silhouetteから得るpixel-observable量である。一方、tracking-center前のprojected centroid速度、mean flagella axis、body--flagella relationはsimulation GT由来のprojected latent featureとしてmanifestへ明記する。投影面はYAMLの直交2基底で指定し、既定はXY面である。
+2D body axisはcanonical body-only silhouetteから得るpixel-observable量である。指定した投影basisはシルエットrenderにも適用するため、body axisとprojected latent featureは同じcamera座標系を使う。円形silhouetteなどbody axisが観測不能なframeでは、2D body-axis angular velocityとbody--flagella relationを`NaN`として扱う。一方、tracking-center前のprojected centroid速度とmean flagella axisはsimulation GT由来のprojected latent featureとしてmanifestへ明記する。投影面はYAMLの直交2基底で指定し、既定はXY面である。
+
+`overwrite`はbooleanのみを受け付け、raw runまたはcondition directoryと重なる`output_dir`は削除前に拒否する。解析manifestには入力configのpath/SHA-256、解析時Git commit、Python・依存package環境を記録する。明示した`observation.frame_rate_hz`は、manifestに一意に記録された`output_sampling.fps_out_2d`と一致しなければならない。

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 from pathlib import Path
 
 import numpy as np
@@ -12,6 +13,7 @@ from sim_swim.analysis.motion_feature_study import (
     MotionFeatureStudyConfig,
     _axis_velocity,
     _basis,
+    _observation_frame_rate,
     _plot_rows,
     _plot_series,
     _time_windows,
@@ -28,7 +30,13 @@ def _csv(path: Path, rows: list[dict[str, object]]) -> None:
         writer.writerows(rows)
 
 
-def _fixture(root: Path, *, broken_n4: bool = False) -> None:
+def _fixture(
+    root: Path,
+    *,
+    broken_n4: bool = False,
+    quaternion: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 1.0),
+    fps_out_2d: float | None = 2.0,
+) -> None:
     conditions = []
     for n in (1, 4):
         sample = f"as000__ps000__nf{n:02d}"
@@ -38,7 +46,7 @@ def _fixture(root: Path, *, broken_n4: bool = False) -> None:
             SimulationState(
                 t=index * 0.2,
                 position_um=(index * 0.2, 0.0, 0.0),
-                quaternion=(0.0, 0.0, 0.0, 1.0),
+                quaternion=quaternion,
                 velocity_um_s=(1.0, 0.0, 0.0),
                 omega_rad_s=(0.0, 0.0, 0.0),
                 bead_positions_um=np.asarray([[0.0, 0.0, 0.0]]),
@@ -77,7 +85,11 @@ def _fixture(root: Path, *, broken_n4: bool = False) -> None:
             {
                 "condition_id": sample,
                 "output_dir": str(raw),
-                "config_overrides": {"output_sampling": {"fps_out_2d": 2.0}},
+                "config_overrides": (
+                    {"output_sampling": {"fps_out_2d": fps_out_2d}}
+                    if fps_out_2d is not None
+                    else {}
+                ),
                 "axis_values": {"n_flagella": n, "attach_seed": 0, "phase_seed": 0},
             }
         )
@@ -115,6 +127,12 @@ def test_motion_feature_study_raw_campaign_writes_feature_contract(
         ]
         == "pixel_observable"
     )
+    provenance = json.loads((output_dir / "manifest.json").read_text())[
+        "analysis_provenance"
+    ]
+    assert provenance["analysis_git_commit"]
+    assert provenance["python_version"]
+    assert provenance["dependencies"]["numpy"]
     assert (output_dir / "time_series" / "3D_speed.png").is_file()
     assert (output_dir / "windows" / "2D_speed.png").is_file()
 
@@ -168,6 +186,30 @@ def test_motion_feature_study_rejects_ambiguous_frame_rate_config(
     path.write_text("plot:\n  flagella_axis_time_bin_s: 0\n", encoding="utf-8")
     with pytest.raises(ValueError, match="flagella_axis_time_bin_s must be > 0"):
         load_config(path)
+    path.write_text("overwrite: 'false'\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="overwrite must be a boolean"):
+        load_config(path)
+    with pytest.raises(ValueError, match="overwrite must be a boolean"):
+        load_config(None, ["overwrite=flase"])
+
+
+@pytest.mark.light
+def test_motion_feature_explicit_observation_rate_must_match_manifest(
+    tmp_path: Path,
+) -> None:
+    run_dir = tmp_path / "run"
+    _fixture(run_dir)
+    manifest = json.loads((run_dir / "run_manifest.json").read_text())
+    cfg = MotionFeatureStudyConfig(
+        run_dir=run_dir, output_dir=tmp_path / "analysis", observation_frame_rate_hz=5.0
+    )
+    with pytest.raises(ValueError, match="must match"):
+        _observation_frame_rate(manifest, cfg)
+    _fixture(tmp_path / "run_no_rate", fps_out_2d=None)
+    no_rate_manifest = json.loads(
+        (tmp_path / "run_no_rate" / "run_manifest.json").read_text()
+    )
+    assert _observation_frame_rate(cfg=cfg, manifest=no_rate_manifest) == 5.0
 
 
 @pytest.mark.light
@@ -227,6 +269,67 @@ def test_flagella_axis_plot_is_binned_without_changing_other_features() -> None:
 
 
 @pytest.mark.light
+def test_flagella_axis_plot_bin_tolerates_decimal_boundaries() -> None:
+    rows = [
+        {
+            "sample_id": "sample",
+            "n_flagella": 1,
+            "t_s": t,
+            "mean_flagella_axis_angular_velocity_rad_s": value,
+        }
+        for t, value in ((0.56, 1.0), (0.58, 3.0), (0.6, 5.0))
+    ]
+    reduced = _plot_rows(rows, "mean_flagella_axis_angular_velocity_rad_s", "t_s", 0.02)
+    assert [row["t_s"] for row in reduced] == pytest.approx([0.56, 0.58, 0.6])
+
+
+@pytest.mark.light
+def test_motion_feature_2d_axis_is_nan_when_silhouette_is_circular(
+    tmp_path: Path,
+) -> None:
+    run_dir, output_dir = tmp_path / "run", tmp_path / "analysis"
+    # Rotate the body long axis from world X onto world Z; it is circular in XY.
+    _fixture(
+        run_dir,
+        quaternion=(0.0, math.sqrt(0.5), 0.0, math.sqrt(0.5)),
+    )
+    analyze_motion_feature_study(
+        MotionFeatureStudyConfig(
+            run_dir=run_dir, output_dir=output_dir, durations_s=(1.0,)
+        )
+    )
+    rows = list(csv.DictReader((output_dir / "time_series_2d.csv").open()))
+    assert all(
+        math.isnan(float(row["body_axis_angular_velocity_rad_s"])) for row in rows
+    )
+    assert all(math.isnan(float(row["body_flagella_axis_angle_deg"])) for row in rows)
+
+
+@pytest.mark.light
+def test_motion_feature_camera_basis_controls_2d_silhouette(
+    tmp_path: Path,
+) -> None:
+    run_dir, output_dir = tmp_path / "run", tmp_path / "analysis"
+    # The world-Z body axis is circular in XY but observable in an XZ camera.
+    _fixture(
+        run_dir,
+        quaternion=(0.0, math.sqrt(0.5), 0.0, math.sqrt(0.5)),
+    )
+    analyze_motion_feature_study(
+        MotionFeatureStudyConfig(
+            run_dir=run_dir,
+            output_dir=output_dir,
+            durations_s=(1.0,),
+            projection_basis=((1.0, 0.0, 0.0), (0.0, 0.0, 1.0)),
+        )
+    )
+    rows = list(csv.DictReader((output_dir / "time_series_2d.csv").open()))
+    assert all(
+        math.isfinite(float(row["body_flagella_axis_angle_deg"])) for row in rows
+    )
+
+
+@pytest.mark.light
 def test_motion_feature_defaults_to_unbinned_plot_and_protects_existing_output(
     tmp_path: Path,
 ) -> None:
@@ -240,3 +343,20 @@ def test_motion_feature_defaults_to_unbinned_plot_and_protects_existing_output(
     analyze_motion_feature_study(
         MotionFeatureStudyConfig(run_dir=run_dir, output_dir=output_dir, overwrite=True)
     )
+
+
+@pytest.mark.light
+@pytest.mark.parametrize("target", ("run", "condition"))
+def test_motion_feature_overwrite_rejects_raw_source_overlap(
+    tmp_path: Path, target: str
+) -> None:
+    run_dir = tmp_path / "run"
+    _fixture(run_dir)
+    output_dir = run_dir if target == "run" else run_dir / "as000__ps000__nf01"
+    with pytest.raises(ValueError, match="output_dir must not"):
+        analyze_motion_feature_study(
+            MotionFeatureStudyConfig(
+                run_dir=run_dir, output_dir=output_dir, overwrite=True
+            )
+        )
+    assert (run_dir / "as000__ps000__nf01" / "state_archive.npz").is_file()

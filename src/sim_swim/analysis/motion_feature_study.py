@@ -5,10 +5,14 @@ from __future__ import annotations
 import csv
 from dataclasses import dataclass
 from datetime import datetime
+import hashlib
 import json
 import math
 from pathlib import Path
+import platform
 import shutil
+import subprocess
+import sys
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -121,8 +125,15 @@ def load_config(
             int(x) for x in study.get("allowed_n_flagella", [1, 2, 3, 4])
         ),
         projection_basis=tuple(tuple(float(v) for v in row) for row in basis),  # type: ignore[arg-type]
-        overwrite=bool(data.get("overwrite", False)),
+        overwrite=_strict_bool(data.get("overwrite", False), "overwrite"),
     )
+
+
+def _strict_bool(value: Any, key: str) -> bool:
+    """Accept YAML booleans only; never silently coerce a typo to True."""
+    if type(value) is not bool:
+        raise ValueError(f"{key} must be a boolean (true or false)")
+    return value
 
 
 def _basis(
@@ -141,6 +152,13 @@ def _basis(
         raise ValueError("projection basis vectors must be independent")
     basis[1] /= np.linalg.norm(basis[1])
     return basis
+
+
+def _camera_basis(basis: np.ndarray) -> np.ndarray:
+    """Return the world-to-camera rotation for the requested image-plane basis."""
+    normal = np.cross(basis[0], basis[1])
+    normal /= np.linalg.norm(normal)
+    return np.vstack((basis, normal))
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -184,10 +202,6 @@ def _time_windows(t: np.ndarray, duration_s: float) -> list[tuple[float, float, 
 def _observation_frame_rate(
     manifest: dict[str, Any], cfg: MotionFeatureStudyConfig
 ) -> float:
-    if cfg.observation_frame_rate_hz is not None:
-        if cfg.observation_frame_rate_hz <= 0:
-            raise ValueError("observation.frame_rate_hz must be > 0")
-        return cfg.observation_frame_rate_hz
     values = {
         float(rate)
         for condition in manifest.get("conditions", [])
@@ -198,6 +212,25 @@ def _observation_frame_rate(
         )
         is not None
     }
+    if len(values) > 1:
+        raise ValueError(
+            "run_manifest contains multiple output_sampling.fps_out_2d values; "
+            "an analysis requires one observation frame rate"
+        )
+    if cfg.observation_frame_rate_hz is not None:
+        if cfg.observation_frame_rate_hz <= 0:
+            raise ValueError("observation.frame_rate_hz must be > 0")
+        if values and not math.isclose(
+            cfg.observation_frame_rate_hz,
+            next(iter(values)),
+            rel_tol=1e-12,
+            abs_tol=1e-12,
+        ):
+            raise ValueError(
+                "observation.frame_rate_hz must match the run_manifest "
+                "output_sampling.fps_out_2d"
+            )
+        return cfg.observation_frame_rate_hz
     if len(values) != 1:
         raise ValueError(
             "Could not determine one output_sampling.fps_out_2d from run_manifest; "
@@ -264,12 +297,57 @@ def _axis_from_angles(angles: np.ndarray) -> np.ndarray:
     return np.column_stack((np.cos(angles), np.sin(angles)))
 
 
+def _quaternion_from_x_axis(axis: np.ndarray) -> tuple[float, float, float, float]:
+    """Return an xyzw quaternion rotating the body x-axis onto ``axis``."""
+    axis = np.asarray(axis, dtype=float)
+    norm = float(np.linalg.norm(axis))
+    if not np.isfinite(axis).all() or norm <= 1e-12:
+        return (0.0, 0.0, 0.0, 1.0)
+    target = axis / norm
+    dot = float(np.clip(target[0], -1.0, 1.0))
+    if dot <= -1.0 + 1e-12:
+        return (0.0, 1.0, 0.0, 0.0)
+    cross = np.cross(np.asarray([1.0, 0.0, 0.0]), target)
+    quaternion = np.r_[cross, 1.0 + dot]
+    quaternion /= np.linalg.norm(quaternion)
+    return tuple(float(value) for value in quaternion)
+
+
+def _camera_states(states: list[Any], basis: np.ndarray) -> list[Any]:
+    """Express states in a camera whose image axes are ``basis``.
+
+    The capsule renderer is intentionally XY-only.  Rotating the state first
+    makes its silhouette and every projected latent feature share one camera.
+    """
+    from sim_swim.sim.core import SimulationState
+
+    camera = _camera_basis(basis)
+    output: list[SimulationState] = []
+    for state in states:
+        body_axis = _body_axes(np.asarray([state.quaternion], dtype=float))[0]
+        output.append(
+            SimulationState(
+                t=float(state.t),
+                position_um=tuple(camera @ np.asarray(state.position_um, dtype=float)),
+                quaternion=_quaternion_from_x_axis(camera @ body_axis),
+                velocity_um_s=tuple(
+                    camera @ np.asarray(state.velocity_um_s, dtype=float)
+                ),
+                omega_rad_s=tuple(camera @ np.asarray(state.omega_rad_s, dtype=float)),
+                bead_positions_um=np.empty((0, 3)),
+            )
+        )
+    return output
+
+
 def _pixel_axis_velocity(
     states: list[Any], t: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
-    clip, _ = render_clip_array(states, image_size_px=96, pixel_size_um=0.1)
+    clip, geometries = render_clip_array(states, image_size_px=96, pixel_size_um=0.1)
     angles = body_axis_angles_rad(clip)
-    return _axis_from_angles(angles), _axis_velocity(_axis_from_angles(angles), t)
+    axis = _axis_from_angles(angles)
+    axis[[geometry.body_axis_angle_rad is None for geometry in geometries]] = np.nan
+    return axis, _axis_velocity(axis, t)
 
 
 def _flag_axes(axis_path: Path, times: np.ndarray, n_flagella: int) -> np.ndarray:
@@ -379,10 +457,17 @@ def _plot_rows(
     origin = min(float(row[time_key]) for row in rows)
     buckets: dict[tuple[str, int, int], list[float]] = {}
     for row in rows:
+        ratio = (float(row[time_key]) - origin) / bin_s
+        nearest = round(ratio)
+        bin_index = (
+            int(nearest)
+            if math.isclose(ratio, nearest, rel_tol=0.0, abs_tol=1e-9)
+            else int(math.floor(ratio))
+        )
         key = (
             str(row["sample_id"]),
             int(row["n_flagella"]),
-            int(math.floor((float(row[time_key]) - origin) / bin_s)),
+            bin_index,
         )
         buckets.setdefault(key, []).append(float(row[feature]))
     return [
@@ -469,6 +554,66 @@ def _plot_series(
     return paths
 
 
+def _is_within(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+    except ValueError:
+        return False
+    return True
+
+
+def _validate_output_dir(
+    output_dir: Path, run_dir: Path, manifest: dict[str, Any]
+) -> None:
+    """Reject overwrite targets that could erase raw source artifacts."""
+    output = output_dir.resolve()
+    run = run_dir.resolve()
+    # An analysis child such as ``run/analysis/motion_features`` is valid, but
+    # the run root itself and its ancestors would delete the source archive.
+    if _is_within(run, output):
+        raise ValueError(
+            "output_dir must not equal or contain the raw run directory: "
+            f"output_dir={output}, run_dir={run}"
+        )
+    for condition in manifest.get("conditions", []):
+        raw = _condition_dir(run_dir, condition).resolve()
+        if _is_within(raw, output) or _is_within(output, raw):
+            raise ValueError(
+                "output_dir must not overlap a raw condition directory: "
+                f"output_dir={output}, condition_dir={raw}"
+            )
+
+
+def _analysis_provenance(config_path: Path | None) -> dict[str, Any]:
+    config = config_path.resolve() if config_path is not None else None
+    config_sha256 = (
+        hashlib.sha256(config.read_bytes()).hexdigest()
+        if config is not None and config.is_file()
+        else None
+    )
+    try:
+        git_commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        git_commit = None
+    return {
+        "config_path": str(config) if config is not None else None,
+        "config_sha256": config_sha256,
+        "analysis_git_commit": git_commit,
+        "python_version": sys.version,
+        "platform": platform.platform(),
+        "dependencies": {
+            "matplotlib": matplotlib.__version__,
+            "numpy": np.__version__,
+            "pyyaml": yaml.__version__,
+        },
+    }
+
+
 def _plot_windows(
     rows: list[dict[str, Any]], output_dir: Path, domain: str
 ) -> list[str]:
@@ -528,6 +673,7 @@ def analyze_motion_feature_study(cfg: MotionFeatureStudyConfig) -> Path:
     basis = _basis(cfg.projection_basis)
     manifest = _read_json(cfg.run_dir / "run_manifest.json")
     observation_frame_rate_hz = _observation_frame_rate(manifest, cfg)
+    _validate_output_dir(cfg.output_dir, cfg.run_dir, manifest)
     if cfg.output_dir.exists():
         if not cfg.overwrite:
             raise FileExistsError(
@@ -584,7 +730,7 @@ def analyze_motion_feature_study(cfg: MotionFeatureStudyConfig) -> Path:
         ]
         body3d = _body_axes(quaternions3d)
         flag3d = _flag_axes(required[2], t3d, n)
-        body2d, body2d_omega = _pixel_axis_velocity(states, t2d)
+        body2d, body2d_omega = _pixel_axis_velocity(_camera_states(states, basis), t2d)
         flag2d = _project(flag3d[observation_indices], basis)
         centroid2d = positions2d @ basis.T
         speed3d = np.r_[
@@ -756,6 +902,7 @@ def analyze_motion_feature_study(cfg: MotionFeatureStudyConfig) -> Path:
             "raw_csv_is_unbinned": True,
         },
         "projection_basis": basis.tolist(),
+        "analysis_provenance": _analysis_provenance(cfg.config_path),
         "n_flagella": list(cfg.allowed_n_flagella),
         "independent_unit": "condition/run",
         "observability": {
