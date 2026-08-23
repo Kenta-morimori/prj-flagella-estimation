@@ -6,76 +6,40 @@
 
 ## cs10 execution
 
-cs10へCodexは接続しない。Userは次でtmuxを開始する。
-
-```bash
-ssh -t Ktakemori@cs10 'cd ~/src/prj-flagella-estimation && tmux new -As issue203'
-```
-
-cs10ではMac用`.venv`や`uv run`を使わない。Issue #208のwheel-only runtime
-`.venv-cs10`を準備し、以降のPython commandには必ず`.venv-cs10/bin/python`を使う。
-
-```bash
-export CS10_PYTHON="$(readlink -f .venv/bin/python)"
-export CS10_VENV="$PWD/.venv-cs10"
-unset C_INCLUDE_PATH LIBRARY_PATH
-bash scripts/cs10/setup_environment.sh
-.venv-cs10/bin/python -c 'import matplotlib, numpy, yaml; print("cs10 runtime OK")'
-```
+恒常的なruntime、Git更新、tmux、helperの操作は
+[`docs/codex/cs10_runbook.md`](../codex/cs10_runbook.md)を正本とする。cs10では
+`.venv-cs10/bin/python`を使い、`uv run`、直列の`run_multi_run.py`直接起動、手書きの
+marker scriptを使わない。
 
 このcampaignは #207 の independent-condition launcher を使う。27条件を最大8 worker
-（8 + 8 + 8 + 3）で実行し、各子 process の BLAS thread は1に固定する。直列の
-`run_multi_run.py` を直接起動してはならない。途中停止した
+（8 + 8 + 8 + 3）、各 child process の BLAS thread=1で実行する。途中停止した
 `outputs/2026-08-23/213359/phase2_issue203_uniform` は canonical comparison に使わない。
 
-まず本番と同じ27 shardで `0.001 s` の parallel qualification を実施する。
+まず本番と同じ27 shardで `0.001 s` qualification を実行する。
 
 ```bash
-.venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \
-  config=conf/phase2_parallel/issue203_uniform_torque_profile/qualification_job.yaml \
-  dry_run=true
-
-RUN_ID=$(TZ=Asia/Tokyo date +%Y-%m-%d/%H%M%S)
-MARKER_DIR="outputs/${RUN_ID}/phase2_issue203_uniform_parallel_qualification"
-mkdir -p "$MARKER_DIR"
-JOB_ROOT=$(.venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \
-  config=conf/phase2_parallel/issue203_uniform_torque_profile/qualification_job.yaml)
-status=$?
-printf '{"exit_code": %s, "job_root": "%s"}\n' "$status" "$JOB_ROOT" \
-  > "$MARKER_DIR/user_exit_marker.json"
-printf '%s\n' "$JOB_ROOT" > "$MARKER_DIR/job_root.txt"
-exit "$status"
+.venv-cs10/bin/python scripts/cs10/parallel_tmux.py start \
+  --config conf/phase2_parallel/issue203_uniform_torque_profile/qualification_job.yaml \
+  --session issue203-qualification --label issue203_uniform_qualification
 ```
 
-qualification が PASS（`job_manifest.json.status=succeeded`、`failed_configs=[]`、
-`campaign/campaign_completion.json.status=completed`、27 summaries）なら、同様に本番を起動する。
-本番の実時間は条件依存である。直列の約44時間という旧見積りは適用しない。8 worker の理想下限は
-約5.5時間で、I/O・condition差を含めた保守的な予約枠は **8--12時間** とする。
+出力された`control_dir`で状態を確認する。PASS条件は job `succeeded`、`failed_configs=[]`、
+aggregate `completed`、campaign `run_summary_count=27`である。
 
 ```bash
-RUN_ID=$(TZ=Asia/Tokyo date +%Y-%m-%d/%H%M%S)
-MARKER_DIR="outputs/${RUN_ID}/phase2_issue203_uniform_parallel"
-mkdir -p "$MARKER_DIR"
-JOB_ROOT=$(.venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \
-  config=conf/phase2_parallel/issue203_uniform_torque_profile/job.yaml)
-status=$?
-printf '{"exit_code": %s, "job_root": "%s"}\n' "$status" "$JOB_ROOT" \
-  > "$MARKER_DIR/user_exit_marker.json"
-printf '%s\n' "$JOB_ROOT" > "$MARKER_DIR/job_root.txt"
-exit "$status"
+.venv-cs10/bin/python scripts/cs10/parallel_tmux.py status \
+  --control-dir outputs/YYYY-MM-DD/HHMMSS/cs10_parallel/issue203_uniform_qualification
 ```
 
-完了確認（Macから）は stdout ではなく marker、parallel job、canonical campaign を確認する。
+qualification後に本番を起動する。本番の所要時間は同じworker policyの実測から再見積もる。
 
 ```bash
-ssh Ktakemori@cs10 'cd ~/src/prj-flagella-estimation && \
-  cat outputs/YYYY-MM-DD/HHMMSS/phase2_issue203_uniform_parallel/user_exit_marker.json && \
-  JOB_ROOT=$(cat outputs/YYYY-MM-DD/HHMMSS/phase2_issue203_uniform_parallel/job_root.txt) && \
-  jq '{status,failed_configs,aggregation}' "$JOB_ROOT/job_manifest.json" && \
-  cat "$JOB_ROOT/campaign/campaign_completion.json" && \
-  test -f "$JOB_ROOT/campaign/summary.csv" && \
-  find -L "$JOB_ROOT/campaign/conditions" -name run_summary.json | wc -l'
+.venv-cs10/bin/python scripts/cs10/parallel_tmux.py start \
+  --config conf/phase2_parallel/issue203_uniform_torque_profile/job.yaml \
+  --session issue203 --label issue203_uniform
 ```
+
+`status`の marker、job、campaign がすべて成功であることを確認してから転送・paired解析へ進む。
 
 ## Transfer and Mac analysis
 
@@ -85,7 +49,8 @@ ssh Ktakemori@cs10 'cd ~/src/prj-flagella-estimation && \
 
 ```bash
 mkdir -p outputs/YYYY-MM-DD/HHMMSS
-REMOTE_JOB=~/src/prj-flagella-estimation/outputs/YYYY-MM-DD/HHMMSS/parallel/issue203_uniform_torque_profile__UUID
+# `parallel_tmux.py status` の launch.output_root をここへ設定する。
+REMOTE_JOB=~/src/prj-flagella-estimation/outputs/YYYY-MM-DD/HHMMSS/parallel/issue203_uniform__UUID
 REMOTE="$REMOTE_JOB/campaign"
 LOCAL=outputs/YYYY-MM-DD/HHMMSS/phase2_issue203_uniform
 mkdir -p "$LOCAL"

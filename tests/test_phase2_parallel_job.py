@@ -356,6 +356,33 @@ def test_partial_failure_keeps_other_config_records(tmp_path: Path) -> None:
     assert (Path(manifest["configs"][1]["stderr_log"])).is_file()
 
 
+def test_requested_output_root_is_used_without_timestamp_generation(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "fixed_parallel_root"
+
+    manifest = run_parallel_job(
+        _job(),
+        resolve_execution(_job(), 2),
+        output_root=root,
+        popen=lambda *args, **kwargs: _FakeProcess(0),
+        poll_interval_s=0,
+    )
+
+    assert Path(manifest["output_root"]) == root
+    assert (root / "job_manifest.json").is_file()
+
+
+def test_requested_output_root_rejects_output_base_dir(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="output_base_dir or output_root"):
+        run_parallel_job(
+            _job(),
+            resolve_execution(_job(), 1),
+            output_base_dir=tmp_path,
+            output_root=tmp_path / "fixed",
+        )
+
+
 def test_failed_process_start_is_recorded_and_next_config_runs(tmp_path: Path) -> None:
     outcomes = iter([OSError("unavailable"), _FakeProcess(0)])
 

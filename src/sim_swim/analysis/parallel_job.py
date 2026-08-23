@@ -546,12 +546,19 @@ def run_parallel_job(
     execution: ResolvedExecution,
     *,
     output_base_dir: Path | None = None,
+    output_root: Path | None = None,
     popen: Callable[..., Any] = subprocess.Popen,
     poll_interval_s: float = 0.02,
 ) -> dict[str, Any]:
     """Run independent profiles, retaining completed results after failures."""
 
-    root = job_output_root(job, output_base_dir=output_base_dir)
+    if output_base_dir is not None and output_root is not None:
+        raise ValueError("use output_base_dir or output_root, not both")
+    root = (
+        output_root.resolve()
+        if output_root is not None
+        else job_output_root(job, output_base_dir=output_base_dir)
+    )
     root.mkdir(parents=True, exist_ok=False)
     manifest = build_plan(job, execution, root)
     manifest["status"] = "running"

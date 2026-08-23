@@ -72,6 +72,46 @@ cs10 実機では、251-step（`duration_s=0.001`）screen を workers `1,2,4,6,
 
 所要時間は選択する profile の条件数・積分時間に依存する。`duration_s=0.5` 以上の長時間 campaign を開始する前には、同じ worker policy で representative workload を再qualificationする。
 
+## 長時間 parallel job の標準運用
+
+`duration_s >= 0.5`、または複数の独立conditionを実行する場合は、まず
+`conf/phase2_parallel/<job>/job.yaml` の利用を検討する。serial実行は、condition間に
+依存がある場合など、Issue runbookに明示した理由がある場合だけ許可する。cs10では
+`execution.worker_policy: cs10_qualified`（最大8 worker、BLAS thread各1）を使う。
+
+Git更新はGitHub SSH agentを持つ**対話**sessionで完了させる。非対話SSHではagentや
+`$HOME/.local/bin`が継承されないことがあるため、`git pull`、tmux起動、長時間jobの
+開始を一つのSSH one-linerへ混在させない。`tmux`はまず`command -v tmux`、次に
+`$HOME/.local/bin/tmux`を確認する。user-local tmuxをビルドする必要がある場合は、
+アクセス不能なinclude/lib pathを持つ`C_INCLUDE_PATH`と`LIBRARY_PATH`をunsetしてから行う。
+
+起動・marker・statusは`parallel_tmux.py`を唯一の入口にする。helperはclean worktree、
+`.venv-cs10`のruntime import、tmux、`cs10_qualified` policyを検査し、実行前に確定した
+output rootとcontrol directoryを記録する。手書きの`RUN_ID`、`JOB_ROOT=$(...)`、`exit`を
+含むtmux commandは使わない。
+
+```bash
+.venv-cs10/bin/python scripts/cs10/parallel_tmux.py start \
+  --config conf/phase2_parallel/<job>/job.yaml \
+  --session <unique-session> --label <job-label>
+
+.venv-cs10/bin/python scripts/cs10/parallel_tmux.py status \
+  --control-dir outputs/YYYY-MM-DD/HHMMSS/cs10_parallel/<job-label>
+
+.venv-cs10/bin/python scripts/cs10/parallel_tmux.py attach \
+  --session <unique-session>
+```
+
+`status`で job `succeeded`、`failed_configs=[]`、aggregate `completed`、campaignの
+`run_summary_count`が期待condition数と一致することを確認する。canonical `conditions/`は
+child artifactへのsymlinkであるため、通常の`find`の件数を合否判定に使わない。helperは
+Pythonの`Path.is_file()`でsymlinkを辿って数える。`grep "status"`もGit provenanceなどを
+混在させるため、合否判定に使わない。
+
+Codexは既定でcs10へ接続・操作しない。接続、tmux起動、long job開始・停止を行うのは、
+その操作についてUserが明示許可した場合だけとする。User実行のjobは、command、想定出力、
+確認点、最小転送artifactをIssue runbookに記録する。
+
 ## Scope and requalification
 
 RTX 3090 は hardware record のみであり、CUDA、PyTorch、GPU benchmark はこの scope に含まれない。OS/glibc、CPython、cs10 requirements、主要 simulation 実装、hardware が変わった場合は setup、probe、benchmark を再実行する。

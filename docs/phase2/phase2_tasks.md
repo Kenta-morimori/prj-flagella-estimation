@@ -258,6 +258,16 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Decision:** body scale `2.0`を候補から除外し、2010 project defaultを変更しない。#199のτ固定／連動screenと#200の`dt_star`収束・複数seed評価が完了するまで、body scale `1.25`、torque、`dt_star`、τ policyを採用しない。
 - **Evidence:** Issue #193，PR #194，`docs/phase2/phase2_193_2010_fixed_real_time_performance_contract.md`，Issues #199・#200．
 
+### P2-D23: cs10長時間campaignはqualified parallel jobとcontrol artifactで運用する
+
+- **Status:** diagnostic
+- **Background:** Issue #203のcs10実行準備では、serial launcherの選択、tmuxの非標準PATH、Mac用runtimeのsource build、non-interactive SSHのGitHub agent不在、symlinkを辿らない完了件数確認が運用遅延・誤判定リスクになった。
+- **Change:** `cs10_qualified` parallel jobを長時間・独立conditionの標準候補とし、tmux起動、確定output root、exit marker、JSON statusを`parallel_tmux.py`へ統合する。
+- **Result:** Issue #203の0.001 s qualificationは27 shardすべて成功し、8 workerのgeneric aggregateがcanonical campaignを生成した。本番2.0 s campaignは実行中であり、profile比較結果は未確定である。
+- **Interpretation:** worker数・runtime・aggregateの合否は人手のshell文字列や`grep`/`find`の副作用ではなく、job manifestとcontrol artifactから判定する必要がある。
+- **Decision:** cs10の長時間・複数conditionではparallel jobを先に検討し、serialを選ぶ場合はIssue runbookに理由を明記する。Codexのcs10操作はUserの操作単位の明示許可がある場合だけとする。これは実行運用の決定であり、physical model、dataset、`dt_star`、profile採否を変更しない。
+- **Evidence:** Issues #203・#207・#208・#209，PR #214，`docs/codex/cs10_runbook.md`，`scripts/cs10/parallel_tmux.py`，`tests/test_cs10_parallel_tmux.py`．
+
 ### P2-D19: 大量step runはcompact output policyを明示選択する
 
 - **Decision:** 既存短時間 workflow は `output.policy: debug` の全step state/CSV 互換を維持する。長時間候補は `compact` を明示し、全内部step QC をオンライン集約しながら state archive を物理時間一様に保存する。標準 cadence は 1 ms とする。compact archive は replay/通常解析用であり、未定義の全step将来指標の完全再構成を保証しない。

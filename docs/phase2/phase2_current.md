@@ -21,33 +21,19 @@
 
 ## Active work
 
-### Issue #168 / PR #176: 2015 refined model Stage A
+### Issue #203 / PR #214: uniform torque profile paired campaign
 
-2015 project / paper profileのStage A検証（motor-off `0.1 tau`、motor-on `1 tau`）と、project後方束化の
-torque × `dt_star` replay gridを完了した。これは短時間の形状・遊泳安定性の確認であり、supported採択ではない．
+2010 projectの`root_torque_segment_couples + uniform`を、同一seedの既存`diffusive`と
+paired comparisonする27-condition campaignがcs10で実行中である。これはprofile候補の
+evidence収集であり、2010 default、dataset v2、`dt_star=1e-3`の数値妥当性を変更しない。
 
-完了済み:
-
-- refined 120-bead geometry
-- project / paper motor dynamics
-- Stage A runner・診断出力・判定閾値
-- motor-off pilot
-- `dt_star=1e-4` / `1e-5` reference比較（共通defaultは`1e-5`を維持）
-- canonical motor-on `1 tau`とreplay
-- project後方束化のtorque scale `0.5, 1, 2` × `dt_star=1e-5, 1e-4` の6-cell replay gridとユーザー目視
-
-未完:
-
-- `dt_star`の定量的な有効性・妥当性の説明（Issue #61）
-- reference torqueの物理解釈と同一実時間比較のpolicy（Issue #183）
-- dataset v2採択向けのtorque・`dt_star`・べん毛数の形状／遊泳安定性評価（Issue #184）
-- 2015 profileのsupported採否
-
-参照: Issue #168，PR #176，`phase2_168_2015_stage_a_validation.md`，Decision P2-D18．
+次はcanonical aggregateのcompact artifactを転送し、paired解析・composite replayを行い、
+User承認後に候補判断だけを#200へ渡す。実行運用は`cs10_runbook.md`、比較・転送契約は
+`phase2_203_uniform_torque_profile_runbook.md`を参照する。
 
 ## Next queue
 
-1. **Issue #61 / #199:** 2010 torque連動time-scaleの`1 tau` campaignは、比較archiveの時刻ずれとmotor反作用不整合を修正して再実行待ち。修正前の2026-08-13出力は採択・比較に使わない。#193はexperiment-onlyの固定実時間performance/body診断を記録したが、torque・`dt_star`・datasetの採択根拠ではない。#199は固定実時間`0.05 s`でτ固定／連動を並べる12条件screenであり、契約は`phase2_199_tau_policy_torque_dt_campaign_contract.md`を正本とする。採用候補の`dt_star`収束性は子Issue #200で評価する。
+1. **Issue #200:** #203のprofile比較結果を受け取るが、`dt_star`収束性の判断責務は#200に残す。
 2. **Issue #183:** fixed / tracking reference と同一実時間 / 無次元時間を分離した比較policyを ADR 0016 に固定し、2010先行screenとhook-only diagnosticを比較契約・結果記録へ残した。torque・`dt_star`・dataset v2 の採択は #61・#184 の結果後とする（`phase2_183_reference_torque_comparison_contract.md`）。
 3. **Issue #184:** dataset v2採択前に、torque・`dt_star`・べん毛数の安定性と計算効率を検証する．
 

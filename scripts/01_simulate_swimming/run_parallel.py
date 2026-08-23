@@ -40,6 +40,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=None)
     parser.add_argument("--max-workers", type=_parse_workers, default=None)
+    parser.add_argument("--output-root", type=Path, default=None)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(key_value_args_to_cli_args(parser_argv))
     if config_from_key is not None and args.config is not None:
@@ -48,16 +49,17 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("config=PATH or --config PATH is required")
     job = load_parallel_job(config)
     execution = resolve_execution(job, args.max_workers)
+    planned_root = args.output_root or job_output_root(job)
     if args.dry_run:
         print(
             json.dumps(
-                build_plan(job, execution, job_output_root(job)),
+                build_plan(job, execution, planned_root),
                 ensure_ascii=False,
                 indent=2,
             )
         )
         return 0
-    manifest = run_parallel_job(job, execution)
+    manifest = run_parallel_job(job, execution, output_root=args.output_root)
     print(manifest["output_root"])
     return 0 if manifest["status"] == "succeeded" else 1
 

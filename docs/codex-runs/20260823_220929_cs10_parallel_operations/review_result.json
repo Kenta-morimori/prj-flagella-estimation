@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "task": "cs10 parallel campaign operational hardening after Issue #203 launch",
+  "summary": "長時間・独立conditionのcs10 jobをqualified parallel launcherとtmux control artifactで運用するhelperを追加し、中央runbookへ運用正本を統合した。",
+  "checks": [
+    {
+      "command": ".venv/bin/pytest tests/test_phase2_parallel_job.py tests/test_cs10_parallel_tmux.py tests/test_cs10_qualification.py -q",
+      "result": "PASS (32 passed)"
+    },
+    {
+      "command": "ruff check scripts/cs10/parallel_tmux.py scripts/01_simulate_swimming/run_parallel.py src/sim_swim/analysis/parallel_job.py tests/test_phase2_parallel_job.py tests/test_cs10_parallel_tmux.py",
+      "result": "PASS"
+    },
+    {
+      "command": ".venv/bin/python scripts/01_simulate_swimming/run_parallel.py config=conf/phase2_parallel/issue203_uniform_torque_profile/job.yaml --output-root /tmp/issue203_parallel_fixed_root --dry-run",
+      "result": "PASS (fixed output root, 27 shards, max_workers=8)"
+    }
+  ],
+  "documentation": {
+    "updated_current": "docs/phase2/phase2_current.md",
+    "updated_tasks": "docs/phase2/phase2_tasks.md (P2-D23 diagnostic)",
+    "live_documents_retained": [
+      "docs/codex/cs10_runbook.md",
+      "docs/phase2/phase2_203_uniform_torque_profile_runbook.md"
+    ],
+    "deleted_documents": [],
+    "semantic_change": "None: physical model, dataset policy, dt_star policy, and profile adoption remain unchanged."
+  },
+  "remaining": "The active Issue #203 2.0 s campaign, artifact transfer, paired analysis, and profile decision remain pending."
+}
