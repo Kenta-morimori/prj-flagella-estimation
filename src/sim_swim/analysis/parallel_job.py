@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 import hashlib
 import json
@@ -27,6 +27,7 @@ THREAD_ENV_KEYS = ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")
 WORKER_POLICIES = {"host_cpu", "cs10_qualified"}
 JOB_KEYS = {"schema_version", "job_id", "configs", "execution"}
 EXECUTION_KEYS = {"max_workers", "worker_policy"}
+CONFIG_ENTRY_KEYS = {"path", "overrides"}
 SUPPORTED_KINDS = {
     "bundling_alignment",
     "hook_overstretch",
@@ -46,6 +47,7 @@ class ParallelJob:
     configs: tuple[Path, ...]
     max_workers: int | Literal["auto"]
     worker_policy: str
+    config_overrides: dict[Path, tuple[str, ...]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -98,6 +100,41 @@ def _validate_config_path(value: Any) -> Path:
     return path
 
 
+def _validate_config_overrides(value: Any) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if not isinstance(value, list):
+        raise ValueError("config overrides must be a list")
+    overrides: list[str] = []
+    keys: set[str] = set()
+    for item in value:
+        if not isinstance(item, str) or not item.strip():
+            raise ValueError("config overrides must contain non-empty strings")
+        key, separator, raw_value = item.partition("=")
+        if not separator or not key or not raw_value or key.strip() != key:
+            raise ValueError("config overrides must use KEY=VALUE")
+        normalized_key = key.replace("-", "_")
+        if normalized_key in {"output_dir", "output_base_dir"}:
+            raise ValueError(
+                "config overrides must not set launcher-managed output paths"
+            )
+        if normalized_key in keys:
+            raise ValueError(f"config overrides must not repeat key: {key}")
+        keys.add(normalized_key)
+        overrides.append(item)
+    return tuple(overrides)
+
+
+def _validate_config_entry(value: Any) -> tuple[Path, tuple[str, ...]]:
+    if isinstance(value, str):
+        return _validate_config_path(value), ()
+    data = _require_mapping(value, name="config entry")
+    _reject_unknown_keys(data, allowed=CONFIG_ENTRY_KEYS, name="config entry")
+    return _validate_config_path(data.get("path")), _validate_config_overrides(
+        data.get("overrides")
+    )
+
+
 def load_parallel_job(path: Path) -> ParallelJob:
     """Load and validate one ``conf/phase2_parallel/<name>/job.yaml`` file."""
 
@@ -125,7 +162,8 @@ def load_parallel_job(path: Path) -> ParallelJob:
     raw_configs = data.get("configs")
     if not isinstance(raw_configs, list) or not raw_configs:
         raise ValueError("configs must be a non-empty list")
-    configs = tuple(_validate_config_path(value) for value in raw_configs)
+    config_entries = tuple(_validate_config_entry(value) for value in raw_configs)
+    configs = tuple(entry[0] for entry in config_entries)
     if len(set(configs)) != len(configs):
         raise ValueError("configs must not contain duplicates")
 
@@ -152,6 +190,7 @@ def load_parallel_job(path: Path) -> ParallelJob:
         configs=configs,
         max_workers=max_workers,
         worker_policy=worker_policy,
+        config_overrides={config: overrides for config, overrides in config_entries},
     )
 
 
@@ -196,7 +235,9 @@ def job_output_root(job: ParallelJob, *, output_base_dir: Path | None = None) ->
     )
 
 
-def command_for_config(config: Path, output_dir: Path) -> list[str]:
+def command_for_config(
+    config: Path, output_dir: Path, overrides: tuple[str, ...] = ()
+) -> list[str]:
     entry = load_profile_entry(config)
     output_key = "output_base_dir" if entry["kind"] == "stage_a_2015" else "output_dir"
     return [
@@ -204,6 +245,7 @@ def command_for_config(config: Path, output_dir: Path) -> list[str]:
         "scripts/01_simulate_swimming/run_sweep.py",
         f"config={_relative_to_repo(config)}",
         f"{output_key}={output_dir.resolve()}",
+        *overrides,
     ]
 
 
@@ -220,7 +262,10 @@ def build_plan(
                 "config": _relative_to_repo(config),
                 "config_sha256": _sha256(config),
                 "kind": load_profile_entry(config)["kind"],
-                "command": command_for_config(config, run_dir),
+                "overrides": list(job.config_overrides.get(config, ())),
+                "command": command_for_config(
+                    config, run_dir, job.config_overrides.get(config, ())
+                ),
                 "output_dir": str(run_dir),
                 "stdout_log": str(config_root / "stdout.log"),
                 "stderr_log": str(config_root / "stderr.log"),

@@ -19,9 +19,11 @@ from sim_swim.analysis.parallel_job import (
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE = ROOT / "conf/phase2_parallel/example_stage_a_validation/job.yaml"
+ISSUE210_2010 = ROOT / "conf/phase2_parallel/issue210_2010_project/job.yaml"
 SWEEP_A = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_off.yaml"
 SWEEP_B = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_on.yaml"
 SHAPE_SWEEP = ROOT / "conf/phase2_sweeps/shape_stability_grid.yaml"
+TORQUE_DISTRIBUTION_SWEEP = ROOT / "conf/phase2_sweeps/torque_distribution_grid.yaml"
 
 
 def _job() -> ParallelJob:
@@ -52,6 +54,64 @@ def test_load_example_job_reuses_existing_sweep_profiles() -> None:
     assert job.job_name == "example_stage_a_validation"
     assert job.configs == (SWEEP_A.resolve(), SWEEP_B.resolve())
     assert job.max_workers == "auto"
+
+
+def test_issue210_job_uses_existing_2010_project_profiles() -> None:
+    job = load_parallel_job(ISSUE210_2010)
+
+    assert [config.name for config in job.configs] == [
+        "shape_stability_grid.yaml",
+        "torque_distribution_grid.yaml",
+    ]
+    assert job.worker_policy == "cs10_qualified"
+    assert job.config_overrides == {
+        SHAPE_SWEEP.resolve(): (
+            "sample_limit=1",
+            "attach_seed=0",
+            "phase_seed=0",
+            "duration_s=0.001",
+        ),
+        TORQUE_DISTRIBUTION_SWEEP.resolve(): (
+            "sample_limit=1",
+            "torque_nm=2.5e-20",
+            "duration_s=0.001",
+        ),
+    }
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ("      - duration_s\n", "config overrides must use KEY=VALUE"),
+        ("      - output_dir=bad\n", "must not set launcher-managed output paths"),
+        ("      - output-dir=bad\n", "must not set launcher-managed output paths"),
+        ("      - output-base-dir=bad\n", "must not set launcher-managed output paths"),
+        ("      - duration_s=0.001\n      - duration_s=0.002\n", "must not repeat key"),
+        ("      - duration_s=0.001\n      - duration-s=0.002\n", "must not repeat key"),
+    ],
+)
+def test_job_rejects_invalid_config_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, overrides: str, message: str
+) -> None:
+    sweep_dir = tmp_path / "conf/phase2_sweeps"
+    sweep_dir.mkdir(parents=True)
+    (sweep_dir / "sweep.yaml").write_text(
+        "kind: shape_stability_grid\nmetadata:\n  role: sweep\nargs: {}\n",
+        encoding="utf-8",
+    )
+    job_path = tmp_path / "conf/phase2_parallel/test/job.yaml"
+    job_path.parent.mkdir(parents=True)
+    job_path.write_text(
+        "schema_version: 1\njob_id: test\nconfigs:\n"
+        "  - path: conf/phase2_sweeps/sweep.yaml\n    overrides:\n"
+        f"{overrides}execution:\n  max_workers: 1\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(parallel_job, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(parallel_job, "SWEEP_DIRECTORY", sweep_dir)
+
+    with pytest.raises(ValueError, match=message):
+        load_parallel_job(job_path)
 
 
 @pytest.mark.parametrize(
@@ -161,6 +221,26 @@ def test_build_plan_uses_output_dir_for_non_stage_sweep(tmp_path: Path) -> None:
 
     assert any(item.startswith("output_dir=") for item in command)
     assert not any(item.startswith("output_base_dir=") for item in command)
+
+
+def test_build_plan_records_config_overrides(tmp_path: Path) -> None:
+    job = ParallelJob(
+        schema_version=1,
+        job_id="shape",
+        job_name="shape",
+        config_path=EXAMPLE.resolve(),
+        configs=(SHAPE_SWEEP.resolve(),),
+        max_workers=1,
+        worker_policy="host_cpu",
+        config_overrides={
+            SHAPE_SWEEP.resolve(): ("sample_limit=1", "duration_s=0.001")
+        },
+    )
+
+    record = build_plan(job, resolve_execution(job, None), tmp_path)["configs"][0]
+
+    assert record["overrides"] == ["sample_limit=1", "duration_s=0.001"]
+    assert record["command"][-2:] == ["sample_limit=1", "duration_s=0.001"]
 
 
 class _FakeProcess:

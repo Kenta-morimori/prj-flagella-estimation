@@ -75,3 +75,31 @@ cs10 実機では、251-step（`duration_s=0.001`）screen を workers `1,2,4,6,
 ## Scope and requalification
 
 RTX 3090 は hardware record のみであり、CUDA、PyTorch、GPU benchmark はこの scope に含まれない。OS/glibc、CPython、cs10 requirements、主要 simulation 実装、hardware が変わった場合は setup、probe、benchmark を再実行する。
+
+## Issue #210: serial / parallel qualification
+
+parallel launcher の実 simulation qualification は、同じ clean Git commit と同じ既存 sweep config を使い、次の順で実施する。Mac canonical environment、既存 serial CLI、既存 sweep config、物理解釈は変更しない。比較は bitwise identity を要求しない。
+
+1. Mac で `tests/test_phase2_parallel_job.py`、`tests/test_phase2_sweep_profiles.py`、`tests/test_cs10_qualification.py`、`tests/test_phase2_qualification.py` を実行する。`shape_stability_grid.yaml` と `torque_distribution_grid.yaml` の dry-run で、2010 project profile を確認する。
+2. Mac serial と cs10 serial で、各 profile の先頭1 conditionを`duration_s=0.001`へ短縮して実行する。`torque_distribution_grid`には`torque_nm=2.5e-20`も指定し、両 config を251 stepsへ揃える。
+3. cs10 で `conf/phase2_parallel/issue210_2010_project/job.yaml` を `run_parallel.py` から実行する。`job_manifest.json` の status が `succeeded`、`failed_configs` が空、全 child の exit code が 0 であることを確認する。
+4. 下記比較器を Mac vs cs10 serial の config ごと、および cs10 serial vs parallel job に対して実行する。
+
+```bash
+uv run python scripts/01_simulate_swimming/compare_qualification.py \
+  --left outputs/.../mac_serial_campaign \
+  --right outputs/.../cs10_serial_campaign \
+  --output-dir outputs/YYYY-MM-DD/HHMMSS/qualification/mac_vs_cs10_shape_stability
+
+uv run python scripts/01_simulate_swimming/compare_qualification.py \
+  --parallel-job-manifest outputs/.../parallel/.../job_manifest.json \
+  --serial conf/phase2_sweeps/shape_stability_grid.yaml=outputs/.../cs10_serial_shape_stability \
+  --serial conf/phase2_sweeps/torque_distribution_grid.yaml=outputs/.../cs10_serial_torque_distribution \
+  --output-dir outputs/YYYY-MM-DD/HHMMSS/qualification/cs10_serial_vs_parallel
+```
+
+251 stepsは、#208 の実機 worker screenと同じ最低 execution qualification 条件である。物理的な0.5秒 stabilityやdataset採択の根拠には使わない。比較器は compact な `summary.csv` と`run_manifest.json`、各 condition の`run_summary.json`を読み、Git commit、clean worktree、effective override、expected/completed steps、contiguous step index、finite / shape gate、failure category、主要 stability/residual metric を確認する。数値は `abs(a-b) <= max(1e-9, 1e-6 * max(abs(a), abs(b)))` とする。provenance の不一致または partial failure は数値が近くても FAIL とする。
+
+共有する最小 artifact は、runtime probe の `manifest.json`、各 serial / parallel child の `summary.csv`・`run_manifest.json`・`manifest.json`・各 condition の `run_summary.json`、parallel の `job_manifest.json` である。失敗時だけ対応する `stdout.log`、`stderr.log`、`failure.json`（存在すれば）を追加する。raw `step_summary.csv` と state archive は共有不要である。
+
+serial が失敗した場合は environment / simulation core を先に切り分け、parallel へ進まない。serial が PASS して parallel のみ失敗した場合は child command、output namespace、thread override、stderr を確認する。数値差のみの場合は failure gate と最大差分を report で確認し、根拠なく tolerance を変更しない。
