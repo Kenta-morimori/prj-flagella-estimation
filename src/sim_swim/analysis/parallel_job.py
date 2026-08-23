@@ -25,6 +25,8 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 SWEEP_DIRECTORY = REPO_ROOT / "conf" / "phase2_sweeps"
 THREAD_ENV_KEYS = ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")
 WORKER_POLICIES = {"host_cpu", "cs10_qualified"}
+JOB_KEYS = {"schema_version", "job_id", "configs", "execution"}
+EXECUTION_KEYS = {"max_workers", "worker_policy"}
 SUPPORTED_KINDS = {
     "bundling_alignment",
     "hook_overstretch",
@@ -71,6 +73,12 @@ def _require_mapping(value: Any, *, name: str) -> dict[str, Any]:
     return value
 
 
+def _reject_unknown_keys(data: dict[str, Any], *, allowed: set[str], name: str) -> None:
+    unknown = sorted(set(data) - allowed)
+    if unknown:
+        raise ValueError(f"{name} contains unsupported keys: {', '.join(unknown)}")
+
+
 def _validate_config_path(value: Any) -> Path:
     if not isinstance(value, str) or not value.strip():
         raise ValueError("configs entries must be non-empty paths")
@@ -108,6 +116,7 @@ def load_parallel_job(path: Path) -> ParallelJob:
 
     raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     data = _require_mapping(raw, name="job config")
+    _reject_unknown_keys(data, allowed=JOB_KEYS, name="job config")
     if data.get("schema_version") != 1:
         raise ValueError("schema_version must be 1")
     job_id = data.get("job_id")
@@ -121,6 +130,7 @@ def load_parallel_job(path: Path) -> ParallelJob:
         raise ValueError("configs must not contain duplicates")
 
     execution = _require_mapping(data.get("execution"), name="execution")
+    _reject_unknown_keys(execution, allowed=EXECUTION_KEYS, name="execution")
     max_workers = execution.get("max_workers")
     if max_workers != "auto" and (
         not isinstance(max_workers, int)

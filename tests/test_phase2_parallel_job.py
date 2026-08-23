@@ -7,6 +7,7 @@ import sys
 
 import pytest
 
+from sim_swim.analysis import parallel_job
 from sim_swim.analysis.parallel_job import (
     ParallelJob,
     build_plan,
@@ -51,6 +52,50 @@ def test_load_example_job_reuses_existing_sweep_profiles() -> None:
     assert job.job_name == "example_stage_a_validation"
     assert job.configs == (SWEEP_A.resolve(), SWEEP_B.resolve())
     assert job.max_workers == "auto"
+
+
+@pytest.mark.parametrize(
+    ("job_extra", "execution_extra", "message"),
+    [
+        ("unexpected: true\n", "", "job config contains unsupported keys: unexpected"),
+        (
+            "",
+            "  worker_polciy: cs10_qualified\n",
+            "execution contains unsupported keys: worker_polciy",
+        ),
+    ],
+)
+def test_job_rejects_unknown_schema_keys(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    job_extra: str,
+    execution_extra: str,
+    message: str,
+) -> None:
+    sweep_dir = tmp_path / "conf/phase2_sweeps"
+    sweep_dir.mkdir(parents=True)
+    (sweep_dir / "sweep.yaml").write_text(
+        "kind: shape_stability_grid\nmetadata:\n  role: sweep\nargs: {}\n",
+        encoding="utf-8",
+    )
+    job_path = tmp_path / "conf/phase2_parallel/test/job.yaml"
+    job_path.parent.mkdir(parents=True)
+    job_path.write_text(
+        "schema_version: 1\n"
+        "job_id: test\n"
+        "configs:\n"
+        "  - conf/phase2_sweeps/sweep.yaml\n"
+        f"{job_extra}"
+        "execution:\n"
+        "  max_workers: auto\n"
+        f"{execution_extra}",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(parallel_job, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(parallel_job, "SWEEP_DIRECTORY", sweep_dir)
+
+    with pytest.raises(ValueError, match=message):
+        load_parallel_job(job_path)
 
 
 def test_worker_validation_rejects_invalid_override() -> None:
