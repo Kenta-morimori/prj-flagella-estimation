@@ -1,0 +1,41 @@
+{
+  "status": "PASS",
+  "task": "Issue #204: improve high-frequency flagella-axis time-series readability",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/204",
+  "summary": "flagella-axis angular velocityのtime-series plotだけを20 ms bin平均で表示し、個別runの破線とn平均の実線が線密度で太く見える問題を抑えた。raw CSVは元のsampling sourceのまま保持する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    {
+      "command": ".venv/bin/pytest -q tests/test_motion_feature_study.py tests/test_script_layout.py tests/test_phase4_duration_study.py",
+      "result": "PASS (16 passed)"
+    },
+    {
+      "command": ".venv/bin/ruff format src/sim_swim/analysis/motion_feature_study.py tests/test_motion_feature_study.py && .venv/bin/ruff check src/sim_swim/analysis/motion_feature_study.py tests/test_motion_feature_study.py",
+      "result": "PASS"
+    },
+    {
+      "command": ".venv/bin/python tools/codex/check_issue_script_lifecycle.py --base origin/main && git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "表示専用集約の変更であり、simulation/render/trainingを再実行していない。",
+  "user_review_required": true,
+  "user_review_command": ".venv/bin/python scripts/03_dataset_building/analyze_motion_features.py --config conf/phase2_analysis/issue204_motion_feature_study.yaml",
+  "user_review_outputs": [
+    "outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_nf1_4_as3_ps3_2026-08-18/analysis/motion_features/time_series/3D_flagella_axis_angular_velocity.png",
+    "outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_nf1_4_as3_ps3_2026-08-18/analysis/motion_features/time_series/2D_flagella_axis_angular_velocity.png"
+  ],
+  "user_review_points": [
+    "両plotのtitleに20 ms bin meanが表示され、個別破線と平均実線が区別できること。",
+    "time_series_3d.csvとtime_series_2d.csvは表示binning前のraw sampling valuesを保持すること。"
+  ],
+  "adr_required": false,
+  "adr_reason": "解析値やsampling contractを変更せず、可読性のためのplot表示契約を追加するのみである。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/206",
+  "next_actions": []
+}

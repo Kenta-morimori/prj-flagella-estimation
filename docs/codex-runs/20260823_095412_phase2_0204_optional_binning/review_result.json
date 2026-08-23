@@ -1,0 +1,39 @@
+{
+  "status": "PASS",
+  "task": "Issue #204: make flagella-axis plot binning optional and add safe overwrite CLI",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/204",
+  "summary": "flagella-axis angular velocityの表示用bin平均をconfigで明示した場合だけ有効にし、既定はraw表示へ戻した。既存解析出力の置換はCLIの--overwriteを明示した場合だけ許可する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    {
+      "command": ".venv/bin/pytest -q tests/test_motion_feature_study.py tests/test_script_layout.py tests/test_phase4_duration_study.py",
+      "result": "PASS (17 passed)"
+    },
+    {
+      "command": ".venv/bin/ruff format src/sim_swim/analysis/motion_feature_study.py scripts/03_dataset_building/analyze_motion_features.py tests/test_motion_feature_study.py && .venv/bin/ruff check src/sim_swim/analysis/motion_feature_study.py scripts/03_dataset_building/analyze_motion_features.py tests/test_motion_feature_study.py",
+      "result": "PASS"
+    },
+    {
+      "command": "MPLCONFIGDIR=/private/tmp/mplconfig .venv/bin/python scripts/03_dataset_building/analyze_motion_features.py --help | rg -n -- '--overwrite'",
+      "result": "PASS"
+    },
+    {
+      "command": ".venv/bin/python tools/codex/check_issue_script_lifecycle.py --base origin/main && git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "解析結果の上書きはユーザーが--overwriteで明示する契約とし、本変更では既存成果物を置換していない。",
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "既存のsampling contractや物理解釈を変えず、plot表示とCLI安全性を調整するため。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/206",
+  "next_actions": []
+}

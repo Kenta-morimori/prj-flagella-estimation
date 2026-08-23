@@ -43,4 +43,5 @@ Phase 4の目的は，Phase 3 common clip datasetを読み込み，べん毛数`
 * Common clip contract: `docs/phase3/phase3_1_clip_metadata_schema.md`
 * Dataset mixing policy: `docs/adr/0015_dataset_mixing_and_versioning.md`
 * Dataset freeze config: `conf/phase4/dataset_freeze_v1_r1.yaml`
+* Issue #204 feature-study input: `docs/phase2/phase2_204_feature_study_reference.md`
 * CLIと実行方法: `scripts/README.md`

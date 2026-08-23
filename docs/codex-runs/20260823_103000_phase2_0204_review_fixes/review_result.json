@@ -1,0 +1,41 @@
+{
+  "status": "PASS",
+  "task": "Issue #204: resolve PR #206 motion-feature analysis review findings",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/204",
+  "summary": "PR #206の7件のreview指摘を反映した。2D silhouetteへprojection basisを適用し、body axisがpixelから観測不能なframeはNaNにする。sampling rateのmanifest整合、解析provenance、float安全な表示bin、raw sourceと重ならないoverwrite、strict booleanを追加した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "固定36条件の参照runに対する再解析は実行していない。既存成果物を上書きせず、変更はfixtureベースの回帰テストで検証した。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_motion_feature_study.py",
+      "result": "PASS (14 passed)"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/analysis/motion_feature_study.py tests/test_motion_feature_study.py && uv run ruff check src/sim_swim/analysis/motion_feature_study.py tests/test_motion_feature_study.py",
+      "result": "PASS"
+    },
+    {
+      "command": "pre-commit (commit hook): ruff format/check, issue lifecycle check, pytest -m light",
+      "result": "PASS (315 passed, 349 deselected)"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "既存raw outputを読む解析の安全性・再現性修正であり、simulation/render/trainingおよび既存解析outputの上書きは実行していない。",
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "物理model、dataset採択、ML policy、phase境界を変更せず、既存のIssue #204解析契約の正確性と安全性を修正するため。",
+  "commit_type": "complete",
+  "commit_hash": "bfb346e",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/206",
+  "next_actions": []
+}
