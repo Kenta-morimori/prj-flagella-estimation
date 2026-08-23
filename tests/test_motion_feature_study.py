@@ -12,6 +12,7 @@ from sim_swim.analysis.motion_feature_study import (
     MotionFeatureStudyConfig,
     _axis_velocity,
     _basis,
+    _plot_rows,
     _plot_series,
     _time_windows,
     analyze_motion_feature_study,
@@ -193,6 +194,26 @@ def test_motion_feature_plot_distinguishes_individual_and_mean(
         for sample in ("a", "b")
         for t in (0.0, 1.0)
     ]
-    _plot_series(rows, tmp_path, "3D")
+    _plot_series(rows, tmp_path, "3D", 0.02)
     assert ("--", 0.9) in styles
     assert (None, 2.4) in styles
+
+
+@pytest.mark.light
+def test_flagella_axis_plot_is_binned_without_changing_other_features() -> None:
+    rows = [
+        {
+            "sample_id": "sample",
+            "n_flagella": 1,
+            "t_s": t,
+            "mean_flagella_axis_angular_velocity_rad_s": value,
+            "speed_um_s": value,
+        }
+        for t, value in ((0.0, 1.0), (0.01, 3.0), (0.02, 5.0))
+    ]
+    reduced = _plot_rows(rows, "mean_flagella_axis_angular_velocity_rad_s", "t_s", 0.02)
+    assert [row["mean_flagella_axis_angular_velocity_rad_s"] for row in reduced] == [
+        pytest.approx(2.0),
+        pytest.approx(5.0),
+    ]
+    assert _plot_rows(rows, "speed_um_s", "t_s", 0.02) is rows

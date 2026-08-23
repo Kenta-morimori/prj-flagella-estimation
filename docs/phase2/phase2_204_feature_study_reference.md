@@ -30,6 +30,6 @@ raw artifactは約24 GBのためGit管理しない。`data/`は入力data用か�
 
 3D GTは`state_archive.npz`の全simulation stepを使う。2Dはcampaign manifestの`output_sampling.fps_out_2d`で選んだ出力映像frame時刻を使い、pixel-observable body axisとprojected latent featureを同じ観測時刻で比較する。`frame_rate_hz`を3D GTの間引きに使うことは禁止し、manifestから2D frame rateを一意に得られないcampaignは明示設定なしでは解析を失敗させる。windowは`[start_s, end_s)`の実時間非重複区間であり、2.0 s runでは`0.25 / 0.5 / 1.0 s`がそれぞれ`8 / 4 / 2`窓となる。CSVにはsampling sourceと各windowのsample countを残す。
 
-解析結果は参照run配下の`analysis/motion_features/`へ置く。`time_series/`には元時系列の`3D_*.png` / `2D_*.png`、`windows/`には3つのwindow幅を横並びにした同名形式のplotを置く。個別runは半透明の破線、`n`ごとの平均は太い実線で描く。各CSVは同rootに保持し、strict QCに失敗した`n=4`条件はCSVとmanifestには残すが、両plot群から除外する。
+解析結果は参照run配下の`analysis/motion_features/`へ置く。`time_series/`には元時系列の`3D_*.png` / `2D_*.png`、`windows/`には3つのwindow幅を横並びにした同名形式のplotを置く。個別runは半透明の破線、`n`ごとの平均は太い実線で描く。高周波のflagella-axis angular velocityだけは可読性のためplot上で20 ms bin平均とし、raw CSVは間引かない。各CSVは同rootに保持し、strict QCに失敗した`n=4`条件はCSVとmanifestには残すが、両plot群から除外する。
 
 2D body axisはcanonical body-only silhouetteから得るpixel-observable量である。一方、tracking-center前のprojected centroid速度、mean flagella axis、body--flagella relationはsimulation GT由来のprojected latent featureとしてmanifestへ明記する。投影面はYAMLの直交2基底で指定し、既定はXY面である。

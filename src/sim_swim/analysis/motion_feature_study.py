@@ -48,6 +48,7 @@ class MotionFeatureStudyConfig:
     config_path: Path | None = None
     durations_s: tuple[float, ...] = (0.25, 0.5, 1.0)
     observation_frame_rate_hz: float | None = None
+    flagella_axis_plot_bin_s: float = 0.02
     allowed_n_flagella: tuple[int, ...] = (1, 2, 3, 4)
     projection_basis: tuple[tuple[float, float, float], tuple[float, float, float]] = (
         (1.0, 0.0, 0.0),
@@ -87,7 +88,7 @@ def load_config(
     for raw in overrides or []:
         _override(data, raw)
     study, projection = data.get("study", {}) or {}, data.get("projection", {}) or {}
-    observation = data.get("observation", {}) or {}
+    observation, plot = data.get("observation", {}) or {}, data.get("plot", {}) or {}
     if "frame_rate_hz" in study:
         raise ValueError(
             "study.frame_rate_hz is ambiguous; use observation.frame_rate_hz "
@@ -106,6 +107,7 @@ def load_config(
             if observation.get("frame_rate_hz") is not None
             else None
         ),
+        flagella_axis_plot_bin_s=float(plot.get("flagella_axis_time_bin_s", 0.02)),
         allowed_n_flagella=tuple(
             int(x) for x in study.get("allowed_n_flagella", [1, 2, 3, 4])
         ),
@@ -357,6 +359,34 @@ def _mean_trace(
     return times, [_mean(np.asarray(grouped[t])) for t in times]
 
 
+def _plot_rows(
+    rows: list[dict[str, Any]], feature: str, time_key: str, bin_s: float
+) -> list[dict[str, Any]]:
+    """Reduce only dense flagella-axis traces for legible rendering."""
+    if feature != "mean_flagella_axis_angular_velocity_rad_s":
+        return rows
+    if bin_s <= 0:
+        raise ValueError("plot.flagella_axis_time_bin_s must be > 0")
+    origin = min(float(row[time_key]) for row in rows)
+    buckets: dict[tuple[str, int, int], list[float]] = {}
+    for row in rows:
+        key = (
+            str(row["sample_id"]),
+            int(row["n_flagella"]),
+            int(math.floor((float(row[time_key]) - origin) / bin_s)),
+        )
+        buckets.setdefault(key, []).append(float(row[feature]))
+    return [
+        {
+            "sample_id": sample_id,
+            "n_flagella": n_flagella,
+            time_key: origin + bin_index * bin_s,
+            feature: _mean(np.asarray(values)),
+        }
+        for (sample_id, n_flagella, bin_index), values in sorted(buckets.items())
+    ]
+
+
 def _add_style_legend(axis: Any) -> None:
     n_legend = axis.legend(frameon=False, title="mean by n")
     axis.add_artist(n_legend)
@@ -378,15 +408,19 @@ def _add_style_legend(axis: Any) -> None:
 
 
 def _plot_series(
-    rows: list[dict[str, Any]], output_dir: Path, domain: str
+    rows: list[dict[str, Any]],
+    output_dir: Path,
+    domain: str,
+    flagella_axis_plot_bin_s: float,
 ) -> list[str]:
     output_dir.mkdir(parents=True, exist_ok=True)
     paths: list[str] = []
     colors = {1: "#0072B2", 2: "#D55E00", 3: "#009E73", 4: "#CC79A7"}
     for feature, name in PLOT_NAMES.items():
+        feature_rows = _plot_rows(rows, feature, "t_s", flagella_axis_plot_bin_s)
         figure, axis = plt.subplots(figsize=(7, 4))
-        for n in sorted({int(row["n_flagella"]) for row in rows}):
-            subset = [row for row in rows if int(row["n_flagella"]) == n]
+        for n in sorted({int(row["n_flagella"]) for row in feature_rows}):
+            subset = [row for row in feature_rows if int(row["n_flagella"]) == n]
             for sample in sorted({str(row["sample_id"]) for row in subset}):
                 part = sorted(
                     (row for row in subset if row["sample_id"] == sample),
@@ -409,6 +443,10 @@ def _plot_series(
                 linewidth=2.4,
             )
         axis.set(title=f"{domain}: {name}", xlabel="time (s)", ylabel=name)
+        if feature == "mean_flagella_axis_angular_velocity_rad_s":
+            axis.set_title(
+                f"{domain}: {name} ({flagella_axis_plot_bin_s:g} s bin mean)"
+            )
         axis.grid(alpha=0.25)
         _add_style_legend(axis)
         path = output_dir / f"{domain}_{name}.png"
@@ -679,8 +717,10 @@ def analyze_motion_feature_study(cfg: MotionFeatureStudyConfig) -> Path:
     _write(cfg.output_dir / "window_features_2d.csv", windows2d)
     time_dir, window_dir = cfg.output_dir / "time_series", cfg.output_dir / "windows"
     plots = {
-        "time_series": _plot_series(plot_series3d, time_dir, "3D")
-        + _plot_series(plot_series2d, time_dir, "2D"),
+        "time_series": _plot_series(
+            plot_series3d, time_dir, "3D", cfg.flagella_axis_plot_bin_s
+        )
+        + _plot_series(plot_series2d, time_dir, "2D", cfg.flagella_axis_plot_bin_s),
         "windows": _plot_windows(plot_windows3d, window_dir, "3D")
         + _plot_windows(plot_windows2d, window_dir, "2D"),
     }
@@ -695,6 +735,10 @@ def analyze_motion_feature_study(cfg: MotionFeatureStudyConfig) -> Path:
                 "frame_rate_hz": observation_frame_rate_hz,
             },
             "windows": "non-overlapping physical-time intervals [start_s, end_s)",
+        },
+        "plot_contract": {
+            "flagella_axis_time_bin_s": cfg.flagella_axis_plot_bin_s,
+            "raw_csv_is_unbinned": True,
         },
         "projection_basis": basis.tolist(),
         "n_flagella": list(cfg.allowed_n_flagella),
