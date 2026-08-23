@@ -8,6 +8,7 @@ __pycache__/
 
 # venv
 .venv/
+.venv-cs10/
 
 # OS / editor
 .DS_Store
