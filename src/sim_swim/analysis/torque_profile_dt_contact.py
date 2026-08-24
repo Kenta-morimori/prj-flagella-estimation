@@ -9,6 +9,7 @@ from datetime import datetime
 import json
 import math
 from pathlib import Path
+import re
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -17,6 +18,20 @@ import numpy as np
 import yaml
 
 from sim_swim.analysis.issue203_torque_profile_comparison import _strict
+
+
+_DIAGNOSTIC_SEED_CASE = re.compile(
+    r"^nf(?P<n>\d{2})__as(?P<attach>\d{3})__ps(?P<phase>\d{3})$"
+)
+
+
+def _reference_condition_id(seed_case: str) -> str:
+    """Map a new n-first diagnostic ID to the historical reference ID."""
+
+    match = _DIAGNOSTIC_SEED_CASE.fullmatch(seed_case)
+    if match is None:
+        raise ValueError(f"invalid n-first diagnostic seed case: {seed_case}")
+    return "as{attach}__ps{phase}__nf{n}".format(**match.groupdict())
 
 
 @dataclass(frozen=True)
@@ -156,7 +171,11 @@ def _record(
         "source": source,
         "profile": profile,
         "dt_star": dt_star,
-        "seed_case": f"as{int(values['attach_seed']):03d}__ps{int(values['phase_seed']):03d}__nf{int(values['n_flagella']):02d}",
+        "seed_case": "nf{n_flagella:02d}__as{attach_seed:03d}__ps{phase_seed:03d}".format(
+            n_flagella=int(values["n_flagella"]),
+            attach_seed=int(values["attach_seed"]),
+            phase_seed=int(values["phase_seed"]),
+        ),
         "strict_pass": strict_pass,
         "strict_reason": strict_reason,
         "first_fail_category": failure_category,
@@ -236,7 +255,7 @@ def analyze(config: ContactConfig) -> Path:
         for profile in config.profiles:
             for dt_star in config.dt_stars:
                 if math.isclose(dt_star, 1.0e-3, rel_tol=0.0, abs_tol=1e-15):
-                    record = references[profile].get(seed_case)
+                    record = references[profile].get(_reference_condition_id(seed_case))
                     root = (
                         config.uniform_reference_run_dir
                         if profile == "uniform"

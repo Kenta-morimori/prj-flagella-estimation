@@ -38,7 +38,7 @@ sweep:
         - {attach_seed: 1, phase_seed: 0, n_flagella: 3}
         - {attach_seed: 2, phase_seed: 2, n_flagella: 3}
       labels: ["as000 ps000 nf03 PASS control", "as001 ps000 failure seed", "as002 ps002 failure seed"]
-      ids: [as000__ps000__nf03, as001__ps000__nf03, as002__ps002__nf03]
+      ids: [nf03__as000__ps000, nf03__as001__ps000, nf03__as002__ps002]
     torque_profile:
       key: motor.torque_distribution_profile
       short_name: profile

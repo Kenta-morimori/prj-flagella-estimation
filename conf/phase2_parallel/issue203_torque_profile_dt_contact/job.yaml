@@ -3,18 +3,18 @@ job_id: issue203_torque_profile_dt_contact_2s
 configs:
   - conf/phase2_multi_run/2010_project_torque_profile_dt_contact_diagnostic.yaml
 conditions:
-  - as000__ps000__nf03__uniform__dt3e-4
-  - as000__ps000__nf03__uniform__dt1e-4
-  - as000__ps000__nf03__diffusive__dt3e-4
-  - as000__ps000__nf03__diffusive__dt1e-4
-  - as001__ps000__nf03__uniform__dt3e-4
-  - as001__ps000__nf03__uniform__dt1e-4
-  - as001__ps000__nf03__diffusive__dt3e-4
-  - as001__ps000__nf03__diffusive__dt1e-4
-  - as002__ps002__nf03__uniform__dt3e-4
-  - as002__ps002__nf03__uniform__dt1e-4
-  - as002__ps002__nf03__diffusive__dt3e-4
-  - as002__ps002__nf03__diffusive__dt1e-4
+  - nf03__as000__ps000__uniform__dt3e-4
+  - nf03__as000__ps000__uniform__dt1e-4
+  - nf03__as000__ps000__diffusive__dt3e-4
+  - nf03__as000__ps000__diffusive__dt1e-4
+  - nf03__as001__ps000__uniform__dt3e-4
+  - nf03__as001__ps000__uniform__dt1e-4
+  - nf03__as001__ps000__diffusive__dt3e-4
+  - nf03__as001__ps000__diffusive__dt1e-4
+  - nf03__as002__ps002__uniform__dt3e-4
+  - nf03__as002__ps002__uniform__dt1e-4
+  - nf03__as002__ps002__diffusive__dt3e-4
+  - nf03__as002__ps002__diffusive__dt1e-4
 execution:
   max_workers: auto
   worker_policy: cs10_qualified

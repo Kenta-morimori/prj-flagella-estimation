@@ -54,7 +54,7 @@ def test_linked_axis_preserves_correlated_seed_cases() -> None:
                         "phase_seed": "seed.phase_seed",
                         "n_flagella": "flagella.n_flagella",
                     },
-                    "ids": ["as000__ps000__nf03", "as001__ps000__nf03"],
+                    "ids": ["nf03__as000__ps000", "nf03__as001__ps000"],
                     "values": [
                         {"attach_seed": 0, "phase_seed": 0, "n_flagella": 3},
                         {"attach_seed": 1, "phase_seed": 0, "n_flagella": 3},
@@ -76,7 +76,7 @@ def test_linked_axis_preserves_correlated_seed_cases() -> None:
         "attach_seed": 0,
         "phase_seed": 0,
         "n_flagella": 3,
-        "seed_case": "as000__ps000__nf03",
+        "seed_case": "nf03__as000__ps000",
         "dt_star": 1.0e-3,
     }
     assert conditions[-1]["config_overrides"]["seed"]["attach_seed"] == 1
@@ -187,7 +187,7 @@ def test_torque_profile_dt_contact_analysis_keeps_reference_provenance(
             diffusive_reference_run_dir=root,
             diagnostic_run_dir=root,
             output_dir=tmp_path / "analysis",
-            seed_cases=(condition_id,),
+            seed_cases=("nf03__as000__ps000",),
             profiles=("uniform",),
             dt_stars=(1.0e-3,),
         )
