@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime
 import json
+import os
 from pathlib import Path
 import shlex
 import shutil
@@ -76,9 +77,17 @@ def _runtime_python() -> Path:
         raise RuntimeError(
             "missing .venv-cs10; run scripts/cs10/setup_environment.sh first"
         )
+    environment = os.environ.copy()
+    source_path = str(SOURCE_ROOT)
+    environment["PYTHONPATH"] = (
+        source_path
+        if not environment.get("PYTHONPATH")
+        else source_path + os.pathsep + environment["PYTHONPATH"]
+    )
     subprocess.run(
         [str(python), "-c", "import matplotlib, numpy, yaml, sim_swim"],
         cwd=REPOSITORY_ROOT,
+        env=environment,
         check=True,
     )
     return python
@@ -200,12 +209,14 @@ def status(control_dir: Path) -> dict[str, Any]:
     if completion.is_file():
         result["campaign"] = {
             **_read_json(completion),
-            "run_summary_count": sum(
-                (condition / "run_summary.json").is_file()
-                for condition in conditions.iterdir()
-            )
-            if conditions.is_dir()
-            else 0,
+            "run_summary_count": (
+                sum(
+                    (condition / "run_summary.json").is_file()
+                    for condition in conditions.iterdir()
+                )
+                if conditions.is_dir()
+                else 0
+            ),
         }
     return result
 

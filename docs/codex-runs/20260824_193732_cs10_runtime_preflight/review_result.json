@@ -1,0 +1,11 @@
+{
+  "status": "PASS",
+  "scope": "cs10 parallel tmux runtime preflight source-path compatibility",
+  "reviewed_at": "2026-08-24T19:37:32+09:00",
+  "checks": {
+    "pytest": "28 passed (cs10 helper and parallel job)",
+    "ruff": "passed"
+  },
+  "fix": "The runtime preflight prepends repository src/ to PYTHONPATH before importing sim_swim.",
+  "user_run_pending": "The Issue #203 12-shard cs10 campaign remains user-run."
+}

@@ -52,6 +52,35 @@ def test_start_records_deterministic_output_root_and_typed_command(
     assert any(command[1:3] == ["new-session", "-d"] for command in commands)
 
 
+def test_runtime_python_includes_repository_source_in_preflight(
+    monkeypatch, tmp_path: Path
+) -> None:
+    helper = _load_script("cs10_parallel_tmux_runtime")
+    source = tmp_path / "src"
+    runtime = tmp_path / ".venv-cs10/bin/python"
+    runtime.parent.mkdir(parents=True)
+    runtime.touch()
+    monkeypatch.setattr(helper, "SOURCE_ROOT", source)
+    monkeypatch.setattr(helper, "REPOSITORY_ROOT", tmp_path)
+    monkeypatch.setenv("PYTHONPATH", "/existing/path")
+    captured: dict[str, object] = {}
+
+    def fake_run(command, **kwargs):
+        captured["command"] = command
+        captured["env"] = kwargs["env"]
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(helper.subprocess, "run", fake_run)
+
+    assert helper._runtime_python() == runtime
+    assert captured["command"] == [
+        str(runtime),
+        "-c",
+        "import matplotlib, numpy, yaml, sim_swim",
+    ]
+    assert captured["env"]["PYTHONPATH"] == f"{source}:/existing/path"
+
+
 def test_status_follows_canonical_condition_symlinks(tmp_path: Path) -> None:
     helper = _load_script("cs10_parallel_tmux_status")
     control, output_root = tmp_path / "control", tmp_path / "parallel_job"
