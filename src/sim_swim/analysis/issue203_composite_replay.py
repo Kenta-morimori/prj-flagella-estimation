@@ -376,7 +376,9 @@ def render_n_flagella_grid(
     output_dir.mkdir(parents=True, exist_ok=True)
     movie_path = output_dir / f"nf{n_flagella:02d}_composite_grid.mp4"
     manifest_path = output_dir / f"nf{n_flagella:02d}_composite_grid_manifest.json"
-    figure = plt.figure(figsize=(12, 12))
+    # A 16:9 canvas gives every 3x3 cell enough horizontal room for both the
+    # 3D replay and its local-segment torque panel without oversized labels.
+    figure = plt.figure(figsize=(16, 9))
     canvas = FigureCanvasAgg(figure)
     weights = [
         _panel_weights(cfg, simulator, frames[:frame_count])
@@ -394,7 +396,7 @@ def render_n_flagella_grid(
                 condition_id = str(record["condition_id"])
                 state = frames[frame_index]
                 ax3d = figure.add_axes(
-                    [x + 0.005, y + 0.018, width * 0.62, height * 0.30],
+                    [x + 0.006, y + 0.025, width * 0.62, height * 0.93],
                     projection="3d",
                 )
                 plot_swim_frame_3d(
@@ -404,20 +406,25 @@ def render_n_flagella_grid(
                     simulator.rig,
                     title=f"{condition_id}\nt={state.t:.2f} s",
                     hide_ticks=True,
+                    show_status=False,
+                    show_legend=False,
                 )
+                ax3d.set_title(f"{condition_id}\nt={state.t:.2f} s", fontsize=6, pad=2)
                 count = len(simulator.rig.flagella_indices)
                 for flag_id in range(count):
-                    panel_height = height * 0.285 / count
-                    top = y + height * 0.322 - (flag_id + 1) * panel_height
+                    panel_height = height * 0.92 / count
+                    top = y + height * 0.955 - (flag_id + 1) * panel_height
                     axis = figure.add_axes(
-                        [x + width * 0.65, top, width * 0.34, panel_height - 0.006]
+                        [x + width * 0.65, top, width * 0.34, panel_height - 0.008]
                     )
                     value = panel_weights[flag_id][frame_index]
                     axis.bar(np.arange(len(value)), value, color=f"C{flag_id}")
                     axis.set_ylim(0, max(float(value.max()) * 1.25, 0.1))
                     axis.set_xticks([])
                     axis.set_yticks([])
-                    axis.set_title(f"F{flag_id} Σ={value.sum():.2f}", fontsize=5)
+                    axis.set_title(
+                        f"F{flag_id}  Σ={value.sum():.2f}", fontsize=5, pad=1
+                    )
             canvas.draw()
             rendered_frames.append(np.asarray(canvas.buffer_rgba())[:, :, :3].copy())
     finally:

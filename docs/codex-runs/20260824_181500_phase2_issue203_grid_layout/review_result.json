@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "scope": "Issue #203 n-flagella composite grid readability correction",
+  "checks": {
+    "layout": "16:9 canvas, rendered output 3200x1800, enlarged 3D cell area, compact condition/time labels, no per-cell RUN diagnostics or legend",
+    "artifacts": {
+      "profiles": ["uniform", "diffusive"],
+      "grid_count_per_profile": 3,
+      "codec": "h264/yuv420p",
+      "frame_count": 21
+    },
+    "visual_review": "uniform nf01 final frame inspected after re-render"
+  },
+  "decision": "Presentation-only correction; logical condition IDs, simulations, metrics, and physical interpretation are unchanged."
+}
