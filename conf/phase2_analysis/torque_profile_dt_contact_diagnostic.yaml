@@ -1,0 +1,11 @@
+uniform_reference_run_dir: outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_uniform_tau_linked_2s_nf1_3_as3_ps3_2026-08-23
+diffusive_reference_run_dir: outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_nf1_4_as3_ps3_2026-08-18
+diagnostic_run_dir: outputs/YYYY-MM-DD/HHMMSS/parallel/issue203_torque_profile_dt_contact__UUID/campaign
+output_dir: outputs/YYYY-MM-DD/HHMMSS/phase2_issue203_torque_profile_dt_contact/analysis
+seed_cases:
+  - as000__ps000__nf03
+  - as001__ps000__nf03
+  - as002__ps002__nf03
+profiles: [uniform, diffusive]
+dt_stars: [1.0e-3, 3.0e-4, 1.0e-4]
+overwrite: false

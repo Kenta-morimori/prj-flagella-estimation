@@ -69,6 +69,18 @@ class OnlineRunSummary:
         self._record_gate(
             "finite", bool(row.get("finite_pass", False)), t_s, "finite", "all"
         )
+        self._record_gate(
+            "shape_nonbody",
+            bool(row.get("shape_pass_nonbody", False)),
+            t_s,
+            str(
+                row.get(
+                    "first_fail_category_nonbody",
+                    row.get("shape_fail_category_nonbody", "unspecified"),
+                )
+            ),
+            str(row.get("shape_fail_target_nonbody", "nonbody")),
+        )
 
     def record_body(self, row: Mapping[str, Any]) -> None:
         """Apply the existing body gate to every step without emitting a CSV."""

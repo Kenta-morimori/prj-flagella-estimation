@@ -24,6 +24,9 @@ ISSUE203 = ROOT / "conf/phase2_parallel/issue203_uniform_torque_profile/job.yaml
 ISSUE203_QUALIFICATION = (
     ROOT / "conf/phase2_parallel/issue203_uniform_torque_profile/qualification_job.yaml"
 )
+ISSUE203_DT_CONTACT = (
+    ROOT / "conf/phase2_parallel/issue203_torque_profile_dt_contact/job.yaml"
+)
 SWEEP_A = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_off.yaml"
 SWEEP_B = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_on.yaml"
 SHAPE_SWEEP = ROOT / "conf/phase2_sweeps/shape_stability_grid.yaml"
@@ -110,6 +113,18 @@ def test_issue203_qualification_job_preserves_27_shards_and_duration_override() 
     )
     assert all(
         "time.duration_s=0.001" in record["command"] for record in plan["configs"]
+    )
+
+
+def test_issue203_dt_contact_job_expands_only_the_12_new_shards() -> None:
+    job = load_parallel_job(ISSUE203_DT_CONTACT)
+    plan = build_plan(job, resolve_execution(job, None), ROOT / ".tmp_issue203_plan")
+
+    assert job.task_count == 12
+    assert len(plan["configs"]) == 12
+    assert all("nf03" in str(record["condition_id"]) for record in plan["configs"])
+    assert all(
+        "dt1e-3" not in str(record["condition_id"]) for record in plan["configs"]
     )
 
 

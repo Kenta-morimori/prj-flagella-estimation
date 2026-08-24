@@ -24,12 +24,13 @@
 ### Issue #203 / PR #214: uniform torque profile paired campaign
 
 2010 projectの`root_torque_segment_couples + uniform`を、同一seedの既存`diffusive`と
-paired comparisonする27-condition campaignがcs10で実行中である。これはprofile候補の
-evidence収集であり、2010 default、dataset v2、`dt_star=1e-3`の数値妥当性を変更しない。
+paired comparisonする27-condition campaignは完了した。uniformはn=3の2 seedでhook起点の
+strict QC failureを示し、diffusiveは対応27条件でPASSした。これはprofile候補のevidenceであり、
+2010 default、dataset v2、`dt_star=1e-3`の数値妥当性を変更しない。
 
-次はcanonical aggregateのcompact artifactを転送し、paired解析・composite replayを行い、
-User承認後に候補判断だけを#200へ渡す。実行運用は`cs10_runbook.md`、比較・転送契約は
-`phase2_203_uniform_torque_profile_runbook.md`を参照する。
+次はn=3のfailure 2 seedとPASS controlを対象に、profile × `dt_star`接触診断を行う。
+既存`dt_star=1e-3`は再利用し、新規12 shard (`3e-4`, `1e-4`)をcs10で実行する。実行運用は
+`cs10_runbook.md`、比較・転送契約は`phase2_203_uniform_torque_profile_runbook.md`を参照する。
 
 ## Next queue
 

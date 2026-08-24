@@ -117,6 +117,47 @@ for n in 1 2 3; do
 done
 ```
 
+## n=3 profile × dt contact diagnostic
+
+uniform n=3の2 failure seed (`as001__ps000__nf03`, `as002__ps002__nf03`)と
+PASS control (`as000__ps000__nf03`)を診断する。既存uniform / diffusiveの`dt_star=1e-3`
+6 artifactは再利用するため、cs10で新規実行するのは`dt_star=3e-4,1e-4`の12 shardだけである。
+各runは2.0 s、RUN fixed、Brownian OFFで、compact outputでも全internal stepのfinite / nonbody /
+body QCを集約する。これはprofile・dt・datasetの採択や排除力parameter変更を行うcampaignではない。
+
+PRを最新化してからtmux管理下で開始する。
+
+```bash
+cd ~/src/prj-flagella-estimation
+git pull --ff-only origin codex/issue-203-uniform-torque-profile
+git rev-parse --short HEAD
+
+.venv-cs10/bin/python scripts/cs10/parallel_tmux.py start \
+  --config conf/phase2_parallel/issue203_torque_profile_dt_contact/job.yaml \
+  --session issue203-dt-contact --label issue203_dt_contact
+```
+
+出力された`control_dir`を用い、job / aggregate / 12 run summary がすべて完了することを確認する。
+
+```bash
+.venv-cs10/bin/python scripts/cs10/parallel_tmux.py status \
+  --control-dir outputs/YYYY-MM-DD/HHMMSS/cs10_parallel/issue203_dt_contact
+```
+
+目安は8 workerで2.5--4時間である。完了後はcs10上で解析する。`$CAMPAIGN`には上記statusで示される
+parallel jobの`campaign_root`を指定する。
+
+```bash
+CAMPAIGN=outputs/YYYY-MM-DD/HHMMSS/parallel/issue203_torque_profile_dt_contact__UUID/campaign
+.venv-cs10/bin/python scripts/03_dataset_building/analyze_torque_profile_dt_contact.py \
+  --config conf/phase2_analysis/torque_profile_dt_contact_diagnostic.yaml \
+  --diagnostic-run-dir "$CAMPAIGN" \
+  --output-dir "$CAMPAIGN/analysis/contact_stability" --overwrite
+```
+
+最小転送対象はjob manifest、campaign manifest / run manifest / summary / run log、12 conditionの
+`run_summary.json`、`analysis/contact_stability`である。`state_archive.npz`はcs10に残す。
+
 ## Transfer and paired analysis
 
 最初は `manifest.json`、`run_manifest.json`、`summary.csv`、`run.log`、`campaign_completion.json`、`user_exit_marker.json`、各conditionの`run_summary.json`、失敗時だけ`stderr.log`と`failure_record.json`を転送する。`step_summary.csv`と`state_archive.npz`は最小転送から除外する。

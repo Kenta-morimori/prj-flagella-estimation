@@ -1253,3 +1253,28 @@ def test_compact_summary_records_minimum_body_triangle_area_ratio() -> None:
     metric = summary.extrema["body_triangle_area_ratio_min"]
     assert metric["min"] == pytest.approx(0.75)
     assert metric["final"] == pytest.approx(0.75)
+
+
+def test_compact_summary_records_nonbody_first_failure() -> None:
+    summary = OnlineRunSummary(expected_steps=2)
+    summary.record(
+        {
+            "t_s": 0.0,
+            "finite_pass": True,
+            "shape_pass_nonbody": True,
+            "first_fail_category_nonbody": "none",
+        }
+    )
+    summary.record(
+        {
+            "t_s": 0.1,
+            "finite_pass": True,
+            "shape_pass_nonbody": False,
+            "first_fail_category_nonbody": "hook",
+        }
+    )
+
+    gate = summary.gates["shape_nonbody"]
+    assert gate["any_fail"] is True
+    assert gate["first_observed_fail_t_s"] == pytest.approx(0.1)
+    assert gate["first_failure_category"] == "hook"

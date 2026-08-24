@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -10,6 +11,11 @@ from sim_swim.analysis.issue203_composite_replay import (
     reconstructed_segment_weights,
 )
 from sim_swim.analysis.issue203_torque_profile_comparison import _flag_axes, load_config
+from sim_swim.analysis.torque_profile_dt_contact import (
+    ContactConfig,
+    _min_bead_distances,
+    analyze as analyze_contact,
+)
 from sim_swim.analysis.motion_feature_study import (
     load_config as load_motion_feature_config,
 )
@@ -35,6 +41,45 @@ def test_issue203_campaign_is_the_fixed_27_condition_uniform_grid() -> None:
         == "root_torque_segment_couples"
     )
     assert config["base_overrides"]["time.integration.dt_star"] == 1.0e-3
+
+
+def test_linked_axis_preserves_correlated_seed_cases() -> None:
+    config = {
+        "base_overrides": {},
+        "sweep": {
+            "axes": {
+                "seed_case": {
+                    "keys": {
+                        "attach_seed": "seed.attach_seed",
+                        "phase_seed": "seed.phase_seed",
+                        "n_flagella": "flagella.n_flagella",
+                    },
+                    "ids": ["as000__ps000__nf03", "as001__ps000__nf03"],
+                    "values": [
+                        {"attach_seed": 0, "phase_seed": 0, "n_flagella": 3},
+                        {"attach_seed": 1, "phase_seed": 0, "n_flagella": 3},
+                    ],
+                },
+                "dt_star": {
+                    "key": "time.integration.dt_star",
+                    "values": [1.0e-3, 1.0e-4],
+                    "ids": ["dt1e3", "dt1e4"],
+                },
+            }
+        },
+    }
+
+    conditions = build_campaign_conditions(apply_campaign_cli_overrides(config, []))
+
+    assert len(conditions) == 4
+    assert conditions[0]["axis_values"] == {
+        "attach_seed": 0,
+        "phase_seed": 0,
+        "n_flagella": 3,
+        "seed_case": "as000__ps000__nf03",
+        "dt_star": 1.0e-3,
+    }
+    assert conditions[-1]["config_overrides"]["seed"]["attach_seed"] == 1
 
 
 def test_issue203_uniform_weight_panel_uses_segments_and_sums_to_one() -> None:
@@ -70,6 +115,87 @@ def test_issue203_flag_axis_metrics_accept_large_archive_layout() -> None:
     assert mean.shape == (3, 3)
     assert np.all(np.isfinite(alignment))
     assert np.all(np.isfinite(spread))
+
+
+def test_torque_profile_dt_contact_distance_screen_detects_body_flag_proximity() -> (
+    None
+):
+    positions = np.full((2, 48, 3), 10.0)
+    positions[:, :15] = 0.0
+    positions[:, 15:48] = 2.0
+    positions[1, 15] = np.asarray([0.01, 0.0, 0.0])
+
+    body_flag, flag_flag = _min_bead_distances(positions)
+
+    assert body_flag[0] == 2.0 * np.sqrt(3.0)
+    assert body_flag[1] == 0.01
+    assert np.all(np.isfinite(flag_flag))
+
+
+def test_torque_profile_dt_contact_analysis_keeps_reference_provenance(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "uniform"
+    condition_id = "as000__ps000__nf03"
+    run_dir = root / condition_id
+    run_dir.mkdir(parents=True)
+    (root / "run_manifest.json").write_text(
+        json.dumps(
+            {
+                "conditions": [
+                    {
+                        "condition_id": condition_id,
+                        "output_dir": str(run_dir),
+                        "axis_values": {
+                            "attach_seed": 0,
+                            "phase_seed": 0,
+                            "n_flagella": 3,
+                        },
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    (run_dir / "run_summary.json").write_text(
+        json.dumps(
+            {
+                "execution": {"status": "completed"},
+                "gates": {
+                    name: {
+                        "status": "available",
+                        "any_fail": False,
+                        "final_pass": True,
+                    }
+                    for name in ("finite", "shape_nonbody", "shape_body")
+                },
+                "all_step_metrics": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+    positions = np.full((2, 48, 3), 2.0)
+    positions[:, :15] = 0.0
+    np.savez(
+        run_dir / "state_archive.npz",
+        t=np.asarray([0.0, 2.0]),
+        bead_positions_um=positions,
+    )
+    output = analyze_contact(
+        ContactConfig(
+            uniform_reference_run_dir=root,
+            diffusive_reference_run_dir=root,
+            diagnostic_run_dir=root,
+            output_dir=tmp_path / "analysis",
+            seed_cases=(condition_id,),
+            profiles=("uniform",),
+            dt_stars=(1.0e-3,),
+        )
+    )
+
+    manifest = json.loads((output / "manifest.json").read_text())
+    assert manifest["condition_count"] == 1
+    assert manifest["reused_reference_count"] == 1
 
 
 def test_issue203_composite_manifest_is_condition_scoped(tmp_path: Path) -> None:

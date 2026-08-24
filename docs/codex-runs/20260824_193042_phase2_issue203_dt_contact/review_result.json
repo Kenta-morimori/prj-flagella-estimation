@@ -1,0 +1,17 @@
+{
+  "status": "PASS",
+  "scope": "Issue #203 n=3 torque-profile dt contact diagnostic preparation",
+  "reviewed_at": "2026-08-24T19:30:42+09:00",
+  "checks": {
+    "targeted_pytest": "93 passed",
+    "ruff": "passed",
+    "generic_campaign_dry_run": "12 conditions",
+    "parallel_job_dry_run": "12 independent shards, max_workers=8"
+  },
+  "user_run_pending": {
+    "environment": "cs10",
+    "campaign": "12 new 2.0 s shards at dt_star=3e-4 and 1e-4",
+    "reason": "Long-running simulation is explicitly user-run on cs10. Existing dt_star=1e-3 references are reused."
+  },
+  "decision": "No torque profile, dt_star, contact model, or dataset policy is adopted by this preparation."
+}

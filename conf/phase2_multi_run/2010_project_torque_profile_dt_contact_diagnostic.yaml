@@ -1,0 +1,57 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/203
+  description: n=3 torque-profile dt contact diagnostic; 1e-3 references are reused.
+  model_id: 2010_project_torque_profile_dt_contact_diagnostic
+  dataset_version: v2_pending
+  model_notes:
+    - Diagnostic only. It does not adopt a torque profile, dt_star, or dataset policy.
+    - Each condition is 2.0 s, RUN fixed, and Brownian OFF.
+
+base_config: conf/sim_swim_2010.yaml
+base_overrides:
+  time.duration_s: 2.0
+  time.scale_policy: reference_torque
+  motor.torque_Nm: 2.5e-20
+  motor.force_distribution: root_torque_segment_couples
+  motor.enable_switching: false
+  flagella.placement_mode: seeded_surface
+  flagella.initial_phase_mode: seeded
+  flagella.initial_helix_axis_from_rear_deg: 0
+  brownian.enabled: false
+  output.policy: compact
+  output.archive_interval_s: 1.0e-4
+  output_sampling.out_all_steps_3d: false
+
+sweep:
+  axes:
+    seed_case:
+      short_name: seed
+      keys:
+        attach_seed: seed.attach_seed
+        phase_seed: seed.phase_seed
+        n_flagella: flagella.n_flagella
+      values:
+        - {attach_seed: 0, phase_seed: 0, n_flagella: 3}
+        - {attach_seed: 1, phase_seed: 0, n_flagella: 3}
+        - {attach_seed: 2, phase_seed: 2, n_flagella: 3}
+      labels: ["as000 ps000 nf03 PASS control", "as001 ps000 failure seed", "as002 ps002 failure seed"]
+      ids: [as000__ps000__nf03, as001__ps000__nf03, as002__ps002__nf03]
+    torque_profile:
+      key: motor.torque_distribution_profile
+      short_name: profile
+      values: [uniform, diffusive]
+      ids: [uniform, diffusive]
+    dt_star:
+      key: time.integration.dt_star
+      short_name: dt
+      values: [3.0e-4, 1.0e-4]
+      ids: [dt3e-4, dt1e-4]
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 10000
