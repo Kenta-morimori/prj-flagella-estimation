@@ -20,6 +20,8 @@ Read only what is needed for the task, in this order:
 
 1. `AGENTS.md`
 2. The user's latest request and the target Issue or PR
+   - Read the Issue's `Heavy/runtime execution target` and its `execution:*` label.
+   - If absent, mismatched, or `execution:triage`, do read-only investigation only until the Issue is triaged.
 3. `docs/phaseX/phaseX_current.md`
 4. `docs/phaseX/phaseX_guide.md` when it exists and phase-specific rules are relevant
 5. The relevant section of `docs/phaseX/phaseX_tasks.md` when past decisions are needed
@@ -46,6 +48,8 @@ Do not read large files under `outputs/` unless compact summaries and manifests 
 * Do not commit secrets, tokens, credentials, private data, or generated authentication files.
 * Do not run remote scripts such as `curl ... | sh` without explicit user approval.
 * Target the branch specified by the task or Issue; otherwise target the default branch.
+* Before implementation, report the Issue execution target, independent-condition estimate, Mac wall-time estimate, and permitted execution scope.
+* `execution:cs10` means cs10 is the User-run heavy/runtime target: use the cs10 parallel-first runbook, and do not connect, start tmux, or stop jobs without User authorization for that operation.
 * Track related work with GitHub-native relationships: make a bounded child task a sub-issue of its parent, and add `blocking` / `blockedBy` only for a real completion dependency. Do not create a dependency edge merely because work is related.
 * Link the source Issue from a PR. Use `Closes #<issue>` only when merge completes that Issue; otherwise use a non-closing reference and state what remains (for example, a user-run experiment or result review).
 * Do not mark a task complete without a local `review_result.json` whose status is `PASS`.

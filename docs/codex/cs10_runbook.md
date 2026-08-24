@@ -74,6 +74,10 @@ cs10 実機では、251-step（`duration_s=0.001`）screen を workers `1,2,4,6,
 
 ## 長時間 parallel job の標準運用
 
+Issueの`execution:cs10`は、独立conditionが8以上またはMac見積りwall timeが30分超の
+heavy/runtime execution targetとして選ぶ。target未記載・`execution:triage`のIssueでは、
+cs10 runtimeを開始しない。
+
 `duration_s >= 0.5`、または複数の独立conditionを実行する場合は、まず
 `conf/phase2_parallel/<job>/job.yaml` の利用を検討する。serial実行は、condition間に
 依存がある場合など、Issue runbookに明示した理由がある場合だけ許可する。cs10では

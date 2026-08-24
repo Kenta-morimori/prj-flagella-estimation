@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "task": "Issue execution target metadata and Codex preflight",
+  "summary": "GitHub Issue Formの必須execution target、同期label workflow、Codex implementation preflight、cs10選択基準を追加した。",
+  "checks": [
+    {
+      "command": ".venv/bin/pytest tests/test_issue_execution_target.py tests/test_phase2_parallel_job.py tests/test_cs10_parallel_tmux.py -q",
+      "result": "PASS (30 passed)"
+    },
+    {
+      "command": "ruff check tools/codex/issue_execution_target.py tests/test_issue_execution_target.py",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "external_state": {
+    "labels_created": [
+      "execution:mac",
+      "execution:cs10",
+      "execution:none",
+      "execution:triage"
+    ],
+    "issue_203": "Backfilled as cs10_user_run with execution:cs10; the running cs10 campaign was not modified."
+  },
+  "semantic_change": "No physical model, dataset policy, numerical policy, or active campaign execution was changed."
+}

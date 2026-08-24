@@ -12,6 +12,23 @@ Task checkboxes，commit message，PR本文，Codex final response は二次記�
 
 `review_result.json` の `PASS` は，ローカル実装・文書・セルフチェックが完了していることを表す。PR作成後の CI と trusted Cloud review（CodexまたはGitHub Copilot）は merge gate であり，PR checklist と GitHub checks で確認する。trusted review 未実施だけを理由に，ローカル完了済みの `review_result.json` を `FAIL` に戻さない。
 
+## Issue execution target
+
+新規IssueはGitHub Issue Formでheavy/runtime execution targetを必須選択する。コード実装と
+短時間unit testは通常Macで行い、このtargetは長時間simulation、sweep、render等の実行先を示す。
+
+| Form value | Label | Permitted execution |
+| --- | --- | --- |
+| `mac_only` | `execution:mac` | Mac local runtimeのみ |
+| `cs10_user_run` | `execution:cs10` | Mac実装・短時間check後、Userがcs10でheavy jobを実行 |
+| `no_runtime` | `execution:none` | docs / review / workflowのみ |
+| `triage_required` | `execution:triage` | read-only triageのみ |
+
+独立conditionが8以上、またはMac見積りwall timeが30分超なら`cs10_user_run`を選ぶ必須候補とする。
+Issue作成・編集時のworkflowが`execution:*` labelを同期する。本文のtargetとlabelが不在・不一致、
+または`execution:triage`なら、Codexは実装・test・runtimeを開始せず、targetのtriageを依頼する。
+既存Issueは一括推測せず、着手時にこのForm項目を追記してtriageする。
+
 PR URL，最終PR head SHA，push後の状態など，PR作成後にしか確定しない動的情報を tracked `review_result.json` へ後追い同期するためだけの commit は作らない。これらはPR本文，GitHub checks，最終ユーザー報告に記録する。
 
 ## Run ID
