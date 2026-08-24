@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -123,22 +124,114 @@ def transcode_tree(
     return output_dir
 
 
+def _update_video_entries(value: Any, promoted: dict[str, dict[str, Any]]) -> None:
+    if isinstance(value, list):
+        for item in value:
+            _update_video_entries(item, promoted)
+    elif isinstance(value, dict):
+        path = value.get("path")
+        key = str(Path(path).resolve()) if isinstance(path, str) else ""
+        record = promoted.get(key)
+        if record is None and isinstance(path, str):
+            matches = [
+                candidate
+                for candidate_key, candidate in promoted.items()
+                if Path(candidate_key).name == Path(path).name
+            ]
+            if len(matches) == 1:
+                record = matches[0]
+        if record is not None:
+            value["path"] = str(record["source"])
+            value["selected_codec"] = "libx264"
+            value["attempted_codecs"] = ["ffmpeg:libx264"]
+        for item in value.values():
+            _update_video_entries(item, promoted)
+
+
+def promote_tree_in_place(
+    input_dir: Path,
+    staging_dir: Path,
+    *,
+    manifest_json: Path | None = None,
+    ffmpeg: str = "ffmpeg",
+    ffprobe: str = "ffprobe",
+    overwrite: bool = False,
+) -> Path:
+    """Replace MP4s with verified H.264 copies and update an optional manifest."""
+    input_dir, staging_dir = input_dir.resolve(), staging_dir.resolve()
+    transcode_tree(
+        input_dir,
+        staging_dir,
+        ffmpeg=ffmpeg,
+        ffprobe=ffprobe,
+        overwrite=overwrite,
+    )
+    transcode_manifest = json.loads(
+        (staging_dir / "transcode_manifest.json").read_text(encoding="utf-8")
+    )
+    promoted: dict[str, dict[str, Any]] = {}
+    for record in transcode_manifest["records"]:
+        source = Path(str(record["source"]))
+        destination = Path(str(record["destination"]))
+        os.replace(destination, source)
+        promoted[str(source.resolve())] = record
+    shutil.rmtree(staging_dir)
+    if manifest_json is not None:
+        data = json.loads(manifest_json.read_text(encoding="utf-8"))
+        _update_video_entries(data, promoted)
+        manifest_json.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+    promotion_manifest = input_dir / "h264_promotion_manifest.json"
+    promotion_manifest.write_text(
+        json.dumps(
+            {
+                "kind": "h264_mp4_promotion",
+                "input_dir": str(input_dir),
+                "video_count": len(promoted),
+                "records": list(promoted.values()),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return promotion_manifest
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--replace", action="store_true")
+    parser.add_argument("--manifest-json", type=Path)
     parser.add_argument("--ffmpeg", default="ffmpeg")
     parser.add_argument("--ffprobe", default="ffprobe")
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
-    print(
-        transcode_tree(
-            args.input_dir,
-            args.output_dir,
-            ffmpeg=args.ffmpeg,
-            ffprobe=args.ffprobe,
-            overwrite=args.overwrite,
-            dry_run=args.dry_run,
+    if args.replace:
+        if args.dry_run:
+            parser.error("--replace cannot be combined with --dry-run")
+        print(
+            promote_tree_in_place(
+                args.input_dir,
+                args.output_dir,
+                manifest_json=args.manifest_json,
+                ffmpeg=args.ffmpeg,
+                ffprobe=args.ffprobe,
+                overwrite=args.overwrite,
+            )
         )
-    )
+    else:
+        print(
+            transcode_tree(
+                args.input_dir,
+                args.output_dir,
+                ffmpeg=args.ffmpeg,
+                ffprobe=args.ffprobe,
+                overwrite=args.overwrite,
+                dry_run=args.dry_run,
+            )
+        )

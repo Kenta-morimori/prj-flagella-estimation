@@ -236,15 +236,15 @@ def _condition(root: Path, condition_id: str) -> tuple[dict[str, Any], dict[str,
     raise KeyError(f"condition not found: {condition_id}")
 
 
-def render(root: Path, condition_id: str, output_dir: Path, fps: float = 10.0) -> Path:
-    manifest, record = _condition(root, condition_id)
+def _condition_assets(
+    root: Path, manifest: dict[str, Any], record: dict[str, Any], fps: float
+) -> tuple[SimulationConfig, Simulator, list[Any]]:
     base = Path(str(manifest["base_config"]))
     cfg = SimulationConfig.from_dict(
         yaml.safe_load(base.read_text(encoding="utf-8"))
     ).with_overrides(record["config_overrides"])
     if cfg.motor.force_distribution != "root_torque_segment_couples":
         raise ValueError("composite replay requires root_torque_segment_couples")
-    output_dir.mkdir(parents=True, exist_ok=True)
     recorded = Path(str(record["output_dir"]))
     candidates = (recorded, root / recorded.name, root / "conditions" / recorded.name)
     raw = next(
@@ -253,13 +253,13 @@ def render(root: Path, condition_id: str, output_dir: Path, fps: float = 10.0) -
     states = load_state_archive(raw / "state_archive.npz")
     validate_replay_fps(states, fps)
     simulator = Simulator(cfg)
-    frames = _select_frames(states, False, fps)
-    figure = plt.figure(
-        figsize=(11, max(4, 2.35 * len(simulator.rig.flagella_indices)))
-    )
-    canvas = FigureCanvasAgg(figure)
-    movie_path = output_dir / f"{condition_id}_composite.mp4"
-    panel_weights = [
+    return cfg, simulator, _select_frames(states, False, fps)
+
+
+def _panel_weights(
+    cfg: SimulationConfig, simulator: Simulator, frames: list[Any]
+) -> list[list[np.ndarray]]:
+    return [
         reconstructed_segment_weights(
             cfg.motor.torque_distribution_profile,
             len(indices) - 1,
@@ -269,6 +269,18 @@ def render(root: Path, condition_id: str, output_dir: Path, fps: float = 10.0) -
         )
         for indices in simulator.rig.flagella_indices
     ]
+
+
+def render(root: Path, condition_id: str, output_dir: Path, fps: float = 10.0) -> Path:
+    manifest, record = _condition(root, condition_id)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    cfg, simulator, frames = _condition_assets(root, manifest, record, fps)
+    figure = plt.figure(
+        figsize=(11, max(4, 2.35 * len(simulator.rig.flagella_indices)))
+    )
+    canvas = FigureCanvasAgg(figure)
+    movie_path = output_dir / f"{condition_id}_composite.mp4"
+    panel_weights = _panel_weights(cfg, simulator, frames)
     rendered_frames: list[np.ndarray] = []
     try:
         for frame_index, state in enumerate(frames):
@@ -335,11 +347,130 @@ def render(root: Path, condition_id: str, output_dir: Path, fps: float = 10.0) -
     return movie_path
 
 
+def render_n_flagella_grid(
+    root: Path, n_flagella: int, output_dir: Path, fps: float = 10.0
+) -> Path:
+    """Render the nine attach/phase seed conditions as one composite grid."""
+    manifest = json.loads((root / "run_manifest.json").read_text(encoding="utf-8"))
+    records = sorted(
+        (
+            record
+            for record in manifest["conditions"]
+            if int((record.get("axis_values") or {}).get("n_flagella", -1))
+            == n_flagella
+        ),
+        key=lambda record: (
+            int((record.get("axis_values") or {}).get("attach_seed", -1)),
+            int((record.get("axis_values") or {}).get("phase_seed", -1)),
+        ),
+    )
+    if len(records) != 9:
+        raise ValueError(f"Expected nine conditions for n_flagella={n_flagella}")
+    assets = [_condition_assets(root, manifest, record, fps) for record in records]
+    profiles = {cfg.motor.torque_distribution_profile for cfg, _, _ in assets}
+    if len(profiles) != 1:
+        raise ValueError("Grid conditions must use one torque profile")
+    frame_count = min(len(frames) for _, _, frames in assets)
+    if frame_count <= 0:
+        raise RuntimeError("No composite grid frames selected")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    movie_path = output_dir / f"nf{n_flagella:02d}_composite_grid.mp4"
+    manifest_path = output_dir / f"nf{n_flagella:02d}_composite_grid_manifest.json"
+    figure = plt.figure(figsize=(12, 12))
+    canvas = FigureCanvasAgg(figure)
+    weights = [
+        _panel_weights(cfg, simulator, frames[:frame_count])
+        for cfg, simulator, frames in assets
+    ]
+    rendered_frames: list[np.ndarray] = []
+    try:
+        for frame_index in range(frame_count):
+            figure.clear()
+            for cell, (record, (cfg, simulator, frames), panel_weights) in enumerate(
+                zip(records, assets, weights)
+            ):
+                row, col = divmod(cell, 3)
+                x, y, width, height = col / 3, 1.0 - (row + 1) / 3, 1 / 3, 1 / 3
+                condition_id = str(record["condition_id"])
+                state = frames[frame_index]
+                ax3d = figure.add_axes(
+                    [x + 0.005, y + 0.018, width * 0.62, height * 0.30],
+                    projection="3d",
+                )
+                plot_swim_frame_3d(
+                    ax3d,
+                    state,
+                    cfg,
+                    simulator.rig,
+                    title=f"{condition_id}\nt={state.t:.2f} s",
+                    hide_ticks=True,
+                )
+                count = len(simulator.rig.flagella_indices)
+                for flag_id in range(count):
+                    panel_height = height * 0.285 / count
+                    top = y + height * 0.322 - (flag_id + 1) * panel_height
+                    axis = figure.add_axes(
+                        [x + width * 0.65, top, width * 0.34, panel_height - 0.006]
+                    )
+                    value = panel_weights[flag_id][frame_index]
+                    axis.bar(np.arange(len(value)), value, color=f"C{flag_id}")
+                    axis.set_ylim(0, max(float(value.max()) * 1.25, 0.1))
+                    axis.set_xticks([])
+                    axis.set_yticks([])
+                    axis.set_title(f"F{flag_id} Σ={value.sum():.2f}", fontsize=5)
+            canvas.draw()
+            rendered_frames.append(np.asarray(canvas.buffer_rgba())[:, :, :3].copy())
+    finally:
+        plt.close(figure)
+    frame_size = (rendered_frames[0].shape[1], rendered_frames[0].shape[0])
+    selected_codec, attempted_codecs = _write_frames_with_fallback(
+        movie_path, rendered_frames, fps=fps, frame_size=frame_size
+    )
+    cfg = assets[0][0]
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "kind": "phase2_issue203_composite_grid",
+                "n_flagella": n_flagella,
+                "profile": cfg.motor.torque_distribution_profile,
+                "grid_shape": [3, 3],
+                "condition_ids": [str(record["condition_id"]) for record in records],
+                "weight_unit": "local bead-to-bead segment",
+                "weight_sum": 1.0,
+                "weight_time_behavior": (
+                    "time_invariant"
+                    if cfg.motor.torque_distribution_profile == "uniform"
+                    else "reconstructed_local_twist"
+                ),
+                "selected_codec": selected_codec,
+                "attempted_codecs": list(attempted_codecs),
+                "frame_count": frame_count,
+                "movie": str(movie_path),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return movie_path
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-dir", type=Path, required=True)
-    parser.add_argument("--condition-id", required=True)
+    parser.add_argument("--condition-id")
+    parser.add_argument("--n-flagella", type=int)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--fps", type=float, default=10.0)
     args = parser.parse_args(argv)
-    print(render(args.run_dir, args.condition_id, args.output_dir, args.fps))
+    if (args.condition_id is None) == (args.n_flagella is None):
+        parser.error("specify exactly one of --condition-id or --n-flagella")
+    if args.n_flagella is not None:
+        print(
+            render_n_flagella_grid(
+                args.run_dir, args.n_flagella, args.output_dir, args.fps
+            )
+        )
+    else:
+        print(render(args.run_dir, str(args.condition_id), args.output_dir, args.fps))

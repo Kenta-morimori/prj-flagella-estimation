@@ -2,7 +2,11 @@ from pathlib import Path
 
 import pytest
 
-from sim_swim.analysis.video_transcode import build_ffmpeg_command, transcode_tree
+from sim_swim.analysis.video_transcode import (
+    _update_video_entries,
+    build_ffmpeg_command,
+    transcode_tree,
+)
 
 
 def test_h264_transcode_command_is_quicktime_compatible(tmp_path: Path) -> None:
@@ -28,3 +32,26 @@ def test_transcode_rejects_output_below_input(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="outside input_dir"):
         transcode_tree(source, source / "h264", dry_run=True)
+
+
+def test_promotion_updates_nested_replay_video_manifest(tmp_path: Path) -> None:
+    video = tmp_path / "grid.mp4"
+    manifest = {"render_video": {"grid": {"pages": [{"video": {"path": str(video)}}]}}}
+
+    _update_video_entries(
+        manifest, {str(video.resolve()): {"source": str(video), "kind": "promotion"}}
+    )
+
+    video_entry = manifest["render_video"]["grid"]["pages"][0]["video"]
+    assert video_entry["selected_codec"] == "libx264"
+    assert video_entry["attempted_codecs"] == ["ffmpeg:libx264"]
+
+
+def test_promotion_updates_stale_path_by_unique_video_name(tmp_path: Path) -> None:
+    video = tmp_path / "grid.mp4"
+    manifest = {"video": {"path": "/stale/cs10/grid.mp4"}}
+
+    _update_video_entries(manifest, {str(video.resolve()): {"source": str(video)}})
+
+    assert manifest["video"]["path"] == str(video)
+    assert manifest["video"]["selected_codec"] == "libx264"

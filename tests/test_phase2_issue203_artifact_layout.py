@@ -3,6 +3,7 @@ from pathlib import Path
 
 from sim_swim.analysis.issue203_artifact_layout import (
     canonical_artifact_name,
+    finalize_grid_composites,
     migrate_reference,
 )
 
@@ -99,3 +100,28 @@ def test_migration_applies_canonical_paths_and_manifests(
     )
     assert composite["movie"].endswith("nf01_as000_ps001_composite.mp4")
     assert composite["selected_codec"] == "libx264"
+
+
+def test_finalize_grid_composites_removes_individual_artifacts(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "reference"
+    composite = root / "analysis" / "composite"
+    composite.mkdir(parents=True)
+    for n in range(1, 4):
+        (composite / f"nf{n:02d}_composite_grid.mp4").touch()
+        _write_json(
+            composite / f"nf{n:02d}_composite_grid_manifest.json",
+            {"n_flagella": n, "condition_ids": [f"id_{i}" for i in range(9)]},
+        )
+    (composite / "nf01_as000_ps000_composite.mp4").touch()
+    _write_json(composite / "nf01_as000_ps000_composite_manifest.json", {})
+    monkeypatch.setattr(
+        "sim_swim.analysis.issue203_artifact_layout._probe_video",
+        lambda _: {"codec": "h264", "pix_fmt": "yuv420p", "frame_count": 21},
+    )
+
+    assert finalize_grid_composites(root, "uniform", apply=True) == 3
+
+    assert not (composite / "nf01_as000_ps000_composite.mp4").exists()
+    assert json.loads((composite / "manifest.json").read_text())["grid_count"] == 3

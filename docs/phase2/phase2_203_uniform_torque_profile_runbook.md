@@ -13,8 +13,9 @@ UNIFORM=outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_pr
 DIFFUSIVE=outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_nf1_4_as3_ps3_2026-08-18
 ```
 
-canonical composite collection は各 reference の `analysis/composite` である。動画・per-condition
-manifest は `nfNN_asNNN_psNNN_composite.*` とし、H.264 (`yuv420p`, `faststart`) のみを残す。
+canonical composite collection は各 reference の `analysis/composite` である。動画・manifest は
+`nfNN_composite_grid.*` とし、各gridは attach seed × phase seed の9条件をsubplot表示する。
+H.264 (`yuv420p`, `faststart`) のみを残す。
 logical `condition_id` は従来の `asNNN__psNNN__nfNN` のままとする。OpenCV が H.264 encoder を
 持たない legacy MP4 を変換する場合は、temporary directory へ出力して codec/duration を `ffprobe`
 で確認してから canonical collection に移す。`composite_h264` は canonical output 名として使わない。
@@ -81,18 +82,24 @@ CAMPAIGN=outputs/YYYY-MM-DD/HHMMSS/parallel/issue203_uniform_torque_profile__UUI
   --run-dir "$CAMPAIGN" --output-dir "$CAMPAIGN/analysis/replay" \
   --view 3d+2d --max-panels-per-grid 9 --overwrite
 
-# 全27条件の 3D + local-segment nominal torque-weight composite replay。
+# `ffprobe` で mp4v なら、MacなどFFmpeg/libx264がある環境でH.264へ置換する。
+uv run python scripts/03_dataset_building/transcode_mp4_h264.py \
+  --input-dir "$CAMPAIGN/analysis/replay" \
+  --output-dir /tmp/issue203_replay_h264_staging --replace \
+  --manifest-json "$CAMPAIGN/analysis/replay/manifest.json" --overwrite
+
+# n=1/2/3ごとに9条件を3×3 subplotで表示する、3本の3D +
+# local-segment nominal torque-weight composite replay。
 mkdir -p "$CAMPAIGN/analysis/composite"
-for n in 01 02 03; do for a in 000 001 002; do for p in 000 001 002; do
-  id="as${a}__ps${p}__nf${n}"
+for n in 1 2 3; do
   .venv-cs10/bin/python scripts/03_dataset_building/render_issue203_composite_replay.py \
-    --run-dir "$CAMPAIGN" --condition-id "$id" \
+    --run-dir "$CAMPAIGN" --n-flagella "$n" \
     --output-dir "$CAMPAIGN/analysis/composite"
-done; done; done
+done
 ```
 
 `motion_features/manifest.json`、`replay/manifest.json`、各
-`composite/*_composite_manifest.json`と、MP4数（grid replayはページ数、compositeは27）を
+`composite/nf??_composite_grid_manifest.json`と、MP4数（grid replayはページ数、compositeは3）を
 確認する。strict non-PASSを通常の
 比較plotへ混入させず、condition CSVとmanifestには残す。
 
@@ -103,12 +110,11 @@ diffusive reference も比較の対照表示として n=1--3 の27条件を同�
 
 ```bash
 mkdir -p "$DIFFUSIVE/analysis/composite"
-for n in 01 02 03; do for a in 000 001 002; do for p in 000 001 002; do
-  id="as${a}__ps${p}__nf${n}"
+for n in 1 2 3; do
   uv run python scripts/03_dataset_building/render_issue203_composite_replay.py \
-    --run-dir "$DIFFUSIVE" --condition-id "$id" \
+    --run-dir "$DIFFUSIVE" --n-flagella "$n" \
     --output-dir "$DIFFUSIVE/analysis/composite"
-done; done; done
+done
 ```
 
 ## Transfer and paired analysis

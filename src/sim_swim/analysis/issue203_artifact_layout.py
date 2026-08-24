@@ -256,6 +256,47 @@ def migrate_reference(
     )
 
 
+def finalize_grid_composites(root: Path, profile: str, *, apply: bool = False) -> int:
+    """Make the three verified n-flagella grid movies the only composites."""
+    root = root.resolve()
+    composite = root / "analysis" / "composite"
+    grids: list[dict[str, Any]] = []
+    for n_flagella in range(1, 4):
+        movie = composite / f"nf{n_flagella:02d}_composite_grid.mp4"
+        manifest_path = composite / f"nf{n_flagella:02d}_composite_grid_manifest.json"
+        if not movie.is_file() or not manifest_path.is_file():
+            raise FileNotFoundError(movie)
+        data = _read_json(manifest_path)
+        if (
+            data.get("n_flagella") != n_flagella
+            or len(data.get("condition_ids") or []) != 9
+        ):
+            raise ValueError(f"Invalid grid manifest: {manifest_path}")
+        grids.append(
+            {
+                "movie": str(movie),
+                "manifest": str(manifest_path),
+                **_probe_video(movie),
+                **data,
+            }
+        )
+    if apply:
+        for path in composite.glob("nf??_as???_ps???_composite.mp4"):
+            path.unlink()
+        for path in composite.glob("nf??_as???_ps???_composite_manifest.json"):
+            path.unlink()
+        _write_json(
+            composite / "manifest.json",
+            {
+                "kind": "phase2_issue203_composite_grid_collection",
+                "profile": profile,
+                "grid_count": len(grids),
+                "grids": grids,
+            },
+        )
+    return len(grids)
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--uniform-root", type=Path, required=True)
