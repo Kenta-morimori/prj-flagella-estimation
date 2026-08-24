@@ -70,8 +70,9 @@ for n in 01 02 03; do for a in 000 001 002; do for p in 000 001 002; do
 done; done; done
 ```
 
-`motion_features/manifest.json`、`replay/manifest.json`、`composite/manifest.json`と、
-MP4数（grid replayはページ数、compositeは27）を確認する。strict non-PASSを通常の
+`motion_features/manifest.json`、`replay/manifest.json`、各
+`composite/*_composite_manifest.json`と、MP4数（grid replayはページ数、compositeは27）を
+確認する。strict non-PASSを通常の
 比較plotへ混入させず、condition CSVとmanifestには残す。
 
 ## Transfer and paired analysis

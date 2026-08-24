@@ -35,6 +35,11 @@ def nominal_segment_weights(profile: str, segment_count: int) -> np.ndarray:
     return np.full(segment_count, 1.0 / segment_count, dtype=float)
 
 
+def composite_manifest_path(output_dir: Path, condition_id: str) -> Path:
+    """Return the per-condition manifest path for a composite replay."""
+    return output_dir / f"{condition_id}_composite_manifest.json"
+
+
 def _condition(root: Path, condition_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
     manifest = json.loads((root / "run_manifest.json").read_text(encoding="utf-8"))
     for record in manifest["conditions"]:
@@ -102,7 +107,7 @@ def render(root: Path, condition_id: str, output_dir: Path, fps: float = 10.0) -
     finally:
         selection.writer.release()
         plt.close(figure)
-    (output_dir / "manifest.json").write_text(
+    composite_manifest_path(output_dir, condition_id).write_text(
         json.dumps(
             {
                 "kind": "phase2_issue203_composite_replay",

@@ -2,7 +2,10 @@ from pathlib import Path
 
 import numpy as np
 
-from sim_swim.analysis.issue203_composite_replay import nominal_segment_weights
+from sim_swim.analysis.issue203_composite_replay import (
+    composite_manifest_path,
+    nominal_segment_weights,
+)
 from sim_swim.analysis.issue203_torque_profile_comparison import load_config
 from sim_swim.analysis.motion_feature_study import (
     load_config as load_motion_feature_config,
@@ -36,6 +39,13 @@ def test_issue203_uniform_weight_panel_uses_segments_and_sums_to_one() -> None:
     assert weights.shape == (10,)
     assert np.allclose(weights, 0.1)
     assert weights.sum() == 1.0
+
+
+def test_issue203_composite_manifest_is_condition_scoped(tmp_path: Path) -> None:
+    condition_id = "as000__ps000__nf01"
+    assert composite_manifest_path(tmp_path, condition_id) == (
+        tmp_path / "as000__ps000__nf01_composite_manifest.json"
+    )
 
 
 def test_issue203_comparison_config_keeps_the_existing_diffusive_reference() -> None:
