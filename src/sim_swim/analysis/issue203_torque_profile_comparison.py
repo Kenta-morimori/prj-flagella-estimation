@@ -71,6 +71,10 @@ def _finite(value: str | float | None) -> float:
     return parsed if math.isfinite(parsed) else float("nan")
 
 
+def _nanmean_or_nan(values: np.ndarray) -> float:
+    return float(np.nanmean(values)) if np.isfinite(values).any() else float("nan")
+
+
 def _angle(a: np.ndarray, b: np.ndarray) -> float:
     if not (np.isfinite(a).all() and np.isfinite(b).all()):
         return float("nan")
@@ -92,19 +96,20 @@ def _axis_motion(axis: np.ndarray, times: np.ndarray) -> float:
 def _flag_axes(
     bead_positions_um: np.ndarray, flagella_indices: list[np.ndarray]
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    axes: list[list[np.ndarray]] = []
-    for bead_positions in bead_positions_um:
-        one: list[np.ndarray] = []
-        for indexes in flagella_indices:
+    # A 2 s archive has 50,001 saved steps.  Building ``axes`` as nested
+    # Python lists temporarily retains hundreds of thousands of tiny arrays,
+    # which is needlessly expensive on both Mac and cs10.  Keep the same
+    # numerical calculation in one preallocated ndarray instead.
+    array = np.empty((len(bead_positions_um), len(flagella_indices), 3), dtype=float)
+    for time_index, bead_positions in enumerate(bead_positions_um):
+        for flag_index, indexes in enumerate(flagella_indices):
             points = bead_positions[np.asarray(indexes)[1:]]
             centered = points - np.mean(points, axis=0)
             _, _, vh = np.linalg.svd(centered, full_matrices=False)
             vector = vh[0]
             if np.dot(vector, points[-1] - points[0]) < 0:
                 vector *= -1
-            one.append(vector / np.linalg.norm(vector))
-        axes.append(one)
-    array = np.asarray(axes, dtype=float)
+            array[time_index, flag_index] = vector / np.linalg.norm(vector)
     mean = np.full((len(bead_positions_um), 3), np.nan)
     alignment = np.full(len(bead_positions_um), np.nan)
     spread = np.full(len(bead_positions_um), np.nan)
@@ -192,9 +197,9 @@ def _metrics(root: Path, record: dict[str, Any], row: dict[str, str]) -> dict[st
             "mean_flagella_axis_motion_rad_s": _axis_motion(mean_flag, t)
             * math.pi
             / 180.0,
-            "body_flagella_axis_angle_deg": float(np.nanmean(relation)),
-            "flagella_axis_alignment": float(np.nanmean(alignment)),
-            "flagella_axis_spread_deg": float(np.nanmean(spread)),
+            "body_flagella_axis_angle_deg": _nanmean_or_nan(relation),
+            "flagella_axis_alignment": _nanmean_or_nan(alignment),
+            "flagella_axis_spread_deg": _nanmean_or_nan(spread),
             "bundle_like_fraction": float(
                 np.nanmean((alignment >= math.cos(math.radians(15))).astype(float))
             )

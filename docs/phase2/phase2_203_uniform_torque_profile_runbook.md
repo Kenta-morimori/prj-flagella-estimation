@@ -4,6 +4,25 @@
 
 このcampaignは `root_torque_segment_couples + uniform` と既存 `diffusive` の同一seed比較である。2010 project default、dataset v2、`dt_star=1e-3`の収束性は変更・確定しない。後者は #200 の責務である。
 
+## Canonical artifact locations and video compatibility
+
+検証済み #203 uniform artifact は、日付別の一時出力ではなく、比較対象と並べて次へ置く。
+
+```bash
+UNIFORM=outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_uniform_tau_linked_2s_nf1_3_as3_ps3_2026-08-23
+DIFFUSIVE=outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_nf1_4_as3_ps3_2026-08-18
+```
+
+OpenCV が H.264 encoder を持たない環境では composite が `mp4v` になる。配布・Mac
+QuickTime 用には、生成後に H.264 (`yuv420p`, `faststart`) へ変換する。変換 CLI は codec と
+duration を `ffprobe` で検証し、`transcode_manifest.json` を残す。
+
+```bash
+uv run python scripts/03_dataset_building/transcode_mp4_h264.py \
+  --input-dir "$UNIFORM/analysis/composite" \
+  --output-dir "$UNIFORM/analysis/composite_h264" --overwrite
+```
+
 ## cs10 execution
 
 恒常的なruntime、Git更新、tmux、helperの操作は
@@ -75,6 +94,25 @@ done; done; done
 確認する。strict non-PASSを通常の
 比較plotへ混入させず、condition CSVとmanifestには残す。
 
+diffusive reference も比較の対照表示として n=1--3 の27条件を同じ composite CLI で生成する。
+`diffusive` panel は実装と同じ local-twist update から各保存時刻の segment weight を再構成する
+（uniform の time-invariant panel とは区別される）。これは archive を読む render であり、cs10
+では tmux 内で、Mac では archive を移送済みならローカルで実行する。
+
+```bash
+mkdir -p "$DIFFUSIVE/analysis/issue203_composite"
+for n in 01 02 03; do for a in 000 001 002; do for p in 000 001 002; do
+  id="as${a}__ps${p}__nf${n}"
+  uv run python scripts/03_dataset_building/render_issue203_composite_replay.py \
+    --run-dir "$DIFFUSIVE" --condition-id "$id" \
+    --output-dir "$DIFFUSIVE/analysis/issue203_composite"
+done; done; done
+
+uv run python scripts/03_dataset_building/transcode_mp4_h264.py \
+  --input-dir "$DIFFUSIVE/analysis/issue203_composite" \
+  --output-dir "$DIFFUSIVE/analysis/issue203_composite_h264" --overwrite
+```
+
 ## Transfer and paired analysis
 
 最初は `manifest.json`、`run_manifest.json`、`summary.csv`、`run.log`、`campaign_completion.json`、`user_exit_marker.json`、各conditionの`run_summary.json`、失敗時だけ`stderr.log`と`failure_record.json`を転送する。`step_summary.csv`と`state_archive.npz`は最小転送から除外する。
@@ -106,7 +144,8 @@ done; done; done
 
 uv run python scripts/03_dataset_building/analyze_issue203_torque_profiles.py \
   --config conf/phase2_analysis/issue203_uniform_paired_comparison.yaml \
-  --uniform-run-dir "$LOCAL" --output-dir "$LOCAL/analysis/paired_comparison" --overwrite
+  --uniform-run-dir "$UNIFORM" --diffusive-run-dir "$DIFFUSIVE" \
+  --output-dir "$UNIFORM/analysis/paired_comparison" --overwrite
 ```
 
 cs10で生成した解析・動画をMacへ回収する場合は、次を追加転送する。

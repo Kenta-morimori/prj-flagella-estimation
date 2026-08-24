@@ -1,12 +1,15 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 
 from sim_swim.analysis.issue203_composite_replay import (
+    _write_frames_with_fallback,
     composite_manifest_path,
     nominal_segment_weights,
+    reconstructed_segment_weights,
 )
-from sim_swim.analysis.issue203_torque_profile_comparison import load_config
+from sim_swim.analysis.issue203_torque_profile_comparison import _flag_axes, load_config
 from sim_swim.analysis.motion_feature_study import (
     load_config as load_motion_feature_config,
 )
@@ -41,11 +44,78 @@ def test_issue203_uniform_weight_panel_uses_segments_and_sums_to_one() -> None:
     assert weights.sum() == 1.0
 
 
+def test_issue203_diffusive_weight_panel_reconstructs_dynamic_segment_weights() -> None:
+    weights = reconstructed_segment_weights(
+        "diffusive",
+        4,
+        times_s=np.asarray([0.0, 0.01, 0.1]),
+        dt_s=1.0e-3,
+        torque_Nm=2.5e-20,
+    )
+
+    assert all(np.isclose(weight.sum(), 1.0) for weight in weights)
+    assert np.allclose(weights[0], 0.25)
+    assert weights[-1][0] > weights[-1][-1]
+
+
+def test_issue203_flag_axis_metrics_accept_large_archive_layout() -> None:
+    positions = np.zeros((3, 5, 3), dtype=float)
+    positions[:, 2, 0] = 1.0
+    positions[:, 4, 1] = 1.0
+
+    mean, alignment, spread = _flag_axes(
+        positions, [np.asarray([0, 1, 2]), np.asarray([0, 3, 4])]
+    )
+
+    assert mean.shape == (3, 3)
+    assert np.all(np.isfinite(alignment))
+    assert np.all(np.isfinite(spread))
+
+
 def test_issue203_composite_manifest_is_condition_scoped(tmp_path: Path) -> None:
     condition_id = "as000__ps000__nf01"
     assert composite_manifest_path(tmp_path, condition_id) == (
         tmp_path / "as000__ps000__nf01_composite_manifest.json"
     )
+
+
+def test_issue203_composite_retries_writer_when_opened_codec_is_not_decodable(
+    monkeypatch, tmp_path: Path
+) -> None:
+    attempted: list[str] = []
+
+    class Writer:
+        def write(self, image: np.ndarray) -> None:
+            del image
+
+        def release(self) -> None:
+            return None
+
+    def fake_open(path: Path, **kwargs: object) -> SimpleNamespace:
+        del path
+        attempted.append(kwargs["codec_candidates"][0])  # type: ignore[index]
+        return SimpleNamespace(writer=Writer())
+
+    monkeypatch.setattr(
+        "sim_swim.analysis.issue203_composite_replay.open_mp4_writer", fake_open
+    )
+    monkeypatch.setattr(
+        "sim_swim.analysis.issue203_composite_replay.shutil.which", lambda _: None
+    )
+    monkeypatch.setattr(
+        "sim_swim.analysis.issue203_composite_replay._written_frame_count",
+        lambda _: 1 if attempted[-1] == "mp4v" else 0,
+    )
+
+    codec, codecs = _write_frames_with_fallback(
+        tmp_path / "movie.mp4",
+        [np.zeros((2, 2, 3), dtype=np.uint8)],
+        fps=10.0,
+        frame_size=(2, 2),
+    )
+
+    assert codec == "mp4v"
+    assert codecs == ("avc1", "H264", "mp4v")
 
 
 def test_issue203_comparison_config_keeps_the_existing_diffusive_reference() -> None:
