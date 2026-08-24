@@ -30,7 +30,8 @@
     "uniform_root": "outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_uniform_tau_linked_2s_nf1_3_as3_ps3_2026-08-23",
     "diffusive_root": "outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_nf1_4_as3_ps3_2026-08-18",
     "paired_comparison": "outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_uniform_tau_linked_2s_nf1_3_as3_ps3_2026-08-23/analysis/paired_comparison",
-    "diffusive_composite": "outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_nf1_4_as3_ps3_2026-08-18/analysis/issue203_composite"
+    "uniform_composite": "outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_uniform_tau_linked_2s_nf1_3_as3_ps3_2026-08-23/analysis/composite",
+    "diffusive_composite": "outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_nf1_4_as3_ps3_2026-08-18/analysis/composite"
   },
   "decision": "No physical interpretation, canonical profile adoption, dataset policy, or dt_star convergence decision was made. Those remain subject to User approval and #200."
 }

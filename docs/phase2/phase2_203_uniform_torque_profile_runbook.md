@@ -13,14 +13,16 @@ UNIFORM=outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_pr
 DIFFUSIVE=outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_nf1_4_as3_ps3_2026-08-18
 ```
 
-OpenCV が H.264 encoder を持たない環境では composite が `mp4v` になる。配布・Mac
-QuickTime 用には、生成後に H.264 (`yuv420p`, `faststart`) へ変換する。変換 CLI は codec と
-duration を `ffprobe` で検証し、`transcode_manifest.json` を残す。
+canonical composite collection は各 reference の `analysis/composite` である。動画・per-condition
+manifest は `nfNN_asNNN_psNNN_composite.*` とし、H.264 (`yuv420p`, `faststart`) のみを残す。
+logical `condition_id` は従来の `asNNN__psNNN__nfNN` のままとする。OpenCV が H.264 encoder を
+持たない legacy MP4 を変換する場合は、temporary directory へ出力して codec/duration を `ffprobe`
+で確認してから canonical collection に移す。`composite_h264` は canonical output 名として使わない。
 
 ```bash
 uv run python scripts/03_dataset_building/transcode_mp4_h264.py \
-  --input-dir "$UNIFORM/analysis/composite" \
-  --output-dir "$UNIFORM/analysis/composite_h264" --overwrite
+  --input-dir "$UNIFORM/analysis/composite_legacy_mp4v" \
+  --output-dir "$UNIFORM/analysis/.composite_h264_staging" --overwrite
 ```
 
 ## cs10 execution
@@ -100,17 +102,13 @@ diffusive reference も比較の対照表示として n=1--3 の27条件を同�
 では tmux 内で、Mac では archive を移送済みならローカルで実行する。
 
 ```bash
-mkdir -p "$DIFFUSIVE/analysis/issue203_composite"
+mkdir -p "$DIFFUSIVE/analysis/composite"
 for n in 01 02 03; do for a in 000 001 002; do for p in 000 001 002; do
   id="as${a}__ps${p}__nf${n}"
   uv run python scripts/03_dataset_building/render_issue203_composite_replay.py \
     --run-dir "$DIFFUSIVE" --condition-id "$id" \
-    --output-dir "$DIFFUSIVE/analysis/issue203_composite"
+    --output-dir "$DIFFUSIVE/analysis/composite"
 done; done; done
-
-uv run python scripts/03_dataset_building/transcode_mp4_h264.py \
-  --input-dir "$DIFFUSIVE/analysis/issue203_composite" \
-  --output-dir "$DIFFUSIVE/analysis/issue203_composite_h264" --overwrite
 ```
 
 ## Transfer and paired analysis

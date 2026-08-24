@@ -1,0 +1,31 @@
+{
+  "status": "PASS",
+  "scope": "Issue #203 reference artifact naming and canonical composite layout migration",
+  "checks": {
+    "dry_run": "uniform: 27 conditions/27 composites; diffusive: 36 conditions/27 composites",
+    "post_migration": {
+      "uniform_condition_dirs": 27,
+      "diffusive_condition_dirs": 36,
+      "uniform_h264_composites": 27,
+      "diffusive_h264_composites": 27,
+      "logical_condition_id_preserved": true,
+      "run_manifest_output_dirs_resolve": true
+    },
+    "tests": "14 passed: tests/test_phase2_issue203.py tests/test_phase2_issue203_artifact_layout.py tests/test_video_transcode.py",
+    "ruff": "passed",
+    "diff_check": "passed"
+  },
+  "canonical_layout": {
+    "condition_directory_format": "nfNN_asNNN_psNNN",
+    "composite_directory": "analysis/composite",
+    "composite_filename_format": "nfNN_asNNN_psNNN_composite.mp4",
+    "video_codec": "h264/yuv420p",
+    "paired_comparison": "analysis/paired_comparison",
+    "removed": [
+      "analysis/composite_h264",
+      "analysis/issue203_composite",
+      "analysis/paired_comparison_resolved"
+    ]
+  },
+  "decision": "Logical condition_id, simulation artifacts, physical interpretation, profile adoption, dataset policy, and dt_star policy were not changed."
+}
