@@ -94,9 +94,20 @@ for n in 01 02 03; do for a in 000 001 002; do for p in 000 001 002; do
 done; done; done
 ```
 
-paired comparisonは両profileのarchiveを同時に読める環境で実行する。archiveがcs10とMacに
-分散している場合は、各profileのcompact motion metricsを生成してから結合する。片側だけの
-archiveで`paired_aggregate.csv`を作成してはならない。
+paired comparisonは両profileのarchiveを同時に読める環境で実行する。現在の`diffusive`
+referenceがMacにあるため、正規CLIをMacで実行する前にuniformの27 archiveだけを追加転送する。
+片側だけのarchiveで`paired_aggregate.csv`を作成してはならない。
+
+```bash
+for n in 01 02 03; do for a in 000 001 002; do for p in 000 001 002; do
+  id="as${a}__ps${p}__nf${n}"
+  scp Ktakemori@cs10:"$REMOTE/conditions/$id/state_archive.npz" "$LOCAL/$id/"
+done; done; done
+
+uv run python scripts/03_dataset_building/analyze_issue203_torque_profiles.py \
+  --config conf/phase2_analysis/issue203_uniform_paired_comparison.yaml \
+  --uniform-run-dir "$LOCAL" --output-dir "$LOCAL/analysis/paired_comparison" --overwrite
+```
 
 cs10で生成した解析・動画をMacへ回収する場合は、次を追加転送する。
 
