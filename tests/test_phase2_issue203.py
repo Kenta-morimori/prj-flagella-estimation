@@ -4,6 +4,10 @@ import numpy as np
 
 from sim_swim.analysis.issue203_composite_replay import nominal_segment_weights
 from sim_swim.analysis.issue203_torque_profile_comparison import load_config
+from sim_swim.analysis.motion_feature_study import (
+    load_config as load_motion_feature_config,
+)
+from sim_swim.analysis.phase2_replay import _archive_path
 from sim_swim.analysis.multi_run_campaign import (
     apply_campaign_cli_overrides,
     build_campaign_conditions,
@@ -40,3 +44,25 @@ def test_issue203_comparison_config_keeps_the_existing_diffusive_reference() -> 
     )
     assert config.allowed_n_flagella == (1, 2, 3)
     assert "2010_project_tau_linked_2s" in str(config.diffusive_run_dir)
+
+
+def test_issue203_motion_feature_config_matches_reference_windows() -> None:
+    config = load_motion_feature_config(
+        Path("conf/phase2_analysis/issue203_uniform_motion_feature_study.yaml")
+    )
+    assert config.allowed_n_flagella == (1, 2, 3)
+    assert config.durations_s == (0.25, 0.5, 1.0)
+
+
+def test_replay_resolves_parallel_aggregate_condition_symlink(tmp_path: Path) -> None:
+    condition_id = "as000__ps000__nf01"
+    archive = tmp_path / "conditions" / condition_id / "state_archive.npz"
+    archive.parent.mkdir(parents=True)
+    archive.touch()
+
+    resolved = _archive_path(
+        tmp_path,
+        {"condition_id": condition_id, "output_dir": "/stale/campaign/nf01"},
+    )
+
+    assert resolved == archive

@@ -368,10 +368,21 @@ def _load_inputs(
 
 
 def _archive_path(input_dir: Path, condition_record: dict[str, Any]) -> Path:
+    condition_id = str(condition_record["condition_id"])
     output_dir = condition_record.get("output_dir")
+    candidates = []
     if output_dir:
-        return Path(str(output_dir)) / "state_archive.npz"
-    return input_dir / str(condition_record["condition_id"]) / "state_archive.npz"
+        candidates.append(Path(str(output_dir)) / "state_archive.npz")
+    candidates.extend(
+        [
+            input_dir / condition_id / "state_archive.npz",
+            input_dir / "conditions" / condition_id / "state_archive.npz",
+        ]
+    )
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return candidates[-1]
 
 
 def _build_cfg(

@@ -485,6 +485,7 @@ def _aggregate_generic_campaign(job: ParallelJob, manifest: dict[str, Any]) -> P
             _manifest_condition_record(
                 campaign_root,
                 condition,
+                condition_dir=link,
                 time_manifest=cfg.time_manifest(),
             )
         )

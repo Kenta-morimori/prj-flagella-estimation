@@ -147,15 +147,17 @@ def _manifest_condition_record(
     root: Path,
     condition: dict[str, Any],
     *,
+    condition_dir: Path | None = None,
     time_manifest: dict[str, Any] | None = None,
     implementation_manifest: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    output_dir = condition_dir or root / condition["condition_id"]
     record = {
         "condition_id": condition["condition_id"],
         "condition_index": condition["condition_index"],
         "condition_label": condition["condition_label"],
-        "output_dir": str(root / condition["condition_id"]),
-        "run_summary_json": str(root / condition["condition_id"] / "run_summary.json"),
+        "output_dir": str(output_dir),
+        "run_summary_json": str(output_dir / "run_summary.json"),
         "config_overrides": condition["config_overrides"],
         "axis_values": condition["axis_values"],
         "axis_labels": condition["axis_labels"],

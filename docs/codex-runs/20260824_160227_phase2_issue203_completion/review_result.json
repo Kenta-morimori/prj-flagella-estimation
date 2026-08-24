@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "issue": 203,
+  "scope": "Portable parallel campaign artifact resolution, uniform motion-feature configuration, composite replay runbook, and bounded paired-analysis memory handling.",
+  "checks": {
+    "pytest": "43 passed: tests/test_phase2_issue203.py tests/test_phase2_parallel_job.py tests/test_motion_feature_study.py",
+    "ruff": "passed",
+    "parallel_dry_run": "27 conditions, 8 workers, as000__ps000__nf01 through as002__ps002__nf03"
+  },
+  "long_runs_not_executed": [
+    "2 s simulation was already completed on cs10 before this implementation.",
+    "Uniform motion-feature extraction, grid replay, and 27 composite replays remain User-run cs10 operations."
+  ],
+  "review_note": "No torque-profile adoption, dataset policy, default-model, or dt_star convergence decision was made."
+}

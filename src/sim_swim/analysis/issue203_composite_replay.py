@@ -52,8 +52,11 @@ def render(root: Path, condition_id: str, output_dir: Path, fps: float = 10.0) -
     if cfg.motor.force_distribution != "root_torque_segment_couples":
         raise ValueError("composite replay requires root_torque_segment_couples")
     output_dir.mkdir(parents=True, exist_ok=True)
-    raw = Path(str(record["output_dir"]))
-    raw = raw if raw.is_dir() else root / raw.name
+    recorded = Path(str(record["output_dir"]))
+    candidates = (recorded, root / recorded.name, root / "conditions" / recorded.name)
+    raw = next(
+        (candidate for candidate in candidates if candidate.is_dir()), candidates[-1]
+    )
     states = load_state_archive(raw / "state_archive.npz")
     validate_replay_fps(states, fps)
     simulator = Simulator(cfg)

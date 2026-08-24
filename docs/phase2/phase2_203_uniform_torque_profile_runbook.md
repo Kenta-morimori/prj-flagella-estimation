@@ -41,16 +41,47 @@ qualification後に本番を起動する。本番の所要時間は同じworker 
 
 `status`の marker、job、campaign がすべて成功であることを確認してから転送・paired解析へ進む。
 
-## Transfer and Mac analysis
+## cs10 analysis and replay
+
+2 s archiveはcs10に残し、motion feature解析・grid replay・composite replayもcs10で行う。
+aggregate campaignの`conditions/<condition_id>`はchild artifactへの相対symlinkであり、
+`run_manifest.json`と同じcondition IDを正本として解決する。archiveをMacへ一括転送しない。
+
+```bash
+CAMPAIGN=outputs/YYYY-MM-DD/HHMMSS/parallel/issue203_uniform_torque_profile__UUID/campaign
+
+# Reference #204 と同じ 3D/2D時系列・0.25/0.5/1.0 s window解析。
+.venv-cs10/bin/python scripts/03_dataset_building/analyze_motion_features.py \
+  --config conf/phase2_analysis/issue203_uniform_motion_feature_study.yaml \
+  run_dir="$CAMPAIGN" output_dir="$CAMPAIGN/analysis/motion_features" overwrite=true
+
+# 27条件の3D/2D replay grid。長時間renderはtmux内で実行する。
+.venv-cs10/bin/python scripts/03_dataset_building/replay_dataset.py \
+  --run-dir "$CAMPAIGN" --output-dir "$CAMPAIGN/analysis/replay" \
+  --view 3d+2d --max-panels-per-grid 9 --overwrite
+
+# 全27条件の 3D + local-segment nominal torque-weight composite replay。
+mkdir -p "$CAMPAIGN/analysis/composite"
+for n in 01 02 03; do for a in 000 001 002; do for p in 000 001 002; do
+  id="as${a}__ps${p}__nf${n}"
+  .venv-cs10/bin/python scripts/03_dataset_building/render_issue203_composite_replay.py \
+    --run-dir "$CAMPAIGN" --condition-id "$id" \
+    --output-dir "$CAMPAIGN/analysis/composite"
+done; done; done
+```
+
+`motion_features/manifest.json`、`replay/manifest.json`、`composite/manifest.json`と、
+MP4数（grid replayはページ数、compositeは27）を確認する。strict non-PASSを通常の
+比較plotへ混入させず、condition CSVとmanifestには残す。
+
+## Transfer and paired analysis
 
 最初は `manifest.json`、`run_manifest.json`、`summary.csv`、`run.log`、`campaign_completion.json`、`user_exit_marker.json`、各conditionの`run_summary.json`、失敗時だけ`stderr.log`と`failure_record.json`を転送する。`step_summary.csv`と`state_archive.npz`は最小転送から除外する。
-
-全27本のMac replayはUser指定のため、第2段階で全conditionの`state_archive.npz`も転送する。paired解析はarchiveのbead座標からaxis指標を再計算するため、`flag_helix_axis_diagnostics.csv`の転送は不要である。
 
 ```bash
 mkdir -p outputs/YYYY-MM-DD/HHMMSS
 # `parallel_tmux.py status` の launch.output_root をここへ設定する。
-REMOTE_JOB=~/src/prj-flagella-estimation/outputs/YYYY-MM-DD/HHMMSS/parallel/issue203_uniform__UUID
+REMOTE_JOB=~/src/prj-flagella-estimation/outputs/YYYY-MM-DD/HHMMSS/parallel/issue203_uniform_torque_profile__UUID
 REMOTE="$REMOTE_JOB/campaign"
 LOCAL=outputs/YYYY-MM-DD/HHMMSS/phase2_issue203_uniform
 mkdir -p "$LOCAL"
@@ -60,24 +91,18 @@ for n in 01 02 03; do for a in 000 001 002; do for p in 000 001 002; do
   id="as${a}__ps${p}__nf${n}"; mkdir -p "$LOCAL/$id"
   scp Ktakemori@cs10:"$REMOTE/conditions/$id/run_summary.json" "$LOCAL/$id/"
 done; done; done
-uv run python scripts/03_dataset_building/analyze_issue203_torque_profiles.py \
-  --config conf/phase2_analysis/issue203_uniform_paired_comparison.yaml \
-  --uniform-run-dir "$LOCAL" --output-dir "$LOCAL/analysis/paired_comparison" --overwrite
 ```
 
-全27本のMac replayを行う場合だけ、最小転送の後にarchiveを追加する。
+paired comparisonは両profileのarchiveを同時に読める環境で実行する。archiveがcs10とMacに
+分散している場合は、各profileのcompact motion metricsを生成してから結合する。片側だけの
+archiveで`paired_aggregate.csv`を作成してはならない。
+
+cs10で生成した解析・動画をMacへ回収する場合は、次を追加転送する。
 
 ```bash
-for n in 01 02 03; do for a in 000 001 002; do for p in 000 001 002; do
-  id="as${a}__ps${p}__nf${n}"
-  scp Ktakemori@cs10:"$REMOTE/conditions/$id/state_archive.npz" "$LOCAL/$id/"
-done; done; done
-for n in 01 02 03; do for a in 000 001 002; do for p in 000 001 002; do
-  uv run python scripts/03_dataset_building/render_issue203_composite_replay.py \
-    --run-dir "$LOCAL" \
-    --condition-id "as${a}__ps${p}__nf${n}" \
-    --output-dir "$LOCAL/analysis/composite"
-done; done; done
+scp -r Ktakemori@cs10:"$REMOTE/analysis/motion_features" "$LOCAL/analysis/"
+scp -r Ktakemori@cs10:"$REMOTE/analysis/replay" "$LOCAL/analysis/"
+scp -r Ktakemori@cs10:"$REMOTE/analysis/composite" "$LOCAL/analysis/"
 ```
 
 失敗時だけ、該当 child の `stderr.log` と condition の `failure_record.json` を追加転送する。

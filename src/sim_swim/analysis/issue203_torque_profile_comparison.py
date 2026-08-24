@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import yaml
 
-from sim_swim.analysis.flagella_count_behavior import load_state_archive
 from sim_swim.analysis.motion_feature_study import _body_axes
 from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import SimulationConfig
@@ -57,7 +56,11 @@ def _rows(path: Path) -> dict[str, dict[str, str]]:
 
 def _condition_dir(root: Path, record: dict[str, Any]) -> Path:
     value = Path(str(record["output_dir"]))
-    return value if value.is_dir() else root / value.name
+    candidates = (value, root / value.name, root / "conditions" / value.name)
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate
+    return root / "conditions" / value.name
 
 
 def _finite(value: str | float | None) -> float:
@@ -87,15 +90,13 @@ def _axis_motion(axis: np.ndarray, times: np.ndarray) -> float:
 
 
 def _flag_axes(
-    states: list[Any], flagella_indices: list[np.ndarray]
+    bead_positions_um: np.ndarray, flagella_indices: list[np.ndarray]
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     axes: list[list[np.ndarray]] = []
-    for state in states:
+    for bead_positions in bead_positions_um:
         one: list[np.ndarray] = []
         for indexes in flagella_indices:
-            points = np.asarray(state.bead_positions_um, dtype=float)[
-                np.asarray(indexes)[1:]
-            ]
+            points = bead_positions[np.asarray(indexes)[1:]]
             centered = points - np.mean(points, axis=0)
             _, _, vh = np.linalg.svd(centered, full_matrices=False)
             vector = vh[0]
@@ -104,9 +105,9 @@ def _flag_axes(
             one.append(vector / np.linalg.norm(vector))
         axes.append(one)
     array = np.asarray(axes, dtype=float)
-    mean = np.full((len(states), 3), np.nan)
-    alignment = np.full(len(states), np.nan)
-    spread = np.full(len(states), np.nan)
+    mean = np.full((len(bead_positions_um), 3), np.nan)
+    alignment = np.full(len(bead_positions_um), np.nan)
+    spread = np.full(len(bead_positions_um), np.nan)
     for index, vectors in enumerate(array):
         ref = vectors[0]
         aligned = np.asarray([v if np.dot(v, ref) >= 0 else -v for v in vectors])
@@ -156,15 +157,20 @@ def _metrics(root: Path, record: dict[str, Any], row: dict[str, str]) -> dict[st
         "hook_len_rel_err_max": _finite(row.get("hook_len_rel_err_max")),
         "flag_bond_rel_err_max": _finite(row.get("flag_bond_rel_err_max")),
     }
-    states = load_state_archive(archive_path)
-    if len(states) < 2:
+    # Do not materialize a Python ``SimulationState`` object for every saved
+    # step.  A 2 s campaign has 50,001 rows; retaining both that list and the
+    # archive arrays exhausts memory on cs10 while adding no analysis value.
+    with np.load(archive_path, allow_pickle=False) as archive:
+        t = np.asarray(archive["t"], dtype=float)
+        position = np.asarray(archive["position_um"], dtype=float)
+        quaternions = np.asarray(archive["quaternion"], dtype=float)
+        bead_positions = np.asarray(archive["bead_positions_um"], dtype=float)
+    if len(t) < 2:
         result["availability"] = "insufficient_archive"
         return result
-    t = np.asarray([state.t for state in states], dtype=float)
-    position = np.asarray([state.position_um for state in states], dtype=float)
     displacement = float(np.linalg.norm(position[-1] - position[0]))
     duration = float(t[-1] - t[0])
-    body = _body_axes(np.asarray([state.quaternion for state in states], dtype=float))
+    body = _body_axes(quaternions)
     cfg = SimulationConfig.from_dict(
         yaml.safe_load(
             Path(str(record.get("base_config", "conf/sim_swim_2010.yaml"))).read_text(
@@ -173,7 +179,7 @@ def _metrics(root: Path, record: dict[str, Any], row: dict[str, str]) -> dict[st
         )
     ).with_overrides(record.get("config_overrides", {}))
     mean_flag, alignment, spread = _flag_axes(
-        states, Simulator(cfg).rig.flagella_indices
+        bead_positions, Simulator(cfg).rig.flagella_indices
     )
     relation = np.asarray([_angle(a, b) for a, b in zip(body, mean_flag)])
     result.update(

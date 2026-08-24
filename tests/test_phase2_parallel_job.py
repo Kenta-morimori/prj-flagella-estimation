@@ -149,7 +149,11 @@ def test_generic_aggregate_requires_all_shards_and_creates_canonical_view(
 
     assert (campaign / "campaign_completion.json").is_file()
     assert (campaign / "summary.csv").is_file()
-    assert (campaign / "conditions/as000__ps000__nf01").is_symlink()
+    first_link = campaign / "conditions/as000__ps000__nf01"
+    assert first_link.is_symlink()
+    aggregate_manifest = json.loads((campaign / "run_manifest.json").read_text())
+    assert aggregate_manifest["conditions"][0]["output_dir"] == str(first_link)
+    assert Path(aggregate_manifest["conditions"][0]["output_dir"]).is_dir()
 
     manifest["failed_configs"] = [1]
     with pytest.raises(RuntimeError, match="failed shards"):
