@@ -60,6 +60,13 @@ def _command(command: list[str]) -> dict[str, Any]:
     }
 
 
+def _ffmpeg_command(command: list[str]) -> dict[str, Any]:
+    """Probe the documented user-local FFmpeg before relying on PATH."""
+    local_ffmpeg = Path.home() / ".local" / "bin" / command[0]
+    executable = str(local_ffmpeg) if local_ffmpeg.is_file() else command[0]
+    return _command([executable, *command[1:]])
+
+
 def _git_info() -> dict[str, str]:
     values: dict[str, str] = {}
     for key, command in {
@@ -99,6 +106,11 @@ def collect_probe() -> dict[str, Any]:
                     "--format=csv,noheader",
                 ]
             ),
+        },
+        "video_toolchain": {
+            "ffmpeg_version": _ffmpeg_command(["ffmpeg", "-hide_banner", "-version"]),
+            "ffmpeg_encoders": _ffmpeg_command(["ffmpeg", "-hide_banner", "-encoders"]),
+            "ffprobe_version": _ffmpeg_command(["ffprobe", "-hide_banner", "-version"]),
         },
         "thread_environment": {name: os.environ.get(name) for name in THREAD_VARIABLES},
         "packages": {name: importlib.metadata.version(name) for name in PACKAGES},

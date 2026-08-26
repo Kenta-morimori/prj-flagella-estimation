@@ -176,12 +176,23 @@ def promote_tree_in_place(
         os.replace(destination, source)
         promoted[str(source.resolve())] = record
     shutil.rmtree(staging_dir)
-    if manifest_json is not None:
-        data = json.loads(manifest_json.read_text(encoding="utf-8"))
+    manifests = (
+        [manifest_json]
+        if manifest_json is not None
+        else sorted(input_dir.rglob("*manifest.json"))
+    )
+    updated_manifests: list[str] = []
+    for target_manifest in manifests:
+        if target_manifest is None:
+            continue
+        data = json.loads(target_manifest.read_text(encoding="utf-8"))
+        before = json.dumps(data, sort_keys=True)
         _update_video_entries(data, promoted)
-        manifest_json.write_text(
-            json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
+        if json.dumps(data, sort_keys=True) != before:
+            target_manifest.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            )
+            updated_manifests.append(str(target_manifest))
     promotion_manifest = input_dir / "h264_promotion_manifest.json"
     promotion_manifest.write_text(
         json.dumps(
@@ -190,6 +201,7 @@ def promote_tree_in_place(
                 "input_dir": str(input_dir),
                 "video_count": len(promoted),
                 "records": list(promoted.values()),
+                "updated_manifests": updated_manifests,
             },
             ensure_ascii=False,
             indent=2,

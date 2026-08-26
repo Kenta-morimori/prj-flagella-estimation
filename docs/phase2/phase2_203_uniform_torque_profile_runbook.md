@@ -15,15 +15,24 @@ DIFFUSIVE=outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_
 
 canonical composite collection は各 reference の `analysis/composite` である。動画・manifest は
 `nfNN_composite_grid.*` とし、各gridは attach seed × phase seed の9条件をsubplot表示する。
-H.264 (`yuv420p`, `faststart`) のみを残す。
-logical `condition_id` は従来の `asNNN__psNNN__nfNN` のままとする。OpenCV が H.264 encoder を
-持たない legacy MP4 を変換する場合は、temporary directory へ出力して codec/duration を `ffprobe`
-で確認してから canonical collection に移す。`composite_h264` は canonical output 名として使わない。
+H.264 High profile (`yuv420p`, `faststart`) のみを残す。logical `condition_id` は従来の
+`asNNN__psNNN__nfNN` のままとする。renderer は全経路でFFmpeg `libx264` を必須とし、
+OpenCV/`mp4v` fallback は行わない。`composite_h264` は canonical output 名として使わない。
 
 ```bash
 uv run python scripts/03_dataset_building/transcode_mp4_h264.py \
-  --input-dir "$UNIFORM/analysis/composite_legacy_mp4v" \
+  --input-dir "$UNIFORM/analysis/composite" \
   --output-dir "$UNIFORM/analysis/.composite_h264_staging" --overwrite
+```
+
+過去artifactをMacで一括移行する場合も同じ既存CLIを使う。`--replace` は各MP4を staging で
+H.264/duration 検証してから置換し、参照可能な全 manifest のcodec情報も更新する。PNGは既に
+PowerPointへ貼り付け可能な形式なので変換しない。
+
+```bash
+uv run python scripts/03_dataset_building/transcode_mp4_h264.py \
+  --input-dir outputs --output-dir /tmp/phase2_h264_staging \
+  --replace --overwrite
 ```
 
 ## cs10 execution
@@ -36,6 +45,14 @@ marker scriptを使わない。
 このcampaignは #207 の independent-condition launcher を使う。27条件を最大8 worker
 （8 + 8 + 8 + 3）、各 child process の BLAS thread=1で実行する。途中停止した
 `outputs/2026-08-23/213359/phase2_issue203_uniform` は canonical comparison に使わない。
+
+初回またはFFmpeg未導入時は、render前にこの既存setupを実行する。これは固定版の
+ユーザー領域 static FFmpeg (`~/.local/opt`) をSHA-256検証して導入し、`libx264`を検査する。
+
+```bash
+bash scripts/cs10/setup_environment.sh
+~/.local/bin/ffmpeg -hide_banner -encoders | grep libx264
+```
 
 まず本番と同じ27 shardで `0.001 s` qualification を実行する。
 
@@ -82,11 +99,10 @@ CAMPAIGN=outputs/YYYY-MM-DD/HHMMSS/parallel/issue203_uniform_torque_profile__UUI
   --run-dir "$CAMPAIGN" --output-dir "$CAMPAIGN/analysis/replay" \
   --view 3d+2d --max-panels-per-grid 9 --overwrite
 
-# `ffprobe` で mp4v なら、MacなどFFmpeg/libx264がある環境でH.264へ置換する。
-uv run python scripts/03_dataset_building/transcode_mp4_h264.py \
-  --input-dir "$CAMPAIGN/analysis/replay" \
-  --output-dir /tmp/issue203_replay_h264_staging --replace \
-  --manifest-json "$CAMPAIGN/analysis/replay/manifest.json" --overwrite
+# rendererがH.264を必須化しているため、生成後に形式だけを確認する。
+~/.local/bin/ffprobe -v error -select_streams v:0 \
+  -show_entries stream=codec_name,pix_fmt -of default=nokey=1:noprint_wrappers=1 \
+  "$CAMPAIGN/analysis/replay/grid_swim3d.mp4"
 
 # n=1/2/3ごとに9条件を3×3 subplotで表示する、3本の3D +
 # local-segment nominal torque-weight composite replay。

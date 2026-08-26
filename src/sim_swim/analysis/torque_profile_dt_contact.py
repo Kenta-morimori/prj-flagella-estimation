@@ -109,11 +109,17 @@ def _metric(summary: dict[str, Any], name: str, *, statistic: str = "max") -> fl
 
 
 def _first_fail(summary: dict[str, Any]) -> tuple[str, float]:
+    failures: list[tuple[float, str]] = []
     for gate_name in ("finite", "shape_nonbody", "shape_body"):
         gate = dict(summary.get("gates", {}) or {}).get(gate_name, {})
         when = _number(gate.get("first_observed_fail_t_s"))
         if math.isfinite(when):
-            return str(gate.get("first_failure_category") or gate_name), when
+            failures.append(
+                (str(gate.get("first_failure_category") or gate_name), when)
+            )
+    if failures:
+        category, when = min(failures, key=lambda item: item[1])
+        return category, when
     return "none", float("nan")
 
 

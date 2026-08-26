@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import numpy as np
 
 from sim_swim.analysis.issue203_composite_replay import (
-    _write_frames_with_fallback,
+    _write_frames_h264,
     composite_manifest_path,
     nominal_segment_weights,
     reconstructed_segment_weights,
@@ -13,6 +13,7 @@ from sim_swim.analysis.issue203_composite_replay import (
 from sim_swim.analysis.issue203_torque_profile_comparison import _flag_axes, load_config
 from sim_swim.analysis.torque_profile_dt_contact import (
     CombineConfig,
+    _first_fail,
     _min_bead_distances,
     combine as combine_contact,
     extract as extract_contact,
@@ -26,6 +27,21 @@ from sim_swim.analysis.multi_run_campaign import (
     build_campaign_conditions,
     load_yaml,
 )
+
+
+def test_issue203_contact_first_fail_is_chronologically_earliest() -> None:
+    summary = {
+        "gates": {
+            "finite": {"first_observed_fail_t_s": 0.4},
+            "shape_nonbody": {
+                "first_observed_fail_t_s": 0.1,
+                "first_failure_category": "hook",
+            },
+            "shape_body": {"first_observed_fail_t_s": 0.2},
+        }
+    }
+
+    assert _first_fail(summary) == ("hook", 0.1)
 
 
 def test_issue203_campaign_is_the_fixed_27_condition_uniform_grid() -> None:
@@ -292,43 +308,48 @@ def test_issue203_composite_manifest_is_condition_scoped(tmp_path: Path) -> None
     )
 
 
-def test_issue203_composite_retries_writer_when_opened_codec_is_not_decodable(
+def test_issue203_composite_uses_shared_h264_writer_with_bgr_frames(
     monkeypatch, tmp_path: Path
 ) -> None:
-    attempted: list[str] = []
+    written: list[np.ndarray] = []
 
     class Writer:
         def write(self, image: np.ndarray) -> None:
-            del image
+            written.append(image)
 
         def release(self) -> None:
             return None
 
     def fake_open(path: Path, **kwargs: object) -> SimpleNamespace:
         del path
-        attempted.append(kwargs["codec_candidates"][0])  # type: ignore[index]
-        return SimpleNamespace(writer=Writer())
+        assert kwargs == {"fps": 10.0, "frame_size": (2, 2)}
+        return SimpleNamespace(
+            writer=Writer(),
+            selected_codec="libx264",
+            attempted_codecs=("ffmpeg:libx264",),
+        )
 
     monkeypatch.setattr(
         "sim_swim.analysis.issue203_composite_replay.open_mp4_writer", fake_open
     )
     monkeypatch.setattr(
-        "sim_swim.analysis.issue203_composite_replay.shutil.which", lambda _: None
-    )
-    monkeypatch.setattr(
         "sim_swim.analysis.issue203_composite_replay._written_frame_count",
-        lambda _: 1 if attempted[-1] == "mp4v" else 0,
+        lambda _: 1,
     )
 
-    codec, codecs = _write_frames_with_fallback(
+    frame = np.array(
+        [[[255, 0, 0], [0, 255, 0]], [[0, 0, 255], [1, 2, 3]]], dtype=np.uint8
+    )
+    codec, codecs = _write_frames_h264(
         tmp_path / "movie.mp4",
-        [np.zeros((2, 2, 3), dtype=np.uint8)],
+        [frame],
         fps=10.0,
         frame_size=(2, 2),
     )
 
-    assert codec == "mp4v"
-    assert codecs == ("avc1", "H264", "mp4v")
+    assert codec == "libx264"
+    assert codecs == ("ffmpeg:libx264",)
+    assert np.array_equal(written[0], frame[:, :, ::-1])
 
 
 def test_issue203_comparison_config_keeps_the_existing_diffusive_reference() -> None:

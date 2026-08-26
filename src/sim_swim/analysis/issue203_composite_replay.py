@@ -135,16 +135,14 @@ def _written_frame_count(path: Path) -> int:
         capture.release()
 
 
-def _write_frames_with_ffmpeg(
+def _write_frames_h264(
     movie_path: Path,
     frames: list[np.ndarray],
     *,
     fps: float,
     frame_size: tuple[int, int],
-) -> bool:
-    ffmpeg = shutil.which("ffmpeg")
-    if not ffmpeg:
-        return False
+) -> tuple[str, tuple[str, ...]]:
+    """Write RGB matplotlib frames through the shared H.264 BGR writer."""
     expected_shape = (frame_size[1], frame_size[0], 3)
     if any(
         image.shape != expected_shape or image.dtype != np.uint8 for image in frames
@@ -153,79 +151,17 @@ def _write_frames_with_ffmpeg(
         raise ValueError(
             f"rendered frame does not match rawvideo shape {expected_shape}: {received}"
         )
-    process = subprocess.Popen(
-        [
-            ffmpeg,
-            "-y",
-            "-f",
-            "rawvideo",
-            "-pix_fmt",
-            "rgb24",
-            "-video_size",
-            f"{frame_size[0]}x{frame_size[1]}",
-            "-framerate",
-            str(fps),
-            "-i",
-            "-",
-            "-an",
-            "-c:v",
-            "libx264",
-            "-pix_fmt",
-            "yuv420p",
-            "-movflags",
-            "+faststart",
-            str(movie_path),
-        ],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    assert process.stdin is not None
+    movie_path.unlink(missing_ok=True)
+    selection = open_mp4_writer(movie_path, fps=fps, frame_size=frame_size)
     try:
         for image in frames:
-            process.stdin.write(image.tobytes())
+            # Matplotlib emits RGB whereas the shared rawvideo contract is BGR.
+            selection.writer.write(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
     finally:
-        process.stdin.close()
-    return process.wait() == 0
-
-
-def _write_frames_with_fallback(
-    movie_path: Path,
-    frames: list[np.ndarray],
-    *,
-    fps: float,
-    frame_size: tuple[int, int],
-) -> tuple[str, tuple[str, ...]]:
-    """Write frames and retry codecs when an opened writer produces no video.
-
-    Some macOS OpenCV builds report `avc1` as opened although every `write()`
-    call fails.  Validate the released file before accepting a codec.
-    """
-    attempted: list[str] = []
-    movie_path.unlink(missing_ok=True)
-    if _write_frames_with_ffmpeg(movie_path, frames, fps=fps, frame_size=frame_size):
-        if _written_frame_count(movie_path) == len(frames):
-            return "libx264", ("ffmpeg:libx264",)
-    movie_path.unlink(missing_ok=True)
-    for codec in ("avc1", "H264", "mp4v"):
-        attempted.append(codec)
-        movie_path.unlink(missing_ok=True)
-        selection = open_mp4_writer(
-            movie_path,
-            fps=fps,
-            frame_size=frame_size,
-            codec_candidates=(codec,),
-        )
-        try:
-            for image in frames:
-                selection.writer.write(image)
-        finally:
-            selection.writer.release()
-        if _written_frame_count(movie_path) == len(frames):
-            return codec, tuple(attempted)
-    raise RuntimeError(
-        "MP4 writer produced no decodable frames: " + ", ".join(attempted)
-    )
+        selection.writer.release()
+    if _written_frame_count(movie_path) != len(frames):
+        raise RuntimeError("H.264 MP4 writer produced no decodable frames")
+    return selection.selected_codec, selection.attempted_codecs
 
 
 def _condition(root: Path, condition_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -313,7 +249,7 @@ def render(root: Path, condition_id: str, output_dir: Path, fps: float = 10.0) -
     finally:
         plt.close(figure)
     frame_size = (rendered_frames[0].shape[1], rendered_frames[0].shape[0])
-    selected_codec, attempted_codecs = _write_frames_with_fallback(
+    selected_codec, attempted_codecs = _write_frames_h264(
         movie_path, rendered_frames, fps=fps, frame_size=frame_size
     )
     composite_manifest_path(output_dir, condition_id).write_text(
@@ -430,7 +366,7 @@ def render_n_flagella_grid(
     finally:
         plt.close(figure)
     frame_size = (rendered_frames[0].shape[1], rendered_frames[0].shape[0])
-    selected_codec, attempted_codecs = _write_frames_with_fallback(
+    selected_codec, attempted_codecs = _write_frames_h264(
         movie_path, rendered_frames, fps=fps, frame_size=frame_size
     )
     cfg = assets[0][0]
