@@ -28,9 +28,11 @@ paired comparisonする27-condition campaignは完了した。uniformはn=3の2 
 strict QC failureを示し、diffusiveは対応27条件でPASSした。これはprofile候補のevidenceであり、
 2010 default、dataset v2、`dt_star=1e-3`の数値妥当性を変更しない。
 
-次はn=3のfailure 2 seedとPASS controlを対象に、profile × `dt_star`接触診断を行う。
-既存`dt_star=1e-3`は再利用し、新規12 shard (`3e-4`, `1e-4`)をcs10で実行する。実行運用は
-`cs10_runbook.md`、比較・転送契約は`phase2_203_uniform_torque_profile_runbook.md`を参照する。
+n=3のfailure 2 seedとPASS controlを対象にしたprofile × `dt_star`接触診断も完了した。
+cs10の新規12 shard (`3e-4`, `1e-4`)と既存reference 6条件を、archiveを移送せず18条件へ統合した。
+`dt_star=1e-3`でuniformのみが2 seedでlate collapseし、対応するdiffusiveはPASSした。uniformの
+全長一斉駆動が局所変形を増幅する仮説は記録するが、因果検証は未実施であり、profile・default
+`dt_star`・dataset v2は変更しない。比較・転送契約は`phase2_203_uniform_torque_profile_runbook.md`を参照する。
 
 ## Next queue
 

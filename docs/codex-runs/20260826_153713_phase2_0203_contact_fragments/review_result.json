@@ -1,22 +1,24 @@
 {
   "status": "PASS",
-  "summary": "Issue #203 のcontact/dt診断を、archiveを移送しない extract / strict combine workflowへ変更し、全render経路をPowerPoint/QuickTime互換のFFmpeg libx264 + High profile + yuv420p MP4へ統一した。cs10は固定版ユーザー領域FFmpegをSHA-256検証して導入する。",
+  "summary": "Issue #203 のcontact/dt診断をarchiveを移送しない18条件統合へ変更し、全render経路をPowerPoint/QuickTime互換のFFmpeg libx264 + High profile + yuv420p MP4へ統一した。uniform n=3のlate collapse仮説と未実施の因果検証方法をIssueへ記録し、完了済みartifact移行scriptを削除した。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "cs10のGitHub deploy keyが未設定のためgit pullは失敗した。push済み実装ファイルをcs10 checkoutへ同期して検証したため、次回はdeploy keyを修復して通常のgit pullへ戻す。",
+    "uniform全長一斉駆動による局所変形増幅は仮説であり、因果検証の短いdebug diagnosticは本PRでは実行していない。",
     "profile採択、dt_star default、dataset policyは変更していない。"
   ],
   "tests_reviewed": [
-    ".venv/bin/pytest tests/test_render_state_and_projection.py tests/test_phase2_issue203.py tests/test_video_transcode.py (33 passed)",
+    ".venv/bin/pytest tests/test_e2e_cli.py tests/test_flagella_count_behavior_dataset.py tests/test_phase3_gt_passthrough_pipeline.py tests/test_phase_seed_2d_replay.py tests/test_render_state_and_projection.py tests/test_phase2_issue203.py tests/test_video_transcode.py (71 passed)",
     "実FFmpeg writerのH.264 / High / yuv420p probe",
     "outputs 下の既存MP4 26本をstagingでH.264/duration検証後に置換、ffprobeで全26本 h264,yuv420p を確認",
     "cs10固定FFmpeg 7.0.2のSHA-256検証、libx264検出、および1フレームH.264 / High / yuv420p smoke test",
     ".venv/bin/ruff check (対象9 files)",
     "bash -n scripts/cs10/setup_environment.sh",
+    "Issue #203 comment: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/203#issuecomment-5424894864",
     "git diff --check"
   ],
-  "user_review_required": true,
-  "user_review_command": "cs10で bash scripts/cs10/setup_environment.sh を一度実行し、~/.local/bin/ffmpeg -hide_banner -encoders | grep libx264 を確認する。",
+  "user_review_required": false,
+  "user_review_command": "Issue #203の仮説・未実施検証の記録と、MacでのH.264 MP4再生を確認する。",
   "user_review_outputs": [
     "~/.local/bin/ffmpeg",
     "replay/*.mp4",
@@ -31,8 +33,8 @@
   "adr_required": false,
   "adr_reason": "分散解析の移送契約を実装しただけで、物理解釈・profile採択・dt_star・dataset policyを決定しない。",
   "commit_type": "complete",
-  "commit_hash": "bfc3f14",
-  "push_status": "pushed",
+  "commit_hash": null,
+  "push_status": "pending",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/214",
   "next_actions": []
 }

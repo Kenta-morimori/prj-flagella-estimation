@@ -668,7 +668,10 @@ def test_phase3_replay_writes_contact_sheet_and_manifest(tmp_path: Path) -> None
 
 
 @pytest.mark.light
-def test_phase3_replay_writes_3d_2d_mp4_grid_and_manifest(tmp_path: Path) -> None:
+def test_phase3_replay_writes_3d_2d_mp4_grid_and_manifest(
+    tmp_path: Path, fake_h264_writer
+) -> None:
+    del fake_h264_writer
     input_dataset = tmp_path / "dataset"
     raw_dir = tmp_path / "raw" / "nf01_as000_ps000"
     raw_dir.mkdir(parents=True)
@@ -739,8 +742,9 @@ def test_phase3_replay_writes_3d_2d_mp4_grid_and_manifest(tmp_path: Path) -> Non
 
 @pytest.mark.light
 def test_phase3_replay_splits_all_matching_clips_across_mp4_grids(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fake_h264_writer
 ) -> None:
+    del fake_h264_writer
     records = [{"clip": {"clip_id": f"clip-{index}"}} for index in range(5)]
     monkeypatch.setattr(
         "flagella_estimation.phase3.replay._select_records", lambda _cfg: records
