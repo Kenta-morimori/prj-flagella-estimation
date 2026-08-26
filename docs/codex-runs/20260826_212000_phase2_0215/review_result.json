@@ -1,0 +1,51 @@
+{
+  "status": "PASS",
+  "task": "Issue #215: prepare 5.0 s axis-angle convergence campaign",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/215",
+  "summary": "Issue #204と同一の2010 project tau-linked 36条件を5.0 sへ延長する、User-run cs10 parallel campaignを準備した。GitHub Sub-issue構造を#157配下へ正規化し、config、qualification、runbook、targeted regression testを追加した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "cs10 qualification、5.0 s本実行、motion-feature結果のレビューはUser-runとして未実行。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_phase2_parallel_job.py -q",
+      "result": "PASS (27 passed)"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/2010_project_tau_linked_5s_axis_convergence_issue215.yaml dry_run=true",
+      "result": "PASS (36 conditions planned)"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_parallel.py --config conf/phase2_parallel/issue215_5s_axis_convergence/job.yaml --dry-run",
+      "result": "PASS (36 shards, cs10_qualified, 8 workers planned)"
+    },
+    {
+      "command": "uv run ruff format --check tests/test_phase2_parallel_job.py && uv run ruff check tests/test_phase2_parallel_job.py && uv run pytest tests/test_phase2_parallel_job.py tests/test_cs10_parallel_tmux.py -q && git diff --check",
+      "result": "PASS (30 passed)"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "Issue #215のheavy/runtime targetはexecution:cs10であり、cs10の接続・tmux起動・長時間job開始はUser-run scopeである。",
+  "user_review_required": true,
+  "user_review_command": "docs/phase2/phase2_215_5s_axis_convergence_runbook.md のQualification、5.0 s campaign、motion-feature analysis commandを順に実行する。",
+  "user_review_outputs": [
+    "campaign/run_manifest.json",
+    "campaign/conditions/*/run_summary.json",
+    "campaign/analysis/motion_features/manifest.json",
+    "campaign/analysis/motion_features/time_series/",
+    "campaign/analysis/motion_features/windows/"
+  ],
+  "user_review_points": [
+    "36 shardすべてが成功し、aggregate completedかつrun_summary_count=36であること。",
+    "strict non-PASS、first-fail time/category、欠損artifactをPASSや平均へ補完しないこと。",
+    "body--flagella axis angleの2.0--5.0 s推移をn・seed・3D/2D別に確認すること。"
+  ],
+  "adr_required": false,
+  "adr_reason": "既存のIssue #204診断条件を時間延長する実行導線であり、physical model、dataset採択、ML policy、phase境界を変更しない。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": []
+}

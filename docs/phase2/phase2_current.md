@@ -21,18 +21,13 @@
 
 ## Active work
 
-### Issue #203 / PR #214: uniform torque profile paired campaign
+### Issue #215: 5.0 s body--flagella axis angle診断
 
-2010 projectの`root_torque_segment_couples + uniform`を、同一seedの既存`diffusive`と
-paired comparisonする27-condition campaignは完了した。uniformはn=3の2 seedでhook起点の
-strict QC failureを示し、diffusiveは対応27条件でPASSした。これはprofile候補のevidenceであり、
-2010 default、dataset v2、`dt_star=1e-3`の数値妥当性を変更しない。
-
-n=3のfailure 2 seedとPASS controlを対象にしたprofile × `dt_star`接触診断も完了した。
-cs10の新規12 shard (`3e-4`, `1e-4`)と既存reference 6条件を、archiveを移送せず18条件へ統合した。
-`dt_star=1e-3`でuniformのみが2 seedでlate collapseし、対応するdiffusiveはPASSした。uniformの
-全長一斉駆動が局所変形を増幅する仮説は記録するが、因果検証は未実施であり、profile・default
-`dt_star`・dataset v2は変更しない。比較・転送契約は`phase2_203_uniform_torque_profile_runbook.md`を参照する。
+Issue #204の2.0 s feature-study referenceと同じ2010 project tau-linked条件を、5.0 s・
+`n=1,2,3,4`・attach / phase seed各3条件の36 independent runsへ延長する。目的は
+body--flagella axis angleの2.0--5.0 s推移を3D / 2D時系列とwindow集約で確認することであり、
+physical model、dataset、ML policyを採択・変更しない。`execution:cs10`のUser-run campaignで、
+runbookは`phase2_215_5s_axis_convergence_runbook.md`を正本とする。
 
 ## Next queue
 
@@ -70,6 +65,7 @@ cs10の新規12 shard (`3e-4`, `1e-4`)と既存reference 6条件を、archiveを
 - Dataset registry: `docs/phase2/phase2_8_dataset_version_registry.md`
 - Run summary contract: `docs/phase2/phase2_run_summary_contract.md`
 - Issue #204 feature-study reference: `docs/phase2/phase2_204_feature_study_reference.md`
+- Issue #215 5.0 s diagnostic: `docs/phase2/phase2_215_5s_axis_convergence_runbook.md`
 - Axis / feature contracts: `phase2_7_flag_helix_axis_diagnostics.md`, `phase2_8_flagella_count_feature_definitions.md`
 - Model correspondence: `phase2_163_2010_potential_correspondence.md`, `phase2_167_2015_paper_conditions.md`
 - ADRs: `docs/adr/`

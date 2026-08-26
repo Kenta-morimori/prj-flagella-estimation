@@ -27,6 +27,10 @@ ISSUE203_QUALIFICATION = (
 ISSUE203_DT_CONTACT = (
     ROOT / "conf/phase2_parallel/issue203_torque_profile_dt_contact/job.yaml"
 )
+ISSUE215 = ROOT / "conf/phase2_parallel/issue215_5s_axis_convergence/job.yaml"
+ISSUE215_QUALIFICATION = (
+    ROOT / "conf/phase2_parallel/issue215_5s_axis_convergence/qualification_job.yaml"
+)
 SWEEP_A = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_off.yaml"
 SWEEP_B = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_on.yaml"
 SHAPE_SWEEP = ROOT / "conf/phase2_sweeps/shape_stability_grid.yaml"
@@ -125,6 +129,29 @@ def test_issue203_dt_contact_job_expands_only_the_12_new_shards() -> None:
     assert all("nf03" in str(record["condition_id"]) for record in plan["configs"])
     assert all(
         "dt1e-3" not in str(record["condition_id"]) for record in plan["configs"]
+    )
+
+
+def test_issue215_job_expands_36_issue204_matching_conditions() -> None:
+    job = load_parallel_job(ISSUE215)
+    execution = resolve_execution(job, None)
+    plan = build_plan(job, execution, ROOT / ".tmp_issue215_plan")
+
+    assert job.is_generic_campaign_job
+    assert job.task_count == 36
+    assert execution.max_workers == 8
+    assert len(plan["configs"]) == 36
+    assert plan["configs"][0]["condition_id"] == "as000__ps000__nf01"
+    assert plan["configs"][-1]["condition_id"] == "as002__ps002__nf04"
+
+
+def test_issue215_qualification_preserves_36_shards_and_duration_override() -> None:
+    job = load_parallel_job(ISSUE215_QUALIFICATION)
+    plan = build_plan(job, resolve_execution(job, None), ROOT / ".tmp_issue215_plan")
+
+    assert job.task_count == 36
+    assert all(
+        record["overrides"] == ["time.duration_s=0.001"] for record in plan["configs"]
     )
 
 

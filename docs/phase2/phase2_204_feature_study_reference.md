@@ -22,6 +22,8 @@ outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/
 
 これはIssue #204のfeature解析入力として固定する診断参照である．datasetのfreeze，物理modelの採択，ML training candidateの採択を自動的に意味しない．`n_flagella=4` はdiagnostic-onlyであり，現行training scopeには含めない．
 
+同じ条件を5.0 sへ延長してbody--flagella axis angleの長時間推移を確認する後続診断はIssue #215で扱う。#215も診断のみであり、本参照runの位置づけを変更しない。
+
 raw artifactは約24 GBのためGit管理しない。`data/`は入力data用かつGit ignoreであり，本simulation outputの保管先には使用しない．
 
 ## Analysis contract
