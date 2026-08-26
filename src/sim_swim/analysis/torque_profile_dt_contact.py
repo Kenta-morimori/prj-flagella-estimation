@@ -1,4 +1,4 @@
-"""Compact contact/stability analysis for a profile-by-``dt_star`` matrix."""
+"""Distributed contact/stability extraction and strict fragment integration."""
 
 from __future__ import annotations
 
@@ -6,11 +6,12 @@ import argparse
 import csv
 from dataclasses import dataclass
 from datetime import datetime
+import hashlib
 import json
 import math
 from pathlib import Path
-import re
-from typing import Any
+import subprocess
+from typing import Any, Iterable
 from zoneinfo import ZoneInfo
 
 import matplotlib.pyplot as plt
@@ -19,26 +20,17 @@ import yaml
 
 from sim_swim.analysis.issue203_torque_profile_comparison import _strict
 
-
-_DIAGNOSTIC_SEED_CASE = re.compile(
-    r"^nf(?P<n>\d{2})__as(?P<attach>\d{3})__ps(?P<phase>\d{3})$"
-)
-
-
-def _reference_condition_id(seed_case: str) -> str:
-    """Map a new n-first diagnostic ID to the historical reference ID."""
-
-    match = _DIAGNOSTIC_SEED_CASE.fullmatch(seed_case)
-    if match is None:
-        raise ValueError(f"invalid n-first diagnostic seed case: {seed_case}")
-    return "as{attach}__ps{phase}__nf{n}".format(**match.groupdict())
+FRAGMENT_CSV = "contact_stability_fragment.csv"
+FRAGMENT_MANIFEST = "fragment_manifest.json"
+EXPECTED_SOURCES = {
+    1.0e-3: "reused_reference",
+    3.0e-4: "new_diagnostic",
+    1.0e-4: "new_diagnostic",
+}
 
 
 @dataclass(frozen=True)
-class ContactConfig:
-    uniform_reference_run_dir: Path
-    diffusive_reference_run_dir: Path
-    diagnostic_run_dir: Path
+class CombineConfig:
     output_dir: Path
     seed_cases: tuple[str, ...]
     profiles: tuple[str, ...]
@@ -46,19 +38,16 @@ class ContactConfig:
     overwrite: bool = False
 
 
-def load_config(path: Path) -> ContactConfig:
+def load_config(path: Path) -> CombineConfig:
     raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     if type(raw.get("overwrite", False)) is not bool:
         raise ValueError("overwrite must be a boolean")
-    return ContactConfig(
-        uniform_reference_run_dir=Path(str(raw["uniform_reference_run_dir"])),
-        diffusive_reference_run_dir=Path(str(raw["diffusive_reference_run_dir"])),
-        diagnostic_run_dir=Path(str(raw["diagnostic_run_dir"])),
-        output_dir=Path(str(raw["output_dir"])),
-        seed_cases=tuple(str(value) for value in raw["seed_cases"]),
-        profiles=tuple(str(value) for value in raw["profiles"]),
-        dt_stars=tuple(float(value) for value in raw["dt_stars"]),
-        overwrite=bool(raw.get("overwrite", False)),
+    return CombineConfig(
+        Path(str(raw["output_dir"])),
+        tuple(map(str, raw["seed_cases"])),
+        tuple(map(str, raw["profiles"])),
+        tuple(map(float, raw["dt_stars"])),
+        bool(raw.get("overwrite", False)),
     )
 
 
@@ -66,23 +55,38 @@ def _read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _rows(path: Path) -> dict[str, dict[str, str]]:
-    if not path.is_file():
-        return {}
-    with path.open(encoding="utf-8", newline="") as handle:
-        return {row["condition_id"]: row for row in csv.DictReader(handle)}
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _git_info() -> dict[str, str | None]:
+    def value(*args: str) -> str | None:
+        result = subprocess.run(
+            ["git", *args], text=True, capture_output=True, check=False
+        )
+        return result.stdout.strip() if result.returncode == 0 else None
+
+    return {
+        "commit": value("rev-parse", "HEAD"),
+        "branch": value("branch", "--show-current"),
+    }
 
 
 def _condition_dir(root: Path, record: dict[str, Any]) -> Path:
-    logical_id = str(record["condition_id"])
-    value = Path(str(record.get("output_dir", "")))
-    candidates = (
+    logical_id, value = (
+        str(record["condition_id"]),
+        Path(str(record.get("output_dir", ""))),
+    )
+    for candidate in (
         root / "conditions" / logical_id,
         root / logical_id,
         root / value.name,
         value,
-    )
-    for candidate in candidates:
+    ):
         if candidate.is_dir():
             return candidate.resolve()
     raise FileNotFoundError(f"condition artifact is missing: {root} / {logical_id}")
@@ -114,41 +118,62 @@ def _first_fail(summary: dict[str, Any]) -> tuple[str, float]:
 
 
 def _min_bead_distances(positions: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Return per-frame body-flag and inter-flagellum bead minima.
-
-    The bead layout is the fixed 2010 project layout (15 body + 3 * 11 flagella).
-    These are a fast screening metric; exact segment distances are evaluated at
-    the selected frame by the follow-up diagnostic.
-    """
-
     if positions.ndim != 3 or positions.shape[1:] != (48, 3):
         raise ValueError(
             f"expected 2010 n=3 archive shape (N, 48, 3), got {positions.shape}"
         )
-    body = positions[:, :15]
-    flags = [
-        positions[:, 15 + index * 11 : 15 + (index + 1) * 11] for index in range(3)
-    ]
-    body_flag = np.full(len(positions), np.inf)
+    body, flags = (
+        positions[:, :15],
+        [positions[:, 15 + i * 11 : 26 + i * 11] for i in range(3)],
+    )
+    body_flag, flag_flag = (
+        np.full(len(positions), np.inf),
+        np.full(len(positions), np.inf),
+    )
     for flag in flags:
-        distances = np.linalg.norm(body[:, :, None, :] - flag[:, None, :, :], axis=-1)
-        body_flag = np.minimum(body_flag, np.min(distances, axis=(1, 2)))
-    flag_flag = np.full(len(positions), np.inf)
+        body_flag = np.minimum(
+            body_flag,
+            np.min(
+                np.linalg.norm(body[:, :, None, :] - flag[:, None, :, :], axis=-1),
+                axis=(1, 2),
+            ),
+        )
     for left in range(3):
         for right in range(left + 1, 3):
-            distances = np.linalg.norm(
-                flags[left][:, :, None, :] - flags[right][:, None, :, :], axis=-1
+            flag_flag = np.minimum(
+                flag_flag,
+                np.min(
+                    np.linalg.norm(
+                        flags[left][:, :, None, :] - flags[right][:, None, :, :],
+                        axis=-1,
+                    ),
+                    axis=(1, 2),
+                ),
             )
-            flag_flag = np.minimum(flag_flag, np.min(distances, axis=(1, 2)))
     return body_flag, flag_flag
 
 
+def _seed_case(values: dict[str, Any]) -> str:
+    return "nf{n_flagella:02d}__as{attach_seed:03d}__ps{phase_seed:03d}".format(
+        n_flagella=int(values["n_flagella"]),
+        attach_seed=int(values["attach_seed"]),
+        phase_seed=int(values["phase_seed"]),
+    )
+
+
 def _record(
-    *, root: Path, record: dict[str, Any], source: str, profile: str, dt_star: float
-) -> dict[str, Any]:
+    root: Path,
+    record: dict[str, Any],
+    source: str,
+    profile: str,
+    dt_star: float,
+    run_manifest_sha256: str,
+) -> tuple[dict[str, Any], dict[str, str]]:
     condition_dir = _condition_dir(root, record)
-    summary_path = condition_dir / "run_summary.json"
-    archive_path = condition_dir / "state_archive.npz"
+    summary_path, archive_path = (
+        condition_dir / "run_summary.json",
+        condition_dir / "state_archive.npz",
+    )
     if not summary_path.is_file() or not archive_path.is_file():
         raise FileNotFoundError(
             f"missing compact artifacts for {record['condition_id']}"
@@ -157,36 +182,39 @@ def _record(
     strict_pass, strict_reason = _strict(summary)
     failure_category, failure_t_s = _first_fail(summary)
     with np.load(archive_path, allow_pickle=False) as archive:
-        times = np.asarray(archive["t"], dtype=float)
-        positions = np.asarray(archive["bead_positions_um"], dtype=float)
+        times, positions = (
+            np.asarray(archive["t"], dtype=float),
+            np.asarray(archive["bead_positions_um"], dtype=float),
+        )
     body_flag, flag_flag = _min_bead_distances(positions)
-    selected_index = (
+    selected = (
         int(np.argmin(np.abs(times - failure_t_s)))
         if math.isfinite(failure_t_s)
         else int(np.argmin(body_flag))
     )
     values = dict(record.get("axis_values", {}) or {})
-    return {
+    provenance = {
+        "run_manifest_sha256": run_manifest_sha256,
+        "run_summary_sha256": _sha256(summary_path),
+        "state_archive_sha256": _sha256(archive_path),
+    }
+    row: dict[str, Any] = {
         "condition_id": record["condition_id"],
         "source": source,
         "profile": profile,
         "dt_star": dt_star,
-        "seed_case": "nf{n_flagella:02d}__as{attach_seed:03d}__ps{phase_seed:03d}".format(
-            n_flagella=int(values["n_flagella"]),
-            attach_seed=int(values["attach_seed"]),
-            phase_seed=int(values["phase_seed"]),
-        ),
+        "seed_case": _seed_case(values),
         "strict_pass": strict_pass,
         "strict_reason": strict_reason,
         "first_fail_category": failure_category,
         "first_fail_t_s": failure_t_s,
-        "archive_selected_t_s": float(times[selected_index]),
+        "archive_selected_t_s": float(times[selected]),
         "body_flag_bead_min_um": float(np.min(body_flag)),
         "body_flag_bead_min_t_s": float(times[int(np.argmin(body_flag))]),
-        "body_flag_bead_distance_at_selected_t_um": float(body_flag[selected_index]),
+        "body_flag_bead_distance_at_selected_t_um": float(body_flag[selected]),
         "flag_flag_bead_min_um": float(np.min(flag_flag)),
         "flag_flag_bead_min_t_s": float(times[int(np.argmin(flag_flag))]),
-        "flag_flag_bead_distance_at_selected_t_um": float(flag_flag[selected_index]),
+        "flag_flag_bead_distance_at_selected_t_um": float(flag_flag[selected]),
         "hook_len_rel_err_max": _metric(summary, "hook_len_rel_err_max"),
         "flag_bond_rel_err_max": _metric(summary, "flag_bond_rel_err_max"),
         "body_spring_max_stretch_ratio": _metric(
@@ -196,35 +224,118 @@ def _record(
         "repulsion_mean_body_max_N": _metric(summary, "F_repulsion_mean_body"),
         "repulsion_mean_flag_max_N": _metric(summary, "F_repulsion_mean_flag"),
         "repulsion_basal_max_N": _metric(summary, "local_F_repulsion_basal_region"),
+        **provenance,
     }
-
-
-def _campaign_records(root: Path) -> dict[str, dict[str, Any]]:
-    manifest = _read_json(root / "run_manifest.json")
-    return {str(row["condition_id"]): row for row in manifest.get("conditions", [])}
+    return row, provenance
 
 
 def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
-    keys = sorted({key for row in rows for key in row})
     with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=keys)
+        writer = csv.DictWriter(
+            handle, fieldnames=sorted({key for row in rows for key in row})
+        )
         writer.writeheader()
         writer.writerows(rows)
 
 
+def extract(
+    *,
+    run_dir: Path,
+    output_dir: Path,
+    source: str,
+    seed_cases: Iterable[str],
+    profile: str | None = None,
+    dt_star: float | None = None,
+    overwrite: bool = False,
+) -> Path:
+    if source not in {"new_diagnostic", "reused_reference"}:
+        raise ValueError("source must be new_diagnostic or reused_reference")
+    manifest_path = run_dir / "run_manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(manifest_path)
+    if output_dir.exists() and any(output_dir.iterdir()) and not overwrite:
+        raise FileExistsError(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    seed_set, campaign, rows, artifacts = (
+        set(seed_cases),
+        _read_json(manifest_path),
+        [],
+        {},
+    )
+    run_manifest_sha256 = _sha256(manifest_path)
+    for item in campaign.get("conditions", []):
+        values = dict(item.get("axis_values", {}) or {})
+        if _seed_case(values) not in seed_set:
+            continue
+        actual_profile = str(
+            values.get(
+                "torque_profile",
+                values.get("torque_distribution_profile", profile or ""),
+            )
+        )
+        actual_dt = _number(values.get("dt_star", dt_star))
+        if not actual_profile or not math.isfinite(actual_dt):
+            raise ValueError(
+                f"profile/dt_star unavailable for {item['condition_id']}; provide --profile and --dt-star"
+            )
+        if profile is not None and actual_profile != profile:
+            raise ValueError(
+                f"profile mismatch for {item['condition_id']}: {actual_profile} != {profile}"
+            )
+        if dt_star is not None and not math.isclose(
+            actual_dt, dt_star, rel_tol=0.0, abs_tol=1e-15
+        ):
+            raise ValueError(
+                f"dt_star mismatch for {item['condition_id']}: {actual_dt} != {dt_star}"
+            )
+        row, hashes = _record(
+            run_dir, item, source, actual_profile, actual_dt, run_manifest_sha256
+        )
+        rows.append(row)
+        artifacts[str(item["condition_id"])] = hashes
+    if not rows:
+        raise RuntimeError("no requested conditions were found")
+    csv_path = output_dir / FRAGMENT_CSV
+    _write_csv(csv_path, rows)
+    (output_dir / FRAGMENT_MANIFEST).write_text(
+        json.dumps(
+            {
+                "kind": "phase2_torque_profile_dt_contact_fragment",
+                "created_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
+                "source": source,
+                "source_run_dir": str(run_dir),
+                "source_run_manifest_sha256": run_manifest_sha256,
+                "fragment_csv": FRAGMENT_CSV,
+                "fragment_csv_sha256": _sha256(csv_path),
+                "condition_count": len(rows),
+                "conditions": artifacts,
+                "git": _git_info(),
+                "archive_transfer": "not_required",
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return output_dir
+
+
 def _plot(rows: list[dict[str, Any]], output: Path) -> None:
     figure, axes = plt.subplots(1, 3, figsize=(15, 4.2), sharex=True)
-    metrics = (
-        ("body_flag_bead_min_um", "min body–flag bead distance [µm]"),
-        ("hook_len_rel_err_max", "max hook relative error"),
-        ("first_fail_t_s", "first failure time [s]"),
-    )
-    for axis, (metric, label) in zip(axes, metrics):
+    for axis, (metric, label) in zip(
+        axes,
+        (
+            ("body_flag_bead_min_um", "min body–flag bead distance [µm]"),
+            ("hook_len_rel_err_max", "max hook relative error"),
+            ("first_fail_t_s", "first failure time [s]"),
+        ),
+    ):
         for profile, color in (("uniform", "tab:orange"), ("diffusive", "tab:blue")):
             subset = [row for row in rows if row["profile"] == profile]
             axis.scatter(
-                [row["dt_star"] for row in subset],
-                [row[metric] for row in subset],
+                [float(row["dt_star"]) for row in subset],
+                [_number(row[metric]) for row in subset],
                 label=profile,
                 color=color,
             )
@@ -236,7 +347,58 @@ def _plot(rows: list[dict[str, Any]], output: Path) -> None:
     plt.close(figure)
 
 
-def analyze(config: ContactConfig) -> Path:
+def combine(config: CombineConfig, fragment_dirs: Iterable[Path]) -> Path:
+    expected = {
+        (seed, profile, dt)
+        for seed in config.seed_cases
+        for profile in config.profiles
+        for dt in config.dt_stars
+    }
+    rows: list[dict[str, Any]] = []
+    for directory in fragment_dirs:
+        manifest_path, csv_path = (
+            directory / FRAGMENT_MANIFEST,
+            directory / FRAGMENT_CSV,
+        )
+        if not manifest_path.is_file() or not csv_path.is_file():
+            raise FileNotFoundError(f"fragment files missing in {directory}")
+        manifest = _read_json(manifest_path)
+        if manifest.get(
+            "kind"
+        ) != "phase2_torque_profile_dt_contact_fragment" or manifest.get(
+            "fragment_csv_sha256"
+        ) != _sha256(csv_path):
+            raise ValueError(f"fragment provenance mismatch: {directory}")
+        with csv_path.open(encoding="utf-8", newline="") as handle:
+            for row in csv.DictReader(handle):
+                hashes = dict(
+                    manifest.get("conditions", {}).get(row["condition_id"], {}) or {}
+                )
+                if any(
+                    row.get(key) != value for key, value in hashes.items()
+                ) or not all(hashes.values()):
+                    raise ValueError(
+                        f"condition provenance mismatch: {directory}/{row['condition_id']}"
+                    )
+                if row.get("source") != manifest.get("source"):
+                    raise ValueError(
+                        f"source provenance mismatch: {directory}/{row['condition_id']}"
+                    )
+                rows.append(row)
+    found: dict[tuple[str, str, float], dict[str, Any]] = {}
+    for row in rows:
+        key = (row["seed_case"], row["profile"], _number(row["dt_star"]))
+        if key not in expected:
+            raise ValueError(f"unexpected condition: {key}")
+        if row["source"] != EXPECTED_SOURCES.get(key[2]):
+            raise ValueError(f"source mismatch for {key}")
+        if key in found:
+            raise ValueError(f"duplicate condition: {key}")
+        found[key] = row
+    if set(found) != expected:
+        raise ValueError(
+            f"missing required conditions: {sorted(expected - set(found))}"
+        )
     if config.output_dir.exists():
         if not config.overwrite:
             raise FileExistsError(config.output_dir)
@@ -244,61 +406,22 @@ def analyze(config: ContactConfig) -> Path:
 
         shutil.rmtree(config.output_dir)
     config.output_dir.mkdir(parents=True)
-    references = {
-        "uniform": _campaign_records(config.uniform_reference_run_dir),
-        "diffusive": _campaign_records(config.diffusive_reference_run_dir),
-    }
-    diagnostic = _campaign_records(config.diagnostic_run_dir)
-    rows: list[dict[str, Any]] = []
-    missing: list[str] = []
-    for seed_case in config.seed_cases:
-        for profile in config.profiles:
-            for dt_star in config.dt_stars:
-                if math.isclose(dt_star, 1.0e-3, rel_tol=0.0, abs_tol=1e-15):
-                    record = references[profile].get(_reference_condition_id(seed_case))
-                    root = (
-                        config.uniform_reference_run_dir
-                        if profile == "uniform"
-                        else config.diffusive_reference_run_dir
-                    )
-                    source = "reused_reference"
-                else:
-                    condition_id = f"{seed_case}__{profile}__dt{dt_star:.0e}".replace(
-                        "e-0", "e-"
-                    )
-                    record = diagnostic.get(condition_id)
-                    root = config.diagnostic_run_dir
-                    source = "new_diagnostic"
-                if record is None:
-                    missing.append(f"{seed_case} {profile} dt={dt_star:.0e}")
-                    continue
-                rows.append(
-                    _record(
-                        root=root,
-                        record=record,
-                        source=source,
-                        profile=profile,
-                        dt_star=dt_star,
-                    )
-                )
-    if missing:
-        raise RuntimeError(
-            "required contact diagnostic conditions are missing: " + "; ".join(missing)
-        )
-    _write_csv(config.output_dir / "contact_stability_conditions.csv", rows)
-    _plot(rows, config.output_dir / "contact_stability.png")
+    ordered = [found[key] for key in sorted(found)]
+    _write_csv(config.output_dir / "contact_stability_conditions.csv", ordered)
+    _plot(ordered, config.output_dir / "contact_stability.png")
     (config.output_dir / "manifest.json").write_text(
         json.dumps(
             {
                 "kind": "phase2_torque_profile_dt_contact_diagnostic",
                 "created_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
-                "condition_count": len(rows),
+                "condition_count": len(ordered),
                 "reused_reference_count": sum(
-                    row["source"] == "reused_reference" for row in rows
+                    row["source"] == "reused_reference" for row in ordered
                 ),
                 "new_diagnostic_count": sum(
-                    row["source"] == "new_diagnostic" for row in rows
+                    row["source"] == "new_diagnostic" for row in ordered
                 ),
+                "input_fragments": [str(item) for item in fragment_dirs],
                 "outputs": [
                     "contact_stability_conditions.csv",
                     "contact_stability.png",
@@ -316,18 +439,42 @@ def analyze(config: ContactConfig) -> Path:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, required=True)
-    parser.add_argument("--diagnostic-run-dir", type=Path)
-    parser.add_argument("--output-dir", type=Path)
-    parser.add_argument("--overwrite", action="store_true")
+    commands = parser.add_subparsers(dest="command", required=True)
+    extract_parser = commands.add_parser("extract")
+    extract_parser.add_argument("--run-dir", type=Path, required=True)
+    extract_parser.add_argument("--output-dir", type=Path, required=True)
+    extract_parser.add_argument("--source", required=True)
+    extract_parser.add_argument("--seed-case", action="append", required=True)
+    extract_parser.add_argument("--profile")
+    extract_parser.add_argument("--dt-star", type=float)
+    extract_parser.add_argument("--overwrite", action="store_true")
+    combine_parser = commands.add_parser("combine")
+    combine_parser.add_argument("--config", type=Path, required=True)
+    combine_parser.add_argument(
+        "--fragment-dir", type=Path, action="append", required=True
+    )
+    combine_parser.add_argument("--output-dir", type=Path)
+    combine_parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args(argv)
+    if args.command == "extract":
+        print(
+            extract(
+                run_dir=args.run_dir,
+                output_dir=args.output_dir,
+                source=args.source,
+                seed_cases=args.seed_case,
+                profile=args.profile,
+                dt_star=args.dt_star,
+                overwrite=args.overwrite,
+            )
+        )
+        return
     config = load_config(args.config)
-    config = ContactConfig(
+    config = CombineConfig(
         **{
             **config.__dict__,
-            "diagnostic_run_dir": args.diagnostic_run_dir or config.diagnostic_run_dir,
             "output_dir": args.output_dir or config.output_dir,
             "overwrite": args.overwrite or config.overwrite,
         }
     )
-    print(analyze(config))
+    print(combine(config, args.fragment_dir))

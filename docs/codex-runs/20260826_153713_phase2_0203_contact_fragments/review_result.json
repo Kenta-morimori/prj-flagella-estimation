@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "summary": "Issue #203 のcontact/dt診断を、archiveを移送しない extract / strict combine workflowへ変更した。cs10の12新規条件とMacの2 reference fragmentを、SHA-256 provenance付きの18条件CSV・図へ統合できる。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "cs10の12条件実行、fragment転送、Mac上の実データ統合はUser-runのままであり、この変更では実行していない。",
+    "profile採択、dt_star default、dataset policyは変更していない。"
+  ],
+  "tests_reviewed": [
+    ".venv/bin/pytest tests/test_phase2_issue203.py -q (12 passed)",
+    ".venv/bin/python -m compileall -q src/sim_swim/analysis/torque_profile_dt_contact.py",
+    ".venv/bin/python scripts/03_dataset_building/analyze_torque_profile_dt_contact.py --help",
+    "git diff --check"
+  ],
+  "user_review_required": false,
+  "user_review_command": "docs/phase2/phase2_203_uniform_torque_profile_runbook.md の extract / transfer / combine 手順を順に実行する。",
+  "user_review_outputs": [
+    "contact_stability_fragment.csv",
+    "fragment_manifest.json",
+    "contact_stability_conditions.csv",
+    "contact_stability.png",
+    "manifest.json"
+  ],
+  "user_review_points": [
+    "combineが18条件、reference 6件、new diagnostic 12件を報告すること。",
+    "欠損・重複・profile/dt/seed/source・provenance不整合が失敗になること。"
+  ],
+  "adr_required": false,
+  "adr_reason": "分散解析の移送契約を実装しただけで、物理解釈・profile採択・dt_star・dataset policyを決定しない。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": []
+}

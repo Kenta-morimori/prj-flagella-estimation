@@ -1,7 +1,5 @@
-uniform_reference_run_dir: outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_uniform_tau_linked_2s_nf1_3_as3_ps3_2026-08-23
-diffusive_reference_run_dir: outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_nf1_4_as3_ps3_2026-08-18
-diagnostic_run_dir: outputs/YYYY-MM-DD/HHMMSS/parallel/issue203_torque_profile_dt_contact__UUID/campaign
-output_dir: outputs/YYYY-MM-DD/HHMMSS/phase2_issue203_torque_profile_dt_contact/analysis
+# `combine` only: each host supplies its own --run-dir to `extract`.
+output_dir: outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_uniform_tau_linked_2s_nf1_3_as3_ps3_2026-08-23/analysis/contact_stability_dt
 seed_cases:
   - nf03__as000__ps000
   - nf03__as001__ps000

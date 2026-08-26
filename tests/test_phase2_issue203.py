@@ -12,9 +12,10 @@ from sim_swim.analysis.issue203_composite_replay import (
 )
 from sim_swim.analysis.issue203_torque_profile_comparison import _flag_axes, load_config
 from sim_swim.analysis.torque_profile_dt_contact import (
-    ContactConfig,
+    CombineConfig,
     _min_bead_distances,
-    analyze as analyze_contact,
+    combine as combine_contact,
+    extract as extract_contact,
 )
 from sim_swim.analysis.motion_feature_study import (
     load_config as load_motion_feature_config,
@@ -132,70 +133,156 @@ def test_torque_profile_dt_contact_distance_screen_detects_body_flag_proximity()
     assert np.all(np.isfinite(flag_flag))
 
 
-def test_torque_profile_dt_contact_analysis_keeps_reference_provenance(
-    tmp_path: Path,
+def _contact_campaign(
+    root: Path, cases: list[tuple[str, int, int, str, float]]
 ) -> None:
-    root = tmp_path / "uniform"
-    condition_id = "as000__ps000__nf03"
-    run_dir = root / condition_id
-    run_dir.mkdir(parents=True)
-    (root / "run_manifest.json").write_text(
-        json.dumps(
+    records = []
+    for index, (condition_id, attach, phase, profile, dt_star) in enumerate(cases):
+        directory = root / "conditions" / condition_id
+        directory.mkdir(parents=True)
+        records.append(
             {
-                "conditions": [
-                    {
-                        "condition_id": condition_id,
-                        "output_dir": str(run_dir),
-                        "axis_values": {
-                            "attach_seed": 0,
-                            "phase_seed": 0,
-                            "n_flagella": 3,
-                        },
-                    }
-                ]
-            }
-        ),
-        encoding="utf-8",
-    )
-    (run_dir / "run_summary.json").write_text(
-        json.dumps(
-            {
-                "execution": {"status": "completed"},
-                "gates": {
-                    name: {
-                        "status": "available",
-                        "any_fail": False,
-                        "final_pass": True,
-                    }
-                    for name in ("finite", "shape_nonbody", "shape_body")
+                "condition_id": condition_id,
+                "output_dir": str(directory),
+                "axis_values": {
+                    "attach_seed": attach,
+                    "phase_seed": phase,
+                    "n_flagella": 3,
+                    "torque_profile": profile,
+                    "dt_star": dt_star,
                 },
-                "all_step_metrics": {},
             }
-        ),
-        encoding="utf-8",
-    )
-    positions = np.full((2, 48, 3), 2.0)
-    positions[:, :15] = 0.0
-    np.savez(
-        run_dir / "state_archive.npz",
-        t=np.asarray([0.0, 2.0]),
-        bead_positions_um=positions,
-    )
-    output = analyze_contact(
-        ContactConfig(
-            uniform_reference_run_dir=root,
-            diffusive_reference_run_dir=root,
-            diagnostic_run_dir=root,
-            output_dir=tmp_path / "analysis",
-            seed_cases=("nf03__as000__ps000",),
-            profiles=("uniform",),
-            dt_stars=(1.0e-3,),
         )
+        (directory / "run_summary.json").write_text(
+            json.dumps(
+                {
+                    "execution": {"status": "completed"},
+                    "gates": {
+                        name: {
+                            "status": "available",
+                            "any_fail": False,
+                            "final_pass": True,
+                        }
+                        for name in ("finite", "shape_nonbody", "shape_body")
+                    },
+                    "all_step_metrics": {"hook_len_rel_err_max": {"max": 0.1}},
+                }
+            ),
+            encoding="utf-8",
+        )
+        positions = np.full((2, 48, 3), 2.0)
+        positions[:, :15] = 0.0
+        positions[1, 15] = [0.01 + index, 0.0, 0.0]
+        np.savez(
+            directory / "state_archive.npz",
+            t=np.asarray([0.0, 2.0]),
+            bead_positions_um=positions,
+        )
+    (root / "run_manifest.json").write_text(
+        json.dumps({"conditions": records}), encoding="utf-8"
     )
 
+
+def test_torque_profile_dt_contact_extract_and_strict_combine(tmp_path: Path) -> None:
+    seeds = (
+        ("nf03__as000__ps000", 0, 0),
+        ("nf03__as001__ps000", 1, 0),
+        ("nf03__as002__ps002", 2, 2),
+    )
+    uniform = [(f"u{a}", a, p, "uniform", 1.0e-3) for _, a, p in seeds]
+    diffusive = [(f"d{a}", a, p, "diffusive", 1.0e-3) for _, a, p in seeds]
+    diagnostic = [
+        (f"x{a}{profile}{dt}", a, p, profile, dt)
+        for _, a, p in seeds
+        for profile in ("uniform", "diffusive")
+        for dt in (3.0e-4, 1.0e-4)
+    ]
+    _contact_campaign(tmp_path / "uniform", uniform)
+    _contact_campaign(tmp_path / "diffusive", diffusive)
+    _contact_campaign(tmp_path / "diagnostic", diagnostic)
+    seed_values = [item[0] for item in seeds]
+    fragments = [
+        extract_contact(
+            run_dir=tmp_path / "uniform",
+            output_dir=tmp_path / "u_fragment",
+            source="reused_reference",
+            seed_cases=seed_values,
+            profile="uniform",
+            dt_star=1.0e-3,
+        ),
+        extract_contact(
+            run_dir=tmp_path / "diffusive",
+            output_dir=tmp_path / "d_fragment",
+            source="reused_reference",
+            seed_cases=seed_values,
+            profile="diffusive",
+            dt_star=1.0e-3,
+        ),
+        extract_contact(
+            run_dir=tmp_path / "diagnostic",
+            output_dir=tmp_path / "x_fragment",
+            source="new_diagnostic",
+            seed_cases=seed_values,
+        ),
+    ]
+    config = CombineConfig(
+        tmp_path / "analysis",
+        tuple(seed_values),
+        ("uniform", "diffusive"),
+        (1.0e-3, 3.0e-4, 1.0e-4),
+    )
+    output = combine_contact(config, fragments)
     manifest = json.loads((output / "manifest.json").read_text())
-    assert manifest["condition_count"] == 1
-    assert manifest["reused_reference_count"] == 1
+    assert manifest["condition_count"] == 18
+    assert manifest["reused_reference_count"] == 6
+    assert manifest["new_diagnostic_count"] == 12
+    rows = list(
+        __import__("csv").DictReader(
+            (output / "contact_stability_conditions.csv").open()
+        )
+    )
+    assert len(rows) == 18 and any(
+        row["body_flag_bead_min_um"] == "0.01" for row in rows
+    )
+
+    import pytest
+
+    with pytest.raises(ValueError, match="missing required"):
+        combine_contact(
+            CombineConfig(
+                tmp_path / "missing",
+                tuple(seed_values),
+                ("uniform", "diffusive"),
+                (1.0e-3, 3.0e-4, 1.0e-4),
+            ),
+            fragments[:2],
+        )
+    with pytest.raises(ValueError, match="duplicate"):
+        combine_contact(
+            CombineConfig(
+                tmp_path / "duplicate",
+                tuple(seed_values),
+                ("uniform", "diffusive"),
+                (1.0e-3, 3.0e-4, 1.0e-4),
+            ),
+            [*fragments, fragments[0]],
+        )
+
+    fragment_csv = fragments[0] / "contact_stability_fragment.csv"
+    text = fragment_csv.read_text()
+    fragment_csv.write_text(
+        text.replace("state_archive_sha256", "bad_archive_sha256", 1)
+    )
+    with pytest.raises(ValueError, match="fragment provenance mismatch"):
+        combine_contact(
+            CombineConfig(
+                tmp_path / "bad",
+                tuple(seed_values),
+                ("uniform", "diffusive"),
+                (1.0e-3, 3.0e-4, 1.0e-4),
+            ),
+            fragments,
+        )
 
 
 def test_issue203_composite_manifest_is_condition_scoped(tmp_path: Path) -> None:

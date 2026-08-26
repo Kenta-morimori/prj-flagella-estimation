@@ -150,17 +150,19 @@ parallel jobの`campaign_root`を指定する。
 ```bash
 CAMPAIGN=outputs/YYYY-MM-DD/HHMMSS/parallel/issue203_torque_profile_dt_contact__UUID/campaign
 .venv-cs10/bin/python scripts/03_dataset_building/analyze_torque_profile_dt_contact.py \
-  --config conf/phase2_analysis/torque_profile_dt_contact_diagnostic.yaml \
-  --diagnostic-run-dir "$CAMPAIGN" \
-  --output-dir "$CAMPAIGN/analysis/contact_stability" --overwrite
+  extract --run-dir "$CAMPAIGN" --source new_diagnostic \
+  --seed-case nf03__as000__ps000 --seed-case nf03__as001__ps000 \
+  --seed-case nf03__as002__ps002 \
+  --output-dir "$CAMPAIGN/analysis/contact_stability_fragment" --overwrite
 ```
 
-最小転送対象はjob manifest、campaign manifest / run manifest / summary / run log、12 conditionの
-`run_summary.json`、`analysis/contact_stability`である。`state_archive.npz`はcs10に残す。
+この処理はarchiveをcs10上で読む。生成するfragmentはCSVと`fragment_manifest.json`だけで、
+source artifactのSHA-256を記録する。`state_archive.npz`はcs10に残す。
 
 ## Transfer and paired analysis
 
-最初は `manifest.json`、`run_manifest.json`、`summary.csv`、`run.log`、`campaign_completion.json`、`user_exit_marker.json`、各conditionの`run_summary.json`、失敗時だけ`stderr.log`と`failure_record.json`を転送する。`step_summary.csv`と`state_archive.npz`は最小転送から除外する。
+contact診断でcs10からMacへ転送するのはfragment CSVとmanifestだけである。archive、
+`step_summary.csv`、動画は転送しない。
 
 ```bash
 mkdir -p outputs/YYYY-MM-DD/HHMMSS
@@ -169,29 +171,32 @@ REMOTE_JOB=~/src/prj-flagella-estimation/outputs/YYYY-MM-DD/HHMMSS/parallel/issu
 REMOTE="$REMOTE_JOB/campaign"
 LOCAL=outputs/YYYY-MM-DD/HHMMSS/phase2_issue203_uniform
 mkdir -p "$LOCAL"
-scp Ktakemori@cs10:"$REMOTE_JOB"/job_manifest.json "$LOCAL/"
-scp Ktakemori@cs10:"$REMOTE"/{manifest.json,run_manifest.json,summary.csv,run.log,campaign_completion.json} "$LOCAL/"
-for n in 01 02 03; do for a in 000 001 002; do for p in 000 001 002; do
-  id="as${a}__ps${p}__nf${n}"; mkdir -p "$LOCAL/$id"
-  scp Ktakemori@cs10:"$REMOTE/conditions/$id/run_summary.json" "$LOCAL/$id/"
-done; done; done
+mkdir -p "$LOCAL/contact_fragments/cs10"
+scp Ktakemori@cs10:"$REMOTE/analysis/contact_stability_fragment"/{contact_stability_fragment.csv,fragment_manifest.json} "$LOCAL/contact_fragments/cs10/"
 ```
 
-paired comparisonは両profileのarchiveを同時に読める環境で実行する。現在の`diffusive`
-referenceがMacにあるため、正規CLIをMacで実行する前にuniformの27 archiveだけを追加転送する。
-片側だけのarchiveで`paired_aggregate.csv`を作成してはならない。
+Macでは既存reference archiveから各3条件のfragmentを作る。`$UNIFORM` と
+`$DIFFUSIVE` は既存reference campaign rootを指定する。
 
 ```bash
-for n in 01 02 03; do for a in 000 001 002; do for p in 000 001 002; do
-  id="as${a}__ps${p}__nf${n}"
-  scp Ktakemori@cs10:"$REMOTE/conditions/$id/state_archive.npz" "$LOCAL/$id/"
-done; done; done
-
-uv run python scripts/03_dataset_building/analyze_issue203_torque_profiles.py \
-  --config conf/phase2_analysis/issue203_uniform_paired_comparison.yaml \
-  --uniform-run-dir "$UNIFORM" --diffusive-run-dir "$DIFFUSIVE" \
-  --output-dir "$UNIFORM/analysis/paired_comparison" --overwrite
+uv run python scripts/03_dataset_building/analyze_torque_profile_dt_contact.py \
+  extract --run-dir "$UNIFORM" --source reused_reference --profile uniform --dt-star 1e-3 \
+  --seed-case nf03__as000__ps000 --seed-case nf03__as001__ps000 --seed-case nf03__as002__ps002 \
+  --output-dir "$LOCAL/contact_fragments/uniform_reference" --overwrite
+uv run python scripts/03_dataset_building/analyze_torque_profile_dt_contact.py \
+  extract --run-dir "$DIFFUSIVE" --source reused_reference --profile diffusive --dt-star 1e-3 \
+  --seed-case nf03__as000__ps000 --seed-case nf03__as001__ps000 --seed-case nf03__as002__ps002 \
+  --output-dir "$LOCAL/contact_fragments/diffusive_reference" --overwrite
+uv run python scripts/03_dataset_building/analyze_torque_profile_dt_contact.py \
+  combine --config conf/phase2_analysis/torque_profile_dt_contact_diagnostic.yaml \
+  --fragment-dir "$LOCAL/contact_fragments/uniform_reference" \
+  --fragment-dir "$LOCAL/contact_fragments/diffusive_reference" \
+  --fragment-dir "$LOCAL/contact_fragments/cs10" --overwrite
 ```
+
+`combine` は3 seed × uniform/diffusive × `1e-3/3e-4/1e-4`の18条件を厳格に要求する。
+欠損・重複・profile/dt/seed/source不整合、またはCSV/condition provenanceのSHA-256不一致は失敗する。
+成功時のcanonical出力は`$UNIFORM/analysis/contact_stability_dt/`のCSV、図、manifestである。
 
 cs10で生成した解析・動画をMacへ回収する場合は、次を追加転送する。
 
