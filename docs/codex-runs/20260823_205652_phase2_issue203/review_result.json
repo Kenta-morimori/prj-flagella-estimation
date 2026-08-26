@@ -1,0 +1,21 @@
+{
+  "status": "PASS",
+  "task": "Issue #203 uniform torque-profile campaign preparation",
+  "summary": "27-condition uniform campaign config、completion/failure marker、paired comparison、Mac-side composite replay、cs10 tmux runbookを追加した。既存diffusive 2 s referenceは再simulationせずpaired baselineとして参照する。",
+  "checks": [
+    {
+      "command": "uv run pytest -q tests/test_phase2_issue203.py tests/test_phase2_generic_multi_run.py",
+      "result": "PASS (58 passed)"
+    },
+    {
+      "command": "uv run ruff format --check ... && uv run ruff check ...",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/2010_project_uniform_torque_profile_2s_issue203.yaml dry_run=true",
+      "result": "PASS (27 conditions)"
+    }
+  ],
+  "long_run_status": "NOT_RUN: User executes the 2.0 s x 27-condition campaign on cs10 in tmux. This Issue is not complete until the compact artifacts are transferred and reviewed.",
+  "user_review": "Pending User cs10 run, Mac-side paired analysis, all-27 composite replay, and candidate-profile decision."
+}

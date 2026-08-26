@@ -352,7 +352,8 @@ def test_state_archive_round_trip(tmp_path: Path) -> None:
     assert loaded[1].bead_positions_um.shape == (2, 3)
 
 
-def test_render_sample_from_archive(tmp_path: Path) -> None:
+def test_render_sample_from_archive(tmp_path: Path, fake_h264_writer) -> None:
+    del fake_h264_writer
     raw_cfg = yaml.safe_load(
         (ROOT / "conf/sim_swim_2010.yaml").read_text(encoding="utf-8")
     )

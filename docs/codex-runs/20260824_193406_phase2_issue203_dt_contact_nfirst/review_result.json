@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "scope": "Issue #203 dt contact diagnostic n-first condition ID normalization",
+  "reviewed_at": "2026-08-24T19:34:06+09:00",
+  "checks": {
+    "targeted_pytest": "93 passed",
+    "ruff": "passed",
+    "parallel_job_dry_run": "12 n-first condition IDs"
+  },
+  "compatibility": {
+    "new_diagnostic_ids": "nfNN__asNNN__psNNN__profile__dt...",
+    "existing_dt_star_1e-3_reference_ids": "asNNN__psNNN__nfNN (read-only compatibility mapping)"
+  },
+  "user_run_pending": "The 12-shard cs10 campaign remains unexecuted."
+}

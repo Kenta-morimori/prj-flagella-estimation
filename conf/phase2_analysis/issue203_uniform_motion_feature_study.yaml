@@ -1,0 +1,13 @@
+# Resolve run_dir/output_dir at execution time; this template never selects a
+# campaign implicitly.  It mirrors the #204 reference analysis for #203's
+# fixed n=1,2,3 uniform campaign.
+run_dir: outputs/YYYY-MM-DD/HHMMSS/phase2_issue203_uniform
+output_dir: outputs/YYYY-MM-DD/HHMMSS/phase2_issue203_uniform/analysis/motion_features
+overwrite: false
+study:
+  durations_s: [0.25, 0.5, 1.0]
+  allowed_n_flagella: [1, 2, 3]
+observation:
+  frame_rate_hz: null
+projection:
+  basis: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]

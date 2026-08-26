@@ -1,0 +1,5 @@
+uniform_run_dir: outputs/YYYY-MM-DD/HHMMSS/phase2_issue203_uniform
+diffusive_run_dir: outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_nf1_4_as3_ps3_2026-08-18
+output_dir: outputs/YYYY-MM-DD/HHMMSS/phase2_issue203_uniform/analysis/paired_comparison
+allowed_n_flagella: [1, 2, 3]
+overwrite: false

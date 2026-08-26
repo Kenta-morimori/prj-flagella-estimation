@@ -179,6 +179,8 @@ def plot_swim_frame_3d(
     title: str | None = None,
     extra_status_lines: Iterable[str] = (),
     hide_ticks: bool = False,
+    show_status: bool = True,
+    show_legend: bool = True,
     body_linewidth: float = 1.6,
     flagella_linewidth: float = 2.0,
     hook_linewidth: float = 2.6,
@@ -281,7 +283,7 @@ def plot_swim_frame_3d(
             linewidth=hook_linewidth,
         )
 
-    if handles:
+    if handles and show_legend:
         ax.legend(
             [h[0] for h in handles],
             [h[1] for h in handles],
@@ -289,15 +291,16 @@ def plot_swim_frame_3d(
             fontsize=8,
         )
 
-    ax.text2D(
-        0.08,
-        0.96,
-        "\n".join(_frame_status_lines(st, cfg, extra_lines=extra_status_lines)),
-        transform=ax.transAxes,
-        va="top",
-        ha="left",
-        fontsize=8,
-    )
+    if show_status:
+        ax.text2D(
+            0.08,
+            0.96,
+            "\n".join(_frame_status_lines(st, cfg, extra_lines=extra_status_lines)),
+            transform=ax.transAxes,
+            va="top",
+            ha="left",
+            fontsize=8,
+        )
 
 
 def render_swim_frame_3d(

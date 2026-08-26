@@ -17,10 +17,11 @@ Phase文書の構成変更，統合，移行，削除を行う場合は，`phase
 
 1. `git status --short --branch`で現在branchと作業treeを確認する．
 2. user request，対象Issue，対象PRを特定する．
-3. 対象Phaseを特定する．
-4. `main`または`master`上で直接作業しない．
-5. 作業タイプを分類する．
-6. semantic decisionを伴うか確認する．
+3. Issue Formの`Heavy/runtime execution target`、condition数、Mac wall time見積り、`execution:*` labelを確認する。不在・不一致・`execution:triage`ならread-only triage以外を開始しない．
+4. 対象Phaseを特定する．
+5. `main`または`master`上で直接作業しない．
+6. 作業タイプを分類する．
+7. semantic decisionを伴うか確認する．
 
 作業タイプ:
 
@@ -67,6 +68,8 @@ Phase文書の構成変更，統合，移行，削除を行う場合は，`phase
 
 ### 2. 実装
 
+- 実装開始時にexecution target、condition数、Mac見積り、許可される実行をユーザーへ短く報告する．
+- `execution:mac`はMac local、`execution:none`はruntimeなし、`execution:cs10`はMac実装・短時間check後にUser-run cs10 parallel jobへ進む。`execution:triage`はread-only investigationに限定する．
 - 変更を依頼scope内に限定する．
 - `scripts/`はuser-facing orchestration，`src/`は再利用可能な実装，`tools/codex/`はCodex workflow補助に使用する．
 - config，schema，testなど既存の正本を確認し，同じ情報をdocsへ複製しない．

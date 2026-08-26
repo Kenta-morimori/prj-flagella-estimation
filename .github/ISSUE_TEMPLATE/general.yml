@@ -1,0 +1,58 @@
+name: General Issue
+description: バグ報告・改善提案・タスク管理
+title: "[Issue] "
+labels: ["execution:triage"]
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: 概要・目的
+      description: このIssueで達成したいことを1-3行で記載してください。
+    validations:
+      required: true
+  - type: textarea
+    id: background
+    attributes:
+      label: 背景
+      description: 必要な理由、経緯、現状の課題、再現条件を記載してください。
+  - type: dropdown
+    id: execution_target
+    attributes:
+      label: Heavy/runtime execution target
+      description: コード実装・短時間unit testは通常Macです。この選択は長時間simulation、sweep、render等の実行先です。
+      options:
+        - mac_only
+        - cs10_user_run
+        - no_runtime
+        - triage_required
+    validations:
+      required: true
+  - type: input
+    id: independent_conditions
+    attributes:
+      label: 独立condition数の見積り
+      description: runtime不要なら N/A。不明なら unknown。8以上はcs10選択の必須候補です。
+      placeholder: "例: 27"
+    validations:
+      required: true
+  - type: input
+    id: mac_wall_time
+    attributes:
+      label: Macでのwall time見積り
+      description: runtime不要なら N/A。不明なら unknown。30分超はcs10選択の必須候補です。
+      placeholder: "例: 4 hours"
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: 詳細・受入条件
+      description: 仕様、実装方針、実行予算、受入条件、User reviewを記載してください。
+  - type: textarea
+    id: references
+    attributes:
+      label: 関連項目
+      value: |
+        - 関連Issue:
+        - 関連PR:
+        - 関連ドキュメント:

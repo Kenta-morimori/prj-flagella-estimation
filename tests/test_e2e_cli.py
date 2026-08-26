@@ -9,7 +9,10 @@ import yaml
 import pytest
 
 
-def test_script_generates_outputs(tmp_path: Path, monkeypatch) -> None:
+def test_script_generates_outputs(
+    tmp_path: Path, monkeypatch, fake_h264_writer
+) -> None:
+    del fake_h264_writer
     run_context = importlib.import_module("sim_swim.core.run_context")
     monkeypatch.setattr(run_context, "_require_clean_git", lambda: None)
 

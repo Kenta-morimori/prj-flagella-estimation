@@ -18,6 +18,8 @@
 
 ## 関連項目
 - Source Issue:
+- Execution target / `execution:*` label:
+- condition数 / Mac wall time見積り:
 - Parent Issue:
 - Blocking / Blocked by:
 - 関連PR:

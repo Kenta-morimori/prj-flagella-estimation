@@ -1,0 +1,58 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/203
+  description: 2010 project uniform torque-profile paired campaign (27 runs)
+  model_id: 2010_project_uniform_profile_issue203
+  dataset_version: v2_pending
+  model_notes:
+    - Profile comparison only; this config does not adopt a default or freeze dataset v2.
+    - dt_star convergence and numerical validity belong to Issue #200.
+
+base_config: conf/sim_swim_2010.yaml
+base_overrides:
+  time.duration_s: 2.0
+  time.scale_policy: reference_torque
+  time.integration.dt_star: 1.0e-3
+  motor.torque_Nm: 2.5e-20
+  motor.force_distribution: root_torque_segment_couples
+  motor.torque_distribution_profile: uniform
+  motor.enable_switching: false
+  flagella.placement_mode: seeded_surface
+  flagella.initial_phase_mode: seeded
+  flagella.initial_helix_axis_from_rear_deg: 0
+  output_sampling.out_all_steps_3d: false
+  output_sampling.fps_out_3d: 25.0
+  output_sampling.fps_out_2d: 25.0
+
+sweep:
+  axes:
+    attach_seed:
+      key: seed.attach_seed
+      short_name: as
+      values: [0, 1, 2]
+      labels: ["0", "1", "2"]
+      ids: [as000, as001, as002]
+    phase_seed:
+      key: seed.phase_seed
+      short_name: ps
+      values: [0, 1, 2]
+      labels: ["0", "1", "2"]
+      ids: [ps000, ps001, ps002]
+    n_flagella:
+      key: flagella.n_flagella
+      short_name: nf
+      values: [1, 2, 3]
+      labels: ["1", "2", "3"]
+      ids: [nf01, nf02, nf03]
+
+replay:
+  mode: 3d
+  fps_out_3d: 10.0
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 1000

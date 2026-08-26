@@ -48,7 +48,10 @@ def _write_condition(root, *, n_flagella: int, phase_seed: int) -> None:
 
 
 @pytest.mark.light
-def test_phase_seed_2d_replay_writes_fixed_grid_and_qc_panel(tmp_path) -> None:
+def test_phase_seed_2d_replay_writes_fixed_grid_and_qc_panel(
+    tmp_path, fake_h264_writer
+) -> None:
+    del fake_h264_writer
     run_dir = tmp_path / "run"
     for n_flagella in range(1, 5):
         for phase_seed in range(3):

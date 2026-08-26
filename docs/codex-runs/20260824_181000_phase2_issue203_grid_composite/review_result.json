@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "scope": "Issue #203 n-flagella grid composite and uniform replay H.264 promotion",
+  "checks": {
+    "tests": "17 passed: tests/test_phase2_issue203.py tests/test_phase2_issue203_artifact_layout.py tests/test_video_transcode.py",
+    "ruff": "passed",
+    "diff_check": "passed",
+    "uniform_composite": {
+      "grid_count": 3,
+      "condition_count_per_grid": 9,
+      "codec": "h264/yuv420p",
+      "frame_count": 21,
+      "individual_composites_remaining": 0
+    },
+    "diffusive_composite": {
+      "grid_count": 3,
+      "condition_count_per_grid": 9,
+      "codec": "h264/yuv420p",
+      "frame_count": 21,
+      "individual_composites_remaining": 0
+    },
+    "uniform_replay": {
+      "video_count": 6,
+      "codec": "h264/yuv420p",
+      "manifest_video_entries": "libx264 with local artifact paths"
+    }
+  },
+  "decision": "Composite presentation and video encoding only; logical condition IDs, simulations, paired metrics, physical interpretation, profile adoption, dataset policy, and dt_star policy are unchanged."
+}

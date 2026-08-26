@@ -95,8 +95,16 @@ def _override_item_to_nested(raw: str) -> dict[str, Any]:
 
 def _normalize_axis(axis_name: str, raw_axis: dict[str, Any]) -> dict[str, Any]:
     key = str(raw_axis.get("key") or "").strip()
+    raw_keys = raw_axis.get("keys")
+    if key and raw_keys is not None:
+        raise ValueError(f"sweep.axes.{axis_name} must use either key or keys")
+    linked_keys: dict[str, str] | None = None
     if not key:
-        raise ValueError(f"sweep.axes.{axis_name}.key is required")
+        if not isinstance(raw_keys, dict) or not raw_keys:
+            raise ValueError(f"sweep.axes.{axis_name}.key or keys is required")
+        linked_keys = {str(name): str(path).strip() for name, path in raw_keys.items()}
+        if any(not name.strip() or not path for name, path in linked_keys.items()):
+            raise ValueError(f"sweep.axes.{axis_name}.keys must map names to paths")
     values = list(raw_axis.get("values") or [])
     if not values:
         raise ValueError(f"sweep.axes.{axis_name}.values must be non-empty")
@@ -115,34 +123,51 @@ def _normalize_axis(axis_name: str, raw_axis: dict[str, Any]) -> dict[str, Any]:
         )
 
     short_name = str(raw_axis.get("short_name") or axis_name).strip() or axis_name
-    normalized_values = [_coerce_cli_value(str(value)) for value in values]
+    if linked_keys is None:
+        normalized_values = [_coerce_cli_value(str(value)) for value in values]
+    else:
+        normalized_values = []
+        expected = set(linked_keys)
+        for value in values:
+            if not isinstance(value, dict) or set(value) != expected:
+                raise ValueError(
+                    f"sweep.axes.{axis_name}.values must map exactly: "
+                    + ", ".join(sorted(expected))
+                )
+            normalized_values.append(
+                {name: _coerce_cli_value(str(item)) for name, item in value.items()}
+            )
     normalized_labels = [
         str(label)
         for label in (
             labels or [format_axis_value(value) for value in normalized_values]
         )
     ]
-    normalized_ids = [
-        sanitize_token(str(item))
-        for item in (
-            ids
-            or [
-                f"{short_name}_{format_axis_value(value)}"
-                for value in normalized_values
-            ]
-        )
+    raw_ids = ids or [
+        f"{short_name}_{format_axis_value(value)}" for value in normalized_values
     ]
+    normalized_ids = (
+        [str(item).strip() for item in raw_ids]
+        if linked_keys is not None
+        else [sanitize_token(str(item)) for item in raw_ids]
+    )
+    if any(not value for value in normalized_ids):
+        raise ValueError(f"sweep.axes.{axis_name}.ids must be non-empty")
     if len(set(normalized_ids)) != len(normalized_ids):
         raise ValueError(f"sweep.axes.{axis_name}.ids must be unique")
 
-    return {
+    result = {
         "name": axis_name,
-        "key": key,
         "short_name": short_name,
         "values": normalized_values,
         "labels": normalized_labels,
         "ids": normalized_ids,
     }
+    if linked_keys is None:
+        result["key"] = key
+    else:
+        result["keys"] = linked_keys
+    return result
 
 
 def normalize_campaign_config(raw_config: dict[str, Any]) -> dict[str, Any]:
@@ -272,10 +297,24 @@ def build_campaign_conditions(config: dict[str, Any]) -> list[dict[str, Any]]:
         label_parts: list[str] = []
         id_parts: list[str] = []
         for axis, (value, label, value_id, order_index) in zip(axes, combo):
-            nested_override = _merge_nested(
-                nested_override, dotted_override(axis["key"], value)
-            )
-            axis_values[axis["name"]] = value
+            if "key" in axis:
+                nested_override = _merge_nested(
+                    nested_override, dotted_override(axis["key"], value)
+                )
+                axis_values[axis["name"]] = value
+            else:
+                for value_name, override_key in axis["keys"].items():
+                    nested_override = _merge_nested(
+                        nested_override,
+                        dotted_override(override_key, value[value_name]),
+                    )
+                    axis_values[value_name] = value[value_name]
+                    axis_labels[value_name] = format_axis_value(value[value_name])
+                    axis_ids[value_name] = sanitize_token(
+                        f"{value_name}_{format_axis_value(value[value_name])}"
+                    )
+                    axis_order[value_name] = order_index
+                axis_values[axis["name"]] = value_id
             axis_labels[axis["name"]] = label
             axis_ids[axis["name"]] = value_id
             axis_order[axis["name"]] = order_index
@@ -327,7 +366,7 @@ def campaign_axes_metadata(config: dict[str, Any]) -> list[dict[str, Any]]:
     return [
         {
             "name": axis["name"],
-            "key": axis["key"],
+            **({"key": axis["key"]} if "key" in axis else {"keys": axis["keys"]}),
             "short_name": axis["short_name"],
             "labels": list(axis["labels"]),
             "ids": list(axis["ids"]),

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import shutil
+import subprocess
 
 import numpy as np
 import pytest
@@ -185,61 +187,61 @@ def test_select_frames_uses_3d_fps_when_not_saving_all_steps() -> None:
     assert [state.t for state in selected] == [0.0, 0.5, 1.0]
 
 
-def test_mp4_writer_falls_back_to_mp4v(tmp_path, monkeypatch) -> None:
-    class DummyWriter:
-        def __init__(self, opened: bool) -> None:
-            self.opened = opened
-            self.released = False
-
-        def isOpened(self) -> bool:
-            return self.opened
-
-        def release(self) -> None:
-            self.released = True
-
-    writer_calls: list[tuple[str, DummyWriter]] = []
-
-    def fake_fourcc(*chars) -> str:
-        return "".join(chars)
-
-    def fake_writer(path, codec, fps, frame_size) -> DummyWriter:
-        writer = DummyWriter(opened=codec == "mp4v")
-        writer_calls.append((codec, writer))
-        return writer
-
-    monkeypatch.setattr(
-        "sim_swim.render.video_writer.cv2.VideoWriter_fourcc",
-        fake_fourcc,
-    )
-    monkeypatch.setattr("sim_swim.render.video_writer.cv2.VideoWriter", fake_writer)
-
-    selection = open_mp4_writer(tmp_path / "movie.mp4", fps=25.0, frame_size=(10, 10))
-
-    assert selection.selected_codec == "mp4v"
-    assert [codec for codec, _ in writer_calls] == ["avc1", "H264", "mp4v"]
-    assert writer_calls[0][1].released is True
-    assert writer_calls[1][1].released is True
-
-
-def test_mp4_writer_raises_when_all_codecs_fail(tmp_path, monkeypatch) -> None:
+def test_mp4_writer_requires_shared_h264_encoder(tmp_path, monkeypatch) -> None:
     class DummyWriter:
         def isOpened(self) -> bool:
-            return False
+            return True
 
         def release(self) -> None:
-            pass
+            return None
 
     monkeypatch.setattr(
-        "sim_swim.render.video_writer.cv2.VideoWriter_fourcc",
-        lambda *chars: "".join(chars),
-    )
-    monkeypatch.setattr(
-        "sim_swim.render.video_writer.cv2.VideoWriter",
+        "sim_swim.render.video_writer._FFmpegVideoWriter",
         lambda *args, **kwargs: DummyWriter(),
     )
 
-    with pytest.raises(RuntimeError, match="Failed to open MP4 writer"):
-        open_mp4_writer(tmp_path / "movie.mp4", fps=25.0, frame_size=(10, 10))
+    selection = open_mp4_writer(tmp_path / "movie.mp4", fps=25.0, frame_size=(10, 10))
+
+    assert selection.selected_codec == "libx264"
+    assert selection.attempted_codecs == ("ffmpeg:libx264",)
+
+
+def test_mp4_writer_rejects_non_h264_candidates(tmp_path) -> None:
+    with pytest.raises(ValueError, match="Only H.264 output"):
+        open_mp4_writer(
+            tmp_path / "movie.mp4",
+            fps=25.0,
+            frame_size=(10, 10),
+            codec_candidates=("mp4v",),
+        )
+
+
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="FFmpeg is unavailable")
+def test_mp4_writer_emits_h264_yuv420p(tmp_path) -> None:
+    path = tmp_path / "movie.mp4"
+    selection = open_mp4_writer(path, fps=10.0, frame_size=(4, 2))
+    selection.writer.write(np.zeros((2, 4, 3), dtype=np.uint8))
+    selection.writer.release()
+
+    completed = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=codec_name,pix_fmt,profile",
+            "-of",
+            "default=nokey=1:noprint_wrappers=1",
+            str(path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.stdout.splitlines() == ["h264", "High", "yuv420p"]
 
 
 def test_save_swim_movie_emits_render_outputs(tmp_path, monkeypatch) -> None:
@@ -304,7 +306,7 @@ def test_save_swim_movie_emits_render_outputs(tmp_path, monkeypatch) -> None:
         return writer
 
     monkeypatch.setattr(
-        "sim_swim.render.video_writer.cv2.VideoWriter",
+        "sim_swim.render.video_writer._FFmpegVideoWriter",
         make_writer,
     )
 
@@ -315,7 +317,7 @@ def test_save_swim_movie_emits_render_outputs(tmp_path, monkeypatch) -> None:
     assert len(writer_calls) == 1
     assert writer_calls[0].write_calls > 0
     assert result is not None
-    assert result.selected_codec == "avc1"
+    assert result.selected_codec == "libx264"
     assert result.frame_count == 1
 
 
@@ -375,7 +377,7 @@ def test_save_swim_movie_can_overlay_flagella_helix_axes(
             self.released = True
 
     monkeypatch.setattr(
-        "sim_swim.render.video_writer.cv2.VideoWriter",
+        "sim_swim.render.video_writer._FFmpegVideoWriter",
         lambda *args, **kwargs: DummyWriter(),
     )
 
@@ -443,14 +445,14 @@ def test_project_states_reports_selected_video_codec(
             pass
 
     monkeypatch.setattr(
-        "sim_swim.render.video_writer.cv2.VideoWriter",
+        "sim_swim.render.video_writer._FFmpegVideoWriter",
         lambda *args, **kwargs: DummyWriter(),
     )
 
     result = project_states([state], cfg, rig, tmp_path)
 
     assert result is not None
-    assert result.selected_codec == "avc1"
+    assert result.selected_codec == "libx264"
     assert result.frame_count == 1
     assert result.frame_size == (256, 256)
 

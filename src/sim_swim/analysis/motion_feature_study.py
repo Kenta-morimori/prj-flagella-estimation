@@ -167,7 +167,17 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 def _condition_dir(run_dir: Path, condition: dict[str, Any]) -> Path:
     recorded = Path(str(condition["output_dir"]))
-    return recorded if recorded.is_dir() else run_dir / recorded.name
+    candidates = (
+        recorded,
+        run_dir / recorded.name,
+        run_dir / "conditions" / recorded.name,
+    )
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate
+    # Preserve the canonical aggregate location in diagnostics.  This also
+    # supports compact transfers that retain only ``<root>/<condition_id>``.
+    return run_dir / "conditions" / recorded.name
 
 
 def _select_indices(t: np.ndarray, fps: float) -> np.ndarray:
