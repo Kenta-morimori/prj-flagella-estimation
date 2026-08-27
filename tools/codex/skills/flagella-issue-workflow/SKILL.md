@@ -18,10 +18,11 @@ Phase文書の構成変更，統合，移行，削除を行う場合は，`phase
 1. `git status --short --branch`で現在branchと作業treeを確認する．
 2. user request，対象Issue，対象PRを特定する．
 3. Issue Formの`Heavy/runtime execution target`、condition数、Mac wall time見積り、`execution:*` labelを確認する。不在・不一致・`execution:triage`ならread-only triage以外を開始しない．
-4. 対象Phaseを特定する．
-5. `main`または`master`上で直接作業しない．
-6. 作業タイプを分類する．
-7. semantic decisionを伴うか確認する．
+4. `Roadmap category (Milestone)`、Project Start date、`roadmap:*` labelを確認する。`roadmap:triage`または`roadmap:needs-review`ならmetadataを修正するまで実装を開始しない．
+5. 対象Phaseを特定する．
+6. `main`または`master`上で直接作業しない．
+7. 作業タイプを分類する．
+8. semantic decisionを伴うか確認する．
 
 作業タイプ:
 
@@ -109,6 +110,7 @@ Phase文書の再構成，情報移行，削除を伴う場合は，このskill�
 - FAILでも有用な診断結果は，diagnostic，wip，docs，test相当のcommitとして保存できる．
 - FAILを完了扱いにしない．
 - 文書変更時は，current，tasks，ADR，維持文書，削除文書を最終報告に含める．
+- Issueをcloseする場合、Target dateが未設定ならroadmap sync workflowがJST終了日を補完する。予定日が既にある場合は上書きしない．
 
 ## Resource Discipline
 

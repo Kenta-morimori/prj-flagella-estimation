@@ -29,6 +29,18 @@ Issue作成・編集時のworkflowが`execution:*` labelを同期する。本文
 または`execution:triage`なら、Codexは実装・test・runtimeを開始せず、targetのtriageを依頼する。
 既存Issueは一括推測せず、着手時にこのForm項目を追記してtriageする。
 
+## Issue Roadmap metadata
+
+新規IssueはIssue Formの必須`Roadmap category (Milestone)`を選択する。`issue-roadmap-sync` workflowは
+Project #8へIssueを登録し、対応Milestoneと作成日（JST）の`Start date`を同期する。
+`Planned target date`は任意の`YYYY-MM-DD`入力であり、指定時は`Target date`へ同期する。Issue close時に
+Target dateが未設定なら、そのIssueの終了日（JST）を補完する。既に予定日があれば上書きしない。
+
+このworkflowはuser-owned Projectを更新するため、classic PAT（`repo` + `project` scope）を
+`PROJECT_AUTOMATION_TOKEN`としてrepository secretへ登録する。tokenが無い場合は明示的に失敗する。
+Issue Form外で作成されたIssueや不正な日付は`roadmap:triage`、reopenされたIssueは
+`roadmap:needs-review`で明示し、metadata修正まで実装に着手しない。
+
 PR URL，最終PR head SHA，push後の状態など，PR作成後にしか確定しない動的情報を tracked `review_result.json` へ後追い同期するためだけの commit は作らない。これらはPR本文，GitHub checks，最終ユーザー報告に記録する。
 
 ## Run ID

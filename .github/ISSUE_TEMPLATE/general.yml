@@ -43,6 +43,28 @@ body:
       placeholder: "例: 4 hours"
     validations:
       required: true
+  - type: dropdown
+    id: roadmap_category
+    attributes:
+      label: Roadmap category (Milestone)
+      description: Project #8 の Roadmap で表示する責務カテゴリを選択してください。
+      options:
+        - Phase 1 — Foundations
+        - Phase 2 — Simulation & Pseudo-microscopy
+        - Phase 2→3 — Video Handoff
+        - Phase 2→4 — Dataset & Model Selection
+        - Phase 3 — Cell Clips
+        - Phase 3→4 — Clip Dataset & Learning
+        - Phase 4 — Estimation Model
+        - Project & Operations
+    validations:
+      required: true
+  - type: input
+    id: planned_target_date
+    attributes:
+      label: Planned target date
+      description: 任意。予定終了日を JST の YYYY-MM-DD で指定してください。未指定のまま close された場合は終了日を設定します。
+      placeholder: "例: 2026-09-30"
   - type: textarea
     id: details
     attributes:
