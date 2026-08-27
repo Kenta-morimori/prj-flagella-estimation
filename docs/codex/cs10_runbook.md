@@ -76,6 +76,22 @@ cs10 実機では、251-step（`duration_s=0.001`）screen を workers `1,2,4,6,
 
 RTX 3090 は hardware record のみであり、CUDA、PyTorch、GPU benchmark はこの scope に含まれない。OS/glibc、CPython、cs10 requirements、主要 simulation 実装、hardware が変わった場合は setup、probe、benchmark を再実行する。
 
+## 逐次実行キュー（Issue #219）
+
+複数branchの予約は共有worktreeをcheckoutせず、予約時のcommit SHAごとのdetached worktreeで逐次実行する。状態DBはcs10の`$XDG_STATE_HOME/flagella-cs10-queue/`（未設定時は`~/.local/state/`）に置き、メール宛先は非版管理の`CS10_QUEUE_NOTIFY_EMAIL`で指定する。実行中の待機はdispatcherの子processに対するOSのwaitであり、Codexのポーリングを使わない。
+
+cs10では、十分な空き容量を確保し、tmux内で次のように開始する。初期値の10 GiBを満たさない場合は新規実行を拒否する。
+
+```bash
+export CS10_QUEUE_NOTIFY_EMAIL='takemori.kenta.official@gmail.com'
+queue_python="$PWD/.venv-cs10/bin/python"
+tmux new-session -s flagella-queue
+"$queue_python" scripts/cs10/queue.py enqueue \
+  --branch codex/issue-215-5s-axis-convergence \
+  --command "$queue_python scripts/01_simulate_swimming/run_parallel.py config=conf/phase2_parallel/issue210_2010_project/job.yaml"
+"$queue_python" scripts/cs10/queue.py run-all
+```
+
 ## Issue #210: serial / parallel qualification
 
 parallel launcher の実 simulation qualification は、同じ clean Git commit と同じ既存 sweep config を使い、次の順で実施する。Mac canonical environment、既存 serial CLI、既存 sweep config、物理解釈は変更しない。比較は bitwise identity を要求しない。
