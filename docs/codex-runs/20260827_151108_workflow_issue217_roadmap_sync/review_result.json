@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "summary": "Issue Form の Roadmap category を必須化し、Project #8 の Milestone・Start date・Target date を Issue lifecycle と同期する workflow、純粋な同期計画ロジック、dry-run、および運用規則を追加した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "PROJECT_AUTOMATION_TOKEN（classic PAT、repo + project scope）の repository secret 登録後に、GitHub Actions 上の実 Project 更新を初回確認する必要がある。"
+  ],
+  "tests_reviewed": [
+    ".venv/bin/ruff format --check tools/codex/issue_roadmap_sync.py tests/test_issue_roadmap_sync.py",
+    ".venv/bin/ruff check tools/codex/issue_roadmap_sync.py tests/test_issue_roadmap_sync.py",
+    ".venv/bin/pytest tests/test_issue_execution_target.py tests/test_issue_roadmap_sync.py -q (9 passed)",
+    "pre-commit: uv run ruff format --check .",
+    "pre-commit: uv run ruff check .",
+    "pre-commit: uv run pytest -q -m light (315 passed, 422 deselected)",
+    "GitHub GraphQL read-only query against Project #8 fields and Issue #217 item"
+  ],
+  "user_review_required": false,
+  "user_review_command": "GitHub repository Settings > Secrets and variables > Actions で PROJECT_AUTOMATION_TOKEN を登録後、issue-roadmap-sync を workflow_dispatch（dry_run=true）で Issue #217 に実行する。",
+  "user_review_outputs": [
+    "workflow_dispatch の synchronization plan JSON",
+    "Project #8 の Issue #217 Milestone / Start date / Target date"
+  ],
+  "user_review_points": [
+    "PAT 未登録時に workflow が Project 更新を行わず明示的に失敗すること",
+    "PAT 登録後に dry_run が想定どおりの Milestone と JST 日付を出力すること"
+  ],
+  "adr_required": false,
+  "adr_reason": "ADR 0020 に Issue lifecycle、Project metadata、PAT 権限の恒久的な運用判断を記録した。",
+  "commit_type": "complete",
+  "commit_hash": "b366cc2",
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "PROJECT_AUTOMATION_TOKEN を repository secret として登録する。",
+    "PR merge 後、dry-run と新規 Issue 作成で GitHub Actions の実 Project 同期を確認する。",
+    "ADR 0020 の運用判断を PR review で確認する。"
+  ]
+}
