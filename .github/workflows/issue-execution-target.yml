@@ -7,6 +7,10 @@ on:
 permissions:
   issues: write
 
+concurrency:
+  group: issue-execution-label-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
 jobs:
   synchronize-label:
     runs-on: ubuntu-latest
@@ -20,11 +24,20 @@ jobs:
         with:
           script: |
             const label = process.env.EXECUTION_LABEL;
-            const current = context.payload.issue.labels.map(({ name }) => name);
-            const retained = current.filter((name) => !name.startsWith("execution:"));
-            await github.rest.issues.setLabels({
+            const parameters = {
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.payload.issue.number,
-              labels: [...retained, label],
+            };
+            const { data: current } = await github.rest.issues.listLabelsOnIssue(
+              parameters
+            );
+            for (const { name } of current) {
+              if (name.startsWith("execution:")) {
+                await github.rest.issues.removeLabel({ ...parameters, name });
+              }
+            }
+            await github.rest.issues.addLabels({
+              ...parameters,
+              labels: [label],
             });

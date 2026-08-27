@@ -16,6 +16,7 @@ from pathlib import Path
 import re
 from typing import Any
 from urllib.error import HTTPError
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
@@ -38,6 +39,7 @@ MILESTONE_BY_CATEGORY = {
 }
 ROADMAP_TRIAGE_LABEL = "roadmap:triage"
 ROADMAP_REVIEW_LABEL = "roadmap:needs-review"
+ISSUE_FORM_NO_RESPONSE = "_No response_"
 
 
 @dataclass(frozen=True)
@@ -63,6 +65,8 @@ def form_value(body: str | None, header: str) -> str | None:
         if not value:
             continue
         if value.startswith("### "):
+            return None
+        if value == ISSUE_FORM_NO_RESPONSE:
             return None
         return value
     return None
@@ -176,19 +180,20 @@ def replace_roadmap_labels(
         "GET", f"/repos/{owner}/{repo}/issues/{issue['number']}"
     )
     labels = [label["name"] for label in current_issue.get("labels", [])]
-    retained = [
-        label
-        for label in labels
-        if label not in {ROADMAP_TRIAGE_LABEL, ROADMAP_REVIEW_LABEL}
-    ]
+    for label in labels:
+        if label in {ROADMAP_TRIAGE_LABEL, ROADMAP_REVIEW_LABEL}:
+            client.rest(
+                "DELETE",
+                f"/repos/{owner}/{repo}/issues/{issue['number']}/labels/"
+                f"{quote(label, safe='')}",
+            )
     if add:
         ensure_label(client, owner, repo, add, "fbca04")
-        retained.append(add)
-    client.rest(
-        "PUT",
-        f"/repos/{owner}/{repo}/issues/{issue['number']}/labels",
-        {"labels": retained},
-    )
+        client.rest(
+            "POST",
+            f"/repos/{owner}/{repo}/issues/{issue['number']}/labels",
+            {"labels": [add]},
+        )
 
 
 PROJECT_QUERY = """

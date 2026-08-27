@@ -59,6 +59,10 @@ def test_issue_form_categories_match_milestone_mapping() -> None:
     assert "workflow_dispatch:" in workflow
     assert "PROJECT_AUTOMATION_TOKEN" in workflow
     assert "--dry-run" in workflow
+    assert (
+        "issue-roadmap-sync-${{ github.event.issue.number || inputs.issue_number }}"
+        in workflow
+    )
 
 
 def test_opened_plan_sets_jst_start_and_optional_target() -> None:
@@ -84,6 +88,20 @@ def test_closed_plan_uses_jst_close_date_only_as_fallback() -> None:
     assert plan.close_date == "2026-08-29"
 
 
+def test_no_response_optional_date_is_treated_as_unspecified() -> None:
+    tool = _tool()
+    plan = tool.build_sync_plan(
+        _issue(
+            tool,
+            category="Phase 3 — Cell Clips",
+            planned=tool.ISSUE_FORM_NO_RESPONSE,
+        ),
+        "opened",
+    )
+    assert plan.mode == "sync"
+    assert plan.planned_target_date is None
+
+
 def test_invalid_metadata_is_triaged_and_reopen_requires_review() -> None:
     tool = _tool()
     invalid_category = tool.build_sync_plan(_issue(tool, category=None), "opened")
@@ -95,6 +113,47 @@ def test_invalid_metadata_is_triaged_and_reopen_requires_review() -> None:
     assert invalid_category.mode == "triage"
     assert invalid_date.mode == "triage"
     assert reopened.mode == "needs_review"
+
+
+def test_replace_roadmap_labels_preserves_other_label_namespaces() -> None:
+    tool = _tool()
+
+    class RecordingClient:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, str, dict | None]] = []
+
+        def rest(self, method: str, path: str, payload: dict | None = None):
+            self.calls.append((method, path, payload))
+            if method == "GET" and path.endswith("/issues/217"):
+                return {
+                    "labels": [
+                        {"name": "execution:none"},
+                        {"name": "bug"},
+                        {"name": tool.ROADMAP_TRIAGE_LABEL},
+                    ]
+                }
+            return {}
+
+    client = RecordingClient()
+    tool.replace_roadmap_labels(
+        client,
+        "owner",
+        "repo",
+        {"number": 217},
+        tool.ROADMAP_REVIEW_LABEL,
+    )
+
+    assert (
+        "DELETE",
+        "/repos/owner/repo/issues/217/labels/roadmap%3Atriage",
+        None,
+    ) in client.calls
+    assert (
+        "POST",
+        "/repos/owner/repo/issues/217/labels",
+        {"labels": [tool.ROADMAP_REVIEW_LABEL]},
+    ) in client.calls
+    assert not any(method == "PUT" for method, _, _ in client.calls)
 
 
 def test_event_dry_run_needs_no_project_token(
