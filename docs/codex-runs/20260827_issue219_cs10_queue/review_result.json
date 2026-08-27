@@ -1,0 +1,15 @@
+{
+  "task": "Issue #219: cs10 sequential execution queue and email notification",
+  "status": "PASS",
+  "summary": "SQLite-backed queue resolves a branch to an immutable commit, uses isolated detached worktrees, waits for the child process, validates job_manifest.json, and invokes local mail notifications. The cs10 probe succeeded without running a simulation.",
+  "checks": [
+    {"command": "uv run pytest -q tests/test_cs10_queue.py tests/test_cs10_qualification.py", "result": "8 passed"},
+    {"command": "pre-commit hook", "result": "ruff passed; pytest -m light: 315 passed"},
+    {"command": "cs10 harmless queue probe", "result": "queued job reached succeeded after manifest validation"}
+  ],
+  "remaining": [
+    "Confirm receipt of the cs10 notification email.",
+    "cs10 GitHub SSH authentication must be restored before fetching the implementation branch there.",
+    "Current cs10 free space is below the 10 GiB production guard; free storage before real queued runs."
+  ]
+}
