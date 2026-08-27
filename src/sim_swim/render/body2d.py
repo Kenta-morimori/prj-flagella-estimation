@@ -25,6 +25,7 @@ class BodyCapsuleRenderConfig:
     body_intensity: int = 60
     background_intensity: int = 255
     tracking_center: bool = True
+    fixed_center_um: tuple[float, float] = (0.0, 0.0)
 
 
 @dataclass(frozen=True)
@@ -141,7 +142,7 @@ def render_body_capsule_frame(
     center_um = (
         np.asarray(state.position_um[:2], dtype=float)
         if cfg.tracking_center
-        else np.zeros(2, dtype=float)
+        else np.asarray(cfg.fixed_center_um, dtype=float)
     )
     state_center_um = np.asarray(state.position_um[:2], dtype=float)
     center_px = (state_center_um - center_um) * px_per_um + image_size / 2.0
