@@ -67,3 +67,7 @@ def test_issue_form_and_sync_workflow_use_the_same_execution_vocabulary() -> Non
     )
     assert "tools/codex/issue_execution_target.py" in workflow
     assert 'name.startsWith("execution:")' in workflow
+    assert "github.rest.issues.removeLabel" in workflow
+    assert "github.rest.issues.addLabels" in workflow
+    assert "github.rest.issues.setLabels" not in workflow
+    assert "issue-execution-label-${{ github.event.issue.number }}" in workflow

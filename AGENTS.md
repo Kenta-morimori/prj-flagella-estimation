@@ -51,6 +51,8 @@ Do not read large files under `outputs/` unless compact summaries and manifests 
 * Before implementation, report the Issue execution target, independent-condition estimate, Mac wall-time estimate, and permitted execution scope.
 * `execution:cs10` means cs10 is the User-run heavy/runtime target: use the cs10 parallel-first runbook, and do not connect, start tmux, or stop jobs without User authorization for that operation.
 * Track related work with GitHub-native relationships: make a bounded child task a sub-issue of its parent, and add `blocking` / `blockedBy` only for a real completion dependency. Do not create a dependency edge merely because work is related.
+* New Issues must use the required `Roadmap category (Milestone)` form field. The roadmap sync workflow sets the Project Start date; an optional planned Target date is preserved, and a missing Target date is filled with the JST close date when the Issue closes.
+* An Issue with `roadmap:triage` or `roadmap:needs-review` requires metadata correction before implementation work starts.
 * Link the source Issue from a PR. Use `Closes #<issue>` only when merge completes that Issue; otherwise use a non-closing reference and state what remains (for example, a user-run experiment or result review).
 * Do not mark a task complete without a local `review_result.json` whose status is `PASS`.
 * Do not merge unless required checks and `codex-review-gate` pass.

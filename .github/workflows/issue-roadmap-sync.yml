@@ -1,0 +1,58 @@
+name: issue-roadmap-sync
+
+on:
+  issues:
+    types: [opened, edited, closed, reopened]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Synchronize this issue number"
+        required: true
+        type: string
+      action:
+        description: "Lifecycle event to simulate"
+        required: true
+        default: "opened"
+        type: choice
+        options: [opened, edited, closed, reopened]
+      dry_run:
+        description: "Print the synchronization plan without updating GitHub"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: issue-roadmap-sync-${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'dry-run' || 'sync' }}-${{ github.event.issue.number || inputs.issue_number }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+
+jobs:
+  synchronize-roadmap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Synchronize Issue Roadmap metadata
+        env:
+          PROJECT_AUTOMATION_TOKEN: ${{ secrets.PROJECT_AUTOMATION_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            dry_run_flag=""
+            if [ "${{ inputs.dry_run }}" = "true" ]; then
+              dry_run_flag="--dry-run"
+            fi
+            python3 tools/codex/issue_roadmap_sync.py \
+              --issue-number "${{ inputs.issue_number }}" \
+              --action "${{ inputs.action }}" \
+              --owner "${{ github.repository_owner }}" \
+              --repo "${GITHUB_REPOSITORY#*/}" \
+              $dry_run_flag
+          else
+            python3 tools/codex/issue_roadmap_sync.py \
+              --event "$GITHUB_EVENT_PATH" \
+              --owner "${{ github.repository_owner }}" \
+              --repo "${GITHUB_REPOSITORY#*/}"
+          fi
