@@ -104,7 +104,7 @@ def build_sync_plan(issue: dict[str, Any], event_action: str) -> SyncPlan:
         return SyncPlan(mode="triage", triage_reason="invalid planned target date")
 
     start_date = jst_date(issue["created_at"])
-    if event_action == "closed":
+    if event_action == "closed" or issue.get("closed_at"):
         closed_at = issue.get("closed_at")
         if not closed_at:
             return SyncPlan(
@@ -123,6 +123,16 @@ def build_sync_plan(issue: dict[str, Any], event_action: str) -> SyncPlan:
         start_date=start_date,
         planned_target_date=normalized_target if planned_target else None,
     )
+
+
+def target_date_to_set(plan: SyncPlan, existing_target: str | None) -> str | None:
+    """Return a target date without overwriting a closed Issue's existing date."""
+
+    if plan.close_date:
+        if existing_target is not None:
+            return None
+        return plan.planned_target_date or plan.close_date
+    return plan.planned_target_date
 
 
 class GitHubClient:
@@ -338,9 +348,7 @@ def synchronize(
         for field in fields["node"]["fields"]["nodes"]
         if field and field["name"] == "Target date"
     )
-    target = plan.planned_target_date or (
-        plan.close_date if existing_target is None else None
-    )
+    target = target_date_to_set(plan, existing_target)
     if target:
         set_project_date(client, project_id, item_id, target_field, target)
     return plan

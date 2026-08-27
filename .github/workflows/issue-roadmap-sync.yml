@@ -26,8 +26,8 @@ permissions:
   issues: write
 
 concurrency:
-  group: issue-roadmap-sync-${{ github.event.issue.number || inputs.issue_number }}
-  cancel-in-progress: true
+  group: issue-roadmap-sync-${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'dry-run' || 'sync' }}-${{ github.event.issue.number || inputs.issue_number }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
 
 jobs:
   synchronize-roadmap:

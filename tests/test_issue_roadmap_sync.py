@@ -59,10 +59,7 @@ def test_issue_form_categories_match_milestone_mapping() -> None:
     assert "workflow_dispatch:" in workflow
     assert "PROJECT_AUTOMATION_TOKEN" in workflow
     assert "--dry-run" in workflow
-    assert (
-        "issue-roadmap-sync-${{ github.event.issue.number || inputs.issue_number }}"
-        in workflow
-    )
+    assert "inputs.dry_run && 'dry-run' || 'sync'" in workflow
 
 
 def test_opened_plan_sets_jst_start_and_optional_target() -> None:
@@ -86,6 +83,39 @@ def test_closed_plan_uses_jst_close_date_only_as_fallback() -> None:
     )
     assert plan.planned_target_date is None
     assert plan.close_date == "2026-08-29"
+
+
+def test_closed_issue_edited_after_metadata_correction_uses_close_date() -> None:
+    tool = _tool()
+    plan = tool.build_sync_plan(
+        _issue(tool, category="Phase 3 — Cell Clips", closed=True), "edited"
+    )
+    assert plan.mode == "sync"
+    assert plan.close_date == "2026-08-29"
+
+
+def test_target_date_policy_preserves_existing_closed_target() -> None:
+    tool = _tool()
+    closed = tool.build_sync_plan(
+        _issue(
+            tool,
+            category="Phase 3 — Cell Clips",
+            planned="2026-09-30",
+            closed=True,
+        ),
+        "closed",
+    )
+    opened = tool.build_sync_plan(
+        _issue(
+            tool,
+            category="Phase 3 — Cell Clips",
+            planned="2026-09-30",
+        ),
+        "edited",
+    )
+    assert tool.target_date_to_set(closed, None) == "2026-09-30"
+    assert tool.target_date_to_set(closed, "2026-08-29") is None
+    assert tool.target_date_to_set(opened, "2026-08-29") == "2026-09-30"
 
 
 def test_no_response_optional_date_is_treated_as_unspecified() -> None:
