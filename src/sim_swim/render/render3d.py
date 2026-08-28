@@ -186,6 +186,7 @@ def plot_swim_frame_3d(
     hook_linewidth: float = 2.6,
     body_marker_size: float = 8.0,
     flagella_marker_size: float = 6.0,
+    flow_vectors: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> None:
     """Plot one 3D swim frame using the same visual contract as swim movies."""
 
@@ -211,6 +212,26 @@ def plot_swim_frame_3d(
     ax.grid(True)
     if title:
         ax.set_title(title, fontsize=9, pad=6)
+
+    if flow_vectors is not None:
+        flow_points_um, flow_velocity_um_s = flow_vectors
+        points = np.asarray(flow_points_um, dtype=float)
+        vectors = np.asarray(flow_velocity_um_s, dtype=float)
+        if points.shape != vectors.shape or points.ndim != 2 or points.shape[1] != 3:
+            raise ValueError("flow_vectors must be a pair of (M, 3) arrays")
+        ax.quiver(
+            points[:, 0],
+            points[:, 1],
+            points[:, 2],
+            vectors[:, 0],
+            vectors[:, 1],
+            vectors[:, 2],
+            length=0.35,
+            normalize=True,
+            color="tab:blue",
+            linewidth=0.7,
+            alpha=0.7,
+        )
 
     _plot_segments_3d(
         ax,

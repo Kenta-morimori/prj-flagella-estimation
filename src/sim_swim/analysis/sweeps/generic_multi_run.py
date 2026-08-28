@@ -15,6 +15,7 @@ from sim_swim.analysis.flagella_count_behavior import (
     save_state_archive,
     write_trajectory_csv,
 )
+from sim_swim.analysis.hydrodynamics import save_hydro_archive
 from sim_swim.analysis.multi_run_campaign import (
     apply_campaign_cli_overrides,
     build_campaign_conditions,
@@ -158,6 +159,7 @@ def _manifest_condition_record(
         "condition_label": condition["condition_label"],
         "output_dir": str(output_dir),
         "run_summary_json": str(output_dir / "run_summary.json"),
+        "hydro_archive_npz": str(output_dir / "hydro_archive.npz"),
         "config_overrides": condition["config_overrides"],
         "axis_values": condition["axis_values"],
         "axis_labels": condition["axis_labels"],
@@ -303,6 +305,20 @@ def run_campaign(argv: list[str] | None = None) -> Path:
             if save_state_archive_enabled:
                 save_state_archive(condition_dir / "state_archive.npz", states)
                 write_trajectory_csv(condition_dir / "trajectory.csv", states)
+            if cfg.hydrodynamics.enabled:
+                save_hydro_archive(
+                    condition_dir / "hydro_archive.npz",
+                    simulator.hydro_samples,
+                    bead_is_body=simulator.model.bead_is_body,
+                    bead_flagella_id=simulator.model.bead_flag_ids,
+                    bead_radius_m=simulator.model.bead_radius_m,
+                    viscosity_Pa_s=cfg.fluid.viscosity_Pa_s,
+                    provenance={
+                        "archive_interval_s": cfg.output.archive_interval_s,
+                        "time": cfg.time_manifest(),
+                        "hydrodynamics": {"model": "free_space_rpy"},
+                    },
+                )
             rows.append(_condition_row(cfg, condition, condition_dir))
             condition_implementation_manifests[condition["condition_id"]] = (
                 simulator.implementation_manifest()
@@ -363,6 +379,7 @@ def run_campaign(argv: list[str] | None = None) -> Path:
         },
         "output_root": str(ctx.out.root),
         "save_state_archive": save_state_archive_enabled,
+        "hydrodynamics_enabled": base_simulation_cfg.hydrodynamics.enabled,
         "replay": dict(campaign.get("replay", {}) or {}),
         "plot": dict(campaign.get("plot", {}) or {}),
         "axes": campaign_axes_metadata(campaign),

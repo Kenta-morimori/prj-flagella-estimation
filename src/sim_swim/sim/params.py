@@ -593,6 +593,13 @@ class OutputParams:
 
 
 @dataclass(frozen=True)
+class HydrodynamicsParams:
+    """Opt-in compact data needed for post-hoc free-space RPY analysis."""
+
+    enabled: bool = False
+
+
+@dataclass(frozen=True)
 class StiffnessScaleParams:
     """補助的な剛性スケール設定。論文再現性のためデフォルトは 1.0 とする。"""
 
@@ -786,6 +793,7 @@ class SimulationConfig:
     render: RenderParams
     seed: SeedParams
     output: OutputParams
+    hydrodynamics: HydrodynamicsParams
     stiffness_scales: StiffnessScaleParams
     model_profile: ModelProfileParams | None = None
 
@@ -1844,6 +1852,11 @@ class SimulationConfig:
         if output.archive_interval_s <= 0.0:
             raise ValueError("output.archive_interval_s must be positive")
 
+        hydrodynamics_raw = raw.get("hydrodynamics", {}) or {}
+        hydrodynamics = HydrodynamicsParams(
+            enabled=bool(_get(hydrodynamics_raw, "enabled", False)),
+        )
+
         stiffness_raw = raw.get("stiffness_scales", {}) or {}
         stiffness = StiffnessScaleParams(
             body=float(_get(stiffness_raw, "body", 1.0)),
@@ -1871,6 +1884,7 @@ class SimulationConfig:
             render=render,
             seed=seed,
             output=output,
+            hydrodynamics=hydrodynamics,
             stiffness_scales=stiffness,
             model_profile=model_profile,
         )
