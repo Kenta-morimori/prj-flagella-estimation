@@ -99,8 +99,9 @@ output rootとcontrol directoryを記録する。手書きの`RUN_ID`、`JOB_ROO
 とする。`Ktakemori`直下はプロジェクト単位で分け、他プロジェクトの出力と混在させない。
 `launch.json`、launcher の stdout/stderr、exit marker はリポジトリ内の
 `outputs/YYYY-MM-DD/HHMMSS/cs10_parallel/...` に残る。開始前にhelperがNASのプロジェクト
-directoryを作成して書込みを検査し、利用できなければtmuxを起動せずに失敗する。NAS容量は
-各実行前に次で確認する。
+directoryを作成して書込みを検査する。その前に `/net/fs01/volume1/work01` 自体がmountで
+あることを検証し、利用できなければローカル側に同名directoryを作らずtmuxを起動せずに
+失敗する。NAS容量は各実行前に次で確認する。
 
 ```bash
 df -h /net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs

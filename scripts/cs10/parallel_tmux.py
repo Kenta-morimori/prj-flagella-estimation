@@ -20,6 +20,7 @@ from zoneinfo import ZoneInfo
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ROOT = REPOSITORY_ROOT / "src"
+CS10_NAS_MOUNT_ROOT = Path("/net/fs01/volume1/work01")
 CS10_OUTPUT_BASE = Path(
     "/net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs"
 )
@@ -97,8 +98,19 @@ def _runtime_python() -> Path:
     return python
 
 
+def _require_nas_mount() -> None:
+    """Reject a path that looks like NAS storage but is not the NAS mount."""
+    if not CS10_NAS_MOUNT_ROOT.is_dir() or not CS10_NAS_MOUNT_ROOT.is_mount():
+        raise RuntimeError(
+            "cs10 NAS mount is unavailable: "
+            f"{CS10_NAS_MOUNT_ROOT}; do not create output directories outside "
+            "the mounted NAS"
+        )
+
+
 def _require_output_base() -> Path:
     """Return the writable NAS root used for large cs10 job artifacts."""
+    _require_nas_mount()
     try:
         CS10_OUTPUT_BASE.mkdir(parents=True, exist_ok=True)
     except OSError as exc:

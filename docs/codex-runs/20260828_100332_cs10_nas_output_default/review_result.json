@@ -4,20 +4,20 @@
   "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/220",
   "summary": [
     "parallel_tmux.pyの重いjob outputを、cs10 NAS `/net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs/YYYY-MM-DD/HHMMSS/parallel/...` に既定化した。",
-    "control artifactは従来どおりリポジトリ内のoutputs namespaceに残し、NASのプロジェクトdirectoryを作成した後に実書込みをtmux起動前に検査する。"
+    "control artifactは従来どおりリポジトリ内のoutputs namespaceに残し、NAS mount rootを検証してからプロジェクトdirectoryを作成し、実書込みをtmux起動前に検査する。"
   ],
   "checks": [
     {
       "command": "uv run pytest tests/test_cs10_parallel_tmux.py tests/test_phase2_parallel_job.py",
-      "result": "PASS: 34 passed"
+      "result": "PASS: 35 passed"
     },
     {
       "command": "uv run ruff check scripts/cs10/parallel_tmux.py tests/test_cs10_parallel_tmux.py && git diff --check",
       "result": "PASS"
     },
     {
-      "command": "ssh cs10: ls -ld and df -h /net/fs01/volume1/work01/Ktakemori",
-      "result": "PASS: directory owned by Ktakemori; filesystem has approximately 47 TB available"
+      "command": "ssh cs10: mountpoint -q /net/fs01/volume1/work01; ls -ld and df -h /net/fs01/volume1/work01/Ktakemori",
+      "result": "PASS: work01 is a mountpoint; user directory is owned by Ktakemori; filesystem has approximately 47 TB available"
     }
   ],
   "long_simulation_executed": false,
