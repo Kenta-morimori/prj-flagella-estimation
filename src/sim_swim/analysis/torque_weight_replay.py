@@ -30,7 +30,12 @@ def reconstructed_segment_weights(
     if profile == "uniform":
         weight = nominal_segment_weights(profile, segment_count)
         return [weight.copy() for _ in times_s]
-    if profile != "diffusive":
+    if profile not in {
+        "diffusive",
+        "diffusive_sqrt",
+        "diffusive_floor_0p2",
+        "diffusive_floor_0p4",
+    }:
         raise ValueError(f"unsupported composite torque profile: {profile}")
 
     orientation = np.zeros(segment_count, dtype=float)
@@ -53,9 +58,12 @@ def reconstructed_segment_weights(
             current_step += 1
         weight = np.abs(orientation)
         maximum = float(np.max(weight)) if weight.size else 0.0
-        if maximum <= 1.0e-12:
-            weight = np.ones_like(weight)
-        else:
-            weight = weight / maximum
+        weight = np.ones_like(weight) if maximum <= 1.0e-12 else weight / maximum
+        if profile == "diffusive_sqrt":
+            weight = np.sqrt(weight)
+        elif profile == "diffusive_floor_0p2":
+            weight = 0.2 + 0.8 * weight
+        elif profile == "diffusive_floor_0p4":
+            weight = 0.4 + 0.6 * weight
         result.append(weight / max(float(np.sum(weight)), 1.0e-12))
     return result

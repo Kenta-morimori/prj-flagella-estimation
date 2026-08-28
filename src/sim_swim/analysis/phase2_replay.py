@@ -532,6 +532,11 @@ def _torque_weight_frames(
     """Return one normalized nominal-weight vector per flagellum and frame."""
     if cfg.motor.force_distribution != "root_torque_segment_couples":
         raise ValueError("torque-weight panels require root_torque_segment_couples")
+    if cfg.motor.torque_ramp_enabled or cfg.motor.enable_switching:
+        raise ValueError(
+            "torque-weight panels do not support ramped or switching motor drive; "
+            "compact archives do not retain the internal-step drive history"
+        )
     return [
         reconstructed_segment_weights(
             cfg.motor.torque_distribution_profile,
