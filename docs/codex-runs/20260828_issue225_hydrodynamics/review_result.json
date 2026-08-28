@@ -24,7 +24,7 @@
   "adr_required": false,
   "adr_reason": "No physical model, dataset, or phase-boundary policy changed; this adds opt-in post-processing output.",
   "commit_type": "feat",
-  "commit_hash": "0542a92",
-  "push_status": "pending",
-  "pull_request_url": "pending"
+  "commit_hash": "99cc31d",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/229"
 }
