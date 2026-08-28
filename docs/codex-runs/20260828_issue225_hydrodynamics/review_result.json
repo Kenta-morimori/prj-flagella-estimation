@@ -5,21 +5,26 @@
   "summary": [
     "Opt-in hydro_archive stores 1 ms-cadence bead positions and total forces for compact RPY runs.",
     "Post-processing reconstructs self/other/source velocity contributions and RPY velocity at arbitrary spatial points without storing mobility matrices or flow grids.",
-    "The replay entry point renders a 3x3x3 vector overlay with follow_camera_3d forced to false."
+    "Campaign analysis writes archive-aligned contribution time series, a nine-condition comparison CSV, a full-duration body-fixed axial-flow figure, and a count-comparison figure.",
+    "The replay entry point renders either one condition or the required n=1/2/3 phase_seed=0 3-panel overlay with follow_camera_3d forced to false.",
+    "A cs10-qualified nine-shard parallel job and the fixed-commit queue/runbook contract are included."
   ],
   "checks": [
     {"command": "uv run pytest tests/test_hydrodynamics_analysis.py tests/test_hydro_rpy.py tests/test_phase2_generic_multi_run.py tests/test_render_state_and_projection.py -q", "result": "PASS: 78 passed"},
     {"command": "pre-commit (ruff format/check, lifecycle check, pytest -m light)", "result": "PASS: 315 passed, 450 deselected"},
     {"command": "uv run python -m sim_swim.analysis.sweeps.generic_multi_run --campaign-config conf/phase2_multi_run/2010_project_hydrodynamics_issue225.yaml --dry-run", "result": "PASS: 9 conditions"}
+    ,{"command": "uv run pytest tests/test_hydrodynamics_analysis.py tests/test_phase2_parallel_job.py -q", "result": "PASS: 32 passed"}
+    ,{"command": "run_parallel.py --config conf/phase2_parallel/issue225_hydrodynamics/job.yaml --dry-run", "result": "PASS: 9 shards, 8 workers"}
   ],
   "long_simulation_executed": false,
   "long_simulation_reason": "The #225 0.5 s x 9-condition campaign is a user-run cs10 workload and was not started locally.",
   "user_review_required": true,
-  "user_review_command": "After the stacked PR is available, enqueue its fixed commit on cs10 and run conf/phase2_multi_run/2010_project_hydrodynamics_issue225.yaml. Then invoke replay_dataset.py --run-dir <run> --flow-overlay --condition-id n1__phase0 --output-dir <out>.",
+  "user_review_command": "After the stacked PR is reviewed, follow docs/codex/cs10_runbook.md Issue #225 section: enqueue the fixed branch commit with conf/phase2_parallel/issue225_hydrodynamics/job.yaml, then run the archive-only analysis and n=1/2/3 overlay commands.",
   "user_review_points": [
     "Each condition contains hydro_archive.npz with timestamp, positions, total forces, bead grouping, and provenance.",
     "The strict compact QC in run_summary.json is inspected for all nine conditions.",
-    "Overlay manifest records follow_camera_3d=false and grid_shape=[3,3,3]."
+    "Comparison CSV and the full-duration body-fixed axial-flow figure are present.",
+    "Overlay manifest records follow_camera_3d=false, fps=25, grid_shape=[3,3,3], and all three phase_seed=0 conditions."
   ],
   "adr_required": false,
   "adr_reason": "No physical model, dataset, or phase-boundary policy changed; this adds opt-in post-processing output.",

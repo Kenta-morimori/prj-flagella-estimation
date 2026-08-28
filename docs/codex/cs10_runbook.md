@@ -168,6 +168,39 @@ tmux attach -t cs10-queue
 queueをpauseする。`/usr/bin/mail`が利用可能なcs10ではログインユーザーへjob成功、失敗、全queue
 完了を通知する。実機のtmux継続・メール配送・2件逐次probeはIssue #219のPR merge後に確認する。
 
+## Issue #225: RPY hydrodynamics campaign
+
+Issue #225 は `conf/phase2_parallel/issue225_hydrodynamics/job.yaml` を唯一の実行設定とする。9 condition は独立 shard とし、各 shard は compact `hydro_archive.npz`（1 ms位置・総力）を保存する。解析とrenderは完了した archive のみを読み、追加simulationを開始しない。
+
+レビュー済みの固定commitを予約する前に、既存jobと衝突しないこと、NAS mount・容量、queue/mail の短いpreflightを確認する。実行許可を受けたユーザーは次を使う。
+
+```bash
+cd ~/src/prj-flagella-estimation
+git fetch origin
+df -h /net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs
+
+.venv-cs10/bin/python scripts/cs10/queue.py enqueue \
+  --branch origin/codex/issue-225-hydrodynamics \
+  --config conf/phase2_parallel/issue225_hydrodynamics/job.yaml \
+  --priority 0
+
+tmux new-session -d -s cs10-queue \
+  'cd ~/src/prj-flagella-estimation && .venv-cs10/bin/python scripts/cs10/queue.py run'
+.venv-cs10/bin/python scripts/cs10/queue.py status
+```
+
+成功時は aggregate campaign directory の `campaign/run_manifest.json`、9個の `hydro_archive.npz`、9個の `run_summary.json` を確認する。その後、同一commitの環境で以下を実行する。
+
+```bash
+.venv-cs10/bin/python scripts/03_dataset_building/analyze_hydrodynamics.py \
+  --run-dir <parallel-output>/campaign
+.venv-cs10/bin/python scripts/03_dataset_building/replay_dataset.py \
+  --run-dir <parallel-output>/campaign --flow-overlay \
+  --campaign-nflagella-phase0 --output-dir <parallel-output>/campaign/analysis/hydrodynamics
+```
+
+受入成果物は `hydrodynamics_comparison.csv`、`flagella_count_comparison.png`、`body_fixed_axial_flow.png`、`nflagella_phase0_flow_overlay.mp4` である。overlay manifest が `follow_camera_3d=false`、`fps=25`、`grid_shape=[3,3,3]` を記録していることも確認する。
+
 ## Scope and requalification
 
 RTX 3090 は hardware record のみであり、CUDA、PyTorch、GPU benchmark はこの scope に含まれない。OS/glibc、CPython、cs10 requirements、主要 simulation 実装、hardware が変わった場合は setup、probe、benchmark を再実行する。

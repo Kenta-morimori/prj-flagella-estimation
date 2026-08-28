@@ -10,12 +10,16 @@ from sim_swim.analysis.hydrodynamics import (
     save_hydro_archive,
     velocity_contributions,
 )
+from sim_swim.analysis.hydrodynamics_campaign import analyze_campaign
+from sim_swim.analysis.hydrodynamics_replay import overlay_manifest
+from sim_swim.analysis.flagella_count_behavior import save_state_archive
 from sim_swim.analysis.multi_run_campaign import (
     build_campaign_conditions,
     load_yaml,
     normalize_campaign_config,
 )
 from sim_swim.sim.core import Simulator
+from sim_swim.sim.core import SimulationState
 from sim_swim.sim.params import SimulationConfig
 
 
@@ -91,3 +95,74 @@ def test_issue225_campaign_has_nine_fixed_attachment_conditions() -> None:
     conditions = build_campaign_conditions(normalize_campaign_config(campaign))
     assert len(conditions) == 9
     assert campaign["base_overrides"]["seed.attach_seed"] == 0
+
+
+def _state(t_s: float, positions_um: np.ndarray) -> SimulationState:
+    return SimulationState(
+        t=t_s,
+        position_um=(0.0, 0.0, 0.0),
+        quaternion=(0.0, 0.0, 0.0, 1.0),
+        velocity_um_s=(1.0, 0.0, 0.0),
+        omega_rad_s=(0.0, 0.0, 1.0),
+        bead_positions_um=positions_um,
+        flag_states=(),
+        reverse_flagella=(),
+    )
+
+
+def test_campaign_analysis_writes_comparison_and_full_run_slice(tmp_path: Path) -> None:
+    conditions = []
+    positions_m = np.asarray([[0.0, 0.0, 0.0], [3.0e-6, 0.0, 0.0]])
+    for n_flagella in (1, 2, 3):
+        condition_id = f"n{n_flagella}__phase0"
+        condition_dir = tmp_path / condition_id
+        condition_dir.mkdir()
+        positions_um = positions_m * 1e6
+        save_state_archive(
+            condition_dir / "state_archive.npz",
+            [_state(0.0, positions_um), _state(0.001, positions_um)],
+        )
+        save_hydro_archive(
+            condition_dir / "hydro_archive.npz",
+            [
+                HydroSample(
+                    0.0,
+                    positions_m,
+                    np.asarray([[1e-12, 0.0, 0.0], [-1e-12, 0.0, 0.0]]),
+                ),
+                HydroSample(
+                    0.001,
+                    positions_m,
+                    np.asarray([[1e-12, 0.0, 0.0], [-1e-12, 0.0, 0.0]]),
+                ),
+            ],
+            bead_is_body=np.asarray([True, False]),
+            bead_flagella_id=np.asarray([-1, 0]),
+            bead_radius_m=1e-6,
+            viscosity_Pa_s=1e-3,
+            provenance={"hydrodynamics": {"model": "free_space_rpy"}},
+        )
+        (condition_dir / "run_summary.json").write_text(
+            '{"execution":{"status":"completed"},"gates":{"shape_nonbody":{"final_pass":true},"shape_body":{"any_fail":false}}}'
+        )
+        conditions.append(
+            {
+                "condition_id": condition_id,
+                "output_dir": str(condition_dir),
+                "axis_values": {"n_flagella": n_flagella, "phase_seed": 0},
+            }
+        )
+    (tmp_path / "run_manifest.json").write_text(
+        __import__("json").dumps({"conditions": conditions})
+    )
+    output = analyze_campaign(tmp_path)
+    assert (output / "hydrodynamics_comparison.csv").is_file()
+    assert (output / "flagella_count_comparison.png").is_file()
+    assert (output / "body_fixed_axial_flow.png").is_file()
+
+
+def test_campaign_overlay_contract_is_fixed_camera_three_panels() -> None:
+    payload = overlay_manifest(["n1__phase0", "n2__phase0", "n3__phase0"], fps=25.0)
+    assert payload["follow_camera_3d"] is False
+    assert payload["grid_shape"] == [3, 3, 3]
+    assert payload["panel_count"] == 3

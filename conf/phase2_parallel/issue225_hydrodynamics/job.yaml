@@ -1,0 +1,8 @@
+schema_version: 1
+job_id: issue225_2010_project_hydrodynamics
+configs:
+  - path: conf/phase2_multi_run/2010_project_hydrodynamics_issue225.yaml
+conditions: [n1__phase0, n1__phase1, n1__phase2, n2__phase0, n2__phase1, n2__phase2, n3__phase0, n3__phase1, n3__phase2]
+execution:
+  max_workers: auto
+  worker_policy: cs10_qualified

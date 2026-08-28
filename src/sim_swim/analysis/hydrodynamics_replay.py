@@ -128,13 +128,118 @@ def render_condition(
     return movie
 
 
+def overlay_manifest(condition_ids: list[str], *, fps: float) -> dict[str, Any]:
+    """Return the fixed visualization contract for a campaign comparison."""
+    return {
+        "condition_ids": condition_ids,
+        "follow_camera_3d": False,
+        "fps": fps,
+        "grid_shape": [3, 3, 3],
+        "panel_count": len(condition_ids),
+    }
+
+
+def render_campaign_overlay(
+    root: Path, condition_ids: list[str], output_dir: Path, *, fps: float = 25.0
+) -> Path:
+    """Render a synchronized fixed-camera horizontal multi-condition overlay."""
+    if len(condition_ids) != 3:
+        raise ValueError("campaign overlay requires exactly three condition IDs")
+    assets = []
+    for condition_id in condition_ids:
+        record = _condition_record(root, condition_id)
+        cfg = _load_cfg(root, record)
+        condition_dir = Path(record.get("output_dir", root / condition_id))
+        states = _select_frames(
+            load_state_archive(condition_dir / "state_archive.npz"), False, fps
+        )
+        assets.append(
+            (
+                condition_id,
+                cfg,
+                Simulator(cfg),
+                states,
+                load_hydro_archive(condition_dir / "hydro_archive.npz"),
+            )
+        )
+    frame_count = min(len(item[3]) for item in assets)
+    if frame_count == 0:
+        raise ValueError("campaign overlay has no frames")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    movie = output_dir / "nflagella_phase0_flow_overlay.mp4"
+    figure = plt.figure(figsize=(15, 5), dpi=100)
+    canvas = FigureCanvasAgg(figure)
+    writer = None
+    try:
+        for frame_index in range(frame_count):
+            figure.clear()
+            for panel_index, (condition_id, cfg, simulator, states, hydro) in enumerate(
+                assets, start=1
+            ):
+                state = states[frame_index]
+                index = int(np.argmin(np.abs(hydro.t_s - state.t)))
+                grid_um = _flow_grid(state.bead_positions_um, cfg.render.view_range_um)
+                velocity_um_s = 1e6 * rpy_flow_velocity(
+                    grid_um * 1e-6,
+                    hydro.positions_m[index],
+                    hydro.total_forces_N[index],
+                    bead_radius_m=hydro.bead_radius_m,
+                    viscosity_Pa_s=hydro.viscosity_Pa_s,
+                )
+                axis = figure.add_subplot(1, 3, panel_index, projection="3d")
+                plot_swim_frame_3d(
+                    axis,
+                    state,
+                    cfg,
+                    simulator.rig,
+                    hide_ticks=True,
+                    title=condition_id,
+                    flow_vectors=(grid_um, velocity_um_s),
+                )
+            canvas.draw()
+            frame = cv2.cvtColor(np.asarray(canvas.buffer_rgba()), cv2.COLOR_RGBA2BGR)
+            if writer is None:
+                writer = open_mp4_writer(
+                    movie, fps=fps, frame_size=(frame.shape[1], frame.shape[0])
+                ).writer
+            writer.write(frame)
+    finally:
+        if writer is not None:
+            writer.release()
+        plt.close(figure)
+    payload = {
+        **overlay_manifest(condition_ids, fps=fps),
+        "movie": str(movie),
+        "frame_count": frame_count,
+    }
+    (output_dir / "nflagella_phase0_flow_overlay.json").write_text(
+        json.dumps(payload, indent=2) + "\n", encoding="utf-8"
+    )
+    return movie
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-dir", type=Path, required=True)
-    parser.add_argument("--condition-id", required=True)
+    parser.add_argument("--condition-id")
+    parser.add_argument("--campaign-nflagella-phase0", action="store_true")
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--fps", type=float, default=25.0)
     args = parser.parse_args(argv)
-    print(
-        render_condition(args.run_dir, args.condition_id, args.output_dir, fps=args.fps)
-    )
+    if args.campaign_nflagella_phase0:
+        print(
+            render_campaign_overlay(
+                args.run_dir,
+                ["n1__phase0", "n2__phase0", "n3__phase0"],
+                args.output_dir,
+                fps=args.fps,
+            )
+        )
+    elif args.condition_id:
+        print(
+            render_condition(
+                args.run_dir, args.condition_id, args.output_dir, fps=args.fps
+            )
+        )
+    else:
+        parser.error("--condition-id or --campaign-nflagella-phase0 is required")
