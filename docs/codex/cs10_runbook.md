@@ -94,6 +94,19 @@ Git更新はGitHub SSH agentを持つ**対話**sessionで完了させる。非�
 output rootとcontrol directoryを記録する。手書きの`RUN_ID`、`JOB_ROOT=$(...)`、`exit`を
 含むtmux commandは使わない。
 
+重い simulation artifact の既定出力先は NAS の
+`/net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs/YYYY-MM-DD/HHMMSS/parallel/...`
+とする。`Ktakemori`直下はプロジェクト単位で分け、他プロジェクトの出力と混在させない。
+`launch.json`、launcher の stdout/stderr、exit marker はリポジトリ内の
+`outputs/YYYY-MM-DD/HHMMSS/cs10_parallel/...` に残る。開始前にhelperがNASのプロジェクト
+directoryを作成して書込みを検査する。その前に `/net/fs01/volume1/work01` 自体がmountで
+あることを検証し、利用できなければローカル側に同名directoryを作らずtmuxを起動せずに
+失敗する。NAS容量は各実行前に次で確認する。
+
+```bash
+df -h /net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs
+```
+
 ```bash
 .venv-cs10/bin/python scripts/cs10/parallel_tmux.py start \
   --config conf/phase2_parallel/<job>/job.yaml \
