@@ -23,6 +23,12 @@ def reconstructed_segment_weights(
     times_s: np.ndarray,
     dt_s: float,
     torque_Nm: float,
+    torque_ramp_enabled: bool = False,
+    torque_ramp_duration_s: float = 0.0,
+    enable_switching: bool = False,
+    run_tau: float = 0.0,
+    tumble_tau: float = 0.0,
+    reverse_flagellum: bool = False,
 ) -> list[np.ndarray]:
     """Reconstruct normalized nominal local-twist segment weights for replay."""
     if segment_count <= 0 or dt_s <= 0:
@@ -41,7 +47,19 @@ def reconstructed_segment_weights(
     orientation = np.zeros(segment_count, dtype=float)
     current_step = 0
     result: list[np.ndarray] = []
-    drive_rate = 2.0 * math.pi * 2.2 * (float(torque_Nm) / 2.0e-20)
+
+    def drive_scale(t_s: float) -> float:
+        if not torque_ramp_enabled or torque_ramp_duration_s <= 0:
+            return 1.0
+        x = min(max(t_s / torque_ramp_duration_s, 0.0), 1.0)
+        return x * x * (3.0 - 2.0 * x)
+
+    def torque_sign(t_s: float) -> float:
+        if not enable_switching or not reverse_flagellum:
+            return 1.0
+        cycle = max(run_tau + tumble_tau, 1e-12)
+        return -1.0 if (t_s / dt_s) * dt_s % cycle >= run_tau else 1.0
+
     for t_s in np.asarray(times_s, dtype=float):
         target_step = max(current_step, int(round(float(t_s) / dt_s)))
         while current_step < target_step:
@@ -54,7 +72,11 @@ def reconstructed_segment_weights(
                         orientation[:-2] - 2.0 * orientation[1:-1] + orientation[2:]
                     )
             orientation += dt_s * (80.0 * lap - 0.05 * orientation)
-            orientation[0] += drive_rate * dt_s
+            step_t_s = current_step * dt_s
+            drive_rate = 2.0 * math.pi * 2.2 * (float(torque_Nm) / 2.0e-20)
+            orientation[0] += (
+                drive_rate * drive_scale(step_t_s) * torque_sign(step_t_s) * dt_s
+            )
             current_step += 1
         weight = np.abs(orientation)
         maximum = float(np.max(weight)) if weight.size else 0.0

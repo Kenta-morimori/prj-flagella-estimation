@@ -532,11 +532,6 @@ def _torque_weight_frames(
     """Return one normalized nominal-weight vector per flagellum and frame."""
     if cfg.motor.force_distribution != "root_torque_segment_couples":
         raise ValueError("torque-weight panels require root_torque_segment_couples")
-    if cfg.motor.torque_ramp_enabled or cfg.motor.enable_switching:
-        raise ValueError(
-            "torque-weight panels do not support ramped or switching motor drive; "
-            "compact archives do not retain the internal-step drive history"
-        )
     return [
         reconstructed_segment_weights(
             cfg.motor.torque_distribution_profile,
@@ -544,8 +539,14 @@ def _torque_weight_frames(
             times_s=np.asarray([state.t for state in states], dtype=float),
             dt_s=cfg.dt_s,
             torque_Nm=cfg.motor.torque_Nm,
+            torque_ramp_enabled=cfg.motor.torque_ramp_enabled,
+            torque_ramp_duration_s=cfg.motor.torque_ramp_duration_s,
+            enable_switching=cfg.motor.enable_switching,
+            run_tau=cfg.run_tumble.run_tau,
+            tumble_tau=cfg.run_tumble.tumble_tau,
+            reverse_flagellum=flag_id in states[0].reverse_flagella,
         )
-        for indices in rig.flagella_indices
+        for flag_id, indices in enumerate(rig.flagella_indices)
     ]
 
 
