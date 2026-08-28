@@ -12,6 +12,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 from typing import Any
 from uuid import uuid4
 from zoneinfo import ZoneInfo
@@ -19,6 +20,7 @@ from zoneinfo import ZoneInfo
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ROOT = REPOSITORY_ROOT / "src"
+CS10_OUTPUT_BASE = Path("/net/fs01/volume1/work01/Ktakemori")
 if str(SOURCE_ROOT) not in sys.path:
     sys.path.insert(0, str(SOURCE_ROOT))
 
@@ -93,13 +95,37 @@ def _runtime_python() -> Path:
     return python
 
 
-def _output_paths(label: str) -> tuple[Path, Path]:
+def _require_output_base() -> Path:
+    """Return the writable NAS root used for large cs10 job artifacts."""
+    if not CS10_OUTPUT_BASE.is_dir():
+        raise RuntimeError(
+            "cs10 NAS output directory is unavailable: "
+            f"{CS10_OUTPUT_BASE}; ask the cs10 administrators to confirm the mount "
+            "and user directory"
+        )
+    try:
+        with tempfile.TemporaryFile(
+            mode="w", encoding="utf-8", dir=CS10_OUTPUT_BASE, prefix=".cs10_probe_"
+        ) as probe:
+            probe.write("ok\n")
+            probe.flush()
+    except OSError as exc:
+        raise RuntimeError(
+            f"cs10 NAS output directory is not writable: {CS10_OUTPUT_BASE}"
+        ) from exc
+    return CS10_OUTPUT_BASE
+
+
+def _output_paths(label: str, output_base: Path) -> tuple[Path, Path]:
     now = _now()
-    base = (
+    control_base = (
         REPOSITORY_ROOT / "outputs" / now.strftime("%Y-%m-%d") / now.strftime("%H%M%S")
     )
-    control = base / "cs10_parallel" / label
-    root = base / "parallel" / f"{label}__{uuid4().hex[:12]}"
+    output_timestamp_base = (
+        output_base / "outputs" / now.strftime("%Y-%m-%d") / now.strftime("%H%M%S")
+    )
+    control = control_base / "cs10_parallel" / label
+    root = output_timestamp_base / "parallel" / f"{label}__{uuid4().hex[:12]}"
     return control, root
 
 
@@ -113,11 +139,12 @@ def start(config: Path, *, session: str, label: str) -> dict[str, Any]:
         raise RuntimeError(
             "cs10 tmux helper requires execution.worker_policy=cs10_qualified"
         )
+    output_base = _require_output_base()
     existing = subprocess.run([tmux, "has-session", "-t", session], check=False)
     if existing.returncode == 0:
         raise RuntimeError(f"tmux session already exists: {session}")
 
-    control, output_root = _output_paths(label)
+    control, output_root = _output_paths(label, output_base)
     control.mkdir(parents=True, exist_ok=False)
     command = [
         str(runtime_python),

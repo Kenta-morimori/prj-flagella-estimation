@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from datetime import datetime
 from pathlib import Path
 import subprocess
 import sys
+from zoneinfo import ZoneInfo
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,7 +25,7 @@ def _load_script(name: str):
     return module
 
 
-def test_start_records_deterministic_output_root_and_typed_command(
+def test_start_records_nas_output_root_and_typed_command(
     tmp_path: Path, monkeypatch
 ) -> None:
     helper = _load_script("cs10_parallel_tmux_start")
@@ -31,7 +35,12 @@ def test_start_records_deterministic_output_root_and_typed_command(
     monkeypatch.setattr(
         helper, "_git_info", lambda: {"commit": "abc", "branch": "test"}
     )
-    monkeypatch.setattr(helper, "_output_paths", lambda label: (control, output_root))
+    monkeypatch.setattr(helper, "_require_output_base", lambda: tmp_path / "nas")
+    monkeypatch.setattr(
+        helper,
+        "_output_paths",
+        lambda label, output_base: (control, output_root),
+    )
 
     commands: list[list[str]] = []
 
@@ -50,6 +59,50 @@ def test_start_records_deterministic_output_root_and_typed_command(
     assert (control / "launch.json").is_file()
     assert str(output_root) in (control / "launch.sh").read_text(encoding="utf-8")
     assert any(command[1:3] == ["new-session", "-d"] for command in commands)
+
+
+def test_output_paths_keep_control_local_and_put_job_on_nas(
+    monkeypatch, tmp_path: Path
+) -> None:
+    helper = _load_script("cs10_parallel_tmux_output_paths")
+    monkeypatch.setattr(helper, "REPOSITORY_ROOT", tmp_path / "repository")
+    monkeypatch.setattr(
+        helper,
+        "_now",
+        lambda: datetime(2026, 8, 28, 12, 34, 56, tzinfo=ZoneInfo("Asia/Tokyo")),
+    )
+    monkeypatch.setattr(
+        helper, "uuid4", lambda: type("Id", (), {"hex": "abc123def456"})()
+    )
+
+    control, output_root = helper._output_paths("example", tmp_path / "nas")
+
+    assert control == (
+        tmp_path / "repository/outputs/2026-08-28/123456/cs10_parallel/example"
+    )
+    assert output_root == (
+        tmp_path / "nas/outputs/2026-08-28/123456/parallel/example__abc123def456"
+    )
+
+
+def test_require_output_base_rejects_missing_nas_directory(
+    monkeypatch, tmp_path: Path
+) -> None:
+    helper = _load_script("cs10_parallel_tmux_missing_nas")
+    missing = tmp_path / "missing"
+    monkeypatch.setattr(helper, "CS10_OUTPUT_BASE", missing)
+
+    with pytest.raises(RuntimeError, match="NAS output directory is unavailable"):
+        helper._require_output_base()
+
+
+def test_require_output_base_checks_write_access(monkeypatch, tmp_path: Path) -> None:
+    helper = _load_script("cs10_parallel_tmux_writable_nas")
+    output_base = tmp_path / "nas"
+    output_base.mkdir()
+    monkeypatch.setattr(helper, "CS10_OUTPUT_BASE", output_base)
+
+    assert helper._require_output_base() == output_base
 
 
 def test_runtime_python_includes_repository_source_in_preflight(
