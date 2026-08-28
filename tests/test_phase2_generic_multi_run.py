@@ -1267,10 +1267,14 @@ def test_compact_summary_records_nonbody_first_failure() -> None:
     )
     summary.record(
         {
+            "step": 1,
             "t_s": 0.1,
             "finite_pass": True,
             "shape_pass_nonbody": False,
             "first_fail_category_nonbody": "hook",
+            "hook_angle_err_max_deg": 30.5,
+            "local_attach_first_rel_err": 0.2,
+            "hook_len_rel_err_max": 0.1,
         }
     )
 
@@ -1278,3 +1282,14 @@ def test_compact_summary_records_nonbody_first_failure() -> None:
     assert gate["any_fail"] is True
     assert gate["first_observed_fail_t_s"] == pytest.approx(0.1)
     assert gate["first_failure_category"] == "hook"
+    assert gate["first_failure_snapshot"] == {
+        "step": 1,
+        "t_s": 0.1,
+        "category": "hook",
+        "target": "nonbody",
+        "metrics": {
+            "hook_angle_err_max_deg": 30.5,
+            "local_attach_first_rel_err": 0.2,
+            "hook_len_rel_err_max": 0.1,
+        },
+    }
