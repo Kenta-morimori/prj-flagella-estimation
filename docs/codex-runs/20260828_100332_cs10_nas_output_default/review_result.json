@@ -3,13 +3,13 @@
   "task": "Issue #220: cs10 parallel jobのNAS既定出力先",
   "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/220",
   "summary": [
-    "parallel_tmux.pyの重いjob outputを、cs10 NAS `/net/fs01/volume1/work01/Ktakemori/outputs/YYYY-MM-DD/HHMMSS/parallel/...` に既定化した。",
-    "control artifactは従来どおりリポジトリ内のoutputs namespaceに残し、NASの存在・実書込みをtmux起動前に検査する。"
+    "parallel_tmux.pyの重いjob outputを、cs10 NAS `/net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs/YYYY-MM-DD/HHMMSS/parallel/...` に既定化した。",
+    "control artifactは従来どおりリポジトリ内のoutputs namespaceに残し、NASのプロジェクトdirectoryを作成した後に実書込みをtmux起動前に検査する。"
   ],
   "checks": [
     {
       "command": "uv run pytest tests/test_cs10_parallel_tmux.py tests/test_phase2_parallel_job.py",
-      "result": "PASS: 31 passed"
+      "result": "PASS: 34 passed"
     },
     {
       "command": "uv run ruff check scripts/cs10/parallel_tmux.py tests/test_cs10_parallel_tmux.py && git diff --check",
@@ -25,7 +25,7 @@
   "user_review_required": true,
   "user_review_command": ".venv-cs10/bin/python scripts/cs10/parallel_tmux.py start --config conf/phase2_parallel/issue215_5s_axis_convergence/job.yaml --session issue215-5s-nas --label issue215_5s_axis_convergence_nas",
   "user_review_points": [
-    "start出力のoutput_rootが `/net/fs01/volume1/work01/Ktakemori/outputs/...` である。",
+    "start出力のoutput_rootが `/net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs/...` である。",
     "control_dirがリポジトリ内の `outputs/.../cs10_parallel/...` である。",
     "start前にNASが利用不能な場合はtmux sessionを作らず明確に失敗する。"
   ],

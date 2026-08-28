@@ -20,7 +20,9 @@ from zoneinfo import ZoneInfo
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ROOT = REPOSITORY_ROOT / "src"
-CS10_OUTPUT_BASE = Path("/net/fs01/volume1/work01/Ktakemori")
+CS10_OUTPUT_BASE = Path(
+    "/net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs"
+)
 if str(SOURCE_ROOT) not in sys.path:
     sys.path.insert(0, str(SOURCE_ROOT))
 
@@ -97,6 +99,12 @@ def _runtime_python() -> Path:
 
 def _require_output_base() -> Path:
     """Return the writable NAS root used for large cs10 job artifacts."""
+    try:
+        CS10_OUTPUT_BASE.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise RuntimeError(
+            f"could not create cs10 NAS output directory: {CS10_OUTPUT_BASE}"
+        ) from exc
     if not CS10_OUTPUT_BASE.is_dir():
         raise RuntimeError(
             "cs10 NAS output directory is unavailable: "
@@ -122,7 +130,7 @@ def _output_paths(label: str, output_base: Path) -> tuple[Path, Path]:
         REPOSITORY_ROOT / "outputs" / now.strftime("%Y-%m-%d") / now.strftime("%H%M%S")
     )
     output_timestamp_base = (
-        output_base / "outputs" / now.strftime("%Y-%m-%d") / now.strftime("%H%M%S")
+        output_base / now.strftime("%Y-%m-%d") / now.strftime("%H%M%S")
     )
     control = control_base / "cs10_parallel" / label
     root = output_timestamp_base / "parallel" / f"{label}__{uuid4().hex[:12]}"
