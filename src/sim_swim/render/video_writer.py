@@ -72,6 +72,11 @@ class _FFmpegVideoWriter:
                 "-i",
                 "-",
                 "-an",
+                # yuv420p requires even image dimensions. Matplotlib grid
+                # canvases may be odd-sized (for example 1439 px wide), so
+                # pad at encode time instead of failing after the first frame.
+                "-vf",
+                "pad=ceil(iw/2)*2:ceil(ih/2)*2",
                 "-c:v",
                 "libx264",
                 "-profile:v",

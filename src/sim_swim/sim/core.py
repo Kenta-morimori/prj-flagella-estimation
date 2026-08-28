@@ -760,11 +760,12 @@ class Simulator:
             for step in range(total_steps):
                 t_star_before = self.engine.t_star
                 step_diag = self.engine.step(dt_star)
+                t_star_after = self.engine.t_star
                 completed = step + 1
 
                 if debug_recorder is not None:
                     debug_recorder.record(
-                        step=step, t_star=t_star_before, diag=step_diag
+                        step=step, t_star=t_star_after, diag=step_diag
                     )
                     if debug_recorder.last_row is not None:
                         online_summary.record(debug_recorder.last_row)
@@ -779,7 +780,7 @@ class Simulator:
                         break
                 if body_diag_recorder is not None:
                     body_diag_recorder.record(
-                        step=step, t_s=t_star_before * tau_s, diag=step_diag
+                        step=step, t_s=t_star_after * tau_s, diag=step_diag
                     )
                     if body_diag_recorder.last_row is not None:
                         online_summary.record_body(body_diag_recorder.last_row)

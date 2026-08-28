@@ -41,6 +41,7 @@ class OnlineRunSummary:
             "observed_fail_sample_count": 0,
             "first_failure_category": None,
             "first_failure_target": None,
+            "first_failure_snapshot": None,
         }
 
     def record(self, row: Mapping[str, Any]) -> None:
@@ -67,7 +68,7 @@ class OnlineRunSummary:
                     number if item["max"] is None else max(float(item["max"]), number)
                 )
         self._record_gate(
-            "finite", bool(row.get("finite_pass", False)), t_s, "finite", "all"
+            "finite", bool(row.get("finite_pass", False)), t_s, "finite", "all", row
         )
         self._record_gate(
             "shape_nonbody",
@@ -80,6 +81,7 @@ class OnlineRunSummary:
                 )
             ),
             str(row.get("shape_fail_target_nonbody", "nonbody")),
+            row,
         )
 
     def record_body(self, row: Mapping[str, Any]) -> None:
@@ -142,10 +144,16 @@ class OnlineRunSummary:
                 if ratio_item["max"] is None
                 else max(float(ratio_item["max"]), ratio)
             )
-        self._record_gate("shape_body", passed, t_s, category, "body")
+        self._record_gate("shape_body", passed, t_s, category, "body", row)
 
     def _record_gate(
-        self, name: str, passed: bool, t_s: float, category: str, target: str
+        self,
+        name: str,
+        passed: bool,
+        t_s: float,
+        category: str,
+        target: str,
+        row: Mapping[str, Any],
     ) -> None:
         gate = self.gates[name]
         gate["final_pass"] = passed
@@ -157,6 +165,35 @@ class OnlineRunSummary:
                 gate["first_observed_fail_t_s"] = t_s
                 gate["first_failure_category"] = category
                 gate["first_failure_target"] = target
+                keys = {
+                    "hook": (
+                        "hook_angle_err_max_deg",
+                        "local_attach_first_rel_err",
+                        "hook_len_rel_err_max",
+                    ),
+                    "flag": (
+                        "flag_bond_rel_err_max",
+                        "flag_bend_err_max_deg",
+                        "flag_torsion_err_max_deg",
+                    ),
+                    "body": (
+                        "body_spring_max_stretch_ratio",
+                        "body_bend_max_error_deg",
+                        "body_centerline_max_deviation_um",
+                        "body_triangle_area_ratio_min",
+                    ),
+                }.get(category, ())
+                metrics = {key: row.get(key) for key in keys if key in row}
+                for key, value in row.items():
+                    if "repulsion" in key or "bead_distance" in key:
+                        metrics[key] = value
+                gate["first_failure_snapshot"] = {
+                    "step": int(row.get("step", self.count - 1)),
+                    "t_s": t_s,
+                    "category": category,
+                    "target": target,
+                    "metrics": metrics,
+                }
 
     def document(
         self,
@@ -168,7 +205,7 @@ class OnlineRunSummary:
         policy: str,
     ) -> dict[str, Any]:
         return {
-            "schema_version": "1.0",
+            "schema_version": "1.1",
             "kind": "phase2_run_summary",
             "created_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
             "input": {
@@ -192,6 +229,7 @@ class OnlineRunSummary:
                 "step_summary_row_count": 0,
                 "time_spacing_s": {"min_s": None, "median_s": None, "max_s": None},
                 "episode_definition": "every internal step aggregated online",
+                "diagnostic_time_reference": "post_step",
                 "persistent_observed_min_consecutive_fail_samples": 1,
                 "episode_storage_limit_per_gate": 1,
                 "output_policy": policy,

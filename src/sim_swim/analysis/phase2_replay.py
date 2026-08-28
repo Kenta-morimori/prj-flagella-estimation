@@ -27,6 +27,7 @@ from sim_swim.analysis.flagella_count_behavior import (
     normalize_base_overrides,
     validate_replay_fps,
 )
+from sim_swim.analysis.torque_weight_replay import reconstructed_segment_weights
 from sim_swim.sim.params import SimulationConfig
 
 CANONICAL_TORQUE_DISTRIBUTION_CONDITION_IDS = (
@@ -502,6 +503,53 @@ def _plot_cell(
     )
 
 
+def _plot_torque_weight_panels(
+    figure: Any,
+    spec: Any,
+    *,
+    cfg: SimulationConfig,
+    rig: Any,
+    weights: list[np.ndarray],
+) -> None:
+    """Draw nominal local-segment weights beside a 3D replay cell."""
+    if cfg.motor.force_distribution != "root_torque_segment_couples":
+        raise ValueError("torque-weight panels require root_torque_segment_couples")
+    if len(weights) != len(rig.flagella_indices):
+        raise ValueError("torque-weight panel count does not match replay flagella")
+    panels = spec.subgridspec(len(weights), 1, hspace=0.35)
+    for flag_id, value in enumerate(weights):
+        axis = figure.add_subplot(panels[flag_id, 0])
+        axis.bar(np.arange(len(value)), value, color=f"C{flag_id}")
+        axis.set_ylim(0, max(float(value.max()) * 1.25, 0.1))
+        axis.set_xticks([])
+        axis.set_yticks([])
+        axis.set_title(f"F{flag_id}  Σ={value.sum():.2f}", fontsize=6, pad=1)
+
+
+def _torque_weight_frames(
+    cfg: SimulationConfig, rig: Any, states: list[Any]
+) -> list[list[np.ndarray]]:
+    """Return one normalized nominal-weight vector per flagellum and frame."""
+    if cfg.motor.force_distribution != "root_torque_segment_couples":
+        raise ValueError("torque-weight panels require root_torque_segment_couples")
+    return [
+        reconstructed_segment_weights(
+            cfg.motor.torque_distribution_profile,
+            len(indices) - 1,
+            times_s=np.asarray([state.t for state in states], dtype=float),
+            dt_s=cfg.dt_s,
+            torque_Nm=cfg.motor.torque_Nm,
+            torque_ramp_enabled=cfg.motor.torque_ramp_enabled,
+            torque_ramp_duration_s=cfg.motor.torque_ramp_duration_s,
+            enable_switching=cfg.motor.enable_switching,
+            run_tau=cfg.run_tumble.run_tau,
+            tumble_tau=cfg.run_tumble.tumble_tau,
+            reverse_flagellum=flag_id in states[0].reverse_flagella,
+        )
+        for flag_id, indices in enumerate(rig.flagella_indices)
+    ]
+
+
 def _resample_states_for_replay(
     states: list[Any], target_frame_count: int
 ) -> list[Any]:
@@ -568,6 +616,7 @@ def _render_grid_movie(
     max_panels_per_grid: int,
     target_frame_count: int | None,
     figure_note: str | None = None,
+    show_torque_weight_panels: bool = False,
 ) -> Any:
     import cv2
 
@@ -587,6 +636,16 @@ def _render_grid_movie(
     frame_count = min(len(states) for states in render_states_by_condition)
     if frame_count <= 0:
         raise RuntimeError("No frames selected for grid render.")
+    weights_by_condition = (
+        [
+            _torque_weight_frames(cfg, rig, states[:frame_count])
+            for cfg, rig, states in zip(
+                cfg_by_condition, rig_by_condition, render_states_by_condition
+            )
+        ]
+        if show_torque_weight_panels
+        else []
+    )
 
     titles = [_label_for_row(row) for row in condition_rows]
     fail_labels = [_fail_label(row) for row in condition_rows]
@@ -616,15 +675,26 @@ def _render_grid_movie(
         last_frame = None
 
         for frame_idx in range(frame_count):
-            fig = plt.figure(figsize=(4.8 * n_cols, 4.8 * n_rows))
+            fig = plt.figure(
+                figsize=(
+                    (6.4 if show_torque_weight_panels else 4.8) * n_cols,
+                    4.8 * n_rows,
+                )
+            )
+            grid = fig.add_gridspec(n_rows, n_cols)
             axes = {}
             for row_index, col_index in subplot_positions:
-                axes[(row_index, col_index)] = fig.add_subplot(
-                    n_rows,
-                    n_cols,
-                    row_index * n_cols + col_index + 1,
-                    projection="3d",
-                )
+                spec = grid[row_index, col_index]
+                if show_torque_weight_panels:
+                    spec = spec.subgridspec(1, 2, width_ratios=(1.7, 0.8), wspace=0.08)
+                    axes[(row_index, col_index)] = fig.add_subplot(
+                        spec[0, 0], projection="3d"
+                    )
+                    axes[(row_index, col_index, "weights")] = spec[0, 1]
+                else:
+                    axes[(row_index, col_index)] = fig.add_subplot(
+                        spec, projection="3d"
+                    )
             for page_idx, (row_index, col_index) in enumerate(subplot_positions):
                 condition_idx = page_indexes[page_idx]
                 ax = axes[(row_index, col_index)]
@@ -636,6 +706,17 @@ def _render_grid_movie(
                     title=page_titles[page_idx],
                     fail_label=page_fail_labels[page_idx],
                 )
+                if show_torque_weight_panels:
+                    _plot_torque_weight_panels(
+                        fig,
+                        axes[(row_index, col_index, "weights")],
+                        cfg=cfg_by_condition[condition_idx],
+                        rig=rig_by_condition[condition_idx],
+                        weights=[
+                            values[frame_idx]
+                            for values in weights_by_condition[condition_idx]
+                        ],
+                    )
             if figure_note:
                 fig.tight_layout()
                 fig.subplots_adjust(bottom=0.06)
@@ -688,6 +769,11 @@ def _render_grid_movie(
         "max_panels_per_grid": max(1, int(max_panels_per_grid)),
         "page_count": len(page_manifests),
         "pages": page_manifests,
+        "torque_weight_panels": {
+            "enabled": show_torque_weight_panels,
+            "weight_unit": "local bead-to-bead segment",
+            "weight_kind": "normalized nominal distribution (not realized force or torque)",
+        },
     }
 
 
@@ -1106,6 +1192,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Optional note shown beneath every replay grid frame.",
     )
     parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument("--show-torque-weight-panels", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(parser_argv)
     if config_from_key is not None and args.config is not None:
@@ -1219,6 +1306,7 @@ def main(argv: list[str] | None = None) -> None:
                 max_panels_per_grid=args.max_panels_per_grid,
                 target_frame_count=args.target_frame_count,
                 figure_note=args.figure_note,
+                show_torque_weight_panels=args.show_torque_weight_panels,
             )
         if args.view in {"2d", "3d+2d"}:
             render_result["grid_projection2d"] = _render_grid_movie_2d(
@@ -1245,6 +1333,7 @@ def main(argv: list[str] | None = None) -> None:
             "target_frame_count": args.target_frame_count,
             "max_panels_per_grid": args.max_panels_per_grid,
             "figure_note": args.figure_note,
+            "show_torque_weight_panels": args.show_torque_weight_panels,
         },
         "conditions": [row["condition_id"] for row in rows],
         "outputs": {
