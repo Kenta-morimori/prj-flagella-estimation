@@ -129,6 +129,45 @@ Codexは既定でcs10へ接続・操作しない。接続、tmux起動、long jo
 その操作についてUserが明示許可した場合だけとする。User実行のjobは、command、想定出力、
 確認点、最小転送artifactをIssue runbookに記録する。
 
+## Sequential reservation queue
+
+複数branchのparallel jobを予約する場合は、`scripts/cs10/queue.py`を使う。予約時に
+branch refをcommit SHAへ固定し、reservationごとのdetached worktreeからforeground launcherを
+実行する。予約済みjobは任意shell commandではなく、repository内のparallel-job YAMLだけを
+受け付ける。state、event log、reservationごとのstdout/stderrは
+`~/.local/state/prj-flagella-estimation/cs10-queue/`、worktreeは
+`~/src/prj-flagella-estimation-queue-worktrees/`に保全する。
+
+```bash
+cd ~/src/prj-flagella-estimation
+git fetch origin
+
+.venv-cs10/bin/python scripts/cs10/queue.py enqueue \
+  --branch origin/codex/<issue-branch> \
+  --config conf/phase2_parallel/<job>/job.yaml \
+  --priority 0
+
+tmux new-session -d -s cs10-queue \
+  'cd ~/src/prj-flagella-estimation && .venv-cs10/bin/python scripts/cs10/queue.py run'
+
+.venv-cs10/bin/python scripts/cs10/queue.py status
+tmux attach -t cs10-queue
+```
+
+初期版の同時実行数は全体で1である。priorityが高い予約を先に、同じpriorityはFIFOで実行する。
+失敗またはmanifest不整合時は全queueをpauseするため、原因を確認してから明示的に再開する。
+
+```bash
+.venv-cs10/bin/python scripts/cs10/queue.py pause
+.venv-cs10/bin/python scripts/cs10/queue.py resume
+.venv-cs10/bin/python scripts/cs10/queue.py cancel <reservation-id>
+```
+
+`cancel`はqueued reservationを即時cancelし、running reservationにはprocess group単位で
+停止要求を送る。dispatcher再起動後にrunning processを安全に照合できない場合は`blocked`として
+queueをpauseする。`/usr/bin/mail`が利用可能なcs10ではログインユーザーへjob成功、失敗、全queue
+完了を通知する。実機のtmux継続・メール配送・2件逐次probeはIssue #219のPR merge後に確認する。
+
 ## Scope and requalification
 
 RTX 3090 は hardware record のみであり、CUDA、PyTorch、GPU benchmark はこの scope に含まれない。OS/glibc、CPython、cs10 requirements、主要 simulation 実装、hardware が変わった場合は setup、probe、benchmark を再実行する。

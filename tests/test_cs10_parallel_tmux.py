@@ -61,6 +61,40 @@ def test_start_records_nas_output_root_and_typed_command(
     assert any(command[1:3] == ["new-session", "-d"] for command in commands)
 
 
+def test_run_foreground_records_exit_without_starting_tmux(
+    monkeypatch, tmp_path: Path
+) -> None:
+    helper = _load_script("cs10_parallel_tmux_foreground")
+    control, output_root = tmp_path / "control", tmp_path / "parallel_job"
+    control.mkdir()
+    record = {
+        "control_dir": str(control),
+        "output_root": str(output_root),
+        "command": ["/runtime/python", "run_parallel.py"],
+    }
+    monkeypatch.setattr(helper, "_prepare_launch", lambda *args, **kwargs: record)
+    monkeypatch.setattr(helper, "_runtime_environment", lambda: {"PYTHONPATH": "src"})
+    calls: list[dict[str, object]] = []
+
+    def fake_run(command, **kwargs):
+        calls.append(kwargs)
+        return subprocess.CompletedProcess(command, 7)
+
+    monkeypatch.setattr(helper.subprocess, "run", fake_run)
+
+    actual, returncode = helper.run_foreground(ISSUE203, label="queue-00001")
+
+    assert actual == record
+    assert returncode == 7
+    assert calls[0]["cwd"] == helper.REPOSITORY_ROOT
+    assert json.loads(
+        (control / "user_exit_marker.json").read_text(encoding="utf-8")
+    ) == {
+        "exit_code": 7,
+        "job_root": str(output_root),
+    }
+
+
 def test_output_paths_keep_control_local_and_put_job_on_nas(
     monkeypatch, tmp_path: Path
 ) -> None:
