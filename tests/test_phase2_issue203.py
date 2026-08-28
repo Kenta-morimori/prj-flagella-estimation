@@ -3,6 +3,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
 
 from sim_swim.analysis.issue203_composite_replay import (
     _write_frames_h264,
@@ -21,7 +22,7 @@ from sim_swim.analysis.torque_profile_dt_contact import (
 from sim_swim.analysis.motion_feature_study import (
     load_config as load_motion_feature_config,
 )
-from sim_swim.analysis.phase2_replay import _archive_path
+from sim_swim.analysis.phase2_replay import _archive_path, _torque_weight_frames
 from sim_swim.analysis.multi_run_campaign import (
     apply_campaign_cli_overrides,
     build_campaign_conditions,
@@ -118,6 +119,29 @@ def test_issue203_diffusive_weight_panel_reconstructs_dynamic_segment_weights() 
     assert all(np.isclose(weight.sum(), 1.0) for weight in weights)
     assert np.allclose(weights[0], 0.25)
     assert weights[-1][0] > weights[-1][-1]
+
+
+def test_torque_weight_replay_rejects_unsupported_profile_and_distribution() -> None:
+    with pytest.raises(ValueError, match="unsupported composite"):
+        reconstructed_segment_weights(
+            "unsupported",
+            2,
+            times_s=np.asarray([0.0]),
+            dt_s=1.0e-3,
+            torque_Nm=2.5e-20,
+        )
+
+    cfg = SimpleNamespace(
+        motor=SimpleNamespace(
+            force_distribution="root_torque_axis_projection",
+            torque_distribution_profile="uniform",
+            torque_Nm=2.5e-20,
+        )
+    )
+    rig = SimpleNamespace(flagella_indices=[np.asarray([0, 1])])
+    state = SimpleNamespace(t=0.0)
+    with pytest.raises(ValueError, match="root_torque_segment_couples"):
+        _torque_weight_frames(cfg, rig, [state])
 
 
 def test_issue203_flag_axis_metrics_accept_large_archive_layout() -> None:

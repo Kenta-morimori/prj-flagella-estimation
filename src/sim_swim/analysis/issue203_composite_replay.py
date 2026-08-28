@@ -3,7 +3,6 @@
 from __future__ import annotations
 import argparse
 import json
-import math
 from pathlib import Path
 import shutil
 import subprocess
@@ -19,80 +18,16 @@ from sim_swim.analysis.flagella_count_behavior import (
     load_state_archive,
     validate_replay_fps,
 )
+from sim_swim.analysis.torque_weight_replay import (
+    nominal_segment_weights,
+    reconstructed_segment_weights,
+)
 from sim_swim.render.render3d import _select_frames, plot_swim_frame_3d
 from sim_swim.render.video_writer import open_mp4_writer
 from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import SimulationConfig
 
-
-def nominal_segment_weights(profile: str, segment_count: int) -> np.ndarray:
-    """Return normalized nominal weights on the engine's bead-to-bead segments.
-
-    #203 renders the configured nominal profile, not realized force.  Uniform is
-    time-invariant; dynamic profiles intentionally require their recorded local
-    twist state and are rejected rather than silently misrepresented.
-    """
-    if segment_count <= 0:
-        raise ValueError("segment_count must be positive")
-    if profile != "uniform":
-        raise ValueError("nominal_segment_weights is only defined for uniform")
-    return np.full(segment_count, 1.0 / segment_count, dtype=float)
-
-
-def _profile_from_local_twist(profile: str, orientation: np.ndarray) -> np.ndarray:
-    if profile == "uniform":
-        return np.ones_like(orientation, dtype=float)
-    if profile != "diffusive":
-        raise ValueError(f"unsupported composite torque profile: {profile}")
-    activity = np.abs(np.asarray(orientation, dtype=float))
-    maximum = float(np.max(activity)) if activity.size else 0.0
-    return np.ones_like(activity) if maximum <= 1e-12 else activity / maximum
-
-
-def reconstructed_segment_weights(
-    profile: str,
-    segment_count: int,
-    *,
-    times_s: np.ndarray,
-    dt_s: float,
-    torque_Nm: float,
-) -> list[np.ndarray]:
-    """Reconstruct the engine's nominal local-twist segment weights.
-
-    ``diffusive`` is dynamic but its local twist state is deterministic for the
-    fixed RUN campaign.  The state archive does not store that internal state,
-    so replay reproduces the exact update rule used by ``DynamicsEngine``.
-    Returned vectors are normalized exactly as the force-couple implementation.
-    """
-    if segment_count <= 0 or dt_s <= 0:
-        raise ValueError("segment_count and dt_s must be positive")
-    if profile == "uniform":
-        weight = nominal_segment_weights(profile, segment_count)
-        return [weight.copy() for _ in times_s]
-    if profile != "diffusive":
-        raise ValueError(f"unsupported composite torque profile: {profile}")
-
-    orientation = np.zeros(segment_count, dtype=float)
-    current_step = 0
-    result: list[np.ndarray] = []
-    drive_rate = 2.0 * math.pi * 2.2 * (float(torque_Nm) / 2.0e-20)
-    for t_s in np.asarray(times_s, dtype=float):
-        target_step = max(current_step, int(round(float(t_s) / dt_s)))
-        while current_step < target_step:
-            lap = np.zeros_like(orientation)
-            if segment_count > 1:
-                lap[0] = orientation[1] - orientation[0]
-                lap[-1] = orientation[-2] - orientation[-1]
-                if segment_count > 2:
-                    lap[1:-1] = (
-                        orientation[:-2] - 2.0 * orientation[1:-1] + orientation[2:]
-                    )
-            orientation += dt_s * (80.0 * lap - 0.05 * orientation)
-            orientation[0] += drive_rate * dt_s
-            current_step += 1
-        weight = _profile_from_local_twist(profile, orientation)
-        result.append(weight / max(float(np.sum(weight)), 1e-12))
-    return result
+__all__ = ["nominal_segment_weights", "reconstructed_segment_weights"]
 
 
 def composite_manifest_path(output_dir: Path, condition_id: str) -> Path:
