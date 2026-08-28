@@ -171,3 +171,24 @@ def test_dispatcher_lock_rejects_a_second_dispatcher(tmp_path: Path) -> None:
                     pass
     finally:
         store.close()
+
+
+def test_notify_uses_cs10_mail_for_login_user(monkeypatch, tmp_path: Path) -> None:
+    queue = _load_queue("cs10_queue_notify")
+    mail = tmp_path / "mail"
+    mail.touch()
+    monkeypatch.setattr(
+        queue, "Path", lambda value: mail if value == "/usr/bin/mail" else Path(value)
+    )
+    monkeypatch.setenv("USER", "Ktakemori")
+    calls: list[tuple[list[str], str]] = []
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs["input"]))
+        return None
+
+    monkeypatch.setattr(queue.subprocess, "run", fake_run)
+
+    queue.notify(None, "subject", "body")
+
+    assert calls == [([str(mail), "-s", "subject", "Ktakemori"], "body")]
