@@ -114,6 +114,17 @@ for n in 1 2 3; do
 done
 ```
 
+通常のreplay gridでも、`--show-torque-weight-panels`を指定すれば各3D panelの横に
+べん毛別のlocal-segment nominal torque weightを表示できる。uniformは時間不変、
+diffusiveは保存時刻までのlocal-twist update再構成であり、realized force / torqueの
+表示ではない。
+
+```bash
+.venv-cs10/bin/python scripts/03_dataset_building/replay_dataset.py \
+  --run-dir "$CAMPAIGN" --output-dir "$CAMPAIGN/analysis/replay_with_weights" \
+  --view 3d --show-torque-weight-panels --overwrite
+```
+
 `motion_features/manifest.json`、`replay/manifest.json`、各
 `composite/nf??_composite_grid_manifest.json`と、MP4数（grid replayはページ数、compositeは3）を
 確認する。strict non-PASSを通常の
@@ -140,6 +151,21 @@ PASS control (`as000__ps000__nf03`)を診断する。既存uniform / diffusive�
 6 artifactは再利用するため、cs10で新規実行するのは`dt_star=3e-4,1e-4`の12 shardだけである。
 各runは2.0 s、RUN fixed、Brownian OFFで、compact outputでも全internal stepのfinite / nonbody /
 body QCを集約する。これはprofile・dt・datasetの採択や排除力parameter変更を行うcampaignではない。
+
+uniformの小dt 6条件を通常3D gridとして確認する場合も、既存archiveから再描画するだけでよい。
+simulationは再実行しない。
+
+```bash
+.venv-cs10/bin/python scripts/03_dataset_building/replay_dataset.py \
+  --run-dir "$CAMPAIGN" --output-dir "$CAMPAIGN/analysis/replay_uniform_dt" \
+  --view 3d --max-panels-per-grid 6 --overwrite \
+  --condition-id nf03__as000__ps000__uniform__dt3e-4 \
+  --condition-id nf03__as000__ps000__uniform__dt1e-4 \
+  --condition-id nf03__as001__ps000__uniform__dt3e-4 \
+  --condition-id nf03__as001__ps000__uniform__dt1e-4 \
+  --condition-id nf03__as002__ps002__uniform__dt3e-4 \
+  --condition-id nf03__as002__ps002__uniform__dt1e-4
+```
 
 PRを最新化してからtmux管理下で開始する。
 

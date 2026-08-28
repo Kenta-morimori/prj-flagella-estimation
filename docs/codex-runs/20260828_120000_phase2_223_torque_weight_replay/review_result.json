@@ -1,0 +1,36 @@
+{
+  "status": "PASS",
+  "task": "Issue #223: 3D replayにべん毛別 torque-weight panelを共通化する",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/223",
+  "summary": [
+    "既存のPhase 2 replay gridにopt-inの`--show-torque-weight-panels`を追加した。",
+    "uniform / diffusiveのnominal local-segment weight再構成を共通モジュールへ移し、#203 composite rendererも共有する。",
+    "物理モデル、profile、dt_star、dataset採択は変更していない。"
+  ],
+  "checks": [
+    {"command": "uv run pytest -q -m light", "result": "PASS: 315 passed"},
+    {"command": ".venv/bin/pytest tests/test_phase2_issue203.py tests/test_common_replay_cli.py", "result": "PASS: 18 passed"},
+    {"command": "uv run ruff check . && git diff --check", "result": "PASS"}
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "既存archiveからのreplayのみが対象であり、simulationは再実行しない。",
+  "user_review_required": true,
+  "user_review_command": "接続可能なcs10環境でrunbookのuniform 6条件replayコマンドを実行する。",
+  "user_review_outputs": [
+    "outputs/2026-08-26/issue203_dt_contact/replay_uniform_dt/grid_swim3d.mp4",
+    "outputs/2026-08-26/issue203_dt_contact/replay_uniform_dt/grid_swim3d_final.png",
+    "outputs/2026-08-26/issue203_dt_contact/replay_uniform_dt/manifest.json"
+  ],
+  "user_review_points": [
+    "uniform 6条件が2x3 gridに揃う。",
+    "MP4がH.264 / yuv420pとして再生できる。",
+    "weight panel有効時、uniformは時間不変、diffusiveは再構成された分布である。"
+  ],
+  "adr_required": false,
+  "adr_reason": "既存replayの表示オプションを拡張するのみで、物理・dataset・Phase境界の決定は変更しない。",
+  "commit_type": "complete",
+  "commit_hash": "08d714ee695d9dac2066fb3214c11ff28874a584",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/224",
+  "next_actions": "PR reviewとrequired checksはGitHub PRで管理する。cs10 replayはこのMacからcs10の名前解決ができないため、接続可能な環境で既存archiveに対して実行する。"
+}
