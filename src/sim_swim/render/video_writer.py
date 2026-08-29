@@ -83,6 +83,8 @@ class _FFmpegVideoWriter:
                 "libx264",
                 "-profile:v",
                 "high",
+                "-vf",
+                "pad=ceil(iw/2)*2:ceil(ih/2)*2:color=black",
                 "-pix_fmt",
                 "yuv420p",
                 "-movflags",
