@@ -61,6 +61,8 @@ class _FFmpegVideoWriter:
             [
                 ffmpeg,
                 "-y",
+                "-loglevel",
+                "error",
                 "-f",
                 "rawvideo",
                 "-pix_fmt",
@@ -89,7 +91,7 @@ class _FFmpegVideoWriter:
             ],
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
         )
 
     def isOpened(self) -> bool:
@@ -103,7 +105,13 @@ class _FFmpegVideoWriter:
                 f"received {frame.shape} {frame.dtype}"
             )
         if not self.isOpened() or self._process.stdin is None:
-            raise RuntimeError("FFmpeg MP4 writer is not open")
+            stderr = ""
+            if self._process.stderr is not None:
+                stderr = self._process.stderr.read().decode("utf-8", errors="replace")
+            raise RuntimeError(
+                "FFmpeg MP4 writer is not open "
+                f"(exit_code={self._process.poll()}): {stderr.strip()}"
+            )
         self._process.stdin.write(np.ascontiguousarray(frame).tobytes())
 
     def release(self) -> None:
