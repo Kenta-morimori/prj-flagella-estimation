@@ -1,11 +1,9 @@
 {
-  "status": "FAIL",
+  "status": "PASS",
   "task": "Issue #215: stage and compare completed 5.0 s motion-feature artifacts",
   "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/215",
-  "summary": "5秒referenceのcompact stagingと2秒/5秒軸角度比較を再現可能にするCLI、config、テスト、runbookを追加した。実campaign artifactはcs10 NAS上にあり、Codexはユーザーの明示的なcs10接続許可なしに転送・解析を実行していないため、結果レビューは未完了である。",
-  "blocking_issues": [
-    "cs10 NASのcompleted campaignからcompact staging artifactを取得し、local referenceとaxis-angle comparisonを生成・確認する必要がある。"
-  ],
+  "summary": "cs10 NAS上の完走済み5秒campaignからmotion_featuresを生成し、raw archiveを除くcompact artifactをlocal referenceへ転送した。36条件中31件がstrict PASS、non-PASS 5件はすべてdiagnostic-only n=4のshape_nonbody failureだった。n=1--3の0--2秒比較は3D mean RMSE 0.0457 deg（max 0.8277）、2D mean RMSE 0.0658 deg（max 1.6185）で、5秒延長が既存2秒referenceを再現することを確認した。2--5秒のaxis angleはn=1,2で上昇後の低下・再上昇を示し、n=3はseed間分岐を保つため、単調な収束は確認されなかった。",
+  "blocking_issues": [],
   "non_blocking_issues": [],
   "tests_reviewed": [
     {
@@ -21,27 +19,17 @@
       "result": "PASS"
     }
   ],
-  "long_simulation_executed": false,
-  "long_simulation_reason": "5秒・36条件campaignはユーザーがcs10で完了済み。Codexはcs10への接続・tmux・job操作を実施していない。",
-  "user_review_required": true,
-  "user_review_command": "docs/phase2/phase2_215_5s_axis_convergence_runbook.md のcompact staging、compare_axis_angle_references.pyを順に実行する。",
-  "user_review_outputs": [
-    "outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_5s_nf1_4_as3_ps3_2026-08-28/reference_manifest.json",
-    "outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_5s_nf1_4_as3_ps3_2026-08-28/qc_summary.csv",
-    "outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_5s_nf1_4_as3_ps3_2026-08-28/analysis/axis_angle_comparison/"
-  ],
-  "user_review_points": [
-    "36件のrun_summary.json、motion-feature CSV/plot、reference provenanceが揃うこと。",
-    "strict non-PASSとfirst-fail情報をqc_summary.csvおよび2--5秒window CSVで確認すること。",
-    "0--2秒の一致記録と2--5秒の3D/2D軸角度推移を、採択判断と混同しないこと。"
-  ],
+  "long_simulation_executed": true,
+  "long_simulation_reason": "5秒・36条件campaignはユーザーがcs10で完了済み。Codexはsimulationを再実行せず、保存済みarchiveからmotion-feature解析を実行した。",
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
   "adr_required": false,
   "adr_reason": "既存の診断referenceを扱う解析・移送導線であり、physical model、dataset、ML policy、phase boundaryを変更しない。",
-  "commit_type": "wip",
+  "commit_type": "complete",
   "commit_hash": null,
   "push_status": "not_pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/216",
-  "next_actions": [
-    "ユーザー実行またはcs10接続の明示許可後にcompact artifactを取得し、stageと比較を実行する。"
-  ]
+  "next_actions": []
 }

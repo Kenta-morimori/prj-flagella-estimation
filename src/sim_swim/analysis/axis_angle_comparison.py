@@ -149,6 +149,23 @@ def _usable(row: dict[str, str]) -> bool:
     return not (row.get("n_flagella") == "4" and not _truth(row.get("run_strict_pass")))
 
 
+def _mean_by_time(rows: list[dict[str, str]]) -> tuple[list[float], list[float]]:
+    """Aggregate seed trajectories once per time point, not once per lookup."""
+    grouped: dict[float, list[float]] = {}
+    for row in rows:
+        grouped.setdefault(round(_finite(row["t_s"]), 9), []).append(
+            _finite(row[ANGLE])
+        )
+    times = sorted(grouped)
+    means = [
+        float(np.nanmean(grouped[time]))
+        if np.isfinite(grouped[time]).any()
+        else float("nan")
+        for time in times
+    ]
+    return times, means
+
+
 def _plot_trajectories(rows: list[dict[str, str]], domain: str, output: Path) -> None:
     figure, axes = plt.subplots(2, 2, figsize=(12, 7), sharex=True, sharey=True)
     for n, axis in zip((1, 2, 3, 4), axes.flat, strict=True):
@@ -164,17 +181,7 @@ def _plot_trajectories(rows: list[dict[str, str]], domain: str, output: Path) ->
                 color="C0",
                 alpha=0.22,
             )
-        times = sorted({round(_finite(row["t_s"]), 9) for row in subset})
-        means = [
-            np.nanmean(
-                [
-                    _finite(row[ANGLE])
-                    for row in subset
-                    if round(_finite(row["t_s"]), 9) == time
-                ]
-            )
-            for time in times
-        ]
+        times, means = _mean_by_time(subset)
         axis.plot(times, means, color="C0", linewidth=2.2, label="5 s mean")
         axis.axvline(2.0, color="black", linestyle="--", linewidth=0.8)
         axis.set(
@@ -205,17 +212,7 @@ def _plot_overlay(
                 and _usable(row)
                 and _finite(row["t_s"]) <= until_s + 1e-12
             ]
-            times = sorted({round(_finite(row["t_s"]), 9) for row in subset})
-            means = [
-                np.nanmean(
-                    [
-                        _finite(row[ANGLE])
-                        for row in subset
-                        if round(_finite(row["t_s"]), 9) == time
-                    ]
-                )
-                for time in times
-            ]
+            times, means = _mean_by_time(subset)
             axis.plot(times, means, color=color, linewidth=2.0, label=label)
         axis.set(
             title=f"n={n}", xlabel="time (s)", ylabel="body--flagella axis angle (deg)"
