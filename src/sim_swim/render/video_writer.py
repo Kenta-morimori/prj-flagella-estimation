@@ -120,9 +120,16 @@ class _FFmpegVideoWriter:
         self._released = True
         if self._process.stdin is not None:
             self._process.stdin.close()
-        if self._process.wait() != 0:
+        exit_code = self._process.wait()
+        if exit_code != 0:
+            stderr = ""
+            if self._process.stderr is not None:
+                stderr = self._process.stderr.read().decode("utf-8", errors="replace")
             self.path.unlink(missing_ok=True)
-            raise RuntimeError(f"FFmpeg failed while encoding H.264 MP4: {self.path}")
+            raise RuntimeError(
+                "FFmpeg failed while encoding H.264 MP4 "
+                f"(exit_code={exit_code}): {self.path}: {stderr.strip()}"
+            )
 
 
 @dataclass(frozen=True)
