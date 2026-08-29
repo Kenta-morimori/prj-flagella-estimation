@@ -54,6 +54,29 @@ CAMPAIGN=outputs/YYYY-MM-DD/HHMMSS/parallel/issue215_tau_linked_5s_axis_converge
   run_dir="$CAMPAIGN" output_dir="$CAMPAIGN/analysis/motion_features" overwrite=true
 ```
 
+Macでは、campaignのraw archiveを転送せず、root manifest・summary・各conditionの
+`run_summary.json`・`analysis/motion_features/`を含むcompact staging directoryを取得する。
+次のcommandは36条件とrequired artifactを検証したうえで、許可したcompact artifactだけを
+`outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_5s_nf1_4_as3_ps3_2026-08-28/`
+へ配置する。
+
+```bash
+.venv/bin/python scripts/03_dataset_building/stage_issue215_reference.py \
+  --campaign-dir /path/to/local/issue215_campaign_compact \
+  --reference-dir outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_5s_nf1_4_as3_ps3_2026-08-28
+```
+
+stage完了後に次を実行する。
+
+```bash
+.venv/bin/python scripts/03_dataset_building/compare_axis_angle_references.py \
+  --config conf/phase2_analysis/issue215_axis_angle_comparison.yaml
+```
+
+比較出力は5秒reference配下の`analysis/axis_angle_comparison/`へ保存する。0--2 sは同じ
+sample ID・時刻の差分記録、2--5 sは5秒campaignのwindow記録として分離する。いずれも
+採択閾値ではない。
+
 ## Review points and transfer
 
 `run_summary.json`を各conditionのfirst-read artifactとし、strict非PASS、first-fail時刻・category、
