@@ -63,6 +63,7 @@ Macでは、campaignのraw archiveを転送せず、root manifest・summary・�
 ```bash
 .venv/bin/python scripts/03_dataset_building/stage_issue215_reference.py \
   --campaign-dir /path/to/local/issue215_campaign_compact \
+  --raw-campaign-root /net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs/YYYY-MM-DD/HHMMSS/parallel/issue215_tau_linked_5s_axis_convergence__UUID/campaign \
   --reference-dir outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_5s_nf1_4_as3_ps3_2026-08-28
 ```
 

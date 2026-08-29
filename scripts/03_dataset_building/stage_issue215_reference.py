@@ -42,7 +42,13 @@ def _strict_status(summary: dict[str, Any]) -> tuple[bool, str]:
     return True, "pass"
 
 
-def stage(campaign_dir: Path, reference_dir: Path, *, overwrite: bool = False) -> Path:
+def stage(
+    campaign_dir: Path,
+    reference_dir: Path,
+    *,
+    raw_campaign_root: str | None = None,
+    overwrite: bool = False,
+) -> Path:
     manifest_path = campaign_dir / "run_manifest.json"
     analysis = campaign_dir / "analysis" / "motion_features"
     if (
@@ -95,7 +101,7 @@ def stage(campaign_dir: Path, reference_dir: Path, *, overwrite: bool = False) -
         writer.writerows(qc_rows)
     provenance = {
         "kind": "phase2_issue215_compact_reference",
-        "raw_campaign_root": str(campaign_dir),
+        "raw_campaign_root": raw_campaign_root or str(campaign_dir),
         "raw_archive_transferred": False,
         "condition_count": len(conditions),
         "run_summary_count": len(qc_rows),
@@ -119,9 +125,20 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--campaign-dir", type=Path, required=True)
     parser.add_argument("--reference-dir", type=Path, required=True)
+    parser.add_argument(
+        "--raw-campaign-root",
+        help="Original NAS campaign path; recorded as provenance without copying raw artifacts.",
+    )
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args(argv)
-    print(stage(args.campaign_dir, args.reference_dir, overwrite=args.overwrite))
+    print(
+        stage(
+            args.campaign_dir,
+            args.reference_dir,
+            raw_campaign_root=args.raw_campaign_root,
+            overwrite=args.overwrite,
+        )
+    )
 
 
 if __name__ == "__main__":
