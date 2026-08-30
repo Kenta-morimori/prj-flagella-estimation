@@ -487,6 +487,7 @@ def _aggregate_generic_campaign(job: ParallelJob, manifest: dict[str, Any]) -> P
                 condition,
                 condition_dir=link,
                 time_manifest=cfg.time_manifest(),
+                hydrodynamics_enabled=cfg.hydrodynamics.enabled,
             )
         )
 

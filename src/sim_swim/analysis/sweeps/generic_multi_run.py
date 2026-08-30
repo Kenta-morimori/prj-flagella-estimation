@@ -151,6 +151,7 @@ def _manifest_condition_record(
     condition_dir: Path | None = None,
     time_manifest: dict[str, Any] | None = None,
     implementation_manifest: dict[str, Any] | None = None,
+    hydrodynamics_enabled: bool = False,
 ) -> dict[str, Any]:
     output_dir = condition_dir or root / condition["condition_id"]
     record = {
@@ -159,7 +160,6 @@ def _manifest_condition_record(
         "condition_label": condition["condition_label"],
         "output_dir": str(output_dir),
         "run_summary_json": str(output_dir / "run_summary.json"),
-        "hydro_archive_npz": str(output_dir / "hydro_archive.npz"),
         "config_overrides": condition["config_overrides"],
         "axis_values": condition["axis_values"],
         "axis_labels": condition["axis_labels"],
@@ -174,6 +174,8 @@ def _manifest_condition_record(
             "col_label": condition.get("grid_col_label"),
         },
     }
+    if hydrodynamics_enabled:
+        record["hydro_archive_npz"] = str(output_dir / "hydro_archive.npz")
     if time_manifest is not None:
         record["time"] = time_manifest
     if implementation_manifest is not None:
@@ -227,7 +229,9 @@ def run_campaign(argv: list[str] | None = None) -> Path:
 
     base_config_path = Path(str(campaign["base_config"]))
     base_cfg = load_yaml(base_config_path)
-    base_simulation_cfg = SimulationConfig.from_dict(base_cfg)
+    base_simulation_cfg = SimulationConfig.from_dict(base_cfg).with_overrides(
+        campaign.get("base_overrides", {})
+    )
     base_simulation_cfg.validate_execution_supported()
 
     output_base_dir = Path(
@@ -282,6 +286,7 @@ def run_campaign(argv: list[str] | None = None) -> Path:
     rows: list[dict[str, Any]] = []
     condition_time_manifests: dict[str, dict[str, Any]] = {}
     condition_implementation_manifests: dict[str, dict[str, Any]] = {}
+    condition_hydrodynamics_enabled: dict[str, bool] = {}
     total = len(conditions)
     for index, condition in enumerate(conditions, start=1):
         logger.info(
@@ -294,6 +299,9 @@ def run_campaign(argv: list[str] | None = None) -> Path:
                 condition["config_overrides"]
             )
             condition_time_manifests[condition["condition_id"]] = cfg.time_manifest()
+            condition_hydrodynamics_enabled[condition["condition_id"]] = (
+                cfg.hydrodynamics.enabled
+            )
             simulator = Simulator(cfg)
             states = simulator.run(
                 cfg.time.duration_s,
@@ -391,6 +399,9 @@ def run_campaign(argv: list[str] | None = None) -> Path:
                 time_manifest=condition_time_manifests.get(condition["condition_id"]),
                 implementation_manifest=condition_implementation_manifests.get(
                     condition["condition_id"]
+                ),
+                hydrodynamics_enabled=condition_hydrodynamics_enabled.get(
+                    condition["condition_id"], False
                 ),
             )
             for condition in conditions

@@ -88,7 +88,10 @@ def export_completed_campaign(
             (
                 _condition_row(cfg, condition, condition_dir),
                 _manifest_condition_record(
-                    run_dir, condition, time_manifest=cfg.time_manifest()
+                    run_dir,
+                    condition,
+                    time_manifest=cfg.time_manifest(),
+                    hydrodynamics_enabled=cfg.hydrodynamics.enabled,
                 ),
             )
         )

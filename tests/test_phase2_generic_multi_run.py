@@ -308,6 +308,7 @@ def test_generic_multi_run_manifests_record_model_profile(
                 "  time.duration_s: 0.0001",
                 "  motor.force_distribution: hook_coupled_body_reaction",
                 "  motor.reference_torque_Nm: 2.0e-20",
+                "  hydrodynamics.enabled: true",
                 "sweep:",
                 "  axes:",
                 "    torque:",
@@ -344,10 +345,14 @@ def test_generic_multi_run_manifests_record_model_profile(
             "nominal_flagella_count": 3,
             "nominal_total_beads": 48,
         }
-        assert manifest["time"]["duration_s"] == pytest.approx(0.1)
+        assert manifest["time"]["duration_s"] == pytest.approx(0.0001)
         assert manifest["time"]["dt_star"] == pytest.approx(1.0e-4)
-        assert manifest["time"]["time_schema_source"] == "canonical"
+        assert manifest["time"]["time_schema_source"] == "mixed_equivalent"
     assert run_manifest["conditions"][0]["time"]["duration_s"] == pytest.approx(0.0001)
+    assert run_manifest["hydrodynamics_enabled"] is True
+    assert run_manifest["conditions"][0]["hydro_archive_npz"].endswith(
+        "hydro_archive.npz"
+    )
     assert run_manifest["conditions"][0]["time"]["time_schema_source"] == (
         "mixed_equivalent"
     )

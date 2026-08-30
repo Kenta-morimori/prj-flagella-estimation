@@ -28,16 +28,57 @@ def _norm(values: np.ndarray) -> np.ndarray:
     return np.linalg.norm(values, axis=-1)
 
 
-def _rotation_matrix_xyzw(quaternion: np.ndarray) -> np.ndarray:
-    x, y, z, w = quaternion
-    return np.asarray(
+def _body_frame(positions_m: np.ndarray, bead_is_body: np.ndarray) -> np.ndarray:
+    """Return a world-from-body frame, including roll, from labelled body beads."""
+    body = np.asarray(positions_m, dtype=float)[np.asarray(bead_is_body, dtype=bool)]
+    if body.shape[0] < 3:
+        raise ValueError("at least three labelled body beads are required for a frame")
+    center = np.mean(body, axis=0)
+    _, _, right = np.linalg.svd(body - center, full_matrices=False)
+    long_axis = right[0]
+    directed = body[-1] - body[0]
+    if np.dot(long_axis, directed) < 0.0:
+        long_axis = -long_axis
+    radial = body[0] - center
+    radial -= long_axis * np.dot(radial, long_axis)
+    if np.linalg.norm(radial) < 1.0e-15:
+        raise ValueError("body bead geometry cannot determine a roll direction")
+    radial /= np.linalg.norm(radial)
+    transverse = np.cross(long_axis, radial)
+    transverse /= np.linalg.norm(transverse)
+    return np.column_stack((long_axis, radial, transverse))
+
+
+def _rotation_vector(rotation: np.ndarray) -> np.ndarray:
+    """Convert a proper rotation matrix to its axis-angle vector."""
+    cosine = float(np.clip((np.trace(rotation) - 1.0) / 2.0, -1.0, 1.0))
+    angle = float(np.arccos(cosine))
+    if angle < 1.0e-12:
+        return np.zeros(3, dtype=float)
+    axis = np.asarray(
         [
-            [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
-            [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
-            [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
+            rotation[2, 1] - rotation[1, 2],
+            rotation[0, 2] - rotation[2, 0],
+            rotation[1, 0] - rotation[0, 1],
         ],
         dtype=float,
     )
+    axis /= 2.0 * np.sin(angle)
+    return axis * angle
+
+
+def _body_angular_speed(frames: list[np.ndarray], t_s: np.ndarray, index: int) -> float:
+    if len(frames) < 2:
+        return 0.0
+    previous = max(index - 1, 0)
+    following = min(index + 1, len(frames) - 1)
+    if previous == following:
+        return 0.0
+    delta_t = float(t_s[following] - t_s[previous])
+    if delta_t <= 0.0:
+        return 0.0
+    world_rotation = frames[following] @ frames[previous].T
+    return float(np.linalg.norm(_rotation_vector(world_rotation)) / delta_t)
 
 
 def _qc_fields(run_summary: dict[str, Any]) -> dict[str, Any]:
@@ -97,6 +138,7 @@ def analyze_condition(
     archive = load_hydro_archive(condition_dir / "hydro_archive.npz")
     states = load_state_archive(condition_dir / "state_archive.npz")
     state_t = np.asarray([state.t for state in states], dtype=float)
+    frames = [_body_frame(pos, archive.bead_is_body) for pos in archive.positions_m]
     rows: list[dict[str, Any]] = []
     for index, sample_t in enumerate(archive.t_s):
         state = states[int(np.argmin(np.abs(state_t - sample_t)))]
@@ -107,7 +149,7 @@ def analyze_condition(
             "condition_id": condition["condition_id"],
             "t_s": float(sample_t),
             "body_translation_um_s": float(np.linalg.norm(state.velocity_um_s)),
-            "body_rotation_rad_s": float(np.linalg.norm(state.omega_rad_s)),
+            "body_rotation_rad_s": _body_angular_speed(frames, archive.t_s, index),
             "net_force_N": float(np.linalg.norm(np.sum(force, axis=0))),
             "net_torque_Nm": float(np.linalg.norm(torque)),
         }
@@ -137,19 +179,15 @@ def analyze_condition(
     return rows, summary
 
 
-def _axial_slice(
-    archive: HydroArchive, states: list[Any]
-) -> tuple[np.ndarray, np.ndarray]:
+def _axial_slice(archive: HydroArchive) -> tuple[np.ndarray, np.ndarray]:
     """Average full-run RPY velocity over a body-fixed x-y (long-axis) section."""
     extent_m = 5e-6
     grid_1d = np.linspace(-extent_m, extent_m, 21)
     x, y = np.meshgrid(grid_1d, grid_1d)
     local_points = np.column_stack((x.ravel(), y.ravel(), np.zeros(x.size)))
-    state_t = np.asarray([state.t for state in states], dtype=float)
     mean_velocity = np.zeros_like(local_points)
     for index, sample_t in enumerate(archive.t_s):
-        state = states[int(np.argmin(np.abs(state_t - sample_t)))]
-        rotation = _rotation_matrix_xyzw(np.asarray(state.quaternion, dtype=float))
+        rotation = _body_frame(archive.positions_m[index], archive.bead_is_body)
         center = np.mean(archive.positions_m[index][archive.bead_is_body], axis=0)
         world_points = center + local_points @ rotation.T
         world_velocity = rpy_flow_velocity(
@@ -214,7 +252,7 @@ def analyze_campaign(run_dir: Path, output_dir: Path | None = None) -> Path:
     output = output_dir or run_dir / "analysis" / "hydrodynamics"
     output.mkdir(parents=True, exist_ok=True)
     summaries: list[dict[str, Any]] = []
-    representative: tuple[HydroArchive, list[Any]] | None = None
+    representative: HydroArchive | None = None
     for condition in manifest["conditions"]:
         condition_dir = Path(condition["output_dir"])
         _, summary = analyze_condition(condition_dir, condition)
@@ -223,10 +261,7 @@ def analyze_campaign(run_dir: Path, output_dir: Path | None = None) -> Path:
             representative is None
             and int(condition.get("axis_values", {}).get("n_flagella", 0)) == 3
         ):
-            representative = (
-                load_hydro_archive(condition_dir / "hydro_archive.npz"),
-                load_state_archive(condition_dir / "state_archive.npz"),
-            )
+            representative = load_hydro_archive(condition_dir / "hydro_archive.npz")
     fieldnames = list(summaries[0])
     with (output / "hydrodynamics_comparison.csv").open(
         "w", newline="", encoding="utf-8"
@@ -236,9 +271,7 @@ def analyze_campaign(run_dir: Path, output_dir: Path | None = None) -> Path:
         writer.writerows(summaries)
     _plot_summary(summaries, output / "flagella_count_comparison.png")
     if representative is not None:
-        _plot_slice(
-            *_axial_slice(*representative), output / "body_fixed_axial_flow.png"
-        )
+        _plot_slice(*_axial_slice(representative), output / "body_fixed_axial_flow.png")
     (output / "analysis_manifest.json").write_text(
         json.dumps(
             {

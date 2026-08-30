@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from sim_swim.analysis.hydrodynamics import (
     HYDRO_ARCHIVE_FORMAT,
@@ -10,7 +11,11 @@ from sim_swim.analysis.hydrodynamics import (
     save_hydro_archive,
     velocity_contributions,
 )
-from sim_swim.analysis.hydrodynamics_campaign import analyze_campaign
+from sim_swim.analysis.hydrodynamics_campaign import (
+    _body_angular_speed,
+    _body_frame,
+    analyze_campaign,
+)
 from sim_swim.analysis.hydrodynamics_replay import overlay_manifest
 from sim_swim.analysis.flagella_count_behavior import save_state_archive
 from sim_swim.analysis.multi_run_campaign import (
@@ -112,7 +117,9 @@ def _state(t_s: float, positions_um: np.ndarray) -> SimulationState:
 
 def test_campaign_analysis_writes_comparison_and_full_run_slice(tmp_path: Path) -> None:
     conditions = []
-    positions_m = np.asarray([[0.0, 0.0, 0.0], [3.0e-6, 0.0, 0.0]])
+    positions_m = 1.0e-6 * np.asarray(
+        [[-1.0, 1.0, 0.0], [-1.0, -1.0, 0.0], [1.0, 0.0, 0.0], [3.0, 0.0, 0.0]]
+    )
     for n_flagella in (1, 2, 3):
         condition_id = f"n{n_flagella}__phase0"
         condition_dir = tmp_path / condition_id
@@ -128,16 +135,30 @@ def test_campaign_analysis_writes_comparison_and_full_run_slice(tmp_path: Path) 
                 HydroSample(
                     0.0,
                     positions_m,
-                    np.asarray([[1e-12, 0.0, 0.0], [-1e-12, 0.0, 0.0]]),
+                    np.asarray(
+                        [
+                            [1e-12, 0.0, 0.0],
+                            [0.0, 1e-12, 0.0],
+                            [0.0, -1e-12, 0.0],
+                            [-1e-12, 0.0, 0.0],
+                        ]
+                    ),
                 ),
                 HydroSample(
                     0.001,
                     positions_m,
-                    np.asarray([[1e-12, 0.0, 0.0], [-1e-12, 0.0, 0.0]]),
+                    np.asarray(
+                        [
+                            [1e-12, 0.0, 0.0],
+                            [0.0, 1e-12, 0.0],
+                            [0.0, -1e-12, 0.0],
+                            [-1e-12, 0.0, 0.0],
+                        ]
+                    ),
                 ),
             ],
-            bead_is_body=np.asarray([True, False]),
-            bead_flagella_id=np.asarray([-1, 0]),
+            bead_is_body=np.asarray([True, True, True, False]),
+            bead_flagella_id=np.asarray([-1, -1, -1, 0]),
             bead_radius_m=1e-6,
             viscosity_Pa_s=1e-3,
             provenance={"hydrodynamics": {"model": "free_space_rpy"}},
@@ -159,6 +180,28 @@ def test_campaign_analysis_writes_comparison_and_full_run_slice(tmp_path: Path) 
     assert (output / "hydrodynamics_comparison.csv").is_file()
     assert (output / "flagella_count_comparison.png").is_file()
     assert (output / "body_fixed_axial_flow.png").is_file()
+
+
+def test_body_frame_and_angular_speed_include_axial_roll() -> None:
+    body = np.asarray(
+        [
+            [-1.0, 1.0, 0.0],
+            [-1.0, -0.5, 0.8660254],
+            [-1.0, -0.5, -0.8660254],
+            [1.0, 1.0, 0.0],
+            [1.0, -0.5, 0.8660254],
+            [1.0, -0.5, -0.8660254],
+        ]
+    )
+    quarter_roll = np.asarray([[1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]])
+    frames = [
+        _body_frame(body, np.ones(len(body), dtype=bool)),
+        _body_frame(body @ quarter_roll.T, np.ones(len(body), dtype=bool)),
+    ]
+    np.testing.assert_allclose(frames[0], np.eye(3), atol=1.0e-7)
+    assert _body_angular_speed(frames, np.asarray([0.0, 0.5]), 1) == pytest.approx(
+        np.pi, rel=1.0e-7
+    )
 
 
 def test_campaign_overlay_contract_is_fixed_camera_three_panels() -> None:
