@@ -1,0 +1,63 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/225
+  description: >
+    Diagnostic RPY archive rerun of the Issue 215 5 s reference conditions.
+    This preserves the physical conditions and adds compact positions/total-force
+    archives for cs10-side hydrodynamics analysis only.
+  dataset_scope: nf1_2_3_4_as3_ps3_dur5p0_hydrodynamics
+  training_candidate: false
+
+base_config: conf/sim_swim_2010.yaml
+base_overrides:
+  time.duration_s: 5.0
+  time.scale_policy: reference_torque
+  time.integration.dt_star: 1.0e-3
+  motor.torque_Nm: 2.5e-20
+  motor.enable_switching: false
+  stiffness_scales.body: 1.0
+  flagella.placement_mode: seeded_surface
+  flagella.initial_phase_mode: seeded
+  flagella.initial_helix_axis_from_rear_deg: 0
+  output_sampling.out_all_steps_3d: false
+  output_sampling.fps_out_3d: 25.0
+  output_sampling.fps_out_2d: 25.0
+  output.policy: compact
+  output.archive_interval_s: 1.0e-3
+  hydrodynamics.enabled: true
+
+sweep:
+  axes:
+    attach_seed:
+      key: seed.attach_seed
+      short_name: as
+      values: [0, 1, 2]
+      labels: ["0", "1", "2"]
+      ids: [as000, as001, as002]
+    phase_seed:
+      key: seed.phase_seed
+      short_name: ps
+      values: [0, 1, 2]
+      labels: ["0", "1", "2"]
+      ids: [ps000, ps001, ps002]
+    n_flagella:
+      key: flagella.n_flagella
+      short_name: nf
+      values: [1, 2, 3, 4]
+      labels: ["1", "2", "3", "4"]
+      ids: [nf01, nf02, nf03, nf04]
+
+replay:
+  mode: render-only
+  fps_out_3d: 25.0
+  flow_overlay: true
+  follow_camera_3d: false
+  grid_shape: [3, 3, 3]
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 1000

@@ -1,0 +1,7 @@
+schema_version: 1
+job_id: issue225_issue215_reference_hydrodynamics
+configs:
+  - path: conf/phase2_multi_run/2010_project_tau_linked_5s_hydrodynamics_issue225.yaml
+execution:
+  max_workers: auto
+  worker_policy: cs10_qualified
