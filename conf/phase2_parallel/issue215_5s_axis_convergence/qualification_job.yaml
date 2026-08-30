@@ -1,0 +1,46 @@
+schema_version: 1
+job_id: issue215_tau_linked_5s_axis_convergence_qualification
+configs:
+  - path: conf/phase2_multi_run/2010_project_tau_linked_5s_axis_convergence_issue215.yaml
+    overrides:
+      - time.duration_s=0.001
+conditions:
+  - as000__ps000__nf01
+  - as000__ps000__nf02
+  - as000__ps000__nf03
+  - as000__ps000__nf04
+  - as000__ps001__nf01
+  - as000__ps001__nf02
+  - as000__ps001__nf03
+  - as000__ps001__nf04
+  - as000__ps002__nf01
+  - as000__ps002__nf02
+  - as000__ps002__nf03
+  - as000__ps002__nf04
+  - as001__ps000__nf01
+  - as001__ps000__nf02
+  - as001__ps000__nf03
+  - as001__ps000__nf04
+  - as001__ps001__nf01
+  - as001__ps001__nf02
+  - as001__ps001__nf03
+  - as001__ps001__nf04
+  - as001__ps002__nf01
+  - as001__ps002__nf02
+  - as001__ps002__nf03
+  - as001__ps002__nf04
+  - as002__ps000__nf01
+  - as002__ps000__nf02
+  - as002__ps000__nf03
+  - as002__ps000__nf04
+  - as002__ps001__nf01
+  - as002__ps001__nf02
+  - as002__ps001__nf03
+  - as002__ps001__nf04
+  - as002__ps002__nf01
+  - as002__ps002__nf02
+  - as002__ps002__nf03
+  - as002__ps002__nf04
+execution:
+  max_workers: auto
+  worker_policy: cs10_qualified

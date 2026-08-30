@@ -373,7 +373,10 @@ def _archive_path(input_dir: Path, condition_record: dict[str, Any]) -> Path:
     output_dir = condition_record.get("output_dir")
     candidates = []
     if output_dir:
-        candidates.append(Path(str(output_dir)) / "state_archive.npz")
+        output_path = Path(str(output_dir))
+        candidates.append(output_path / "state_archive.npz")
+        if not output_path.is_absolute():
+            candidates.append(input_dir / output_path / "state_archive.npz")
     candidates.extend(
         [
             input_dir / condition_id / "state_archive.npz",
@@ -427,6 +430,10 @@ def _plot_cell(
     rig: Any,
     title: str,
     fail_label: str,
+    camera_center_um: np.ndarray | None = None,
+    view_range_um: float | None = None,
+    show_axis_ticks: bool = True,
+    show_mean_flagella_axis: bool = False,
 ) -> None:
     from sim_swim.render.render3d import (
         _flagella_colors,
@@ -435,18 +442,33 @@ def _plot_cell(
         _plot_segments_3d,
         _resolve_view_range_um,
     )
+    from sim_swim.sim.helix_axis import estimate_flag_helix_axis
 
     ax.set_facecolor("white")
     beads = st.bead_positions_um
-    view_range = _resolve_view_range_um(cfg, rig)
-    center = np.array(st.position_um, dtype=float)
+    view_range = view_range_um or _resolve_view_range_um(cfg, rig)
+    center = (
+        np.asarray(camera_center_um, dtype=float)
+        if camera_center_um is not None
+        else (
+            np.array(st.position_um, dtype=float)
+            if cfg.render.follow_camera_3d
+            else np.zeros(3, dtype=float)
+        )
+    )
     ax.set_xlim(center[0] - view_range, center[0] + view_range)
     ax.set_ylim(center[1] - view_range, center[1] + view_range)
     ax.set_zlim(center[2] - view_range, center[2] + view_range)
     ax.set_box_aspect((1, 1, 1))
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.set_zticks([])
+    if show_axis_ticks:
+        ax.set_xlabel("x [um]", fontsize=7, labelpad=-2)
+        ax.set_ylabel("y [um]", fontsize=7, labelpad=-2)
+        ax.set_zlabel("z [um]", fontsize=7, labelpad=-2)
+        ax.tick_params(axis="both", labelsize=6, pad=-1)
+    else:
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_zticks([])
     ax.grid(True)
     ax.set_title(title, fontsize=9, pad=6)
 
@@ -483,6 +505,48 @@ def _plot_cell(
             )
             if cfg.render.show_flagella_helix_axis_3d:
                 _plot_flagella_helix_axis_3d(ax, beads, idxs, f_id, color)
+
+    if show_mean_flagella_axis:
+        estimates = [
+            estimate_flag_helix_axis(beads, idxs, flag_id)
+            for flag_id, idxs in enumerate(rig.flagella_indices)
+        ]
+        estimates = [estimate for estimate in estimates if not estimate.degenerate]
+        if len(estimates) == len(rig.flagella_indices) and estimates:
+            reference = estimates[0].axis
+            aligned = np.asarray(
+                [
+                    estimate.axis
+                    if float(np.dot(estimate.axis, reference)) >= 0.0
+                    else -estimate.axis
+                    for estimate in estimates
+                ]
+            )
+            mean_axis = np.mean(aligned, axis=0)
+            norm = float(np.linalg.norm(mean_axis))
+            if norm > 1.0e-12:
+                mean_axis /= norm
+                origin = np.mean([estimate.origin for estimate in estimates], axis=0)
+                half_length = float(
+                    np.mean(
+                        [
+                            np.linalg.norm(estimate.line_end - estimate.line_start)
+                            / 2.0
+                            for estimate in estimates
+                        ]
+                    )
+                )
+                ax.plot(
+                    *np.vstack(
+                        (
+                            origin - half_length * mean_axis,
+                            origin + half_length * mean_axis,
+                        )
+                    ).T,
+                    color="#c026d3",
+                    linewidth=3.0,
+                    linestyle="--",
+                )
 
     if rig.hook_triplets.size > 0:
         _plot_segments_3d(
@@ -605,6 +669,47 @@ def _resample_states_for_replay(
     return result
 
 
+def _state_envelope(
+    states: list[Any], *, dimensions: int, margin: float
+) -> tuple[np.ndarray, float]:
+    """Return a fixed camera centre and square/cubic half-range for states."""
+    if not states:
+        raise ValueError("Cannot calculate a camera envelope from no states.")
+    points = np.concatenate(
+        [
+            np.asarray(state.bead_positions_um, dtype=float)[:, :dimensions]
+            for state in states
+        ],
+        axis=0,
+    )
+    minimum = np.min(points, axis=0)
+    maximum = np.max(points, axis=0)
+    center = (minimum + maximum) / 2.0
+    half_range = float(np.max((maximum - minimum) / 2.0))
+    return center, max(half_range * (1.0 + margin), 1.0e-6)
+
+
+def _camera_envelopes(
+    states_by_condition: list[list[Any]],
+    *,
+    dimensions: int,
+    mode: str,
+    margin: float,
+) -> list[tuple[np.ndarray, float] | None]:
+    if mode == "fixed":
+        return [None] * len(states_by_condition)
+    if mode == "condition-envelope":
+        return [
+            _state_envelope(states, dimensions=dimensions, margin=margin)
+            for states in states_by_condition
+        ]
+    if mode == "campaign-envelope":
+        all_states = [state for states in states_by_condition for state in states]
+        envelope = _state_envelope(all_states, dimensions=dimensions, margin=margin)
+        return [envelope] * len(states_by_condition)
+    raise ValueError(f"Unknown view range mode: {mode}")
+
+
 def _render_grid_movie(
     *,
     states_by_condition: list[list[Any]],
@@ -617,6 +722,9 @@ def _render_grid_movie(
     target_frame_count: int | None,
     figure_note: str | None = None,
     show_torque_weight_panels: bool = False,
+    camera_envelopes: list[tuple[np.ndarray, float] | None] | None = None,
+    show_axis_ticks: bool = True,
+    show_mean_flagella_axis: bool = False,
 ) -> Any:
     import cv2
 
@@ -705,6 +813,18 @@ def _render_grid_movie(
                     rig=rig_by_condition[condition_idx],
                     title=page_titles[page_idx],
                     fail_label=page_fail_labels[page_idx],
+                    camera_center_um=(
+                        camera_envelopes[condition_idx][0]
+                        if camera_envelopes and camera_envelopes[condition_idx]
+                        else None
+                    ),
+                    view_range_um=(
+                        camera_envelopes[condition_idx][1]
+                        if camera_envelopes and camera_envelopes[condition_idx]
+                        else None
+                    ),
+                    show_axis_ticks=show_axis_ticks,
+                    show_mean_flagella_axis=show_mean_flagella_axis,
                 )
                 if show_torque_weight_panels:
                     _plot_torque_weight_panels(
@@ -787,6 +907,57 @@ def _select_2d_replay_states(
     return _select_frames(states, out_all_steps_3d=False, fps_hint=fps_out_2d)
 
 
+def _add_2d_axis_ticks(
+    panel: np.ndarray,
+    *,
+    center_um: np.ndarray,
+    half_range_um: float,
+) -> np.ndarray:
+    """Overlay fixed-camera coordinate ticks onto a 2D replay panel."""
+    import cv2
+
+    output = panel.copy()
+    size = int(output.shape[0])
+    tick_color = (70, 70, 70)
+    for fraction in np.linspace(0.0, 1.0, 5):
+        px = int(round(fraction * (size - 1)))
+        cv2.line(output, (px, size - 1), (px, size - 6), tick_color, 1)
+        cv2.line(output, (0, px), (5, px), tick_color, 1)
+        x_value = center_um[0] + (2.0 * fraction - 1.0) * half_range_um
+        y_value = center_um[1] + (2.0 * fraction - 1.0) * half_range_um
+        cv2.putText(
+            output,
+            f"{x_value:.1f}",
+            (max(0, px - 10), size - 8),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.25,
+            tick_color,
+            1,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            output,
+            f"{y_value:.1f}",
+            (7, min(size - 8, max(10, px + 3))),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.25,
+            tick_color,
+            1,
+            cv2.LINE_AA,
+        )
+    cv2.putText(
+        output,
+        "x, y [um]",
+        (size - 50, 12),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.25,
+        tick_color,
+        1,
+        cv2.LINE_AA,
+    )
+    return output
+
+
 def _render_grid_movie_2d(
     *,
     states_by_condition: list[list[Any]],
@@ -796,6 +967,8 @@ def _render_grid_movie_2d(
     fps_out_2d: float,
     max_panels_per_grid: int,
     target_frame_count: int | None,
+    camera_envelopes: list[tuple[np.ndarray, float] | None] | None = None,
+    show_axis_ticks: bool = True,
 ) -> Any:
     """Render a condition grid of the configured 2D body projection."""
     import cv2
@@ -847,7 +1020,12 @@ def _render_grid_movie_2d(
                 for index in indexes:
                     render_cfg = BodyCapsuleRenderConfig(
                         image_size_px=cfg_by_condition[index].render.image_size_px,
-                        pixel_size_um=cfg_by_condition[index].render.pixel_size_um,
+                        pixel_size_um=(
+                            (2.0 * camera_envelopes[index][1])
+                            / cfg_by_condition[index].render.image_size_px
+                            if camera_envelopes and camera_envelopes[index]
+                            else cfg_by_condition[index].render.pixel_size_um
+                        ),
                         body_length_um=cfg_by_condition[index].body.length_total_um,
                         body_width_um=(
                             2.0
@@ -857,10 +1035,40 @@ def _render_grid_movie_2d(
                         tracking_center=cfg_by_condition[
                             index
                         ].render.center_body_in_2d,
+                        fixed_center_um=(
+                            tuple(float(value) for value in camera_envelopes[index][0])
+                            if camera_envelopes and camera_envelopes[index]
+                            else (0.0, 0.0)
+                        ),
                     )
                     panel, _ = render_body_capsule_frame(
                         render_states[index][frame_index], render_cfg
                     )
+                    if show_axis_ticks:
+                        envelope = (
+                            camera_envelopes[index]
+                            if camera_envelopes and camera_envelopes[index]
+                            else None
+                        )
+                        center_um = (
+                            envelope[0]
+                            if envelope is not None
+                            else np.zeros(2, dtype=float)
+                        )
+                        half_range_um = (
+                            envelope[1]
+                            if envelope is not None
+                            else (
+                                cfg_by_condition[index].render.image_size_px
+                                * cfg_by_condition[index].render.pixel_size_um
+                                / 2.0
+                            )
+                        )
+                        panel = _add_2d_axis_ticks(
+                            panel,
+                            center_um=np.asarray(center_um, dtype=float),
+                            half_range_um=float(half_range_um),
+                        )
                     panels.append(cv2.cvtColor(panel, cv2.COLOR_GRAY2BGR))
                 yield compose_grid_frame(panels, layout)
 
@@ -1191,6 +1399,34 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Optional note shown beneath every replay grid frame.",
     )
+    parser.add_argument(
+        "--camera-3d",
+        choices=("follow", "fixed"),
+        default="follow",
+        help="Use a body-following or fixed 3D camera.",
+    )
+    parser.add_argument(
+        "--camera-2d",
+        choices=("body-center", "fixed"),
+        default="body-center",
+        help="Centre each 2D body silhouette or use a fixed camera.",
+    )
+    parser.add_argument(
+        "--view-range-mode",
+        choices=("fixed", "condition-envelope", "campaign-envelope"),
+        default="fixed",
+        help="Use configured ranges or calculate fixed-camera bounds from archives.",
+    )
+    parser.add_argument("--view-range-margin", type=float, default=0.10)
+    axis_ticks = parser.add_mutually_exclusive_group()
+    axis_ticks.add_argument("--axis-ticks", dest="axis_ticks", action="store_true")
+    axis_ticks.add_argument("--no-axis-ticks", dest="axis_ticks", action="store_false")
+    parser.set_defaults(axis_ticks=True)
+    parser.add_argument(
+        "--show-mean-flagella-axis-3d",
+        action="store_true",
+        help="Overlay the aligned mean flagellar helix axis used for body--flagella comparison.",
+    )
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--show-torque-weight-panels", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
@@ -1221,6 +1457,8 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         args.fps_out_2d = float(replay_cfg.get("fps_out_2d") or 25.0)
     if args.target_frame_count is not None and args.target_frame_count <= 0:
         parser.error("--target-frame-count must be positive")
+    if args.view_range_margin < 0.0:
+        parser.error("--view-range-margin must be non-negative")
     if args.max_panels_per_grid is None:
         args.max_panels_per_grid = int(replay_cfg.get("max_panels_per_grid") or 9)
     args.max_panels_per_grid = max(1, int(args.max_panels_per_grid))
@@ -1279,6 +1517,15 @@ def main(argv: list[str] | None = None) -> None:
                 condition_record=record,
                 fps_out_3d=args.fps_out_3d,
             )
+            cfg = cfg.with_overrides(
+                {
+                    "render": {
+                        "follow_camera_3d": args.camera_3d == "follow",
+                        "center_body_in_2d": args.camera_2d == "body-center",
+                        "follow_camera_2d": False,
+                    }
+                }
+            )
             states = load_state_archive(_archive_path(args.input_dir, record))
             validate_replay_fps(states, args.fps_out_3d)
             simulator = Simulator(cfg)
@@ -1294,6 +1541,18 @@ def main(argv: list[str] | None = None) -> None:
             states_by_condition.append(states)
             cfg_by_condition.append(cfg)
             rig_by_condition.append(simulator.rig)
+        envelopes_3d = _camera_envelopes(
+            states_by_condition,
+            dimensions=3,
+            mode=args.view_range_mode,
+            margin=args.view_range_margin,
+        )
+        envelopes_2d = _camera_envelopes(
+            states_by_condition,
+            dimensions=2,
+            mode=args.view_range_mode,
+            margin=args.view_range_margin,
+        )
         render_result = {}
         if args.view in {"3d", "3d+2d"}:
             render_result["grid_swim3d"] = _render_grid_movie(
@@ -1307,6 +1566,9 @@ def main(argv: list[str] | None = None) -> None:
                 target_frame_count=args.target_frame_count,
                 figure_note=args.figure_note,
                 show_torque_weight_panels=args.show_torque_weight_panels,
+                camera_envelopes=envelopes_3d,
+                show_axis_ticks=args.axis_ticks,
+                show_mean_flagella_axis=args.show_mean_flagella_axis_3d,
             )
         if args.view in {"2d", "3d+2d"}:
             render_result["grid_projection2d"] = _render_grid_movie_2d(
@@ -1317,6 +1579,8 @@ def main(argv: list[str] | None = None) -> None:
                 fps_out_2d=args.fps_out_2d,
                 max_panels_per_grid=args.max_panels_per_grid,
                 target_frame_count=args.target_frame_count,
+                camera_envelopes=envelopes_2d,
+                show_axis_ticks=args.axis_ticks,
             )
         logger.info("Rendered grid videos: %s", ", ".join(render_result))
 
@@ -1334,6 +1598,12 @@ def main(argv: list[str] | None = None) -> None:
             "max_panels_per_grid": args.max_panels_per_grid,
             "figure_note": args.figure_note,
             "show_torque_weight_panels": args.show_torque_weight_panels,
+            "camera_3d": args.camera_3d,
+            "camera_2d": args.camera_2d,
+            "view_range_mode": args.view_range_mode,
+            "view_range_margin": args.view_range_margin,
+            "axis_ticks": args.axis_ticks,
+            "show_mean_flagella_axis_3d": args.show_mean_flagella_axis_3d,
         },
         "conditions": [row["condition_id"] for row in rows],
         "outputs": {

@@ -244,6 +244,34 @@ def test_mp4_writer_emits_h264_yuv420p(tmp_path) -> None:
     assert completed.stdout.splitlines() == ["h264", "High", "yuv420p"]
 
 
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="FFmpeg is unavailable")
+def test_mp4_writer_pads_odd_dimensions_for_h264(tmp_path) -> None:
+    path = tmp_path / "odd-size.mp4"
+    selection = open_mp4_writer(path, fps=10.0, frame_size=(3, 3))
+    selection.writer.write(np.zeros((3, 3, 3), dtype=np.uint8))
+    selection.writer.release()
+
+    completed = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=codec_name,pix_fmt,width,height",
+            "-of",
+            "csv=p=0",
+            str(path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.stdout.strip() == "h264,4,4,yuv420p"
+
+
 def test_save_swim_movie_emits_render_outputs(tmp_path, monkeypatch) -> None:
     cfg = _make_cfg(
         center_body_in_2d=True,

@@ -1,0 +1,6 @@
+reference_2s_dir: outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_nf1_4_as3_ps3_2026-08-18
+reference_5s_dir: outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_5s_nf1_4_as3_ps3_2026-08-28
+output_dir: outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_5s_nf1_4_as3_ps3_2026-08-28/analysis/axis_angle_comparison
+compare_until_s: 2.0
+post_start_s: 2.0
+overwrite: false

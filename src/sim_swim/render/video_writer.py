@@ -61,6 +61,8 @@ class _FFmpegVideoWriter:
             [
                 ffmpeg,
                 "-y",
+                "-loglevel",
+                "error",
                 "-f",
                 "rawvideo",
                 "-pix_fmt",
@@ -81,6 +83,8 @@ class _FFmpegVideoWriter:
                 "libx264",
                 "-profile:v",
                 "high",
+                "-vf",
+                "pad=ceil(iw/2)*2:ceil(ih/2)*2:color=black",
                 "-pix_fmt",
                 "yuv420p",
                 "-movflags",
@@ -89,7 +93,7 @@ class _FFmpegVideoWriter:
             ],
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
         )
 
     def isOpened(self) -> bool:
@@ -103,7 +107,13 @@ class _FFmpegVideoWriter:
                 f"received {frame.shape} {frame.dtype}"
             )
         if not self.isOpened() or self._process.stdin is None:
-            raise RuntimeError("FFmpeg MP4 writer is not open")
+            stderr = ""
+            if self._process.stderr is not None:
+                stderr = self._process.stderr.read().decode("utf-8", errors="replace")
+            raise RuntimeError(
+                "FFmpeg MP4 writer is not open "
+                f"(exit_code={self._process.poll()}): {stderr.strip()}"
+            )
         self._process.stdin.write(np.ascontiguousarray(frame).tobytes())
 
     def release(self) -> None:
@@ -112,9 +122,16 @@ class _FFmpegVideoWriter:
         self._released = True
         if self._process.stdin is not None:
             self._process.stdin.close()
-        if self._process.wait() != 0:
+        exit_code = self._process.wait()
+        if exit_code != 0:
+            stderr = ""
+            if self._process.stderr is not None:
+                stderr = self._process.stderr.read().decode("utf-8", errors="replace")
             self.path.unlink(missing_ok=True)
-            raise RuntimeError(f"FFmpeg failed while encoding H.264 MP4: {self.path}")
+            raise RuntimeError(
+                "FFmpeg failed while encoding H.264 MP4 "
+                f"(exit_code={exit_code}): {self.path}: {stderr.strip()}"
+            )
 
 
 @dataclass(frozen=True)

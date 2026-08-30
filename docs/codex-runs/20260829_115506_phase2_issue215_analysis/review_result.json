@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "task": "Issue #215: stage and compare completed 5.0 s motion-feature artifacts",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/215",
+  "summary": "cs10 NAS上の完走済み5秒campaignからmotion_featuresを生成し、raw archiveを除くcompact artifactをlocal referenceへ転送した。36条件中31件がstrict PASS、non-PASS 5件はすべてdiagnostic-only n=4のshape_nonbody failureだった。n=1--3の0--2秒比較は3D mean RMSE 0.0457 deg（max 0.8277）、2D mean RMSE 0.0658 deg（max 1.6185）で、5秒延長が既存2秒referenceを再現することを確認した。2--5秒のaxis angleはn=1,2で上昇後の低下・再上昇を示し、n=3はseed間分岐を保つため、単調な収束は確認されなかった。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    {
+      "command": ".venv/bin/ruff check src/sim_swim/analysis/axis_angle_comparison.py scripts/03_dataset_building/compare_axis_angle_references.py scripts/03_dataset_building/stage_issue215_reference.py tests/test_axis_angle_comparison.py tests/test_stage_issue215_reference.py",
+      "result": "PASS"
+    },
+    {
+      "command": ".venv/bin/pytest tests/test_axis_angle_comparison.py tests/test_stage_issue215_reference.py tests/test_motion_feature_study.py -q",
+      "result": "PASS (17 passed)"
+    },
+    {
+      "command": "python3 tools/codex/check_issue_script_lifecycle.py && .venv/bin/python scripts/03_dataset_building/compare_axis_angle_references.py --help && .venv/bin/python scripts/03_dataset_building/stage_issue215_reference.py --help && git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "long_simulation_executed": true,
+  "long_simulation_reason": "5秒・36条件campaignはユーザーがcs10で完了済み。Codexはsimulationを再実行せず、保存済みarchiveからmotion-feature解析を実行した。",
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "既存の診断referenceを扱う解析・移送導線であり、physical model、dataset、ML policy、phase boundaryを変更しない。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/216",
+  "next_actions": []
+}

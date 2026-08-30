@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+import cv2
 import numpy as np
 import pytest
 
@@ -15,6 +16,7 @@ from sim_swim.analysis.multi_run_campaign import (
     load_yaml,
 )
 from sim_swim.analysis.online_run_summary import OnlineRunSummary
+from sim_swim.analysis.phase2_replay import _add_2d_axis_ticks
 from sim_swim.analysis.sweeps.generic_multi_run import (
     _condition_row,
     _summary_fieldnames,
@@ -29,6 +31,32 @@ def _load_script(path: Path, name: str):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+@pytest.mark.light
+def test_2d_axis_ticks_follow_renderer_world_y_direction(monkeypatch) -> None:
+    labels: list[tuple[str, tuple[int, int]]] = []
+    original_put_text = cv2.putText
+
+    def capture_put_text(
+        image: np.ndarray,
+        text: str,
+        origin: tuple[int, int],
+        *args: object,
+        **kwargs: object,
+    ) -> np.ndarray:
+        labels.append((text, origin))
+        return original_put_text(image, text, origin, *args, **kwargs)
+
+    monkeypatch.setattr(cv2, "putText", capture_put_text)
+    _add_2d_axis_ticks(
+        np.zeros((101, 101), dtype=np.uint8),
+        center_um=np.asarray((3.0, 4.0)),
+        half_range_um=2.0,
+    )
+
+    y_labels = [text for text, origin in labels if origin[0] == 7]
+    assert y_labels == ["2.0", "3.0", "4.0", "5.0", "6.0"]
 
 
 def _write_generic_profile(
@@ -656,6 +684,99 @@ def test_replay_accepts_repeated_condition_id_filter(tmp_path: Path) -> None:
         "tau_fixed_control_T1e-21_dt1e-3",
         "tau_fixed_control_T1e-21_dt1e-4",
     ]
+
+
+def test_replay_resolves_relative_manifest_output_dir(tmp_path: Path) -> None:
+    module = _load_script(
+        Path("src/sim_swim/analysis/phase2_replay.py"),
+        "phase2_replay_relative_output_dir",
+    )
+    condition_dir = tmp_path / "nf01_as000_ps000"
+    condition_dir.mkdir()
+    archive = condition_dir / "state_archive.npz"
+    archive.write_bytes(b"archive")
+
+    resolved = module._archive_path(
+        tmp_path,
+        {"condition_id": "as000__ps000__nf01", "output_dir": condition_dir.name},
+    )
+
+    assert resolved == archive
+
+
+def test_replay_accepts_fixed_camera_and_campaign_envelope(tmp_path: Path) -> None:
+    module = _load_script(
+        Path("src/sim_swim/analysis/phase2_replay.py"),
+        "phase2_replay_fixed_camera_options",
+    )
+
+    args = module._parse_args(
+        [
+            "--input-dir",
+            str(tmp_path),
+            "--camera-3d",
+            "fixed",
+            "--camera-2d",
+            "fixed",
+            "--view-range-mode",
+            "campaign-envelope",
+            "--view-range-margin",
+            "0.2",
+        ]
+    )
+
+    assert args.camera_3d == "fixed"
+    assert args.camera_2d == "fixed"
+    assert args.view_range_mode == "campaign-envelope"
+    assert args.view_range_margin == pytest.approx(0.2)
+    assert args.axis_ticks is True
+    assert args.show_mean_flagella_axis_3d is False
+
+
+def test_replay_accepts_mean_flagella_axis_and_hides_ticks(tmp_path: Path) -> None:
+    module = _load_script(
+        Path("src/sim_swim/analysis/phase2_replay.py"),
+        "phase2_replay_mean_flagella_axis_options",
+    )
+
+    args = module._parse_args(
+        [
+            "--input-dir",
+            str(tmp_path),
+            "--no-axis-ticks",
+            "--show-mean-flagella-axis-3d",
+        ]
+    )
+
+    assert args.axis_ticks is False
+    assert args.show_mean_flagella_axis_3d is True
+
+
+def test_replay_campaign_envelope_is_shared_and_contains_all_beads() -> None:
+    module = _load_script(
+        Path("src/sim_swim/analysis/phase2_replay.py"),
+        "phase2_replay_campaign_envelope",
+    )
+    state_a = SimpleNamespace(
+        bead_positions_um=np.asarray([[-2.0, 0.0, 1.0], [0.0, 2.0, -1.0]])
+    )
+    state_b = SimpleNamespace(
+        bead_positions_um=np.asarray([[4.0, -3.0, 0.0], [6.0, 1.0, 2.0]])
+    )
+
+    envelopes = module._camera_envelopes(
+        [[state_a], [state_b]],
+        dimensions=3,
+        mode="campaign-envelope",
+        margin=0.1,
+    )
+
+    assert envelopes[0] is not None
+    assert envelopes[1] is not None
+    center, half_range = envelopes[0]
+    assert np.allclose(center, [2.0, -0.5, 0.5])
+    assert half_range == pytest.approx(4.4)
+    assert envelopes[0] is envelopes[1]
 
 
 def test_replay_builds_refined_2015_geometry_from_campaign_record() -> None:

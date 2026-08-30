@@ -1,0 +1,39 @@
+{
+  "status": "PASS",
+  "task": "Issue #215 / PR #216: 5秒archiveの平均べん毛軸付き3D replay",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/215",
+  "summary": "完走済み5秒campaignのraw archiveを再simulationせずに再描画し、n=1--4について各9 seedの3×3 3D grid MP4を生成した。整列済みの平均べん毛螺旋軸は各frameでマゼンタ破線として重ね、n=4の5件のstrict non-PASSはFAIL QCラベルを保持した。local referenceにはMP4、最終frame PNG、manifest、run logのみを転送し、raw archiveはNASを正本として残した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    {
+      "command": ".venv/bin/ruff format src/sim_swim/render/video_writer.py tests/test_render_state_and_projection.py && .venv/bin/ruff check src/sim_swim/render/video_writer.py tests/test_render_state_and_projection.py && .venv/bin/pytest tests/test_render_state_and_projection.py -q",
+      "result": "PASS (17 passed)"
+    },
+    {
+      "command": "pre-commit hook: uv run pytest -q -m light",
+      "result": "PASS (318 passed, 441 deselected)"
+    },
+    {
+      "command": "cs10 replay_dataset.py --view 3d --fps-out-3d 10 --max-panels-per-grid 9 --camera-3d fixed --view-range-mode condition-envelope --view-range-margin 0.10 --axis-ticks --show-mean-flagella-axis-3d (n=1--4; each 9 selected conditions)",
+      "result": "PASS (4 MP4; each H.264/high-profile/yuv420p, encoded 1440x1440, 52 frames; no simulation rerun)"
+    },
+    {
+      "command": "manifest and final-PNG inspection",
+      "result": "PASS (each: 9 conditions, [3,3] grid, mean-axis overlay true; n=4 retains FAIL hook QC labels)"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "保存済みのcs10 NAS raw archiveのみを入力にreplayを生成した。simulationは再実行していない。",
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "診断用archiveの可視化とH.264出力互換性のみを変更し、physical model、dataset採択、ML policy、phase boundaryを変更しない。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/216",
+  "next_actions": []
+}

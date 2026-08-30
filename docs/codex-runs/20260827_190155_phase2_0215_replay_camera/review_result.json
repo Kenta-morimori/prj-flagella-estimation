@@ -1,0 +1,31 @@
+{
+  "status": "PASS",
+  "task": "Issue #215 / PR #216: fixed-camera archive replay controls",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/215",
+  "summary": "保存済みPhase 2 archiveを再シミュレーションせずに再描画するCLIへ、2D/3D固定カメラ、fixed/condition-envelope/campaign-envelope表示範囲、2D/3D座標目盛、任意の平均べん毛軸オーバーレイを追加した。相対output_dirを持つcampaign manifestからもarchiveを解決できる。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "2015 paper modelの流体計算方針は本変更の対象外であり、次回以降に議論する。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest tests/test_phase2_generic_multi_run.py tests/test_render_state_and_projection.py tests/test_common_replay_cli.py tests/test_flagella_count_behavior_dataset.py -q",
+      "result": "PASS (98 passed)"
+    },
+    {
+      "command": "uv run ruff format --check src/sim_swim/analysis/phase2_replay.py src/sim_swim/render/body2d.py tests/test_phase2_generic_multi_run.py && uv run ruff check src/sim_swim/analysis/phase2_replay.py src/sim_swim/render/body2d.py tests/test_phase2_generic_multi_run.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run python scripts/03_dataset_building/replay_dataset.py --run-dir outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_nf1_4_as3_ps3_2026-08-18 --output-dir .../analysis/replay --view 3d+2d --camera-3d fixed --camera-2d fixed --view-range-mode condition-envelope --view-range-margin 0.10 --axis-ticks --show-mean-flagella-axis-3d --overwrite",
+      "result": "PASS (36 archived conditions; no simulation rerun)"
+    }
+  ],
+  "render_output": "outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_nf1_4_as3_ps3_2026-08-18/analysis/replay",
+  "adr_required": false,
+  "adr_reason": "既存archiveの表示・再生方法のみを変更し、physical model、dataset採択、ML policy、phase境界を変更しない。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "next_actions": []
+}
