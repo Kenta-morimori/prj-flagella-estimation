@@ -336,6 +336,7 @@ uv run python scripts/03_dataset_building/analyze_dataset.py --dataset-dir <data
 | result reproduction | `analyze_dataset.py --analysis-kind spring-formulations`, `2015-stage-a` | #163 / #168の既存結果・診断再現 | `spring_formulations_workflow.py`, `stage_a_2015_workflow.py` | historical result reproduction |
 | canonical | `replay_clip_dataset.py` | Phase 3 canonical clip datasetのQC replay | `src/flagella_estimation/phase3/` | canonical |
 | result reproduction | `render_sample.py` | Phase 3 dataset sampleの再現 | `src/flagella_estimation/phase3/` | historical result reproduction |
+| canonical | `cs10/queue.py` | cs10の固定commit逐次reservation queue | `scripts/cs10/queue.py` | promoted (#219) |
 
 Issue専用の分析kindは、campaignのlive contractから実行する。追加・削除時は
 `docs/codex/issue_script_lifecycle.md` の `promoted` / `deleted` /

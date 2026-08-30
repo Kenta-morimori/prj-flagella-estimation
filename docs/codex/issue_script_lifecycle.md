@@ -12,3 +12,6 @@ Issue検証のために追加した script は、merge前に `promoted`、`delet
 
 `tools/codex/check_issue_script_lifecycle.py --base <base>` は、削除された`scripts/`配下の
 pathを active consumer が参照していないことを確認する。`docs/codex-runs/`は歴史的記録のため除外する。
+
+`scripts/cs10/queue.py` はIssue #219で追加するcs10共通運用CLIであり、`promoted`として維持する。
+予約の固定commit、worktree隔離、逐次dispatch、通知はcs10 runbookを正本とする。

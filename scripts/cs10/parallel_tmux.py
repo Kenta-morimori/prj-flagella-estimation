@@ -77,7 +77,10 @@ def _git_info() -> dict[str, str]:
 
 
 def _runtime_python() -> Path:
-    python = REPOSITORY_ROOT / ".venv-cs10/bin/python"
+    configured = os.environ.get("CS10_RUNTIME_PYTHON")
+    python = (
+        Path(configured) if configured else REPOSITORY_ROOT / ".venv-cs10/bin/python"
+    )
     if not python.is_file():
         raise RuntimeError(
             "missing .venv-cs10; run scripts/cs10/setup_environment.sh first"
@@ -96,6 +99,18 @@ def _runtime_python() -> Path:
         check=True,
     )
     return python
+
+
+def _runtime_environment() -> dict[str, str]:
+    """Build the child environment for this worktree's source tree."""
+    environment = os.environ.copy()
+    source_path = str(SOURCE_ROOT)
+    environment["PYTHONPATH"] = (
+        source_path
+        if not environment.get("PYTHONPATH")
+        else source_path + os.pathsep + environment["PYTHONPATH"]
+    )
+    return environment
 
 
 def _require_nas_mount() -> None:
@@ -149,8 +164,8 @@ def _output_paths(label: str, output_base: Path) -> tuple[Path, Path]:
     return control, root
 
 
-def start(config: Path, *, session: str, label: str) -> dict[str, Any]:
-    tmux = _require_tmux()
+def _prepare_launch(config: Path, *, label: str, session: str | None) -> dict[str, Any]:
+    """Validate and record one launch without deciding how it is executed."""
     runtime_python = _runtime_python()
     git = _git_info()
     job = load_parallel_job(config)
@@ -160,10 +175,6 @@ def start(config: Path, *, session: str, label: str) -> dict[str, Any]:
             "cs10 tmux helper requires execution.worker_policy=cs10_qualified"
         )
     output_base = _require_output_base()
-    existing = subprocess.run([tmux, "has-session", "-t", session], check=False)
-    if existing.returncode == 0:
-        raise RuntimeError(f"tmux session already exists: {session}")
-
     control, output_root = _output_paths(label, output_base)
     control.mkdir(parents=True, exist_ok=False)
     command = [
@@ -173,21 +184,6 @@ def start(config: Path, *, session: str, label: str) -> dict[str, Any]:
         "--output-root",
         str(output_root),
     ]
-    launch_script = control / "launch.sh"
-    launch_script.write_text(
-        "#!/usr/bin/env bash\n"
-        "set -u\n"
-        f"cd {shlex.quote(str(REPOSITORY_ROOT))}\n"
-        + shlex.join(command)
-        + f" > {shlex.quote(str(control / 'launcher.stdout.log'))}"
-        + f" 2> {shlex.quote(str(control / 'launcher.stderr.log'))}\n"
-        "status=$?\n"
-        f'printf \'{{"exit_code": %s, "job_root": "%s"}}\\n\' "$status" {shlex.quote(str(output_root))} > {shlex.quote(str(control / "user_exit_marker.json"))}\n'
-        f"printf 'Issue parallel launcher finished with exit_code=%s\\n' \"$status\" >> {shlex.quote(str(control / 'launcher.stdout.log'))}\n"
-        "exec bash -l\n",
-        encoding="utf-8",
-    )
-    launch_script.chmod(0o700)
     record = {
         "schema_version": 1,
         "status": "started",
@@ -207,6 +203,33 @@ def start(config: Path, *, session: str, label: str) -> dict[str, Any]:
         "git": git,
     }
     _write_json(control / "launch.json", record)
+    return record
+
+
+def start(config: Path, *, session: str, label: str) -> dict[str, Any]:
+    tmux = _require_tmux()
+    record = _prepare_launch(config, label=label, session=session)
+    existing = subprocess.run([tmux, "has-session", "-t", session], check=False)
+    if existing.returncode == 0:
+        raise RuntimeError(f"tmux session already exists: {session}")
+    control = Path(str(record["control_dir"]))
+    output_root = Path(str(record["output_root"]))
+    command = list(record["command"])
+    launch_script = control / "launch.sh"
+    launch_script.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -u\n"
+        f"cd {shlex.quote(str(REPOSITORY_ROOT))}\n"
+        + shlex.join(command)
+        + f" > {shlex.quote(str(control / 'launcher.stdout.log'))}"
+        + f" 2> {shlex.quote(str(control / 'launcher.stderr.log'))}\n"
+        "status=$?\n"
+        f'printf \'{{"exit_code": %s, "job_root": "%s"}}\\n\' "$status" {shlex.quote(str(output_root))} > {shlex.quote(str(control / "user_exit_marker.json"))}\n'
+        f"printf 'Issue parallel launcher finished with exit_code=%s\\n' \"$status\" >> {shlex.quote(str(control / 'launcher.stdout.log'))}\n"
+        "exec bash -l\n",
+        encoding="utf-8",
+    )
+    launch_script.chmod(0o700)
     subprocess.run(
         [
             tmux,
@@ -222,6 +245,27 @@ def start(config: Path, *, session: str, label: str) -> dict[str, Any]:
         check=True,
     )
     return record
+
+
+def run_foreground(config: Path, *, label: str) -> tuple[dict[str, Any], int]:
+    """Run one qualified job in the caller's process tree for queue dispatchers."""
+    record = _prepare_launch(config, label=label, session=None)
+    control = Path(str(record["control_dir"]))
+    with (control / "launcher.stdout.log").open("w", encoding="utf-8") as stdout:
+        with (control / "launcher.stderr.log").open("w", encoding="utf-8") as stderr:
+            completed = subprocess.run(
+                list(record["command"]),
+                cwd=REPOSITORY_ROOT,
+                env=_runtime_environment(),
+                stdout=stdout,
+                stderr=stderr,
+                check=False,
+            )
+    _write_json(
+        control / "user_exit_marker.json",
+        {"exit_code": completed.returncode, "job_root": record["output_root"]},
+    )
+    return record, completed.returncode
 
 
 def status(control_dir: Path) -> dict[str, Any]:
@@ -275,6 +319,9 @@ def main(argv: list[str] | None = None) -> int:
     start_parser.add_argument("--config", type=Path, required=True)
     start_parser.add_argument("--session", default="issue203")
     start_parser.add_argument("--label", required=True)
+    run_parser = subparsers.add_parser("run")
+    run_parser.add_argument("--config", type=Path, required=True)
+    run_parser.add_argument("--label", required=True)
     status_parser = subparsers.add_parser("status")
     status_parser.add_argument("--control-dir", type=Path, required=True)
     attach_parser = subparsers.add_parser("attach")
@@ -294,6 +341,10 @@ def main(argv: list[str] | None = None) -> int:
             json.dumps(status(args.control_dir.resolve()), ensure_ascii=False, indent=2)
         )
         return 0
+    if args.action == "run":
+        record, returncode = run_foreground(args.config.resolve(), label=args.label)
+        print(json.dumps(record, ensure_ascii=False, indent=2))
+        return returncode
     tmux = _require_tmux()
     return subprocess.run([tmux, "attach", "-t", args.session], check=False).returncode
 
