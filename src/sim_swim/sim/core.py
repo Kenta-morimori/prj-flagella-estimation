@@ -679,6 +679,13 @@ class Simulator:
         )
         if archive_interval_s <= 0.0:
             raise ValueError("archive_interval_s must be positive")
+        if (
+            self.config.hydrodynamics.enabled
+            and archive_interval_s < self.config.dt_s - 1.0e-15
+        ):
+            raise ValueError(
+                "hydrodynamics archive_interval_s must be at least the integration dt"
+            )
 
         states: List[SimulationState] = []
         self.hydro_samples = []
