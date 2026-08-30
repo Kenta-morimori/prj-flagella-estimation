@@ -55,11 +55,14 @@ def test_validate_config_requires_checked_in_relative_yaml(
     config.parent.mkdir(parents=True)
     config.write_text("job_id: example\n", encoding="utf-8")
     monkeypatch.setattr(queue, "REPOSITORY_ROOT", repository)
-    assert queue.validate_config("conf/job.yaml") == "conf/job.yaml"
+    commands: list[tuple[str, ...]] = []
+    monkeypatch.setattr(queue, "_git", lambda *args: commands.append(args) or "")
+    assert queue.validate_config("conf/job.yaml", "a" * 40) == "conf/job.yaml"
+    assert commands == [("cat-file", "-e", f"{'a' * 40}:conf/job.yaml")]
     with pytest.raises(ValueError, match="repository-relative"):
-        queue.validate_config("../outside.yaml")
+        queue.validate_config("../outside.yaml", "a" * 40)
     with pytest.raises(ValueError, match="YAML"):
-        queue.validate_config("conf/job.txt")
+        queue.validate_config("conf/job.txt", "a" * 40)
 
 
 def test_ensure_worktree_uses_fixed_commit(monkeypatch, tmp_path: Path) -> None:
@@ -99,7 +102,7 @@ def test_manifest_success_requires_all_condition_summaries(tmp_path: Path) -> No
             {
                 "status": "succeeded",
                 "failed_configs": [],
-                "configs": [{}],
+                "configs": [{"status": "succeeded"}],
                 "aggregation": {"status": "completed"},
             }
         ),
@@ -117,6 +120,28 @@ def test_manifest_success_requires_all_condition_summaries(tmp_path: Path) -> No
     )
     (root / "campaign/conditions/a/run_summary.json").unlink()
     assert queue._manifest_succeeded({"output_root": str(root)})[0] is False
+
+
+def test_manifest_success_allows_completed_nongeneric_parallel_job(
+    tmp_path: Path,
+) -> None:
+    queue = _load_queue("cs10_queue_nongeneric_manifest")
+    root = tmp_path / "output"
+    root.mkdir()
+    (root / "job_manifest.json").write_text(
+        json.dumps(
+            {
+                "status": "succeeded",
+                "failed_configs": [],
+                "configs": [{"status": "succeeded"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert queue._manifest_succeeded({"output_root": str(root)}) == (
+        True,
+        "job manifest completed",
+    )
 
 
 def test_cancel_queued_and_running_reservations(monkeypatch, tmp_path: Path) -> None:
@@ -156,6 +181,27 @@ def test_reconcile_blocks_unknown_running_process_and_pauses_queue(
         )
         queue.reconcile(store)
         assert store.get(reservation.id).state == "blocked"
+        assert store.paused()
+    finally:
+        store.close()
+
+
+def test_reconcile_blocks_live_running_process_and_pauses_queue(
+    monkeypatch, tmp_path: Path
+) -> None:
+    queue = _load_queue("cs10_queue_live_reconcile")
+    store = queue.QueueStore(tmp_path)
+    try:
+        reservation = store.add(
+            branch="a", commit_sha="a" * 40, config="conf/a.yaml", priority=0
+        )
+        store.update(reservation.id, state="running", pid=9999)
+        monkeypatch.setattr(queue.os, "kill", lambda *_: None)
+        queue.reconcile(store)
+        result = store.get(reservation.id)
+        assert result is not None
+        assert result.state == "blocked"
+        assert "live child" in str(result.error)
         assert store.paused()
     finally:
         store.close()

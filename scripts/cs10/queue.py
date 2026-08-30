@@ -180,13 +180,18 @@ def resolve_commit(branch: str) -> str:
     return _git("rev-parse", f"{branch}^{{commit}}")
 
 
-def validate_config(config: str) -> str:
+def validate_config(config: str, commit_sha: str) -> str:
     path = Path(config)
     if path.is_absolute() or ".." in path.parts or path.suffix not in {".yaml", ".yml"}:
         raise ValueError("config must be a repository-relative YAML path")
-    resolved = (REPOSITORY_ROOT / path).resolve()
-    if not resolved.is_file() or REPOSITORY_ROOT not in resolved.parents:
+    if REPOSITORY_ROOT not in (REPOSITORY_ROOT / path).resolve().parents:
         raise ValueError(f"parallel-job config is unavailable: {config}")
+    try:
+        _git("cat-file", "-e", f"{commit_sha}:{path}")
+    except subprocess.CalledProcessError as exc:
+        raise ValueError(
+            f"parallel-job config is unavailable at {commit_sha}: {config}"
+        ) from exc
     return str(path)
 
 
@@ -226,12 +231,21 @@ def _manifest_succeeded(record: dict[str, Any]) -> tuple[bool, str]:
     root = Path(str(record["output_root"]))
     manifest = root / "job_manifest.json"
     completion = root / "campaign/campaign_completion.json"
-    if not manifest.is_file() or not completion.is_file():
-        return False, "missing job manifest or campaign completion marker"
+    if not manifest.is_file():
+        return False, "missing job manifest"
     job = json.loads(manifest.read_text(encoding="utf-8"))
-    campaign = json.loads(completion.read_text(encoding="utf-8"))
     failed = job.get("failed_configs", [])
     records = list(job.get("configs", []) or [])
+    if (
+        job.get("status") != "succeeded"
+        or failed
+        or not records
+        or any(record.get("status") != "succeeded" for record in records)
+    ):
+        return False, "job manifest reports incomplete or failed configs"
+    if not completion.is_file():
+        return True, "job manifest completed"
+    campaign = json.loads(completion.read_text(encoding="utf-8"))
     expected = int(campaign.get("expected_condition_count", -1))
     conditions = root / "campaign/conditions"
     summaries = (
@@ -240,9 +254,7 @@ def _manifest_succeeded(record: dict[str, Any]) -> tuple[bool, str]:
         else 0
     )
     if (
-        job.get("status") == "succeeded"
-        and not failed
-        and job.get("aggregation", {}).get("status") == "completed"
+        job.get("aggregation", {}).get("status") == "completed"
         and campaign.get("status") == "completed"
         and campaign.get("exit_code") == 0
         and len(records) == expected == summaries
@@ -363,41 +375,44 @@ def reconcile(store: QueueStore) -> None:
     for reservation in store.list():
         if reservation.state != "running":
             continue
-        alive = reservation.pid is not None
-        if alive:
+        alive = False
+        if reservation.pid is not None:
             try:
                 os.kill(reservation.pid, 0)
+                alive = True
             except OSError:
-                alive = False
-        if not alive:
-            store.update(
-                reservation.id,
-                state="blocked",
-                error="dispatcher restart requires operator review",
-            )
-            store.set_paused(True)
-            store.event(
-                reservation.id, "blocked", "running process cannot be safely reconciled"
-            )
+                pass
+        detail = (
+            "dispatcher restart found a live child process; operator review required"
+            if alive
+            else "dispatcher restart found an exited child process; operator review required"
+        )
+        store.update(reservation.id, state="blocked", error=detail)
+        store.set_paused(True)
+        store.event(reservation.id, "blocked", detail)
 
 
 def dispatch(store: QueueStore, *, once: bool, poll_seconds: float) -> int:
     with dispatcher_lock(store):
         reconcile(store)
+        had_queued_reservations = False
         while True:
             if store.paused():
                 return 0
             reservation = store.next()
             if reservation is None:
-                if once:
+                if once or had_queued_reservations:
                     notify(
                         None,
                         "cs10 queue: all jobs complete",
                         "No queued reservations remain.",
                     )
-                    return 0
+                    if once:
+                        return 0
+                    had_queued_reservations = False
                 time.sleep(poll_seconds)
                 continue
+            had_queued_reservations = True
             run_reservation(store, reservation)
             if once:
                 return 0
@@ -450,10 +465,11 @@ def main(argv: list[str] | None = None) -> int:
     store = QueueStore()
     try:
         if args.action == "enqueue":
+            commit_sha = resolve_commit(args.branch)
             reservation = store.add(
                 branch=args.branch,
-                commit_sha=resolve_commit(args.branch),
-                config=validate_config(args.config),
+                commit_sha=commit_sha,
+                config=validate_config(args.config, commit_sha),
                 priority=args.priority,
             )
             _print(reservation)
