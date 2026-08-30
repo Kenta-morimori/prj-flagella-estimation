@@ -117,6 +117,26 @@ def _comparison_rows(
                 "n_flagella": source.get("n_flagella", "") if source else "",
                 "attach_seed": source.get("attach_seed", "") if source else "",
                 "phase_seed": source.get("phase_seed", "") if source else "",
+                "two_s_run_strict_pass": _truth(
+                    next(
+                        (
+                            row.get("run_strict_pass")
+                            for row in rows_2s
+                            if row["sample_id"] == sample_id
+                        ),
+                        False,
+                    )
+                ),
+                "five_s_run_strict_pass": _truth(
+                    next(
+                        (
+                            row.get("run_strict_pass")
+                            for row in rows_5s
+                            if row["sample_id"] == sample_id
+                        ),
+                        False,
+                    )
+                ),
                 "two_s_available": any(key[0] == sample_id for key in left),
                 "five_s_available": any(key[0] == sample_id for key in right),
                 "common_timepoint_count": len(common),
@@ -132,6 +152,10 @@ def _comparison_rows(
                 else float("nan"),
             }
         )
+        results[-1]["comparison_strict_pass"] = bool(
+            results[-1]["two_s_run_strict_pass"]
+            and results[-1]["five_s_run_strict_pass"]
+        )
     return results
 
 
@@ -146,7 +170,7 @@ def _post_windows(
 
 
 def _usable(row: dict[str, str]) -> bool:
-    return not (row.get("n_flagella") == "4" and not _truth(row.get("run_strict_pass")))
+    return _truth(row.get("run_strict_pass"))
 
 
 def _mean_by_time(rows: list[dict[str, str]]) -> tuple[list[float], list[float]]:

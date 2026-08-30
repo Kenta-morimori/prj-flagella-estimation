@@ -1,0 +1,34 @@
+{
+  "status": "PASS",
+  "task": "PR #216: Codex review e48181c の5件のP2指摘対応",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/215",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/216",
+  "summary": "Codex reviewの5指摘を修正した。2D固定camera目盛のworld-y符号をrendererと一致させ、軸角度overlap CSVへ2秒・5秒・共通のstrict QC状態を追加し、全strict non-PASSをplot平均から除外した。stageはQC unavailableをnon-PASSとして扱い、全artifact検証後に一時directoryから安全に切り替える。保存済みcompact referenceを再stage・再比較し、36条件、strict PASS 31、non-PASS 5、overlap 72行（strict non-PASS 10行）を確認した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    {
+      "command": ".venv/bin/ruff format --check ... && .venv/bin/ruff check ...",
+      "result": "PASS"
+    },
+    {
+      "command": ".venv/bin/pytest tests/test_phase2_parallel_job.py tests/test_phase2_generic_multi_run.py tests/test_render_state_and_projection.py tests/test_axis_angle_comparison.py tests/test_stage_issue215_reference.py tests/test_motion_feature_study.py -q",
+      "result": "PASS (126 passed)"
+    },
+    {
+      "command": "stage_issue215_reference.py --overwrite and compare_axis_angle_references.py --overwrite against saved compact reference",
+      "result": "PASS (simulation not re-run; raw NAS provenance retained; replay artifacts preserved)"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "保存済みcompact artifactのみを再stage・再解析し、simulationは再実行していない。",
+  "user_review_required": false,
+  "adr_required": false,
+  "adr_reason": "診断artifactのQC・可視化・安全なstage処理を修正するのみで、physical model、dataset、ML policy、phase boundaryを変更しない。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "next_actions": [
+    "Codex review thread 5件へ対応内容を返信し、resolve後にCIとcodex-review-gateを確認する。"
+  ]
+}

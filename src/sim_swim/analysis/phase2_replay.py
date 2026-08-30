@@ -924,7 +924,7 @@ def _add_2d_axis_ticks(
         cv2.line(output, (px, size - 1), (px, size - 6), tick_color, 1)
         cv2.line(output, (0, px), (5, px), tick_color, 1)
         x_value = center_um[0] + (2.0 * fraction - 1.0) * half_range_um
-        y_value = center_um[1] + (1.0 - 2.0 * fraction) * half_range_um
+        y_value = center_um[1] + (2.0 * fraction - 1.0) * half_range_um
         cv2.putText(
             output,
             f"{x_value:.1f}",

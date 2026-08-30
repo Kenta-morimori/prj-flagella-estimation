@@ -8,6 +8,7 @@ import pytest
 
 from sim_swim.analysis.axis_angle_comparison import (
     AxisAngleComparisonConfig,
+    _usable,
     analyze,
 )
 
@@ -23,7 +24,7 @@ def _write_csv(path: Path, rows: list[dict[str, object]]) -> None:
 def _reference(root: Path, *, duration_s: int) -> None:
     series: list[dict[str, object]] = []
     windows: list[dict[str, object]] = []
-    for n in (1, 4):
+    for n in (1, 2, 4):
         sample_id = f"as000__ps000__nf{n:02d}"
         strict = n == 1
         for t_s in range(duration_s + 1):
@@ -83,16 +84,28 @@ def test_axis_angle_comparison_writes_overlap_post_window_and_review(
     )
 
     agreement = list(csv.DictReader((output / "overlap_0_2s_agreement.csv").open()))
-    assert len(agreement) == 4
+    assert len(agreement) == 6
     assert {row["domain"] for row in agreement} == {"2D", "3D"}
     assert all(int(row["common_timepoint_count"]) == 3 for row in agreement)
     assert all(float(row["rmse_difference_deg"]) == 0.0 for row in agreement)
+    assert {
+        "two_s_run_strict_pass",
+        "five_s_run_strict_pass",
+        "comparison_strict_pass",
+    } <= set(agreement[0])
+    assert {row["comparison_strict_pass"] for row in agreement} == {"False", "True"}
     post = list(csv.DictReader((output / "post_2s_window_axis_angle.csv").open()))
-    assert len(post) == 12
+    assert len(post) == 18
     assert all(float(row["t_start_s"]) >= 2.0 for row in post)
     summary = json.loads((output / "summary.json").read_text())
-    assert summary["agreement_with_pairs_count"] == 4
-    assert summary["strict_nonpass_post_window_count"] == 6
+    assert summary["agreement_with_pairs_count"] == 6
+    assert summary["strict_nonpass_post_window_count"] == 12
     assert (output / "3D_axis_angle_0_5s.png").is_file()
     assert (output / "2D_axis_angle_0_2s_overlay.png").is_file()
     assert "採択判断を含まない" in (output / "review.md").read_text()
+
+
+@pytest.mark.light
+def test_axis_angle_plot_eligibility_excludes_any_strict_nonpass() -> None:
+    assert _usable({"n_flagella": "4", "run_strict_pass": "true"})
+    assert not _usable({"n_flagella": "2", "run_strict_pass": "false"})

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+import cv2
 import numpy as np
 import pytest
 
@@ -15,6 +16,7 @@ from sim_swim.analysis.multi_run_campaign import (
     load_yaml,
 )
 from sim_swim.analysis.online_run_summary import OnlineRunSummary
+from sim_swim.analysis.phase2_replay import _add_2d_axis_ticks
 from sim_swim.analysis.sweeps.generic_multi_run import (
     _condition_row,
     _summary_fieldnames,
@@ -29,6 +31,32 @@ def _load_script(path: Path, name: str):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+@pytest.mark.light
+def test_2d_axis_ticks_follow_renderer_world_y_direction(monkeypatch) -> None:
+    labels: list[tuple[str, tuple[int, int]]] = []
+    original_put_text = cv2.putText
+
+    def capture_put_text(
+        image: np.ndarray,
+        text: str,
+        origin: tuple[int, int],
+        *args: object,
+        **kwargs: object,
+    ) -> np.ndarray:
+        labels.append((text, origin))
+        return original_put_text(image, text, origin, *args, **kwargs)
+
+    monkeypatch.setattr(cv2, "putText", capture_put_text)
+    _add_2d_axis_ticks(
+        np.zeros((101, 101), dtype=np.uint8),
+        center_um=np.asarray((3.0, 4.0)),
+        half_range_um=2.0,
+    )
+
+    y_labels = [text for text, origin in labels if origin[0] == 7]
+    assert y_labels == ["2.0", "3.0", "4.0", "5.0", "6.0"]
 
 
 def _write_generic_profile(
