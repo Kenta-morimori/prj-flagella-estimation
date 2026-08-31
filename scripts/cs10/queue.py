@@ -309,13 +309,18 @@ def validate_notification_setup() -> None:
 def notify(reservation: Reservation | None, subject: str, body: str) -> None:
     """Deliver one notification without exposing its recipient in queue records."""
     validate_notification_setup()
-    result = subprocess.run(
-        [str(MAIL_BINARY), "-s", subject, notification_recipient()],
-        input=body,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            [str(MAIL_BINARY), "-s", subject, notification_recipient()],
+            input=body,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError as exc:
+        raise RuntimeError(
+            f"mail notification could not start: {exc.__class__.__name__}"
+        ) from exc
     if result.returncode != 0:
         raise RuntimeError(
             f"mail notification failed with exit code {result.returncode}"
@@ -496,6 +501,7 @@ def cancel(store: QueueStore, reservation_id: int) -> Reservation:
         result = store.get(reservation_id)
         assert result is not None
         store.event(reservation_id, "cancelled", "queued reservation cancelled")
+        _notify(store, result, "cs10 queue: job cancelled", _describe(result))
         return result
     if reservation.state == "running" and reservation.pid is not None:
         os.killpg(reservation.pid, signal.SIGTERM)

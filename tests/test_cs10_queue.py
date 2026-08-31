@@ -150,10 +150,17 @@ def test_cancel_queued_and_running_reservations(monkeypatch, tmp_path: Path) -> 
     queue = _load_queue("cs10_queue_cancel")
     store = queue.QueueStore(tmp_path)
     try:
+        notifications: list[int | None] = []
+        monkeypatch.setattr(
+            queue,
+            "_notify",
+            lambda _store, reservation, *_: notifications.append(reservation.id),
+        )
         queued = store.add(
             branch="a", commit_sha="a" * 40, config="conf/a.yaml", priority=0
         )
         assert queue.cancel(store, queued.id).state == "cancelled"
+        assert notifications == [queued.id]
         running = store.add(
             branch="b", commit_sha="b" * 40, config="conf/b.yaml", priority=0
         )
@@ -297,6 +304,14 @@ def test_notify_uses_external_recipient_and_reports_delivery_failure(
         lambda command, **kwargs: subprocess.CompletedProcess(command, 1, "", "failed"),
     )
     with pytest.raises(RuntimeError, match="exit code 1"):
+        queue.notify(None, "subject", "body")
+
+    monkeypatch.setattr(
+        queue.subprocess,
+        "run",
+        lambda *args, **kwargs: (_ for _ in ()).throw(OSError("not executable")),
+    )
+    with pytest.raises(RuntimeError, match="could not start: OSError"):
         queue.notify(None, "subject", "body")
 
 
