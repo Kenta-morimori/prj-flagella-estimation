@@ -165,8 +165,17 @@ tmux attach -t cs10-queue
 
 `cancel`はqueued reservationを即時cancelし、running reservationにはprocess group単位で
 停止要求を送る。dispatcher再起動後にrunning processを安全に照合できない場合は`blocked`として
-queueをpauseする。`/usr/bin/mail`が利用可能なcs10ではログインユーザーへjob成功、失敗、全queue
-完了を通知する。実機のtmux継続・メール配送・2件逐次probeはIssue #219のPR merge後に確認する。
+queueをpauseする。dispatcherは外部通知先を設定しない限り起動しない。cs10上で以下の非版管理設定を一度だけ作成し、所有者以外が読めないようにする。環境変数`CS10_QUEUE_NOTIFY_EMAIL`がある場合はそちらを優先する。通知先はqueueの状態、ログ、manifestへ出力しない。
+
+```bash
+mkdir -p ~/.config/prj-flagella-estimation
+chmod 700 ~/.config/prj-flagella-estimation
+printf '%s\n' 'CS10_QUEUE_NOTIFY_EMAIL=<external-email>' \
+  > ~/.config/prj-flagella-estimation/cs10-queue.env
+chmod 600 ~/.config/prj-flagella-estimation/cs10-queue.env
+```
+
+`/usr/bin/mail`が実行不能、または有効な通知先がない場合は明示的に失敗する。成功・失敗・cancel・全queue完了時に外部宛てメールを送る。配送失敗はjob状態を変更せず、queue eventへ`notification_failed`として記録する。
 
 ## Issue #225: RPY hydrodynamics campaign
 
