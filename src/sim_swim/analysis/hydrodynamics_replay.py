@@ -47,6 +47,24 @@ def _condition_record(root: Path, condition_id: str) -> dict[str, Any]:
     )
 
 
+def campaign_nflagella_phase0_condition_ids(root: Path) -> list[str]:
+    """Select n=1/2/3 at attach_seed=phase_seed=0 from a campaign manifest."""
+    manifest = json.loads((root / "run_manifest.json").read_text(encoding="utf-8"))
+    selected: dict[int, str] = {}
+    for record in manifest["conditions"]:
+        axes = record.get("axis_values", {})
+        if int(axes.get("attach_seed", 0)) != 0 or int(axes.get("phase_seed", 0)) != 0:
+            continue
+        count = int(axes.get("n_flagella", 0))
+        if count in {1, 2, 3}:
+            selected[count] = record["condition_id"]
+    if set(selected) != {1, 2, 3}:
+        raise ValueError(
+            "campaign overlay requires n_flagella=1,2,3 at attach_seed=phase_seed=0"
+        )
+    return [selected[count] for count in (1, 2, 3)]
+
+
 def _flow_grid(state_positions_um: np.ndarray, view_range_um: float) -> np.ndarray:
     center = np.mean(state_positions_um, axis=0)
     offsets = np.linspace(-0.75 * view_range_um, 0.75 * view_range_um, 3)
@@ -230,7 +248,7 @@ def main(argv: list[str] | None = None) -> None:
         print(
             render_campaign_overlay(
                 args.run_dir,
-                ["n1__phase0", "n2__phase0", "n3__phase0"],
+                campaign_nflagella_phase0_condition_ids(args.run_dir),
                 args.output_dir,
                 fps=args.fps,
             )

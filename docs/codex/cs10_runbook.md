@@ -170,7 +170,7 @@ queueをpauseする。`/usr/bin/mail`が利用可能なcs10ではログインユ
 
 ## Issue #225: RPY hydrodynamics campaign
 
-Issue #225 は `conf/phase2_parallel/issue225_hydrodynamics/job.yaml` を唯一の実行設定とする。9 condition は独立 shard とし、各 shard は compact `hydro_archive.npz`（1 ms位置・総力）を保存する。解析とrenderは完了した archive のみを読み、追加simulationを開始しない。
+Issue #225 は `conf/phase2_parallel/issue225_hydrodynamics_issue215_reference/job.yaml` を実行設定とする。Issue #215 と同じ `n_flagella=1–4 × attach_seed=0–2 × phase_seed=0–2` の36 conditionを独立 shardとし、各 shard は2秒のcompact `hydro_archive.npz`（1 ms位置・総力）を保存する。解析とrenderは完了した archive のみを読み、追加simulationを開始しない。
 
 レビュー済みの固定commitを予約する前に、既存jobと衝突しないこと、NAS mount・容量、queue/mail の短いpreflightを確認する。実行許可を受けたユーザーは次を使う。
 
@@ -181,7 +181,7 @@ df -h /net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs
 
 .venv-cs10/bin/python scripts/cs10/queue.py enqueue \
   --branch origin/codex/issue-225-hydrodynamics \
-  --config conf/phase2_parallel/issue225_hydrodynamics/job.yaml \
+  --config conf/phase2_parallel/issue225_hydrodynamics_issue215_reference/job.yaml \
   --priority 0
 
 tmux new-session -d -s cs10-queue \
@@ -189,7 +189,7 @@ tmux new-session -d -s cs10-queue \
 .venv-cs10/bin/python scripts/cs10/queue.py status
 ```
 
-成功時は aggregate campaign directory の `campaign/run_manifest.json`、9個の `hydro_archive.npz`、9個の `run_summary.json` を確認する。その後、同一commitの環境で以下を実行する。
+成功時は aggregate campaign directory の `campaign/run_manifest.json`、36個の `hydro_archive.npz`、36個の `run_summary.json` を確認する。その後、同一commitの環境で以下を実行する。
 
 ```bash
 .venv-cs10/bin/python scripts/03_dataset_building/analyze_hydrodynamics.py \

@@ -201,23 +201,38 @@ def _axial_slice(archive: HydroArchive) -> tuple[np.ndarray, np.ndarray]:
     return local_points * 1e6, mean_velocity / max(archive.t_s.size, 1) * 1e6
 
 
+def _comparison_series(
+    rows: list[dict[str, Any]],
+) -> list[tuple[str, list[dict[str, Any]]]]:
+    """Separate count comparisons by attachment and phase seed."""
+    grouped: dict[tuple[int, int], list[dict[str, Any]]] = {}
+    for row in rows:
+        key = (int(row.get("attach_seed", 0)), int(row.get("phase_seed", 0)))
+        grouped.setdefault(key, []).append(row)
+    return [
+        (
+            f"attach {attach}, phase {phase}",
+            sorted(series, key=lambda row: int(row.get("n_flagella", 0))),
+        )
+        for (attach, phase), series in sorted(grouped.items())
+    ]
+
+
 def _plot_summary(rows: list[dict[str, Any]], path: Path) -> None:
     figure, axes = plt.subplots(1, 2, figsize=(9, 3.6), constrained_layout=True)
-    for phase in sorted({int(row.get("phase_seed", 0)) for row in rows}):
-        selected = [row for row in rows if int(row.get("phase_seed", 0)) == phase]
-        selected.sort(key=lambda row: int(row.get("n_flagella", 0)))
+    for label, selected in _comparison_series(rows):
         x = [int(row["n_flagella"]) for row in selected]
         axes[0].plot(
             x,
             [row["mean_body_translation_um_s"] for row in selected],
             marker="o",
-            label=f"phase {phase}",
+            label=label,
         )
         axes[1].plot(
             x,
             [row["max_net_force_N"] for row in selected],
             marker="o",
-            label=f"phase {phase}",
+            label=label,
         )
     axes[0].set(xlabel="n_flagella", ylabel="mean body translation [um/s]")
     axes[1].set(xlabel="n_flagella", ylabel="max net force residual [N]")
@@ -227,7 +242,9 @@ def _plot_summary(rows: list[dict[str, Any]], path: Path) -> None:
     plt.close(figure)
 
 
-def _plot_slice(points_um: np.ndarray, velocity_um_s: np.ndarray, path: Path) -> None:
+def _plot_slice(
+    points_um: np.ndarray, velocity_um_s: np.ndarray, path: Path, *, duration_s: float
+) -> None:
     figure, axis = plt.subplots(figsize=(5, 4), constrained_layout=True)
     axis.quiver(
         points_um[:, 0],
@@ -240,7 +257,7 @@ def _plot_slice(points_um: np.ndarray, velocity_um_s: np.ndarray, path: Path) ->
         aspect="equal",
         xlabel="body-fixed long axis x [um]",
         ylabel="body-fixed y [um]",
-        title="full 0.5 s mean RPY velocity",
+        title=f"full {duration_s:g} s mean RPY velocity",
     )
     figure.savefig(path, dpi=160)
     plt.close(figure)
@@ -271,7 +288,11 @@ def analyze_campaign(run_dir: Path, output_dir: Path | None = None) -> Path:
         writer.writerows(summaries)
     _plot_summary(summaries, output / "flagella_count_comparison.png")
     if representative is not None:
-        _plot_slice(*_axial_slice(representative), output / "body_fixed_axial_flow.png")
+        _plot_slice(
+            *_axial_slice(representative),
+            output / "body_fixed_axial_flow.png",
+            duration_s=float(representative.t_s[-1] - representative.t_s[0]),
+        )
     (output / "analysis_manifest.json").write_text(
         json.dumps(
             {

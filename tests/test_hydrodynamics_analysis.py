@@ -14,9 +14,13 @@ from sim_swim.analysis.hydrodynamics import (
 from sim_swim.analysis.hydrodynamics_campaign import (
     _body_angular_speed,
     _body_frame,
+    _comparison_series,
     analyze_campaign,
 )
-from sim_swim.analysis.hydrodynamics_replay import overlay_manifest
+from sim_swim.analysis.hydrodynamics_replay import (
+    campaign_nflagella_phase0_condition_ids,
+    overlay_manifest,
+)
 from sim_swim.analysis.flagella_count_behavior import save_state_archive
 from sim_swim.analysis.multi_run_campaign import (
     build_campaign_conditions,
@@ -209,3 +213,40 @@ def test_campaign_overlay_contract_is_fixed_camera_three_panels() -> None:
     assert payload["follow_camera_3d"] is False
     assert payload["grid_shape"] == [3, 3, 3]
     assert payload["panel_count"] == 3
+
+
+def test_campaign_overlay_selects_issue215_style_condition_ids(tmp_path: Path) -> None:
+    conditions = [
+        {
+            "condition_id": f"as000__ps000__nf{count:02d}",
+            "axis_values": {"attach_seed": 0, "phase_seed": 0, "n_flagella": count},
+        }
+        for count in (1, 2, 3)
+    ] + [
+        {
+            "condition_id": "as001__ps000__nf01",
+            "axis_values": {"attach_seed": 1, "phase_seed": 0, "n_flagella": 1},
+        }
+    ]
+    (tmp_path / "run_manifest.json").write_text(
+        __import__("json").dumps({"conditions": conditions})
+    )
+    assert campaign_nflagella_phase0_condition_ids(tmp_path) == [
+        "as000__ps000__nf01",
+        "as000__ps000__nf02",
+        "as000__ps000__nf03",
+    ]
+
+
+def test_comparison_series_separates_attachment_seeds() -> None:
+    rows = [
+        {"attach_seed": attach, "phase_seed": 0, "n_flagella": count}
+        for attach in (0, 1)
+        for count in (1, 2)
+    ]
+    series = _comparison_series(rows)
+    assert [label for label, _ in series] == ["attach 0, phase 0", "attach 1, phase 0"]
+    assert [[row["n_flagella"] for row in values] for _, values in series] == [
+        [1, 2],
+        [1, 2],
+    ]
