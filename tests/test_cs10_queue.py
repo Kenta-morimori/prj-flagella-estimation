@@ -298,3 +298,28 @@ def test_notify_uses_external_recipient_and_reports_delivery_failure(
     )
     with pytest.raises(RuntimeError, match="exit code 1"):
         queue.notify(None, "subject", "body")
+
+
+def test_notify_records_success_and_failure_without_recipient(
+    monkeypatch, tmp_path: Path
+) -> None:
+    queue = _load_queue("cs10_queue_notify_events")
+    store = queue.QueueStore(tmp_path)
+    try:
+        monkeypatch.setattr(queue, "notify", lambda *args: None)
+        queue._notify(store, None, "subject", "body")
+        monkeypatch.setattr(
+            queue,
+            "notify",
+            lambda *args: (_ for _ in ()).throw(RuntimeError("mail failed")),
+        )
+        queue._notify(store, None, "subject", "body")
+        events = store.connection.execute(
+            "SELECT kind, detail FROM events ORDER BY id"
+        ).fetchall()
+        assert [(row["kind"], row["detail"]) for row in events] == [
+            ("notification_sent", "subject=subject"),
+            ("notification_failed", "mail failed"),
+        ]
+    finally:
+        store.close()
