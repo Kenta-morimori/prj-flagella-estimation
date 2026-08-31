@@ -318,7 +318,7 @@ def test_notify_records_success_and_failure_without_recipient(
             "SELECT kind, detail FROM events ORDER BY id"
         ).fetchall()
         assert [(row["kind"], row["detail"]) for row in events] == [
-            ("notification_sent", "subject=subject"),
+            ("notification_submitted", "mail accepted submission; subject=subject"),
             ("notification_failed", "mail failed"),
         ]
     finally:

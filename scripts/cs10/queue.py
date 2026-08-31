@@ -335,8 +335,8 @@ def _notify(
     else:
         store.event(
             reservation.id if reservation else None,
-            "notification_sent",
-            f"subject={subject}",
+            "notification_submitted",
+            f"mail accepted submission; subject={subject}",
         )
 
 

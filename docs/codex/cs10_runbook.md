@@ -175,7 +175,7 @@ printf '%s\n' 'CS10_QUEUE_NOTIFY_EMAIL=<external-email>' \
 chmod 600 ~/.config/prj-flagella-estimation/cs10-queue.env
 ```
 
-`/usr/bin/mail`が実行不能、または有効な通知先がない場合は明示的に失敗する。成功・失敗・cancel・全queue完了時に外部宛てメールを送る。配送失敗はjob状態を変更せず、queue eventへ`notification_failed`として記録する。
+`/usr/bin/mail`が実行不能、または有効な通知先がない場合は明示的に失敗する。成功・失敗・cancel・全queue完了時に外部宛てメールを送る。Postfixへの投入成功はqueue eventへ`notification_submitted`、投入失敗は`notification_failed`として記録する。外部メールサーバーへの最終配送結果はcs10のPostfix管理ログで確認する。
 
 ## Issue #225: RPY hydrodynamics campaign
 
