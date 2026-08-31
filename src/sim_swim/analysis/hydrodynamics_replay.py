@@ -261,3 +261,7 @@ def main(argv: list[str] | None = None) -> None:
         )
     else:
         parser.error("--condition-id or --campaign-nflagella-phase0 is required")
+
+
+if __name__ == "__main__":
+    main()

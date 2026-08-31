@@ -1,4 +1,6 @@
 from pathlib import Path
+import subprocess
+import sys
 
 import numpy as np
 import pytest
@@ -213,6 +215,17 @@ def test_campaign_overlay_contract_is_fixed_camera_three_panels() -> None:
     assert payload["follow_camera_3d"] is False
     assert payload["grid_shape"] == [3, 3, 3]
     assert payload["panel_count"] == 3
+
+
+def test_hydrodynamics_replay_module_exposes_its_cli() -> None:
+    result = subprocess.run(
+        [sys.executable, "-m", "sim_swim.analysis.hydrodynamics_replay", "--help"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0
+    assert "--campaign-nflagella-phase0" in result.stdout
 
 
 def test_campaign_overlay_selects_issue215_style_condition_ids(tmp_path: Path) -> None:
