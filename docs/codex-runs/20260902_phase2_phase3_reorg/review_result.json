@@ -1,0 +1,27 @@
+{
+  "task": "Phase 2–3 research-design and GitHub Issue reorganization",
+  "status": "PASS",
+  "summary": "Phase 2をcanonical physical simulation modelの構築・妥当性検証へ限定し、Phase 3を識別可能性評価とdataset freezeへ再定義した。Issue #134、#205、#136、#204、#126、#17、#8、#9、#155、#129、#157、#133、#135を更新し、robustness Issue #230を作成した。GitHub-native parent/sub-issue関係もPhase 3 Epicへ再編した。",
+  "checks": [
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "GitHub Issue title/body/label/parent verification",
+      "result": "PASS"
+    },
+    {
+      "command": "stale-reference search for superseded Phase 2/3 responsibility wording",
+      "result": "PASS"
+    }
+  ],
+  "unexecuted": [
+    "No simulation, sweep, render, training, or full pytest was run because this is a documentation and GitHub workflow change."
+  ],
+  "user_review": {
+    "required": false,
+    "reason": "No physical model, dataset content, or rendered output was changed."
+  },
+  "adr": "docs/adr/0020_phase2_phase3_responsibility_and_gates.md"
+}

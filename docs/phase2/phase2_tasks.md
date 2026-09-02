@@ -30,7 +30,7 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 | P2-D11 | diagnostic dataset v0の位置づけ | diagnostic |
 | P2-D12 | n≥4安定化とdataset v1の採択範囲 | adopted |
 | P2-D13 | dataset version・revision・provenance | adopted |
-| P2-D14 | Phase 3 handoffと2D識別性の初期判断 | adopted |
+| P2-D14 | Phase 3探索的baseline handoffと2D識別性の初期判断 | diagnostic |
 | P2-D15 | 2010 potential formulationとproject初期軸 | adopted |
 | P2-D16 | model profileと時間schema | adopted |
 | P2-D17 | 2015 refined geometryとpaper-inspired motor | adopted |
@@ -184,15 +184,15 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Decision:** dataset version・revision・model provenanceをregistry contractとして維持する．
 - **Evidence:** Task P2-8-017，Issue #118，`docs/phase2/phase2_8_dataset_version_registry.md`，`conf/phase2_multi_run/README.md`．
 
-### P2-D14: Phase 3へはdataset v1のRUN固定`n=1,2,3`を渡す
+### P2-D14: dataset v1のRUN固定`n=1,2,3`をPhase 3探索的baselineとして渡す
 
-- **Status:** adopted
+- **Status:** diagnostic
 - **Background:** Phase 3のclip生成・tracking・metadata設計を開始するには，Phase 2から渡すbaseline，対象外条件，ID責務を固定する必要があった．
 - **Change:** run，source video，track，clip，frameの単位と，各IDの責務を定義した．実動画と擬似動画を別入力経路から共通clip schemaへ収束させる方針とした．
 - **Comparison:** 3D feature差がbody-centered XY投影後にも残るか，27独立runをseed group単位で評価した．
 - **Result:** handoff baselineはdataset v1のRUN固定`n=1,2,3`とした．XY投影のgrouped nearest-centroid baselineは19/27，accuracy 0.704だった．body-centered renderではcell translationが見えないため，向き変化などを主要2D signalとして扱う必要がある．
 - **Interpretation:** 2D上にも本数差の初期signalは残るが，0.704はtraining性能の保証ではない．clip長，独立run数，画像由来特徴はPhase 3/4で評価する．
-- **Decision:** Phase 3 MVPへdataset v1の`n=1,2,3`を渡す．real videoはdetection/tracking経路，pseudo videoはGT passthrough経路とし，2D separability結果はfeasibility evidenceであってML acceptance gateにはしない．
+- **Decision:** dataset v1の`n=1,2,3`をPhase 3 MVPの探索的baselineとして保持する．real videoはdetection/tracking経路，pseudo videoはGT passthrough経路とする．この条件の2D separability結果はfeasibility evidenceであり，canonical Phase 3 Gateまたは将来のdataset freezeの根拠には使わない．canonical model freeze後にPhase 3で再評価する．
 - **Evidence:** Tasks P2-8-021，P2-8-022，Issues #125，#126，`docs/phase2/phase2_8_phase2_to_phase3_handoff.md`．
 
 ---
