@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "reviewed_at": "2026-09-03T18:10:00+09:00",
+  "scope": "Issue #158/#61/#232 metadata and Phase 2 decision-record updates",
+  "evidence": {
+    "issue_158": "v1 r2 5 s campaign: n_flagella=3, attach_seed x phase_seed = 3 x 3, 9/9 PASS through 125001 steps",
+    "issue_61": "fixed 2015-project 10tau, dt_star=1e-5, three physical-torque execution contract",
+    "issue_232": "frozen 18-execution qualification matrix and User-run cs10 reservation contract"
+  },
+  "checks": [
+    {
+      "name": "git diff --check",
+      "status": "PASS"
+    },
+    {
+      "name": "stale current-blocker reference search",
+      "status": "PASS",
+      "detail": "No obsolete Issue #158 blocker wording remains in Phase 2 current/tasks documents."
+    },
+    {
+      "name": "GitHub issue metadata and relationship verification",
+      "status": "PASS",
+      "detail": "#61 parent=#134 and blocks #184/#205; #232 parent=#210 and blocks #210; both use execution:cs10 and their required roadmap milestones."
+    }
+  ],
+  "not_run": [
+    "No simulation, sweep, render, training, cs10 reservation, tmux, or queue operation was run; this change defines their future contracts only."
+  ],
+  "adr": "No ADR updated: no physical model, dataset, output contract, or ML policy was adopted by this documentation and Issue-structure change."
+}

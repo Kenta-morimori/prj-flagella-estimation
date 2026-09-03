@@ -38,7 +38,7 @@ runbookは`phase2_215_5s_axis_convergence_runbook.md`を正本とする。
 ## Current blockers
 
 - 2015 supported昇格とStage B: Issue #61、#183、#184の定量評価・採択判断待ち
-- dataset v2: Issue #158のfailure診断、Issue #184の安定性検証、Issue #157のquality gate確定待ち
+- dataset v2: Issue #184の安定性検証、Issue #157のquality gate確定待ち（Issue #158のv1 r1 failure診断はv1 r2の5 s stability campaignにより置換済み）
 - RUN–TUMBLE: dataset v2 RUN core完了後にIssue #69で扱う
 - `n_flagella>=4`: 現行training scope外．必要時はIssue #124で安定化する
 - flagella-body貫通: 必要時はIssue #93で検証する
@@ -60,7 +60,7 @@ runbookは`phase2_215_5s_axis_convergence_runbook.md`を正本とする。
 - Decisions: `docs/phase2/phase2_tasks.md`
 - Documentation policy: `docs/codex/phase_document_policy.md`
 - 2015 Stage A: `docs/phase2/phase2_168_2015_stage_a_validation.md`
-- n=3 diagnostics: `docs/phase2/phase2_158_v1_r1_nf3_proximal_diagnostics.md`
+- historical n=3 diagnostics: `docs/phase2/phase2_158_v1_r1_nf3_proximal_diagnostics.md`（v1 r2 5 s campaignにより置換）
 - Phase 3 handoff: `docs/phase2/phase2_8_phase2_to_phase3_handoff.md`
 - Dataset registry: `docs/phase2/phase2_8_dataset_version_registry.md`
 - Run summary contract: `docs/phase2/phase2_run_summary_contract.md`

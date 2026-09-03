@@ -36,7 +36,7 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 | P2-D17 | 2015 refined geometryとpaper-inspired motor | adopted |
 | P2-D18 | 2015 refined model Stage A採否 | pending |
 | P2-D21 | reference torque比較のfixed/tracking・時間基準 | adopted |
-| P2-D19 | dataset v2前のn=3長時間failure診断 | pending |
+| P2-D24 | v1 r1 n=3 failure診断はv1 r2 5 s stabilityで置換 | replaced |
 | P2-D20 | RUN–TUMBLEの段階実装 | pending |
 
 ---
@@ -273,15 +273,15 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Decision:** 既存短時間 workflow は `output.policy: debug` の全step state/CSV 互換を維持する。長時間候補は `compact` を明示し、全内部step QC をオンライン集約しながら state archive を物理時間一様に保存する。標準 cadence は 1 ms とする。compact archive は replay/通常解析用であり、未定義の全step将来指標の完全再構成を保証しない。
 - **Evidence:** Issue #186，`conf/phase2_multi_run/2015_project_compact_0p5s.yaml`，`docs/phase2/phase2_run_summary_contract.md`．
 
-### P2-D19: dataset v2前にn=3長時間非定常回転とproximal failureを診断する
+### P2-D24: v1 r1 n=3 failure診断はv1 r2 5 s stabilityで置換する
 
-- **Status:** pending
-- **Background:** dataset v1 r1の3.0 s RUN固定`n_flagella=3`で，非定常回転とproximal flag bond failureが確認された．原因未確定のままdataset v2を生成すると，同じfailureを長時間datasetへ持ち込む可能性がある．
-- **Change:** 既存raw outputから，first-fail前後のangular velocity，speed，axis alignment，proximal bond，contact／penetration proxyを同期解析する計画とした．
-- **Current result:** 診断基盤・原因仮説・解決策候補の整理が進行中であり，物理モデル変更は未採択である．
-- **Interpretation:** dataset v2 model変更は，failure位置・seed依存・contact proxyとの時間関係を確認してから判断すべきである．
-- **Decision:** Issue #158完了までは原因を断定しない．dataset v2 coreはRUN固定`n=1,2,3`を対象とし，training candidateには全時間strict passを要求する．source durationは5 sを候補とし，attach seed×phase seedを独立runとして扱う．
-- **Evidence:** Task P2-8-023，Issues #157，#158，`docs/phase2/phase2_158_v1_r1_nf3_proximal_diagnostics.md`．
+- **Status:** replaced
+- **Background:** dataset v1 r1の3.0 s RUN固定`n_flagella=3`では，非定常回転とproximal flag bond failureが観測され，原因を切り分けるためIssue #158を作成した。
+- **Change:** v1 r2の2010 project・tau-linked 5 s campaignで，`n_flagella=3`の`attach_seed=0,1,2` × `phase_seed=0,1,2`を独立runとして再評価した。
+- **Result:** 9条件すべてが5.000040 s（125,001 steps）までPASSした。replayとmanifestは`outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_5s_nf1_4_as3_ps3_2026-08-28/`に保存されている。
+- **Interpretation:** v1 r1のfailureは現行のv1 r2 campaignに対する物理failure gateではない。非定常回転とattach seed差は、物理破綻ではなく、freeze後にPhase 3のIssue #126で評価するwithin-class variationとして扱う。
+- **Decision:** Issue #158は「superseded by the v1 r2 5 s stability campaign」として完了する。dataset v2およびIssue #205のblockerから外す。旧診断文書は履歴・探索的根拠として保持し、physical model変更の根拠には用いない。
+- **Evidence:** Task P2-8-023，Issues #157・#158・#215，`docs/phase2/phase2_158_v1_r1_nf3_proximal_diagnostics.md`，`outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_5s_nf1_4_as3_ps3_2026-08-28/manifest.json`，`analysis/replay_mean_axis_3d/nf03/grid_swim3d_final.png`．
 
 ### P2-D20: RUN–TUMBLEはRUN dataset core完了後に段階実装する
 
