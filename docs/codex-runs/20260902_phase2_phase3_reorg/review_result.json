@@ -1,7 +1,7 @@
 {
   "task": "Phase 2–3 research-design and GitHub Issue reorganization",
   "status": "PASS",
-  "summary": "Phase 2をcanonical physical simulation modelの構築・妥当性検証へ限定し、Phase 3を識別可能性評価とdataset freezeへ再定義した。Issue #134、#205、#136、#204、#126、#17、#8、#9、#155、#129、#157、#133、#135を更新し、robustness Issue #230を作成した。GitHub-native parent/sub-issue関係もPhase 3 Epicへ再編した。",
+  "summary": "Phase 2をcanonical physical simulation modelの構築・妥当性検証へ限定し、Phase 3を識別可能性評価とdataset freezeへ再定義した。Issue #158のv1 r1 failure診断をv1 r2 5 s stability campaignにより置換済みとして、Phase 2/4のblocker・decision recordを同期した。Issue #134、#205、#136、#204、#126、#17、#8、#9、#155、#129、#157、#133、#135を更新し、robustness Issue #230を作成した。GitHub-native parent/sub-issue関係もPhase 3 Epicへ再編した。",
   "checks": [
     {
       "command": "git diff --check",
@@ -13,6 +13,10 @@
     },
     {
       "command": "stale-reference search for superseded Phase 2/3 responsibility wording",
+      "result": "PASS"
+    },
+    {
+      "command": "stale #158 blocker reference search across Phase 2/4 current and task documents",
       "result": "PASS"
     }
   ],

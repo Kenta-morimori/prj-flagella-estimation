@@ -44,7 +44,7 @@ runbookは`phase2_215_5s_axis_convergence_runbook.md`を正本とする。
 ## Current blockers
 
 - 2015 supported昇格とStage B: Issue #61、#183、#184の定量評価・採択判断待ち
-- canonical model freeze: #200，#61，#184，#158，#93の必要な物理QC・採択判断待ち
+- canonical model freeze: #200，#61，#184，#93の必要な物理QC・採択判断待ち（#158のv1 r1 failure診断はv1 r2の5 s stability campaignにより置換済み）
 - dataset v2: Phase 3のcontrolled study，観測可能性，robustness，dataset freeze gate待ち
 - RUN–TUMBLE: dataset v2 RUN core完了後にIssue #69で扱う
 - `n_flagella>=4`: 現行training scope外．必要時はIssue #124で安定化する

@@ -25,14 +25,13 @@ Phase 4の目的は，Phase 3 common clip datasetを読み込み，べん毛数`
 ## Next Queue
 
 1. #155: `warmup_s=0 / 0.5 / 1.0`を比較し，early clipの用途を決める．
-2. #158: `n_flagella=3`の非定常回転とproximal failureを診断する．
-3. #157: 修正済み物理modelによるdataset v2 RUN固定coreを生成・freezeする．
-4. #145: v2 core通過後にRUN-TUMBLE scopeを追加する．
+2. #157: canonical sourceのpilotを生成し，Phase 3 Gate後のdataset v2 freezeへ接続する．
+3. #145: v2 core通過後にRUN-TUMBLE scopeを追加する．
 
 ## Blockers
 
 * 必要run数の一般化には，追加のprotected evaluation groupsが必要である．
-* dataset v2のfreezeには，`n_flagella=3`の長時間failureの説明と解消が必要である．
+* dataset v2 final freezeには，Phase 3のcontrolled study・観測可能性・robustness Gateが必要である．#158のv1 r1 failure診断はv1 r2の5 s stability campaignにより置換済みである．
 * RUN-TUMBLE datasetは，#69とdataset v2 RUN固定coreの完了に依存する．
 * 実動画への一般化評価は，Phase 3の実動画detection / tracking経路に依存する．
 
