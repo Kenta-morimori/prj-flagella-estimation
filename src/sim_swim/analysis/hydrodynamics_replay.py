@@ -127,6 +127,13 @@ def _visible(v: np.ndarray) -> np.ndarray:
     return v / ref * 0.55
 
 
+def _visible_with_common_reference(vectors: list[np.ndarray]) -> list[np.ndarray]:
+    """Scale all source contributions with one frame-wide velocity reference."""
+    norms = np.concatenate([np.linalg.norm(vector, axis=1) for vector in vectors])
+    reference = max(float(np.quantile(norms, 0.95)), 1e-30)
+    return [vector / reference * 0.55 for vector in vectors]
+
+
 def _source(
     ax: Any,
     state: Any,
@@ -155,24 +162,23 @@ def _source(
     masks = [body] + [
         hydro.bead_flagella_id == i for i in sorted(set(hydro.bead_flagella_id[~body]))
     ]
-    for color, mask in zip(
+    vectors = [
+        velocity_contributions(
+            p,
+            f,
+            bead_radius_m=hydro.bead_radius_m,
+            viscosity_Pa_s=hydro.viscosity_Pa_s,
+            source_mask=mask,
+        )["source"][body]
+        * 1e6
+        for mask in masks
+    ]
+    for color, vector in zip(
         ("tab:red", "tab:blue", "tab:green", "tab:purple", "tab:brown"),
-        masks,
+        _visible_with_common_reference(vectors),
         strict=False,
     ):
-        v = (
-            velocity_contributions(
-                p,
-                f,
-                bead_radius_m=hydro.bead_radius_m,
-                viscosity_Pa_s=hydro.viscosity_Pa_s,
-                source_mask=mask,
-            )["source"][body]
-            * 1e6
-        )
-        ax.quiver(
-            *(p[body].T * 1e6), *_visible(v).T, color=color, linewidth=0.7, alpha=0.8
-        )
+        ax.quiver(*(p[body].T * 1e6), *vector.T, color=color, linewidth=0.7, alpha=0.8)
     ax.text2D(
         0.02,
         0.02,

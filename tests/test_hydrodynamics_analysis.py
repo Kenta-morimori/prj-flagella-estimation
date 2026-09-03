@@ -19,6 +19,7 @@ from sim_swim.analysis.hydrodynamics_campaign import (
     analyze_campaign,
     body_fixed_flow_slice,
 )
+from sim_swim.analysis.hydrodynamics_replay import _visible_with_common_reference
 from sim_swim.analysis.flagella_count_behavior import save_state_archive
 from sim_swim.analysis.multi_run_campaign import (
     build_campaign_conditions,
@@ -102,6 +103,15 @@ def test_individual_source_contributions_sum_to_total_velocity() -> None:
         start=np.zeros_like(total),
     )
     np.testing.assert_allclose(total, split)
+
+
+def test_source_contributions_share_one_visual_velocity_reference() -> None:
+    small = np.asarray([[1.0, 0.0, 0.0]])
+    large = np.asarray([[10.0, 0.0, 0.0]])
+    displayed_small, displayed_large = _visible_with_common_reference([small, large])
+    np.testing.assert_allclose(
+        np.linalg.norm(displayed_large), np.linalg.norm(displayed_small) * 10.0
+    )
 
 
 def test_hydro_archive_round_trip(tmp_path: Path) -> None:
