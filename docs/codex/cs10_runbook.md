@@ -205,10 +205,14 @@ tmux new-session -d -s cs10-queue \
   --run-dir <parallel-output>/campaign
 .venv-cs10/bin/python scripts/03_dataset_building/replay_dataset.py \
   --run-dir <parallel-output>/campaign --flow-overlay \
-  --campaign-nflagella-phase0 --output-dir <parallel-output>/campaign/analysis/hydrodynamics
+  --all-qc-passed --output-dir <parallel-output>/campaign/analysis/hydrodynamics/videos
 ```
 
-受入成果物は `hydrodynamics_comparison.csv`、`flagella_count_comparison.png`、`body_fixed_axial_flow.png`、`nflagella_phase0_flow_overlay.mp4` である。overlay manifest が `follow_camera_3d=false`、`fps=25`、`grid_shape=[3,3,3]` を記録していることも確認する。
+受入成果物は、QC通過条件ごとの `flow_force_t*.png`（41×41 body-fixed flow slice と
+`F_total` / `-F_total` の釣合い）および `*_flow_force_overlay.mp4` である。
+`analysis_manifest.json` は対象条件、除外条件とQC理由、格子密度、単位、
+`F_hydro = -F_total` を記録する。動画sidecarは `follow_camera_3d=false`、`fps=25`、
+`flow_grid_shape=[7,7,7]`、矢印スケールを記録していることも確認する。
 
 ## Scope and requalification
 

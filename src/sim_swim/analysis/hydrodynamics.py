@@ -9,7 +9,7 @@ from typing import Any
 
 import numpy as np
 
-from sim_swim.dynamics.hydro_rpy import compute_rpy_mobility, compute_rpy_pair_mobility
+from sim_swim.dynamics.hydro_rpy import compute_rpy_mobility
 
 HYDRO_ARCHIVE_FORMAT = "sim_swim.hydro_archive"
 HYDRO_ARCHIVE_VERSION = 1
@@ -36,6 +36,11 @@ class HydroArchive:
     bead_radius_m: float
     viscosity_Pa_s: float
     provenance: dict[str, Any]
+
+
+def stokes_fluid_resistance(total_forces_N: np.ndarray) -> np.ndarray:
+    """Return the solvent force balancing applied bead forces in this overdamped model."""
+    return -np.asarray(total_forces_N, dtype=float)
 
 
 def save_hydro_archive(
@@ -153,13 +158,33 @@ def rpy_flow_velocity(
         raise ValueError("positions_m and total_forces_N must have shape (N, 3)")
     if source_mask is not None:
         forces = forces * np.asarray(source_mask, dtype=bool)[:, None]
-    velocity = np.zeros_like(points)
-    for source_position, source_force in zip(positions, forces, strict=True):
-        for point_index, point in enumerate(points):
-            velocity[point_index] += (
-                compute_rpy_pair_mobility(
-                    point - source_position, bead_radius_m, viscosity_Pa_s
-                )
-                @ source_force
-            )
-    return velocity
+    # This is algebraically the same RPY kernel as ``compute_rpy_pair_mobility``.
+    # Keeping the reconstruction vectorized is important for dense visualization
+    # grids: the grid changes display resolution, not the physical model.
+    displacement = points[:, None, :] - positions[None, :, :]
+    distance = np.linalg.norm(displacement, axis=2)
+    a = max(float(bead_radius_m), 1e-12)
+    eta = max(float(viscosity_Pa_s), 1e-12)
+    safe_distance = np.maximum(distance, 1e-15)
+    direction = displacement / safe_distance[:, :, None]
+    projected_force = np.sum(direction * forces[None, :, :], axis=2)
+
+    far = distance >= 2.0 * a
+    far_prefactor = 1.0 / (8.0 * np.pi * eta * safe_distance)
+    far_velocity = far_prefactor[:, :, None] * (
+        (1.0 + (2.0 * a * a) / (3.0 * safe_distance * safe_distance))[:, :, None]
+        * forces[None, :, :]
+        + (1.0 - (2.0 * a * a) / (safe_distance * safe_distance))[:, :, None]
+        * direction
+        * projected_force[:, :, None]
+    )
+
+    near_prefactor = 1.0 / (6.0 * np.pi * eta * a)
+    near_velocity = near_prefactor * (
+        (1.0 - (9.0 * distance) / (32.0 * a))[:, :, None] * forces[None, :, :]
+        + (3.0 * distance / (32.0 * a))[:, :, None]
+        * direction
+        * projected_force[:, :, None]
+    )
+    pair_velocity = np.where(far[:, :, None], far_velocity, near_velocity)
+    return np.sum(pair_velocity, axis=1)

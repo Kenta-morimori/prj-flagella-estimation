@@ -1,9 +1,8 @@
-"""Campaign-level quantitative analysis for compact free-space RPY archives."""
+"""Select and document force/flow visualizations from compact RPY archives."""
 
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 from pathlib import Path
 from typing import Any
@@ -11,21 +10,20 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from sim_swim.analysis.flagella_count_behavior import load_state_archive
 from sim_swim.analysis.hydrodynamics import (
     HydroArchive,
     load_hydro_archive,
     rpy_flow_velocity,
-    velocity_contributions,
+    stokes_fluid_resistance,
 )
+
+FLOW_SLICE_GRID_SIZE = 41
+FLOW_VOLUME_GRID_SIZE = 7
+SNAPSHOT_TIMES_S = (0.0, 1.0, 2.0)
 
 
 def _json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
-
-
-def _norm(values: np.ndarray) -> np.ndarray:
-    return np.linalg.norm(values, axis=-1)
 
 
 def _body_frame(positions_m: np.ndarray, bead_is_body: np.ndarray) -> np.ndarray:
@@ -49,258 +47,220 @@ def _body_frame(positions_m: np.ndarray, bead_is_body: np.ndarray) -> np.ndarray
     return np.column_stack((long_axis, radial, transverse))
 
 
-def _rotation_vector(rotation: np.ndarray) -> np.ndarray:
-    """Convert a proper rotation matrix to its axis-angle vector."""
-    cosine = float(np.clip((np.trace(rotation) - 1.0) / 2.0, -1.0, 1.0))
-    angle = float(np.arccos(cosine))
-    if angle < 1.0e-12:
-        return np.zeros(3, dtype=float)
-    axis = np.asarray(
-        [
-            rotation[2, 1] - rotation[1, 2],
-            rotation[0, 2] - rotation[2, 0],
-            rotation[1, 0] - rotation[0, 1],
-        ],
-        dtype=float,
-    )
-    axis /= 2.0 * np.sin(angle)
-    return axis * angle
-
-
-def _body_angular_speed(frames: list[np.ndarray], t_s: np.ndarray, index: int) -> float:
-    if len(frames) < 2:
-        return 0.0
-    previous = max(index - 1, 0)
-    following = min(index + 1, len(frames) - 1)
-    if previous == following:
-        return 0.0
-    delta_t = float(t_s[following] - t_s[previous])
-    if delta_t <= 0.0:
-        return 0.0
-    world_rotation = frames[following] @ frames[previous].T
-    return float(np.linalg.norm(_rotation_vector(world_rotation)) / delta_t)
-
-
-def _qc_fields(run_summary: dict[str, Any]) -> dict[str, Any]:
+def qc_result(condition_dir: Path) -> tuple[bool, dict[str, Any]]:
+    """Return eligibility and the QC fields retained in the output manifest."""
+    run_summary = _json(condition_dir / "run_summary.json")
     gates = dict(run_summary.get("gates", {}) or {})
     nonbody = dict(gates.get("shape_nonbody", {}) or {})
     body = dict(gates.get("shape_body", {}) or {})
-    return {
-        "qc_execution_status": dict(run_summary.get("execution", {}) or {}).get(
-            "status"
-        ),
-        "qc_nonbody_final_pass": nonbody.get("final_pass"),
-        "qc_body_any_fail": body.get("any_fail"),
-        "qc_nonbody_first_fail_t_s": nonbody.get("first_observed_fail_t_s"),
-        "qc_body_first_fail_t_s": body.get("first_observed_fail_t_s"),
+    fields = {
+        "execution_status": dict(run_summary.get("execution", {}) or {}).get("status"),
+        "nonbody_final_pass": nonbody.get("final_pass"),
+        "body_any_fail": body.get("any_fail"),
+        "nonbody_first_fail_t_s": nonbody.get("first_observed_fail_t_s"),
+        "body_first_fail_t_s": body.get("first_observed_fail_t_s"),
     }
+    return (
+        fields["execution_status"] == "completed"
+        and fields["nonbody_final_pass"] is True
+        and fields["body_any_fail"] is False,
+        fields,
+    )
 
 
-def _source_body_velocity(archive: HydroArchive, sample_index: int) -> dict[str, float]:
-    pos = archive.positions_m[sample_index]
-    forces = archive.total_forces_N[sample_index]
-    body = archive.bead_is_body
-    total = velocity_contributions(
-        pos,
-        forces,
+def select_qc_passed_conditions(
+    run_dir: Path,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Split a campaign manifest into visualization targets and documented skips."""
+    manifest = _json(run_dir / "run_manifest.json")
+    selected: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
+    for condition in manifest["conditions"]:
+        condition_dir = Path(condition["output_dir"])
+        passed, qc = qc_result(condition_dir)
+        record = {
+            "condition_id": condition["condition_id"],
+            "axis_values": dict(condition.get("axis_values", {})),
+            "input_dir": str(condition_dir),
+            "qc": qc,
+        }
+        if passed:
+            selected.append(record)
+        else:
+            record["exclusion_reason"] = "strict_shape_qc_not_passed"
+            skipped.append(record)
+    return selected, skipped
+
+
+def nearest_sample_indices(archive: HydroArchive) -> list[int]:
+    """Select requested 0/1/2 s snapshots, clamping the final time safely."""
+    indices: list[int] = []
+    for requested_t in SNAPSHOT_TIMES_S:
+        target = min(requested_t, float(archive.t_s[-1]))
+        index = int(np.argmin(np.abs(archive.t_s - target)))
+        if index not in indices:
+            indices.append(index)
+    return indices
+
+
+def body_fixed_flow_slice(
+    archive: HydroArchive, sample_index: int, *, grid_size: int = FLOW_SLICE_GRID_SIZE
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Return a dense instantaneous long-axis flow slice in body coordinates."""
+    if grid_size < 2:
+        raise ValueError("grid_size must be at least 2")
+    extent_m = 5e-6
+    grid_1d = np.linspace(-extent_m, extent_m, grid_size)
+    x, y = np.meshgrid(grid_1d, grid_1d)
+    local_points = np.column_stack((x.ravel(), y.ravel(), np.zeros(x.size)))
+    positions = archive.positions_m[sample_index]
+    rotation = _body_frame(positions, archive.bead_is_body)
+    center = np.mean(positions[archive.bead_is_body], axis=0)
+    world_points = center + local_points @ rotation.T
+    world_velocity = rpy_flow_velocity(
+        world_points,
+        positions,
+        archive.total_forces_N[sample_index],
         bead_radius_m=archive.bead_radius_m,
         viscosity_Pa_s=archive.viscosity_Pa_s,
     )
-    result = {
-        "body_bead_velocity_total_um_s": float(
-            np.mean(_norm(total["source"][body])) * 1e6
-        ),
-        "body_bead_velocity_self_um_s": float(
-            np.mean(_norm(total["self"][body])) * 1e6
-        ),
-        "body_bead_velocity_other_um_s": float(
-            np.mean(_norm(total["other"][body])) * 1e6
-        ),
-    }
-    for source_name, mask in [("body", body), ("flagella", ~body)]:
-        source = velocity_contributions(
-            pos,
-            forces,
-            bead_radius_m=archive.bead_radius_m,
-            viscosity_Pa_s=archive.viscosity_Pa_s,
-            source_mask=mask,
-        )
-        result[f"body_bead_velocity_from_{source_name}_um_s"] = float(
-            np.mean(_norm(source["source"][body])) * 1e6
-        )
-    return result
+    return local_points * 1e6, world_velocity @ rotation * 1e6, rotation
 
 
-def analyze_condition(
-    condition_dir: Path, condition: dict[str, Any]
-) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Write an archive-aligned timeseries and return one comparison summary row."""
-    archive = load_hydro_archive(condition_dir / "hydro_archive.npz")
-    states = load_state_archive(condition_dir / "state_archive.npz")
-    state_t = np.asarray([state.t for state in states], dtype=float)
-    frames = [_body_frame(pos, archive.bead_is_body) for pos in archive.positions_m]
-    rows: list[dict[str, Any]] = []
-    for index, sample_t in enumerate(archive.t_s):
-        state = states[int(np.argmin(np.abs(state_t - sample_t)))]
-        force = archive.total_forces_N[index]
-        center = np.mean(archive.positions_m[index][archive.bead_is_body], axis=0)
-        torque = np.sum(np.cross(archive.positions_m[index] - center, force), axis=0)
-        row: dict[str, Any] = {
-            "condition_id": condition["condition_id"],
-            "t_s": float(sample_t),
-            "body_translation_um_s": float(np.linalg.norm(state.velocity_um_s)),
-            "body_rotation_rad_s": _body_angular_speed(frames, archive.t_s, index),
-            "net_force_N": float(np.linalg.norm(np.sum(force, axis=0))),
-            "net_torque_Nm": float(np.linalg.norm(torque)),
-        }
-        row.update(_source_body_velocity(archive, index))
-        rows.append(row)
-    fields = list(rows[0])
-    path = condition_dir / "hydrodynamics_timeseries.csv"
-    with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fields)
-        writer.writeheader()
-        writer.writerows(rows)
-    summary: dict[str, Any] = {
-        "condition_id": condition["condition_id"],
-        **condition.get("axis_values", {}),
-    }
-    for name in fields:
-        if name in {"condition_id", "t_s"}:
-            continue
-        values = np.asarray([float(row[name]) for row in rows], dtype=float)
-        summary[f"mean_{name}"] = float(np.mean(values))
-        summary[f"max_{name}"] = float(np.max(values))
-    summary.update(_qc_fields(_json(condition_dir / "run_summary.json")))
-    summary["hydro_archive_format"] = archive.provenance.get("hydrodynamics", {}).get(
-        "model", "free_space_rpy"
-    )
-    summary["hydro_sample_count"] = int(archive.t_s.size)
-    return rows, summary
+def _body_fixed_beads(
+    archive: HydroArchive, sample_index: int, rotation: np.ndarray
+) -> np.ndarray:
+    positions = archive.positions_m[sample_index]
+    center = np.mean(positions[archive.bead_is_body], axis=0)
+    return (positions - center) @ rotation * 1e6
 
 
-def _axial_slice(archive: HydroArchive) -> tuple[np.ndarray, np.ndarray]:
-    """Average full-run RPY velocity over a body-fixed x-y (long-axis) section."""
-    extent_m = 5e-6
-    grid_1d = np.linspace(-extent_m, extent_m, 21)
-    x, y = np.meshgrid(grid_1d, grid_1d)
-    local_points = np.column_stack((x.ravel(), y.ravel(), np.zeros(x.size)))
-    mean_velocity = np.zeros_like(local_points)
-    for index, sample_t in enumerate(archive.t_s):
-        rotation = _body_frame(archive.positions_m[index], archive.bead_is_body)
-        center = np.mean(archive.positions_m[index][archive.bead_is_body], axis=0)
-        world_points = center + local_points @ rotation.T
-        world_velocity = rpy_flow_velocity(
-            world_points,
-            archive.positions_m[index],
-            archive.total_forces_N[index],
-            bead_radius_m=archive.bead_radius_m,
-            viscosity_Pa_s=archive.viscosity_Pa_s,
-        )
-        mean_velocity += world_velocity @ rotation
-    return local_points * 1e6, mean_velocity / max(archive.t_s.size, 1) * 1e6
-
-
-def _comparison_series(
-    rows: list[dict[str, Any]],
-) -> list[tuple[str, list[dict[str, Any]]]]:
-    """Separate count comparisons by attachment and phase seed."""
-    grouped: dict[tuple[int, int], list[dict[str, Any]]] = {}
-    for row in rows:
-        key = (int(row.get("attach_seed", 0)), int(row.get("phase_seed", 0)))
-        grouped.setdefault(key, []).append(row)
-    return [
-        (
-            f"attach {attach}, phase {phase}",
-            sorted(series, key=lambda row: int(row.get("n_flagella", 0))),
-        )
-        for (attach, phase), series in sorted(grouped.items())
-    ]
-
-
-def _plot_summary(rows: list[dict[str, Any]], path: Path) -> None:
-    figure, axes = plt.subplots(1, 2, figsize=(9, 3.6), constrained_layout=True)
-    for label, selected in _comparison_series(rows):
-        x = [int(row["n_flagella"]) for row in selected]
-        axes[0].plot(
-            x,
-            [row["mean_body_translation_um_s"] for row in selected],
-            marker="o",
-            label=label,
-        )
-        axes[1].plot(
-            x,
-            [row["max_net_force_N"] for row in selected],
-            marker="o",
-            label=label,
-        )
-    axes[0].set(xlabel="n_flagella", ylabel="mean body translation [um/s]")
-    axes[1].set(xlabel="n_flagella", ylabel="max net force residual [N]")
-    axes[0].legend()
-    axes[1].legend()
-    figure.savefig(path, dpi=160)
-    plt.close(figure)
-
-
-def _plot_slice(
-    points_um: np.ndarray, velocity_um_s: np.ndarray, path: Path, *, duration_s: float
+def plot_force_flow_snapshot(
+    archive: HydroArchive, sample_index: int, path: Path, *, condition_id: str
 ) -> None:
-    figure, axis = plt.subplots(figsize=(5, 4), constrained_layout=True)
-    axis.quiver(
+    """Plot dense flow plus the Stokes force balance at one archived instant."""
+    points_um, velocity_um_s, rotation = body_fixed_flow_slice(archive, sample_index)
+    beads_um = _body_fixed_beads(archive, sample_index, rotation)
+    mechanical_force = archive.total_forces_N[sample_index] @ rotation
+    fluid_resistance = stokes_fluid_resistance(mechanical_force)
+    figure, axes = plt.subplots(1, 2, figsize=(11, 4.5), constrained_layout=True)
+    flow, force = axes
+    flow.quiver(
         points_um[:, 0],
         points_um[:, 1],
         velocity_um_s[:, 0],
         velocity_um_s[:, 1],
+        color="tab:blue",
+        alpha=0.68,
         scale=None,
+        width=0.002,
     )
-    axis.set(
-        aspect="equal",
-        xlabel="body-fixed long axis x [um]",
+    flow.scatter(
+        beads_um[archive.bead_is_body, 0],
+        beads_um[archive.bead_is_body, 1],
+        color="black",
+        s=10,
+        label="body beads",
+    )
+    flow.scatter(
+        beads_um[~archive.bead_is_body, 0],
+        beads_um[~archive.bead_is_body, 1],
+        color="tab:green",
+        s=8,
+        label="flagellar beads",
+    )
+    flow.set(
+        title="instantaneous reconstructed RPY flow",
+        xlabel="body-fixed x [um]",
         ylabel="body-fixed y [um]",
-        title=f"full {duration_s:g} s mean RPY velocity",
+        aspect="equal",
     )
-    figure.savefig(path, dpi=160)
+    flow.legend(fontsize=7, loc="upper right")
+    force.scatter(
+        beads_um[archive.bead_is_body, 0],
+        beads_um[archive.bead_is_body, 1],
+        color="black",
+        s=10,
+    )
+    force.scatter(
+        beads_um[~archive.bead_is_body, 0],
+        beads_um[~archive.bead_is_body, 1],
+        color="tab:green",
+        s=8,
+    )
+    force.quiver(
+        beads_um[:, 0],
+        beads_um[:, 1],
+        mechanical_force[:, 0],
+        mechanical_force[:, 1],
+        color="tab:orange",
+        scale=None,
+        width=0.004,
+        label="mechanical F_total",
+    )
+    force.quiver(
+        beads_um[:, 0],
+        beads_um[:, 1],
+        fluid_resistance[:, 0],
+        fluid_resistance[:, 1],
+        color="tab:purple",
+        scale=None,
+        width=0.003,
+        alpha=0.8,
+        label="fluid resistance -F_total",
+    )
+    force.set(
+        title="Stokes force balance",
+        xlabel="body-fixed x [um]",
+        ylabel="body-fixed y [um]",
+        aspect="equal",
+    )
+    force.legend(fontsize=7, loc="upper right")
+    figure.suptitle(f"{condition_id}; t={archive.t_s[sample_index]:.6f} s")
+    figure.savefig(path, dpi=180)
     plt.close(figure)
 
 
+def _condition_static_outputs(record: dict[str, Any], output: Path) -> list[str]:
+    archive = load_hydro_archive(Path(record["input_dir"]) / "hydro_archive.npz")
+    condition_output = output / "conditions" / record["condition_id"]
+    condition_output.mkdir(parents=True, exist_ok=True)
+    outputs: list[str] = []
+    for sample_index in nearest_sample_indices(archive):
+        path = condition_output / f"flow_force_t{archive.t_s[sample_index]:06.3f}s.png"
+        plot_force_flow_snapshot(
+            archive, sample_index, path, condition_id=record["condition_id"]
+        )
+        outputs.append(str(path))
+    return outputs
+
+
 def analyze_campaign(run_dir: Path, output_dir: Path | None = None) -> Path:
-    """Generate all quantitative #225 artifacts without resimulating."""
-    manifest = _json(run_dir / "run_manifest.json")
+    """Generate QC-filtered dense flow/force snapshots without re-simulation."""
     output = output_dir or run_dir / "analysis" / "hydrodynamics"
     output.mkdir(parents=True, exist_ok=True)
-    summaries: list[dict[str, Any]] = []
-    representative: HydroArchive | None = None
-    for condition in manifest["conditions"]:
-        condition_dir = Path(condition["output_dir"])
-        _, summary = analyze_condition(condition_dir, condition)
-        summaries.append(summary)
-        if (
-            representative is None
-            and int(condition.get("axis_values", {}).get("n_flagella", 0)) == 3
-        ):
-            representative = load_hydro_archive(condition_dir / "hydro_archive.npz")
-    fieldnames = list(summaries[0])
-    with (output / "hydrodynamics_comparison.csv").open(
-        "w", newline="", encoding="utf-8"
-    ) as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(summaries)
-    _plot_summary(summaries, output / "flagella_count_comparison.png")
-    if representative is not None:
-        _plot_slice(
-            *_axial_slice(representative),
-            output / "body_fixed_axial_flow.png",
-            duration_s=float(representative.t_s[-1] - representative.t_s[0]),
-        )
+    selected, skipped = select_qc_passed_conditions(run_dir)
+    static_outputs = {
+        record["condition_id"]: _condition_static_outputs(record, output)
+        for record in selected
+    }
     (output / "analysis_manifest.json").write_text(
         json.dumps(
             {
-                "kind": "free_space_rpy_hydrodynamics_analysis",
+                "kind": "free_space_rpy_force_flow_visualization",
                 "run_dir": str(run_dir),
-                "comparison_csv": str(output / "hydrodynamics_comparison.csv"),
-                "full_duration_average": True,
-                "condition_count": len(summaries),
+                "input_provenance": "hydro_archive.npz positions_m + total_forces_N",
+                "stokes_force_balance": "F_hydro = -F_total",
+                "units": {"flow_velocity": "um/s", "force": "N"},
+                "body_fixed_slice_grid_shape": [
+                    FLOW_SLICE_GRID_SIZE,
+                    FLOW_SLICE_GRID_SIZE,
+                ],
+                "volume_flow_grid_shape": [FLOW_VOLUME_GRID_SIZE] * 3,
+                "snapshot_times_requested_s": list(SNAPSHOT_TIMES_S),
+                "included_conditions": selected,
+                "excluded_conditions": skipped,
+                "static_outputs": static_outputs,
             },
             indent=2,
         )

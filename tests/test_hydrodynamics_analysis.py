@@ -3,7 +3,6 @@ import subprocess
 import sys
 
 import numpy as np
-import pytest
 
 from sim_swim.analysis.hydrodynamics import (
     HYDRO_ARCHIVE_FORMAT,
@@ -11,17 +10,14 @@ from sim_swim.analysis.hydrodynamics import (
     load_hydro_archive,
     rpy_flow_velocity,
     save_hydro_archive,
+    stokes_fluid_resistance,
     velocity_contributions,
 )
+from sim_swim.dynamics.hydro_rpy import compute_rpy_pair_mobility
 from sim_swim.analysis.hydrodynamics_campaign import (
-    _body_angular_speed,
-    _body_frame,
-    _comparison_series,
+    FLOW_SLICE_GRID_SIZE,
     analyze_campaign,
-)
-from sim_swim.analysis.hydrodynamics_replay import (
-    campaign_nflagella_phase0_condition_ids,
-    overlay_manifest,
+    body_fixed_flow_slice,
 )
 from sim_swim.analysis.flagella_count_behavior import save_state_archive
 from sim_swim.analysis.multi_run_campaign import (
@@ -54,6 +50,54 @@ def test_rpy_flow_is_linear_in_source_selection() -> None:
         (
             rpy_flow_velocity(points, positions, forces, source_mask=mask, **kwargs)
             for mask in (np.asarray([True, False]), np.asarray([False, True]))
+        ),
+        start=np.zeros_like(total),
+    )
+    np.testing.assert_allclose(total, split)
+
+
+def test_dense_flow_reconstruction_matches_pair_kernel() -> None:
+    positions = np.asarray([[0.0, 0.0, 0.0], [3.0e-6, 0.0, 0.0]])
+    forces = np.asarray([[1.0e-12, 0.0, 0.0], [0.0, 2.0e-12, 0.0]])
+    points = np.asarray([[0.0, 4.0e-6, 0.0], [2.0e-6, -1.0e-6, 0.0]])
+    kwargs = dict(bead_radius_m=1.0e-6, viscosity_Pa_s=1.0e-3)
+    expected = np.asarray(
+        [
+            sum(
+                (
+                    compute_rpy_pair_mobility(point - position, **kwargs) @ force
+                    for position, force in zip(positions, forces, strict=True)
+                ),
+                start=np.zeros(3),
+            )
+            for point in points
+        ]
+    )
+    np.testing.assert_allclose(
+        rpy_flow_velocity(points, positions, forces, **kwargs), expected
+    )
+
+
+def test_stokes_fluid_resistance_is_exact_force_balance() -> None:
+    mechanical = np.asarray([[1.0e-12, -2.0e-12, 0.0], [-3.0e-12, 4.0e-12, 0.0]])
+    np.testing.assert_allclose(mechanical + stokes_fluid_resistance(mechanical), 0.0)
+
+
+def test_individual_source_contributions_sum_to_total_velocity() -> None:
+    positions = np.asarray([[0.0, 0.0, 0.0], [3.0e-6, 0.0, 0.0], [0.0, 3.0e-6, 0.0]])
+    forces = np.asarray([[1.0e-12, 0.0, 0.0], [0.0, 2.0e-12, 0.0], [0.0, 0.0, 3.0e-12]])
+    kwargs = dict(bead_radius_m=1.0e-6, viscosity_Pa_s=1.0e-3)
+    total = velocity_contributions(positions, forces, **kwargs)["source"]
+    split = sum(
+        (
+            velocity_contributions(positions, forces, source_mask=mask, **kwargs)[
+                "source"
+            ]
+            for mask in (
+                np.asarray([True, False, False]),
+                np.asarray([False, True, False]),
+                np.asarray([False, False, True]),
+            )
         ),
         start=np.zeros_like(total),
     )
@@ -121,7 +165,9 @@ def _state(t_s: float, positions_um: np.ndarray) -> SimulationState:
     )
 
 
-def test_campaign_analysis_writes_comparison_and_full_run_slice(tmp_path: Path) -> None:
+def test_campaign_analysis_writes_qc_filtered_force_flow_snapshots(
+    tmp_path: Path,
+) -> None:
     conditions = []
     positions_m = 1.0e-6 * np.asarray(
         [[-1.0, 1.0, 0.0], [-1.0, -1.0, 0.0], [1.0, 0.0, 0.0], [3.0, 0.0, 0.0]]
@@ -169,8 +215,14 @@ def test_campaign_analysis_writes_comparison_and_full_run_slice(tmp_path: Path) 
             viscosity_Pa_s=1e-3,
             provenance={"hydrodynamics": {"model": "free_space_rpy"}},
         )
+        nonbody_pass = n_flagella != 3
+        body_fail = n_flagella == 3
         (condition_dir / "run_summary.json").write_text(
-            '{"execution":{"status":"completed"},"gates":{"shape_nonbody":{"final_pass":true},"shape_body":{"any_fail":false}}}'
+            '{"execution":{"status":"completed"},"gates":{"shape_nonbody":{"final_pass":'
+            + str(nonbody_pass).lower()
+            + '},"shape_body":{"any_fail":'
+            + str(body_fail).lower()
+            + "}}}"
         )
         conditions.append(
             {
@@ -183,12 +235,19 @@ def test_campaign_analysis_writes_comparison_and_full_run_slice(tmp_path: Path) 
         __import__("json").dumps({"conditions": conditions})
     )
     output = analyze_campaign(tmp_path)
-    assert (output / "hydrodynamics_comparison.csv").is_file()
-    assert (output / "flagella_count_comparison.png").is_file()
-    assert (output / "body_fixed_axial_flow.png").is_file()
+    manifest = __import__("json").loads((output / "analysis_manifest.json").read_text())
+    assert len(manifest["included_conditions"]) == 2
+    assert manifest["excluded_conditions"][0]["condition_id"] == "n3__phase0"
+    assert (
+        manifest["excluded_conditions"][0]["exclusion_reason"]
+        == "strict_shape_qc_not_passed"
+    )
+    assert not (output / "hydrodynamics_comparison.csv").exists()
+    assert not (output / "flagella_count_comparison.png").exists()
+    assert (output / "conditions" / "n1__phase0" / "flow_force_t00.000s.png").is_file()
 
 
-def test_body_frame_and_angular_speed_include_axial_roll() -> None:
+def test_body_fixed_flow_slice_uses_requested_dense_grid(tmp_path: Path) -> None:
     body = np.asarray(
         [
             [-1.0, 1.0, 0.0],
@@ -199,22 +258,21 @@ def test_body_frame_and_angular_speed_include_axial_roll() -> None:
             [1.0, -0.5, -0.8660254],
         ]
     )
-    quarter_roll = np.asarray([[1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]])
-    frames = [
-        _body_frame(body, np.ones(len(body), dtype=bool)),
-        _body_frame(body @ quarter_roll.T, np.ones(len(body), dtype=bool)),
-    ]
-    np.testing.assert_allclose(frames[0], np.eye(3), atol=1.0e-7)
-    assert _body_angular_speed(frames, np.asarray([0.0, 0.5]), 1) == pytest.approx(
-        np.pi, rel=1.0e-7
+    path = tmp_path / "hydro_archive.npz"
+    save_hydro_archive(
+        path,
+        [HydroSample(0.0, body * 1.0e-6, np.tile([1.0e-12, 0.0, 0.0], (len(body), 1)))],
+        bead_is_body=np.ones(len(body), dtype=bool),
+        bead_flagella_id=-np.ones(len(body), dtype=int),
+        bead_radius_m=1.0e-6,
+        viscosity_Pa_s=1.0e-3,
+        provenance={},
     )
-
-
-def test_campaign_overlay_contract_is_fixed_camera_three_panels() -> None:
-    payload = overlay_manifest(["n1__phase0", "n2__phase0", "n3__phase0"], fps=25.0)
-    assert payload["follow_camera_3d"] is False
-    assert payload["grid_shape"] == [3, 3, 3]
-    assert payload["panel_count"] == 3
+    archive = load_hydro_archive(path)
+    points, velocity, frame = body_fixed_flow_slice(archive, 0)
+    assert points.shape == (FLOW_SLICE_GRID_SIZE**2, 3)
+    assert velocity.shape == points.shape
+    np.testing.assert_allclose(frame, np.eye(3), atol=1.0e-7)
 
 
 def test_hydrodynamics_replay_module_exposes_its_cli() -> None:
@@ -225,41 +283,4 @@ def test_hydrodynamics_replay_module_exposes_its_cli() -> None:
         check=False,
     )
     assert result.returncode == 0
-    assert "--campaign-nflagella-phase0" in result.stdout
-
-
-def test_campaign_overlay_selects_issue215_style_condition_ids(tmp_path: Path) -> None:
-    conditions = [
-        {
-            "condition_id": f"as000__ps000__nf{count:02d}",
-            "axis_values": {"attach_seed": 0, "phase_seed": 0, "n_flagella": count},
-        }
-        for count in (1, 2, 3)
-    ] + [
-        {
-            "condition_id": "as001__ps000__nf01",
-            "axis_values": {"attach_seed": 1, "phase_seed": 0, "n_flagella": 1},
-        }
-    ]
-    (tmp_path / "run_manifest.json").write_text(
-        __import__("json").dumps({"conditions": conditions})
-    )
-    assert campaign_nflagella_phase0_condition_ids(tmp_path) == [
-        "as000__ps000__nf01",
-        "as000__ps000__nf02",
-        "as000__ps000__nf03",
-    ]
-
-
-def test_comparison_series_separates_attachment_seeds() -> None:
-    rows = [
-        {"attach_seed": attach, "phase_seed": 0, "n_flagella": count}
-        for attach in (0, 1)
-        for count in (1, 2)
-    ]
-    series = _comparison_series(rows)
-    assert [label for label, _ in series] == ["attach 0, phase 0", "attach 1, phase 0"]
-    assert [[row["n_flagella"] for row in values] for _, values in series] == [
-        [1, 2],
-        [1, 2],
-    ]
+    assert "--all-qc-passed" in result.stdout
