@@ -284,4 +284,4 @@ def test_hydrodynamics_replay_module_exposes_its_cli() -> None:
         check=False,
     )
     assert result.returncode == 0
-    assert "--phase-seed-groups" in result.stdout
+    assert "--row-axis" in result.stdout

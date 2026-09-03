@@ -99,12 +99,12 @@ def test_issue203_generic_job_expands_27_independent_conditions() -> None:
     assert job.task_count == 27
     assert execution.max_workers == 8
     assert len(plan["configs"]) == 27
-    assert plan["configs"][0]["condition_id"] == "as000__ps000__nf01"
-    assert plan["configs"][-1]["condition_id"] == "as002__ps002__nf03"
+    assert plan["configs"][0]["condition_id"] == "nf01__as000__ps000"
+    assert plan["configs"][-1]["condition_id"] == "nf03__as002__ps002"
     command = plan["configs"][0]["command"]
     assert "scripts/01_simulate_swimming/run_multi_run.py" in command
     assert "output.timestamp_subdir=false" in command
-    assert "sweep.include_condition_ids=[as000__ps000__nf01]" in command
+    assert "sweep.include_condition_ids=[nf01__as000__ps000]" in command
 
 
 def test_issue203_qualification_job_preserves_27_shards_and_duration_override() -> None:
@@ -141,8 +141,8 @@ def test_issue215_job_expands_36_issue204_matching_conditions() -> None:
     assert job.task_count == 36
     assert execution.max_workers == 8
     assert len(plan["configs"]) == 36
-    assert plan["configs"][0]["condition_id"] == "as000__ps000__nf01"
-    assert plan["configs"][-1]["condition_id"] == "as002__ps002__nf04"
+    assert plan["configs"][0]["condition_id"] == "nf01__as000__ps000"
+    assert plan["configs"][-1]["condition_id"] == "nf04__as002__ps002"
 
 
 def test_issue215_qualification_preserves_36_shards_and_duration_override() -> None:
@@ -191,7 +191,7 @@ def test_generic_aggregate_requires_all_shards_and_creates_canonical_view(
 
     assert (campaign / "campaign_completion.json").is_file()
     assert (campaign / "summary.csv").is_file()
-    first_link = campaign / "conditions/as000__ps000__nf01"
+    first_link = campaign / "conditions/nf01__as000__ps000"
     assert first_link.is_symlink()
     aggregate_manifest = json.loads((campaign / "run_manifest.json").read_text())
     assert aggregate_manifest["conditions"][0]["output_dir"] == str(first_link)

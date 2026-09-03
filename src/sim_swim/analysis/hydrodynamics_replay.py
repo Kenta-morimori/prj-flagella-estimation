@@ -59,20 +59,37 @@ def _load_cfg(root: Path, record: dict[str, Any]) -> SimulationConfig:
     )
 
 
-def phase_seed_groups(root: Path) -> dict[tuple[int, int], list[dict[str, Any]]]:
-    groups: dict[tuple[int, int], list[dict[str, Any]]] = {}
+def _axis_order(root: Path, axis_name: str) -> list[Any]:
+    values: list[Any] = []
     for record in _manifest(root)["conditions"]:
-        axis = record["axis_values"]
-        groups.setdefault(
-            (int(axis["attach_seed"]), int(axis["n_flagella"])), []
-        ).append(record)
+        value = record["axis_values"].get(axis_name)
+        if value not in values:
+            values.append(value)
+    if not values:
+        raise ValueError(f"campaign has no axis {axis_name!r}")
+    return values
+
+
+def grouped_records(
+    root: Path, *, row_axis: str, group_axes: tuple[str, ...]
+) -> dict[tuple[Any, ...], list[dict[str, Any]]]:
+    """Group arbitrary multi-run records without Issue- or seed-specific rules."""
+    if row_axis in group_axes or not group_axes:
+        raise ValueError("--row-axis must differ from at least one --group-axis")
+    _axis_order(root, row_axis)
+    groups: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
+    for record in _manifest(root)["conditions"]:
+        values = record["axis_values"]
+        if row_axis not in values or any(axis not in values for axis in group_axes):
+            raise ValueError("selected axes are not present in every condition")
+        groups.setdefault(tuple(values[axis] for axis in group_axes), []).append(record)
+    row_order = _axis_order(root, row_axis)
     for key, records in groups.items():
-        records.sort(key=lambda item: int(item["axis_values"]["phase_seed"]))
-        if [int(item["axis_values"]["phase_seed"]) for item in records] != [0, 1, 2]:
-            raise ValueError(f"{key}: expected phase seeds 0, 1, 2")
-    if len(groups) != 12:
-        raise ValueError(f"expected 12 attach/count groups, found {len(groups)}")
-    return dict(sorted(groups.items()))
+        records.sort(key=lambda item: row_order.index(item["axis_values"][row_axis]))
+        actual = [item["axis_values"][row_axis] for item in records]
+        if actual != row_order:
+            raise ValueError(f"{key}: incomplete or duplicate {row_axis} rows")
+    return groups
 
 
 def _flow_grid(positions_um: np.ndarray, extent: float) -> np.ndarray:
@@ -118,7 +135,7 @@ def _source(
     hydro: Any,
     index: int,
     b: list[list[float]],
-    phase: int,
+    row_label: str,
 ) -> None:
     plot_swim_frame_3d(
         ax,
@@ -126,7 +143,7 @@ def _source(
         cfg,
         sim.rig,
         hide_ticks=False,
-        title=f"phase seed {phase}: source contribution",
+        title=f"{row_label}: source contribution",
         show_legend=False,
         show_status=False,
     )
@@ -166,7 +183,7 @@ def _source(
     _world_axes(ax, b)
 
 
-def _slice(ax: Any, hydro: Any, index: int, phase: int) -> None:
+def _slice(ax: Any, hydro: Any, index: int, row_label: str) -> None:
     points, v, r = body_fixed_flow_slice(hydro, index)
     p = hydro.positions_m[index]
     c = np.mean(p[hydro.bead_is_body], 0)
@@ -190,7 +207,7 @@ def _slice(ax: Any, hydro: Any, index: int, phase: int) -> None:
         color="tab:green",
     )
     ax.set(
-        title=f"phase seed {phase}: body-fixed RPY slice",
+        title=f"{row_label}: body-fixed RPY slice",
         xlabel="long axis [µm]",
         ylabel="radial axis [µm]",
         aspect="equal",
@@ -198,26 +215,27 @@ def _slice(ax: Any, hydro: Any, index: int, phase: int) -> None:
     ax.tick_params(labelsize=6)
 
 
-def render_phase_seed_group(
+def render_group(
     root: Path,
-    attach_seed: int,
-    n_flagella: int,
-    output_dir: Path,
+    records: list[dict[str, Any]],
     *,
+    row_axis: str,
+    group_axes: tuple[str, ...],
+    output_dir: Path,
     fps: float = 25.0,
-) -> tuple[Path, dict[str, Any]]:
-    records = phase_seed_groups(root)[(attach_seed, n_flagella)]
+) -> tuple[Path | None, dict[str, Any]]:
     valid = {}
     omitted = []
     for rec in records:
-        phase = int(rec["axis_values"]["phase_seed"])
+        row_value = rec["axis_values"][row_axis]
         d = _condition_dir(root, rec)
         passed, qc = qc_result(d)
         if not passed:
             omitted.append(
                 {
                     "condition_id": rec["condition_id"],
-                    "phase_seed": phase,
+                    "row_axis": row_axis,
+                    "row_value": row_value,
                     "reason": "strict_shape_qc_not_passed",
                     "qc": qc,
                 }
@@ -225,15 +243,43 @@ def render_phase_seed_group(
             continue
         cfg = _load_cfg(root, rec)
         hydro = load_hydro_archive(d / "hydro_archive.npz")
-        valid[phase] = (
+        valid[row_value] = (
             hydro,
             _select_frames(load_state_archive(d / "state_archive.npz"), False, fps),
             cfg,
             Simulator(cfg),
         )
+    group_ids = {axis: records[0]["axis_ids"][axis] for axis in group_axes}
+    canonical_axes = tuple(
+        sorted(
+            group_axes, key=lambda axis: (axis != "n_flagella", group_axes.index(axis))
+        )
+    )
+    group_stem = "__".join(group_ids[axis] for axis in canonical_axes)
+    metadata = {
+        "group_axes": dict(
+            zip(
+                group_axes,
+                (records[0]["axis_values"][axis] for axis in group_axes),
+                strict=True,
+            )
+        ),
+        "group_ids": group_ids,
+        "rows": [
+            {
+                "row_value": rec["axis_values"][row_axis],
+                "condition_id": rec["condition_id"],
+            }
+            for rec in records
+        ],
+        "omitted": omitted,
+    }
+    if not valid:
+        metadata["render_status"] = "all_rows_qc_failed"
+        return None, metadata
     b = _bounds([v[0] for v in valid.values()])
     output_dir.mkdir(parents=True, exist_ok=True)
-    movie = output_dir / f"as{attach_seed:03d}__nf{n_flagella:02d}_phase_seeds_flow.mp4"
+    movie = output_dir / f"{group_stem}_{row_axis}_flow.mp4"
     fig = plt.figure(figsize=(12, 12), dpi=80)
     canvas = FigureCanvasAgg(fig)
     writer = None
@@ -241,9 +287,11 @@ def render_phase_seed_group(
     try:
         for fi in range(count):
             fig.clear()
-            gs = fig.add_gridspec(3, 3)
-            for row, phase in enumerate((0, 1, 2)):
-                if phase not in valid:
+            gs = fig.add_gridspec(len(records), 3)
+            for row, rec in enumerate(records):
+                row_value = rec["axis_values"][row_axis]
+                row_label = f"{row_axis}={row_value}"
+                if row_value not in valid:
                     ax = fig.add_subplot(gs[row, :])
                     ax.axis("off")
                     ax.text(
@@ -255,7 +303,7 @@ def render_phase_seed_group(
                         fontsize=16,
                     )
                     continue
-                hydro, states, cfg, sim = valid[phase]
+                hydro, states, cfg, sim = valid[row_value]
                 state = states[min(fi, len(states) - 1)]
                 idx = int(np.argmin(np.abs(hydro.t_s - state.t)))
                 grid = _flow_grid(state.bead_positions_um, cfg.render.view_range_um)
@@ -276,7 +324,7 @@ def render_phase_seed_group(
                     cfg,
                     sim.rig,
                     hide_ticks=False,
-                    title=f"phase seed {phase}: world RPY flow",
+                    title=f"{row_label}: world RPY flow",
                     show_legend=False,
                     show_status=False,
                     flow_vectors=(grid, vel),
@@ -290,11 +338,11 @@ def render_phase_seed_group(
                     hydro,
                     idx,
                     b,
-                    phase,
+                    row_label,
                 )
-                _slice(fig.add_subplot(gs[row, 2]), hydro, idx, phase)
+                _slice(fig.add_subplot(gs[row, 2]), hydro, idx, row_label)
             fig.suptitle(
-                f"attach seed {attach_seed}; n_flagella {n_flagella}; t={fi / fps:.3f} s",
+                f"{group_stem}; t={fi / fps:.3f} s",
                 fontsize=12,
             )
             canvas.draw()
@@ -310,68 +358,45 @@ def render_phase_seed_group(
         if writer is not None:
             writer.release()
         plt.close(fig)
-    metadata = {
-        "attach_seed": attach_seed,
-        "n_flagella": n_flagella,
-        "movie": movie.name,
-        "world_bounds_um": b,
-        "phase_conditions": [
-            {
-                "phase_seed": int(r["axis_values"]["phase_seed"]),
-                "condition_id": r["condition_id"],
-            }
-            for r in records
-        ],
-        "omitted": omitted,
-        "frame_count": count,
-    }
-    manifest_path = output_dir.parent / "analysis_manifest.json"
-    payload = (
-        json.loads(manifest_path.read_text())
-        if manifest_path.is_file()
-        else {
-            "kind": "free_space_rpy_phase_seed_flow_visualization",
-            "input_campaign": str(root),
-            "input_provenance": "hydro_archive.npz positions_m + total_forces_N",
-            "layout": {
-                "rows": "phase seeds 0, 1, 2",
-                "columns": [
-                    "world RPY flow",
-                    "world source contribution",
-                    "body-fixed long-axis slice",
-                ],
-            },
-            "units": {"position": "µm", "velocity": "µm/s", "force": "N"},
-            "world_flow_grid_shape": [FLOW_VOLUME_GRID_SIZE] * 3,
-            "body_fixed_slice_grid_shape": [FLOW_SLICE_GRID_SIZE] * 2,
-            "stokes_force_balance_verified": "F_hydro = -F_total; F_total + F_hydro = 0",
-            "fps": fps,
-            "groups": [],
+    metadata.update(
+        {
+            "movie": movie.name,
+            "world_bounds_um": b,
+            "frame_count": count,
+            "render_status": "rendered",
         }
     )
-    payload["groups"] = [
-        item
-        for item in payload["groups"]
-        if (item["attach_seed"], item["n_flagella"]) != (attach_seed, n_flagella)
-    ] + [metadata]
-    payload["groups"].sort(key=lambda item: (item["attach_seed"], item["n_flagella"]))
-    manifest_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
     return movie, metadata
 
 
-def render_all_phase_seed_groups(
-    root: Path, output_dir: Path, *, fps: float = 25.0
+def render_grouped_flow_videos(
+    root: Path,
+    output_dir: Path,
+    *,
+    row_axis: str,
+    group_axes: tuple[str, ...],
+    fps: float = 25.0,
 ) -> list[Path]:
     results = [
-        render_phase_seed_group(root, a, n, output_dir, fps=fps)
-        for a, n in phase_seed_groups(root)
+        render_group(
+            root,
+            records,
+            row_axis=row_axis,
+            group_axes=group_axes,
+            output_dir=output_dir,
+            fps=fps,
+        )
+        for records in grouped_records(
+            root, row_axis=row_axis, group_axes=group_axes
+        ).values()
     ]
     payload = {
-        "kind": "free_space_rpy_phase_seed_flow_visualization",
+        "kind": "free_space_rpy_grouped_flow_visualization",
         "input_campaign": str(root),
         "input_provenance": "hydro_archive.npz positions_m + total_forces_N",
         "layout": {
-            "rows": "phase seeds 0, 1, 2",
+            "row_axis": row_axis,
+            "group_axes": list(group_axes),
             "columns": [
                 "world RPY flow",
                 "world source contribution",
@@ -388,27 +413,24 @@ def render_all_phase_seed_groups(
     (output_dir.parent / "analysis_manifest.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
     )
-    return [m for m, _ in results]
+    return [m for m, _ in results if m is not None]
 
 
 def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--run-dir", type=Path, required=True)
-    p.add_argument("--phase-seed-groups", action="store_true", required=True)
-    p.add_argument("--attach-seed", type=int)
-    p.add_argument("--n-flagella", type=int)
+    p.add_argument("--row-axis", required=True)
+    p.add_argument("--group-axis", action="append", required=True)
     p.add_argument("--output-dir", type=Path, required=True)
     p.add_argument("--fps", type=float, default=25.0)
     a = p.parse_args(argv)
-    if (a.attach_seed is None) != (a.n_flagella is None):
-        p.error("--attach-seed and --n-flagella must be supplied together")
-    if a.attach_seed is None:
-        for movie in render_all_phase_seed_groups(a.run_dir, a.output_dir, fps=a.fps):
-            print(movie)
-    else:
-        movie, _metadata = render_phase_seed_group(
-            a.run_dir, a.attach_seed, a.n_flagella, a.output_dir, fps=a.fps
-        )
+    for movie in render_grouped_flow_videos(
+        a.run_dir,
+        a.output_dir,
+        row_axis=a.row_axis,
+        group_axes=tuple(a.group_axis),
+        fps=a.fps,
+    ):
         print(movie)
 
 

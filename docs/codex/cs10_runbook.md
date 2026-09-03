@@ -177,9 +177,9 @@ chmod 600 ~/.config/prj-flagella-estimation/cs10-queue.env
 
 `/usr/bin/mail`が実行不能、または有効な通知先がない場合は明示的に失敗する。成功・失敗・cancel・全queue完了時に外部宛てメールを送る。Postfixへの投入成功はqueue eventへ`notification_submitted`、投入失敗は`notification_failed`として記録する。外部メールサーバーへの最終配送結果はcs10のPostfix管理ログで確認する。
 
-## Issue #225: RPY hydrodynamics campaign
+## RPY hydrodynamics archive analysis for generic multi-run
 
-Issue #225 は `conf/phase2_parallel/issue225_hydrodynamics_issue215_reference/job.yaml` を実行設定とする。Issue #215 と同じ `n_flagella=1–4 × attach_seed=0–2 × phase_seed=0–2` の36 conditionを独立 shardとし、各 shard は2秒のcompact `hydro_archive.npz`（1 ms位置・総力）を保存する。解析とrenderは完了した archive のみを読み、追加simulationを開始しない。
+hydrodynamicsを有効にしたgeneric multi-runは、conditionごとのcompact `hydro_archive.npz`（位置・総力）を保存する。解析とrenderは完了済みarchiveのみを読み、追加simulationを開始しない。Issue #225の36条件campaignは、この共通手順を適用した過去referenceである。
 
 レビュー済みの固定commitを予約する前に、既存jobと衝突しないこと、NAS mount・容量、queue/mail の短いpreflightを確認する。実行許可を受けたユーザーは次を使う。
 
@@ -189,8 +189,8 @@ git fetch origin
 df -h /net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs
 
 .venv-cs10/bin/python scripts/cs10/queue.py enqueue \
-  --branch origin/codex/issue-225-hydrodynamics \
-  --config conf/phase2_parallel/issue225_hydrodynamics_issue215_reference/job.yaml \
+  --branch <reviewed-branch> \
+  --config <generic-hydrodynamics-job.yaml> \
   --priority 0
 
 tmux new-session -d -s cs10-queue \
@@ -198,19 +198,27 @@ tmux new-session -d -s cs10-queue \
 .venv-cs10/bin/python scripts/cs10/queue.py status
 ```
 
-成功済みcampaignは、再simulationせず raw archive を含む独立referenceへ整理してから解析する。最終出力は `analysis/hydrodynamics/flow_visualizations/` 直下の12本のMP4である。各動画は同じ`attach_seed`・`n_flagella`のphase seed 0/1/2を上から並べ、左から世界座標の7×7×7 RPY flow、世界座標のsource contribution、body-fixed 41×41長軸断面を表示する。世界座標の軸範囲は動画内で固定し、`x, y, z [µm]`の目盛りを示す。
+成功済みcampaignは、再simulationせず raw archive を含む独立referenceへ整理してから解析する。hydrodynamics動画は任意のmulti-run manifestから、行軸とgroup軸を明示して生成する。世界座標の3D流れ・source contribution・body-fixed断面を表示し、世界座標の軸範囲は動画内で固定する。
 
 ```bash
-.venv-cs10/bin/python scripts/03_dataset_building/stage_issue225_hydrodynamics_reference.py \
+.venv-cs10/bin/python scripts/03_dataset_building/stage_hydrodynamics_reference.py \
   --campaign-dir <parallel-output>/campaign \
   --reference-dir outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_hydrodynamics_issue225_2026-08-31
 .venv-cs10/bin/python scripts/03_dataset_building/replay_dataset.py \
   --run-dir outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_hydrodynamics_issue225_2026-08-31 --flow-overlay \
-  --phase-seed-groups --output-dir outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_hydrodynamics_issue225_2026-08-31/analysis/hydrodynamics/flow_visualizations
+  --row-axis phase_seed --group-axis n_flagella --group-axis attach_seed \
+  --output-dir outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_hydrodynamics_issue225_2026-08-31/analysis/hydrodynamics/flow_visualizations
 ```
 
-`as000__ps001__nf04` はstrict QC不通過のため、該当動画の中央行を
-`QC failed; visualization omitted` とし、流れを描かない。`analysis_manifest.json` に、入力archive provenance、格子密度、単位、QC除外理由、`F_hydro = -F_total`の検証を集約する。条件別静止画・個別動画・sidecar JSONは作らない。
+QC不通過conditionは該当動画行を`QC failed; visualization omitted`とし、全行不通過groupは動画を作らない。`analysis_manifest.json` に、入力archive provenance、格子密度、単位、QC除外理由、`F_hydro = -F_total`の検証を集約する。条件別静止画・個別動画・sidecar JSONは作らない。
+
+cs10上の成果物は、ユーザーへ完了報告する前にローカルへ同期する。ローカルから次を実行し、cs10のoperational logを除外したうえでSHA-256一致を確認する。
+
+```bash
+python scripts/cs10/sync_reference_from_cs10.py \
+  --host Ktakemori@cs10 --remote-dir <cs10-reference-dir> \
+  --local-dir outputs/phase2_multi_run/.../reference/<reference-name>
+```
 
 ## Scope and requalification
 

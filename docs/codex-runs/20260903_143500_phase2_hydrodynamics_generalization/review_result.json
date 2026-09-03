@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "summary": "Generalized hydrodynamics archive analysis for multi-run manifests, made future n_flagella identifiers lead with nfXX, and added the cs10-to-local verification rule.",
+  "blocking_issues": [],
+  "non_blocking_issues": ["Existing references retain their historical filenames for provenance."],
+  "tests_reviewed": [
+    "pytest tests/test_hydrodynamics_analysis.py tests/test_phase2_parallel_job.py tests/test_phase2_generic_multi_run.py -q: 100 passed",
+    "existing local Issue #225 reference grouped read-only: 12 groups",
+    "sync_reference_from_cs10.py --dry-run: PASS"
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "This is an output naming and archive-analysis interface generalization; no physical interpretation or dataset adoption changed.",
+  "commit_type": "feat",
+  "commit_hash": "the commit containing this review result",
+  "push_status": "pushed with the containing commit",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/229",
+  "next_actions": "Commit and push the merge candidate; GitHub required checks and actionable review conversations still govern merge."
+}

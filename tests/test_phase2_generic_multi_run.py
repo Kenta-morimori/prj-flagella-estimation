@@ -105,6 +105,42 @@ def test_generic_multi_run_profile_is_listed() -> None:
     assert "conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml" in paths
 
 
+def test_n_flagella_is_the_leading_future_condition_identifier() -> None:
+    campaign = {
+        "sweep": {
+            "axes": [
+                {
+                    "name": "attach_seed",
+                    "key": "seed.attach_seed",
+                    "short_name": "as",
+                    "values": [0],
+                    "labels": ["0"],
+                    "ids": ["as000"],
+                },
+                {
+                    "name": "n_flagella",
+                    "key": "flagella.n_flagella",
+                    "short_name": "nf",
+                    "values": [2],
+                    "labels": ["2"],
+                    "ids": ["nf02"],
+                },
+                {
+                    "name": "phase_seed",
+                    "key": "seed.phase_seed",
+                    "short_name": "ps",
+                    "values": [1],
+                    "labels": ["1"],
+                    "ids": ["ps001"],
+                },
+            ]
+        }
+    }
+    assert (
+        build_campaign_conditions(campaign)[0]["condition_id"] == "nf02__as000__ps001"
+    )
+
+
 def test_generic_multi_run_profile_exposes_metadata() -> None:
     entry = load_profile_entry(
         Path("conf/phase2_multi_run/latest_model_torque_shape_stability.yaml")
