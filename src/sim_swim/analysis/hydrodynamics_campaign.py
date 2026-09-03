@@ -7,14 +7,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 from sim_swim.analysis.hydrodynamics import (
     HydroArchive,
-    load_hydro_archive,
     rpy_flow_velocity,
-    stokes_fluid_resistance,
 )
 
 FLOW_SLICE_GRID_SIZE = 41
@@ -76,7 +73,7 @@ def select_qc_passed_conditions(
     selected: list[dict[str, Any]] = []
     skipped: list[dict[str, Any]] = []
     for condition in manifest["conditions"]:
-        condition_dir = Path(condition["output_dir"])
+        condition_dir = _condition_dir(run_dir, condition)
         passed, qc = qc_result(condition_dir)
         record = {
             "condition_id": condition["condition_id"],
@@ -90,6 +87,19 @@ def select_qc_passed_conditions(
             record["exclusion_reason"] = "strict_shape_qc_not_passed"
             skipped.append(record)
     return selected, skipped
+
+
+def _condition_dir(run_dir: Path, condition: dict[str, Any]) -> Path:
+    """Resolve original or staged reference condition directories."""
+    candidate = Path(str(condition.get("output_dir", "")))
+    for path in (
+        candidate,
+        run_dir / candidate.name,
+        run_dir / "conditions" / candidate.name,
+    ):
+        if path.is_dir():
+            return path
+    return run_dir / "conditions" / str(condition["condition_id"])
 
 
 def nearest_sample_indices(archive: HydroArchive) -> list[int]:
@@ -135,124 +145,15 @@ def _body_fixed_beads(
     return (positions - center) @ rotation * 1e6
 
 
-def plot_force_flow_snapshot(
-    archive: HydroArchive, sample_index: int, path: Path, *, condition_id: str
-) -> None:
-    """Plot dense flow plus the Stokes force balance at one archived instant."""
-    points_um, velocity_um_s, rotation = body_fixed_flow_slice(archive, sample_index)
-    beads_um = _body_fixed_beads(archive, sample_index, rotation)
-    mechanical_force = archive.total_forces_N[sample_index] @ rotation
-    fluid_resistance = stokes_fluid_resistance(mechanical_force)
-    force_reference = max(
-        float(np.quantile(np.linalg.norm(mechanical_force, axis=1), 0.95)), 1e-30
-    )
-    displayed_mechanical_force = mechanical_force / force_reference
-    displayed_fluid_resistance = fluid_resistance / force_reference
-    figure, axes = plt.subplots(1, 2, figsize=(11, 4.5), constrained_layout=True)
-    flow, force = axes
-    flow.quiver(
-        points_um[:, 0],
-        points_um[:, 1],
-        velocity_um_s[:, 0],
-        velocity_um_s[:, 1],
-        color="tab:blue",
-        alpha=0.68,
-        scale=None,
-        width=0.002,
-    )
-    flow.scatter(
-        beads_um[archive.bead_is_body, 0],
-        beads_um[archive.bead_is_body, 1],
-        color="black",
-        s=10,
-        label="body beads",
-    )
-    flow.scatter(
-        beads_um[~archive.bead_is_body, 0],
-        beads_um[~archive.bead_is_body, 1],
-        color="tab:green",
-        s=8,
-        label="flagellar beads",
-    )
-    flow.set(
-        title="instantaneous reconstructed RPY flow",
-        xlabel="body-fixed x [um]",
-        ylabel="body-fixed y [um]",
-        aspect="equal",
-    )
-    flow.legend(fontsize=7, loc="upper right")
-    force.scatter(
-        beads_um[archive.bead_is_body, 0],
-        beads_um[archive.bead_is_body, 1],
-        color="black",
-        s=10,
-    )
-    force.scatter(
-        beads_um[~archive.bead_is_body, 0],
-        beads_um[~archive.bead_is_body, 1],
-        color="tab:green",
-        s=8,
-    )
-    force.quiver(
-        beads_um[:, 0],
-        beads_um[:, 1],
-        displayed_mechanical_force[:, 0],
-        displayed_mechanical_force[:, 1],
-        color="tab:orange",
-        scale=None,
-        width=0.004,
-        label="mechanical F_total",
-    )
-    force.quiver(
-        beads_um[:, 0],
-        beads_um[:, 1],
-        displayed_fluid_resistance[:, 0],
-        displayed_fluid_resistance[:, 1],
-        color="tab:purple",
-        scale=None,
-        width=0.003,
-        alpha=0.8,
-        label="fluid resistance -F_total",
-    )
-    force.set(
-        title=f"Stokes force balance (1 um = {force_reference:.2e} N)",
-        xlabel="body-fixed x [um]",
-        ylabel="body-fixed y [um]",
-        aspect="equal",
-    )
-    force.legend(fontsize=7, loc="upper right")
-    figure.suptitle(f"{condition_id}; t={archive.t_s[sample_index]:.6f} s")
-    figure.savefig(path, dpi=180)
-    plt.close(figure)
-
-
-def _condition_static_outputs(record: dict[str, Any], output: Path) -> list[str]:
-    archive = load_hydro_archive(Path(record["input_dir"]) / "hydro_archive.npz")
-    condition_output = output / "conditions" / record["condition_id"]
-    condition_output.mkdir(parents=True, exist_ok=True)
-    outputs: list[str] = []
-    for sample_index in nearest_sample_indices(archive):
-        path = condition_output / f"flow_force_t{archive.t_s[sample_index]:06.3f}s.png"
-        plot_force_flow_snapshot(
-            archive, sample_index, path, condition_id=record["condition_id"]
-        )
-        outputs.append(str(path))
-    return outputs
-
-
 def analyze_campaign(run_dir: Path, output_dir: Path | None = None) -> Path:
-    """Generate QC-filtered dense flow/force snapshots without re-simulation."""
+    """Write the compact QC/provenance manifest; rendering is handled by replay."""
     output = output_dir or run_dir / "analysis" / "hydrodynamics"
     output.mkdir(parents=True, exist_ok=True)
     selected, skipped = select_qc_passed_conditions(run_dir)
-    static_outputs = {
-        record["condition_id"]: _condition_static_outputs(record, output)
-        for record in selected
-    }
     (output / "analysis_manifest.json").write_text(
         json.dumps(
             {
-                "kind": "free_space_rpy_force_flow_visualization",
+                "kind": "free_space_rpy_phase_seed_flow_visualization",
                 "run_dir": str(run_dir),
                 "input_provenance": "hydro_archive.npz positions_m + total_forces_N",
                 "stokes_force_balance": "F_hydro = -F_total",
@@ -262,10 +163,10 @@ def analyze_campaign(run_dir: Path, output_dir: Path | None = None) -> Path:
                     FLOW_SLICE_GRID_SIZE,
                 ],
                 "volume_flow_grid_shape": [FLOW_VOLUME_GRID_SIZE] * 3,
-                "snapshot_times_requested_s": list(SNAPSHOT_TIMES_S),
+                "layout": "3 phase-seed rows x 3 columns; world flow/source and body-fixed slice",
                 "included_conditions": selected,
                 "excluded_conditions": skipped,
-                "static_outputs": static_outputs,
+                "stokes_force_balance_verified": "F_total + F_hydro = 0",
             },
             indent=2,
         )

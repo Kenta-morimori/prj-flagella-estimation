@@ -198,21 +198,19 @@ tmux new-session -d -s cs10-queue \
 .venv-cs10/bin/python scripts/cs10/queue.py status
 ```
 
-成功時は aggregate campaign directory の `campaign/run_manifest.json`、36個の `hydro_archive.npz`、36個の `run_summary.json` を確認する。その後、同一commitの環境で以下を実行する。
+成功済みcampaignは、再simulationせず raw archive を含む独立referenceへ整理してから解析する。最終出力は `analysis/hydrodynamics/flow_visualizations/` 直下の12本のMP4である。各動画は同じ`attach_seed`・`n_flagella`のphase seed 0/1/2を上から並べ、左から世界座標の7×7×7 RPY flow、世界座標のsource contribution、body-fixed 41×41長軸断面を表示する。世界座標の軸範囲は動画内で固定し、`x, y, z [µm]`の目盛りを示す。
 
 ```bash
-.venv-cs10/bin/python scripts/03_dataset_building/analyze_hydrodynamics.py \
-  --run-dir <parallel-output>/campaign
+.venv-cs10/bin/python scripts/03_dataset_building/stage_issue225_hydrodynamics_reference.py \
+  --campaign-dir <parallel-output>/campaign \
+  --reference-dir outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_hydrodynamics_issue225_2026-08-31
 .venv-cs10/bin/python scripts/03_dataset_building/replay_dataset.py \
-  --run-dir <parallel-output>/campaign --flow-overlay \
-  --all-qc-passed --output-dir <parallel-output>/campaign/analysis/hydrodynamics/videos
+  --run-dir outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_hydrodynamics_issue225_2026-08-31 --flow-overlay \
+  --phase-seed-groups --output-dir outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_hydrodynamics_issue225_2026-08-31/analysis/hydrodynamics/flow_visualizations
 ```
 
-受入成果物は、QC通過条件ごとの `flow_force_t*.png`（41×41 body-fixed flow slice と
-`F_total` / `-F_total` の釣合い）および `*_flow_force_overlay.mp4` である。
-`analysis_manifest.json` は対象条件、除外条件とQC理由、格子密度、単位、
-`F_hydro = -F_total` を記録する。動画sidecarは `follow_camera_3d=false`、`fps=25`、
-`flow_grid_shape=[7,7,7]`、矢印スケールを記録していることも確認する。
+`as000__ps001__nf04` はstrict QC不通過のため、該当動画の中央行を
+`QC failed; visualization omitted` とし、流れを描かない。`analysis_manifest.json` に、入力archive provenance、格子密度、単位、QC除外理由、`F_hydro = -F_total`の検証を集約する。条件別静止画・個別動画・sidecar JSONは作らない。
 
 ## Scope and requalification
 

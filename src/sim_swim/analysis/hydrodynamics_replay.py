@@ -1,19 +1,16 @@
-"""Fixed-camera RPY flow, force-balance, and source-contribution replay."""
+"""Render fixed-world, phase-seed RPY hydrodynamics comparison videos."""
 
 from __future__ import annotations
-
 import argparse
-from dataclasses import replace
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
-
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import yaml
 from matplotlib.backends.backend_agg import FigureCanvasAgg
-
 from sim_swim.analysis.flagella_count_behavior import (
     load_state_archive,
     normalize_base_overrides,
@@ -21,12 +18,13 @@ from sim_swim.analysis.flagella_count_behavior import (
 from sim_swim.analysis.hydrodynamics import (
     load_hydro_archive,
     rpy_flow_velocity,
-    stokes_fluid_resistance,
     velocity_contributions,
 )
 from sim_swim.analysis.hydrodynamics_campaign import (
+    FLOW_SLICE_GRID_SIZE,
     FLOW_VOLUME_GRID_SIZE,
-    select_qc_passed_conditions,
+    body_fixed_flow_slice,
+    qc_result,
 )
 from sim_swim.render.render3d import _select_frames, plot_swim_frame_3d
 from sim_swim.render.video_writer import open_mp4_writer
@@ -34,11 +32,24 @@ from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import SimulationConfig
 
 
+def _manifest(root: Path) -> dict[str, Any]:
+    return json.loads((root / "run_manifest.json").read_text())
+
+
+def _condition_dir(root: Path, record: dict[str, Any]) -> Path:
+    candidate = Path(str(record.get("output_dir", "")))
+    for path in (
+        candidate,
+        root / candidate.name,
+        root / "conditions" / candidate.name,
+    ):
+        if path.is_dir():
+            return path
+    return root / "conditions" / str(record["condition_id"])
+
+
 def _load_cfg(root: Path, record: dict[str, Any]) -> SimulationConfig:
-    manifest = json.loads((root / "run_manifest.json").read_text(encoding="utf-8"))
-    raw = (
-        yaml.safe_load(Path(manifest["base_config"]).read_text(encoding="utf-8")) or {}
-    )
+    raw = yaml.safe_load(Path(_manifest(root)["base_config"]).read_text()) or {}
     cfg = SimulationConfig.from_dict(raw).with_overrides(
         normalize_base_overrides(record["config_overrides"])
     )
@@ -47,23 +58,28 @@ def _load_cfg(root: Path, record: dict[str, Any]) -> SimulationConfig:
     )
 
 
-def _condition_record(root: Path, condition_id: str) -> dict[str, Any]:
-    manifest = json.loads((root / "run_manifest.json").read_text(encoding="utf-8"))
-    return next(
-        record
-        for record in manifest["conditions"]
-        if record["condition_id"] == condition_id
-    )
+def phase_seed_groups(root: Path) -> dict[tuple[int, int], list[dict[str, Any]]]:
+    groups: dict[tuple[int, int], list[dict[str, Any]]] = {}
+    for record in _manifest(root)["conditions"]:
+        axis = record["axis_values"]
+        groups.setdefault(
+            (int(axis["attach_seed"]), int(axis["n_flagella"])), []
+        ).append(record)
+    for key, records in groups.items():
+        records.sort(key=lambda item: int(item["axis_values"]["phase_seed"]))
+        if [int(item["axis_values"]["phase_seed"]) for item in records] != [0, 1, 2]:
+            raise ValueError(f"{key}: expected phase seeds 0, 1, 2")
+    if len(groups) != 12:
+        raise ValueError(f"expected 12 attach/count groups, found {len(groups)}")
+    return dict(sorted(groups.items()))
 
 
-def _flow_grid(
-    state_positions_um: np.ndarray, view_range_um: float, *, grid_size: int
-) -> np.ndarray:
-    center = np.mean(state_positions_um, axis=0)
-    offsets = np.linspace(-0.75 * view_range_um, 0.75 * view_range_um, grid_size)
+def _flow_grid(positions_um: np.ndarray, extent: float) -> np.ndarray:
+    c = np.mean(positions_um, axis=0)
+    offsets = np.linspace(-0.75 * extent, 0.75 * extent, FLOW_VOLUME_GRID_SIZE)
     return np.asarray(
         [
-            [center[0] + x, center[1] + y, center[2] + z]
+            [c[0] + x, c[1] + y, c[2] + z]
             for x in offsets
             for y in offsets
             for z in offsets
@@ -71,182 +87,213 @@ def _flow_grid(
     )
 
 
-def _visual_vectors(
-    vectors: np.ndarray, *, length_um: float
-) -> tuple[np.ndarray, float]:
-    """Map physical vectors to visible arrows and return the reference magnitude."""
-    norms = np.linalg.norm(vectors, axis=1)
-    reference = max(float(np.quantile(norms, 0.95)), 1e-30)
-    return vectors / reference * length_um, reference
+def _bounds(hydros: list[Any]) -> list[list[float]]:
+    p = np.concatenate([h.positions_m.reshape(-1, 3) * 1e6 for h in hydros])
+    lo, hi = p.min(0), p.max(0)
+    m = np.maximum((hi - lo) * 0.12, 1.0)
+    return [[float(a), float(b)] for a, b in zip(lo - m, hi + m, strict=True)]
 
 
-def _source_velocity_vectors(hydro: Any, index: int) -> list[tuple[str, np.ndarray]]:
-    """Velocity at body beads induced by body and each individual flagellum."""
-    positions = hydro.positions_m[index]
-    forces = hydro.total_forces_N[index]
-    result: list[tuple[str, np.ndarray]] = []
-    masks: list[tuple[str, np.ndarray]] = [("body", hydro.bead_is_body)]
-    for flagellum_id in sorted(set(hydro.bead_flagella_id[~hydro.bead_is_body])):
-        masks.append(
-            (f"flagellum {int(flagellum_id)}", hydro.bead_flagella_id == flagellum_id)
-        )
-    for label, mask in masks:
-        contribution = velocity_contributions(
-            positions,
-            forces,
-            bead_radius_m=hydro.bead_radius_m,
-            viscosity_Pa_s=hydro.viscosity_Pa_s,
-            source_mask=mask,
-        )["source"]
-        result.append((label, contribution[hydro.bead_is_body] * 1e6))
-    return result
+def _world_axes(ax: Any, b: list[list[float]]) -> None:
+    ax.set_xlim(*b[0])
+    ax.set_ylim(*b[1])
+    ax.set_zlim(*b[2])
+    ax.set_xlabel("x [µm]", fontsize=7)
+    ax.set_ylabel("y [µm]", fontsize=7)
+    ax.set_zlabel("z [µm]", fontsize=7)
+    ax.tick_params(labelsize=6)
 
 
-def _draw_force_panel(
+def _visible(v: np.ndarray) -> np.ndarray:
+    ref = max(float(np.quantile(np.linalg.norm(v, axis=1), 0.95)), 1e-30)
+    return v / ref * 0.55
+
+
+def _source(
     ax: Any,
     state: Any,
     cfg: SimulationConfig,
-    simulator: Simulator,
+    sim: Simulator,
     hydro: Any,
     index: int,
-    condition_id: str,
-) -> float:
+    b: list[list[float]],
+    phase: int,
+) -> None:
     plot_swim_frame_3d(
         ax,
         state,
         cfg,
-        simulator.rig,
-        hide_ticks=True,
-        title=f"{condition_id}: force balance",
+        sim.rig,
+        hide_ticks=False,
+        title=f"phase seed {phase}: source contribution",
         show_legend=False,
     )
-    positions = hydro.positions_m[index] * 1e6
-    displayed_force, reference = _visual_vectors(
-        hydro.total_forces_N[index], length_um=0.65
+    p, f, body = (
+        hydro.positions_m[index],
+        hydro.total_forces_N[index],
+        hydro.bead_is_body,
     )
-    ax.quiver(
-        *positions.T, *displayed_force.T, color="tab:orange", linewidth=0.8, alpha=0.85
-    )
-    ax.quiver(
-        *positions.T,
-        *stokes_fluid_resistance(displayed_force).T,
-        color="tab:purple",
-        linewidth=0.6,
-        alpha=0.72,
-    )
-    ax.text2D(
-        0.02,
-        0.02,
-        "orange: mechanical F_total\npurple: fluid resistance -F_total",
-        transform=ax.transAxes,
-        fontsize=7,
-    )
-    return reference
-
-
-def _draw_source_panel(
-    ax: Any,
-    state: Any,
-    cfg: SimulationConfig,
-    simulator: Simulator,
-    hydro: Any,
-    index: int,
-    condition_id: str,
-) -> dict[str, float]:
-    plot_swim_frame_3d(
-        ax,
-        state,
-        cfg,
-        simulator.rig,
-        hide_ticks=True,
-        title=f"{condition_id}: induced velocity",
-        show_legend=False,
-    )
-    body_positions = hydro.positions_m[index][hydro.bead_is_body] * 1e6
-    colors = ("tab:red", "tab:blue", "tab:green", "tab:purple", "tab:brown")
-    references: dict[str, float] = {}
-    for source_index, (label, vectors) in enumerate(
-        _source_velocity_vectors(hydro, index)
+    masks = [body] + [
+        hydro.bead_flagella_id == i for i in sorted(set(hydro.bead_flagella_id[~body]))
+    ]
+    for color, mask in zip(
+        ("tab:red", "tab:blue", "tab:green", "tab:purple", "tab:brown"),
+        masks,
+        strict=False,
     ):
-        displayed, reference = _visual_vectors(vectors, length_um=0.55)
-        ax.quiver(
-            *body_positions.T,
-            *displayed.T,
-            color=colors[source_index % len(colors)],
-            linewidth=0.8,
-            alpha=0.78,
+        v = (
+            velocity_contributions(
+                p,
+                f,
+                bead_radius_m=hydro.bead_radius_m,
+                viscosity_Pa_s=hydro.viscosity_Pa_s,
+                source_mask=mask,
+            )["source"][body]
+            * 1e6
         )
-        references[label] = reference
+        ax.quiver(
+            *(p[body].T * 1e6), *_visible(v).T, color=color, linewidth=0.7, alpha=0.8
+        )
     ax.text2D(
         0.02,
         0.02,
         "arrows at body beads: body / each flagellum source",
         transform=ax.transAxes,
-        fontsize=7,
+        fontsize=6,
     )
-    return references
+    _world_axes(ax, b)
 
 
-def render_condition(
-    root: Path, condition_id: str, output_dir: Path, *, fps: float = 25.0
-) -> Path:
-    """Render one condition with dense 7^3 flow and force/source relation panels."""
-    record = _condition_record(root, condition_id)
-    cfg = _load_cfg(root, record)
-    condition_dir = Path(record.get("output_dir", root / condition_id))
-    states = _select_frames(
-        load_state_archive(condition_dir / "state_archive.npz"), False, fps
+def _slice(ax: Any, hydro: Any, index: int, phase: int) -> None:
+    points, v, r = body_fixed_flow_slice(hydro, index)
+    p = hydro.positions_m[index]
+    c = np.mean(p[hydro.bead_is_body], 0)
+    beads = (p - c) @ r * 1e6
+    ax.quiver(
+        points[:, 0],
+        points[:, 1],
+        v[:, 0],
+        v[:, 1],
+        color="tab:blue",
+        alpha=0.6,
+        width=0.002,
     )
-    hydro = load_hydro_archive(condition_dir / "hydro_archive.npz")
-    simulator = Simulator(cfg)
+    ax.scatter(
+        beads[hydro.bead_is_body, 0], beads[hydro.bead_is_body, 1], s=5, color="black"
+    )
+    ax.scatter(
+        beads[~hydro.bead_is_body, 0],
+        beads[~hydro.bead_is_body, 1],
+        s=4,
+        color="tab:green",
+    )
+    ax.set(
+        title=f"phase seed {phase}: body-fixed RPY slice",
+        xlabel="long axis [µm]",
+        ylabel="radial axis [µm]",
+        aspect="equal",
+    )
+    ax.tick_params(labelsize=6)
+
+
+def render_phase_seed_group(
+    root: Path,
+    attach_seed: int,
+    n_flagella: int,
+    output_dir: Path,
+    *,
+    fps: float = 25.0,
+) -> tuple[Path, dict[str, Any]]:
+    records = phase_seed_groups(root)[(attach_seed, n_flagella)]
+    valid = {}
+    omitted = []
+    for rec in records:
+        phase = int(rec["axis_values"]["phase_seed"])
+        d = _condition_dir(root, rec)
+        passed, qc = qc_result(d)
+        if not passed:
+            omitted.append(
+                {
+                    "condition_id": rec["condition_id"],
+                    "phase_seed": phase,
+                    "reason": "strict_shape_qc_not_passed",
+                    "qc": qc,
+                }
+            )
+            continue
+        cfg = _load_cfg(root, rec)
+        hydro = load_hydro_archive(d / "hydro_archive.npz")
+        valid[phase] = (
+            hydro,
+            _select_frames(load_state_archive(d / "state_archive.npz"), False, fps),
+            cfg,
+            Simulator(cfg),
+        )
+    b = _bounds([v[0] for v in valid.values()])
     output_dir.mkdir(parents=True, exist_ok=True)
-    movie = output_dir / f"{condition_id}_flow_force_overlay.mp4"
-    figure = plt.figure(figsize=(15, 5), dpi=100)
-    canvas = FigureCanvasAgg(figure)
+    movie = output_dir / f"as{attach_seed:03d}__nf{n_flagella:02d}_phase_seeds_flow.mp4"
+    fig = plt.figure(figsize=(15, 15), dpi=100)
+    canvas = FigureCanvasAgg(fig)
     writer = None
-    force_references: list[float] = []
-    source_references: dict[str, list[float]] = {}
+    count = max(len(v[1]) for v in valid.values())
     try:
-        for state in states:
-            figure.clear()
-            index = int(np.argmin(np.abs(hydro.t_s - state.t)))
-            grid_um = _flow_grid(
-                state.bead_positions_um,
-                cfg.render.view_range_um,
-                grid_size=FLOW_VOLUME_GRID_SIZE,
-            )
-            velocity_um_s = (
-                rpy_flow_velocity(
-                    grid_um * 1e-6,
-                    hydro.positions_m[index],
-                    hydro.total_forces_N[index],
-                    bead_radius_m=hydro.bead_radius_m,
-                    viscosity_Pa_s=hydro.viscosity_Pa_s,
+        for fi in range(count):
+            fig.clear()
+            gs = fig.add_gridspec(3, 3)
+            for row, phase in enumerate((0, 1, 2)):
+                if phase not in valid:
+                    ax = fig.add_subplot(gs[row, :])
+                    ax.axis("off")
+                    ax.text(
+                        0.5,
+                        0.5,
+                        "QC failed; visualization omitted",
+                        ha="center",
+                        va="center",
+                        fontsize=16,
+                    )
+                    continue
+                hydro, states, cfg, sim = valid[phase]
+                state = states[min(fi, len(states) - 1)]
+                idx = int(np.argmin(np.abs(hydro.t_s - state.t)))
+                grid = _flow_grid(state.bead_positions_um, cfg.render.view_range_um)
+                vel = (
+                    rpy_flow_velocity(
+                        grid * 1e-6,
+                        hydro.positions_m[idx],
+                        hydro.total_forces_N[idx],
+                        bead_radius_m=hydro.bead_radius_m,
+                        viscosity_Pa_s=hydro.viscosity_Pa_s,
+                    )
+                    * 1e6
                 )
-                * 1e6
-            )
-            flow = figure.add_subplot(1, 3, 1, projection="3d")
-            plot_swim_frame_3d(
-                flow,
-                state,
-                cfg,
-                simulator.rig,
-                hide_ticks=True,
-                title=f"{condition_id}: RPY flow",
-                show_legend=False,
-                flow_vectors=(grid_um, velocity_um_s),
-            )
-            force = figure.add_subplot(1, 3, 2, projection="3d")
-            force_references.append(
-                _draw_force_panel(
-                    force, state, cfg, simulator, hydro, index, condition_id
+                ax = fig.add_subplot(gs[row, 0], projection="3d")
+                plot_swim_frame_3d(
+                    ax,
+                    state,
+                    cfg,
+                    sim.rig,
+                    hide_ticks=False,
+                    title=f"phase seed {phase}: world RPY flow",
+                    show_legend=False,
+                    flow_vectors=(grid, vel),
                 )
+                _world_axes(ax, b)
+                _source(
+                    fig.add_subplot(gs[row, 1], projection="3d"),
+                    state,
+                    cfg,
+                    sim,
+                    hydro,
+                    idx,
+                    b,
+                    phase,
+                )
+                _slice(fig.add_subplot(gs[row, 2]), hydro, idx, phase)
+            fig.suptitle(
+                f"attach seed {attach_seed}; n_flagella {n_flagella}; t={fi / fps:.3f} s",
+                fontsize=12,
             )
-            source = figure.add_subplot(1, 3, 3, projection="3d")
-            for label, reference in _draw_source_panel(
-                source, state, cfg, simulator, hydro, index, condition_id
-            ).items():
-                source_references.setdefault(label, []).append(reference)
             canvas.draw()
             frame = cv2.cvtColor(np.asarray(canvas.buffer_rgba()), cv2.COLOR_RGBA2BGR)
             if writer is None:
@@ -257,67 +304,65 @@ def render_condition(
     finally:
         if writer is not None:
             writer.release()
-        plt.close(figure)
-    (output_dir / f"{condition_id}_flow_force_overlay.json").write_text(
-        json.dumps(
+        plt.close(fig)
+    return movie, {
+        "attach_seed": attach_seed,
+        "n_flagella": n_flagella,
+        "movie": movie.name,
+        "world_bounds_um": b,
+        "phase_conditions": [
             {
-                "condition_id": condition_id,
-                "follow_camera_3d": False,
-                "fps": fps,
-                "flow_grid_shape": [FLOW_VOLUME_GRID_SIZE] * 3,
-                "flow_arrow_policy": "normalized_direction; velocity unit um/s",
-                "force_arrow_policy": "per-frame 95th-percentile scaling; force unit N",
-                "force_arrow_reference_N_range": [
-                    min(force_references),
-                    max(force_references),
-                ],
-                "source_velocity_arrow_reference_um_s": {
-                    label: [min(values), max(values)]
-                    for label, values in source_references.items()
-                },
-                "stokes_force_balance": "F_hydro = -F_total",
-                "movie": str(movie),
-                "frame_count": len(states),
-            },
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    return movie
+                "phase_seed": int(r["axis_values"]["phase_seed"]),
+                "condition_id": r["condition_id"],
+            }
+            for r in records
+        ],
+        "omitted": omitted,
+        "frame_count": count,
+    }
 
 
-def render_all_qc_passed(
+def render_all_phase_seed_groups(
     root: Path, output_dir: Path, *, fps: float = 25.0
 ) -> list[Path]:
-    """Render an individual video for every condition which passed strict QC."""
-    selected, _skipped = select_qc_passed_conditions(root)
-    return [
-        render_condition(
-            root, record["condition_id"], output_dir / record["condition_id"], fps=fps
-        )
-        for record in selected
+    results = [
+        render_phase_seed_group(root, a, n, output_dir, fps=fps)
+        for a, n in phase_seed_groups(root)
     ]
+    payload = {
+        "kind": "free_space_rpy_phase_seed_flow_visualization",
+        "input_campaign": str(root),
+        "input_provenance": "hydro_archive.npz positions_m + total_forces_N",
+        "layout": {
+            "rows": "phase seeds 0, 1, 2",
+            "columns": [
+                "world RPY flow",
+                "world source contribution",
+                "body-fixed long-axis slice",
+            ],
+        },
+        "units": {"position": "µm", "velocity": "µm/s", "force": "N"},
+        "world_flow_grid_shape": [FLOW_VOLUME_GRID_SIZE] * 3,
+        "body_fixed_slice_grid_shape": [FLOW_SLICE_GRID_SIZE] * 2,
+        "stokes_force_balance_verified": "F_hydro = -F_total; F_total + F_hydro = 0",
+        "fps": fps,
+        "groups": [r for _, r in results],
+    }
+    (output_dir.parent / "analysis_manifest.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    )
+    return [m for m, _ in results]
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--run-dir", type=Path, required=True)
-    source = parser.add_mutually_exclusive_group(required=True)
-    source.add_argument("--condition-id")
-    source.add_argument("--all-qc-passed", action="store_true")
-    parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--fps", type=float, default=25.0)
-    args = parser.parse_args(argv)
-    if args.all_qc_passed:
-        for movie in render_all_qc_passed(args.run_dir, args.output_dir, fps=args.fps):
-            print(movie)
-    else:
-        print(
-            render_condition(
-                args.run_dir, args.condition_id, args.output_dir, fps=args.fps
-            )
-        )
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--run-dir", type=Path, required=True)
+    p.add_argument("--phase-seed-groups", action="store_true", required=True)
+    p.add_argument("--output-dir", type=Path, required=True)
+    p.add_argument("--fps", type=float, default=25.0)
+    a = p.parse_args(argv)
+    for movie in render_all_phase_seed_groups(a.run_dir, a.output_dir, fps=a.fps):
+        print(movie)
 
 
 if __name__ == "__main__":

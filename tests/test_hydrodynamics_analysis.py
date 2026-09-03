@@ -244,7 +244,8 @@ def test_campaign_analysis_writes_qc_filtered_force_flow_snapshots(
     )
     assert not (output / "hydrodynamics_comparison.csv").exists()
     assert not (output / "flagella_count_comparison.png").exists()
-    assert (output / "conditions" / "n1__phase0" / "flow_force_t00.000s.png").is_file()
+    assert not (output / "conditions").exists()
+    assert manifest["layout"].startswith("3 phase-seed rows")
 
 
 def test_body_fixed_flow_slice_uses_requested_dense_grid(tmp_path: Path) -> None:
@@ -283,4 +284,4 @@ def test_hydrodynamics_replay_module_exposes_its_cli() -> None:
         check=False,
     )
     assert result.returncode == 0
-    assert "--all-qc-passed" in result.stdout
+    assert "--phase-seed-groups" in result.stdout
