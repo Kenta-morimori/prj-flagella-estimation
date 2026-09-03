@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import argparse
+import gc
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -232,7 +233,7 @@ def render_phase_seed_group(
     b = _bounds([v[0] for v in valid.values()])
     output_dir.mkdir(parents=True, exist_ok=True)
     movie = output_dir / f"as{attach_seed:03d}__nf{n_flagella:02d}_phase_seeds_flow.mp4"
-    fig = plt.figure(figsize=(15, 15), dpi=100)
+    fig = plt.figure(figsize=(12, 12), dpi=80)
     canvas = FigureCanvasAgg(fig)
     writer = None
     count = max(len(v[1]) for v in valid.values())
@@ -301,6 +302,8 @@ def render_phase_seed_group(
                     movie, fps=fps, frame_size=(frame.shape[1], frame.shape[0])
                 ).writer
             writer.write(frame)
+            fig.clear()
+            gc.collect()
     finally:
         if writer is not None:
             writer.release()
