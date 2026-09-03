@@ -305,7 +305,7 @@ def render_phase_seed_group(
         if writer is not None:
             writer.release()
         plt.close(fig)
-    return movie, {
+    metadata = {
         "attach_seed": attach_seed,
         "n_flagella": n_flagella,
         "movie": movie.name,
@@ -320,6 +320,38 @@ def render_phase_seed_group(
         "omitted": omitted,
         "frame_count": count,
     }
+    manifest_path = output_dir.parent / "analysis_manifest.json"
+    payload = (
+        json.loads(manifest_path.read_text())
+        if manifest_path.is_file()
+        else {
+            "kind": "free_space_rpy_phase_seed_flow_visualization",
+            "input_campaign": str(root),
+            "input_provenance": "hydro_archive.npz positions_m + total_forces_N",
+            "layout": {
+                "rows": "phase seeds 0, 1, 2",
+                "columns": [
+                    "world RPY flow",
+                    "world source contribution",
+                    "body-fixed long-axis slice",
+                ],
+            },
+            "units": {"position": "µm", "velocity": "µm/s", "force": "N"},
+            "world_flow_grid_shape": [FLOW_VOLUME_GRID_SIZE] * 3,
+            "body_fixed_slice_grid_shape": [FLOW_SLICE_GRID_SIZE] * 2,
+            "stokes_force_balance_verified": "F_hydro = -F_total; F_total + F_hydro = 0",
+            "fps": fps,
+            "groups": [],
+        }
+    )
+    payload["groups"] = [
+        item
+        for item in payload["groups"]
+        if (item["attach_seed"], item["n_flagella"]) != (attach_seed, n_flagella)
+    ] + [metadata]
+    payload["groups"].sort(key=lambda item: (item["attach_seed"], item["n_flagella"]))
+    manifest_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
+    return movie, metadata
 
 
 def render_all_phase_seed_groups(
@@ -358,10 +390,20 @@ def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--run-dir", type=Path, required=True)
     p.add_argument("--phase-seed-groups", action="store_true", required=True)
+    p.add_argument("--attach-seed", type=int)
+    p.add_argument("--n-flagella", type=int)
     p.add_argument("--output-dir", type=Path, required=True)
     p.add_argument("--fps", type=float, default=25.0)
     a = p.parse_args(argv)
-    for movie in render_all_phase_seed_groups(a.run_dir, a.output_dir, fps=a.fps):
+    if (a.attach_seed is None) != (a.n_flagella is None):
+        p.error("--attach-seed and --n-flagella must be supplied together")
+    if a.attach_seed is None:
+        for movie in render_all_phase_seed_groups(a.run_dir, a.output_dir, fps=a.fps):
+            print(movie)
+    else:
+        movie, _metadata = render_phase_seed_group(
+            a.run_dir, a.attach_seed, a.n_flagella, a.output_dir, fps=a.fps
+        )
         print(movie)
 
 
