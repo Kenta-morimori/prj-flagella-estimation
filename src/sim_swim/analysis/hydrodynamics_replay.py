@@ -128,6 +128,7 @@ def _source(
         hide_ticks=False,
         title=f"phase seed {phase}: source contribution",
         show_legend=False,
+        show_status=False,
     )
     p, f, body = (
         hydro.positions_m[index],
@@ -277,6 +278,7 @@ def render_phase_seed_group(
                     hide_ticks=False,
                     title=f"phase seed {phase}: world RPY flow",
                     show_legend=False,
+                    show_status=False,
                     flow_vectors=(grid, vel),
                 )
                 _world_axes(ax, b)
