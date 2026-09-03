@@ -36,6 +36,7 @@ SIMULATION_OVERRIDE_ROOTS = {
     "output_sampling",
     "brownian",
     "render",
+    "hydrodynamics",
     "seed",
     "stiffness_scales",
 }

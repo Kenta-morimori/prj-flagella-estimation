@@ -308,8 +308,8 @@ def validate_notification_setup() -> None:
 
 def notify(reservation: Reservation | None, subject: str, body: str) -> None:
     """Deliver one notification without exposing its recipient in queue records."""
-    validate_notification_setup()
     try:
+        validate_notification_setup()
         result = subprocess.run(
             [str(MAIL_BINARY), "-s", subject, notification_recipient()],
             input=body,

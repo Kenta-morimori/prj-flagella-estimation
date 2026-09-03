@@ -338,3 +338,25 @@ def test_notify_records_success_and_failure_without_recipient(
         ]
     finally:
         store.close()
+
+
+def test_notify_records_config_oserror_without_recipient(
+    monkeypatch, tmp_path: Path
+) -> None:
+    queue = _load_queue("cs10_queue_notify_config_oserror")
+    store = queue.QueueStore(tmp_path)
+    try:
+        monkeypatch.setattr(
+            queue,
+            "validate_notification_setup",
+            lambda: (_ for _ in ()).throw(OSError("recipient@example.com unreadable")),
+        )
+        queue._notify(store, None, "subject", "body")
+        event = store.connection.execute(
+            "SELECT kind, detail FROM events ORDER BY id"
+        ).fetchone()
+        assert event["kind"] == "notification_failed"
+        assert "OSError" in event["detail"]
+        assert "recipient@example.com" not in event["detail"]
+    finally:
+        store.close()

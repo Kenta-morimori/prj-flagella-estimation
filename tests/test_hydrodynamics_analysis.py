@@ -1,6 +1,7 @@
 from pathlib import Path
 import subprocess
 import sys
+from types import SimpleNamespace
 
 import numpy as np
 
@@ -19,7 +20,12 @@ from sim_swim.analysis.hydrodynamics_campaign import (
     analyze_campaign,
     body_fixed_flow_slice,
 )
-from sim_swim.analysis.hydrodynamics_replay import _visible_with_common_reference
+from sim_swim.analysis.hydrodynamics_replay import (
+    _bounds,
+    _flow_grid,
+    _source_colors,
+    _visible_with_common_reference,
+)
 from sim_swim.analysis.flagella_count_behavior import save_state_archive
 from sim_swim.analysis.multi_run_campaign import (
     build_campaign_conditions,
@@ -112,6 +118,20 @@ def test_source_contributions_share_one_visual_velocity_reference() -> None:
     np.testing.assert_allclose(
         np.linalg.norm(displayed_large), np.linalg.norm(displayed_small) * 10.0
     )
+
+
+def test_world_bounds_include_all_displayed_flow_grid_points() -> None:
+    hydro = SimpleNamespace(positions_m=np.asarray([[[0.0, 0.0, 0.0]]]))
+    grid = _flow_grid(np.asarray([[0.0, 0.0, 0.0]]), extent=8.0)
+    bounds = np.asarray(_bounds([hydro], [grid]))
+    assert np.all(bounds[:, 0] <= grid.min(axis=0))
+    assert np.all(bounds[:, 1] >= grid.max(axis=0))
+
+
+def test_source_colors_cover_more_than_five_sources() -> None:
+    colors = _source_colors(6)
+    assert len(colors) == 6
+    assert len({tuple(color) for color in colors}) == 6
 
 
 def test_hydro_archive_round_trip(tmp_path: Path) -> None:

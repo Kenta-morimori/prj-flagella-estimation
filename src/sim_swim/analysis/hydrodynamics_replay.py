@@ -105,8 +105,13 @@ def _flow_grid(positions_um: np.ndarray, extent: float) -> np.ndarray:
     )
 
 
-def _bounds(hydros: list[Any]) -> list[list[float]]:
-    p = np.concatenate([h.positions_m.reshape(-1, 3) * 1e6 for h in hydros])
+def _bounds(
+    hydros: list[Any], flow_grids_um: list[np.ndarray] | None = None
+) -> list[list[float]]:
+    """Return stable world-coordinate bounds for beads and displayed flow vectors."""
+    points = [h.positions_m.reshape(-1, 3) * 1e6 for h in hydros]
+    points.extend(flow_grids_um or [])
+    p = np.concatenate(points)
     lo, hi = p.min(0), p.max(0)
     m = np.maximum((hi - lo) * 0.12, 1.0)
     return [[float(a), float(b)] for a, b in zip(lo - m, hi + m, strict=True)]
@@ -132,6 +137,12 @@ def _visible_with_common_reference(vectors: list[np.ndarray]) -> list[np.ndarray
     norms = np.concatenate([np.linalg.norm(vector, axis=1) for vector in vectors])
     reference = max(float(np.quantile(norms, 0.95)), 1e-30)
     return [vector / reference * 0.55 for vector in vectors]
+
+
+def _source_colors(source_count: int) -> list[Any]:
+    """Generate one source color per body/flagellum contribution."""
+    cmap = plt.get_cmap("hsv", source_count)
+    return [cmap(index) for index in range(source_count)]
 
 
 def _source(
@@ -174,9 +185,9 @@ def _source(
         for mask in masks
     ]
     for color, vector in zip(
-        ("tab:red", "tab:blue", "tab:green", "tab:purple", "tab:brown"),
+        _source_colors(len(vectors)),
         _visible_with_common_reference(vectors),
-        strict=False,
+        strict=True,
     ):
         ax.quiver(*(p[body].T * 1e6), *vector.T, color=color, linewidth=0.7, alpha=0.8)
     ax.text2D(
@@ -283,7 +294,14 @@ def render_group(
     if not valid:
         metadata["render_status"] = "all_rows_qc_failed"
         return None, metadata
-    b = _bounds([v[0] for v in valid.values()])
+    b = _bounds(
+        [hydro for hydro, _states, _cfg, _sim in valid.values()],
+        [
+            _flow_grid(state.bead_positions_um, cfg.render.view_range_um)
+            for _hydro, states, cfg, _sim in valid.values()
+            for state in states
+        ],
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
     movie = output_dir / f"{group_stem}_{row_axis}_flow.mp4"
     fig = plt.figure(figsize=(12, 12), dpi=80)

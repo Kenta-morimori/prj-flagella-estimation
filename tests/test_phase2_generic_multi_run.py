@@ -330,6 +330,17 @@ def test_generic_multi_run_builds_conditions_and_cli_override() -> None:
     assert conditions[1]["config_overrides"]["motor"]["torque_Nm"] == 2.0e-20
 
 
+def test_generic_multi_run_accepts_hydrodynamics_cli_override() -> None:
+    campaign = apply_campaign_cli_overrides(
+        load_yaml(
+            Path("conf/phase2_multi_run/latest_model_torque_shape_stability.yaml")
+        ),
+        ["hydrodynamics.enabled=true"],
+    )
+
+    assert campaign["base_overrides"]["hydrodynamics"]["enabled"] is True
+
+
 def test_generic_multi_run_manifests_record_model_profile(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
