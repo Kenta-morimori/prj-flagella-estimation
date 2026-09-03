@@ -15,6 +15,7 @@ from sim_swim.analysis.flagella_count_behavior import (
     save_state_archive,
     write_trajectory_csv,
 )
+from sim_swim.analysis.hydrodynamics import save_hydro_archive
 from sim_swim.analysis.multi_run_campaign import (
     apply_campaign_cli_overrides,
     build_campaign_conditions,
@@ -150,6 +151,7 @@ def _manifest_condition_record(
     condition_dir: Path | None = None,
     time_manifest: dict[str, Any] | None = None,
     implementation_manifest: dict[str, Any] | None = None,
+    hydrodynamics_enabled: bool = False,
 ) -> dict[str, Any]:
     output_dir = condition_dir or root / condition["condition_id"]
     record = {
@@ -172,6 +174,8 @@ def _manifest_condition_record(
             "col_label": condition.get("grid_col_label"),
         },
     }
+    if hydrodynamics_enabled:
+        record["hydro_archive_npz"] = str(output_dir / "hydro_archive.npz")
     if time_manifest is not None:
         record["time"] = time_manifest
     if implementation_manifest is not None:
@@ -225,7 +229,9 @@ def run_campaign(argv: list[str] | None = None) -> Path:
 
     base_config_path = Path(str(campaign["base_config"]))
     base_cfg = load_yaml(base_config_path)
-    base_simulation_cfg = SimulationConfig.from_dict(base_cfg)
+    base_simulation_cfg = SimulationConfig.from_dict(base_cfg).with_overrides(
+        campaign.get("base_overrides", {})
+    )
     base_simulation_cfg.validate_execution_supported()
 
     output_base_dir = Path(
@@ -280,6 +286,7 @@ def run_campaign(argv: list[str] | None = None) -> Path:
     rows: list[dict[str, Any]] = []
     condition_time_manifests: dict[str, dict[str, Any]] = {}
     condition_implementation_manifests: dict[str, dict[str, Any]] = {}
+    condition_hydrodynamics_enabled: dict[str, bool] = {}
     total = len(conditions)
     for index, condition in enumerate(conditions, start=1):
         logger.info(
@@ -292,6 +299,9 @@ def run_campaign(argv: list[str] | None = None) -> Path:
                 condition["config_overrides"]
             )
             condition_time_manifests[condition["condition_id"]] = cfg.time_manifest()
+            condition_hydrodynamics_enabled[condition["condition_id"]] = (
+                cfg.hydrodynamics.enabled
+            )
             simulator = Simulator(cfg)
             states = simulator.run(
                 cfg.time.duration_s,
@@ -303,6 +313,20 @@ def run_campaign(argv: list[str] | None = None) -> Path:
             if save_state_archive_enabled:
                 save_state_archive(condition_dir / "state_archive.npz", states)
                 write_trajectory_csv(condition_dir / "trajectory.csv", states)
+            if cfg.hydrodynamics.enabled:
+                save_hydro_archive(
+                    condition_dir / "hydro_archive.npz",
+                    simulator.hydro_samples,
+                    bead_is_body=simulator.model.bead_is_body,
+                    bead_flagella_id=simulator.model.bead_flag_ids,
+                    bead_radius_m=simulator.model.bead_radius_m,
+                    viscosity_Pa_s=cfg.fluid.viscosity_Pa_s,
+                    provenance={
+                        "archive_interval_s": cfg.output.archive_interval_s,
+                        "time": cfg.time_manifest(),
+                        "hydrodynamics": {"model": "free_space_rpy"},
+                    },
+                )
             rows.append(_condition_row(cfg, condition, condition_dir))
             condition_implementation_manifests[condition["condition_id"]] = (
                 simulator.implementation_manifest()
@@ -363,6 +387,7 @@ def run_campaign(argv: list[str] | None = None) -> Path:
         },
         "output_root": str(ctx.out.root),
         "save_state_archive": save_state_archive_enabled,
+        "hydrodynamics_enabled": base_simulation_cfg.hydrodynamics.enabled,
         "replay": dict(campaign.get("replay", {}) or {}),
         "plot": dict(campaign.get("plot", {}) or {}),
         "axes": campaign_axes_metadata(campaign),
@@ -374,6 +399,9 @@ def run_campaign(argv: list[str] | None = None) -> Path:
                 time_manifest=condition_time_manifests.get(condition["condition_id"]),
                 implementation_manifest=condition_implementation_manifests.get(
                     condition["condition_id"]
+                ),
+                hydrodynamics_enabled=condition_hydrodynamics_enabled.get(
+                    condition["condition_id"], False
                 ),
             )
             for condition in conditions

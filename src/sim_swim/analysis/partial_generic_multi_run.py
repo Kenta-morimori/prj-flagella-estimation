@@ -74,12 +74,17 @@ def export_completed_campaign(
         summary_path = condition_dir / "run_summary.json"
         archive_path = condition_dir / "state_archive.npz"
         trajectory_path = condition_dir / "trajectory.csv"
+        hydro_path = condition_dir / "hydro_archive.npz"
         if not _completed_summary(summary_path, cfg.time.duration_s):
             excluded.append(
                 {"condition_id": condition["condition_id"], "reason": "not_completed"}
             )
             continue
-        if not archive_path.is_file() or not trajectory_path.is_file():
+        if (
+            not archive_path.is_file()
+            or not trajectory_path.is_file()
+            or (cfg.hydrodynamics.enabled and not hydro_path.is_file())
+        ):
             excluded.append(
                 {"condition_id": condition["condition_id"], "reason": "missing_archive"}
             )
@@ -88,7 +93,10 @@ def export_completed_campaign(
             (
                 _condition_row(cfg, condition, condition_dir),
                 _manifest_condition_record(
-                    run_dir, condition, time_manifest=cfg.time_manifest()
+                    run_dir,
+                    condition,
+                    time_manifest=cfg.time_manifest(),
+                    hydrodynamics_enabled=cfg.hydrodynamics.enabled,
                 ),
             )
         )

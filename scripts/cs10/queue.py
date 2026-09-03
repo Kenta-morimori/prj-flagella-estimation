@@ -23,12 +23,18 @@ import time
 from typing import Any, Iterator
 from uuid import uuid4
 from zoneinfo import ZoneInfo
+import re
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_STATE_DIR = Path.home() / ".local/state/prj-flagella-estimation/cs10-queue"
 DEFAULT_WORKTREE_DIR = Path.home() / "src/prj-flagella-estimation-queue-worktrees"
+DEFAULT_NOTIFY_CONFIG_PATH = (
+    Path.home() / ".config/prj-flagella-estimation/cs10-queue.env"
+)
+MAIL_BINARY = Path("/usr/bin/mail")
 TERMINAL_STATES = {"succeeded", "failed", "cancelled", "blocked"}
+_EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def _now() -> str:
@@ -263,14 +269,80 @@ def _manifest_succeeded(record: dict[str, Any]) -> tuple[bool, str]:
     return False, "manifest reports incomplete or failed campaign"
 
 
+def _configured_notification_email() -> str | None:
+    """Read the sole supported key from the non-versioned cs10 config file."""
+    if not DEFAULT_NOTIFY_CONFIG_PATH.is_file():
+        return None
+    for line in DEFAULT_NOTIFY_CONFIG_PATH.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        if key.strip() == "CS10_QUEUE_NOTIFY_EMAIL":
+            return value.strip()
+    return None
+
+
+def notification_recipient() -> str:
+    """Resolve the externally delivered queue notification recipient."""
+    recipient = os.environ.get("CS10_QUEUE_NOTIFY_EMAIL")
+    if recipient is None:
+        recipient = _configured_notification_email()
+    recipient = (recipient or "").strip()
+    if not recipient:
+        raise RuntimeError(
+            "CS10_QUEUE_NOTIFY_EMAIL is required; set it or add it to "
+            f"{DEFAULT_NOTIFY_CONFIG_PATH}"
+        )
+    if not _EMAIL_PATTERN.fullmatch(recipient):
+        raise RuntimeError("CS10_QUEUE_NOTIFY_EMAIL must be a valid email address")
+    return recipient
+
+
+def validate_notification_setup() -> None:
+    """Reject dispatcher startup unless external notification can be attempted."""
+    notification_recipient()
+    if not MAIL_BINARY.is_file() or not os.access(MAIL_BINARY, os.X_OK):
+        raise RuntimeError(f"required mail binary is unavailable: {MAIL_BINARY}")
+
+
 def notify(reservation: Reservation | None, subject: str, body: str) -> None:
-    mail = Path("/usr/bin/mail")
-    if not mail.is_file():
-        return
-    recipient = os.environ.get("USER") or os.getlogin()
-    subprocess.run(
-        [str(mail), "-s", subject, recipient], input=body, text=True, check=False
-    )
+    """Deliver one notification without exposing its recipient in queue records."""
+    try:
+        validate_notification_setup()
+        result = subprocess.run(
+            [str(MAIL_BINARY), "-s", subject, notification_recipient()],
+            input=body,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError as exc:
+        raise RuntimeError(
+            f"mail notification could not start: {exc.__class__.__name__}"
+        ) from exc
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"mail notification failed with exit code {result.returncode}"
+        )
+
+
+def _notify(
+    store: QueueStore, reservation: Reservation | None, subject: str, body: str
+) -> None:
+    """Record delivery failures while preserving the completed job state."""
+    try:
+        notify(reservation, subject, body)
+    except RuntimeError as exc:
+        store.event(
+            reservation.id if reservation else None, "notification_failed", str(exc)
+        )
+    else:
+        store.event(
+            reservation.id if reservation else None,
+            "notification_submitted",
+            f"mail accepted submission; subject={subject}",
+        )
 
 
 def _describe(reservation: Reservation) -> str:
@@ -328,7 +400,7 @@ def run_reservation(store: QueueStore, reservation: Reservation) -> Reservation:
         current = store.get(reservation.id)
         assert current is not None
         store.event(reservation.id, "cancelled", "process exited after cancellation")
-        notify(current, "cs10 queue: job cancelled", _describe(current))
+        _notify(store, current, "cs10 queue: job cancelled", _describe(current))
         return current
     try:
         record = _load_launch_record(stdout_log)
@@ -347,14 +419,14 @@ def run_reservation(store: QueueStore, reservation: Reservation) -> Reservation:
         current = store.get(reservation.id)
         assert current is not None
         store.event(reservation.id, "succeeded", detail)
-        notify(current, "cs10 queue: job succeeded", _describe(current))
+        _notify(store, current, "cs10 queue: job succeeded", _describe(current))
         return current
     store.update(reservation.id, state="failed", error=detail)
     store.set_paused(True)
     current = store.get(reservation.id)
     assert current is not None
     store.event(reservation.id, "failed", detail)
-    notify(current, "cs10 queue: job failed; queue paused", _describe(current))
+    _notify(store, current, "cs10 queue: job failed; queue paused", _describe(current))
     return current
 
 
@@ -393,6 +465,7 @@ def reconcile(store: QueueStore) -> None:
 
 
 def dispatch(store: QueueStore, *, once: bool, poll_seconds: float) -> int:
+    validate_notification_setup()
     with dispatcher_lock(store):
         reconcile(store)
         had_queued_reservations = False
@@ -402,7 +475,8 @@ def dispatch(store: QueueStore, *, once: bool, poll_seconds: float) -> int:
             reservation = store.next()
             if reservation is None:
                 if once or had_queued_reservations:
-                    notify(
+                    _notify(
+                        store,
                         None,
                         "cs10 queue: all jobs complete",
                         "No queued reservations remain.",
@@ -427,6 +501,7 @@ def cancel(store: QueueStore, reservation_id: int) -> Reservation:
         result = store.get(reservation_id)
         assert result is not None
         store.event(reservation_id, "cancelled", "queued reservation cancelled")
+        _notify(store, result, "cs10 queue: job cancelled", _describe(result))
         return result
     if reservation.state == "running" and reservation.pid is not None:
         os.killpg(reservation.pid, signal.SIGTERM)

@@ -83,13 +83,13 @@ def test_flagella_count_diagnostic_multi_run_config_generates_expected_condition
         "root_torque_segment_couples"
     )
     assert len(conditions) == 36
-    assert conditions[0]["condition_id"] == "as000__ps000__nf01"
+    assert conditions[0]["condition_id"] == "nf01__as000__ps000"
     assert conditions[0]["axis_values"] == {
         "attach_seed": 0,
         "phase_seed": 0,
         "n_flagella": 1,
     }
-    assert conditions[-1]["condition_id"] == "as002__ps002__nf06"
+    assert conditions[-1]["condition_id"] == "nf06__as002__ps002"
 
 
 def test_flagella_count_behavior_v1_config_generates_expected_conditions() -> None:
@@ -110,13 +110,13 @@ def test_flagella_count_behavior_v1_config_generates_expected_conditions() -> No
     )
     assert config["base_overrides"]["stiffness_scales"]["body"] == pytest.approx(2.5)
     assert len(conditions) == 36
-    assert conditions[0]["condition_id"] == "as000__ps000__nf01"
+    assert conditions[0]["condition_id"] == "nf01__as000__ps000"
     assert conditions[0]["axis_values"] == {
         "attach_seed": 0,
         "phase_seed": 0,
         "n_flagella": 1,
     }
-    assert conditions[-1]["condition_id"] == "as002__ps002__nf04"
+    assert conditions[-1]["condition_id"] == "nf04__as002__ps002"
 
 
 def test_quality_keeps_transient_strict_failure_out_of_ml_candidates() -> None:
@@ -723,8 +723,8 @@ def _write_step_summary(path: Path, rows: list[dict[str, object]]) -> None:
 def test_dataset_builder_outputs_summary_qc_and_timeseries(tmp_path: Path) -> None:
     run_dir = tmp_path / "runs/test_dataset"
     dataset_dir = tmp_path / "datasets/test_dataset"
-    raw_a = run_dir / "as000__ps000__nf01"
-    raw_b = run_dir / "as000__ps000__nf02"
+    raw_a = run_dir / "nf01__as000__ps000"
+    raw_b = run_dir / "nf02__as000__ps000"
     _write_step_summary(
         raw_a / "step_summary.csv",
         [
@@ -853,7 +853,7 @@ def test_dataset_builder_outputs_summary_qc_and_timeseries(tmp_path: Path) -> No
         "output_root": str(run_dir),
         "conditions": [
             {
-                "condition_id": "as000__ps000__nf01",
+                "condition_id": "nf01__as000__ps000",
                 "condition_label": "as=0, ps=0, nf=1",
                 "output_dir": str(raw_a),
                 "axis_values": {
@@ -867,7 +867,7 @@ def test_dataset_builder_outputs_summary_qc_and_timeseries(tmp_path: Path) -> No
                 },
             },
             {
-                "condition_id": "as000__ps000__nf02",
+                "condition_id": "nf02__as000__ps000",
                 "condition_label": "as=0, ps=0, nf=2",
                 "output_dir": str(raw_b),
                 "axis_values": {

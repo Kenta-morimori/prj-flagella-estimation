@@ -83,6 +83,7 @@ Phase文書の構成変更，統合，移行，削除を行う場合は，`phase
 - 重い処理は，short representative，targeted test，sweep，full executionの順で段階的に行う．
 - 長時間simulation，sweep，training，renderは，ユーザーから明示的に依頼されない限り実行しない．
 - user executionとする場合は，command，expected output，evaluation points，実行済みcheckを提示する．
+- cs10で生成・解析した成果物は、ユーザーが確認できるローカルへ同期し、件数・SHA-256・QCを検証してから完了報告する。cs10専用ログと認証情報は同期しない．
 
 ### 4. 結果分析
 

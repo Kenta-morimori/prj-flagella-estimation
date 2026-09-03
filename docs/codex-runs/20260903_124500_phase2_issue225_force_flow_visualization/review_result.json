@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "task": "Issue #225: RPY flow / Stokes force balance visualization",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/225",
+  "summary": [
+    "Removed count-versus-translation analysis artifacts from the hydrodynamics post-processing path.",
+    "QC-filtered 35 conditions now produce 41x41 body-fixed instantaneous RPY flow and Stokes force-balance snapshots at 0, 1, and 2 s.",
+    "Each QC-passed condition produces a fixed-camera 7x7x7 flow video with mechanical/fluid force-balance and body/individual-flagellum source-velocity panels.",
+    "The excluded condition as000__ps001__nf04 is retained only in analysis_manifest.json with its strict-QC reason."
+  ],
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "The visualization is a free-space RPY reconstruction, not CFD or a validation of the paper's far-field decay law."
+  ],
+  "tests_reviewed": [
+    "uv run pytest tests/test_hydrodynamics_analysis.py tests/test_hydro_rpy.py -q: PASS (12 passed)",
+    "pre-commit: ruff format/check, lifecycle check, pytest -m light: PASS (323 passed, 474 deselected)",
+    "cs10 archive-only render: PASS (105 snapshots, 35 MP4 files, 35 video sidecars, exit code 0)",
+    "Visual QA: as000__ps000__nf03 at 1 s confirms dense flow and explicitly scaled force arrows."
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [
+    "/net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs/2026-08-31/085806/parallel/queue-00003-1a75fbf7__b89ae09caaa1/campaign/analysis/hydrodynamics_force_flow_v2"
+  ],
+  "user_review_points": [
+    "analysis_manifest.json lists 35 included conditions, one QC exclusion, [41,41] slice density, [7,7,7] volume density, units, and F_hydro = -F_total.",
+    "Each static snapshot labels its force reference in N per displayed um."
+  ],
+  "adr_required": false,
+  "adr_reason": "No physical model, dataset, output contract outside the opt-in diagnostic, or phase-boundary policy changed.",
+  "commit_type": "feat",
+  "commit_hash": "282b7b0079e548c303b7ce794d4f562e141fe78f",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/229",
+  "next_actions": []
+}

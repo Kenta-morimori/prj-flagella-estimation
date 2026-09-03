@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 import sys
+import subprocess
 
 import pytest
 
@@ -148,10 +150,17 @@ def test_cancel_queued_and_running_reservations(monkeypatch, tmp_path: Path) -> 
     queue = _load_queue("cs10_queue_cancel")
     store = queue.QueueStore(tmp_path)
     try:
+        notifications: list[int | None] = []
+        monkeypatch.setattr(
+            queue,
+            "_notify",
+            lambda _store, reservation, *_: notifications.append(reservation.id),
+        )
         queued = store.add(
             branch="a", commit_sha="a" * 40, config="conf/a.yaml", priority=0
         )
         assert queue.cancel(store, queued.id).state == "cancelled"
+        assert notifications == [queued.id]
         running = store.add(
             branch="b", commit_sha="b" * 40, config="conf/b.yaml", priority=0
         )
@@ -219,22 +228,135 @@ def test_dispatcher_lock_rejects_a_second_dispatcher(tmp_path: Path) -> None:
         store.close()
 
 
-def test_notify_uses_cs10_mail_for_login_user(monkeypatch, tmp_path: Path) -> None:
+def test_notification_environment_overrides_nonversioned_config(
+    monkeypatch, tmp_path: Path
+) -> None:
     queue = _load_queue("cs10_queue_notify")
-    mail = tmp_path / "mail"
-    mail.touch()
-    monkeypatch.setattr(
-        queue, "Path", lambda value: mail if value == "/usr/bin/mail" else Path(value)
+    config = tmp_path / "cs10-queue.env"
+    config.write_text("CS10_QUEUE_NOTIFY_EMAIL=file@example.test\n", encoding="utf-8")
+    monkeypatch.setattr(queue, "DEFAULT_NOTIFY_CONFIG_PATH", config)
+    monkeypatch.setenv("CS10_QUEUE_NOTIFY_EMAIL", "env@example.test")
+    assert queue.notification_recipient() == "env@example.test"
+
+
+def test_notification_uses_nonversioned_config_when_environment_is_unset(
+    monkeypatch, tmp_path: Path
+) -> None:
+    queue = _load_queue("cs10_queue_notify_config")
+    config = tmp_path / "cs10-queue.env"
+    config.write_text(
+        "# cs10 local setting\nCS10_QUEUE_NOTIFY_EMAIL=file@example.test\n",
+        encoding="utf-8",
     )
-    monkeypatch.setenv("USER", "Ktakemori")
+    monkeypatch.setattr(queue, "DEFAULT_NOTIFY_CONFIG_PATH", config)
+    monkeypatch.delenv("CS10_QUEUE_NOTIFY_EMAIL", raising=False)
+    assert queue.notification_recipient() == "file@example.test"
+
+
+@pytest.mark.parametrize("value", [None, "", "not-an-email"])
+def test_notification_setup_rejects_missing_or_invalid_recipient(
+    monkeypatch, tmp_path: Path, value: str | None
+) -> None:
+    queue = _load_queue("cs10_queue_notify_invalid")
+    monkeypatch.setattr(queue, "DEFAULT_NOTIFY_CONFIG_PATH", tmp_path / "missing.env")
+    if value is None:
+        monkeypatch.delenv("CS10_QUEUE_NOTIFY_EMAIL", raising=False)
+    else:
+        monkeypatch.setenv("CS10_QUEUE_NOTIFY_EMAIL", value)
+    with pytest.raises(RuntimeError, match="CS10_QUEUE_NOTIFY_EMAIL"):
+        queue.notification_recipient()
+
+
+def test_notification_setup_rejects_missing_mail_binary(
+    monkeypatch, tmp_path: Path
+) -> None:
+    queue = _load_queue("cs10_queue_notify_mail")
+    monkeypatch.setenv("CS10_QUEUE_NOTIFY_EMAIL", "queue@example.test")
+    monkeypatch.setattr(queue, "MAIL_BINARY", tmp_path / "missing-mail")
+    with pytest.raises(RuntimeError, match="mail binary"):
+        queue.validate_notification_setup()
+
+
+def test_notify_uses_external_recipient_and_reports_delivery_failure(
+    monkeypatch, tmp_path: Path
+) -> None:
+    queue = _load_queue("cs10_queue_notify_delivery")
+    mail = tmp_path / "mail"
+    mail.touch(mode=0o700)
+    os.chmod(mail, 0o700)
+    monkeypatch.setattr(queue, "MAIL_BINARY", mail)
+    monkeypatch.setenv("CS10_QUEUE_NOTIFY_EMAIL", "queue@example.test")
     calls: list[tuple[list[str], str]] = []
 
     def fake_run(command, **kwargs):
         calls.append((command, kwargs["input"]))
-        return None
+        return subprocess.CompletedProcess(command, 0, "", "")
 
     monkeypatch.setattr(queue.subprocess, "run", fake_run)
 
     queue.notify(None, "subject", "body")
 
-    assert calls == [([str(mail), "-s", "subject", "Ktakemori"], "body")]
+    assert calls == [([str(mail), "-s", "subject", "queue@example.test"], "body")]
+
+    monkeypatch.setattr(
+        queue.subprocess,
+        "run",
+        lambda command, **kwargs: subprocess.CompletedProcess(command, 1, "", "failed"),
+    )
+    with pytest.raises(RuntimeError, match="exit code 1"):
+        queue.notify(None, "subject", "body")
+
+    monkeypatch.setattr(
+        queue.subprocess,
+        "run",
+        lambda *args, **kwargs: (_ for _ in ()).throw(OSError("not executable")),
+    )
+    with pytest.raises(RuntimeError, match="could not start: OSError"):
+        queue.notify(None, "subject", "body")
+
+
+def test_notify_records_success_and_failure_without_recipient(
+    monkeypatch, tmp_path: Path
+) -> None:
+    queue = _load_queue("cs10_queue_notify_events")
+    store = queue.QueueStore(tmp_path)
+    try:
+        monkeypatch.setattr(queue, "notify", lambda *args: None)
+        queue._notify(store, None, "subject", "body")
+        monkeypatch.setattr(
+            queue,
+            "notify",
+            lambda *args: (_ for _ in ()).throw(RuntimeError("mail failed")),
+        )
+        queue._notify(store, None, "subject", "body")
+        events = store.connection.execute(
+            "SELECT kind, detail FROM events ORDER BY id"
+        ).fetchall()
+        assert [(row["kind"], row["detail"]) for row in events] == [
+            ("notification_submitted", "mail accepted submission; subject=subject"),
+            ("notification_failed", "mail failed"),
+        ]
+    finally:
+        store.close()
+
+
+def test_notify_records_config_oserror_without_recipient(
+    monkeypatch, tmp_path: Path
+) -> None:
+    queue = _load_queue("cs10_queue_notify_config_oserror")
+    store = queue.QueueStore(tmp_path)
+    try:
+        monkeypatch.setattr(
+            queue,
+            "validate_notification_setup",
+            lambda: (_ for _ in ()).throw(OSError("recipient@example.com unreadable")),
+        )
+        queue._notify(store, None, "subject", "body")
+        event = store.connection.execute(
+            "SELECT kind, detail FROM events ORDER BY id"
+        ).fetchone()
+        assert event["kind"] == "notification_failed"
+        assert "OSError" in event["detail"]
+        assert "recipient@example.com" not in event["detail"]
+    finally:
+        store.close()

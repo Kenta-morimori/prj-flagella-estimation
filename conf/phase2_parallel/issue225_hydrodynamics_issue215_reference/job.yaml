@@ -1,0 +1,8 @@
+schema_version: 1
+job_id: issue225_issue215_grid_2s_hydrodynamics
+configs:
+  - path: conf/phase2_multi_run/2010_project_tau_linked_2s_hydrodynamics_issue225.yaml
+conditions: [nf01__as000__ps000, nf02__as000__ps000, nf03__as000__ps000, nf04__as000__ps000, nf01__as000__ps001, nf02__as000__ps001, nf03__as000__ps001, nf04__as000__ps001, nf01__as000__ps002, nf02__as000__ps002, nf03__as000__ps002, nf04__as000__ps002, nf01__as001__ps000, nf02__as001__ps000, nf03__as001__ps000, nf04__as001__ps000, nf01__as001__ps001, nf02__as001__ps001, nf03__as001__ps001, nf04__as001__ps001, nf01__as001__ps002, nf02__as001__ps002, nf03__as001__ps002, nf04__as001__ps002, nf01__as002__ps000, nf02__as002__ps000, nf03__as002__ps000, nf04__as002__ps000, nf01__as002__ps001, nf02__as002__ps001, nf03__as002__ps001, nf04__as002__ps001, nf01__as002__ps002, nf02__as002__ps002, nf03__as002__ps002, nf04__as002__ps002]
+execution:
+  max_workers: auto
+  worker_policy: cs10_qualified

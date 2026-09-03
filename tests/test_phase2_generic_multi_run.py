@@ -105,6 +105,42 @@ def test_generic_multi_run_profile_is_listed() -> None:
     assert "conf/phase2_multi_run/flagella_count_stability_narrow_seed00.yaml" in paths
 
 
+def test_n_flagella_is_the_leading_future_condition_identifier() -> None:
+    campaign = {
+        "sweep": {
+            "axes": [
+                {
+                    "name": "attach_seed",
+                    "key": "seed.attach_seed",
+                    "short_name": "as",
+                    "values": [0],
+                    "labels": ["0"],
+                    "ids": ["as000"],
+                },
+                {
+                    "name": "n_flagella",
+                    "key": "flagella.n_flagella",
+                    "short_name": "nf",
+                    "values": [2],
+                    "labels": ["2"],
+                    "ids": ["nf02"],
+                },
+                {
+                    "name": "phase_seed",
+                    "key": "seed.phase_seed",
+                    "short_name": "ps",
+                    "values": [1],
+                    "labels": ["1"],
+                    "ids": ["ps001"],
+                },
+            ]
+        }
+    }
+    assert (
+        build_campaign_conditions(campaign)[0]["condition_id"] == "nf02__as000__ps001"
+    )
+
+
 def test_generic_multi_run_profile_exposes_metadata() -> None:
     entry = load_profile_entry(
         Path("conf/phase2_multi_run/latest_model_torque_shape_stability.yaml")
@@ -294,6 +330,17 @@ def test_generic_multi_run_builds_conditions_and_cli_override() -> None:
     assert conditions[1]["config_overrides"]["motor"]["torque_Nm"] == 2.0e-20
 
 
+def test_generic_multi_run_accepts_hydrodynamics_cli_override() -> None:
+    campaign = apply_campaign_cli_overrides(
+        load_yaml(
+            Path("conf/phase2_multi_run/latest_model_torque_shape_stability.yaml")
+        ),
+        ["hydrodynamics.enabled=true"],
+    )
+
+    assert campaign["base_overrides"]["hydrodynamics"]["enabled"] is True
+
+
 def test_generic_multi_run_manifests_record_model_profile(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -308,6 +355,7 @@ def test_generic_multi_run_manifests_record_model_profile(
                 "  time.duration_s: 0.0001",
                 "  motor.force_distribution: hook_coupled_body_reaction",
                 "  motor.reference_torque_Nm: 2.0e-20",
+                "  hydrodynamics.enabled: true",
                 "sweep:",
                 "  axes:",
                 "    torque:",
@@ -344,10 +392,14 @@ def test_generic_multi_run_manifests_record_model_profile(
             "nominal_flagella_count": 3,
             "nominal_total_beads": 48,
         }
-        assert manifest["time"]["duration_s"] == pytest.approx(0.1)
+        assert manifest["time"]["duration_s"] == pytest.approx(0.0001)
         assert manifest["time"]["dt_star"] == pytest.approx(1.0e-4)
-        assert manifest["time"]["time_schema_source"] == "canonical"
+        assert manifest["time"]["time_schema_source"] == "mixed_equivalent"
     assert run_manifest["conditions"][0]["time"]["duration_s"] == pytest.approx(0.0001)
+    assert run_manifest["hydrodynamics_enabled"] is True
+    assert run_manifest["conditions"][0]["hydro_archive_npz"].endswith(
+        "hydro_archive.npz"
+    )
     assert run_manifest["conditions"][0]["time"]["time_schema_source"] == (
         "mixed_equivalent"
     )

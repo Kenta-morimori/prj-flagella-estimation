@@ -36,6 +36,7 @@ SIMULATION_OVERRIDE_ROOTS = {
     "output_sampling",
     "brownian",
     "render",
+    "hydrodynamics",
     "seed",
     "stiffness_scales",
 }
@@ -285,6 +286,12 @@ def build_campaign_conditions(config: dict[str, Any]) -> list[dict[str, Any]]:
         raise ValueError(f"Unknown render.col_axis: {col_axis_name}")
 
     value_maps = {axis["name"]: axis_value_lookup(axis) for axis in axes}
+    # Flagella count is the stable leading identifier for every future dataset
+    # that varies it; other axes preserve the campaign's declared order.
+    id_axes = sorted(
+        axes,
+        key=lambda axis: (0 if axis["name"] == "n_flagella" else 1, axes.index(axis)),
+    )
     choices = [list(value_maps[axis["name"]].values()) for axis in axes]
 
     conditions: list[dict[str, Any]] = []
@@ -295,7 +302,7 @@ def build_campaign_conditions(config: dict[str, Any]) -> list[dict[str, Any]]:
         axis_ids: dict[str, str] = {}
         axis_order: dict[str, int] = {}
         label_parts: list[str] = []
-        id_parts: list[str] = []
+        id_by_axis: dict[str, str] = {}
         for axis, (value, label, value_id, order_index) in zip(axes, combo):
             if "key" in axis:
                 nested_override = _merge_nested(
@@ -319,10 +326,10 @@ def build_campaign_conditions(config: dict[str, Any]) -> list[dict[str, Any]]:
             axis_ids[axis["name"]] = value_id
             axis_order[axis["name"]] = order_index
             label_parts.append(f"{axis['short_name']}={label}")
-            id_parts.append(value_id)
+            id_by_axis[axis["name"]] = value_id
         condition = {
             "condition_index": condition_index,
-            "condition_id": "__".join(id_parts),
+            "condition_id": "__".join(id_by_axis[axis["name"]] for axis in id_axes),
             "condition_label": ", ".join(label_parts),
             "axis_values": axis_values,
             "axis_labels": axis_labels,

@@ -88,6 +88,7 @@ Do not read large files under `outputs/` unless compact summaries and manifests 
 * Record configs, overrides, seeds, paths, Git information, and environment details when available.
 * Preserve full diagnostics when needed, but prefer compact summaries for routine analysis.
 * Phase 2 uses `step_summary.csv`; do not reintroduce `step_summary_full.csv` without an explicit decision.
+* After any cs10 simulation, archive analysis, or render, synchronize the user-reviewable artifacts, manifests, run summaries, and required reanalysis archives to local storage before reporting completion. Verify counts, SHA-256 hashes, and QC records; do not copy cs10 operational logs or credentials.
 
 ## Testing And Review
 

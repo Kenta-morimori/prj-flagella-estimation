@@ -60,7 +60,7 @@ def _write_fixture(root: Path) -> Path:
     input_dir = root / "input"
     summary_rows: list[dict[str, object]] = []
     for phase_seed in (0, 1):
-        condition_id = f"as000__ps{phase_seed:03d}__nf03"
+        condition_id = f"nf03__as000__ps{phase_seed:03d}"
         condition_dir = input_dir / condition_id
         states = [
             SimulationState(
@@ -191,7 +191,7 @@ def test_phase2_158_diagnostics_writes_summary_events_and_manifest(
             campaign_config=campaign_path,
             input_dir=tmp_path / "input",
             output_dir=output_dir,
-            fail_condition_ids=("as000__ps001__nf03",),
+            fail_condition_ids=("nf03__as000__ps001",),
         )
     )
 
@@ -208,7 +208,7 @@ def test_phase2_158_diagnostics_writes_summary_events_and_manifest(
 
     event_rows = list(csv.DictReader((output_dir / "failure_event_table.csv").open()))
     assert event_rows
-    assert {row["condition_id"] for row in event_rows} == {"as000__ps001__nf03"}
+    assert {row["condition_id"] for row in event_rows} == {"nf03__as000__ps001"}
     lead_lag_rows = list(
         csv.DictReader((output_dir / "failure_lead_lag_summary.csv").open())
     )
@@ -219,8 +219,8 @@ def test_phase2_158_diagnostics_writes_summary_events_and_manifest(
     seed_rows = list(csv.DictReader((output_dir / "seed_failure_table.csv").open()))
     assert len(seed_rows) == 2
     assert {row["condition_id"] for row in seed_rows} == {
-        "as000__ps000__nf03",
-        "as000__ps001__nf03",
+        "nf03__as000__ps000",
+        "nf03__as000__ps001",
     }
     attach_rows = list(
         csv.DictReader((output_dir / "attach_geometry_table.csv").open())
@@ -228,7 +228,7 @@ def test_phase2_158_diagnostics_writes_summary_events_and_manifest(
     assert len(attach_rows) == 1
     assert attach_rows[0]["attach_body_indices"]
     assert attach_rows[0]["attach_pair_dist_min_um"]
-    assert (output_dir / "plots" / "as000__ps001__nf03_first_fail_sync.png").is_file()
+    assert (output_dir / "plots" / "nf03__as000__ps001_first_fail_sync.png").is_file()
 
     manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["long_simulation_rerun"] is False

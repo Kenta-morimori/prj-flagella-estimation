@@ -1,0 +1,50 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  issue: 225
+  description: >
+    Free-space RPY hydrodynamics archive campaign. The saved positions and total
+    forces reconstruct velocity contributions and flow overlays after the run.
+
+base_config: conf/sim_swim_2010.yaml
+
+base_overrides:
+  time.scale_policy: reference_torque
+  time.duration.value: 0.5
+  time.duration.unit: s
+  time.integration.dt_star: 1.0e-4
+  brownian.enabled: false
+  seed.global_seed: 0
+  seed.attach_seed: 0
+  output.policy: compact
+  output.archive_interval_s: 1.0e-3
+  hydrodynamics.enabled: true
+
+sweep:
+  axes:
+    n_flagella:
+      key: flagella.n_flagella
+      short_name: nflag
+      values: [1, 2, 3]
+      labels: [n1, n2, n3]
+      ids: [n1, n2, n3]
+    phase_seed:
+      key: seed.phase_seed
+      short_name: phase
+      values: [0, 1, 2]
+      labels: [seed0, seed1, seed2]
+      ids: [phase0, phase1, phase2]
+
+replay:
+  mode: render-only
+  fps_out_3d: 25.0
+  flow_overlay: true
+  follow_camera_3d: false
+  grid_shape: [3, 3, 3]
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 1000

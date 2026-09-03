@@ -165,8 +165,60 @@ tmux attach -t cs10-queue
 
 `cancel`はqueued reservationを即時cancelし、running reservationにはprocess group単位で
 停止要求を送る。dispatcher再起動後にrunning processを安全に照合できない場合は`blocked`として
-queueをpauseする。`/usr/bin/mail`が利用可能なcs10ではログインユーザーへjob成功、失敗、全queue
-完了を通知する。実機のtmux継続・メール配送・2件逐次probeはIssue #219のPR merge後に確認する。
+queueをpauseする。dispatcherは外部通知先を設定しない限り起動しない。cs10上で以下の非版管理設定を一度だけ作成し、所有者以外が読めないようにする。環境変数`CS10_QUEUE_NOTIFY_EMAIL`がある場合はそちらを優先する。通知先はqueueの状態、ログ、manifestへ出力しない。
+
+```bash
+mkdir -p ~/.config/prj-flagella-estimation
+chmod 700 ~/.config/prj-flagella-estimation
+printf '%s\n' 'CS10_QUEUE_NOTIFY_EMAIL=<external-email>' \
+  > ~/.config/prj-flagella-estimation/cs10-queue.env
+chmod 600 ~/.config/prj-flagella-estimation/cs10-queue.env
+```
+
+`/usr/bin/mail`が実行不能、または有効な通知先がない場合は明示的に失敗する。成功・失敗・cancel・全queue完了時に外部宛てメールを送る。Postfixへの投入成功はqueue eventへ`notification_submitted`、投入失敗は`notification_failed`として記録する。外部メールサーバーへの最終配送結果はcs10のPostfix管理ログで確認する。
+
+## RPY hydrodynamics archive analysis for generic multi-run
+
+hydrodynamicsを有効にしたgeneric multi-runは、conditionごとのcompact `hydro_archive.npz`（位置・総力）を保存する。解析とrenderは完了済みarchiveのみを読み、追加simulationを開始しない。Issue #225の36条件campaignは、この共通手順を適用した過去referenceである。
+
+レビュー済みの固定commitを予約する前に、既存jobと衝突しないこと、NAS mount・容量、queue/mail の短いpreflightを確認する。実行許可を受けたユーザーは次を使う。
+
+```bash
+cd ~/src/prj-flagella-estimation
+git fetch origin
+df -h /net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs
+
+.venv-cs10/bin/python scripts/cs10/queue.py enqueue \
+  --branch <reviewed-branch> \
+  --config <generic-hydrodynamics-job.yaml> \
+  --priority 0
+
+tmux new-session -d -s cs10-queue \
+  'cd ~/src/prj-flagella-estimation && .venv-cs10/bin/python scripts/cs10/queue.py run'
+.venv-cs10/bin/python scripts/cs10/queue.py status
+```
+
+成功済みcampaignは、再simulationせず raw archive を含む独立referenceへ整理してから解析する。hydrodynamics動画は任意のmulti-run manifestから、行軸とgroup軸を明示して生成する。世界座標の3D流れ・source contribution・body-fixed断面を表示し、世界座標の軸範囲は動画内で固定する。
+
+```bash
+.venv-cs10/bin/python scripts/03_dataset_building/stage_hydrodynamics_reference.py \
+  --campaign-dir <parallel-output>/campaign \
+  --reference-dir outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_hydrodynamics_issue225_2026-08-31
+.venv-cs10/bin/python scripts/03_dataset_building/replay_dataset.py \
+  --run-dir outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_hydrodynamics_issue225_2026-08-31 --flow-overlay \
+  --row-axis phase_seed --group-axis n_flagella --group-axis attach_seed \
+  --output-dir outputs/phase2_multi_run/flagella_count_behavior_v1_r2/reference/2010_project_tau_linked_2s_hydrodynamics_issue225_2026-08-31/analysis/hydrodynamics/flow_visualizations
+```
+
+QC不通過conditionは該当動画行を`QC failed; visualization omitted`とし、全行不通過groupは動画を作らない。`analysis_manifest.json` に、入力archive provenance、格子密度、単位、QC除外理由、`F_hydro = -F_total`の検証を集約する。条件別静止画・個別動画・sidecar JSONは作らない。
+
+cs10上の成果物は、ユーザーへ完了報告する前にローカルへ同期する。ローカルから次を実行し、cs10のoperational logを除外したうえでSHA-256一致を確認する。
+
+```bash
+python scripts/cs10/sync_reference_from_cs10.py \
+  --host Ktakemori@cs10 --remote-dir <cs10-reference-dir> \
+  --local-dir outputs/phase2_multi_run/.../reference/<reference-name>
+```
 
 ## Scope and requalification
 

@@ -14,6 +14,7 @@ import numpy as np
 
 from sim_swim.analysis.run_summary import write_run_summary
 from sim_swim.analysis.online_run_summary import OnlineRunSummary
+from sim_swim.analysis.hydrodynamics import HydroSample
 from sim_swim.dynamics.engine import DynamicsEngine
 from sim_swim.model.builder import ModelBuilder
 from sim_swim.sim.debug_summary import (
@@ -255,6 +256,7 @@ class Simulator:
             hook_triplets=self.model.hook_triplets.copy(),
         )
         self.initial_geometry_summary = self._build_initial_geometry_summary()
+        self.hydro_samples: list[HydroSample] = []
 
     def _body_spring_edges_for_render(self) -> np.ndarray:
         pairs = self.model.spring_pairs
@@ -677,8 +679,16 @@ class Simulator:
         )
         if archive_interval_s <= 0.0:
             raise ValueError("archive_interval_s must be positive")
+        if (
+            self.config.hydrodynamics.enabled
+            and archive_interval_s < self.config.dt_s - 1.0e-15
+        ):
+            raise ValueError(
+                "hydrodynamics archive_interval_s must be at least the integration dt"
+            )
 
         states: List[SimulationState] = []
+        self.hydro_samples = []
         wall_start = time.perf_counter()
 
         if progress_interval is None:
@@ -753,6 +763,7 @@ class Simulator:
         )
         online_summary = OnlineRunSummary(expected_steps=total_steps)
         next_archive_t_s = archive_interval_s
+        next_hydro_sample_t_s = 0.0
         completed_normally = False
         completion_reason = "completed all planned steps"
 
@@ -762,6 +773,18 @@ class Simulator:
                 step_diag = self.engine.step(dt_star)
                 t_star_after = self.engine.t_star
                 completed = step + 1
+
+                if self.config.hydrodynamics.enabled:
+                    t_before_s = t_star_before * tau_s
+                    while next_hydro_sample_t_s <= t_before_s + 1e-15:
+                        self.hydro_samples.append(
+                            HydroSample(
+                                t_s=t_before_s,
+                                positions_m=step_diag.positions_before_m.copy(),
+                                total_forces_N=step_diag.total_forces.copy(),
+                            )
+                        )
+                        next_hydro_sample_t_s += archive_interval_s
 
                 if debug_recorder is not None:
                     debug_recorder.record(

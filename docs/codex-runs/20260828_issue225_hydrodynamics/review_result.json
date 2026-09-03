@@ -1,0 +1,36 @@
+{
+  "status": "PASS",
+  "task": "Issue #225: reusable RPY hydrodynamics archive and fixed-camera flow overlay",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/225",
+  "summary": [
+    "Opt-in hydro_archive stores 1 ms-cadence bead positions and total forces for compact RPY runs.",
+    "Post-processing reconstructs self/other/source velocity contributions and RPY velocity at arbitrary spatial points without storing mobility matrices or flow grids.",
+    "Campaign analysis writes archive-aligned contribution time series, a 36-condition comparison CSV, a full-duration body-fixed axial-flow figure, and a count-comparison figure.",
+    "The replay entry point renders either one condition or the required attach_seed=0 / phase_seed=0 n=1/2/3 3-panel overlay with follow_camera_3d forced to false.",
+    "A cs10-qualified 36-shard, fixed-commit queue job uses the Issue #215 parameter and seed grid for a two-second hydrodynamics rerun."
+  ],
+  "checks": [
+    {"command": "uv run pytest -q tests/test_hydrodynamics_analysis.py", "result": "PASS: 11 passed"},
+    {"command": "uv run pytest -q tests/test_cs10_queue.py", "result": "PASS: 17 passed"},
+    {"command": "pre-commit (ruff format/check, lifecycle check, pytest -m light)", "result": "PASS: 323 passed, 474 deselected"},
+    {"command": "uv run python -m sim_swim.analysis.sweeps.generic_multi_run --campaign-config conf/phase2_multi_run/2010_project_tau_linked_2s_hydrodynamics_issue225.yaml --dry-run", "result": "PASS: 36 conditions"},
+    {"command": "load_parallel_job(conf/phase2_parallel/issue225_hydrodynamics_issue215_reference/job.yaml)", "result": "PASS: 36 condition IDs"},
+    {"command": "cs10 reservation 3", "result": "PASS: fixed commit ac69e14; campaign completion marker reports 36/36 and exit_code 0"}
+  ],
+  "long_simulation_executed": true,
+  "long_simulation_reason": "User-authorized cs10 reservation 3 ran the two-second, 36-condition campaign at fixed commit ac69e14. The 5 s reservation 2 remains cancelled by user instruction.",
+  "user_review_required": false,
+  "user_review_command": "cs10 completed the fixed-commit 36-condition reservation. Archive-only analysis and the attach_seed=0 / phase_seed=0 n=1/2/3 overlay were generated without re-simulation.",
+  "user_review_points": [
+    "All 36 conditions contain hydro_archive.npz with timestamp, positions, total forces, bead grouping, and provenance.",
+    "The strict compact QC in run_summary.json is inspected for all 36 conditions.",
+    "Comparison CSV and the full-duration body-fixed axial-flow figure are present.",
+    "Overlay manifest records follow_camera_3d=false, fps=25, grid_shape=[3,3,3], and attach_seed=0 / phase_seed=0 n=1/2/3 conditions."
+  ],
+  "adr_required": false,
+  "adr_reason": "No physical model, dataset, or phase-boundary policy changed; this adds opt-in post-processing output.",
+  "commit_type": "feat",
+  "commit_hash": "bc837d7",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/229"
+}
