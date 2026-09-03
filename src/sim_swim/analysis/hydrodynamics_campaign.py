@@ -143,6 +143,11 @@ def plot_force_flow_snapshot(
     beads_um = _body_fixed_beads(archive, sample_index, rotation)
     mechanical_force = archive.total_forces_N[sample_index] @ rotation
     fluid_resistance = stokes_fluid_resistance(mechanical_force)
+    force_reference = max(
+        float(np.quantile(np.linalg.norm(mechanical_force, axis=1), 0.95)), 1e-30
+    )
+    displayed_mechanical_force = mechanical_force / force_reference
+    displayed_fluid_resistance = fluid_resistance / force_reference
     figure, axes = plt.subplots(1, 2, figsize=(11, 4.5), constrained_layout=True)
     flow, force = axes
     flow.quiver(
@@ -191,8 +196,8 @@ def plot_force_flow_snapshot(
     force.quiver(
         beads_um[:, 0],
         beads_um[:, 1],
-        mechanical_force[:, 0],
-        mechanical_force[:, 1],
+        displayed_mechanical_force[:, 0],
+        displayed_mechanical_force[:, 1],
         color="tab:orange",
         scale=None,
         width=0.004,
@@ -201,8 +206,8 @@ def plot_force_flow_snapshot(
     force.quiver(
         beads_um[:, 0],
         beads_um[:, 1],
-        fluid_resistance[:, 0],
-        fluid_resistance[:, 1],
+        displayed_fluid_resistance[:, 0],
+        displayed_fluid_resistance[:, 1],
         color="tab:purple",
         scale=None,
         width=0.003,
@@ -210,7 +215,7 @@ def plot_force_flow_snapshot(
         label="fluid resistance -F_total",
     )
     force.set(
-        title="Stokes force balance",
+        title=f"Stokes force balance (1 um = {force_reference:.2e} N)",
         xlabel="body-fixed x [um]",
         ylabel="body-fixed y [um]",
         aspect="equal",
