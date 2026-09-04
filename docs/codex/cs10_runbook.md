@@ -165,14 +165,13 @@ tmux attach -t cs10-queue
 
 `cancel`はqueued reservationを即時cancelし、running reservationにはprocess group単位で
 停止要求を送る。dispatcher再起動後にrunning processを安全に照合できない場合は`blocked`として
-queueをpauseする。通知はcs10からGitHub Actionsを起動し、ActionsがGmail SMTPで配送する。
+queueをpauseする。通知はcs10からGitHub Actionsを起動し、GitHubアカウントのActions通知を
+メールで受け取る。Gmail SMTP、Actions Secrets、通知先のcs10ローカル設定ファイルは使わない。
 
-初回のみ、リポジトリの **Settings → Secrets and variables → Actions** に次のSecretsを設定する。
-値をリポジトリ、queue state、cs10のログへ保存してはならない。
-
-- `CS10_QUEUE_NOTIFY_EMAIL`: 通知先メールアドレス
-- `CS10_QUEUE_GMAIL_USERNAME`: 送信に使うGmailアドレス
-- `CS10_QUEUE_GMAIL_APP_PASSWORD`: GmailのApp Password
+GitHubの個人設定で **Settings → Notifications → System → Actions → Email** を選び、
+Actions通知メールを有効にする。queueの`failed`イベントはActions runを失敗終了（red）させ、
+`succeeded`と`queue_completed`は成功終了（green）させる。`cancelled`は成功終了し、run summaryで
+状態を確認する。
 
 cs10の実行ユーザーは、root権限なしでGitHub CLIを認証する。tokenには対象リポジトリの
 `repo`および`workflow`権限が必要である。
@@ -185,8 +184,20 @@ gh auth status --hostname github.com
 dispatcherは`gh`が利用不能、またはGitHub認証が無効なら起動を拒否する。成功・失敗・cancel・
 全queue完了時にActions workflowをdispatchし、受理成功はqueue eventへ
 `notification_dispatched`、dispatch失敗は`notification_failed`として記録する。
-`notification_dispatched`はActions起動の受理であり、最終メール配送を保証しない。Actions runが
-成功したこととGmail受信を確認して配送成功と判定する。
+`notification_dispatched`はActions起動の受理であり、workflow完了を保証しない。Actions runの
+成功／失敗とGitHub通知メールの受信を確認して、queue eventの通知結果を判定する。
+
+merge前の無害probeとして、cs10でGitHub CLI認証後に既定branchの既存workflowをdry-runする。
+この操作はqueueやProjectを更新せず、Actions成功通知がメールへ届くことだけを確認する。
+
+```bash
+gh workflow run issue-roadmap-sync.yml \
+  --repo Kenta-morimori/prj-flagella-estimation \
+  --ref main \
+  -f issue_number=219 \
+  -f action=edited \
+  -f dry_run=true
+```
 
 ## RPY hydrodynamics archive analysis for generic multi-run
 

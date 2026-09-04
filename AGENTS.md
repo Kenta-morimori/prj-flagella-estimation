@@ -102,7 +102,8 @@ Do not read large files under `outputs/` unless compact summaries and manifests 
 * Do not run long simulations, sweeps, training jobs, or renders unless the user explicitly asks.
 * For user-executed long runs, provide the command, expected outputs, evaluation points, and checks already passed.
 * Documentation deletion or consolidation must include stale-reference checks.
-* Request Cloud review only once for the merge-ready final candidate by default; do not re-request merely after addressing review feedback.
+* Request Cloud review only once for the merge-ready final candidate, and only after the user explicitly approves that request. Do not re-request merely after addressing review feedback.
+* For work with external prerequisites or user-run runtime acceptance, request Cloud review only after those prerequisites and the applicable pre-merge verification are complete. When the full acceptance run requires merge, first complete a bounded, non-mutating probe of the same authentication or notification path; do not request review before that probe and the user's explicit approval.
 * Request a second or later Cloud review only when there is clear new review evidence (for example, material scope or risk-bearing implementation changed after the first review), and only after explaining that evidence and obtaining the user's explicit approval.
 * Resolve actionable review threads before merge.
 

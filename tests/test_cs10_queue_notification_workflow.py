@@ -8,7 +8,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_notification_workflow_requires_expected_inputs_and_gmail_secrets() -> None:
+def test_notification_workflow_records_events_without_mail_secrets() -> None:
     workflow = ROOT / ".github/workflows/cs10-queue-notify.yml"
     document = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
 
@@ -34,10 +34,9 @@ def test_notification_workflow_requires_expected_inputs_and_gmail_secrets() -> N
     }
 
     source = workflow.read_text(encoding="utf-8")
-    for secret in (
-        "CS10_QUEUE_NOTIFY_EMAIL",
-        "CS10_QUEUE_GMAIL_USERNAME",
-        "CS10_QUEUE_GMAIL_APP_PASSWORD",
-    ):
-        assert f"secrets.{secret}" in source
-    assert "smtp.gmail.com" in source
+    assert "GITHUB_STEP_SUMMARY" in source
+    assert 'if [ "$EVENT_TYPE" = "failed" ]; then' in source
+    assert "exit 1" in source
+    assert "secrets." not in source
+    assert "smtp.gmail.com" not in source
+    assert "GMAIL_" not in source
