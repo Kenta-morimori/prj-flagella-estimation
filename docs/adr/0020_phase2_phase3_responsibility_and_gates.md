@@ -24,3 +24,4 @@ Phase 3 Gateはcount effect，3D→ideal 2D information retention，realistic ob
 - #126と#17はPhase 3の観測可能性評価を段階化する．
 - #157はcanonical sourceのpilotをPhase 3評価の入力として先行生成できるが，final dataset freezeはPhase 3 Gateの後に行う．
 - #225の流体診断は研究上有用でもPhase 3開始のhard blockerではない．
+- v1 r1の`n_flagella=3` failure診断は現行v1 r2 campaignのphysical-failure gateではない。非定常回転とseed差は，Phase 3でwithin-class variationとして再評価する．

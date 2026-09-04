@@ -77,5 +77,5 @@ Issue単位の進捗台帳ではない．現在の作業状態は`phase3_current
 * **Background:** physical simulationの妥当性，2D観測への情報保持，ML予測性能を同一gateに混在させると，研究上の主張とdataset採択根拠が循環する．
 * **Change:** Phase 2は物理・数値妥当性だけでcanonical modelをfreezeする．Phase 3はfreeze済みmodelでcontrolled count effect，ideal 2D projection，realistic pseudo microscopy，限定robustnessを評価し，Phase 4はfreeze済みdatasetに対する未知groupの予測性能を評価する．
 * **Decision:** Phase 3 Gateは，(P3-1) independent simulation run単位のcount effect，effect size，CI，within/between variation，seed dependence，(P3-2) 3Dからideal 2Dへのinformation retention，(P3-3) pseudo microscopy後のpixel-observable feature，(P3-4) body geometry・per-motor torque・viewing orientation・image quality bundleのrobustness，(P3-5) provenance / QC / groupingを含むdataset freezeとする．p値と分類精度閾値はPhase 3 Gateに含めない．
-* **Interpretation:** v1 / v1 r1 / v1 r2のseed sweepはQC履歴と設計上の探索的根拠として保持するが，canonical Phase 3 Gateはfreeze後の条件で再評価する．同一run由来clipは反復観測であり，独立run数に数えない．
+* **Interpretation:** v1 / v1 r1 / v1 r2のseed sweepはQC履歴と設計上の探索的根拠として保持するが，canonical Phase 3 Gateはfreeze後の条件で再評価する．v1 r1で観測された`n_flagella=3`の非定常回転とattach / phase seed差はwithin-class variationとして扱う。同一run由来clipは反復観測であり，独立run数に数えない．
 * **Evidence:** Issues #204，#126，#155，#157，#129，#205，ADR 0020．

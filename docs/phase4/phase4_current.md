@@ -31,7 +31,7 @@ Phase 4の目的は，Phase 3 common clip datasetを読み込み，べん毛数`
 ## Blockers
 
 * 必要run数の一般化には，追加のprotected evaluation groupsが必要である．
-* dataset v2 final freezeには，Phase 3のcontrolled study・観測可能性・robustness Gateが必要である．#158のv1 r1 failure診断はv1 r2の5 s stability campaignにより置換済みである．
+* dataset v2 final freezeには，Phase 3のcontrolled study・観測可能性・robustness Gateが必要である．#158のv1 r1 failure診断は現行v1 r2の5 s campaignのphysical-failure blockerではなく，非定常回転とseed差はPhase 3でwithin-class variationとして評価する．
 * RUN-TUMBLE datasetは，#69とdataset v2 RUN固定coreの完了に依存する．
 * 実動画への一般化評価は，Phase 3の実動画detection / tracking経路に依存する．
 

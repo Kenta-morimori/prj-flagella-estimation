@@ -51,7 +51,7 @@ Issue単位の進捗台帳ではない．現在の作業状態は`phase4_current
 * **Comparison:** 0.25秒，0.5秒，1.0秒windowの3D / 2D特徴，run / window QC，attach×phase seed差を比較した．
 * **Result:** 0.5秒と1.0秒で主要2D特徴のクラス順位は概ね維持された．strict QCは`n=1: 9/9`，`n=2: 9/9`，`n=3: 5/9`であり，`n=3`はattach seed依存が大きかった．
 * **Interpretation:** 0.5秒clipは現行baselineとして維持できるが，`n=3`の4 fail runを正式なv2 training dataへ含めることはできない．
-* **Decision:** MVP defaultを0.5秒のまま維持する．v1 r1ではwindow QCとpre-first-fail provenanceを保持する。#158の診断はv1 r2の5 s stability campaignにより置換済みであり，今後のdataset sourceとfreezeは#157およびPhase 3 Gateへ分離する．
+* **Decision:** MVP defaultを0.5秒のまま維持する．v1 r1ではwindow QCとpre-first-fail provenanceを保持する。#158の診断は現行v1 r2 campaignのphysical-failure blockerではなく，非定常回転とseed差はPhase 3でwithin-class variationとして評価する。今後のdataset sourceとfreezeは#157およびPhase 3 Gateへ分離する．
 * **Evidence:** Issue #129，Issues #155・#157・#158，`conf/phase2_multi_run/flagella_count_duration_3s_r1.yaml`，`scripts/04_phase4/run_duration_seed_study.sh`，`tests/test_phase4_duration_study.py`
 
 ## P4-D06: warmupとearly clip
@@ -66,7 +66,7 @@ Issue単位の進捗台帳ではない．現在の作業状態は`phase4_current
 ## P4-D07: dataset v2とRUN-TUMBLE
 
 * **Status:** pending
-* **Background:** dataset v1 r1には`n_flagella=3`の長時間failureがあり，RUN-TUMBLEも現行RUN固定baselineとは異なるbehavior regimeである．v1 r1 failure診断はv1 r2の5 s stability campaignにより置換済みである．
+* **Background:** dataset v1 r1には`n_flagella=3`の長時間failureがあり，RUN-TUMBLEも現行RUN固定baselineとは異なるbehavior regimeである．v1 r1 failure診断は現行v1 r2 campaignのphysical-failure blockerではなく，非定常回転とseed差はPhase 3のwithin-class variationとして評価する．
 * **Change:** dataset v2をRUN固定coreとRUN-TUMBLE scopeへ分離して進める方針を定めた．
 * **Decision:** #157でcanonical sourceのpilotを生成し，Phase 3 Gate後にRUN固定coreをfreezeする．RUN-TUMBLEは#69とv2 core通過後に#145で別`behavior_profile` / `dataset_scope`として追加する．
 * **Evidence:** Issues #145，#157，#158，ADR 0015
