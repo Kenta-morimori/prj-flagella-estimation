@@ -9,8 +9,8 @@ This repository develops a pipeline to estimate bacterial flagella counts from s
 Phases:
 
 1. Phase 1: repository, CLI, config, logging, and reproducibility foundations.
-2. Phase 2: 3D physical simulation and 2D pseudo-microscopy video generation.
-3. Phase 3: cell detection and per-cell clip generation.
+2. Phase 2: 3D physical simulation model construction, numerical/physical validation, long-duration stability, and canonical-model freeze.
+3. Phase 3: 2D projection, pseudo-microscopy, observability, detection, per-cell clip generation, and dataset freeze.
 4. Phase 4: flagella-count model training and evaluation.
 5. Phase 5+: prediction visualization and real-data analysis support.
 

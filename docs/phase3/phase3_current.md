@@ -4,7 +4,8 @@
 
 ## Goal
 
-Phase 3の目的は，実顕微鏡動画とPhase 2擬似動画を，Phase 4で共通利用できる個体clipとmetadataへ変換することである．
+Phase 3の目的は，canonical physical simulation modelからべん毛本数による3D運動差と2D観測可能性を評価し，実顕微鏡条件に対応した個体clip / metadata datasetをfreezeしてPhase 4へ渡すことである．
+流れは，controlled study，3D特徴量，ideal 2D projection，pseudo microscopy，observable feature，robustness，dataset freezeとする．
 
 ## Current Baseline
 
@@ -15,21 +16,23 @@ Phase 3の目的は，実顕微鏡動画とPhase 2擬似動画を，Phase 4で�
 * canonical renderは`body_capsule_orthographic_v1`である．
 * Phase 4のloader，baseline，grouped learning curve，freeze auditへ接続済みである．
 * 実動画のdetection / tracking経路は未実装である．
+* v1 / v1 r1 / v1 r2のseed sweepは探索的baselineとして保持し，canonical Phase 3 GateはPhase 2 canonical model freeze後に再評価する．
 
 ## Active Work
 
-* #199: tau-linked `T=2.5e-20 N m`, `dt*=1e-3`, body scale 1.0でv1 r2 sourceをユーザー実行し，3D+2D feature comparisonで本数差を確認する．
+* #205のcanonical physical model freezeに先行して，#204のfeature contractと#8 / #9の実顕微鏡条件を整理する．
 
 ## Next Queue
 
-1. #8: 実顕微鏡動画の入力条件と必要metadataを整理する．
-2. #9: 実菌体サイズとscale normalizationの基準を整理する．
-3. #17: 実動画条件に基づくrender profileを定義する．
+1. #204 / #126: 3D・2D特徴量を固定し，controlled count effectとideal 2D observabilityを評価する．
+2. #8 / #9 / #17: 実動画条件と擬似顕微鏡forward modelを定義する．
+3. #157: canonical sourceのpilot，Phase 3 Gate後のdataset v2 freeze，Phase 4 handoffを行う．
 
 ## Blockers
 
 * 実動画のdetection / tracking実装は，#8と#9の入力・scale条件に依存する．
-* 実動画domainに合わせたrender variationは，#8の撮影条件確定まで採択しない．
+* pseudo microscopyのrealistic profileとobservation robustnessは，#8 / #9の根拠確定までfreezeしない．
+* dataset v2 final freezeは，controlled effect，ideal / realistic 2D observability，限定robustnessのPhase 3 Gateに依存する．
 
 ## Context Routing
 
