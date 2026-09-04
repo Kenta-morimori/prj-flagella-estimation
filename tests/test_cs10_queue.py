@@ -258,7 +258,7 @@ def test_notify_dispatches_actions_workflow_without_recipient(
     monkeypatch.setattr(queue.subprocess, "run", fake_run)
     reservation = queue.Reservation(
         7,
-        "origin/topic",
+        "@origin/topic",
         "a" * 40,
         "conf/job.yaml",
         0,
@@ -269,7 +269,7 @@ def test_notify_dispatches_actions_workflow_without_recipient(
         "/output",
         None,
         1,
-        "manifest failed",
+        "@manifest failed",
     )
     queue.notify(reservation, "failed")
 
@@ -283,27 +283,28 @@ def test_notify_dispatches_actions_workflow_without_recipient(
             "Kenta-morimori/prj-flagella-estimation",
             "--ref",
             "main",
-            "--field",
+            "--raw-field",
             "event_type=failed",
-            "--field",
+            "--raw-field",
             "reservation_id=7",
-            "--field",
-            "branch=origin/topic",
-            "--field",
+            "--raw-field",
+            "branch=@origin/topic",
+            "--raw-field",
             f"commit_sha={'a' * 40}",
-            "--field",
+            "--raw-field",
             "state=failed",
-            "--field",
+            "--raw-field",
             f"logs={tmp_path}/state/reservation-00007",
-            "--field",
+            "--raw-field",
             "control_dir=/control",
-            "--field",
+            "--raw-field",
             "output_root=/output",
-            "--field",
-            "error=manifest failed",
+            "--raw-field",
+            "error=@manifest failed",
         ]
     ]
-    assert not any("@" in value for value in commands[0])
+    assert commands[0].count("--raw-field") == 9
+    assert "--field" not in commands[0]
 
     monkeypatch.setattr(
         queue.subprocess,

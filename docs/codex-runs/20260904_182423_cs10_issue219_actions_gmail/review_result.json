@@ -5,7 +5,8 @@
   "summary": [
     "cs10 queueの通知アダプタをローカルPostfixからGitHub Actions workflow dispatchへ移行した。",
     "workflowはGitHubアカウントのActionsメール通知を使い、Gmail SMTP、Actions Secrets、宛先のcs10設定を必要としない。",
-    "dispatcherが成功予約2件を順番に自動実行する単体テストを追加した。"
+    "dispatcherが成功予約2件を順番に自動実行する単体テストを追加した。",
+    "Codex reviewのP2指摘に従い、通知入力を全てghの--raw-fieldで渡し、@始まりの値をローカルファイル参照として扱わないようにした。"
   ],
   "blocking_issues": [],
   "non_blocking_issues": [
@@ -15,6 +16,7 @@
     "uv run ruff format --check .",
     "uv run ruff check .",
     "uv run pytest -q (800 passed)",
+    "uv run pytest -q tests/test_cs10_queue.py tests/test_cs10_queue_notification_workflow.py (15 passed)",
     "uv run python tools/codex/check_issue_script_lifecycle.py --base origin/main",
     "git diff --check"
   ],
@@ -37,7 +39,6 @@
   "push_status": "not_pushed",
   "pull_request_url": "pending",
   "next_actions": [
-    "ユーザーがGitHub Actionsメール通知を有効化し、cs10の無害workflow probeを確認する。",
-    "その確認後、ユーザーの明示承認を得てCloud reviewを一度だけ依頼する。"
+    "merge後にcs10で無害なreservationを2件enqueueし、tmux継続、逐次実行、失敗時pause/resume、Actions runとGitHub通知メールを確認する。"
   ]
 }
