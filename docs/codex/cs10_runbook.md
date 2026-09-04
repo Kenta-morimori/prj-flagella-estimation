@@ -251,3 +251,87 @@ uv run python scripts/01_simulate_swimming/compare_qualification.py \
 共有する最小 artifact は、runtime probe の `manifest.json`、各 serial / parallel child の `summary.csv`・`run_manifest.json`・`manifest.json`・各 condition の `run_summary.json`、parallel の `job_manifest.json` である。失敗時だけ対応する `stdout.log`、`stderr.log`、`failure.json`（存在すれば）を追加する。raw `step_summary.csv` と state archive は共有不要である。
 
 serial が失敗した場合は environment / simulation core を先に切り分け、parallel へ進まない。serial が PASS して parallel のみ失敗した場合は child command、output namespace、thread override、stderr を確認する。数値差のみの場合は failure gate と最大差分を report で確認し、根拠なく tolerance を変更しない。
+
+## Issue #232: 18-execution repeat qualification
+
+これは既存の `issue210_2010_project` parallel job の**実行再現性だけ**を
+qualification する。物理モデル、dataset、科学 campaign、comparison tolerance は変更しない。
+cs10 heavy run は User-run であり、Codex は SSH、tmux、queue、start/stop を行わない。
+
+同じ clean commit で、次の matrix を実行する。各 `rep1`--`rep3` は別の出力 root に
+保存し、既存出力を上書きしない。
+
+| environment | profile | repeats | effective condition |
+| --- | --- | --- | --- |
+| Mac serial | `shape_stability_grid` | 3 | `baseline` |
+| Mac serial | `torque_distribution_grid` | 3 | `segment_couples_diffusive_fp3_ft1p5` |
+| cs10 serial | 同上 | 3 | 同上 |
+| cs10 parallel | 両 profile を同一 job で実行 | 3 | 同上 |
+
+すべて `duration_s=0.001`（251 steps）とする。shape profile は
+`sample_limit=1 attach_seed=0 phase_seed=0`、torque profile は
+`sample_limit=1 torque_nm=2.5e-20` を使う。torque profile の seed は source profile の
+`attach_seed=0` / `phase_seed=0` から有効値として継承される。開始前に Mac と cs10 の両方で
+`git rev-parse HEAD` が一致し、`git status --short` が空であることを確認する。
+
+Mac serial は各 repeat で次を実行する（`repN` を `rep1`、`rep2`、`rep3` に置き換える）。
+
+```bash
+uv run python scripts/01_simulate_swimming/run_sweep.py \
+  config=conf/phase2_sweeps/shape_stability_grid.yaml \
+  output_dir=outputs/YYYY-MM-DD/HHMMSS/issue232/mac_serial/repN/shape_stability_grid \
+  sample_limit=1 attach_seed=0 phase_seed=0 duration_s=0.001
+
+uv run python scripts/01_simulate_swimming/run_sweep.py \
+  config=conf/phase2_sweeps/torque_distribution_grid.yaml \
+  output_dir=outputs/YYYY-MM-DD/HHMMSS/issue232/mac_serial/repN/torque_distribution_grid \
+  sample_limit=1 torque_nm=2.5e-20 duration_s=0.001
+```
+
+cs10 serial でも同じ二つの command を `.venv-cs10/bin/python` で各3回実行する。
+cs10 parallel の最初の repeat は次の User-run command を使う。完了後の `rep2` / `rep3` は
+session と label にそれぞれ `-r2` / `-r3` を付けて同じ config で開始する。
+
+```bash
+.venv-cs10/bin/python scripts/cs10/parallel_tmux.py start \
+  --config conf/phase2_parallel/issue210_2010_project/job.yaml \
+  --session issue232-qualification \
+  --label issue232_qualification
+```
+
+各 parallel repeat について `status` で `job.succeeded`、`failed_configs=[]`、2 child
+すべて exit code 0 を確認する。serial と parallel のいずれかが partial failure の場合は、
+数値が近くてもその repeat は FAIL とし、次の repeat や比較へ進まない。
+
+cs10 の各 campaign root から Mac へ同期してよいのは `run_manifest.json`、`summary.csv`、
+各 condition の `run_summary.json`、および parallel root の `job_manifest.json` だけである。
+Mac 上で report を作成した後は、その `qualification_report.json`、`summary.csv`、`manifest.json`
+だけを保全する。cs10 operational log、tmux log、credential、raw `step_summary.csv`、state archive
+は同期しない。同期後、受け取った各 file の SHA-256、artifact count、各 `run_summary.json` の
+execution/finite/shape/failure QC record を検査する。
+
+各 `repN` で、profile ごとの Mac serial vs cs10 serial comparison を2本、cs10 serial vs
+parallel comparison を1本実行する。3本すべてが PASS でなければ、その repeat は FAIL である。
+比較器の既定 tolerance（`atol=1e-9`, `rtol=1e-6`）を変更しない。
+
+```bash
+uv run python scripts/01_simulate_swimming/compare_qualification.py \
+  --left outputs/.../issue232/mac_serial/repN/shape_stability_grid \
+  --right outputs/.../issue232/cs10_serial/repN/shape_stability_grid \
+  --output-dir outputs/YYYY-MM-DD/HHMMSS/issue232/qualification/repN/mac_vs_cs10_shape
+
+uv run python scripts/01_simulate_swimming/compare_qualification.py \
+  --left outputs/.../issue232/mac_serial/repN/torque_distribution_grid \
+  --right outputs/.../issue232/cs10_serial/repN/torque_distribution_grid \
+  --output-dir outputs/YYYY-MM-DD/HHMMSS/issue232/qualification/repN/mac_vs_cs10_torque
+
+uv run python scripts/01_simulate_swimming/compare_qualification.py \
+  --parallel-job-manifest outputs/.../issue232/cs10_parallel/repN/job_manifest.json \
+  --serial conf/phase2_sweeps/shape_stability_grid.yaml=outputs/.../issue232/cs10_serial/repN/shape_stability_grid \
+  --serial conf/phase2_sweeps/torque_distribution_grid.yaml=outputs/.../issue232/cs10_serial/repN/torque_distribution_grid \
+  --output-dir outputs/YYYY-MM-DD/HHMMSS/issue232/qualification/repN/cs10_serial_vs_parallel
+```
+
+集約 PASS は、9 comparison report がすべて PASS、すなわち各 profile・各 environment
+comparison の3反復がすべて PASS の場合だけである。結果には #232 と親 #210 を non-closing
+reference としてリンクし、ローカル `review_result.json` の `status: PASS` を確認してから完了する。
