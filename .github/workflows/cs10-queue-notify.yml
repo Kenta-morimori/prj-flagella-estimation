@@ -1,0 +1,80 @@
+name: cs10 queue notification
+
+on:
+  workflow_dispatch:
+    inputs:
+      event_type:
+        description: Queue event that triggered this notification
+        required: true
+        type: choice
+        options: [succeeded, failed, cancelled, queue_completed]
+      reservation_id:
+        description: Queue reservation identifier, when applicable
+        required: false
+        type: string
+      branch:
+        description: Reserved branch ref, when applicable
+        required: false
+        type: string
+      commit_sha:
+        description: Reserved commit SHA, when applicable
+        required: false
+        type: string
+      state:
+        description: Final reservation state, when applicable
+        required: false
+        type: string
+      logs:
+        description: cs10 reservation log directory, when applicable
+        required: false
+        type: string
+      control_dir:
+        description: cs10 launcher control directory, when applicable
+        required: false
+        type: string
+      output_root:
+        description: Job output root, when applicable
+        required: false
+        type: string
+      error:
+        description: Failure detail, when applicable
+        required: false
+        type: string
+
+permissions: {}
+
+jobs:
+  record-event:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish queue event summary
+        env:
+          EVENT_TYPE: ${{ inputs.event_type }}
+          RESERVATION_ID: ${{ inputs.reservation_id }}
+          BRANCH: ${{ inputs.branch }}
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+          STATE: ${{ inputs.state }}
+          LOGS: ${{ inputs.logs }}
+          CONTROL_DIR: ${{ inputs.control_dir }}
+          OUTPUT_ROOT: ${{ inputs.output_root }}
+          ERROR_DETAIL: ${{ inputs.error }}
+        run: |
+          {
+            printf '%s\n' '## cs10 queue notification'
+            printf '%s\n' '' '```text'
+            printf 'event_type=%s\n' "$EVENT_TYPE"
+            printf 'reservation=%s\n' "$RESERVATION_ID"
+            printf 'branch=%s\n' "$BRANCH"
+            printf 'commit=%s\n' "$COMMIT_SHA"
+            printf 'state=%s\n' "$STATE"
+            printf 'logs=%s\n' "$LOGS"
+            printf 'control_dir=%s\n' "$CONTROL_DIR"
+            printf 'output_root=%s\n' "$OUTPUT_ROOT"
+            printf 'error=%s\n' "$ERROR_DETAIL"
+            printf '%s\n' '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$EVENT_TYPE" = "failed" ]; then
+            echo '::error::cs10 queue reservation failed'
+            exit 1
+          fi

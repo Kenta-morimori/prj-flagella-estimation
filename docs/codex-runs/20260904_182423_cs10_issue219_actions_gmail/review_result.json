@@ -1,0 +1,44 @@
+{
+  "status": "PASS",
+  "task": "Issue #219: cs10キュー通知のGitHub Actions通知移行",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/219",
+  "summary": [
+    "cs10 queueの通知アダプタをローカルPostfixからGitHub Actions workflow dispatchへ移行した。",
+    "workflowはGitHubアカウントのActionsメール通知を使い、Gmail SMTP、Actions Secrets、宛先のcs10設定を必要としない。",
+    "dispatcherが成功予約2件を順番に自動実行する単体テストを追加した。",
+    "Codex reviewのP2指摘に従い、通知入力を全てghの--raw-fieldで渡し、@始まりの値をローカルファイル参照として扱わないようにした。"
+  ],
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "GitHub Actions通知の有効化、cs10 GitHub CLI認証、merge前の無害workflow probe、実機の2予約probe、およびActions通知メール確認はユーザー実行である。"
+  ],
+  "tests_reviewed": [
+    "uv run ruff format --check .",
+    "uv run ruff check .",
+    "uv run pytest -q (800 passed)",
+    "uv run pytest -q tests/test_cs10_queue.py tests/test_cs10_queue_notification_workflow.py (15 passed)",
+    "uv run python tools/codex/check_issue_script_lifecycle.py --base origin/main",
+    "git diff --check"
+  ],
+  "user_review_required": true,
+  "user_review_command": "GitHubのActionsメール通知を有効化し、merge前にcs10でissue-roadmap-sync.ymlのdry-runを実行して通知経路を確認する。merge後はdocs/codex/cs10_runbook.mdのSequential reservation queue節に従い、無害なreservationを2件enqueueしてtmux継続、逐次実行、失敗時pause/resume、Actions runとGitHub通知メールを確認する。",
+  "user_review_outputs": [
+    "cs10 queue statusとevent log",
+    "GitHub Actionsのcs10 queue notification run",
+    "GitHub Actions通知メール"
+  ],
+  "user_review_points": [
+    "1件目のmanifest成功後にのみ2件目が開始される。",
+    "Gmail SMTP、Actions Secrets、通知先のcs10設定ファイルが不要である。",
+    "Actions run成功／失敗とGitHub通知メールの双方を確認する。"
+  ],
+  "adr_required": false,
+  "adr_reason": "cs10の通知実装を既存の受入条件に沿って置換する運用変更であり、physical interpretation、dataset adoption、phase boundary、output contract、ML policyを変更しない。",
+  "commit_type": "complete",
+  "commit_hash": "pending",
+  "push_status": "not_pushed",
+  "pull_request_url": "pending",
+  "next_actions": [
+    "merge後にcs10で無害なreservationを2件enqueueし、tmux継続、逐次実行、失敗時pause/resume、Actions runとGitHub通知メールを確認する。"
+  ]
+}
