@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import os
 from pathlib import Path
 import sys
 import subprocess
@@ -228,135 +227,178 @@ def test_dispatcher_lock_rejects_a_second_dispatcher(tmp_path: Path) -> None:
         store.close()
 
 
-def test_notification_environment_overrides_nonversioned_config(
-    monkeypatch, tmp_path: Path
-) -> None:
-    queue = _load_queue("cs10_queue_notify")
-    config = tmp_path / "cs10-queue.env"
-    config.write_text("CS10_QUEUE_NOTIFY_EMAIL=file@example.test\n", encoding="utf-8")
-    monkeypatch.setattr(queue, "DEFAULT_NOTIFY_CONFIG_PATH", config)
-    monkeypatch.setenv("CS10_QUEUE_NOTIFY_EMAIL", "env@example.test")
-    assert queue.notification_recipient() == "env@example.test"
+def test_notification_setup_requires_github_cli_and_authentication(monkeypatch) -> None:
+    queue = _load_queue("cs10_queue_notify_setup")
+    monkeypatch.setattr(queue.shutil, "which", lambda _: None)
+    with pytest.raises(RuntimeError, match="GitHub CLI is unavailable"):
+        queue.validate_notification_setup()
 
-
-def test_notification_uses_nonversioned_config_when_environment_is_unset(
-    monkeypatch, tmp_path: Path
-) -> None:
-    queue = _load_queue("cs10_queue_notify_config")
-    config = tmp_path / "cs10-queue.env"
-    config.write_text(
-        "# cs10 local setting\nCS10_QUEUE_NOTIFY_EMAIL=file@example.test\n",
-        encoding="utf-8",
+    monkeypatch.setattr(queue.shutil, "which", lambda _: "/usr/bin/gh")
+    monkeypatch.setattr(
+        queue.subprocess,
+        "run",
+        lambda command, **kwargs: subprocess.CompletedProcess(command, 1, "", ""),
     )
-    monkeypatch.setattr(queue, "DEFAULT_NOTIFY_CONFIG_PATH", config)
-    monkeypatch.delenv("CS10_QUEUE_NOTIFY_EMAIL", raising=False)
-    assert queue.notification_recipient() == "file@example.test"
-
-
-@pytest.mark.parametrize("value", [None, "", "not-an-email"])
-def test_notification_setup_rejects_missing_or_invalid_recipient(
-    monkeypatch, tmp_path: Path, value: str | None
-) -> None:
-    queue = _load_queue("cs10_queue_notify_invalid")
-    monkeypatch.setattr(queue, "DEFAULT_NOTIFY_CONFIG_PATH", tmp_path / "missing.env")
-    if value is None:
-        monkeypatch.delenv("CS10_QUEUE_NOTIFY_EMAIL", raising=False)
-    else:
-        monkeypatch.setenv("CS10_QUEUE_NOTIFY_EMAIL", value)
-    with pytest.raises(RuntimeError, match="CS10_QUEUE_NOTIFY_EMAIL"):
-        queue.notification_recipient()
-
-
-def test_notification_setup_rejects_missing_mail_binary(
-    monkeypatch, tmp_path: Path
-) -> None:
-    queue = _load_queue("cs10_queue_notify_mail")
-    monkeypatch.setenv("CS10_QUEUE_NOTIFY_EMAIL", "queue@example.test")
-    monkeypatch.setattr(queue, "MAIL_BINARY", tmp_path / "missing-mail")
-    with pytest.raises(RuntimeError, match="mail binary"):
+    with pytest.raises(RuntimeError, match="not authenticated"):
         queue.validate_notification_setup()
 
 
-def test_notify_uses_external_recipient_and_reports_delivery_failure(
+def test_notify_dispatches_actions_workflow_without_recipient(
     monkeypatch, tmp_path: Path
 ) -> None:
-    queue = _load_queue("cs10_queue_notify_delivery")
-    mail = tmp_path / "mail"
-    mail.touch(mode=0o700)
-    os.chmod(mail, 0o700)
-    monkeypatch.setattr(queue, "MAIL_BINARY", mail)
-    monkeypatch.setenv("CS10_QUEUE_NOTIFY_EMAIL", "queue@example.test")
-    calls: list[tuple[list[str], str]] = []
+    queue = _load_queue("cs10_queue_notify_dispatch")
+    monkeypatch.setattr(queue, "validate_notification_setup", lambda: None)
+    monkeypatch.setattr(queue, "_state_dir", lambda: tmp_path / "state")
+    commands: list[list[str]] = []
 
     def fake_run(command, **kwargs):
-        calls.append((command, kwargs["input"]))
+        commands.append(command)
         return subprocess.CompletedProcess(command, 0, "", "")
 
     monkeypatch.setattr(queue.subprocess, "run", fake_run)
+    reservation = queue.Reservation(
+        7,
+        "@origin/topic",
+        "a" * 40,
+        "conf/job.yaml",
+        0,
+        "failed",
+        "now",
+        None,
+        "/control",
+        "/output",
+        None,
+        1,
+        "@manifest failed",
+    )
+    queue.notify(reservation, "failed")
 
-    queue.notify(None, "subject", "body")
-
-    assert calls == [([str(mail), "-s", "subject", "queue@example.test"], "body")]
+    assert commands == [
+        [
+            "gh",
+            "workflow",
+            "run",
+            "cs10-queue-notify.yml",
+            "--repo",
+            "Kenta-morimori/prj-flagella-estimation",
+            "--ref",
+            "main",
+            "--raw-field",
+            "event_type=failed",
+            "--raw-field",
+            "reservation_id=7",
+            "--raw-field",
+            "branch=@origin/topic",
+            "--raw-field",
+            f"commit_sha={'a' * 40}",
+            "--raw-field",
+            "state=failed",
+            "--raw-field",
+            f"logs={tmp_path}/state/reservation-00007",
+            "--raw-field",
+            "control_dir=/control",
+            "--raw-field",
+            "output_root=/output",
+            "--raw-field",
+            "error=@manifest failed",
+        ]
+    ]
+    assert commands[0].count("--raw-field") == 9
+    assert "--field" not in commands[0]
 
     monkeypatch.setattr(
         queue.subprocess,
         "run",
-        lambda command, **kwargs: subprocess.CompletedProcess(command, 1, "", "failed"),
+        lambda command, **kwargs: subprocess.CompletedProcess(command, 1, "", ""),
     )
-    with pytest.raises(RuntimeError, match="exit code 1"):
-        queue.notify(None, "subject", "body")
-
-    monkeypatch.setattr(
-        queue.subprocess,
-        "run",
-        lambda *args, **kwargs: (_ for _ in ()).throw(OSError("not executable")),
-    )
-    with pytest.raises(RuntimeError, match="could not start: OSError"):
-        queue.notify(None, "subject", "body")
+    with pytest.raises(RuntimeError, match="dispatch failed with exit code 1"):
+        queue.notify(reservation, "failed")
 
 
-def test_notify_records_success_and_failure_without_recipient(
+def test_notify_records_dispatch_success_and_failure(
     monkeypatch, tmp_path: Path
 ) -> None:
     queue = _load_queue("cs10_queue_notify_events")
     store = queue.QueueStore(tmp_path)
     try:
         monkeypatch.setattr(queue, "notify", lambda *args: None)
-        queue._notify(store, None, "subject", "body")
+        queue._notify(store, None, "queue_completed")
         monkeypatch.setattr(
             queue,
             "notify",
-            lambda *args: (_ for _ in ()).throw(RuntimeError("mail failed")),
+            lambda *args: (_ for _ in ()).throw(RuntimeError("dispatch failed")),
         )
-        queue._notify(store, None, "subject", "body")
+        queue._notify(store, None, "queue_completed")
         events = store.connection.execute(
             "SELECT kind, detail FROM events ORDER BY id"
         ).fetchall()
         assert [(row["kind"], row["detail"]) for row in events] == [
-            ("notification_submitted", "mail accepted submission; subject=subject"),
-            ("notification_failed", "mail failed"),
+            (
+                "notification_dispatched",
+                "GitHub Actions accepted queue_completed notification dispatch",
+            ),
+            ("notification_failed", "dispatch failed"),
         ]
     finally:
         store.close()
 
 
-def test_notify_records_config_oserror_without_recipient(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_notify_records_oserror_without_recipient(monkeypatch, tmp_path: Path) -> None:
     queue = _load_queue("cs10_queue_notify_config_oserror")
     store = queue.QueueStore(tmp_path)
     try:
         monkeypatch.setattr(
             queue,
             "validate_notification_setup",
-            lambda: (_ for _ in ()).throw(OSError("recipient@example.com unreadable")),
+            lambda: (_ for _ in ()).throw(OSError("authentication cache unreadable")),
         )
-        queue._notify(store, None, "subject", "body")
+        queue._notify(store, None, "queue_completed")
         event = store.connection.execute(
             "SELECT kind, detail FROM events ORDER BY id"
         ).fetchone()
         assert event["kind"] == "notification_failed"
         assert "OSError" in event["detail"]
-        assert "recipient@example.com" not in event["detail"]
+    finally:
+        store.close()
+
+
+def test_dispatch_runs_two_reservations_sequentially(
+    monkeypatch, tmp_path: Path
+) -> None:
+    queue = _load_queue("cs10_queue_sequential_dispatch")
+    store = queue.QueueStore(tmp_path)
+    try:
+        first = store.add(
+            branch="a", commit_sha="a" * 40, config="conf/a.yaml", priority=0
+        )
+        second = store.add(
+            branch="b", commit_sha="b" * 40, config="conf/b.yaml", priority=0
+        )
+        started: list[int] = []
+        monkeypatch.setattr(queue, "validate_notification_setup", lambda: None)
+        monkeypatch.setattr(queue, "_notify", lambda *args: None)
+
+        def fake_run_reservation(current_store, reservation):
+            started.append(reservation.id)
+            current_store.update(reservation.id, state="succeeded")
+            result = current_store.get(reservation.id)
+            assert result is not None
+            return result
+
+        monkeypatch.setattr(queue, "run_reservation", fake_run_reservation)
+
+        class DispatcherFinished(Exception):
+            pass
+
+        monkeypatch.setattr(
+            queue.time,
+            "sleep",
+            lambda _: (_ for _ in ()).throw(DispatcherFinished()),
+        )
+        with pytest.raises(DispatcherFinished):
+            queue.dispatch(store, once=False, poll_seconds=0)
+
+        assert started == [first.id, second.id]
+        assert [item.state for item in store.list()] == ["succeeded", "succeeded"]
     finally:
         store.close()
