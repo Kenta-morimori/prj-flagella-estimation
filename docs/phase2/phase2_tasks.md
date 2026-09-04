@@ -30,13 +30,13 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 | P2-D11 | diagnostic dataset v0の位置づけ | diagnostic |
 | P2-D12 | n≥4安定化とdataset v1の採択範囲 | adopted |
 | P2-D13 | dataset version・revision・provenance | adopted |
-| P2-D14 | Phase 3 handoffと2D識別性の初期判断 | adopted |
+| P2-D14 | Phase 3探索的baseline handoffと2D識別性の初期判断 | diagnostic |
 | P2-D15 | 2010 potential formulationとproject初期軸 | adopted |
 | P2-D16 | model profileと時間schema | adopted |
 | P2-D17 | 2015 refined geometryとpaper-inspired motor | adopted |
 | P2-D18 | 2015 refined model Stage A採否 | pending |
 | P2-D21 | reference torque比較のfixed/tracking・時間基準 | adopted |
-| P2-D19 | dataset v2前のn=3長時間failure診断 | pending |
+| P2-D24 | v1 r1 n=3 failure診断を現行v1 r2 physical-failure gateから外す | adopted |
 | P2-D20 | RUN–TUMBLEの段階実装 | pending |
 
 ---
@@ -184,15 +184,15 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Decision:** dataset version・revision・model provenanceをregistry contractとして維持する．
 - **Evidence:** Task P2-8-017，Issue #118，`docs/phase2/phase2_8_dataset_version_registry.md`，`conf/phase2_multi_run/README.md`．
 
-### P2-D14: Phase 3へはdataset v1のRUN固定`n=1,2,3`を渡す
+### P2-D14: dataset v1のRUN固定`n=1,2,3`をPhase 3探索的baselineとして渡す
 
-- **Status:** adopted
+- **Status:** diagnostic
 - **Background:** Phase 3のclip生成・tracking・metadata設計を開始するには，Phase 2から渡すbaseline，対象外条件，ID責務を固定する必要があった．
 - **Change:** run，source video，track，clip，frameの単位と，各IDの責務を定義した．実動画と擬似動画を別入力経路から共通clip schemaへ収束させる方針とした．
 - **Comparison:** 3D feature差がbody-centered XY投影後にも残るか，27独立runをseed group単位で評価した．
 - **Result:** handoff baselineはdataset v1のRUN固定`n=1,2,3`とした．XY投影のgrouped nearest-centroid baselineは19/27，accuracy 0.704だった．body-centered renderではcell translationが見えないため，向き変化などを主要2D signalとして扱う必要がある．
 - **Interpretation:** 2D上にも本数差の初期signalは残るが，0.704はtraining性能の保証ではない．clip長，独立run数，画像由来特徴はPhase 3/4で評価する．
-- **Decision:** Phase 3 MVPへdataset v1の`n=1,2,3`を渡す．real videoはdetection/tracking経路，pseudo videoはGT passthrough経路とし，2D separability結果はfeasibility evidenceであってML acceptance gateにはしない．
+- **Decision:** dataset v1の`n=1,2,3`をPhase 3 MVPの探索的baselineとして保持する．real videoはdetection/tracking経路，pseudo videoはGT passthrough経路とする．この条件の2D separability結果はfeasibility evidenceであり，canonical Phase 3 Gateまたは将来のdataset freezeの根拠には使わない．canonical model freeze後にPhase 3で再評価する．
 - **Evidence:** Tasks P2-8-021，P2-8-022，Issues #125，#126，`docs/phase2/phase2_8_phase2_to_phase3_handoff.md`．
 
 ---
@@ -273,15 +273,15 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Decision:** 既存短時間 workflow は `output.policy: debug` の全step state/CSV 互換を維持する。長時間候補は `compact` を明示し、全内部step QC をオンライン集約しながら state archive を物理時間一様に保存する。標準 cadence は 1 ms とする。compact archive は replay/通常解析用であり、未定義の全step将来指標の完全再構成を保証しない。
 - **Evidence:** Issue #186，`conf/phase2_multi_run/2015_project_compact_0p5s.yaml`，`docs/phase2/phase2_run_summary_contract.md`．
 
-### P2-D19: dataset v2前にn=3長時間非定常回転とproximal failureを診断する
+### P2-D24: v1 r1 n=3 failure診断を現行v1 r2 physical-failure gateから外す
 
-- **Status:** pending
-- **Background:** dataset v1 r1の3.0 s RUN固定`n_flagella=3`で，非定常回転とproximal flag bond failureが確認された．原因未確定のままdataset v2を生成すると，同じfailureを長時間datasetへ持ち込む可能性がある．
-- **Change:** 既存raw outputから，first-fail前後のangular velocity，speed，axis alignment，proximal bond，contact／penetration proxyを同期解析する計画とした．
-- **Current result:** 診断基盤・原因仮説・解決策候補の整理が進行中であり，物理モデル変更は未採択である．
-- **Interpretation:** dataset v2 model変更は，failure位置・seed依存・contact proxyとの時間関係を確認してから判断すべきである．
-- **Decision:** Issue #158完了までは原因を断定しない．dataset v2 coreはRUN固定`n=1,2,3`を対象とし，training candidateには全時間strict passを要求する．source durationは5 sを候補とし，attach seed×phase seedを独立runとして扱う．
-- **Evidence:** Task P2-8-023，Issues #157，#158，`docs/phase2/phase2_158_v1_r1_nf3_proximal_diagnostics.md`．
+- **Status:** adopted
+- **Background:** dataset v1 r1の3.0 s RUN固定`n_flagella=3`では，非定常回転とproximal flag bond failureが観測され，原因を切り分けるためIssue #158を作成した．
+- **Change:** v1 r2の2010 project・tau-linked 5 s campaignで，`n_flagella=3`の`attach_seed=0,1,2` × `phase_seed=0,1,2`を独立runとして再評価した．
+- **Result:** 9条件すべてが5.000040 s（125,001 steps）までPASSした。
+- **Interpretation:** v1 r1のfailureは現行v1 r2 campaignのphysical-failure gateではない。非定常回転とattach / phase seed差は，canonical model freeze後にPhase 3で評価するwithin-class variationとして残す。
+- **Decision:** Issue #158は現行v1 r2 campaignのphysical-failure blockerから外して完了する。dataset v2とIssue #205のblockerから外す。旧診断文書は履歴・探索的根拠として保持し，physical model変更の根拠には用いない。
+- **Evidence:** Task P2-8-023，Issues #157・#158・#215，`docs/phase2/phase2_158_v1_r1_nf3_proximal_diagnostics.md`，v1 r2 5 s campaign manifest．
 
 ### P2-D20: RUN–TUMBLEはRUN dataset core完了後に段階実装する
 

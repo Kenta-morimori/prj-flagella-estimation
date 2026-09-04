@@ -4,12 +4,18 @@
 現在のbaseline，Active work，Next queue，blocker，優先参照先のみを記載する．
 採択判断と過去結果は`phase2_tasks.md`，詳細仕様はconfig・test・task-specific doc・ADRを参照する．
 
+## Goal
+
+Phase 2は，3D物理simulation modelを構築し，数値・物理妥当性と長時間安定性を検証して，
+Phase 3が使用するcanonical physical simulation modelをfreezeする．
+2D投影，擬似顕微鏡化，clip生成，べん毛本数の識別可能性評価はPhase 3の責務である．
+
 ## Current baseline
 
 - 標準simulation profile: `conf/sim_swim_2010.yaml`
 - 2010 project profile: supported baseline
 - 2015 project / paper profile: Stage A検証は完了，supported採択まではpending
-- Phase 3 / 4 handoff: dataset v1のRUN固定`n_flagella=1,2,3`
+- Phase 3 handoff: freeze済みcanonical modelのsimulation archive，provenance，physical QC
 - `n_flagella=4`: diagnostic-only
 - `n_flagella>=5`: canonical training scope外
 - training candidate: 全時間strict passを要求
@@ -31,14 +37,15 @@ runbookは`phase2_215_5s_axis_convergence_runbook.md`を正本とする。
 
 ## Next queue
 
-1. **Issue #200:** #203のprofile比較結果を受け取るが、`dt_star`収束性の判断責務は#200に残す。
-2. **Issue #183:** fixed / tracking reference と同一実時間 / 無次元時間を分離した比較policyを ADR 0016 に固定し、2010先行screenとhook-only diagnosticを比較契約・結果記録へ残した。torque・`dt_star`・dataset v2 の採択は #61・#184 の結果後とする（`phase2_183_reference_torque_comparison_contract.md`）。
-3. **Issue #184:** dataset v2採択前に、torque・`dt_star`・べん毛数の安定性と計算効率を検証する．
+1. **Issue #200:** #203のprofile比較結果を受け取り，2010 projectの`dt_star`収束性を判断する．
+2. **Issue #61 / #184:** 2015 projectの`dt_star`，torque，本数条件の安定性と計算効率を検証する．
+3. **Issue #205:** 物理・数値妥当性の証拠だけを集約し，canonical modelをfreezeする．
 
 ## Current blockers
 
 - 2015 supported昇格とStage B: Issue #61、#183、#184の定量評価・採択判断待ち
-- dataset v2: Issue #158のfailure診断、Issue #184の安定性検証、Issue #157のquality gate確定待ち
+- canonical model freeze: #200，#61，#184，#93の必要な物理QC・採択判断待ち（#158のv1 r1 failure診断は現行v1 r2の5 s campaignのphysical-failure gateではない）
+- dataset v2: Phase 3のcontrolled study，観測可能性，robustness，dataset freeze gate待ち
 - RUN–TUMBLE: dataset v2 RUN core完了後にIssue #69で扱う
 - `n_flagella>=4`: 現行training scope外．必要時はIssue #124で安定化する
 - flagella-body貫通: 必要時はIssue #93で検証する
@@ -61,7 +68,7 @@ runbookは`phase2_215_5s_axis_convergence_runbook.md`を正本とする。
 - Documentation policy: `docs/codex/phase_document_policy.md`
 - 2015 Stage A: `docs/phase2/phase2_168_2015_stage_a_validation.md`
 - n=3 diagnostics: `docs/phase2/phase2_158_v1_r1_nf3_proximal_diagnostics.md`
-- Phase 3 handoff: `docs/phase2/phase2_8_phase2_to_phase3_handoff.md`
+- Historical Phase 3 handoff baseline: `docs/phase2/phase2_8_phase2_to_phase3_handoff.md`
 - Dataset registry: `docs/phase2/phase2_8_dataset_version_registry.md`
 - Run summary contract: `docs/phase2/phase2_run_summary_contract.md`
 - Issue #204 feature-study reference: `docs/phase2/phase2_204_feature_study_reference.md`
