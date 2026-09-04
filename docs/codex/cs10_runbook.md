@@ -165,28 +165,41 @@ tmux attach -t cs10-queue
 
 `cancel`はqueued reservationを即時cancelし、running reservationにはprocess group単位で
 停止要求を送る。dispatcher再起動後にrunning processを安全に照合できない場合は`blocked`として
-queueをpauseする。dispatcherは外部通知先を設定しない限り起動しない。cs10上で以下の非版管理設定を一度だけ作成し、所有者以外が読めないようにする。環境変数`CS10_QUEUE_NOTIFY_EMAIL`がある場合はそちらを優先する。通知先はqueueの状態、ログ、manifestへ出力しない。
+queueをpauseする。通知はcs10からGitHub Actionsを起動し、ActionsがGmail SMTPで配送する。
+
+初回のみ、リポジトリの **Settings → Secrets and variables → Actions** に次のSecretsを設定する。
+値をリポジトリ、queue state、cs10のログへ保存してはならない。
+
+- `CS10_QUEUE_NOTIFY_EMAIL`: 通知先メールアドレス
+- `CS10_QUEUE_GMAIL_USERNAME`: 送信に使うGmailアドレス
+- `CS10_QUEUE_GMAIL_APP_PASSWORD`: GmailのApp Password
+
+cs10の実行ユーザーは、root権限なしでGitHub CLIを認証する。tokenには対象リポジトリの
+`repo`および`workflow`権限が必要である。
 
 ```bash
-mkdir -p ~/.config/prj-flagella-estimation
-chmod 700 ~/.config/prj-flagella-estimation
-printf '%s\n' 'CS10_QUEUE_NOTIFY_EMAIL=<external-email>' \
-  > ~/.config/prj-flagella-estimation/cs10-queue.env
-chmod 600 ~/.config/prj-flagella-estimation/cs10-queue.env
+gh auth login --hostname github.com
+gh auth status --hostname github.com
 ```
 
-`/usr/bin/mail`が実行不能、または有効な通知先がない場合は明示的に失敗する。成功・失敗・cancel・全queue完了時に外部宛てメールを送る。Postfixへの投入成功はqueue eventへ`notification_submitted`、投入失敗は`notification_failed`として記録する。外部メールサーバーへの最終配送結果はcs10のPostfix管理ログで確認する。
+dispatcherは`gh`が利用不能、またはGitHub認証が無効なら起動を拒否する。成功・失敗・cancel・
+全queue完了時にActions workflowをdispatchし、受理成功はqueue eventへ
+`notification_dispatched`、dispatch失敗は`notification_failed`として記録する。
+`notification_dispatched`はActions起動の受理であり、最終メール配送を保証しない。Actions runが
+成功したこととGmail受信を確認して配送成功と判定する。
 
 ## RPY hydrodynamics archive analysis for generic multi-run
 
 hydrodynamicsを有効にしたgeneric multi-runは、conditionごとのcompact `hydro_archive.npz`（位置・総力）を保存する。解析とrenderは完了済みarchiveのみを読み、追加simulationを開始しない。Issue #225の36条件campaignは、この共通手順を適用した過去referenceである。
 
-レビュー済みの固定commitを予約する前に、既存jobと衝突しないこと、NAS mount・容量、queue/mail の短いpreflightを確認する。実行許可を受けたユーザーは次を使う。
+レビュー済みの固定commitを予約する前に、既存jobと衝突しないこと、NAS mount・容量、queue/GitHub認証
+の短いpreflightを確認する。実行許可を受けたユーザーは次を使う。
 
 ```bash
 cd ~/src/prj-flagella-estimation
 git fetch origin
 df -h /net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs
+gh auth status --hostname github.com
 
 .venv-cs10/bin/python scripts/cs10/queue.py enqueue \
   --branch <reviewed-branch> \

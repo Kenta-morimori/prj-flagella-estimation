@@ -1,0 +1,42 @@
+{
+  "status": "PASS",
+  "task": "Issue #219: cs10キュー通知のGitHub Actions / Gmail移行",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/219",
+  "summary": [
+    "cs10 queueの通知アダプタをローカルPostfixからGitHub Actions workflow dispatchへ移行した。",
+    "workflowはGitHub Actions SecretsのGmail SMTP App Passwordを利用し、宛先と認証情報をcs10の設定・state・ログへ保存しない。",
+    "dispatcherが成功予約2件を順番に自動実行する単体テストを追加した。"
+  ],
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "Gmail Actions Secretsの設定、cs10 GitHub CLI認証、実機の2予約probe、およびGmail受信確認はmerge後のユーザー実行である。"
+  ],
+  "tests_reviewed": [
+    "uv run ruff format --check .",
+    "uv run ruff check .",
+    "uv run pytest -q (800 passed)",
+    "uv run python tools/codex/check_issue_script_lifecycle.py --base origin/main",
+    "git diff --check"
+  ],
+  "user_review_required": true,
+  "user_review_command": "docs/codex/cs10_runbook.md のSequential reservation queue節に従い、merge後のcs10でgh auth loginを完了し、無害なreservationを2件enqueueしてtmux継続、逐次実行、失敗時pause/resume、Actions run成功、Gmail受信を確認する。",
+  "user_review_outputs": [
+    "cs10 queue statusとevent log",
+    "GitHub Actionsのcs10 queue notification run",
+    "Gmail受信メール"
+  ],
+  "user_review_points": [
+    "1件目のmanifest成功後にのみ2件目が開始される。",
+    "通知先とGmail認証情報がcs10のqueue state、event log、stdout/stderrに出力されない。",
+    "Actions run成功と実メール受信の双方を配送成功として確認する。"
+  ],
+  "adr_required": false,
+  "adr_reason": "cs10の通知実装を既存の受入条件に沿って置換する運用変更であり、physical interpretation、dataset adoption、phase boundary、output contract、ML policyを変更しない。",
+  "commit_type": "complete",
+  "commit_hash": "pending",
+  "push_status": "not_pushed",
+  "pull_request_url": "pending",
+  "next_actions": [
+    "feature branchをcommit・pushし、Issue #219を参照するPRを作成する。"
+  ]
+}
