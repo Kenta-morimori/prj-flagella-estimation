@@ -47,6 +47,17 @@ def test_compact_archive_fps_limit_and_debug_csv_compatibility(tmp_path: Path) -
         debug_cfg.time.duration_s, step_summary_dir=tmp_path / "debug"
     )
     assert (tmp_path / "debug" / "step_summary.csv").is_file()
+    debug_summary = json.loads((tmp_path / "debug" / "run_summary.json").read_text())
+    assert debug_summary["execution"] == {
+        "status": "completed",
+        "row_count": debug_cfg.total_steps,
+        "step_indices_contiguous_from_zero": True,
+        "observed_first_t_s": pytest.approx(debug_cfg.dt_s),
+        "observed_final_t_s": pytest.approx(debug_cfg.final_state_t_s),
+        "expected_total_steps": debug_cfg.total_steps,
+        "expected_final_step_summary_t_s": pytest.approx(debug_cfg.final_state_t_s),
+        "reason": "matched time manifest",
+    }
 
 
 def test_compact_archive_interpolates_to_the_requested_time_grid() -> None:
