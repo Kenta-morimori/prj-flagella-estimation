@@ -1,0 +1,43 @@
+{
+  "status": "PASS",
+  "task": "Issue #61 2015 project 1tau torque stability execution preparation",
+  "branch": "codex/issue-61-2015-10tau-stability",
+  "summary": [
+    "2015 project限定、3物理torque、dt_star=1e-5、1tau、tracking-referenceのStage A sweep profileを追加した。",
+    "campaign manifestは実在するStage A/Task D source manifestのSHA-256をreference_evidenceとして記録できる。未実行Task D outputはevidenceとして扱わない。",
+    "専用analysisはlocked threshold、completion、finite、compact run summaryを確認し、3条件すべてのPASS以外では2015 profile昇格とIssue #184 handoffを拒否する。",
+    "cs10 runbookはUser-runのdry-run、実行、同期、再解析手順を固定する。"
+  ],
+  "checks": [
+    {
+      "command": "uv run ruff check src/sim_swim/analysis/sweeps/stage_a_2015.py src/sim_swim/analysis/issue61_2015_1tau.py src/sim_swim/analysis/common_analysis.py scripts/03_dataset_building/analyze_dataset.py tests/test_phase2_61_2015_1tau.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check relevant files",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest tests/test_phase2_61_2015_1tau.py tests/test_phase2_168_stage_a.py tests/test_phase2_199_task_d.py tests/test_script_layout.py -q",
+      "result": "PASS: 32 passed"
+    },
+    {
+      "command": "run_sweep.py config=conf/phase2_sweeps/2015_issue61_1tau_tracking_stability.yaml dry_run=true; analyze_dataset.py --analysis-kind issue61-2015-1tau --help; git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "execution:cs10のUser-run campaignであり、PR preparationにはsimulationを含めない。",
+  "user_review_required": false,
+  "adr_required": false,
+  "adr_reason": "default profile、dataset、physical model、dt_star採択を変更しない。",
+  "commit_type": "feat",
+  "commit_hash": "pending",
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "Userがcs10上でsource evidence JSONを作成し、dry-run後にcampaignを実行する。",
+    "同期済みcampaign rootを専用analysisへ渡し、issue61_decision.jsonを確認する。",
+    "PR本文は Refs #61 とし、未実行のため Closes #61 を使わない。"
+  ]
+}
