@@ -24,6 +24,14 @@
     "mac_repeat_reports_passed": 4,
     "partial_failure_policy": "FAIL"
   },
+  "difference_evidence": {
+    "metric_definition": "tolerance_utilization = absolute_difference / max(atol, rtol * max(abs(left), abs(right)))",
+    "pass_condition": "tolerance_utilization <= 1 and every discrete/provenance/execution gate passes",
+    "csv": "qualification_metrics.csv",
+    "svg": "qualification_matrix.svg",
+    "max_tolerance_utilization": 4.3418380817527336e-08,
+    "max_tolerance_utilization_scope": "Mac serial vs cs10 serial / torque_distribution_grid / rep1-rep3"
+  },
   "artifacts": {
     "local_root": "outputs/2026-09-05/030819/issue232",
     "cs10_compact_artifact_count": 39,

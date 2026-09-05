@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="390" viewBox="0 0 900 390" role="img" aria-labelledby="title desc">
+  <title id="title">Issue 232 qualification tolerance utilization matrix</title>
+  <desc id="desc">All twelve profile, relation, and repeat cells passed. Tolerance utilization is absolute difference divided by the existing allowed difference; one is the failure boundary.</desc>
+  <rect width="900" height="390" fill="white"/>
+  <g font-family="Arial, sans-serif" fill="#172033">
+    <text x="40" y="35" font-size="21" font-weight="700">Issue #232 — qualification difference matrix</text>
+    <text x="40" y="59" font-size="13">Tolerance utilization = absolute difference / allowed difference; PASS boundary = 1.0</text>
+    <text x="470" y="100" font-size="14" text-anchor="middle">rep1</text><text x="610" y="100" font-size="14" text-anchor="middle">rep2</text><text x="750" y="100" font-size="14" text-anchor="middle">rep3</text>
+    <text x="40" y="145" font-size="13">Mac ↔ cs10 / shape</text>
+    <text x="40" y="205" font-size="13">Mac ↔ cs10 / torque</text>
+    <text x="40" y="265" font-size="13">cs10 serial ↔ parallel / shape</text>
+    <text x="40" y="325" font-size="13">cs10 serial ↔ parallel / torque</text>
+  </g>
+  <g stroke="#aab5c6" stroke-width="1">
+    <rect x="400" y="115" width="140" height="42" fill="#dbeafe"/><rect x="540" y="115" width="140" height="42" fill="#dbeafe"/><rect x="680" y="115" width="140" height="42" fill="#dbeafe"/>
+    <rect x="400" y="175" width="140" height="42" fill="#bfdbfe"/><rect x="540" y="175" width="140" height="42" fill="#bfdbfe"/><rect x="680" y="175" width="140" height="42" fill="#bfdbfe"/>
+    <rect x="400" y="235" width="140" height="42" fill="#eff6ff"/><rect x="540" y="235" width="140" height="42" fill="#eff6ff"/><rect x="680" y="235" width="140" height="42" fill="#eff6ff"/>
+    <rect x="400" y="295" width="140" height="42" fill="#eff6ff"/><rect x="540" y="295" width="140" height="42" fill="#eff6ff"/><rect x="680" y="295" width="140" height="42" fill="#eff6ff"/>
+  </g>
+  <g font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#172033">
+    <text x="470" y="140">PASS · 9.69e-09</text><text x="610" y="140">PASS · 9.69e-09</text><text x="750" y="140">PASS · 9.69e-09</text>
+    <text x="470" y="200">PASS · 4.34e-08</text><text x="610" y="200">PASS · 4.34e-08</text><text x="750" y="200">PASS · 4.34e-08</text>
+    <text x="470" y="260">PASS · 0</text><text x="610" y="260">PASS · 0</text><text x="750" y="260">PASS · 0</text>
+    <text x="470" y="320">PASS · 0</text><text x="610" y="320">PASS · 0</text><text x="750" y="320">PASS · 0</text>
+  </g>
+  <line x1="40" y1="360" x2="820" y2="360" stroke="#aab5c6"/>
+  <text x="40" y="382" font-family="Arial, sans-serif" font-size="12" fill="#172033">All provenance, completion, contiguous-index, finite, shape, and failure-category gates: PASS.</text>
+</svg>
