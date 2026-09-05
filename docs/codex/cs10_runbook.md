@@ -78,10 +78,14 @@ Issueの`execution:cs10`は、独立conditionが8以上またはMac見積りwall
 heavy/runtime execution targetとして選ぶ。target未記載・`execution:triage`のIssueでは、
 cs10 runtimeを開始しない。
 
-`duration_s >= 0.5`、または複数の独立conditionを実行する場合は、まず
-`conf/phase2_parallel/<job>/job.yaml` の利用を検討する。serial実行は、condition間に
-依存がある場合など、Issue runbookに明示した理由がある場合だけ許可する。cs10では
-`execution.worker_policy: cs10_qualified`（最大8 worker、BLAS thread各1）を使う。
+独立conditionが2以上の`execution:cs10` campaignは、`conf/phase2_parallel/<job>/job.yaml`を
+必須とする。開始前に`cs10_qualified`（最大8 worker、BLAS thread各1）、conditionごとのoutput
+分離、dry-runのcondition→worker→output対応を確認する。launcherが必要なshard modeを未実装である
+ことはserial例外にならず、先にparallel対応を実装する。
+
+serial例外は、condition間の技術的依存、排他的資源、またはoutput分離不能をIssue runbookへ具体的に
+記録し、そのURLと開始前のUser明示承認IssueコメントURLをIssue Formへ記載した場合だけ許可する。
+単に同一campaign manifestへ集約したいこと、または実装都合は例外理由にしない。
 
 Git更新はGitHub SSH agentを持つ**対話**sessionで完了させる。非対話SSHではagentや
 `$HOME/.local/bin`が継承されないことがあるため、`git pull`、tmux起動、長時間jobの

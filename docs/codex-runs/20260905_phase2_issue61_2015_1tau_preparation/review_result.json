@@ -6,7 +6,8 @@
     "2015 project限定、3物理torque、dt_star=1e-5、1tau、tracking-referenceのStage A sweep profileを追加した。",
     "campaign manifestは実在するStage A/Task D source manifestのSHA-256をreference_evidenceとして記録できる。未実行Task D outputはevidenceとして扱わない。",
     "専用analysisはlocked threshold、completion、finite、compact run summaryを確認し、3条件すべてのPASS以外では2015 profile昇格とIssue #184 handoffを拒否する。",
-    "cs10 runbookはUser-runのdry-run、実行、同期、再解析手順を固定する。"
+    "cs10 runbookはUser-runのdry-run、実行、同期、再解析手順を固定する。",
+    "独立2 condition以上のcs10 campaignはparallel job、output分離、dry-runを開始gateとし、serial例外にはIssueコメントによる事前User承認を必須化した。"
   ],
   "checks": [
     {
@@ -24,10 +25,14 @@
     {
       "command": "run_sweep.py config=conf/phase2_sweeps/2015_issue61_1tau_tracking_stability.yaml dry_run=true; analyze_dataset.py --analysis-kind issue61-2015-1tau --help; git diff --check",
       "result": "PASS"
+    },
+    {
+      "command": "uv run pytest tests/test_cs10_parallel_policy.py tests/test_issue_execution_target.py tests/test_phase2_parallel_job.py tests/test_cs10_parallel_tmux.py -q; run_parallel.py config=conf/phase2_parallel/example_stage_a_validation/job.yaml --dry-run",
+      "result": "PASS: 45 passed; 2 workers and isolated child outputs confirmed"
     }
   ],
-  "long_simulation_executed": false,
-  "long_simulation_reason": "execution:cs10のUser-run campaignであり、PR preparationにはsimulationを含めない。",
+  "long_simulation_executed": true,
+  "long_simulation_reason": "Issue #61の1tau serial campaign was started before the reinforced parallel gate; it remains in progress and is not a future serial precedent.",
   "user_review_required": false,
   "adr_required": false,
   "adr_reason": "default profile、dataset、physical model、dt_star採択を変更しない。",
@@ -36,7 +41,8 @@
   "push_status": "not_pushed",
   "pull_request_url": null,
   "next_actions": [
-    "Userがcs10上でsource evidence JSONを作成し、dry-run後にcampaignを実行する。",
+    "進行中のIssue #61 serial campaignを完了後に同期・解析する。",
+    "次の独立2 condition以上のcs10 campaignでは、parallel shard対応とparallel dry-runを先に完了する。",
     "同期済みcampaign rootを専用analysisへ渡し、issue61_decision.jsonを確認する。",
     "PR本文は Refs #61 とし、未実行のため Closes #61 を使わない。"
   ]

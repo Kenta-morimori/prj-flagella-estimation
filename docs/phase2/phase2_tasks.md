@@ -265,7 +265,7 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Change:** `cs10_qualified` parallel jobを長時間・独立conditionの標準候補とし、tmux起動、確定output root、exit marker、JSON statusを`parallel_tmux.py`へ統合する。
 - **Result:** Issue #203の0.001 s qualificationは27 shardすべて成功し、8 workerのgeneric aggregateがcanonical campaignを生成した。本番2.0 s campaignは実行中であり、profile比較結果は未確定である。
 - **Interpretation:** worker数・runtime・aggregateの合否は人手のshell文字列や`grep`/`find`の副作用ではなく、job manifestとcontrol artifactから判定する必要がある。
-- **Decision:** cs10の長時間・複数conditionではparallel jobを先に検討し、serialを選ぶ場合はIssue runbookに理由を明記する。Codexのcs10操作はUserの操作単位の明示許可がある場合だけとする。これは実行運用の決定であり、physical model、dataset、`dt_star`、profile採否を変更しない。
+- **Decision:** `execution:cs10`かつ独立conditionが2以上なら、`cs10_qualified` parallel job、conditionごとのoutput分離、dry-runを確認してから開始する。serial例外は、技術的依存・排他的資源・output分離不能をIssue runbookへ記録し、開始前のUser明示承認IssueコメントURLを確認した場合だけ許可する。launcher未対応は例外理由にせず、先にshard対応を実装する。Codexのcs10操作はUserの操作単位の明示許可がある場合だけとする。これは実行運用の決定であり、physical model、dataset、`dt_star`、profile採否を変更しない。
 - **Evidence:** Issues #203・#207・#208・#209，PR #214，`docs/codex/cs10_runbook.md`，`scripts/cs10/parallel_tmux.py`，`tests/test_cs10_parallel_tmux.py`．
 
 ### P2-D19: 大量step runはcompact output policyを明示選択する

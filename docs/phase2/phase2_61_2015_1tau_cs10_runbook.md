@@ -23,7 +23,7 @@ uv run python scripts/01_simulate_swimming/run_sweep.py \
 
 ## ユーザー実行
 
-3 torqueは同一`stage_a_2015` campaign manifestへ集約する。現行parallel launcherは同一sweep profileへの異なるoverrideを重複configとして拒否し、child outputをこのcampaign形式へ集約できない。そのためこの3条件に限りserialを選ぶ。condition間に物理依存はないが、同一manifest・同一evidence・専用analysis入力を保持する運用上の理由である。
+このrunはparallel launcherが同一sweep profileへの異なるoverrideを表現できないことを理由にserialで開始した。3 torqueは物理的に独立であり、この理由は今後のserial例外として認めない。以後は、先にcondition shardとparallel aggregateを実装・dry-runし、`cs10_qualified` parallel jobで開始する。現在のrunは停止・再起動しない。
 
 ```bash
 uv run python scripts/01_simulate_swimming/run_sweep.py \
