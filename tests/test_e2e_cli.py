@@ -163,7 +163,7 @@ def test_script_generates_outputs(
     assert manifest["time"]["time_schema_source"] == "cli_shorthand"
     assert manifest["time"]["total_steps"] == 1
     assert manifest["time"]["final_state_t_s"] == 1.0e-3
-    assert manifest["time"]["final_step_summary_t_s"] == 0.0
+    assert manifest["time"]["final_step_summary_t_s"] == 1.0e-3
     assert manifest["dynamics"]["provenance"] == "paper_inspired_approximation"
     assert manifest["dynamics"]["reaction_support_bead_counts"]
     assert manifest["dynamics"]["reaction_fallback_used"] is False

@@ -275,3 +275,32 @@ uv run python scripts/01_simulate_swimming/compare_qualification.py \
 共有する最小 artifact は、runtime probe の `manifest.json`、各 serial / parallel child の `summary.csv`・`run_manifest.json`・`manifest.json`・各 condition の `run_summary.json`、parallel の `job_manifest.json` である。失敗時だけ対応する `stdout.log`、`stderr.log`、`failure.json`（存在すれば）を追加する。raw `step_summary.csv` と state archive は共有不要である。
 
 serial が失敗した場合は environment / simulation core を先に切り分け、parallel へ進まない。serial が PASS して parallel のみ失敗した場合は child command、output namespace、thread override、stderr を確認する。数値差のみの場合は failure gate と最大差分を report で確認し、根拠なく tolerance を変更しない。
+
+## Issue #232: 18-execution repeat qualification
+
+これは Issue #210 の既存 launcher・worker policy・`compare_qualification.py` を使い、
+**実行再現性だけ**を反復 qualification する差分 contract である。#210 の serial command、
+parallel start、比較器の個別使用法は再掲しない。物理モデル、dataset、科学 campaign、
+comparison tolerance は変更しない。
+
+同じ clean commit で次の matrix を実行する。各 `rep1`--`rep3` は別の出力 root に保存し、
+既存出力を上書きしない。
+
+| environment | profile | repeats | effective condition |
+| --- | --- | --- | --- |
+| Mac serial | `shape_stability_grid` | 3 | `baseline` |
+| Mac serial | `torque_distribution_grid` | 3 | `segment_couples_diffusive_fp3_ft1p5` |
+| cs10 serial | 同上 | 3 | 同上 |
+| cs10 parallel | 両 profile を同一 job で実行 | 3 | 同上 |
+
+すべて `duration_s=0.001`（251 steps）とし、Issue #210 の固定 config / seed をそのまま使う。
+各 `repN` では Mac serial vs cs10 serial を profile ごとに2本、cs10 serial vs parallel を1本
+比較する。各 profile・comparison の3反復がすべて PASS のときだけ集約 PASS とする。partial
+failure は数値が近くても FAIL とし、比較器の既定 tolerance（`atol=1e-9`, `rtol=1e-6`）は変更しない。
+
+cs10 から同期するのは `run_manifest.json`、`summary.csv`、各 condition の
+`run_summary.json`、parallel root の `job_manifest.json` だけである。cs10 operational log、
+tmux log、credential、raw `step_summary.csv`、state archive は同期しない。同期後、artifact count、
+SHA-256、各 `run_summary.json` の execution / finite / shape / failure QC record を検査する。
+
+結果証跡は `docs/codex-runs/20260905_031600_issue232_qualification/` に固定する。

@@ -1179,9 +1179,9 @@ class SimulationConfig:
 
     @property
     def final_step_summary_t_s(self) -> float:
-        if self.total_steps <= 0:
-            return 0.0
-        return (self.total_steps - 1) * self.dt_star * self.tau_s
+        """Return the post-step time recorded by debug step summaries."""
+
+        return self.final_state_t_s
 
     def time_manifest(self) -> dict[str, Any]:
         return {

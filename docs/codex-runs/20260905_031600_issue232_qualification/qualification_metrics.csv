@@ -1,0 +1,13 @@
+comparison,profile,repeat,max_metric,absolute_difference,allowed_difference,tolerance_utilization,numeric_checks,passed_checks,total_checks,status
+Mac serial vs cs10 serial,shape_stability_grid,rep1,baseline.flag_bend_err_max_deg,5.062616992290714e-14,5.22231092438942e-06,9.694208302778568e-09,6,21,21,PASS
+Mac serial vs cs10 serial,shape_stability_grid,rep2,baseline.flag_bend_err_max_deg,5.062616992290714e-14,5.22231092438942e-06,9.694208302778568e-09,6,21,21,PASS
+Mac serial vs cs10 serial,shape_stability_grid,rep3,baseline.flag_bend_err_max_deg,5.062616992290714e-14,5.22231092438942e-06,9.694208302778568e-09,6,21,21,PASS
+Mac serial vs cs10 serial,torque_distribution_grid,rep1,segment_couples_diffusive_fp3_ft1p5.hook_len_rel_err_max,8.465450562766819e-16,1.9497388901590373e-08,4.341838081752734e-08,6,21,21,PASS
+Mac serial vs cs10 serial,torque_distribution_grid,rep2,segment_couples_diffusive_fp3_ft1p5.hook_len_rel_err_max,8.465450562766819e-16,1.9497388901590373e-08,4.341838081752734e-08,6,21,21,PASS
+Mac serial vs cs10 serial,torque_distribution_grid,rep3,segment_couples_diffusive_fp3_ft1p5.hook_len_rel_err_max,8.465450562766819e-16,1.9497388901590373e-08,4.341838081752734e-08,6,21,21,PASS
+cs10 serial vs parallel,shape_stability_grid,rep1,baseline.flag_bend_err_max_deg,0,5.222310924389369e-06,0,6,44,44,PASS
+cs10 serial vs parallel,shape_stability_grid,rep2,baseline.flag_bend_err_max_deg,0,5.222310924389369e-06,0,6,44,44,PASS
+cs10 serial vs parallel,shape_stability_grid,rep3,baseline.flag_bend_err_max_deg,0,5.222310924389369e-06,0,6,44,44,PASS
+cs10 serial vs parallel,torque_distribution_grid,rep1,segment_couples_diffusive_fp3_ft1p5.flag_bend_err_max_deg,0,9.973767623448308e-06,0,6,44,44,PASS
+cs10 serial vs parallel,torque_distribution_grid,rep2,segment_couples_diffusive_fp3_ft1p5.flag_bend_err_max_deg,0,9.973767623448308e-06,0,6,44,44,PASS
+cs10 serial vs parallel,torque_distribution_grid,rep3,segment_couples_diffusive_fp3_ft1p5.flag_bend_err_max_deg,0,9.973767623448308e-06,0,6,44,44,PASS

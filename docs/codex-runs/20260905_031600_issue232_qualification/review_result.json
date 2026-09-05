@@ -1,0 +1,58 @@
+{
+  "status": "PASS",
+  "task": "Issue #232: Mac / cs10 / parallel の反復実行整合性 qualification",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/232",
+  "parent_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/210",
+  "summary": "2010 project の既存2 profileを、同一 clean commit 385ce0883364a7329efb25069cff98ba91e5d9a3・同一 effective config・同一 seedで、Mac serial、cs10 serial、cs10 parallel の各3反復、計18実行した。251 stepsの全実行がcompletedし、Mac反復比較4本と、Mac vs cs10 serialおよびcs10 serial vs parallelの各3反復・計9本の正式比較がすべてPASSした。",
+  "execution_matrix": {
+    "profiles": [
+      "shape_stability_grid: baseline",
+      "torque_distribution_grid: segment_couples_diffusive_fp3_ft1p5"
+    ],
+    "environments": ["Mac serial", "cs10 serial", "cs10 parallel"],
+    "repeats": 3,
+    "total_runs": 18,
+    "duration_s": 0.001,
+    "expected_steps": 251
+  },
+  "comparison_contract": {
+    "atol": 1e-9,
+    "rtol": 1e-6,
+    "formal_reports": 9,
+    "formal_reports_passed": 9,
+    "mac_repeat_reports": 4,
+    "mac_repeat_reports_passed": 4,
+    "partial_failure_policy": "FAIL"
+  },
+  "difference_evidence": {
+    "metric_definition": "tolerance_utilization = absolute_difference / max(atol, rtol * max(abs(left), abs(right)))",
+    "pass_condition": "tolerance_utilization <= 1 and every discrete/provenance/execution gate passes",
+    "csv": "qualification_metrics.csv",
+    "svg": "qualification_matrix.svg",
+    "max_tolerance_utilization": 4.3418380817527336e-08,
+    "max_tolerance_utilization_scope": "Mac serial vs cs10 serial / torque_distribution_grid / rep1-rep3"
+  },
+  "artifacts": {
+    "local_root": "outputs/2026-09-05/030819/issue232",
+    "cs10_compact_artifact_count": 39,
+    "cs10_compact_aggregate_sha256": "11a70d322916df0630f491f25613c1be65612a3df3416a3a4f4fc14b178413c3",
+    "cs10_operational_logs_synced": false,
+    "qc": "all run summaries completed; expected/completed steps=251; contiguous index; finite/shape/failure gates passed"
+  },
+  "tests_reviewed": [
+    "uv run pytest -q tests/test_phase2_parallel_job.py tests/test_phase2_sweep_profiles.py tests/test_cs10_qualification.py tests/test_phase2_qualification.py tests/test_cs10_parallel_tmux.py tests/test_phase2_186_compact_output.py tests/test_e2e_cli.py: PASS (90 passed)",
+    "pre-commit lightweight suite: PASS (323 passed, 477 deselected)",
+    "ruff format/check and git diff --check: PASS"
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "全実行はduration_s=0.001、251 stepsの短縮execution qualificationであり、長時間simulation、dataset campaign、training、renderは実行していない。",
+  "user_review_required": false,
+  "adr_required": true,
+  "adr_reason": "Codex review指摘により、debug step summaryのpost-step completion provenance修正と整合するようADR 0012のfinal step-summary時刻・時刻基準を更新した。物理モデル、dataset、Phase boundary、ML policy、比較toleranceは変更していない。",
+  "commit_hash": "385ce0883364a7329efb25069cff98ba91e5d9a3",
+  "push_status": "pushed",
+  "cloud_review_requested": true,
+  "remaining_issues": [
+    "Issue #232のcompletion provenance修正はoutput contractに関わるため、mergeには明示的なユーザー承認と通常のmerge gateが必要。"
+  ]
+}
