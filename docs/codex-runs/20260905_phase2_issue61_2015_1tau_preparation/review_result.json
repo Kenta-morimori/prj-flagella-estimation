@@ -7,7 +7,8 @@
     "campaign manifestは実在するStage A/Task D source manifestのSHA-256をreference_evidenceとして記録できる。未実行Task D outputはevidenceとして扱わない。",
     "専用analysisはlocked threshold、completion、finite、compact run summaryを確認し、3条件すべてのPASS以外では2015 profile昇格とIssue #184 handoffを拒否する。",
     "cs10 runbookはUser-runのdry-run、実行、同期、再解析手順を固定する。",
-    "独立2 condition以上のcs10 campaignはparallel job、output分離、dry-runを開始gateとし、serial例外にはIssueコメントによる事前User承認を必須化した。"
+    "独立2 condition以上のcs10 campaignはparallel job、output分離、dry-runを開始gateとし、serial例外にはIssueコメントによる事前User承認を必須化した。",
+    "cs10 queueはparallel job（queue reservation）の終端時だけActionsを一度dispatchし、conditionごと・queue空状態での通知を廃止した。通知試行済みstateを永続化し、dispatcher再起動後の自動重複dispatchを防ぐ。"
   ],
   "checks": [
     {
@@ -29,6 +30,10 @@
     {
       "command": "uv run pytest tests/test_cs10_parallel_policy.py tests/test_issue_execution_target.py tests/test_phase2_parallel_job.py tests/test_cs10_parallel_tmux.py -q; run_parallel.py config=conf/phase2_parallel/example_stage_a_validation/job.yaml --dry-run",
       "result": "PASS: 45 passed; 2 workers and isolated child outputs confirmed"
+    },
+    {
+      "command": "uv run pytest tests/test_cs10_queue.py tests/test_cs10_queue_notification_workflow.py tests/test_cs10_parallel_tmux.py -q; .githooks/pre-commit; git diff --check",
+      "result": "PASS: 28 passed; pre-commit: 323 passed, 487 deselected; ruff clean"
     }
   ],
   "long_simulation_executed": true,

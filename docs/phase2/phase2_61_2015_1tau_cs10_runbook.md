@@ -1,6 +1,6 @@
 # Issue #61: 2015 project 1τ cs10 実行runbook
 
-`execution:cs10`のUser-run campaignである。Codexは予約、tmux、queue、開始・停止を行わない。独立3条件で、Mac serial見積りは20時間超である。
+`execution:cs10`のUser-run campaignである。Codexは予約、tmux、queue、開始・停止を行わない。独立3条件で、Mac serial見積りは20時間超である。現在のserial runはparallel job完了時の単発Actions通知を実装する前に開始したため、通知対象ではない。
 
 ## 実行前
 
@@ -23,7 +23,7 @@ uv run python scripts/01_simulate_swimming/run_sweep.py \
 
 ## ユーザー実行
 
-このrunはparallel launcherが同一sweep profileへの異なるoverrideを表現できないことを理由にserialで開始した。3 torqueは物理的に独立であり、この理由は今後のserial例外として認めない。以後は、先にcondition shardとparallel aggregateを実装・dry-runし、`cs10_qualified` parallel jobで開始する。現在のrunは停止・再起動しない。
+このrunはparallel launcherが同一sweep profileへの異なるoverrideを表現できないことを理由にserialで開始した。3 torqueは物理的に独立であり、この理由は今後のserial例外として認めない。以後は、先にcondition shardとparallel aggregateを実装・dry-runし、`cs10_qualified` parallel jobで開始する。1 parallel jobは3 condition workerの終了とaggregate完了後に最終stateをActionsへ一度だけ通知し、conditionごと・queue空状態では通知しない。現在のrunは停止・再起動しない。
 
 ```bash
 uv run python scripts/01_simulate_swimming/run_sweep.py \
