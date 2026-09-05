@@ -78,10 +78,14 @@ Issueの`execution:cs10`は、独立conditionが8以上またはMac見積りwall
 heavy/runtime execution targetとして選ぶ。target未記載・`execution:triage`のIssueでは、
 cs10 runtimeを開始しない。
 
-`duration_s >= 0.5`、または複数の独立conditionを実行する場合は、まず
-`conf/phase2_parallel/<job>/job.yaml` の利用を検討する。serial実行は、condition間に
-依存がある場合など、Issue runbookに明示した理由がある場合だけ許可する。cs10では
-`execution.worker_policy: cs10_qualified`（最大8 worker、BLAS thread各1）を使う。
+独立conditionが2以上の`execution:cs10` campaignは、`conf/phase2_parallel/<job>/job.yaml`を
+必須とする。開始前に`cs10_qualified`（最大8 worker、BLAS thread各1）、conditionごとのoutput
+分離、dry-runのcondition→worker→output対応を確認する。launcherが必要なshard modeを未実装である
+ことはserial例外にならず、先にparallel対応を実装する。
+
+serial例外は、condition間の技術的依存、排他的資源、またはoutput分離不能をIssue runbookへ具体的に
+記録し、そのURLと開始前のUser明示承認IssueコメントURLをIssue Formへ記載した場合だけ許可する。
+単に同一campaign manifestへ集約したいこと、または実装都合は例外理由にしない。
 
 Git更新はGitHub SSH agentを持つ**対話**sessionで完了させる。非対話SSHではagentや
 `$HOME/.local/bin`が継承されないことがあるため、`git pull`、tmux起動、長時間jobの
@@ -169,9 +173,10 @@ queueをpauseする。通知はcs10からGitHub Actionsを起動し、GitHubア�
 メールで受け取る。Gmail SMTP、Actions Secrets、通知先のcs10ローカル設定ファイルは使わない。
 
 GitHubの個人設定で **Settings → Notifications → System → Actions → Email** を選び、
-Actions通知メールを有効にする。queueの`failed`イベントはActions runを失敗終了（red）させ、
-`succeeded`と`queue_completed`は成功終了（green）させる。`cancelled`は成功終了し、run summaryで
-状態を確認する。
+Actions通知メールを有効にする。parallel job（queue reservation）の全conditionとaggregateが終端状態に
+なった後、`job_completed`を一度だけdispatchする。`state=failed`はActions runを失敗終了（red）させ、
+`succeeded`と`cancelled`は成功終了（green）させる。conditionごとの終了やqueue全体が空になったことは
+通知しない。
 
 cs10の実行ユーザーは、root権限なしでGitHub CLIを認証する。tokenには対象リポジトリの
 `repo`および`workflow`権限が必要である。
@@ -181,9 +186,10 @@ gh auth login --hostname github.com
 gh auth status --hostname github.com
 ```
 
-dispatcherは`gh`が利用不能、またはGitHub認証が無効なら起動を拒否する。成功・失敗・cancel・
-全queue完了時にActions workflowをdispatchし、受理成功はqueue eventへ
-`notification_dispatched`、dispatch失敗は`notification_failed`として記録する。
+dispatcherは`gh`が利用不能、またはGitHub認証が無効なら起動を拒否する。成功・失敗・cancelの
+reservation終端時だけActions workflowをdispatchし、受理成功はqueue eventへ
+`notification_dispatched`、dispatch失敗は`notification_failed`として記録する。予約ごとに通知試行済みを
+永続化するため、dispatcher再起動後も自動dispatchは最大1回で、失敗時の自動再試行はしない。
 `notification_dispatched`はActions起動の受理であり、workflow完了を保証しない。Actions runの
 成功／失敗とGitHub通知メールの受信を確認して、queue eventの通知結果を判定する。
 

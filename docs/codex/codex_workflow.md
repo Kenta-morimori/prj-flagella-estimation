@@ -29,6 +29,10 @@ Issue作成・編集時のworkflowが`execution:*` labelを同期する。本文
 または`execution:triage`なら、Codexは実装・test・runtimeを開始せず、targetのtriageを依頼する。
 既存Issueは一括推測せず、着手時にこのForm項目を追記してtriageする。
 
+`execution:cs10`かつ独立conditionが2以上なら、Codexはparallel job config、worker plan、
+`cs10_qualified`、dry-run、conditionごとのoutput分離を確認するまでruntimeを開始しない。
+serial例外には、Issue runbookの具体的な技術理由と、開始前のUser明示承認IssueコメントURLが必要である。
+
 ## Issue Roadmap metadata
 
 新規IssueはIssue Formの必須`Roadmap category (Milestone)`を選択する。`issue-roadmap-sync` workflowは

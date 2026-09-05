@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import csv
 from datetime import datetime
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -72,6 +73,36 @@ def _parse_positive_torques(raw: str) -> list[float]:
     return values
 
 
+def _reference_evidence(path: Path | None) -> list[dict[str, Any]]:
+    """Load and hash immutable evidence references at campaign start."""
+    if path is None:
+        return []
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(raw, list) or not raw:
+        raise ValueError("reference_evidence_file must contain a non-empty JSON list")
+    evidence: list[dict[str, Any]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            raise ValueError("reference evidence entries must be mappings")
+        manifest_path = Path(str(item.get("manifest_path", "")))
+        if not manifest_path.is_file():
+            raise FileNotFoundError(
+                f"reference evidence manifest is missing: {manifest_path}"
+            )
+        digest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+        evidence.append(
+            {
+                "label": str(item.get("label", manifest_path.parent.name)),
+                "source_run_root": str(
+                    item.get("source_run_root", manifest_path.parent)
+                ),
+                "manifest_path": str(manifest_path),
+                "manifest_sha256": digest,
+            }
+        )
+    return evidence
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stage", choices=sorted(STAGE_CONTRACT), required=True)
@@ -88,6 +119,8 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--dt-star", type=float, default=1.0e-5)
     parser.add_argument("--duration-tau", type=float, default=None)
     parser.add_argument("--comparison-role", default="canonical_stage_a")
+    parser.add_argument("--campaign-issue", type=int, default=168)
+    parser.add_argument("--reference-evidence-file", type=Path, default=None)
     parser.add_argument(
         "--motor-torque-scales", type=_parse_positive_scales, default=[1.0]
     )
@@ -299,6 +332,7 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
                     f"config={config_paths[profile_name]}"
                 )
         return Path()
+    reference_evidence = _reference_evidence(args.reference_evidence_file)
     first_cfg = SimulationConfig.from_dict(load_yaml(config_paths[args.profiles[0]]))
     ctx = init_run(
         base_dir=args.output_base_dir,
@@ -313,6 +347,7 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
             "dt_star": args.dt_star,
             "duration_tau": duration_tau,
             "comparison_role": args.comparison_role,
+            "campaign_issue": args.campaign_issue,
             "motor_torque_scales": args.motor_torque_scales,
             "motor_torques_Nm": args.motor_torques_nm,
             "link_reference_torque": args.link_reference_torque,
@@ -504,6 +539,7 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
         "dt_star": args.dt_star,
         "duration_tau": duration_tau,
         "comparison_role": args.comparison_role,
+        "campaign_issue": args.campaign_issue,
         "motor_torque_scales": args.motor_torque_scales,
         "motor_torques_Nm": args.motor_torques_nm,
         "link_reference_torque": args.link_reference_torque,
@@ -532,7 +568,7 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
     )
     run_manifest = {
         "kind": "stage_a_2015",
-        "issue": 168,
+        "issue": args.campaign_issue,
         "stage": args.stage,
         "created_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
         "duration_tau": duration_tau,
@@ -548,6 +584,7 @@ def run_stage_a(argv: list[str] | None = None) -> Path:
         "output_root": str(ctx.out.root),
         "summary_csv": str(summary_path),
         "performance_json": str(performance_path),
+        "reference_evidence": reference_evidence,
         "git": {
             "commit": ctx.git.commit,
             "commit_short": ctx.git.commit_short,

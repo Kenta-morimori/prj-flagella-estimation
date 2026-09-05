@@ -15,12 +15,7 @@ def test_notification_workflow_records_events_without_mail_secrets() -> None:
     dispatch = document["on"]["workflow_dispatch"]
     inputs = dispatch["inputs"]
     assert inputs["event_type"]["required"] == "true"
-    assert inputs["event_type"]["options"] == [
-        "succeeded",
-        "failed",
-        "cancelled",
-        "queue_completed",
-    ]
+    assert inputs["event_type"]["options"] == ["job_completed"]
     assert set(inputs) == {
         "event_type",
         "reservation_id",
@@ -35,7 +30,7 @@ def test_notification_workflow_records_events_without_mail_secrets() -> None:
 
     source = workflow.read_text(encoding="utf-8")
     assert "GITHUB_STEP_SUMMARY" in source
-    assert 'if [ "$EVENT_TYPE" = "failed" ]; then' in source
+    assert 'if [ "$STATE" = "failed" ]; then' in source
     assert "exit 1" in source
     assert "secrets." not in source
     assert "smtp.gmail.com" not in source
