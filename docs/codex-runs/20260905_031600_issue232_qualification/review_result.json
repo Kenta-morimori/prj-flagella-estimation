@@ -47,11 +47,11 @@
   "long_simulation_executed": false,
   "long_simulation_reason": "全実行はduration_s=0.001、251 stepsの短縮execution qualificationであり、長時間simulation、dataset campaign、training、renderは実行していない。",
   "user_review_required": false,
-  "adr_required": false,
-  "adr_reason": "物理モデル、dataset、Phase boundary、ML policy、比較toleranceを変更せず、debug step summaryのpost-step completion provenance不整合のみを修正した。",
+  "adr_required": true,
+  "adr_reason": "Codex review指摘により、debug step summaryのpost-step completion provenance修正と整合するようADR 0012のfinal step-summary時刻・時刻基準を更新した。物理モデル、dataset、Phase boundary、ML policy、比較toleranceは変更していない。",
   "commit_hash": "385ce0883364a7329efb25069cff98ba91e5d9a3",
   "push_status": "pushed",
-  "cloud_review_requested": false,
+  "cloud_review_requested": true,
   "remaining_issues": [
     "Issue #232のcompletion provenance修正はoutput contractに関わるため、mergeには明示的なユーザー承認と通常のmerge gateが必要。"
   ]

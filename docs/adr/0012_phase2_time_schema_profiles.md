@@ -61,13 +61,13 @@ step_summary.csv rows:
   total_steps
 
 final step_summary time:
-  (total_steps - 1) * dt_star * tau_s
+  total_steps * dt_star * tau_s
 
 final state time:
   total_steps * dt_star * tau_s
 ```
 
-`step_summary.csv` は各stepの開始時刻を記録する。`ceil` により final state時刻は指定durationをわずかに超える場合がある。この超過は内部積分契約の結果であり、manifestに `final_state_t_s` と `final_step_summary_t_s` を保存して追跡する。
+`step_summary.csv` は各積分stepのpost-step完了時刻を記録する。したがって最終rowの時刻はfinal state時刻と一致する。`ceil` により final state時刻は指定durationをわずかに超える場合がある。この超過は内部積分契約の結果であり、manifestに `final_state_t_s` と `final_step_summary_t_s` を保存して追跡する。
 
 ## Manifest
 
