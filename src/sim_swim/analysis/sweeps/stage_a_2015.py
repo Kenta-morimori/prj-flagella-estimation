@@ -13,6 +13,7 @@ import time
 import traceback
 from typing import Any
 from zoneinfo import ZoneInfo
+from decimal import Decimal
 
 from sim_swim.analysis.flagella_count_behavior import (
     save_state_archive,
@@ -157,7 +158,15 @@ def _physical_torque_condition_id(
 ) -> str:
     if torque_count == 1:
         return profile_name
-    label = f"{torque_Nm:.0e}".replace("+", "").replace("-", "m")
+
+    decimal_value = Decimal(str(torque_Nm)).normalize()
+    label = (
+        format(decimal_value, "E")
+        .lower()
+        .replace("+", "")
+        .replace("-", "m")
+        .replace(".", "p")
+    )
     return f"{profile_name}_torque_{label}"
 
 

@@ -8,11 +8,18 @@ import pytest
 from sim_swim.analysis.cli_profiles import args_from_profile, load_profile
 
 from sim_swim.analysis.issue61_2015_1tau import analyze
+from sim_swim.analysis.parallel_job import (
+    _aggregate_stage_a_campaign,
+    build_plan,
+    load_parallel_job,
+    resolve_execution,
+)
 from sim_swim.analysis.sweeps import stage_a_2015
 
 
 TORQUES = (1.0e-21, 2.5e-20, 1.0e-19)
 ROOT = Path(__file__).parents[1]
+PARALLEL_JOB = ROOT / "conf/phase2_parallel/issue61_2015_1tau/job.yaml"
 
 
 def test_issue61_profile_fixes_three_tracking_1tau_conditions() -> None:
@@ -27,6 +34,38 @@ def test_issue61_profile_fixes_three_tracking_1tau_conditions() -> None:
     assert args.link_reference_torque is True
     assert args.dt_star == pytest.approx(1.0e-5)
     assert args.duration_tau == pytest.approx(1.0)
+
+
+def test_issue61_parallel_job_has_three_isolated_tracking_shards(
+    tmp_path: Path,
+) -> None:
+    job = load_parallel_job(PARALLEL_JOB)
+    execution = resolve_execution(job, None)
+    plan = build_plan(job, execution, tmp_path / "parallel")
+
+    assert job.is_stage_a_campaign_job
+    assert execution.worker_policy == "cs10_qualified"
+    assert execution.max_workers == 3
+    assert [item["task_id"] for item in plan["configs"]] == [
+        "project_torque_1em21",
+        "project_torque_2p5em20",
+        "project_torque_1em19",
+    ]
+    assert len({item["output_dir"] for item in plan["configs"]}) == 3
+    assert [item["overrides"] for item in plan["configs"]] == [
+        ["motor_torques_nm=1.0e-21"],
+        ["motor_torques_nm=2.5e-20"],
+        ["motor_torques_nm=1.0e-19"],
+    ]
+
+
+def test_stage_a_torque_condition_ids_are_lossless() -> None:
+    assert stage_a_2015._physical_torque_condition_id("project", 1.0e-21, 3) == (
+        "project_torque_1em21"
+    )
+    assert stage_a_2015._physical_torque_condition_id("project", 2.5e-20, 3) == (
+        "project_torque_2p5em20"
+    )
 
 
 def test_reference_evidence_hashes_the_source_manifest(tmp_path: Path) -> None:
@@ -135,6 +174,124 @@ def _campaign(tmp_path: Path, *, fail_metric: str | None = None) -> Path:
         encoding="utf-8",
     )
     return root
+
+
+def test_stage_a_parallel_aggregate_builds_issue61_analysis_input(
+    tmp_path: Path,
+) -> None:
+    job = load_parallel_job(PARALLEL_JOB)
+    root = tmp_path / "parallel"
+    manifest = build_plan(job, resolve_execution(job, None), root)
+    root.mkdir()
+    manifest["output_root"] = str(root)
+    for record, torque in zip(manifest["configs"], TORQUES, strict=True):
+        child_root = Path(record["output_dir"]) / "2026-09-06" / record["task_id"]
+        condition_id = stage_a_2015._physical_torque_condition_id("project", torque, 3)
+        condition_dir = child_root / condition_id
+        condition_dir.mkdir(parents=True)
+        row = {
+            "condition_id": condition_id,
+            "status": "completed",
+            "completion_pass": "True",
+            "finite_pass_all": "True",
+            "wall_time_s": "10.0",
+            "steps_per_s": "100.0",
+        }
+        for metric in (
+            "body_spring_max_stretch_ratio",
+            "body_length_rel_drift_max",
+            "body_width_rel_drift_max",
+            "body_cross_section_area_rel_drift_max",
+            "max_flag_bond_rel_err",
+            "max_hook_len_rel_err",
+            "max_hook_angle_err_deg",
+            "max_flag_bend_err_deg",
+            "max_flag_torsion_err_deg",
+            "max_flag_helix_radius_abs_err_over_b",
+            "max_flag_helix_pitch_rel_err",
+            "max_motor_force_balance_residual_ratio",
+            "max_motor_torque_balance_residual_ratio",
+        ):
+            row[metric] = "0.0"
+        with (child_root / "summary.csv").open(
+            "w", encoding="utf-8", newline=""
+        ) as handle:
+            writer = csv.DictWriter(handle, fieldnames=list(row))
+            writer.writeheader()
+            writer.writerow(row)
+        (condition_dir / "run_summary.json").write_text(
+            json.dumps(
+                {
+                    "execution": {"status": "completed"},
+                    "gates": {
+                        "finite": {
+                            "status": "available",
+                            "any_fail": False,
+                            "final_pass": True,
+                        },
+                        "shape_nonbody": {
+                            "status": "available",
+                            "any_fail": False,
+                            "final_pass": True,
+                        },
+                        "shape_body": {
+                            "status": "available",
+                            "any_fail": False,
+                            "final_pass": True,
+                        },
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        condition = {
+            "condition_id": condition_id,
+            "profile": "project",
+            "motor_torque_Nm": torque,
+            "output_dir": str(condition_dir),
+            "config_overrides": {
+                "motor.torque_Nm": torque,
+                "motor.reference_torque_Nm": torque,
+                "time.scale_policy": "reference_torque",
+            },
+            "time": {"tau_s": 1.0, "dt_internal_s": 1.0e-5, "total_steps": 100000},
+        }
+        child = {
+            "kind": "stage_a_2015",
+            "issue": 61,
+            "stage": "motor_on",
+            "duration_tau": 1.0,
+            "dt_star": 1.0e-5,
+            "comparison_role": "issue61_2015_project_1tau_tracking_stability",
+            "motor_enabled": True,
+            "diagonal_braces_enabled": False,
+            "link_reference_torque": True,
+            "base_config": "conf/sim_swim_2015.yaml",
+            "reference_evidence": [],
+            "motor_torques_Nm": [torque],
+            "conditions": [condition],
+            "performance_json": str(child_root / "performance.json"),
+        }
+        (child_root / "run_manifest.json").write_text(
+            json.dumps(child), encoding="utf-8"
+        )
+        (child_root / "performance.json").write_text(
+            json.dumps({"kind": "stage_a_2015_performance", "conditions": [{}]}),
+            encoding="utf-8",
+        )
+        record["status"] = "succeeded"
+
+    campaign = _aggregate_stage_a_campaign(job, manifest)
+    assert (campaign / "conditions/project_torque_2p5em20").is_symlink()
+    result = analyze(
+        run_root=campaign,
+        threshold_contract=ROOT / "conf/phase2_validation/2015_stage_a_thresholds.yaml",
+        output_dir=tmp_path / "analysis",
+    )
+    assert (
+        json.loads((result / "issue61_decision.json").read_text())["strict_pass_count"]
+        == 3
+    )
 
 
 def test_issue61_analysis_records_all_pass_and_blocks_promotion(tmp_path: Path) -> None:
