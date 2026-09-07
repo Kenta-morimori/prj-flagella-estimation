@@ -135,7 +135,7 @@ def test_issue184_nf1_6_job_requires_passing_issue61_preflight() -> None:
         "nf06",
     ]
     assert plan["execution"]["max_workers"] == 3
-    assert plan["preflight"]["required_status"] == "pass"
+    assert plan["preflight"]["mode"] == "audit_issue61_fail"
 
 
 def test_issue61_preflight_rejects_a_non_passing_decision(tmp_path: Path) -> None:
@@ -150,10 +150,56 @@ def test_issue61_preflight_rejects_a_non_passing_decision(tmp_path: Path) -> Non
         max_workers=1,
         worker_policy="cs10_qualified",
         preflight_decision_json=decision,
+        preflight_mode="require_status",
         preflight_required_status="pass",
     )
 
     with pytest.raises(RuntimeError, match="preflight rejected"):
+        parallel_job._enforce_preflight(job)
+
+
+def test_issue61_failed_audit_is_accepted_only_with_complete_expected_rows(
+    tmp_path: Path,
+) -> None:
+    decision = tmp_path / "issue61_decision.json"
+    root = "/expected/campaign"
+    decision.write_text(
+        json.dumps(
+            {
+                "kind": "issue61_2015_1tau_torque_stability",
+                "status": "fail",
+                "conditions": 3,
+                "run_root": root,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "issue61_summary.csv").write_text(
+        "condition_id,strict_pass\n"
+        "project_torque_1em21,False\n"
+        "project_torque_2p5em20,False\n"
+        "project_torque_1em19,False\n",
+        encoding="utf-8",
+    )
+    job = ParallelJob(
+        schema_version=1,
+        job_id="audit",
+        job_name="audit",
+        config_path=EXAMPLE.resolve(),
+        configs=(SWEEP_A.resolve(),),
+        max_workers=1,
+        worker_policy="cs10_qualified",
+        preflight_decision_json=decision,
+        preflight_mode="audit_issue61_fail",
+        preflight_expected_run_root=root,
+    )
+
+    assert parallel_job._enforce_preflight(job)["decision_status"] == "fail"
+    (tmp_path / "issue61_summary.csv").write_text(
+        "condition_id,strict_pass\nproject_torque_1em21,False\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(RuntimeError, match="inconsistent"):
         parallel_job._enforce_preflight(job)
 
 

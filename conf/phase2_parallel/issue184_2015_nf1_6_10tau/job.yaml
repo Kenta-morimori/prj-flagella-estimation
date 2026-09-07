@@ -2,7 +2,8 @@ schema_version: 1
 job_id: issue184_2015_project_t2p5e20_nf1_6_10tau
 preflight:
   issue61_decision_json: /net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs/2026-09-06/220250/parallel/issue61-2015-1tau__3654804140d9/campaign/analysis/issue61_2015_1tau/issue61_decision.json
-  required_status: pass
+  mode: audit_issue61_fail
+  expected_run_root: /net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs/2026-09-06/220250/parallel/issue61-2015-1tau__3654804140d9/campaign
 configs:
   - path: conf/phase2_multi_run/2015_project_t2p5e20_nf1_6_10tau.yaml
 conditions: [nf01, nf02, nf03, nf04, nf05, nf06]

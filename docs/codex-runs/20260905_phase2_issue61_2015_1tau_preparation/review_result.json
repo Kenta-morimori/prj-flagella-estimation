@@ -7,12 +7,12 @@
     "job_manifest.jsonはsucceeded、aggregation.statusはcompletedとなり、3 condition symlink、統合manifest、summary、performance、campaign completionを確認した。",
     "Stage A compact summaryの列名をlocked QC名へ対応付けて再解析し、3/3 strict FAILの理由をhelix pitch errorとmotor torque-balance residualへ確定した。",
     "固定camera、campaign-envelope、25 fpsの3d+2d replay、metrics CSV、metrics plotをstate archiveから生成した。",
-    "1.2e-18 N m supplemental jobと、nf1-6 / 10tau jobを追加した。後者はIssue #61 decision=passを必須preflightとし、現状FAILではsimulationを起動しない。"
+    "1.2e-18 N m supplemental jobと、nf1-6 / 10tau jobを追加した。後者は同一#61 campaignの3/3 FAILをaudit metadataとして記録し、不在・不整合・別campaignだけを起動拒否するdiagnostic-only preflightである。"
   ],
   "checks": [
     {
       "command": ".venv/bin/pytest -q tests/test_phase2_61_2015_1tau.py tests/test_phase2_parallel_job.py tests/test_cs10_parallel_policy.py tests/test_cs10_parallel_tmux.py",
-      "result": "PASS: 55 passed"
+      "result": "PASS: 56 passed"
     },
     {
       "command": ".githooks/pre-commit",
@@ -23,8 +23,8 @@
       "result": "PASS: one supplemental task and six isolated nf shards / three workers confirmed"
     },
     {
-      "command": "cs10: corrected issue61 analysis; issue184 run_parallel preflight probe",
-      "result": "PASS: 3/3 strict FAIL recorded; nf1-6 job rejected before simulation"
+      "command": "run_parallel.py config=conf/phase2_parallel/issue184_2015_nf1_6_10tau/job.yaml --dry-run",
+      "result": "PASS: #61 FAIL audit path, six isolated shards, and three-worker contract recorded without simulation"
     },
     {
       "command": "git diff --check",

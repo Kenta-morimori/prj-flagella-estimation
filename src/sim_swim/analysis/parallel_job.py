@@ -51,7 +51,13 @@ JOB_KEYS = {
 }
 EXECUTION_KEYS = {"max_workers", "worker_policy"}
 CONFIG_ENTRY_KEYS = {"id", "path", "overrides"}
-PREFLIGHT_KEYS = {"issue61_decision_json", "required_status"}
+PREFLIGHT_KEYS = {
+    "issue61_decision_json",
+    "mode",
+    "required_status",
+    "expected_run_root",
+}
+PREFLIGHT_MODES = {"require_status", "audit_issue61_fail"}
 AGGREGATION_KINDS = {"stage_a_2015"}
 SUPPORTED_KINDS = {
     "bundling_alignment",
@@ -84,7 +90,9 @@ class ParallelJob:
     tasks: tuple[ParallelTask, ...] = ()
     aggregation_kind: str | None = None
     preflight_decision_json: Path | None = None
+    preflight_mode: str | None = None
     preflight_required_status: str | None = None
+    preflight_expected_run_root: str | None = None
 
     @property
     def task_count(self) -> int:
@@ -208,18 +216,29 @@ def _validate_config_entry(value: Any) -> tuple[str | None, Path, tuple[str, ...
     )
 
 
-def _parse_preflight(value: Any) -> tuple[Path | None, str | None]:
+def _parse_preflight(
+    value: Any,
+) -> tuple[Path | None, str | None, str | None, str | None]:
     if value is None:
-        return None, None
+        return None, None, None, None
     data = _require_mapping(value, name="preflight")
     _reject_unknown_keys(data, allowed=PREFLIGHT_KEYS, name="preflight")
     path = data.get("issue61_decision_json")
+    mode = data.get("mode", "require_status")
     status = data.get("required_status")
+    expected_run_root = data.get("expected_run_root")
     if not isinstance(path, str) or not path.strip():
         raise ValueError("preflight.issue61_decision_json must be a non-empty path")
-    if status != "pass":
+    if mode not in PREFLIGHT_MODES:
+        raise ValueError("preflight.mode must be require_status or audit_issue61_fail")
+    if mode == "require_status" and status != "pass":
         raise ValueError("preflight.required_status must be 'pass'")
-    return Path(path), status
+    if mode == "audit_issue61_fail":
+        if status is not None:
+            raise ValueError("audit_issue61_fail must not set required_status")
+        if not isinstance(expected_run_root, str) or not expected_run_root.strip():
+            raise ValueError("audit_issue61_fail requires expected_run_root")
+    return Path(path), mode, status, expected_run_root
 
 
 def load_parallel_job(path: Path) -> ParallelJob:
@@ -322,9 +341,12 @@ def load_parallel_job(path: Path) -> ParallelJob:
             "execution.worker_policy must be one of: "
             + ", ".join(sorted(WORKER_POLICIES))
         )
-    preflight_decision_json, preflight_required_status = _parse_preflight(
-        data.get("preflight")
-    )
+    (
+        preflight_decision_json,
+        preflight_mode,
+        preflight_required_status,
+        preflight_expected_run_root,
+    ) = _parse_preflight(data.get("preflight"))
     return ParallelJob(
         schema_version=1,
         job_id=job_id.strip(),
@@ -338,7 +360,9 @@ def load_parallel_job(path: Path) -> ParallelJob:
         tasks=tasks,
         aggregation_kind=aggregation_kind,
         preflight_decision_json=preflight_decision_json,
+        preflight_mode=preflight_mode,
         preflight_required_status=preflight_required_status,
+        preflight_expected_run_root=preflight_expected_run_root,
     )
 
 
@@ -488,7 +512,9 @@ def build_plan(
             "issue61_decision_json": str(job.preflight_decision_json)
             if job.preflight_decision_json is not None
             else None,
+            "mode": job.preflight_mode,
             "required_status": job.preflight_required_status,
+            "expected_run_root": job.preflight_expected_run_root,
         },
     }
 
@@ -499,16 +525,50 @@ def _write_manifest(root: Path, manifest: dict[str, Any]) -> None:
     )
 
 
-def _enforce_preflight(job: ParallelJob) -> None:
+def _enforce_preflight(job: ParallelJob) -> dict[str, Any]:
     if job.preflight_decision_json is None:
-        return
+        return {"status": "not_required"}
     decision = _read_json(job.preflight_decision_json)
-    if decision.get("status") != job.preflight_required_status:
+    if (
+        job.preflight_mode == "require_status"
+        and decision.get("status") != job.preflight_required_status
+    ):
         raise RuntimeError(
             "parallel job preflight rejected: "
             f"Issue #61 decision status is {decision.get('status')!r}; "
             f"expected {job.preflight_required_status!r}"
         )
+    if job.preflight_mode == "audit_issue61_fail":
+        if (
+            decision.get("kind") != "issue61_2015_1tau_torque_stability"
+            or decision.get("status") != "fail"
+            or decision.get("conditions") != 3
+            or decision.get("run_root") != job.preflight_expected_run_root
+        ):
+            raise RuntimeError(
+                "parallel job preflight rejected: invalid Issue #61 audit"
+            )
+        summary_path = job.preflight_decision_json.parent / "issue61_summary.csv"
+        with summary_path.open(encoding="utf-8", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        expected_ids = {
+            "project_torque_1em21",
+            "project_torque_2p5em20",
+            "project_torque_1em19",
+        }
+        if {row.get("condition_id") for row in rows} != expected_ids or any(
+            row.get("strict_pass", "").lower() != "false" for row in rows
+        ):
+            raise RuntimeError(
+                "parallel job preflight rejected: inconsistent Issue #61 audit"
+            )
+    return {
+        "status": "accepted",
+        "mode": job.preflight_mode,
+        "decision_json": str(job.preflight_decision_json),
+        "decision_status": decision.get("status"),
+        "decision_run_root": decision.get("run_root"),
+    }
 
 
 def _git_provenance() -> dict[str, str | None]:
@@ -983,7 +1043,7 @@ def run_parallel_job(
 
     if output_base_dir is not None and output_root is not None:
         raise ValueError("use output_base_dir or output_root, not both")
-    _enforce_preflight(job)
+    preflight_result = _enforce_preflight(job)
     root = (
         output_root.resolve()
         if output_root is not None
@@ -991,6 +1051,7 @@ def run_parallel_job(
     )
     root.mkdir(parents=True, exist_ok=False)
     manifest = build_plan(job, execution, root)
+    manifest["preflight"].update(preflight_result)
     manifest["status"] = "running"
     manifest["started_at"] = _now()
     manifest["provenance"]["git"] = _git_provenance()
