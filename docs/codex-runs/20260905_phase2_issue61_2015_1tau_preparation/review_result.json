@@ -1,34 +1,34 @@
 {
   "status": "PASS",
-  "task": "Issue #61 2015 project 1tau torque stability reaggregation, replay, and quantitative evaluation",
+  "task": "Issue #61 corrected QC and 2015 project supplemental/count-screen preparation",
   "branch": "codex/issue-61-2015-10tau-stability",
   "summary": [
     "完了済みの3 single-torque shardを再simulationせず再集約し、childの不変ID projectからaggregateだけでlossless canonical torque IDを付与した。",
     "job_manifest.jsonはsucceeded、aggregation.statusはcompletedとなり、3 condition symlink、統合manifest、summary、performance、campaign completionを確認した。",
-    "Issue #61 strict QCは3/3 FAILであり、2015 profile昇格とIssue #184 handoffを拒否する決定JSONを生成した。",
+    "Stage A compact summaryの列名をlocked QC名へ対応付けて再解析し、3/3 strict FAILの理由をhelix pitch errorとmotor torque-balance residualへ確定した。",
     "固定camera、campaign-envelope、25 fpsの3d+2d replay、metrics CSV、metrics plotをstate archiveから生成した。",
-    "manifest、summary、3 state archive、QC/replay artifactをlocalへ同期し、7重点artifactのSHA-256がcs10原本と一致した。"
+    "1.2e-18 N m supplemental jobと、nf1-6 / 10tau jobを追加した。後者はIssue #61 decision=passを必須preflightとし、現状FAILではsimulationを起動しない。"
   ],
   "checks": [
     {
       "command": ".venv/bin/pytest -q tests/test_phase2_61_2015_1tau.py tests/test_phase2_parallel_job.py tests/test_cs10_parallel_policy.py tests/test_cs10_parallel_tmux.py",
-      "result": "PASS"
+      "result": "PASS: 55 passed"
     },
     {
       "command": ".githooks/pre-commit",
       "result": "PASS: ruff clean; 323 passed, 491 deselected"
     },
     {
-      "command": "run_parallel.py config=conf/phase2_parallel/issue61_2015_1tau/job.yaml --dry-run; run_parallel.py --help; git diff --check",
-      "result": "PASS: 3 isolated cs10_qualified tasks and aggregate-existing CLI confirmed"
+      "command": "run_parallel.py config=conf/phase2_parallel/issue61_2015_1tau_paper_torque_supplemental/job.yaml --dry-run; run_parallel.py config=conf/phase2_parallel/issue184_2015_nf1_6_10tau/job.yaml --dry-run",
+      "result": "PASS: one supplemental task and six isolated nf shards / three workers confirmed"
     },
     {
-      "command": "cs10: run_parallel.py ... --aggregate-existing; analyze_dataset.py --analysis-kind issue61-2015-1tau; replay_dataset.py --mode both",
-      "result": "PASS: reaggregation, QC, metrics plot, and 3d+2d replay completed without simulation"
+      "command": "cs10: corrected issue61 analysis; issue184 run_parallel preflight probe",
+      "result": "PASS: 3/3 strict FAIL recorded; nf1-6 job rejected before simulation"
     },
     {
-      "command": "SHA-256 comparison of job manifest, campaign manifest, summary, decision JSON, and 3 state archives",
-      "result": "PASS: all 7 local artifacts matched cs10 originals"
+      "command": "git diff --check",
+      "result": "PASS"
     }
   ],
   "long_simulation_executed": true,
@@ -36,12 +36,12 @@
   "user_review_required": false,
   "adr_required": false,
   "adr_reason": "default profile、dataset、physical model、dt_star採択を変更しない。",
-  "commit_type": "fix",
-  "commit_hash": "dbaadc7",
+  "commit_type": "feat",
+  "commit_hash": "0bca774",
   "push_status": "pushed",
   "pull_request_url": null,
   "next_actions": [
-    "Issue #61にreaggregationと3/3 strict FAILを記録する。",
-    "PR #242では Refs #61 を維持し、profile昇格・Issue #184 handoff・canonical freezeを行わない。"
+    "1.2e-18 N m supplemental runはUser-run cs10 jobとして、別rootでのみ起動する。",
+    "nf1-6 / 10tau jobはIssue #61 strict PASSの後だけUser-run cs10 queueへ投入できる。"
   ]
 }
