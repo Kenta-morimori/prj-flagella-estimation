@@ -64,6 +64,6 @@ uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind iss
 ```bash
 .venv-cs10/bin/python scripts/03_dataset_building/replay_dataset.py \
   --run-dir <campaign-root> --output-dir <campaign-root>/analysis/replay \
-  --view 3d+2d --camera-3d fixed --camera-2d fixed \
+  --view 3d+2d --mode both --camera-3d fixed --camera-2d fixed \
   --view-range-mode campaign-envelope --fps-out-3d 25 --fps-out-2d 25
 ```
