@@ -8,6 +8,7 @@ import pytest
 from sim_swim.analysis.cli_profiles import args_from_profile, load_profile
 
 from sim_swim.analysis.issue61_2015_1tau import analyze
+from sim_swim.analysis.issue61_2015_1tau import _first_threshold_crossing
 from sim_swim.analysis.parallel_job import (
     _aggregate_stage_a_campaign,
     build_plan,
@@ -393,6 +394,17 @@ def test_issue61_analysis_records_first_threshold_failure(tmp_path: Path) -> Non
     )
     assert decision["status"] == "fail"
     assert "do not promote" in decision["handoff"]
+
+
+def test_issue61_streams_first_body_drift_crossing(tmp_path: Path) -> None:
+    diagnostics = tmp_path / "body_constraint_diagnostics.csv"
+    diagnostics.write_text(
+        "step,t_s,body_length_um\n0,0.0,2.0\n10,0.1,2.01\n20,0.2,2.03\n",
+        encoding="utf-8",
+    )
+    assert _first_threshold_crossing(
+        tmp_path, criterion="body_length_rel_drift_max", limit=0.01
+    ) == {"criterion": "body_length_rel_drift_max", "t_s": 0.2, "step": 20}
 
 
 def test_issue61_analysis_rejects_non_tracking_manifest(tmp_path: Path) -> None:

@@ -124,6 +124,83 @@ def _threshold_failures(row: dict[str, str], thresholds: dict[str, Any]) -> list
     return failures
 
 
+def _first_threshold_crossing(
+    condition_dir: Path, *, criterion: str, limit: float
+) -> dict[str, Any] | None:
+    """Stream the relevant diagnostics to locate a threshold crossing.
+
+    The raw Phase 2 CSVs are intentionally not materialized in memory.  This
+    supplements the compact end-of-run extrema with the first observed sample
+    for the criterion that determines the Issue #61 decision.
+    """
+
+    body_drift_fields = {
+        "body_length_rel_drift_max": ("body_length_um",),
+        "body_width_rel_drift_max": (
+            "body_width_mean_um",
+            "body_width_min_um",
+            "body_width_max_um",
+        ),
+        "body_cross_section_area_rel_drift_max": (
+            "body_cross_section_area_min_um2",
+            "body_cross_section_area_max_um2",
+        ),
+    }
+    if criterion == "body_spring_max_stretch_ratio":
+        path, fields, drift = (
+            condition_dir / "body_constraint_diagnostics.csv",
+            ("body_spring_max_stretch_ratio",),
+            False,
+        )
+    elif criterion in body_drift_fields:
+        path, fields, drift = (
+            condition_dir / "body_constraint_diagnostics.csv",
+            body_drift_fields[criterion],
+            True,
+        )
+    else:
+        step_fields = {
+            "max_flag_bond_rel_err": "flag_bond_rel_err_max",
+            "max_hook_len_rel_err": "hook_len_rel_err_max",
+            "max_hook_angle_err_deg": "hook_angle_err_max_deg",
+            "max_flag_bend_err_deg": "flag_bend_err_max_deg",
+            "max_flag_torsion_err_deg": "flag_torsion_err_max_deg",
+            "max_flag_helix_radius_abs_err_over_b": "flag_helix_radius_abs_err_over_b_max",
+            "max_flag_helix_pitch_rel_err": "flag_helix_pitch_rel_err_max",
+            "max_motor_force_balance_residual_ratio": "motor_force_balance_residual_ratio",
+            "max_motor_torque_balance_residual_ratio": "motor_torque_balance_residual_ratio",
+        }
+        field = step_fields.get(criterion)
+        if field is None:
+            return None
+        path, fields, drift = condition_dir / "step_summary.csv", (field,), False
+    if not path.is_file():
+        return None
+    initials: dict[str, float] | None = None
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle):
+            values = {field: _float(row.get(field)) for field in fields}
+            if not all(math.isfinite(value) for value in values.values()):
+                continue
+            if initials is None:
+                initials = values
+            observed = (
+                max(
+                    abs(value - initials[field]) / max(abs(initials[field]), 1.0e-30)
+                    for field, value in values.items()
+                )
+                if drift
+                else max(values.values())
+            )
+            if observed > limit:
+                return {
+                    "criterion": criterion,
+                    "t_s": _float(row.get("t_s")),
+                    "step": int(_float(row.get("step"))),
+                }
+    return None
+
+
 def analyze(*, run_root: Path, threshold_contract: Path, output_dir: Path) -> Path:
     """Write a compact PASS/FAIL decision without restarting simulations."""
     manifest = _read_json(run_root / "run_manifest.json")
@@ -155,11 +232,14 @@ def analyze(*, run_root: Path, threshold_contract: Path, output_dir: Path) -> Pa
         failures = (
             [gate_failure["criterion"]] if gate_failure else []
         ) + threshold_failures
-        first = gate_failure or (
-            {"criterion": threshold_failures[0], "t_s": None, "step": None}
-            if threshold_failures
-            else None
-        )
+        first = gate_failure
+        if first is None and threshold_failures:
+            criterion = threshold_failures[0]
+            first = _first_threshold_crossing(
+                condition_dir,
+                criterion=criterion,
+                limit=_float(thresholds[criterion]),
+            ) or {"criterion": criterion, "t_s": None, "step": None}
         records.append(
             {
                 "condition_id": condition_id,
