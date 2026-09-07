@@ -201,6 +201,50 @@ def _first_threshold_crossing(
     return None
 
 
+def _body_drift_metrics(condition_dir: Path) -> dict[str, float]:
+    """Compute omitted body-drift extrema in one bounded-memory pass."""
+    groups = {
+        "body_length_rel_drift_max": ("body_length_um",),
+        "body_width_rel_drift_max": (
+            "body_width_mean_um",
+            "body_width_min_um",
+            "body_width_max_um",
+        ),
+        "body_cross_section_area_rel_drift_max": (
+            "body_cross_section_area_min_um2",
+            "body_cross_section_area_max_um2",
+        ),
+    }
+    path = condition_dir / "body_constraint_diagnostics.csv"
+    if not path.is_file():
+        return {metric: float("nan") for metric in groups}
+    maxima = {metric: 0.0 for metric in groups}
+    initial: dict[str, float] | None = None
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle):
+            values = {
+                field: _float(row.get(field))
+                for fields in groups.values()
+                for field in fields
+            }
+            if not all(math.isfinite(value) for value in values.values()):
+                continue
+            if initial is None:
+                initial = values
+            for metric, fields in groups.items():
+                maxima[metric] = max(
+                    maxima[metric],
+                    *(
+                        abs(values[field] - initial[field])
+                        / max(abs(initial[field]), 1.0e-30)
+                        for field in fields
+                    ),
+                )
+    return (
+        maxima if initial is not None else {metric: float("nan") for metric in groups}
+    )
+
+
 def analyze(*, run_root: Path, threshold_contract: Path, output_dir: Path) -> Path:
     """Write a compact PASS/FAIL decision without restarting simulations."""
     manifest = _read_json(run_root / "run_manifest.json")
@@ -228,7 +272,11 @@ def analyze(*, run_root: Path, threshold_contract: Path, output_dir: Path) -> Pa
             if summary_path.is_file()
             else {"criterion": "run_summary_missing", "t_s": None, "step": None}
         )
-        threshold_failures = _threshold_failures(row, thresholds)
+        observed_row = dict(row)
+        for metric, value in _body_drift_metrics(condition_dir).items():
+            if not math.isfinite(_float(observed_row.get(metric))):
+                observed_row[metric] = str(value)
+        threshold_failures = _threshold_failures(observed_row, thresholds)
         failures = (
             [gate_failure["criterion"]] if gate_failure else []
         ) + threshold_failures
@@ -254,6 +302,15 @@ def analyze(*, run_root: Path, threshold_contract: Path, output_dir: Path) -> Pa
                 "first_failing_t_s": first["t_s"] if first else None,
                 "first_failing_step": first["step"] if first else None,
                 "failures": "; ".join(failures),
+                "body_length_rel_drift_max": _float(
+                    observed_row.get("body_length_rel_drift_max")
+                ),
+                "body_width_rel_drift_max": _float(
+                    observed_row.get("body_width_rel_drift_max")
+                ),
+                "body_cross_section_area_rel_drift_max": _float(
+                    observed_row.get("body_cross_section_area_rel_drift_max")
+                ),
                 "body_motion_recorded": (condition_dir / "trajectory.csv").is_file(),
                 "flagella_motion_recorded": (
                     condition_dir / "state_archive.npz"
