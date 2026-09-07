@@ -31,6 +31,10 @@ ISSUE215 = ROOT / "conf/phase2_parallel/issue215_5s_axis_convergence/job.yaml"
 ISSUE215_QUALIFICATION = (
     ROOT / "conf/phase2_parallel/issue215_5s_axis_convergence/qualification_job.yaml"
 )
+ISSUE61_SUPPLEMENTAL = (
+    ROOT / "conf/phase2_parallel/issue61_2015_1tau_paper_torque_supplemental/job.yaml"
+)
+ISSUE184_NF10TAU = ROOT / "conf/phase2_parallel/issue184_2015_nf1_6_10tau/job.yaml"
 SWEEP_A = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_off.yaml"
 SWEEP_B = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_on.yaml"
 SHAPE_SWEEP = ROOT / "conf/phase2_sweeps/shape_stability_grid.yaml"
@@ -105,6 +109,52 @@ def test_issue203_generic_job_expands_27_independent_conditions() -> None:
     assert "scripts/01_simulate_swimming/run_multi_run.py" in command
     assert "output.timestamp_subdir=false" in command
     assert "sweep.include_condition_ids=[nf01__as000__ps000]" in command
+
+
+def test_issue61_supplemental_job_is_one_isolated_paper_torque_task() -> None:
+    job = load_parallel_job(ISSUE61_SUPPLEMENTAL)
+    plan = build_plan(job, resolve_execution(job, None), ROOT / ".tmp_issue61_plan")
+
+    assert job.task_count == 1
+    assert plan["configs"][0]["task_id"] == "project_torque_1p2em18"
+    assert plan["configs"][0]["overrides"] == []
+
+
+def test_issue184_nf1_6_job_requires_passing_issue61_preflight() -> None:
+    job = load_parallel_job(ISSUE184_NF10TAU)
+    plan = build_plan(job, resolve_execution(job, None), ROOT / ".tmp_issue184_plan")
+
+    assert job.is_generic_campaign_job
+    assert job.task_count == 6
+    assert [record["condition_id"] for record in plan["configs"]] == [
+        "nf01",
+        "nf02",
+        "nf03",
+        "nf04",
+        "nf05",
+        "nf06",
+    ]
+    assert plan["execution"]["max_workers"] == 3
+    assert plan["preflight"]["required_status"] == "pass"
+
+
+def test_issue61_preflight_rejects_a_non_passing_decision(tmp_path: Path) -> None:
+    decision = tmp_path / "issue61_decision.json"
+    decision.write_text('{"status": "fail"}\n', encoding="utf-8")
+    job = ParallelJob(
+        schema_version=1,
+        job_id="gated",
+        job_name="gated",
+        config_path=EXAMPLE.resolve(),
+        configs=(SWEEP_A.resolve(),),
+        max_workers=1,
+        worker_policy="cs10_qualified",
+        preflight_decision_json=decision,
+        preflight_required_status="pass",
+    )
+
+    with pytest.raises(RuntimeError, match="preflight rejected"):
+        parallel_job._enforce_preflight(job)
 
 
 def test_issue203_qualification_job_preserves_27_shards_and_duration_override() -> None:

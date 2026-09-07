@@ -8,6 +8,7 @@ import pytest
 from sim_swim.analysis.cli_profiles import args_from_profile, load_profile
 
 from sim_swim.analysis.issue61_2015_1tau import analyze
+from sim_swim.analysis.issue61_2015_1tau import _canonical_threshold_row
 from sim_swim.analysis.issue61_2015_1tau import _first_threshold_crossing
 from sim_swim.analysis.parallel_job import (
     _aggregate_stage_a_campaign,
@@ -405,6 +406,21 @@ def test_issue61_streams_first_body_drift_crossing(tmp_path: Path) -> None:
     assert _first_threshold_crossing(
         tmp_path, criterion="body_length_rel_drift_max", limit=0.01
     ) == {"criterion": "body_length_rel_drift_max", "t_s": 0.2, "step": 20}
+
+
+def test_issue61_maps_stage_a_compact_metrics_to_locked_names() -> None:
+    row = _canonical_threshold_row(
+        {
+            "flag_bend_err_max_deg": "12.5",
+            "flag_torsion_err_max_deg": "4.5",
+            "flag_helix_pitch_rel_err_max": "0.04",
+            "motor_torque_balance_residual_ratio": "1e-9",
+        }
+    )
+    assert row["max_flag_bend_err_deg"] == "12.5"
+    assert row["max_flag_torsion_err_deg"] == "4.5"
+    assert row["max_flag_helix_pitch_rel_err"] == "0.04"
+    assert row["max_motor_torque_balance_residual_ratio"] == "1e-9"
 
 
 def test_issue61_analysis_rejects_non_tracking_manifest(tmp_path: Path) -> None:

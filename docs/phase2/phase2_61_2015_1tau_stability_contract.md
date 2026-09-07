@@ -22,3 +22,10 @@
 locked Stage A thresholdによるbody/non-body shape、hook/bond、bend/torsion、helix pitch/radius、motor action-reaction、finite/completionを1τの全記録stepで確認する。trajectoryとstate archiveがbody/flagella motionの記録として存在することも集計する。1条件でもFAILなら最初のcriterionを保存し、2015 profileの昇格とIssue #184へのhandoffを禁止する。3条件すべてPASSなら、後続評価に渡せるだけである。
 
 fixed-reference・同一実時間の効率比較は本契約の対象外であり、tracking条件間のwall timeを同一物理系の直接比較として解釈しない。
+
+## 1.2e-18 N m supplemental evidence
+
+既存3 shardを再実行せず、2015 project・`n_flagella=3`・attach/phase seed `0`・
+`dt_star=1e-5`・1τ・tracking-referenceの単独conditionとして`1.2e-18 N m`を追加する。
+これは論文対応torque値のproject-model診断であり、既存3条件のcampaign manifestへ混在させない。
+同じlocked QCとthroughputを比較表に記録するが、profile昇格、#184 handoff、dataset採択の根拠にはしない。

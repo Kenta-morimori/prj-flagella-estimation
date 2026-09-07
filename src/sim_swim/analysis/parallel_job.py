@@ -47,9 +47,11 @@ JOB_KEYS = {
     "conditions",
     "execution",
     "aggregation",
+    "preflight",
 }
 EXECUTION_KEYS = {"max_workers", "worker_policy"}
 CONFIG_ENTRY_KEYS = {"id", "path", "overrides"}
+PREFLIGHT_KEYS = {"issue61_decision_json", "required_status"}
 AGGREGATION_KINDS = {"stage_a_2015"}
 SUPPORTED_KINDS = {
     "bundling_alignment",
@@ -81,6 +83,8 @@ class ParallelJob:
     condition_ids: tuple[str, ...] = ()
     tasks: tuple[ParallelTask, ...] = ()
     aggregation_kind: str | None = None
+    preflight_decision_json: Path | None = None
+    preflight_required_status: str | None = None
 
     @property
     def task_count(self) -> int:
@@ -204,6 +208,20 @@ def _validate_config_entry(value: Any) -> tuple[str | None, Path, tuple[str, ...
     )
 
 
+def _parse_preflight(value: Any) -> tuple[Path | None, str | None]:
+    if value is None:
+        return None, None
+    data = _require_mapping(value, name="preflight")
+    _reject_unknown_keys(data, allowed=PREFLIGHT_KEYS, name="preflight")
+    path = data.get("issue61_decision_json")
+    status = data.get("required_status")
+    if not isinstance(path, str) or not path.strip():
+        raise ValueError("preflight.issue61_decision_json must be a non-empty path")
+    if status != "pass":
+        raise ValueError("preflight.required_status must be 'pass'")
+    return Path(path), status
+
+
 def load_parallel_job(path: Path) -> ParallelJob:
     """Load and validate one ``conf/phase2_parallel/<name>/job.yaml`` file."""
 
@@ -304,6 +322,9 @@ def load_parallel_job(path: Path) -> ParallelJob:
             "execution.worker_policy must be one of: "
             + ", ".join(sorted(WORKER_POLICIES))
         )
+    preflight_decision_json, preflight_required_status = _parse_preflight(
+        data.get("preflight")
+    )
     return ParallelJob(
         schema_version=1,
         job_id=job_id.strip(),
@@ -316,6 +337,8 @@ def load_parallel_job(path: Path) -> ParallelJob:
         condition_ids=condition_ids,
         tasks=tasks,
         aggregation_kind=aggregation_kind,
+        preflight_decision_json=preflight_decision_json,
+        preflight_required_status=preflight_required_status,
     )
 
 
@@ -461,6 +484,12 @@ def build_plan(
         "completion_order": [],
         "failed_configs": [],
         "aggregation": {"required": job.requires_aggregation, "status": "pending"},
+        "preflight": {
+            "issue61_decision_json": str(job.preflight_decision_json)
+            if job.preflight_decision_json is not None
+            else None,
+            "required_status": job.preflight_required_status,
+        },
     }
 
 
@@ -468,6 +497,18 @@ def _write_manifest(root: Path, manifest: dict[str, Any]) -> None:
     (root / "job_manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
+
+
+def _enforce_preflight(job: ParallelJob) -> None:
+    if job.preflight_decision_json is None:
+        return
+    decision = _read_json(job.preflight_decision_json)
+    if decision.get("status") != job.preflight_required_status:
+        raise RuntimeError(
+            "parallel job preflight rejected: "
+            f"Issue #61 decision status is {decision.get('status')!r}; "
+            f"expected {job.preflight_required_status!r}"
+        )
 
 
 def _git_provenance() -> dict[str, str | None]:
@@ -942,6 +983,7 @@ def run_parallel_job(
 
     if output_base_dir is not None and output_root is not None:
         raise ValueError("use output_base_dir or output_root, not both")
+    _enforce_preflight(job)
     root = (
         output_root.resolve()
         if output_root is not None

@@ -59,6 +59,21 @@ uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind iss
 
 最初に`issue61_decision.json`、次に`issue61_summary.csv`を確認する。`status=fail`ならそのcriterionをIssue #61へ記録し、#184へのhandoffやprofile昇格を行わない。
 
+## 1.2e-18 N m supplemental run
+
+既存3 torqueを再実行しない。次の単独reservationは2015 projectのpaper-torque値を
+同じ1τ safety/throughput項目で記録するだけであり、既存campaignとのartifact混在はしない。
+
+```bash
+.venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \
+  config=conf/phase2_parallel/issue61_2015_1tau_paper_torque_supplemental/job.yaml --dry-run
+.venv-cs10/bin/python scripts/cs10/queue.py enqueue \
+  --job-yaml conf/phase2_parallel/issue61_2015_1tau_paper_torque_supplemental/job.yaml
+```
+
+完了後はchildの`summary.csv`、`run_manifest.json`、`run_summary.json`、state archive、trajectoryを同期し、
+locked QC / throughput比較へ追加する。#61の既存3条件decisionを上書きしない。
+
 その後、campaignの3 conditionを`3d+2d`でreplayする。これはstate archiveからのrenderであり、simulationを再起動しない。
 
 ```bash

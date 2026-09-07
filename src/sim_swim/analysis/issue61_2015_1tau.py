@@ -14,6 +14,21 @@ TORQUES_NM = (1.0e-21, 2.5e-20, 1.0e-19)
 EXPECTED_DT_STAR = 1.0e-5
 EXPECTED_DURATION_TAU = 1.0
 
+# Stage A's compact summary predates the locked-contract field names.  Keep the
+# conversion here, at the consumer boundary, so raw child artifacts stay
+# immutable and every threshold is evaluated against its measured counterpart.
+SUMMARY_METRIC_SOURCES = {
+    "max_flag_bond_rel_err": "flag_bond_rel_err_max",
+    "max_hook_len_rel_err": "hook_len_rel_err_max",
+    "max_hook_angle_err_deg": "hook_angle_err_max_deg",
+    "max_flag_bend_err_deg": "flag_bend_err_max_deg",
+    "max_flag_torsion_err_deg": "flag_torsion_err_max_deg",
+    "max_flag_helix_radius_abs_err_over_b": "flag_helix_radius_abs_err_over_b_max",
+    "max_flag_helix_pitch_rel_err": "flag_helix_pitch_rel_err_max",
+    "max_motor_force_balance_residual_ratio": "motor_force_balance_residual_ratio",
+    "max_motor_torque_balance_residual_ratio": "motor_torque_balance_residual_ratio",
+}
+
 
 def _read_json(path: Path) -> dict[str, Any]:
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -122,6 +137,16 @@ def _threshold_failures(row: dict[str, str], thresholds: dict[str, Any]) -> list
         if not math.isfinite(value) or value > limit:
             failures.append(metric)
     return failures
+
+
+def _canonical_threshold_row(row: dict[str, str]) -> dict[str, str]:
+    """Fill locked-contract metric names from Stage A compact-summary fields."""
+
+    result = dict(row)
+    for canonical, source in SUMMARY_METRIC_SOURCES.items():
+        if not math.isfinite(_float(result.get(canonical))):
+            result[canonical] = str(row.get(source, ""))
+    return result
 
 
 def _first_threshold_crossing(
@@ -272,7 +297,7 @@ def analyze(*, run_root: Path, threshold_contract: Path, output_dir: Path) -> Pa
             if summary_path.is_file()
             else {"criterion": "run_summary_missing", "t_s": None, "step": None}
         )
-        observed_row = dict(row)
+        observed_row = _canonical_threshold_row(row)
         for metric, value in _body_drift_metrics(condition_dir).items():
             if not math.isfinite(_float(observed_row.get(metric))):
                 observed_row[metric] = str(value)
