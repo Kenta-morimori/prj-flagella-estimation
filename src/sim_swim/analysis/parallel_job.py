@@ -31,6 +31,7 @@ from sim_swim.analysis.sweeps.generic_multi_run import (
     _manifest_condition_record,
     _summary_fieldnames,
 )
+from sim_swim.analysis.sweeps.stage_a_2015 import physical_torque_condition_id
 from sim_swim.sim.params import SimulationConfig
 
 
@@ -654,7 +655,9 @@ def _aggregate_stage_a_campaign(job: ParallelJob, manifest: dict[str, Any]) -> P
 
     if manifest["failed_configs"]:
         raise RuntimeError("cannot aggregate stage_a_2015 with failed shards")
-    children: list[tuple[dict[str, Any], dict[str, Any], dict[str, str], Path]] = []
+    children: list[
+        tuple[dict[str, Any], dict[str, Any], dict[str, str], Path, str, str]
+    ] = []
     common: dict[str, Any] | None = None
     seen_conditions: set[str] = set()
     seen_torques: set[float] = set()
@@ -682,22 +685,31 @@ def _aggregate_stage_a_campaign(job: ParallelJob, manifest: dict[str, Any]) -> P
                 f"stage_a_2015 shard must contain one condition: {record['task_id']}"
             )
         condition = conditions[0]
-        condition_id = str(condition.get("condition_id", ""))
+        source_condition_id = str(condition.get("condition_id", ""))
         torque = _require_stage_a_tracking_condition(
             condition, task_id=str(record["task_id"])
         )
+        profile = str(condition.get("profile", ""))
+        condition_id = physical_torque_condition_id(
+            profile, torque, len(manifest["configs"])
+        )
         if (
-            not condition_id
+            not source_condition_id
             or condition_id in seen_conditions
             or torque in seen_torques
         ):
             raise RuntimeError(f"duplicate stage_a_2015 condition: {record['task_id']}")
+        if str(record["task_id"]) != condition_id:
+            raise RuntimeError(
+                "stage_a_2015 task/torque mismatch: "
+                f"task={record['task_id']} canonical={condition_id}"
+            )
         summary_rows = list(
             csv.DictReader((child_root / "summary.csv").open(encoding="utf-8"))
         )
         if (
             len(summary_rows) != 1
-            or summary_rows[0].get("condition_id") != condition_id
+            or summary_rows[0].get("condition_id") != source_condition_id
         ):
             raise RuntimeError(f"stage_a_2015 summary mismatch: {record['task_id']}")
         if summary_rows[0].get("status") != "completed":
@@ -729,7 +741,16 @@ def _aggregate_stage_a_campaign(job: ParallelJob, manifest: dict[str, Any]) -> P
             common = child
         seen_conditions.add(condition_id)
         seen_torques.add(torque)
-        children.append((record, child, summary_rows[0], condition_dir))
+        children.append(
+            (
+                record,
+                child,
+                summary_rows[0],
+                condition_dir,
+                condition_id,
+                source_condition_id,
+            )
+        )
 
     if common is None:
         raise RuntimeError("stage_a_2015 aggregation has no child shards")
@@ -740,22 +761,45 @@ def _aggregate_stage_a_campaign(job: ParallelJob, manifest: dict[str, Any]) -> P
     rows: list[dict[str, str]] = []
     condition_records: list[dict[str, Any]] = []
     performance_conditions: list[dict[str, Any]] = []
-    for _, child, row, condition_dir in children:
+    for (
+        record,
+        child,
+        row,
+        condition_dir,
+        condition_id,
+        source_condition_id,
+    ) in children:
         source_condition = child["conditions"][0]
-        condition_id = str(source_condition["condition_id"])
         link = conditions_root / condition_id
         link.symlink_to(os.path.relpath(condition_dir, link.parent))
         row = dict(row)
+        row["condition_id"] = condition_id
         row["output_dir"] = str(link)
+        row["source_condition_id"] = source_condition_id
+        row["source_output_dir"] = str(condition_dir)
+        row["parallel_task_id"] = str(record["task_id"])
         rows.append(row)
         condition = dict(source_condition)
+        condition["condition_id"] = condition_id
         condition["output_dir"] = str(link)
+        condition["source_condition_id"] = source_condition_id
+        condition["source_output_dir"] = str(condition_dir)
+        condition["parallel_task_id"] = str(record["task_id"])
         condition_records.append(condition)
         performance = _read_json(Path(str(child["performance_json"])))
         values = performance.get("conditions")
         if not isinstance(values, list) or len(values) != 1:
             raise RuntimeError(f"stage_a_2015 performance mismatch: {condition_id}")
-        performance_conditions.append(values[0])
+        performance_condition = dict(values[0])
+        performance_condition.update(
+            {
+                "condition_id": condition_id,
+                "source_condition_id": source_condition_id,
+                "source_output_dir": str(condition_dir),
+                "parallel_task_id": str(record["task_id"]),
+            }
+        )
+        performance_conditions.append(performance_condition)
 
     summary_path = campaign_root / "summary.csv"
     fieldnames = list(dict.fromkeys(key for row in rows for key in row))
@@ -819,6 +863,70 @@ def _aggregate_stage_a_campaign(job: ParallelJob, manifest: dict[str, Any]) -> P
         "parallel Stage A campaign aggregation completed\n", encoding="utf-8"
     )
     return campaign_root
+
+
+def reaggregate_existing_job(job: ParallelJob, output_root: Path) -> dict[str, Any]:
+    """Create an aggregate view for completed shards without running simulations.
+
+    This is intentionally limited to a previously failed aggregation: child
+    outputs are treated as immutable and no subprocess is created here.
+    """
+
+    root = output_root.resolve()
+    manifest_path = root / "job_manifest.json"
+    manifest = _read_json(manifest_path)
+    if manifest.get("job_id") != job.job_id:
+        raise ValueError(
+            f"job manifest/job config mismatch: {manifest.get('job_id')} != {job.job_id}"
+        )
+    if not job.requires_aggregation:
+        raise ValueError("parallel job does not define an aggregation contract")
+    if manifest.get("failed_configs"):
+        raise RuntimeError("cannot reaggregate a job with failed shards")
+    records = manifest.get("configs")
+    if not isinstance(records, list) or len(records) != job.task_count:
+        raise RuntimeError("job manifest has missing or inconsistent shard records")
+    if any(record.get("status") != "succeeded" for record in records):
+        raise RuntimeError("cannot reaggregate before every shard has succeeded")
+    campaign_root = root / "campaign"
+    if campaign_root.exists():
+        raise FileExistsError(
+            f"refusing to overwrite existing campaign aggregate: {campaign_root}"
+        )
+    try:
+        aggregate_root = (
+            _aggregate_generic_campaign(job, manifest)
+            if job.is_generic_campaign_job
+            else _aggregate_stage_a_campaign(job, manifest)
+        )
+    except Exception as exc:
+        manifest["status"] = "failed"
+        manifest["aggregation"] = {
+            "required": True,
+            "status": "failed",
+            "error": str(exc),
+        }
+        manifest["reaggregation"] = {
+            "status": "failed",
+            "at": _now(),
+            "git": _git_provenance(),
+        }
+        _write_manifest(root, manifest)
+        raise
+    manifest["status"] = "succeeded"
+    manifest["ended_at"] = _now()
+    manifest["aggregation"] = {
+        "required": True,
+        "status": "completed",
+        "campaign_root": str(aggregate_root),
+    }
+    manifest["reaggregation"] = {
+        "status": "completed",
+        "at": _now(),
+        "git": _git_provenance(),
+    }
+    _write_manifest(root, manifest)
+    return manifest
 
 
 def run_parallel_job(

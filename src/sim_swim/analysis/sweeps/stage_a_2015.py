@@ -153,9 +153,15 @@ def _condition_id(profile_name: str, torque_scale: float, scale_count: int) -> s
     return f"{profile_name}_torque_x{label}"
 
 
-def _physical_torque_condition_id(
+def physical_torque_condition_id(
     profile_name: str, torque_Nm: float, torque_count: int
 ) -> str:
+    """Return a lossless physical-torque condition label.
+
+    A one-condition invocation deliberately retains the historical profile-only
+    label.  Campaign aggregators can pass their full condition count to obtain
+    the canonical, physically descriptive label without mutating a shard.
+    """
     if torque_count == 1:
         return profile_name
 
@@ -168,6 +174,14 @@ def _physical_torque_condition_id(
         .replace(".", "p")
     )
     return f"{profile_name}_torque_{label}"
+
+
+def _physical_torque_condition_id(
+    profile_name: str, torque_Nm: float, torque_count: int
+) -> str:
+    """Backward-compatible private alias for existing callers/tests."""
+
+    return physical_torque_condition_id(profile_name, torque_Nm, torque_count)
 
 
 def _max_numeric(rows: list[dict[str, str]], field: str) -> float:

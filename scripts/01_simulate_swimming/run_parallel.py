@@ -15,6 +15,7 @@ from sim_swim.analysis.parallel_job import (
     build_plan,
     job_output_root,
     load_parallel_job,
+    reaggregate_existing_job,
     resolve_execution,
     run_parallel_job,
 )
@@ -42,12 +43,24 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-workers", type=_parse_workers, default=None)
     parser.add_argument("--output-root", type=Path, default=None)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--aggregate-existing",
+        action="store_true",
+        help=(
+            "Aggregate completed shard artifacts already under --output-root; "
+            "does not launch simulations."
+        ),
+    )
     args = parser.parse_args(key_value_args_to_cli_args(parser_argv))
     if config_from_key is not None and args.config is not None:
         parser.error("Use either config=PATH or --config PATH (not both)")
     if (config := config_from_key or args.config) is None:
         parser.error("config=PATH or --config PATH is required")
     job = load_parallel_job(config)
+    if args.aggregate_existing and args.output_root is None:
+        parser.error("--aggregate-existing requires --output-root")
+    if args.aggregate_existing and args.dry_run:
+        parser.error("--aggregate-existing cannot be combined with --dry-run")
     execution = resolve_execution(job, args.max_workers)
     planned_root = args.output_root or job_output_root(job)
     if args.dry_run:
@@ -58,6 +71,10 @@ def main(argv: list[str] | None = None) -> int:
                 indent=2,
             )
         )
+        return 0
+    if args.aggregate_existing:
+        manifest = reaggregate_existing_job(job, args.output_root)
+        print(manifest["aggregation"]["campaign_root"])
         return 0
     manifest = run_parallel_job(job, execution, output_root=args.output_root)
     print(manifest["output_root"])

@@ -1,6 +1,6 @@
 # Issue #61: 2015 project 1τ cs10 実行runbook
 
-`execution:cs10`のUser-run campaignである。Codexは予約、tmux、queue、開始・停止を行わない。独立3条件で、Mac serial見積りは20時間超である。現在のserial runはparallel job完了時の単発Actions通知を実装する前に開始したため、通知対象ではない。
+`execution:cs10`のUser-run campaignである。対象は独立した3 torque条件`1e-21`、`2.5e-20`、`1e-19 N m`で、Mac serial見積りは20時間超である。本runbookの正本は`cs10_qualified` parallel jobであり、3 workerとaggregateの全完了後にqueue reservation単位でActions通知を一度だけ行う。conditionごと・queue空状態では通知しない。
 
 ## 実行前
 
@@ -17,20 +17,33 @@ Task Dが未実行ならentryを追加しない。既存manifestがcs10に存在
 まず3条件を確認する（simulationは起動しない）。
 
 ```bash
-uv run python scripts/01_simulate_swimming/run_sweep.py \
-  config=conf/phase2_sweeps/2015_issue61_1tau_tracking_stability.yaml dry_run=true
+.venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \
+  config=conf/phase2_parallel/issue61_2015_1tau/job.yaml --dry-run
 ```
 
 ## ユーザー実行
 
-このrunはparallel launcherが同一sweep profileへの異なるoverrideを表現できないことを理由にserialで開始した。3 torqueは物理的に独立であり、この理由は今後のserial例外として認めない。以後は、先にcondition shardとparallel aggregateを実装・dry-runし、`cs10_qualified` parallel jobで開始する。1 parallel jobは3 condition workerの終了とaggregate完了後に最終stateをActionsへ一度だけ通知し、conditionごと・queue空状態では通知しない。現在のrunは停止・再起動しない。
+2026-09-05のserial選択はlauncher制約による運用不備であり、分析根拠にはしない。この判断は将来のserial例外を作らない。新規launchはqueueの1 reservationとして行い、各workerを次のjob YAMLから起動する。
 
 ```bash
-uv run python scripts/01_simulate_swimming/run_sweep.py \
-  config=conf/phase2_sweeps/2015_issue61_1tau_tracking_stability.yaml
+.venv-cs10/bin/python scripts/cs10/queue.py enqueue \
+  --job-yaml conf/phase2_parallel/issue61_2015_1tau/job.yaml
 ```
 
-失敗・中断時はcampaign root、`run.log`、`manifest.json`、`run_manifest.json`、conditionごとの`run_summary.json`を保持する。再開は完了conditionをコピーせず、新しいdated output rootで未完了conditionを再実行する。
+失敗・中断時はshard artifactを保持する。完了conditionをコピーして混在させず、新しいdated output rootでcleanなparallel jobを実行する。
+
+## 完了済み shard の再集約
+
+2026-09-06のparallel runは3 shardが完了済みであり、child内部の単一condition IDがすべて`project`だったため、初回aggregateだけが重複として失敗した。child outputは変更・コピーせず、aggregate側でtask IDと実torqueからcanonical IDを付ける。以下はsimulationを起動しない。
+
+```bash
+.venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \
+  config=conf/phase2_parallel/issue61_2015_1tau/job.yaml \
+  --output-root /net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs/2026-09-06/220250/parallel/issue61-2015-1tau__3654804140d9 \
+  --aggregate-existing
+```
+
+成功時のみ`job_manifest.json`は`succeeded`、`aggregation.status`は`completed`となる。`campaign/conditions/`には`project_torque_1em21`、`project_torque_2p5em20`、`project_torque_1em19`の3 symlinkを作る。統合manifestとsummaryにはcanonical IDと、不変のchild ID・child pathをprovenanceとして記録する。
 
 ## 実行後
 
@@ -45,3 +58,12 @@ uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind iss
 ```
 
 最初に`issue61_decision.json`、次に`issue61_summary.csv`を確認する。`status=fail`ならそのcriterionをIssue #61へ記録し、#184へのhandoffやprofile昇格を行わない。
+
+その後、campaignの3 conditionを`3d+2d`でreplayする。これはstate archiveからのrenderであり、simulationを再起動しない。
+
+```bash
+.venv-cs10/bin/python scripts/03_dataset_building/replay_dataset.py \
+  --run-dir <campaign-root> --output-dir <campaign-root>/analysis/replay \
+  --view 3d+2d --camera-3d fixed --camera-2d fixed \
+  --view-range-mode campaign-envelope --fps-out-3d 25 --fps-out-2d 25
+```

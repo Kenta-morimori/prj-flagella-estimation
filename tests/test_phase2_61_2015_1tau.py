@@ -186,7 +186,8 @@ def test_stage_a_parallel_aggregate_builds_issue61_analysis_input(
     manifest["output_root"] = str(root)
     for record, torque in zip(manifest["configs"], TORQUES, strict=True):
         child_root = Path(record["output_dir"]) / "2026-09-06" / record["task_id"]
-        condition_id = stage_a_2015._physical_torque_condition_id("project", torque, 3)
+        # A single-torque shard intentionally keeps the historical child ID.
+        condition_id = "project"
         condition_dir = child_root / condition_id
         condition_dir.mkdir(parents=True)
         row = {
@@ -283,6 +284,16 @@ def test_stage_a_parallel_aggregate_builds_issue61_analysis_input(
 
     campaign = _aggregate_stage_a_campaign(job, manifest)
     assert (campaign / "conditions/project_torque_2p5em20").is_symlink()
+    aggregate_manifest = json.loads((campaign / "run_manifest.json").read_text())
+    assert [item["condition_id"] for item in aggregate_manifest["conditions"]] == [
+        "project_torque_1em21",
+        "project_torque_2p5em20",
+        "project_torque_1em19",
+    ]
+    assert all(
+        item["source_condition_id"] == "project"
+        for item in aggregate_manifest["conditions"]
+    )
     result = analyze(
         run_root=campaign,
         threshold_contract=ROOT / "conf/phase2_validation/2015_stage_a_thresholds.yaml",
@@ -292,6 +303,65 @@ def test_stage_a_parallel_aggregate_builds_issue61_analysis_input(
         json.loads((result / "issue61_decision.json").read_text())["strict_pass_count"]
         == 3
     )
+
+
+def test_stage_a_parallel_aggregate_rejects_task_torque_mismatch(
+    tmp_path: Path,
+) -> None:
+    job = load_parallel_job(PARALLEL_JOB)
+    root = tmp_path / "parallel"
+    manifest = build_plan(job, resolve_execution(job, None), root)
+    root.mkdir()
+    manifest["output_root"] = str(root)
+    manifest["configs"][0]["task_id"] = "project_torque_1em19"
+    for record, torque in zip(manifest["configs"], TORQUES, strict=True):
+        child_root = Path(record["output_dir"]) / "2026-09-06" / "child"
+        condition_dir = child_root / "project"
+        condition_dir.mkdir(parents=True)
+        (condition_dir / "run_summary.json").write_text(
+            json.dumps({"execution": {"status": "completed"}}), encoding="utf-8"
+        )
+        (child_root / "summary.csv").write_text(
+            "condition_id,status\nproject,completed\n", encoding="utf-8"
+        )
+        (child_root / "performance.json").write_text(
+            json.dumps({"conditions": [{}]}), encoding="utf-8"
+        )
+        (child_root / "run_manifest.json").write_text(
+            json.dumps(
+                {
+                    "kind": "stage_a_2015",
+                    "issue": 61,
+                    "stage": "motor_on",
+                    "duration_tau": 1.0,
+                    "dt_star": 1e-5,
+                    "comparison_role": "issue61_2015_project_1tau_tracking_stability",
+                    "motor_enabled": True,
+                    "diagonal_braces_enabled": False,
+                    "link_reference_torque": True,
+                    "base_config": "conf/sim_swim_2015.yaml",
+                    "reference_evidence": [],
+                    "performance_json": str(child_root / "performance.json"),
+                    "conditions": [
+                        {
+                            "condition_id": "project",
+                            "profile": "project",
+                            "motor_torque_Nm": torque,
+                            "output_dir": str(condition_dir),
+                            "config_overrides": {
+                                "motor.torque_Nm": torque,
+                                "motor.reference_torque_Nm": torque,
+                                "time.scale_policy": "reference_torque",
+                            },
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        record["status"] = "succeeded"
+    with pytest.raises(RuntimeError, match="task/torque mismatch"):
+        _aggregate_stage_a_campaign(job, manifest)
 
 
 def test_issue61_analysis_records_all_pass_and_blocks_promotion(tmp_path: Path) -> None:
