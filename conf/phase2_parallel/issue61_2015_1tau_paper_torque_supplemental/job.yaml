@@ -1,0 +1,8 @@
+schema_version: 1
+job_id: issue61_2015_project_1tau_paper_torque_supplemental
+configs:
+  - id: project_torque_1p2em18
+    path: conf/phase2_sweeps/2015_issue61_1tau_paper_torque_supplemental.yaml
+execution:
+  max_workers: 1
+  worker_policy: cs10_qualified

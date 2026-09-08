@@ -34,6 +34,7 @@ NOTIFICATION_REPOSITORY = "Kenta-morimori/prj-flagella-estimation"
 NOTIFICATION_WORKFLOW = "cs10-queue-notify.yml"
 NOTIFICATION_REF = "main"
 TERMINAL_STATES = {"succeeded", "failed", "cancelled", "blocked"}
+NOTIFIABLE_STATES = {"succeeded", "failed", "cancelled"}
 
 
 def _now() -> str:
@@ -63,6 +64,7 @@ class Reservation:
     pid: int | None
     exit_code: int | None
     error: str | None
+    notification_attempted: bool = False
 
 
 class QueueStore:
@@ -86,9 +88,18 @@ class QueueStore:
                 output_root TEXT,
                 pid INTEGER,
                 exit_code INTEGER,
-                error TEXT
+                error TEXT,
+                notification_attempted INTEGER NOT NULL DEFAULT 0
             )"""
         )
+        columns = {
+            row["name"]
+            for row in self.connection.execute("PRAGMA table_info(reservations)")
+        }
+        if "notification_attempted" not in columns:
+            self.connection.execute(
+                "ALTER TABLE reservations ADD COLUMN notification_attempted INTEGER NOT NULL DEFAULT 0"
+            )
         self.connection.execute(
             "CREATE TABLE IF NOT EXISTS queue_control (id INTEGER PRIMARY KEY CHECK (id=1), paused INTEGER NOT NULL)"
         )
@@ -157,6 +168,16 @@ class QueueStore:
             (*values.values(), reservation_id),
         )
         self.connection.commit()
+
+    def claim_notification(self, reservation_id: int) -> bool:
+        """Persist a single automatic notification attempt for one reservation."""
+        cursor = self.connection.execute(
+            "UPDATE reservations SET notification_attempted=1 "
+            "WHERE id=? AND notification_attempted=0",
+            (reservation_id,),
+        )
+        self.connection.commit()
+        return cursor.rowcount == 1
 
     def paused(self) -> bool:
         return bool(
@@ -283,10 +304,11 @@ def validate_notification_setup() -> None:
         raise RuntimeError("GitHub CLI is not authenticated for github.com")
 
 
-def notify(reservation: Reservation | None, event_type: str) -> None:
-    """Dispatch one notification without exposing its recipient on cs10."""
+def notify(reservation: Reservation) -> None:
+    """Dispatch one final reservation notification without exposing its recipient."""
     try:
         validate_notification_setup()
+        reservation_log_dir = _state_dir() / f"reservation-{reservation.id:05d}"
         result = subprocess.run(
             [
                 GITHUB_BINARY,
@@ -298,23 +320,23 @@ def notify(reservation: Reservation | None, event_type: str) -> None:
                 "--ref",
                 NOTIFICATION_REF,
                 "--raw-field",
-                f"event_type={event_type}",
+                "event_type=job_completed",
                 "--raw-field",
-                f"reservation_id={reservation.id if reservation else ''}",
+                f"reservation_id={reservation.id}",
                 "--raw-field",
-                f"branch={reservation.branch if reservation else ''}",
+                f"branch={reservation.branch}",
                 "--raw-field",
-                f"commit_sha={reservation.commit_sha if reservation else ''}",
+                f"commit_sha={reservation.commit_sha}",
                 "--raw-field",
-                f"state={reservation.state if reservation else 'completed'}",
+                f"state={reservation.state}",
                 "--raw-field",
-                f"logs={_state_dir() / f'reservation-{reservation.id:05d}' if reservation else ''}",
+                f"logs={reservation_log_dir}",
                 "--raw-field",
-                f"control_dir={reservation.control_dir or '' if reservation else ''}",
+                f"control_dir={reservation.control_dir or ''}",
                 "--raw-field",
-                f"output_root={reservation.output_root or '' if reservation else ''}",
+                f"output_root={reservation.output_root or ''}",
                 "--raw-field",
-                f"error={reservation.error or '' if reservation else ''}",
+                f"error={reservation.error or ''}",
             ],
             text=True,
             capture_output=True,
@@ -330,22 +352,44 @@ def notify(reservation: Reservation | None, event_type: str) -> None:
         )
 
 
-def _notify(
-    store: QueueStore, reservation: Reservation | None, event_type: str
-) -> None:
-    """Record dispatch failures while preserving the completed job state."""
+def _notify_completion(store: QueueStore, reservation: Reservation) -> None:
+    """Dispatch at most one final notification after a reservation is terminal."""
+    if reservation.state not in NOTIFIABLE_STATES:
+        return
+    if not store.claim_notification(reservation.id):
+        return
     try:
-        notify(reservation, event_type)
+        notify(reservation)
     except RuntimeError as exc:
-        store.event(
-            reservation.id if reservation else None, "notification_failed", str(exc)
-        )
+        store.event(reservation.id, "notification_failed", str(exc))
     else:
         store.event(
-            reservation.id if reservation else None,
+            reservation.id,
             "notification_dispatched",
-            f"GitHub Actions accepted {event_type} notification dispatch",
+            "GitHub Actions accepted job_completed notification dispatch",
         )
+
+
+def _finalize_reservation(
+    store: QueueStore,
+    reservation_id: int,
+    *,
+    state: str,
+    detail: str,
+    pause_queue: bool = False,
+    **values: Any,
+) -> Reservation:
+    """Persist a final state, then send its one permitted notification."""
+    if state not in NOTIFIABLE_STATES:
+        raise ValueError(f"state is not a notifiable terminal state: {state}")
+    store.update(reservation_id, state=state, **values)
+    if pause_queue:
+        store.set_paused(True)
+    reservation = store.get(reservation_id)
+    assert reservation is not None
+    store.event(reservation.id, state, detail)
+    _notify_completion(store, reservation)
+    return reservation
 
 
 def run_reservation(store: QueueStore, reservation: Reservation) -> Reservation:
@@ -384,38 +428,37 @@ def run_reservation(store: QueueStore, reservation: Reservation) -> Reservation:
     current = store.get(reservation.id)
     assert current is not None
     if current.state == "cancel_requested":
-        store.update(reservation.id, state="cancelled", exit_code=returncode, pid=None)
-        current = store.get(reservation.id)
-        assert current is not None
-        store.event(reservation.id, "cancelled", "process exited after cancellation")
-        _notify(store, current, "cancelled")
-        return current
+        return _finalize_reservation(
+            store,
+            reservation.id,
+            state="cancelled",
+            detail="process exited after cancellation",
+            exit_code=returncode,
+            pid=None,
+        )
+    final_values: dict[str, Any] = {"exit_code": returncode, "pid": None}
     try:
         record = _load_launch_record(stdout_log)
         ok, detail = _manifest_succeeded(record)
-        store.update(
-            reservation.id,
+        final_values.update(
             control_dir=str(record["control_dir"]),
             output_root=str(record["output_root"]),
-            exit_code=returncode,
-            pid=None,
         )
     except (OSError, ValueError, KeyError, json.JSONDecodeError, RuntimeError) as exc:
         ok, detail = False, str(exc)
     if returncode == 0 and ok:
-        store.update(reservation.id, state="succeeded")
-        current = store.get(reservation.id)
-        assert current is not None
-        store.event(reservation.id, "succeeded", detail)
-        _notify(store, current, "succeeded")
-        return current
-    store.update(reservation.id, state="failed", error=detail)
-    store.set_paused(True)
-    current = store.get(reservation.id)
-    assert current is not None
-    store.event(reservation.id, "failed", detail)
-    _notify(store, current, "failed")
-    return current
+        return _finalize_reservation(
+            store, reservation.id, state="succeeded", detail=detail, **final_values
+        )
+    return _finalize_reservation(
+        store,
+        reservation.id,
+        state="failed",
+        detail=detail,
+        error=detail,
+        pause_queue=True,
+        **final_values,
+    )
 
 
 @contextmanager
@@ -456,24 +499,15 @@ def dispatch(store: QueueStore, *, once: bool, poll_seconds: float) -> int:
     validate_notification_setup()
     with dispatcher_lock(store):
         reconcile(store)
-        had_queued_reservations = False
         while True:
             if store.paused():
                 return 0
             reservation = store.next()
             if reservation is None:
-                if once or had_queued_reservations:
-                    _notify(
-                        store,
-                        None,
-                        "queue_completed",
-                    )
-                    if once:
-                        return 0
-                    had_queued_reservations = False
+                if once:
+                    return 0
                 time.sleep(poll_seconds)
                 continue
-            had_queued_reservations = True
             run_reservation(store, reservation)
             if once:
                 return 0
@@ -484,12 +518,12 @@ def cancel(store: QueueStore, reservation_id: int) -> Reservation:
     if reservation is None:
         raise ValueError(f"unknown reservation: {reservation_id}")
     if reservation.state == "queued":
-        store.update(reservation_id, state="cancelled")
-        result = store.get(reservation_id)
-        assert result is not None
-        store.event(reservation_id, "cancelled", "queued reservation cancelled")
-        _notify(store, result, "cancelled")
-        return result
+        return _finalize_reservation(
+            store,
+            reservation_id,
+            state="cancelled",
+            detail="queued reservation cancelled",
+        )
     if reservation.state == "running" and reservation.pid is not None:
         os.killpg(reservation.pid, signal.SIGTERM)
         store.update(reservation_id, state="cancel_requested")

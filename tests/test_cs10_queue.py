@@ -152,8 +152,8 @@ def test_cancel_queued_and_running_reservations(monkeypatch, tmp_path: Path) -> 
         notifications: list[int | None] = []
         monkeypatch.setattr(
             queue,
-            "_notify",
-            lambda _store, reservation, *_: notifications.append(reservation.id),
+            "_notify_completion",
+            lambda _store, reservation: notifications.append(reservation.id),
         )
         queued = store.add(
             branch="a", commit_sha="a" * 40, config="conf/a.yaml", priority=0
@@ -271,7 +271,7 @@ def test_notify_dispatches_actions_workflow_without_recipient(
         1,
         "@manifest failed",
     )
-    queue.notify(reservation, "failed")
+    queue.notify(reservation)
 
     assert commands == [
         [
@@ -284,7 +284,7 @@ def test_notify_dispatches_actions_workflow_without_recipient(
             "--ref",
             "main",
             "--raw-field",
-            "event_type=failed",
+            "event_type=job_completed",
             "--raw-field",
             "reservation_id=7",
             "--raw-field",
@@ -312,54 +312,110 @@ def test_notify_dispatches_actions_workflow_without_recipient(
         lambda command, **kwargs: subprocess.CompletedProcess(command, 1, "", ""),
     )
     with pytest.raises(RuntimeError, match="dispatch failed with exit code 1"):
-        queue.notify(reservation, "failed")
+        queue.notify(reservation)
 
 
-def test_notify_records_dispatch_success_and_failure(
+def test_final_notification_is_attempted_once_and_records_dispatch_result(
     monkeypatch, tmp_path: Path
 ) -> None:
     queue = _load_queue("cs10_queue_notify_events")
     store = queue.QueueStore(tmp_path)
     try:
-        monkeypatch.setattr(queue, "notify", lambda *args: None)
-        queue._notify(store, None, "queue_completed")
+        reservation = store.add(
+            branch="a", commit_sha="a" * 40, config="conf/a.yaml", priority=0
+        )
+        store.update(reservation.id, state="succeeded")
+        completed = store.get(reservation.id)
+        assert completed is not None
+        calls: list[int] = []
+        monkeypatch.setattr(queue, "notify", lambda item: calls.append(item.id))
+        queue._notify_completion(store, completed)
+        queue._notify_completion(store, completed)
+        assert calls == [reservation.id]
+        assert store.get(reservation.id).notification_attempted == 1
+
         monkeypatch.setattr(
             queue,
             "notify",
             lambda *args: (_ for _ in ()).throw(RuntimeError("dispatch failed")),
         )
-        queue._notify(store, None, "queue_completed")
+        failed = store.add(
+            branch="b", commit_sha="b" * 40, config="conf/b.yaml", priority=0
+        )
+        store.update(failed.id, state="failed")
+        failed_result = store.get(failed.id)
+        assert failed_result is not None
+        queue._notify_completion(store, failed_result)
+        queue._notify_completion(store, failed_result)
         events = store.connection.execute(
-            "SELECT kind, detail FROM events ORDER BY id"
+            "SELECT kind, detail FROM events "
+            "WHERE kind LIKE 'notification_%' ORDER BY id"
         ).fetchall()
         assert [(row["kind"], row["detail"]) for row in events] == [
             (
                 "notification_dispatched",
-                "GitHub Actions accepted queue_completed notification dispatch",
+                "GitHub Actions accepted job_completed notification dispatch",
             ),
             ("notification_failed", "dispatch failed"),
         ]
+        assert store.get(failed.id).notification_attempted == 1
     finally:
         store.close()
 
 
-def test_notify_records_oserror_without_recipient(monkeypatch, tmp_path: Path) -> None:
+def test_final_notification_records_oserror_without_retry(
+    monkeypatch, tmp_path: Path
+) -> None:
     queue = _load_queue("cs10_queue_notify_config_oserror")
     store = queue.QueueStore(tmp_path)
     try:
+        reservation = store.add(
+            branch="a", commit_sha="a" * 40, config="conf/a.yaml", priority=0
+        )
+        store.update(reservation.id, state="cancelled")
+        result = store.get(reservation.id)
+        assert result is not None
         monkeypatch.setattr(
             queue,
             "validate_notification_setup",
             lambda: (_ for _ in ()).throw(OSError("authentication cache unreadable")),
         )
-        queue._notify(store, None, "queue_completed")
+        queue._notify_completion(store, result)
+        queue._notify_completion(store, result)
         event = store.connection.execute(
-            "SELECT kind, detail FROM events ORDER BY id"
+            "SELECT kind, detail FROM events WHERE kind='notification_failed'"
         ).fetchone()
         assert event["kind"] == "notification_failed"
         assert "OSError" in event["detail"]
+        assert store.get(reservation.id).notification_attempted == 1
     finally:
         store.close()
+
+
+def test_notification_attempt_is_not_repeated_after_dispatcher_restart(
+    monkeypatch, tmp_path: Path
+) -> None:
+    queue = _load_queue("cs10_queue_notify_restart")
+    store = queue.QueueStore(tmp_path)
+    reservation = store.add(
+        branch="a", commit_sha="a" * 40, config="conf/a.yaml", priority=0
+    )
+    store.update(reservation.id, state="succeeded")
+    result = store.get(reservation.id)
+    assert result is not None
+    calls: list[int] = []
+    monkeypatch.setattr(queue, "notify", lambda item: calls.append(item.id))
+    queue._notify_completion(store, result)
+    store.close()
+
+    reopened = queue.QueueStore(tmp_path)
+    try:
+        current = reopened.get(reservation.id)
+        assert current is not None
+        queue._notify_completion(reopened, current)
+        assert calls == [reservation.id]
+    finally:
+        reopened.close()
 
 
 def test_dispatch_runs_two_reservations_sequentially(
@@ -376,7 +432,6 @@ def test_dispatch_runs_two_reservations_sequentially(
         )
         started: list[int] = []
         monkeypatch.setattr(queue, "validate_notification_setup", lambda: None)
-        monkeypatch.setattr(queue, "_notify", lambda *args: None)
 
         def fake_run_reservation(current_store, reservation):
             started.append(reservation.id)
@@ -400,5 +455,47 @@ def test_dispatch_runs_two_reservations_sequentially(
 
         assert started == [first.id, second.id]
         assert [item.state for item in store.list()] == ["succeeded", "succeeded"]
+    finally:
+        store.close()
+
+
+def test_dispatch_does_not_send_an_extra_notification_when_queue_drains(
+    monkeypatch, tmp_path: Path
+) -> None:
+    queue = _load_queue("cs10_queue_no_drain_notification")
+    store = queue.QueueStore(tmp_path)
+    try:
+        first = store.add(
+            branch="a", commit_sha="a" * 40, config="conf/a.yaml", priority=0
+        )
+        second = store.add(
+            branch="b", commit_sha="b" * 40, config="conf/b.yaml", priority=0
+        )
+        calls: list[int] = []
+        monkeypatch.setattr(queue, "validate_notification_setup", lambda: None)
+        monkeypatch.setattr(queue, "notify", lambda item: calls.append(item.id))
+
+        def fake_run_reservation(current_store, reservation):
+            return queue._finalize_reservation(
+                current_store,
+                reservation.id,
+                state="succeeded",
+                detail="all conditions and aggregate completed",
+            )
+
+        monkeypatch.setattr(queue, "run_reservation", fake_run_reservation)
+
+        class DispatcherFinished(Exception):
+            pass
+
+        monkeypatch.setattr(
+            queue.time,
+            "sleep",
+            lambda _: (_ for _ in ()).throw(DispatcherFinished()),
+        )
+        with pytest.raises(DispatcherFinished):
+            queue.dispatch(store, once=False, poll_seconds=0)
+
+        assert calls == [first.id, second.id]
     finally:
         store.close()

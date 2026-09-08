@@ -1,0 +1,18 @@
+kind: stage_a_2015
+metadata:
+  role: sweep
+  canonical: false
+  description: Issue #61, 2015 project 1τ tracking-reference torque stability
+args:
+  stage: motor_on
+  project_config: conf/sim_swim_2015.yaml
+  profiles: [project]
+  output_base_dir: outputs
+  state_sample_count: 201
+  progress_interval: 5000
+  dt_star: 1.0e-5
+  duration_tau: 1.0
+  motor_torques_nm: [1.0e-21, 2.5e-20, 1.0e-19]
+  link_reference_torque: true
+  campaign_issue: 61
+  comparison_role: issue61_2015_project_1tau_tracking_stability

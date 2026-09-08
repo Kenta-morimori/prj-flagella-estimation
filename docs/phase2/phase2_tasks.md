@@ -247,8 +247,8 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 
 ### P2-D21: reference torque の比較契約は fixed / tracking と時間基準を分離する
 
-- **Decision:** `fixed-reference` は物性を固定した駆動torque感度、`tracking-reference` はreference torqueと物性を同時に連動させる相似候補として分離する。さらに `same-real-time` と `same-dimensionless-time` を直交して記録し、#61の`dt_star`・計算効率比較は fixed-reference / same-real-time 内に限定する。
-- **Interpretation:** 新規の2010 projectを含む全profileではtrackingを時間・物性が連動する相似候補として扱う。明示的な固定τcontrolだけは時間相似と呼ばない。#184は #61 が許容した`dt_star`とper-flag torque policyを使い、dataset v2・0.5秒run・2015 supported採択はこのDecisionから導かない。
+- **Decision:** `fixed-reference` は物性を固定した駆動torque感度、`tracking-reference` はreference torqueと物性を同時に連動させる相似候補として分離する。さらに `same-real-time` と `same-dimensionless-time` を直交して記録する。Issue #61の2015 project 1τ screenはtracking-reference / same-dimensionless-timeの安全性・throughput記録に限定し、fixed-referenceの同一実時間効率比較と混在させない。
+- **Interpretation:** 新規の2010 projectを含む全profileではtrackingを時間・物性が連動する相似候補として扱う。明示的な固定τcontrolだけは時間相似と呼ばない。#61のPASSは10τ安定性、2015 supported採択や#184へのhandoffを意味しない。#184はtriage後に、別途許容された`dt_star`とper-flag torque policyを使う。
 - **Evidence:** Issue #183，ADR 0016，`docs/phase2/phase2_183_reference_torque_comparison_contract.md`，`conf/phase2_reference_torque/*.yaml`．
 
 ### P2-D22: 2010 torque-linked body stiffness候補は既定へ採用しない
@@ -265,7 +265,7 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Change:** `cs10_qualified` parallel jobを長時間・独立conditionの標準候補とし、tmux起動、確定output root、exit marker、JSON statusを`parallel_tmux.py`へ統合する。
 - **Result:** Issue #203の0.001 s qualificationは27 shardすべて成功し、8 workerのgeneric aggregateがcanonical campaignを生成した。本番2.0 s campaignは実行中であり、profile比較結果は未確定である。
 - **Interpretation:** worker数・runtime・aggregateの合否は人手のshell文字列や`grep`/`find`の副作用ではなく、job manifestとcontrol artifactから判定する必要がある。
-- **Decision:** cs10の長時間・複数conditionではparallel jobを先に検討し、serialを選ぶ場合はIssue runbookに理由を明記する。Codexのcs10操作はUserの操作単位の明示許可がある場合だけとする。これは実行運用の決定であり、physical model、dataset、`dt_star`、profile採否を変更しない。
+- **Decision:** `execution:cs10`かつ独立conditionが2以上なら、`cs10_qualified` parallel job、conditionごとのoutput分離、dry-runを確認してから開始する。serial例外は、技術的依存・排他的資源・output分離不能をIssue runbookへ記録し、開始前のUser明示承認IssueコメントURLを確認した場合だけ許可する。launcher未対応は例外理由にせず、先にshard対応を実装する。Codexのcs10操作はUserの操作単位の明示許可がある場合だけとする。これは実行運用の決定であり、physical model、dataset、`dt_star`、profile採否を変更しない。
 - **Evidence:** Issues #203・#207・#208・#209，PR #214，`docs/codex/cs10_runbook.md`，`scripts/cs10/parallel_tmux.py`，`tests/test_cs10_parallel_tmux.py`．
 
 ### P2-D19: 大量step runはcompact output policyを明示選択する

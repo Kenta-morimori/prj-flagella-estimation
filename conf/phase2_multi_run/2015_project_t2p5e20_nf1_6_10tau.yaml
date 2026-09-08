@@ -1,0 +1,47 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/184
+  description: 2015 project 10tau nf1-6 diagnostic after the Issue #61 nf3 strict-pass gate
+  training_candidate: false
+
+base_config: conf/sim_swim_2015.yaml
+base_overrides:
+  time.duration: {value: 10.0, unit: tau}
+  time.scale_policy: reference_torque
+  time.integration.dt_star: 1.0e-5
+  motor.torque_Nm: 2.5e-20
+  motor.reference_torque_Nm: 2.5e-20
+  motor.enable_switching: false
+  brownian.enabled: false
+  seed.attach_seed: 0
+  seed.phase_seed: 0
+  output.policy: compact
+  output_sampling.out_all_steps_3d: false
+  output_sampling.fps_out_3d: 25.0
+  output_sampling.fps_out_2d: 25.0
+
+sweep:
+  axes:
+    n_flagella:
+      key: flagella.n_flagella
+      short_name: nf
+      values: [1, 2, 3, 4, 5, 6]
+      labels: ["1", "2", "3", "4", "5", "6"]
+      ids: [nf01, nf02, nf03, nf04, nf05, nf06]
+
+replay:
+  mode: both
+  fps_out_3d: 25.0
+  fps_out_2d: 25.0
+  max_panels_per_grid: 6
+  camera_3d: fixed
+  camera_2d: fixed
+  view_range_mode: campaign-envelope
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 5000

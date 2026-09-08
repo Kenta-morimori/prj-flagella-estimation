@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       event_type:
-        description: Queue event that triggered this notification
+        description: Final parallel-job event that triggered this notification
         required: true
         type: choice
-        options: [succeeded, failed, cancelled, queue_completed]
+        options: [job_completed]
       reservation_id:
         description: Queue reservation identifier, when applicable
         required: false
@@ -74,7 +74,7 @@ jobs:
             printf '%s\n' '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-          if [ "$EVENT_TYPE" = "failed" ]; then
+          if [ "$STATE" = "failed" ]; then
             echo '::error::cs10 queue reservation failed'
             exit 1
           fi

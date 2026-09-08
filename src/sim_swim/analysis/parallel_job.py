@@ -31,6 +31,7 @@ from sim_swim.analysis.sweeps.generic_multi_run import (
     _manifest_condition_record,
     _summary_fieldnames,
 )
+from sim_swim.analysis.sweeps.stage_a_2015 import physical_torque_condition_id
 from sim_swim.sim.params import SimulationConfig
 
 
@@ -39,9 +40,25 @@ SWEEP_DIRECTORY = REPO_ROOT / "conf" / "phase2_sweeps"
 MULTI_RUN_DIRECTORY = REPO_ROOT / "conf" / "phase2_multi_run"
 THREAD_ENV_KEYS = ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")
 WORKER_POLICIES = {"host_cpu", "cs10_qualified"}
-JOB_KEYS = {"schema_version", "job_id", "configs", "conditions", "execution"}
+JOB_KEYS = {
+    "schema_version",
+    "job_id",
+    "configs",
+    "conditions",
+    "execution",
+    "aggregation",
+    "preflight",
+}
 EXECUTION_KEYS = {"max_workers", "worker_policy"}
-CONFIG_ENTRY_KEYS = {"path", "overrides"}
+CONFIG_ENTRY_KEYS = {"id", "path", "overrides"}
+PREFLIGHT_KEYS = {
+    "issue61_decision_json",
+    "mode",
+    "required_status",
+    "expected_run_root",
+}
+PREFLIGHT_MODES = {"require_status", "audit_issue61_fail"}
+AGGREGATION_KINDS = {"stage_a_2015"}
 SUPPORTED_KINDS = {
     "bundling_alignment",
     "hook_overstretch",
@@ -50,6 +67,13 @@ SUPPORTED_KINDS = {
     "single_flagellum_torque",
     "stage_a_2015",
 }
+
+
+@dataclass(frozen=True)
+class ParallelTask:
+    task_id: str
+    config: Path
+    overrides: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -63,14 +87,41 @@ class ParallelJob:
     worker_policy: str
     config_overrides: dict[Path, tuple[str, ...]] = field(default_factory=dict)
     condition_ids: tuple[str, ...] = ()
+    tasks: tuple[ParallelTask, ...] = ()
+    aggregation_kind: str | None = None
+    preflight_decision_json: Path | None = None
+    preflight_mode: str | None = None
+    preflight_required_status: str | None = None
+    preflight_expected_run_root: str | None = None
 
     @property
     def task_count(self) -> int:
-        return len(self.condition_ids) if self.condition_ids else len(self.configs)
+        return len(self.condition_ids) if self.condition_ids else len(self.task_entries)
+
+    @property
+    def task_entries(self) -> tuple[ParallelTask, ...]:
+        if self.tasks:
+            return self.tasks
+        return tuple(
+            ParallelTask(
+                f"{config.stem}_{index:03d}",
+                config,
+                self.config_overrides.get(config, ()),
+            )
+            for index, config in enumerate(self.configs, start=1)
+        )
 
     @property
     def is_generic_campaign_job(self) -> bool:
         return bool(self.condition_ids)
+
+    @property
+    def is_stage_a_campaign_job(self) -> bool:
+        return self.aggregation_kind == "stage_a_2015"
+
+    @property
+    def requires_aggregation(self) -> bool:
+        return self.is_generic_campaign_job or self.is_stage_a_campaign_job
 
 
 @dataclass(frozen=True)
@@ -150,14 +201,44 @@ def _validate_config_overrides(value: Any) -> tuple[str, ...]:
     return tuple(overrides)
 
 
-def _validate_config_entry(value: Any) -> tuple[Path, tuple[str, ...]]:
+def _validate_config_entry(value: Any) -> tuple[str | None, Path, tuple[str, ...]]:
     if isinstance(value, str):
-        return _validate_config_path(value), ()
+        return None, _validate_config_path(value), ()
     data = _require_mapping(value, name="config entry")
     _reject_unknown_keys(data, allowed=CONFIG_ENTRY_KEYS, name="config entry")
-    return _validate_config_path(data.get("path")), _validate_config_overrides(
-        data.get("overrides")
+    task_id = data.get("id")
+    if task_id is not None and (not isinstance(task_id, str) or not task_id.strip()):
+        raise ValueError("config entry id must be a non-empty string")
+    return (
+        task_id.strip() if isinstance(task_id, str) else None,
+        _validate_config_path(data.get("path")),
+        _validate_config_overrides(data.get("overrides")),
     )
+
+
+def _parse_preflight(
+    value: Any,
+) -> tuple[Path | None, str | None, str | None, str | None]:
+    if value is None:
+        return None, None, None, None
+    data = _require_mapping(value, name="preflight")
+    _reject_unknown_keys(data, allowed=PREFLIGHT_KEYS, name="preflight")
+    path = data.get("issue61_decision_json")
+    mode = data.get("mode", "require_status")
+    status = data.get("required_status")
+    expected_run_root = data.get("expected_run_root")
+    if not isinstance(path, str) or not path.strip():
+        raise ValueError("preflight.issue61_decision_json must be a non-empty path")
+    if mode not in PREFLIGHT_MODES:
+        raise ValueError("preflight.mode must be require_status or audit_issue61_fail")
+    if mode == "require_status" and status != "pass":
+        raise ValueError("preflight.required_status must be 'pass'")
+    if mode == "audit_issue61_fail":
+        if status is not None:
+            raise ValueError("audit_issue61_fail must not set required_status")
+        if not isinstance(expected_run_root, str) or not expected_run_root.strip():
+            raise ValueError("audit_issue61_fail requires expected_run_root")
+    return Path(path), mode, status, expected_run_root
 
 
 def load_parallel_job(path: Path) -> ParallelJob:
@@ -188,9 +269,18 @@ def load_parallel_job(path: Path) -> ParallelJob:
     if not isinstance(raw_configs, list) or not raw_configs:
         raise ValueError("configs must be a non-empty list")
     config_entries = tuple(_validate_config_entry(value) for value in raw_configs)
-    configs = tuple(entry[0] for entry in config_entries)
-    if len(set(configs)) != len(configs):
-        raise ValueError("configs must not contain duplicates")
+    tasks = tuple(
+        ParallelTask(task_id or f"{config.stem}_{index:03d}", config, overrides)
+        for index, (task_id, config, overrides) in enumerate(config_entries, start=1)
+    )
+    if len({task.task_id for task in tasks}) != len(tasks):
+        raise ValueError("config entry ids must be unique")
+    configs = tuple(task.config for task in tasks)
+    aggregation_kind = data.get("aggregation")
+    if aggregation_kind is not None and aggregation_kind not in AGGREGATION_KINDS:
+        raise ValueError(
+            "aggregation must be one of: " + ", ".join(sorted(AGGREGATION_KINDS))
+        )
     generic_configs = [
         config
         for config in configs
@@ -212,7 +302,7 @@ def load_parallel_job(path: Path) -> ParallelJob:
         if len(set(condition_ids)) != len(condition_ids):
             raise ValueError("conditions must not contain duplicates")
         effective = apply_campaign_cli_overrides(
-            load_yaml(generic_configs[0]), list(config_entries[0][1])
+            load_yaml(generic_configs[0]), list(tasks[0].overrides)
         )
         available = {
             item["condition_id"] for item in build_campaign_conditions(effective)
@@ -226,6 +316,15 @@ def load_parallel_job(path: Path) -> ParallelJob:
         if raw_conditions is not None:
             raise ValueError("conditions is supported only for generic_multi_run jobs")
         condition_ids = ()
+    if aggregation_kind == "stage_a_2015":
+        if raw_conditions is not None:
+            raise ValueError("stage_a_2015 aggregation does not support conditions")
+        if not tasks or any(
+            load_profile_entry(task.config)["kind"] != "stage_a_2015" for task in tasks
+        ):
+            raise ValueError(
+                "stage_a_2015 aggregation requires only stage_a_2015 tasks"
+            )
 
     execution = _require_mapping(data.get("execution"), name="execution")
     _reject_unknown_keys(execution, allowed=EXECUTION_KEYS, name="execution")
@@ -242,6 +341,12 @@ def load_parallel_job(path: Path) -> ParallelJob:
             "execution.worker_policy must be one of: "
             + ", ".join(sorted(WORKER_POLICIES))
         )
+    (
+        preflight_decision_json,
+        preflight_mode,
+        preflight_required_status,
+        preflight_expected_run_root,
+    ) = _parse_preflight(data.get("preflight"))
     return ParallelJob(
         schema_version=1,
         job_id=job_id.strip(),
@@ -250,8 +355,14 @@ def load_parallel_job(path: Path) -> ParallelJob:
         configs=configs,
         max_workers=max_workers,
         worker_policy=worker_policy,
-        config_overrides={config: overrides for config, overrides in config_entries},
+        config_overrides={task.config: task.overrides for task in tasks},
         condition_ids=condition_ids,
+        tasks=tasks,
+        aggregation_kind=aggregation_kind,
+        preflight_decision_json=preflight_decision_json,
+        preflight_mode=preflight_mode,
+        preflight_required_status=preflight_required_status,
+        preflight_expected_run_root=preflight_expected_run_root,
     )
 
 
@@ -331,20 +442,32 @@ def build_plan(
     task_items = (
         [(job.configs[0], condition_id) for condition_id in job.condition_ids]
         if job.is_generic_campaign_job
-        else [(config, None) for config in job.configs]
+        else [(task.config, task.task_id) for task in job.task_entries]
     )
-    for index, (config, condition_id) in enumerate(task_items, start=1):
-        suffix = condition_id if condition_id is not None else config.stem
+    for index, (config, task_or_condition_id) in enumerate(task_items, start=1):
+        condition_id = task_or_condition_id if job.is_generic_campaign_job else None
+        suffix = (
+            task_or_condition_id
+            if (job.is_generic_campaign_job or job.tasks)
+            else config.stem
+        )
         config_root = root / "children" / f"{index:03d}_{suffix}"
         run_dir = config_root / "run"
         kind = load_profile_entry(config)["kind"]
-        overrides = job.config_overrides.get(config, ())
+        overrides = (
+            job.config_overrides.get(config, ())
+            if job.is_generic_campaign_job
+            else job.task_entries[index - 1].overrides
+        )
         records.append(
             {
                 "index": index,
                 "config": _relative_to_repo(config),
                 "config_sha256": _sha256(config),
                 "kind": kind,
+                "task_id": None
+                if job.is_generic_campaign_job
+                else task_or_condition_id,
                 "condition_id": condition_id,
                 "overrides": list(overrides),
                 "command": (
@@ -384,7 +507,15 @@ def build_plan(
         "dispatch_order": [],
         "completion_order": [],
         "failed_configs": [],
-        "aggregation": {"required": job.is_generic_campaign_job, "status": "pending"},
+        "aggregation": {"required": job.requires_aggregation, "status": "pending"},
+        "preflight": {
+            "issue61_decision_json": str(job.preflight_decision_json)
+            if job.preflight_decision_json is not None
+            else None,
+            "mode": job.preflight_mode,
+            "required_status": job.preflight_required_status,
+            "expected_run_root": job.preflight_expected_run_root,
+        },
     }
 
 
@@ -392,6 +523,52 @@ def _write_manifest(root: Path, manifest: dict[str, Any]) -> None:
     (root / "job_manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
+
+
+def _enforce_preflight(job: ParallelJob) -> dict[str, Any]:
+    if job.preflight_decision_json is None:
+        return {"status": "not_required"}
+    decision = _read_json(job.preflight_decision_json)
+    if (
+        job.preflight_mode == "require_status"
+        and decision.get("status") != job.preflight_required_status
+    ):
+        raise RuntimeError(
+            "parallel job preflight rejected: "
+            f"Issue #61 decision status is {decision.get('status')!r}; "
+            f"expected {job.preflight_required_status!r}"
+        )
+    if job.preflight_mode == "audit_issue61_fail":
+        if (
+            decision.get("kind") != "issue61_2015_1tau_torque_stability"
+            or decision.get("status") != "fail"
+            or decision.get("conditions") != 3
+            or decision.get("run_root") != job.preflight_expected_run_root
+        ):
+            raise RuntimeError(
+                "parallel job preflight rejected: invalid Issue #61 audit"
+            )
+        summary_path = job.preflight_decision_json.parent / "issue61_summary.csv"
+        with summary_path.open(encoding="utf-8", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        expected_ids = {
+            "project_torque_1em21",
+            "project_torque_2p5em20",
+            "project_torque_1em19",
+        }
+        if {row.get("condition_id") for row in rows} != expected_ids or any(
+            row.get("strict_pass", "").lower() != "false" for row in rows
+        ):
+            raise RuntimeError(
+                "parallel job preflight rejected: inconsistent Issue #61 audit"
+            )
+    return {
+        "status": "accepted",
+        "mode": job.preflight_mode,
+        "decision_json": str(job.preflight_decision_json),
+        "decision_status": decision.get("status"),
+        "decision_run_root": decision.get("run_root"),
+    }
 
 
 def _git_provenance() -> dict[str, str | None]:
@@ -543,6 +720,316 @@ def _aggregate_generic_campaign(job: ParallelJob, manifest: dict[str, Any]) -> P
     return campaign_root
 
 
+def _stage_a_child_root(record: dict[str, Any]) -> Path:
+    candidates = sorted(Path(str(record["output_dir"])).glob("*/*/run_manifest.json"))
+    if len(candidates) != 1:
+        raise RuntimeError(
+            "stage_a_2015 shard must produce exactly one run_manifest.json: "
+            f"task={record['task_id']} found={len(candidates)}"
+        )
+    return candidates[0].parent
+
+
+def _require_stage_a_tracking_condition(
+    condition: dict[str, Any], *, task_id: str
+) -> float:
+    overrides = condition.get("config_overrides")
+    if not isinstance(overrides, dict):
+        raise RuntimeError(f"stage_a_2015 shard lacks overrides: task={task_id}")
+    torque = float(condition.get("motor_torque_Nm", "nan"))
+    if (
+        not all(
+            isinstance(value, (int, float)) and float(value) == torque
+            for value in (
+                overrides.get("motor.torque_Nm"),
+                overrides.get("motor.reference_torque_Nm"),
+            )
+        )
+        or overrides.get("time.scale_policy") != "reference_torque"
+    ):
+        raise RuntimeError(f"stage_a_2015 shard is not tracking-reference: {task_id}")
+    return torque
+
+
+def _aggregate_stage_a_campaign(job: ParallelJob, manifest: dict[str, Any]) -> Path:
+    """Aggregate verified one-condition Stage A shards without copying artifacts."""
+
+    if manifest["failed_configs"]:
+        raise RuntimeError("cannot aggregate stage_a_2015 with failed shards")
+    children: list[
+        tuple[dict[str, Any], dict[str, Any], dict[str, str], Path, str, str]
+    ] = []
+    common: dict[str, Any] | None = None
+    seen_conditions: set[str] = set()
+    seen_torques: set[float] = set()
+    for record in manifest["configs"]:
+        if record["status"] != "succeeded":
+            raise RuntimeError(
+                f"stage_a_2015 shard did not succeed: {record['task_id']}"
+            )
+        child_root = _stage_a_child_root(record)
+        child = _read_json(child_root / "run_manifest.json")
+        if (
+            child.get("kind") != "stage_a_2015"
+            or child.get("stage") != "motor_on"
+            or child.get("link_reference_torque") is not True
+            or child.get("duration_tau") != 1.0
+            or child.get("dt_star") != 1.0e-5
+            or child.get("issue") != 61
+        ):
+            raise RuntimeError(
+                f"stage_a_2015 shard contract mismatch: {record['task_id']}"
+            )
+        conditions = child.get("conditions")
+        if not isinstance(conditions, list) or len(conditions) != 1:
+            raise RuntimeError(
+                f"stage_a_2015 shard must contain one condition: {record['task_id']}"
+            )
+        condition = conditions[0]
+        source_condition_id = str(condition.get("condition_id", ""))
+        torque = _require_stage_a_tracking_condition(
+            condition, task_id=str(record["task_id"])
+        )
+        profile = str(condition.get("profile", ""))
+        condition_id = physical_torque_condition_id(
+            profile, torque, len(manifest["configs"])
+        )
+        if (
+            not source_condition_id
+            or condition_id in seen_conditions
+            or torque in seen_torques
+        ):
+            raise RuntimeError(f"duplicate stage_a_2015 condition: {record['task_id']}")
+        if str(record["task_id"]) != condition_id:
+            raise RuntimeError(
+                "stage_a_2015 task/torque mismatch: "
+                f"task={record['task_id']} canonical={condition_id}"
+            )
+        summary_rows = list(
+            csv.DictReader((child_root / "summary.csv").open(encoding="utf-8"))
+        )
+        if (
+            len(summary_rows) != 1
+            or summary_rows[0].get("condition_id") != source_condition_id
+        ):
+            raise RuntimeError(f"stage_a_2015 summary mismatch: {record['task_id']}")
+        if summary_rows[0].get("status") != "completed":
+            raise RuntimeError(
+                f"stage_a_2015 condition is incomplete: {record['task_id']}"
+            )
+        condition_dir = Path(str(condition.get("output_dir", "")))
+        run_summary = _read_json(condition_dir / "run_summary.json")
+        if run_summary.get("execution", {}).get("status") != "completed":
+            raise RuntimeError(
+                f"stage_a_2015 run summary is incomplete: {record['task_id']}"
+            )
+        for key in (
+            "stage",
+            "duration_tau",
+            "dt_star",
+            "comparison_role",
+            "motor_enabled",
+            "diagonal_braces_enabled",
+            "link_reference_torque",
+            "base_config",
+            "reference_evidence",
+        ):
+            if common is None:
+                continue
+            if child.get(key) != common[key]:
+                raise RuntimeError(f"stage_a_2015 shard metadata mismatch: {key}")
+        if common is None:
+            common = child
+        seen_conditions.add(condition_id)
+        seen_torques.add(torque)
+        children.append(
+            (
+                record,
+                child,
+                summary_rows[0],
+                condition_dir,
+                condition_id,
+                source_condition_id,
+            )
+        )
+
+    if common is None:
+        raise RuntimeError("stage_a_2015 aggregation has no child shards")
+    root = Path(manifest["output_root"])
+    campaign_root = root / "campaign"
+    conditions_root = campaign_root / "conditions"
+    conditions_root.mkdir(parents=True, exist_ok=False)
+    rows: list[dict[str, str]] = []
+    condition_records: list[dict[str, Any]] = []
+    performance_conditions: list[dict[str, Any]] = []
+    for (
+        record,
+        child,
+        row,
+        condition_dir,
+        condition_id,
+        source_condition_id,
+    ) in children:
+        source_condition = child["conditions"][0]
+        link = conditions_root / condition_id
+        link.symlink_to(os.path.relpath(condition_dir, link.parent))
+        row = dict(row)
+        row["condition_id"] = condition_id
+        row["output_dir"] = str(link)
+        row["source_condition_id"] = source_condition_id
+        row["source_output_dir"] = str(condition_dir)
+        row["parallel_task_id"] = str(record["task_id"])
+        rows.append(row)
+        condition = dict(source_condition)
+        condition["condition_id"] = condition_id
+        condition["output_dir"] = str(link)
+        condition["source_condition_id"] = source_condition_id
+        condition["source_output_dir"] = str(condition_dir)
+        condition["parallel_task_id"] = str(record["task_id"])
+        condition_records.append(condition)
+        performance = _read_json(Path(str(child["performance_json"])))
+        values = performance.get("conditions")
+        if not isinstance(values, list) or len(values) != 1:
+            raise RuntimeError(f"stage_a_2015 performance mismatch: {condition_id}")
+        performance_condition = dict(values[0])
+        performance_condition.update(
+            {
+                "condition_id": condition_id,
+                "source_condition_id": source_condition_id,
+                "source_output_dir": str(condition_dir),
+                "parallel_task_id": str(record["task_id"]),
+            }
+        )
+        performance_conditions.append(performance_condition)
+
+    summary_path = campaign_root / "summary.csv"
+    fieldnames = list(dict.fromkeys(key for row in rows for key in row))
+    with summary_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+    performance_path = campaign_root / "performance.json"
+    performance = dict(_read_json(Path(str(common["performance_json"]))))
+    performance.update(
+        {
+            "kind": "stage_a_2015_performance",
+            "parallel_aggregate": True,
+            "motor_torques_Nm": [
+                record["motor_torque_Nm"] for record in condition_records
+            ],
+            "conditions": performance_conditions,
+        }
+    )
+    performance_path.write_text(
+        json.dumps(performance, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    run_manifest = dict(common)
+    run_manifest.update(
+        {
+            "parallel_aggregate": True,
+            "created_at": _now(),
+            "output_root": str(campaign_root),
+            "summary_csv": str(summary_path),
+            "performance_json": str(performance_path),
+            "motor_torques_Nm": [
+                record["motor_torque_Nm"] for record in condition_records
+            ],
+            "condition_order": [record["condition_id"] for record in condition_records],
+            "conditions": condition_records,
+            "parallel_job_manifest": str(root / "job_manifest.json"),
+        }
+    )
+    for name in ("run_manifest.json", "manifest.json"):
+        (campaign_root / name).write_text(
+            json.dumps(run_manifest, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    (campaign_root / "campaign_completion.json").write_text(
+        json.dumps(
+            {
+                "status": "completed",
+                "expected_condition_count": len(condition_records),
+                "completed_condition_count": len(condition_records),
+                "exit_code": 0,
+                "summary_csv": str(summary_path),
+                "run_manifest_json": str(campaign_root / "run_manifest.json"),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (campaign_root / "run.log").write_text(
+        "parallel Stage A campaign aggregation completed\n", encoding="utf-8"
+    )
+    return campaign_root
+
+
+def reaggregate_existing_job(job: ParallelJob, output_root: Path) -> dict[str, Any]:
+    """Create an aggregate view for completed shards without running simulations.
+
+    This is intentionally limited to a previously failed aggregation: child
+    outputs are treated as immutable and no subprocess is created here.
+    """
+
+    root = output_root.resolve()
+    manifest_path = root / "job_manifest.json"
+    manifest = _read_json(manifest_path)
+    if manifest.get("job_id") != job.job_id:
+        raise ValueError(
+            f"job manifest/job config mismatch: {manifest.get('job_id')} != {job.job_id}"
+        )
+    if not job.requires_aggregation:
+        raise ValueError("parallel job does not define an aggregation contract")
+    if manifest.get("failed_configs"):
+        raise RuntimeError("cannot reaggregate a job with failed shards")
+    records = manifest.get("configs")
+    if not isinstance(records, list) or len(records) != job.task_count:
+        raise RuntimeError("job manifest has missing or inconsistent shard records")
+    if any(record.get("status") != "succeeded" for record in records):
+        raise RuntimeError("cannot reaggregate before every shard has succeeded")
+    campaign_root = root / "campaign"
+    if campaign_root.exists():
+        raise FileExistsError(
+            f"refusing to overwrite existing campaign aggregate: {campaign_root}"
+        )
+    try:
+        aggregate_root = (
+            _aggregate_generic_campaign(job, manifest)
+            if job.is_generic_campaign_job
+            else _aggregate_stage_a_campaign(job, manifest)
+        )
+    except Exception as exc:
+        manifest["status"] = "failed"
+        manifest["aggregation"] = {
+            "required": True,
+            "status": "failed",
+            "error": str(exc),
+        }
+        manifest["reaggregation"] = {
+            "status": "failed",
+            "at": _now(),
+            "git": _git_provenance(),
+        }
+        _write_manifest(root, manifest)
+        raise
+    manifest["status"] = "succeeded"
+    manifest["ended_at"] = _now()
+    manifest["aggregation"] = {
+        "required": True,
+        "status": "completed",
+        "campaign_root": str(aggregate_root),
+    }
+    manifest["reaggregation"] = {
+        "status": "completed",
+        "at": _now(),
+        "git": _git_provenance(),
+    }
+    _write_manifest(root, manifest)
+    return manifest
+
+
 def run_parallel_job(
     job: ParallelJob,
     execution: ResolvedExecution,
@@ -556,6 +1043,7 @@ def run_parallel_job(
 
     if output_base_dir is not None and output_root is not None:
         raise ValueError("use output_base_dir or output_root, not both")
+    preflight_result = _enforce_preflight(job)
     root = (
         output_root.resolve()
         if output_root is not None
@@ -563,6 +1051,7 @@ def run_parallel_job(
     )
     root.mkdir(parents=True, exist_ok=False)
     manifest = build_plan(job, execution, root)
+    manifest["preflight"].update(preflight_result)
     manifest["status"] = "running"
     manifest["started_at"] = _now()
     manifest["provenance"]["git"] = _git_provenance()
@@ -632,9 +1121,13 @@ def run_parallel_job(
             time.sleep(poll_interval_s)
     manifest["ended_at"] = _now()
     manifest["status"] = "succeeded" if not manifest["failed_configs"] else "failed"
-    if manifest["status"] == "succeeded" and job.is_generic_campaign_job:
+    if manifest["status"] == "succeeded" and job.requires_aggregation:
         try:
-            campaign_root = _aggregate_generic_campaign(job, manifest)
+            campaign_root = (
+                _aggregate_generic_campaign(job, manifest)
+                if job.is_generic_campaign_job
+                else _aggregate_stage_a_campaign(job, manifest)
+            )
         except Exception as exc:
             manifest["status"] = "failed"
             manifest["aggregation"] = {
@@ -648,7 +1141,7 @@ def run_parallel_job(
                 "status": "completed",
                 "campaign_root": str(campaign_root),
             }
-    elif job.is_generic_campaign_job:
+    elif job.requires_aggregation:
         manifest["aggregation"] = {
             "required": True,
             "status": "not_created_due_to_shard_failure",
