@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from sim_swim.analysis.cli_profiles import args_from_profile, load_profile
 
-from sim_swim.analysis.issue61_2015_1tau import analyze
+from sim_swim.analysis.issue61_2015_1tau import analyze, analyze_supplemental
 from sim_swim.analysis.issue61_2015_1tau import _canonical_threshold_row
 from sim_swim.analysis.issue61_2015_1tau import _first_threshold_crossing
 from sim_swim.analysis.parallel_job import (
@@ -395,6 +395,74 @@ def test_issue61_analysis_records_first_threshold_failure(tmp_path: Path) -> Non
     )
     assert decision["status"] == "fail"
     assert "do not promote" in decision["handoff"]
+
+
+def test_issue61_supplemental_is_evaluated_separately(tmp_path: Path) -> None:
+    root = _campaign(tmp_path, fail_metric="max_motor_torque_balance_residual_ratio")
+    manifest_path = root / "run_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["conditions"] = [manifest["conditions"][0]]
+    manifest["conditions"][0]["motor_torque_Nm"] = 1.2e-18
+    manifest["conditions"][0]["config_overrides"].update(
+        {
+            "motor.torque_Nm": 1.2e-18,
+            "motor.reference_torque_Nm": 1.2e-18,
+        }
+    )
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    with (root / "summary.csv").open(encoding="utf-8", newline="") as handle:
+        row = next(csv.DictReader(handle))
+    with (root / "summary.csv").open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(row))
+        writer.writeheader()
+        writer.writerow(row)
+
+    output = analyze_supplemental(
+        run_root=root,
+        threshold_contract=ROOT / "conf/phase2_validation/2015_stage_a_thresholds.yaml",
+        output_dir=tmp_path / "supplemental-analysis",
+    )
+    decision = json.loads(
+        (output / "issue61_supplemental_decision.json").read_text(encoding="utf-8")
+    )
+    assert decision["status"] == "fail"
+    assert decision["conditions"] == 1
+    assert "does not amend" in decision["scope"]
+
+
+def test_issue61_analysis_resolves_a_synchronized_condition_path(
+    tmp_path: Path,
+) -> None:
+    root = _campaign(tmp_path, fail_metric="max_motor_torque_balance_residual_ratio")
+    manifest_path = root / "run_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["conditions"] = [manifest["conditions"][0]]
+    condition = manifest["conditions"][0]
+    condition["condition_id"] = "project"
+    condition["motor_torque_Nm"] = 1.2e-18
+    condition["config_overrides"].update(
+        {"motor.torque_Nm": 1.2e-18, "motor.reference_torque_Nm": 1.2e-18}
+    )
+    condition["output_dir"] = "/net/fs01/immutable/project"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    with (root / "summary.csv").open(encoding="utf-8", newline="") as handle:
+        row = next(csv.DictReader(handle))
+    row["condition_id"] = "project"
+    with (root / "summary.csv").open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(row))
+        writer.writeheader()
+        writer.writerow(row)
+    synced = root / "project_torque_0"
+    synced.rename(root / "project")
+
+    output = analyze_supplemental(
+        run_root=root,
+        threshold_contract=ROOT / "conf/phase2_validation/2015_stage_a_thresholds.yaml",
+        output_dir=tmp_path / "synced-analysis",
+    )
+    row = next(csv.DictReader((output / "issue61_supplemental_summary.csv").open()))
+    assert row["first_failing_criterion"] == "max_motor_torque_balance_residual_ratio"
+    assert row["body_motion_recorded"] == "True"
 
 
 def test_issue61_streams_first_body_drift_crossing(tmp_path: Path) -> None:

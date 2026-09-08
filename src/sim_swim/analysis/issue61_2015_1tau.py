@@ -11,6 +11,7 @@ from typing import Any
 
 
 TORQUES_NM = (1.0e-21, 2.5e-20, 1.0e-19)
+SUPPLEMENTAL_TORQUE_NM = 1.2e-18
 EXPECTED_DT_STAR = 1.0e-5
 EXPECTED_DURATION_TAU = 1.0
 
@@ -53,7 +54,9 @@ def _rows(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
-def _validate_manifest(manifest: dict[str, Any]) -> list[dict[str, Any]]:
+def _validate_manifest(
+    manifest: dict[str, Any], *, expected_torques: tuple[float, ...] = TORQUES_NM
+) -> list[dict[str, Any]]:
     if manifest.get("kind") != "stage_a_2015" or manifest.get("issue") != 61:
         raise ValueError("run root is not an Issue #61 2015 Stage A campaign")
     for name, expected in (
@@ -82,14 +85,16 @@ def _validate_manifest(manifest: dict[str, Any]) -> list[dict[str, Any]]:
         ):
             raise ValueError("reference_evidence entry lacks manifest_sha256")
     conditions = manifest.get("conditions")
-    if not isinstance(conditions, list) or len(conditions) != len(TORQUES_NM):
-        raise ValueError("Issue #61 requires exactly three condition manifests")
+    if not isinstance(conditions, list) or len(conditions) != len(expected_torques):
+        raise ValueError(
+            f"Issue #61 requires exactly {len(expected_torques)} condition manifests"
+        )
     torques = {
         _float(item.get("motor_torque_Nm"))
         for item in conditions
         if isinstance(item, dict)
     }
-    if torques != set(TORQUES_NM):
+    if torques != set(expected_torques):
         raise ValueError(f"unexpected torque grid: {sorted(torques)}")
     for condition in conditions:
         if not isinstance(condition, dict):
@@ -147,6 +152,18 @@ def _canonical_threshold_row(row: dict[str, str]) -> dict[str, str]:
         if not math.isfinite(_float(result.get(canonical))):
             result[canonical] = str(row.get(source, ""))
     return result
+
+
+def _condition_dir(run_root: Path, condition: dict[str, Any]) -> Path:
+    """Resolve an immutable cs10 output path against a synchronized run root."""
+    recorded = Path(str(condition["output_dir"]))
+    if recorded.is_dir():
+        return recorded
+    condition_id = str(condition["condition_id"])
+    for candidate in (run_root / condition_id, run_root / "conditions" / condition_id):
+        if candidate.is_dir():
+            return candidate
+    return recorded
 
 
 def _first_threshold_crossing(
@@ -290,7 +307,7 @@ def analyze(*, run_root: Path, threshold_contract: Path, output_dir: Path) -> Pa
         row = summary_by_id.get(condition_id)
         if row is None:
             raise ValueError(f"summary.csv is missing {condition_id}")
-        condition_dir = Path(str(condition["output_dir"]))
+        condition_dir = _condition_dir(run_root, condition)
         summary_path = condition_dir / "run_summary.json"
         gate_failure = (
             _first_gate_failure(_read_json(summary_path))
@@ -379,6 +396,108 @@ def analyze(*, run_root: Path, threshold_contract: Path, output_dir: Path) -> Pa
     return output_dir
 
 
+def analyze_supplemental(
+    *, run_root: Path, threshold_contract: Path, output_dir: Path
+) -> Path:
+    """Evaluate the isolated 1.2e-18 N m supplemental condition.
+
+    This deliberately remains separate from the locked three-torque Issue #61
+    decision: the supplemental result is diagnostic evidence only and must not
+    alter the original campaign's promotion/handoff decision.
+    """
+    manifest = _read_json(run_root / "run_manifest.json")
+    conditions = _validate_manifest(
+        manifest, expected_torques=(SUPPLEMENTAL_TORQUE_NM,)
+    )
+    threshold_data = _read_json_or_yaml(threshold_contract)
+    thresholds = threshold_data.get("thresholds")
+    if threshold_data.get("status") != "locked" or not isinstance(thresholds, dict):
+        raise ValueError("threshold contract must be locked and contain thresholds")
+    summary_by_id = {
+        row.get("condition_id"): row for row in _rows(run_root / "summary.csv")
+    }
+    output_dir.mkdir(parents=True, exist_ok=True)
+    records: list[dict[str, Any]] = []
+    for condition in conditions:
+        condition_id = str(condition["condition_id"])
+        row = summary_by_id.get(condition_id)
+        if row is None:
+            raise ValueError(f"summary.csv is missing {condition_id}")
+        condition_dir = _condition_dir(run_root, condition)
+        summary_path = condition_dir / "run_summary.json"
+        gate_failure = (
+            _first_gate_failure(_read_json(summary_path))
+            if summary_path.is_file()
+            else {"criterion": "run_summary_missing", "t_s": None, "step": None}
+        )
+        observed_row = _canonical_threshold_row(row)
+        for metric, value in _body_drift_metrics(condition_dir).items():
+            if not math.isfinite(_float(observed_row.get(metric))):
+                observed_row[metric] = str(value)
+        threshold_failures = _threshold_failures(observed_row, thresholds)
+        failures = (
+            [gate_failure["criterion"]] if gate_failure else []
+        ) + threshold_failures
+        crossings = [
+            _first_threshold_crossing(
+                condition_dir, criterion=criterion, limit=_float(thresholds[criterion])
+            )
+            for criterion in threshold_failures
+            if criterion in thresholds
+        ]
+        observed_crossings = [item for item in crossings if item is not None]
+        first = gate_failure or (
+            min(observed_crossings, key=lambda item: int(item["step"]))
+            if observed_crossings
+            else (
+                {"criterion": threshold_failures[0], "t_s": None, "step": None}
+                if threshold_failures
+                else None
+            )
+        )
+        records.append(
+            {
+                "condition_id": condition_id,
+                "motor_torque_Nm": _float(condition["motor_torque_Nm"]),
+                "tau_s": condition.get("time", {}).get("tau_s"),
+                "dt_internal_s": condition.get("time", {}).get("dt_internal_s"),
+                "total_steps": condition.get("time", {}).get("total_steps"),
+                "wall_time_s": _float(row.get("wall_time_s")),
+                "steps_per_s": _float(row.get("steps_per_s")),
+                "strict_pass": not failures,
+                "first_failing_criterion": first["criterion"] if first else "",
+                "first_failing_t_s": first["t_s"] if first else None,
+                "first_failing_step": first["step"] if first else None,
+                "failures": "; ".join(failures),
+                "body_motion_recorded": (condition_dir / "trajectory.csv").is_file(),
+                "flagella_motion_recorded": (
+                    condition_dir / "state_archive.npz"
+                ).is_file(),
+            }
+        )
+    with (output_dir / "issue61_supplemental_summary.csv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(records[0]))
+        writer.writeheader()
+        writer.writerows(records)
+    strict_pass = bool(records[0]["strict_pass"])
+    decision = {
+        "kind": "issue61_2015_1tau_paper_torque_supplemental",
+        "status": "pass" if strict_pass else "fail",
+        "run_root": str(run_root),
+        "conditions": 1,
+        "strict_pass_count": int(strict_pass),
+        "reference_evidence": manifest["reference_evidence"],
+        "scope": "diagnostic_only; does not amend the three-torque Issue #61 decision",
+        "handoff": "not eligible for profile promotion, Issue #184 handoff, dataset adoption, or canonical selection",
+    }
+    (output_dir / "issue61_supplemental_decision.json").write_text(
+        json.dumps(decision, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    return output_dir
+
+
 def _read_json_or_yaml(path: Path) -> dict[str, Any]:
     import yaml
 
@@ -400,6 +519,26 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     print(
         analyze(
+            run_root=args.run_root,
+            threshold_contract=args.threshold_contract,
+            output_dir=args.output_dir,
+        )
+    )
+
+
+def supplemental_main(argv: list[str] | None = None) -> None:
+    """CLI for the isolated paper-torque supplemental run."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--run-root", type=Path, required=True)
+    parser.add_argument(
+        "--threshold-contract",
+        type=Path,
+        default=Path("conf/phase2_validation/2015_stage_a_thresholds.yaml"),
+    )
+    parser.add_argument("--output-dir", type=Path, required=True)
+    args = parser.parse_args(argv)
+    print(
+        analyze_supplemental(
             run_root=args.run_root,
             threshold_contract=args.threshold_contract,
             output_dir=args.output_dir,

@@ -155,6 +155,11 @@ def dispatch(analysis_kind: str, argv: list[str]) -> None:
 
         main(argv)
         return
+    if analysis_kind == "issue61-2015-supplemental":
+        from sim_swim.analysis.issue61_2015_1tau import supplemental_main
+
+        supplemental_main(argv)
+        return
     if analysis_kind == "2010-fixed-performance":
         from sim_swim.analysis.torque_dt_stability_campaign import (
             render_fixed_real_time_qualitative_replay,
