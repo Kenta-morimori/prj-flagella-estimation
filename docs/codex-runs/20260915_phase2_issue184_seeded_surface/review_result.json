@@ -25,9 +25,9 @@
       "result": "PASS"
     }
   ],
-  "long_simulation_executed": false,
-  "long_simulation_reason": "実装時点ではnf4/nf5 direct jobは未起動。旧nf6は継続し、停止済みnf1/nf2 rootは隔離する。",
+  "long_simulation_executed": true,
+  "long_simulation_reason": "2026-09-15 14:01 JSTにcommit 4b547adでnf4/nf5 direct 2-worker jobをNAS root /net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs/2026-09-15/140131/parallel/issue184_2015_nf4_nf5_10tau__direct2 へ起動した。旧nf6は継続し、停止済みnf1/nf2 rootは隔離する。",
   "adr_required": false,
   "adr_reason": "diagnostic-only campaignのattachment policyとpreflightを明文化する変更であり、supported profile、dataset、canonical modelを変更しない。",
-  "next_action": "最新commitをcs10へ同期し、nf4/nf5 direct jobを新しいNAS rootへ2 workerで起動する。完了後は明示provenanceで暫定横断解析とcondition別replayを実行する。"
+  "next_action": "nf4/nf5 aggregateと旧nf6の終端後に、明示provenanceで暫定横断解析・condition別replayを実行し、local syncのSHA-256とQCを照合する。"
 }
