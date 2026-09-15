@@ -35,6 +35,7 @@ ISSUE61_SUPPLEMENTAL = (
     ROOT / "conf/phase2_parallel/issue61_2015_1tau_paper_torque_supplemental/job.yaml"
 )
 ISSUE184_NF10TAU = ROOT / "conf/phase2_parallel/issue184_2015_nf1_6_10tau/job.yaml"
+ISSUE184_NF45_10TAU = ROOT / "conf/phase2_parallel/issue184_2015_nf4_nf5_10tau/job.yaml"
 SWEEP_A = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_off.yaml"
 SWEEP_B = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_on.yaml"
 SHAPE_SWEEP = ROOT / "conf/phase2_sweeps/shape_stability_grid.yaml"
@@ -149,6 +150,22 @@ def test_issue184_nf1_6_job_requires_passing_issue61_preflight() -> None:
         5,
         6,
     ]
+
+
+def test_issue184_nf4_nf5_supplement_is_two_isolated_seeded_surface_shards() -> None:
+    job = load_parallel_job(ISSUE184_NF45_10TAU)
+    plan = build_plan(job, resolve_execution(job, None), ROOT / ".tmp_issue184_nf45")
+
+    assert job.task_count == 2
+    assert [record["condition_id"] for record in plan["configs"]] == ["nf04", "nf05"]
+    assert plan["execution"]["max_workers"] == 2
+    assert plan["preflight"]["mode"] == "audit_issue61_fail"
+    assert [
+        record["geometry_preflight"]["placement_mode"] for record in plan["configs"]
+    ] == ["seeded_surface", "seeded_surface"]
+    assert [
+        len(record["geometry_preflight"]["attachments"]) for record in plan["configs"]
+    ] == [4, 5]
 
 
 def test_invalid_generic_attachment_topology_is_rejected_before_output_creation(

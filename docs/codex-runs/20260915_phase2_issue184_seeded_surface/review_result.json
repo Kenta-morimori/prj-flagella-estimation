@@ -1,24 +1,24 @@
 {
   "status": "PASS",
-  "task": "Issue #184 seeded-surface nf1-6 clean campaign preparation",
+  "task": "Issue #184 nf4/nf5 provisional supplement preparation",
   "branch": "codex/issue-61-2015-10tau-stability",
   "summary": [
-    "2015 project nf1-6 10tau campaignをseeded_surface・attach/phase seed 0へ統一した。",
-    "generic campaignとparallel jobのgeometry-only preflightは、全conditionのModelBuilder構成とattachment topologyをoutput作成前に検証する。",
-    "Issue #184専用解析はaggregate済みclean campaignだけを受理し、strict QC、first failure、throughput、motion recordを記録する。"
+    "停止済みnf1/nf2 direct artifactを隔離し、未実行nf4/nf5だけをseeded_surface・attach/phase seed 0・2 workerで補完する。",
+    "暫定横断解析は明示した6 child rootのprovenance、topology、strict QC、first failure、throughput、motion recordを保存する。",
+    "既存のaggregate済みclean campaign専用解析は緩めず、暫定結果をdataset/profile/canonical判断から除外する。"
   ],
   "checks": [
     {
-      "command": "uv run pytest tests/test_phase2_generic_multi_run.py tests/test_phase2_parallel_job.py tests/test_phase2_184_2015_nf1_6.py tests/test_phase2_61_2015_1tau.py tests/test_model_builder.py",
-      "result": "PASS: 185 passed"
+      "command": "uv run pytest tests/test_phase2_184_2015_nf1_6.py tests/test_phase2_184_2015_nf1_6_provisional.py tests/test_phase2_parallel_job.py",
+      "result": "PASS: 37 passed"
     },
     {
-      "command": "uv run python scripts/01_simulate_swimming/run_parallel.py config=conf/phase2_parallel/issue184_2015_nf1_6_10tau/job.yaml --dry-run",
-      "result": "PASS: six isolated seeded_surface shards, attachment topology, three workers, and separated outputs"
+      "command": "uv run python scripts/01_simulate_swimming/run_parallel.py --config conf/phase2_parallel/issue184_2015_nf4_nf5_10tau/job.yaml --max-workers 2 --dry-run",
+      "result": "PASS: nf4/nf5 isolated seeded_surface shards, attachment topology, two workers, and separated outputs"
     },
     {
       "command": ".githooks/pre-commit",
-      "result": "PASS: ruff clean; 323 passed, 503 deselected"
+      "result": "PASS: ruff clean; 323 passed, 505 deselected"
     },
     {
       "command": "git diff --check",
@@ -26,8 +26,8 @@
     }
   ],
   "long_simulation_executed": false,
-  "long_simulation_reason": "現行reservation 5は停止せず保持する。clean seeded-surface campaignのcs10 queue投入はユーザー実行である。",
+  "long_simulation_reason": "実装時点ではnf4/nf5 direct jobは未起動。旧nf6は継続し、停止済みnf1/nf2 rootは隔離する。",
   "adr_required": false,
   "adr_reason": "diagnostic-only campaignのattachment policyとpreflightを明文化する変更であり、supported profile、dataset、canonical modelを変更しない。",
-  "next_action": "最新commitをcs10へ同期し、runbookのdry-run確認後に新しいqueue reservationとしてclean nf1-6 campaignをユーザーが投入する。"
+  "next_action": "最新commitをcs10へ同期し、nf4/nf5 direct jobを新しいNAS rootへ2 workerで起動する。完了後は明示provenanceで暫定横断解析とcondition別replayを実行する。"
 }

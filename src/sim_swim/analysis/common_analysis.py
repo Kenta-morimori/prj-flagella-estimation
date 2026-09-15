@@ -165,6 +165,11 @@ def dispatch(analysis_kind: str, argv: list[str]) -> None:
 
         main(argv)
         return
+    if analysis_kind == "issue184-2015-nf1-6-provisional":
+        from sim_swim.analysis.issue184_2015_nf1_6_provisional import main
+
+        main(argv)
+        return
     if analysis_kind == "2010-fixed-performance":
         from sim_swim.analysis.torque_dt_stability_campaign import (
             render_fixed_real_time_qualitative_replay,

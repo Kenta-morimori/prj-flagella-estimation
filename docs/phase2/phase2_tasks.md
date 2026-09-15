@@ -254,7 +254,7 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 ### P2-D23: 2015 nf1–6 screenはseeded-surface topologyを統一する
 
 - **Background:** 2015 projectの`seeded_center_layer`は正六角柱`n_prism=6`を`n_flagella`で割り切ることを要求するため、nf4/nf5を構成できない。
-- **Decision:** #184のnf1–6・10τ screenは`seeded_surface`、attach/phase seed `0`に統一する。全conditionはqueue投入前のgeometry-only preflightを通過し、attachment topologyをmanifestへ保存する。
+- **Decision:** 次回の#184 nf1–6・10τ screenは`seeded_surface`、attach/phase seed `0`に統一する。今回だけは未実行nf4/nf5を同topologyで補完し、旧nf1–3/nf6とtopology混在の暫定横断結果を作る。全conditionは開始前のgeometry-only preflightを通過し、attachment topologyをmanifestへ保存する。
 - **Interpretation:** 旧`seeded_center_layer` jobのnf1–3/nf6は保持する単独診断であり、clean campaignとの比較、dataset採択、2015 supported化、canonical選定の根拠には使わない。
 - **Evidence:** Issue #184，`docs/phase2/phase2_184_2015_nf1_6_10tau_contract.md`，`conf/phase2_multi_run/2015_project_t2p5e20_nf1_6_10tau.yaml`．
 
