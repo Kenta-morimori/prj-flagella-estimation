@@ -136,6 +136,43 @@ def test_issue184_nf1_6_job_requires_passing_issue61_preflight() -> None:
     ]
     assert plan["execution"]["max_workers"] == 3
     assert plan["preflight"]["mode"] == "audit_issue61_fail"
+    assert [
+        record["geometry_preflight"]["placement_mode"] for record in plan["configs"]
+    ] == ["seeded_surface"] * 6
+    assert [
+        len(record["geometry_preflight"]["attachments"]) for record in plan["configs"]
+    ] == [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+    ]
+
+
+def test_invalid_generic_attachment_topology_is_rejected_before_output_creation(
+    tmp_path: Path,
+) -> None:
+    config = ROOT / "conf/phase2_multi_run/2015_project_t2p5e20_nf1_6_10tau.yaml"
+    job = ParallelJob(
+        schema_version=1,
+        job_id="invalid-geometry",
+        job_name="invalid_geometry",
+        config_path=ISSUE184_NF10TAU.resolve(),
+        configs=(config.resolve(),),
+        max_workers=1,
+        worker_policy="cs10_qualified",
+        config_overrides={
+            config.resolve(): ("flagella.placement_mode=seeded_center_layer",)
+        },
+        condition_ids=("nf04",),
+    )
+    root = tmp_path / "would-be-output"
+
+    with pytest.raises(ValueError, match="geometry preflight failed for nf04"):
+        run_parallel_job(job, resolve_execution(job, None), output_root=root)
+    assert not root.exists()
 
 
 def test_issue61_preflight_rejects_a_non_passing_decision(tmp_path: Path) -> None:
@@ -268,7 +305,22 @@ def test_generic_aggregate_requires_all_shards_and_creates_canonical_view(
             json.dumps({"status": "completed", "exit_code": 0}), encoding="utf-8"
         )
         (child_root / "run_manifest.json").write_text(
-            json.dumps({"conditions": [{"condition_id": record["condition_id"]}]}),
+            json.dumps(
+                {
+                    "conditions": [
+                        {
+                            "condition_id": record["condition_id"],
+                            "geometry": {
+                                "actual": {
+                                    "attachment_topology": record["geometry_preflight"][
+                                        "attachments"
+                                    ]
+                                }
+                            },
+                        }
+                    ]
+                }
+            ),
             encoding="utf-8",
         )
         (condition_dir / "run_summary.json").write_text(

@@ -20,6 +20,7 @@ from sim_swim.analysis.multi_run_campaign import (
     apply_campaign_cli_overrides,
     build_campaign_conditions,
     campaign_axes_metadata,
+    geometry_preflight,
     load_yaml,
     summary_axis_fields,
 )
@@ -222,9 +223,25 @@ def run_campaign(argv: list[str] | None = None) -> Path:
     if args.sample_limit is not None:
         conditions = conditions[: args.sample_limit]
 
+    geometry = geometry_preflight(campaign, conditions)
+
     if args.dry_run:
-        for condition in conditions:
-            print(condition["condition_id"])
+        print(
+            json.dumps(
+                {
+                    "status": "geometry_validated",
+                    "conditions": [
+                        {
+                            "condition_id": condition["condition_id"],
+                            "geometry_preflight": geometry[condition["condition_id"]],
+                        }
+                        for condition in conditions
+                    ],
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return Path()
 
     base_config_path = Path(str(campaign["base_config"]))

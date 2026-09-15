@@ -24,6 +24,7 @@ from sim_swim.analysis.multi_run_campaign import (
     apply_campaign_cli_overrides,
     build_campaign_conditions,
     campaign_axes_metadata,
+    geometry_preflight,
     load_yaml,
 )
 from sim_swim.analysis.sweeps.generic_multi_run import (
@@ -438,6 +439,17 @@ def _generic_command(
 def build_plan(
     job: ParallelJob, execution: ResolvedExecution, root: Path
 ) -> dict[str, Any]:
+    geometry_by_condition: dict[str, dict[str, Any]] = {}
+    if job.is_generic_campaign_job:
+        config = job.configs[0]
+        campaign = apply_campaign_cli_overrides(
+            load_yaml(config), list(job.config_overrides.get(config, ()))
+        )
+        all_conditions = {
+            item["condition_id"]: item for item in build_campaign_conditions(campaign)
+        }
+        selected = [all_conditions[condition_id] for condition_id in job.condition_ids]
+        geometry_by_condition = geometry_preflight(campaign, selected)
     records: list[dict[str, Any]] = []
     task_items = (
         [(job.configs[0], condition_id) for condition_id in job.condition_ids]
@@ -469,6 +481,11 @@ def build_plan(
                 if job.is_generic_campaign_job
                 else task_or_condition_id,
                 "condition_id": condition_id,
+                "geometry_preflight": (
+                    geometry_by_condition[condition_id]
+                    if condition_id is not None
+                    else None
+                ),
                 "overrides": list(overrides),
                 "command": (
                     _generic_command(config, run_dir, condition_id, overrides)
@@ -616,6 +633,7 @@ def _aggregate_generic_campaign(job: ParallelJob, manifest: dict[str, Any]) -> P
         item["condition_id"]: item for item in build_campaign_conditions(campaign)
     }
     selected = [all_conditions[condition_id] for condition_id in job.condition_ids]
+    expected_geometry = geometry_preflight(campaign, selected)
     base_config_path = Path(str(campaign["base_config"]))
     if not base_config_path.is_absolute():
         base_config_path = REPO_ROOT / base_config_path
@@ -648,6 +666,16 @@ def _aggregate_generic_campaign(job: ParallelJob, manifest: dict[str, Any]) -> P
             raise RuntimeError(
                 f"shard condition ID mismatch: {condition['condition_id']}"
             )
+        actual_geometry = dict(child_conditions[0].get("geometry", {}) or {}).get(
+            "actual", {}
+        )
+        if (
+            actual_geometry.get("attachment_topology")
+            != expected_geometry[condition["condition_id"]]["attachments"]
+        ):
+            raise RuntimeError(
+                f"shard attachment topology mismatch: {condition['condition_id']}"
+            )
         child_dir = child_root / condition["condition_id"]
         summary = _read_json(child_dir / "run_summary.json")
         if summary.get("execution", {}).get("status") != "completed":
@@ -658,15 +686,17 @@ def _aggregate_generic_campaign(job: ParallelJob, manifest: dict[str, Any]) -> P
             condition["config_overrides"]
         )
         rows.append(_condition_row(cfg, condition, link))
-        manifests.append(
-            _manifest_condition_record(
-                campaign_root,
-                condition,
-                condition_dir=link,
-                time_manifest=cfg.time_manifest(),
-                hydrodynamics_enabled=cfg.hydrodynamics.enabled,
-            )
+        manifest_record = _manifest_condition_record(
+            campaign_root,
+            condition,
+            condition_dir=link,
+            time_manifest=cfg.time_manifest(),
+            hydrodynamics_enabled=cfg.hydrodynamics.enabled,
         )
+        manifest_record["geometry_preflight"] = expected_geometry[
+            condition["condition_id"]
+        ]
+        manifests.append(manifest_record)
 
     summary_path = campaign_root / "summary.csv"
     with summary_path.open("w", encoding="utf-8", newline="") as handle:
@@ -1049,8 +1079,8 @@ def run_parallel_job(
         if output_root is not None
         else job_output_root(job, output_base_dir=output_base_dir)
     )
-    root.mkdir(parents=True, exist_ok=False)
     manifest = build_plan(job, execution, root)
+    root.mkdir(parents=True, exist_ok=False)
     manifest["preflight"].update(preflight_result)
     manifest["status"] = "running"
     manifest["started_at"] = _now()

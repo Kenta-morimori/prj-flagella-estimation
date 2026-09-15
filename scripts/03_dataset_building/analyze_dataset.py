@@ -54,6 +54,7 @@ def main(argv: list[str] | None = None) -> None:
             "2010-torque-dt",
             "issue61-2015-1tau",
             "issue61-2015-supplemental",
+            "issue184-2015-nf1-6",
             "2010-fixed-performance",
             "2015-stage-a",
             "spring-formulations",

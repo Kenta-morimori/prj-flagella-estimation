@@ -10,6 +10,8 @@ from typing import Any
 import yaml
 
 from sim_swim.analysis.flagella_count_behavior import normalize_base_overrides
+from sim_swim.model.builder import ModelBuilder
+from sim_swim.sim.params import SimulationConfig
 
 CAMPAIGN_OVERRIDE_ROOTS = {
     "metadata",
@@ -367,6 +369,60 @@ def build_campaign_conditions(config: dict[str, Any]) -> list[dict[str, Any]]:
             condition_by_id[condition_id] for condition_id in include_condition_ids
         ]
     return conditions
+
+
+def geometry_preflight(
+    campaign: dict[str, Any],
+    conditions: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    """Build every selected geometry without integrating any simulation steps.
+
+    This is intentionally shared by direct generic campaigns and parallel-job
+    planning so invalid attachment topologies fail before any output root or
+    worker is created.
+    """
+    base_config_path = Path(str(campaign["base_config"]))
+    base_cfg = load_yaml(base_config_path)
+    records: dict[str, dict[str, Any]] = {}
+    for condition in conditions:
+        condition_id = str(condition["condition_id"])
+        try:
+            cfg = SimulationConfig.from_dict(base_cfg).with_overrides(
+                condition["config_overrides"]
+            )
+            cfg.validate_execution_supported()
+            model = ModelBuilder(cfg).build()
+        except Exception as exc:
+            raise ValueError(
+                f"geometry preflight failed for {condition_id}: {exc}"
+            ) from exc
+        bead_to_location = {
+            int(bead_index): {"layer": layer_index, "slot": slot_index}
+            for layer_index, layer in enumerate(model.body_layer_indices)
+            for slot_index, bead_index in enumerate(
+                layer.astype(int, copy=False).tolist()
+            )
+        }
+        attachment = []
+        for flag_id, bead_index in enumerate(
+            model.flagella_attach_body_indices.astype(int, copy=False).tolist()
+        ):
+            location = bead_to_location[int(bead_index)]
+            attachment.append(
+                {
+                    "flag_id": flag_id,
+                    "body_bead_index": int(bead_index),
+                    **location,
+                }
+            )
+        records[condition_id] = {
+            "placement_mode": str(cfg.flagella.placement_mode),
+            "attach_seed": cfg.seed.attach_seed,
+            "phase_seed": cfg.seed.phase_seed,
+            "n_flagella": int(cfg.flagella.n_flagella),
+            "attachments": attachment,
+        }
+    return records
 
 
 def campaign_axes_metadata(config: dict[str, Any]) -> list[dict[str, Any]]:

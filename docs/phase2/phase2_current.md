@@ -38,7 +38,7 @@ runbookは`phase2_215_5s_axis_convergence_runbook.md`を正本とする。
 ## Next queue
 
 1. **Issue #200:** #203のprofile比較結果を受け取り，2010 projectの`dt_star`収束性を判断する．
-2. **Issue #61 / #184:** #61は2015 projectのtracking-reference・1τ torque safety/throughput screen、#184はtriage後の本数条件screenを扱う．
+2. **Issue #61 / #184:** #61は2015 projectのtracking-reference・1τ torque safety/throughput screen、#184は`seeded_surface`・seed 0で揃えたnf1–6の10τ diagnostic screenを扱う．旧`seeded_center_layer` jobのnf4/5 failure artifactは保持するが、#184のclean evidenceには使わない．
 3. **Issue #205:** 物理・数値妥当性の証拠だけを集約し，canonical modelをfreezeする．
 
 ## Current blockers

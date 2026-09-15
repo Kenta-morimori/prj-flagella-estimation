@@ -3,7 +3,7 @@ metadata:
   role: sweep
   canonical: false
   source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/184
-  description: 2015 project 10tau nf1-6 diagnostic after the Issue #61 nf3 strict-pass gate
+  description: 2015 project 10tau nf1-6 seeded-surface diagnostic after the Issue #61 strict-QC audit
   training_candidate: false
 
 base_config: conf/sim_swim_2015.yaml
@@ -17,6 +17,7 @@ base_overrides:
   brownian.enabled: false
   seed.attach_seed: 0
   seed.phase_seed: 0
+  flagella.placement_mode: seeded_surface
   output.policy: compact
   output_sampling.out_all_steps_3d: false
   output_sampling.fps_out_3d: 25.0
