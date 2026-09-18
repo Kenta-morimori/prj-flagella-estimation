@@ -1,0 +1,46 @@
+{
+  "status": "PASS",
+  "summary": "Issue #244として、2010の11-bead flagellum条件を保持した六角柱30-beadの2010_hex_project evaluation candidate、中心環均等付着、fixed-reference 1tau torque screenとcs10 parallel jobを実装した。canonical profile、dataset、物理解釈は変更していない。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "cs10の10-condition 1tau screenはユーザー実行待ちであり、torque採択、54-condition seed grid、600tau campaignは未実施。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": ".venv/bin/pytest tests/test_model_profiles.py tests/test_model_builder.py tests/test_phase2_parallel_job.py -q",
+      "result": "PASS: 145 passed"
+    },
+    {
+      "command": ".venv/bin/python scripts/01_simulate_swimming/run_parallel.py --config conf/phase2_parallel/issue244_2010_hex_torque_1tau/job.yaml --dry-run",
+      "result": "PASS: 10 shards, cs10_qualified, max_workers=3; all-condition geometry preflight completed during job load"
+    },
+    {
+      "command": ".githooks/pre-commit",
+      "result": "PASS: ruff format/check, issue lifecycle check, light pytest (347 passed, 479 deselected)"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "execution:cs10のUser-run targetであり、実ジョブ起動の明示許可はまだないため。",
+  "user_review_required": true,
+  "user_review_command": "cs10上でIssue #244のparallel jobを実行後、10 conditionのrun_summary.json、run_manifest.json、およびwall time/steps per secondを確認する。",
+  "user_review_outputs": [
+    "<cs10-output-root>/parallel/issue244_2010_hex_torque_1tau__*/run_manifest.json",
+    "<cs10-output-root>/parallel/issue244_2010_hex_torque_1tau__*/summary.csv"
+  ],
+  "user_review_points": [
+    "n=1,4の全10 conditionが1tauまで有限かつshape gateを通過するか。",
+    "fixed reference torqueでmotor torqueだけを変えた比較として、torque選定根拠とwall time/steps per secondを確認する。",
+    "54-condition seed gridとIssue #245の600tauへ進めるtorqueを選定する。"
+  ],
+  "adr_required": false,
+  "adr_reason": "pending evaluation candidateとscreen準備のみであり、canonical model、dataset、物理解釈、phase boundaryを採択していないため。",
+  "commit_type": "feat",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "ユーザーの明示許可後にcs10でparallel jobを起動する。",
+    "screen結果をレビューしてtorqueを固定し、別PRで54-condition seed gridを追加する。",
+    "600tau campaignはIssue #245で扱う。"
+  ]
+}

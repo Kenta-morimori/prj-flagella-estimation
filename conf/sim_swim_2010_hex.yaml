@@ -1,0 +1,107 @@
+# Issue #244 evaluation candidate: 2010 flagellar conditions on a 30-bead hexagonal body.
+model_profile:
+  year: 2010
+  variant: hex_project
+  resolution: hybrid
+  implementation_status: pending
+  body_beads: 30
+  flagellum_beads_per_filament: 11
+  nominal_flagella_count: 3
+  nominal_total_beads: 63
+
+scale:
+  b_um: 1.0
+  bead_radius_a_over_b: 0.1
+
+body:
+  prism:
+    n_prism: 6
+    dz_over_b: 0.5
+    radius_over_b: 0.5
+    axis: x
+    diagonal_braces_enabled: true
+  length_total_um: 2.0
+
+flagella:
+  n_flagella: 3
+  placement_mode: seeded_balanced_center_layer
+  initial_phase_mode: seeded
+  init_mode: paper_table1
+  n_beads_per_flagellum: 11
+  discretization:
+    ds_over_b: 0.58
+  bond_L_over_b: 0.58
+  length_over_b: 5.8
+  helix_init:
+    radius_over_b: 0.25
+    pitch_over_b: 2.5
+  initial_helix_axis_from_rear_deg: 0
+
+fluid:
+  viscosity_Pa_s: 0.001
+
+motor:
+  enabled: true
+  torque_Nm: 2.5e-20
+  reference_torque_Nm: 2.5e-20
+  force_distribution: root_torque_segment_couples
+  torque_distribution_profile: diffusive
+  reverse_n_flagella: 1
+  enable_switching: false
+  local_hook_scale: 1.0
+  local_spring_scale: 1.0
+  local_attach_first_spring_scale: 1.0
+  local_attach_first_body_axis_angle_scale: 1.0
+  local_first_second_spring_scale: 1.0
+  local_attach_frame_position_scale: 1.25
+  local_attach_frame_tangent_scale: 1.0
+  local_attach_frame_tangent_mode: vector
+  local_bend_scale: 1.0
+  local_torsion_scale: 1.0
+
+potentials:
+  spring:
+    formulation: fene_fraenkel
+    H_over_T_over_b: 10.0
+    s: 0.1
+  bend:
+    kb_over_T: 20.0
+    theta0_deg: {normal: 142.0, semicoiled: 90.0, curly1: 105.0}
+  torsion:
+    kt_over_T: 10.0
+    fd_eps_over_b: 1e-3
+    phi0_deg: {normal: -60.0, semicoiled: 65.0, curly1: 120.0}
+  spring_spring_repulsion:
+    A_ss_over_T: 1.0
+    a_ss_over_b: 0.2
+    cutoff_over_b: 0.2
+
+hook:
+  enabled: true
+  length_over_b: 0.25
+  threshold_deg: 90.0
+  kb_over_T: 20.0
+
+time:
+  duration: {value: 0.1, unit: s}
+  dt_s: 1.0e-3
+  integration: {dt_star: 1.0e-4}
+
+brownian:
+  enabled: false
+
+output_sampling:
+  out_all_steps_3d: false
+  fps_out_3d: 25.0
+  fps_out_2d: 25.0
+
+seed:
+  global_seed: 0
+  attach_seed: null
+  phase_seed: null
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  policy: compact
+  archive_interval_s: 0.001

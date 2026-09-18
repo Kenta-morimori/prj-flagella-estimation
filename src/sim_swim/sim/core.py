@@ -277,6 +277,18 @@ class Simulator:
             reaction_fallback_used=self.engine.motor_reaction_fallback_used,
         )
         manifest["geometry"]["actual"] = self.initial_geometry_summary["geometry"]
+        manifest["topology"] = {
+            "total_beads": int(self.model.positions_m.shape[0]),
+            "body_beads": int(self.model.body_indices.size),
+            "flagella_count": len(self.model.flagella_indices),
+            "flagellum_beads_per_filament": [
+                int(indices.size) for indices in self.model.flagella_indices
+            ],
+            "spring_segment_count": int(self.model.spring_pairs.shape[0]),
+            "segment_repulsion_pair_count": int(
+                self.engine.segment_pair_indices_for_repulsion.shape[0]
+            ),
+        }
         return manifest
 
     def _build_initial_geometry_summary(self) -> dict[str, Any]:

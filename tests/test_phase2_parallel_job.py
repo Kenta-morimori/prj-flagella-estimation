@@ -31,6 +31,7 @@ ISSUE215 = ROOT / "conf/phase2_parallel/issue215_5s_axis_convergence/job.yaml"
 ISSUE215_QUALIFICATION = (
     ROOT / "conf/phase2_parallel/issue215_5s_axis_convergence/qualification_job.yaml"
 )
+ISSUE244 = ROOT / "conf/phase2_parallel/issue244_2010_hex_torque_1tau/job.yaml"
 SWEEP_A = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_off.yaml"
 SWEEP_B = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_on.yaml"
 SHAPE_SWEEP = ROOT / "conf/phase2_sweeps/shape_stability_grid.yaml"
@@ -153,6 +154,20 @@ def test_issue215_qualification_preserves_36_shards_and_duration_override() -> N
     assert all(
         record["overrides"] == ["time.duration_s=0.001"] for record in plan["configs"]
     )
+
+
+def test_issue244_hex_torque_screen_has_ten_preflighted_cs10_shards() -> None:
+    job = load_parallel_job(ISSUE244)
+    execution = resolve_execution(job, None)
+    plan = build_plan(job, execution, ROOT / ".tmp_issue244_plan")
+
+    assert job.task_count == 10
+    assert job.preflight == "geometry_all_conditions"
+    assert execution.max_workers == 3
+    assert execution.worker_policy == "cs10_qualified"
+    assert len(plan["configs"]) == 10
+    assert plan["configs"][0]["condition_id"] == "nf01__tq1p0e20"
+    assert plan["configs"][-1]["condition_id"] == "nf04__tq3p5e20"
 
 
 def test_generic_aggregate_requires_all_shards_and_creates_canonical_view(

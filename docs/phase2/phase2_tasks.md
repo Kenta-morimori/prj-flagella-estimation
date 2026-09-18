@@ -37,6 +37,7 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 | P2-D18 | 2015 refined model Stage A採否 | pending |
 | P2-D21 | reference torque比較のfixed/tracking・時間基準 | adopted |
 | P2-D24 | v1 r1 n=3 failure診断を現行v1 r2 physical-failure gateから外す | adopted |
+| P2-D25 | 2010 flagella条件を保つ六角柱30-bead evaluation candidate | pending |
 | P2-D20 | RUN–TUMBLEの段階実装 | pending |
 
 ---
@@ -282,6 +283,14 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Interpretation:** v1 r1のfailureは現行v1 r2 campaignのphysical-failure gateではない。非定常回転とattach / phase seed差は，canonical model freeze後にPhase 3で評価するwithin-class variationとして残す。
 - **Decision:** Issue #158は現行v1 r2 campaignのphysical-failure blockerから外して完了する。dataset v2とIssue #205のblockerから外す。旧診断文書は履歴・探索的根拠として保持し，physical model変更の根拠には用いない。
 - **Evidence:** Task P2-8-023，Issues #157・#158・#215，`docs/phase2/phase2_158_v1_r1_nf3_proximal_diagnostics.md`，v1 r2 5 s campaign manifest．
+
+### P2-D25: 2010 flagella条件を保つ六角柱30-bead evaluation candidate
+
+- **Status:** pending
+- **Background:** 2010 projectは`n_flagella>=4`で後方束化条件の破綻があり、三角柱の同一直線上に近い付着配置が一因候補である。一方、2015 profileはflagellum beadsも増えるため、body geometryだけの比較には使えない。
+- **Change:** 2010の11-bead flagellum、`5.8 b`、`ds=0.58 b`、potential/hook/motor transmissionとdiagonal braceを維持し、bodyだけを六角柱30 beadsへ変更した。`n=1..6`は中心環の均等slot配置に限定し、`n=4`をgap `[1,2,1,2]`とする。
+- **Decision:** `2010_hex_project`をpending evaluation candidateとしてのみ実装し、Issue #244の1τ fixed-reference torque screenで数値安定性と計算効率を確認する。screen結果のレビュー前にcanonical採択、54-condition seed grid、600τ campaignを行わない。
+- **Evidence:** parent Issue #243、Issue #244、Issue #245、`docs/phase2/phase2_244_2010_hex_1tau_contract.md`。
 
 ### P2-D20: RUN–TUMBLEはRUN dataset core完了後に段階実装する
 
