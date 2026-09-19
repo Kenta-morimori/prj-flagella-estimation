@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "summary": "Issue #244のlocal torque--dt Stage 1を完了した。既存dt_star=1e-4の10 conditionと新規dt_star=1e-3の10 conditionを統合し、20/20の完走、41-state archive、trajectory、performance、n=1/4別2x5 heatmapを確認した。dt_star=1e-4は初回hook-angleのみwarning、dt_star=1e-3は10/10 strict passであり、warning以外のfailはない。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "54-condition seed gridとn=3/6 dt convergenceはcs10 user-runであり、明示的な開始許可待ち。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "analyze_dataset.py --analysis-kind issue244-torque-dt --baseline-run-dir outputs/2026-09-19/142000 --coarse-run-dir outputs/2026-09-20/000940",
+      "result": "PASS: 20 unique cells、n=1/4 heatmapと統合summaryを生成"
+    },
+    {
+      "command": "replay_dataset.py --run-dir outputs/2026-09-20/000940 --view 3d+2d --max-panels-per-grid 10 --target-frame-count 41",
+      "result": "PASS: 3D/2D grid、各1.64 s、動画デコード可能"
+    },
+    {
+      "command": "run_parallel.py config=conf/phase2_parallel/issue244_2010_hex_seed_grid_1tau/job.yaml --dry-run",
+      "result": "PASS: 54 cs10-qualified shards、geometry preflight"
+    },
+    {
+      "command": "run_parallel.py config=conf/phase2_parallel/issue244_2010_hex_dt_convergence_1tau/job.yaml --dry-run",
+      "result": "PASS: 4 cs10-qualified shards、geometry preflight"
+    }
+  ],
+  "user_review_required": true,
+  "user_review_command": "Stage 2をcs10で開始する場合は、54-condition seed gridのcs10 user-runを明示的に許可する。",
+  "adr_required": false,
+  "adr_reason": "pending candidateの短時間screen結果を記録し、既に承認済みのwarning方針を適用しただけで、canonical modelやdataset方針を変更していない。",
+  "commit_type": "result-analysis",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/246",
+  "next_actions": [
+    "ユーザー許可後にcs10で54-condition seed gridを開始する。",
+    "54 conditionがpolicyを通過した場合だけ、n=3/6の4-condition dt convergenceを開始する。"
+  ]
+}

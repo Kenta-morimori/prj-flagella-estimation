@@ -37,7 +37,7 @@ runbookは`phase2_215_5s_axis_convergence_runbook.md`を正本とする。
 
 ## Next queue
 
-1. **Issue #244:** 2010 flagella条件・六角柱30-bead bodyのpending candidateは、既存local `dt_star=1e-4` 10 conditionを基準に、local `dt_star=1e-3` 10 conditionを追加するtorque--Δt screenへ拡張した。両dt・5 torqueのn=1/4 heatmapで初回hook-angle transientをwarning/fail分類してから、54-condition seed grid、n=3/6刻み比較へ進む。600τはIssue #245の範囲である。
+1. **Issue #244:** 2010 flagella条件・六角柱30-bead bodyのpending candidateは、local `dt_star=1e-4/1e-3` × n=1/4 × 5 torqueの20 cell screenを完了した。`dt_star=1e-4`は初回hook-angle transientだけのwarning、`dt_star=1e-3`はstrict passであり、warning以外のfailはない。次はcs10 user-runの54-condition seed grid、続いてn=3/6刻み比較である。600τはIssue #245の範囲である。
 2. **Issue #200:** #203のprofile比較結果を受け取り，2010 projectの`dt_star`収束性を判断する．
 3. **Issue #61 / #184:** 2015 projectの`dt_star`，torque，本数条件の安定性と計算効率を検証する．
 

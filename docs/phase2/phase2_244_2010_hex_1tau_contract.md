@@ -50,3 +50,7 @@ Stage 1の20 + seed grid 54 + convergence 4 = 78 conditionとする。
 各condition manifestは観測されたtotal/body/flagella beads、spring segment数、segment-repulsion pair数を記録し、wall timeとsteps/sの比較に使う。
 
 2026-09-19のlocal baseline（`outputs/2026-09-19/142000/`）は10/10 conditionが1τ（10,000 steps）を完走し、各conditionに41-state archiveとtrajectoryを保存した。最終`shape_pass_nonbody`は全conditionで`True`だった一方、全conditionが最初の内部step（`4e-6 s`）で`hook` first-failを記録した。Stage 1統合解析でその単発hook angle transientを明示的にwarning/failへ分類し、torque・Δtの採択根拠を残す。3D/2D grid replayは`analysis/replay/`に保存した。600τ campaignはIssue #245の範囲である。
+
+2026-09-20のlocal `dt_star=1e-3` 10 condition（`outputs/2026-09-20/000940/`）は、全conditionが1τ（1,000 steps）を完走し、41-state archive、trajectory、3D/2D replayを保存した。finite/body/nonbodyのstrict gateは10/10 passである。既存`dt_star=1e-4` 10 conditionは指定どおり初回hook-angle transientだけのwarning、`dt_star=1e-3`は10/10 strict passとなり、20 cellにwarning以外のfailはない。統合heatmapは`outputs/2026-09-20/000940/analysis/issue244_torque_dt/`に保存した。
+
+Stage 2はcs10 user-run対象であり、ユーザーが明示的に開始を許可した後に限る。54 condition jobは`conf/phase2_parallel/issue244_2010_hex_seed_grid_1tau/job.yaml`、その後の4 condition刻み比較jobは`conf/phase2_parallel/issue244_2010_hex_dt_convergence_1tau/job.yaml`を使用する。いずれも3 workers、全condition geometry preflightを必須とする。
