@@ -30,8 +30,8 @@
   "adr_required": true,
   "adr": "docs/adr/0021_phase2_model_development_evaluation.md",
   "commit_type": "feat(phase2)",
-  "commit_hash": "pending",
-  "push_status": "pending",
+  "commit_hash": "f34beff",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/246",
   "next_actions": [
     "ユーザーが不足40 conditionをlocal serialで実行する。",
