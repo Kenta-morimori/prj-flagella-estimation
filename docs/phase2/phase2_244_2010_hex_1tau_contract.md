@@ -12,17 +12,41 @@
 - attachment: `seeded_balanced_center_layer`。中心環6 slotを`attach_seed`で回転し、`n=1..6`のみ許可する。`n=4`はslot `[0,1,3,4]`でgap `[1,2,1,2]`とする。
 - `phase_seed`はattachmentを変えず、初期helix phaseだけを変える。
 
-## 1τ screen
+## Stage 1: 1τ torque--Δt screen
 
-`conf/phase2_multi_run/2010_hex_project_torque_1tau_issue244.yaml`は、`n=1,4`と motor torque `1.0, 2.0, 2.5, 3.0, 3.5 × 10^-20 N m`の10独立conditionを定義する。
+既存local run `outputs/2026-09-19/142000/` は、`n=1,4`とmotor torque
+`1.0, 2.0, 2.5, 3.0, 3.5 × 10^-20 N m`、`dt_star=1e-4`の10 conditionである。
+これを再実行せず、`conf/phase2_multi_run/2010_hex_project_torque_dt_1tau_issue244.yaml`
+で同じ10 torque--count cellの`dt_star=1e-3`を追加する。Stage 1全体は20独立conditionである。
 
-- `duration_tau=1`、`dt_star=1e-4`、compact output、Brownian/switching OFF
+- `duration_tau=1`、compact output、Brownian/switching OFF
 - reference torqueは`2.5e-20 N m`に固定し、motor torqueだけを変える
-- `conf/phase2_parallel/issue244_2010_hex_torque_1tau/job.yaml`は`cs10_qualified`、3 workers、全10条件のgeometry preflightを必須とする
-- cs10 parallel jobは再現可能なheavy-run経路として維持する。2026-09-19のscreenはユーザー判断によりローカル直列`run_multi_run.py`で実行した。
+- 新規10 conditionはユーザーがlocal直列`run_multi_run.py`で実行する。既存・新規とも同一Macのため、physical QCに加えwall timeとsteps/sも比較する。
+- `scripts/03_dataset_building/analyze_dataset.py --analysis-kind issue244-torque-dt`は両runを統合し、`n=1`・`n=4`別のtorque × `dt_star`（2×5）heatmapを作る。
+- strict simulator gateは変更しない。finite/body/flag/hook length/motor diagnosticsが正常で、最初の内部stepだけのhook angle違反、最終nonbody pass、failure sample数1をすべて満たすものだけをIssue #244の解析でwarningとする。
+
+新規 `dt_star=1e-3` の10 conditionは以下で起動する。
+
+```bash
+.venv/bin/python scripts/01_simulate_swimming/run_multi_run.py \
+  config=conf/phase2_multi_run/2010_hex_project_torque_dt_1tau_issue244.yaml \
+  'sweep.include_condition_ids=[nf01__tq1p0e20__dt1e3,nf01__tq2p0e20__dt1e3,nf01__tq2p5e20__dt1e3,nf01__tq3p0e20__dt1e3,nf01__tq3p5e20__dt1e3,nf04__tq1p0e20__dt1e3,nf04__tq2p0e20__dt1e3,nf04__tq2p5e20__dt1e3,nf04__tq3p0e20__dt1e3,nf04__tq3p5e20__dt1e3]'
+```
+
+## Stage 2: seed grid and Δt convergence
+
+Stage 1のheatmapでwarning以外のfailがないことを確認した後に限り、
+`conf/phase2_multi_run/2010_hex_project_seed_grid_1tau_issue244.yaml`で
+`T=2.5e-20 N m/flagellum`・`dt_star=1e-4`、`n=1..6`、attach / phase seed各0..2の
+54 conditionを実行する。
+
+54 conditionが通過した後に限り、
+`conf/phase2_multi_run/2010_hex_project_dt_convergence_1tau_issue244.yaml`で
+`n=3,6`・seed 0・`dt_star=1e-4,5e-5`の4 conditionを比較する。Issue #244の全計画は
+Stage 1の20 + seed grid 54 + convergence 4 = 78 conditionとする。
 
 ## Evidence and next step
 
 各condition manifestは観測されたtotal/body/flagella beads、spring segment数、segment-repulsion pair数を記録し、wall timeとsteps/sの比較に使う。
 
-2026-09-19のlocal screen（`outputs/2026-09-19/142000/`）は10/10 conditionが1τ（10,000 steps）を完走し、各conditionに41-state archiveとtrajectoryを保存した。最終`shape_pass_nonbody`は全conditionで`True`だった一方、全conditionが最初の内部step（`4e-6 s`）で`hook` first-failを記録した。よってこのscreenはtorqueを採択せず、54-condition seed gridへ進めない診断結果とする。3D/2D grid replayは`analysis/replay/`に保存した。600τ campaignはIssue #245の範囲である。
+2026-09-19のlocal baseline（`outputs/2026-09-19/142000/`）は10/10 conditionが1τ（10,000 steps）を完走し、各conditionに41-state archiveとtrajectoryを保存した。最終`shape_pass_nonbody`は全conditionで`True`だった一方、全conditionが最初の内部step（`4e-6 s`）で`hook` first-failを記録した。Stage 1統合解析でその単発hook angle transientを明示的にwarning/failへ分類し、torque・Δtの採択根拠を残す。3D/2D grid replayは`analysis/replay/`に保存した。600τ campaignはIssue #245の範囲である。

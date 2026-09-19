@@ -289,8 +289,8 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Status:** pending
 - **Background:** 2010 projectは`n_flagella>=4`で後方束化条件の破綻があり、三角柱の同一直線上に近い付着配置が一因候補である。一方、2015 profileはflagellum beadsも増えるため、body geometryだけの比較には使えない。
 - **Change:** 2010の11-bead flagellum、`5.8 b`、`ds=0.58 b`、potential/hook/motor transmissionとdiagonal braceを維持し、bodyだけを六角柱30 beadsへ変更した。`n=1..6`は中心環の均等slot配置に限定し、`n=4`をgap `[1,2,1,2]`とする。
-- **Current result (2026-09-19):** `n=1,4` × 5 torqueの10 conditionは1τ（10,000 steps）を完走し、最終nonbody shapeはすべてpassだった。しかし全conditionが最初の内部step（`4e-6 s`）でhook first-failを記録した。`n=1`は41 beads・113 spring segments・1,159 repulsion pairsで約27.1–27.5 steps/s、`n=4`は74 beads・146 segments・5,362 pairsで約6.71–6.75 steps/sだった。replayは3D/2Dの10-panel gridとして保存した。
-- **Decision:** `2010_hex_project`をpending evaluation candidateとしてのみ実装し、Issue #244の1τ fixed-reference torque screenで数値安定性と計算効率を確認する。初期hook failureの原因を診断するまでtorqueを採択せず、canonical採択、54-condition seed grid、600τ campaignを行わない。
+- **Current result (2026-09-19):** `n=1,4` × 5 torque・`dt_star=1e-4`の10 conditionは1τ（10,000 steps）を完走し、最終nonbody shapeはすべてpassだった。しかし全conditionが最初の内部step（`4e-6 s`）でhook first-failを記録した。`n=1`は41 beads・113 spring segments・1,159 repulsion pairsで約27.1–27.5 steps/s、`n=4`は74 beads・146 segments・5,362 pairsで約6.71–6.75 steps/sだった。replayは3D/2Dの10-panel gridとして保存した。
+- **Decision:** `2010_hex_project`をpending evaluation candidateとしてのみ実装し、Issue #244ではlocal `dt_star=1e-3`の同一10 conditionを追加して、20 cellのtorque--Δt heatmapで数値安定性と計算効率を確認する。strict simulator gateは維持し、初回stepのみのhook-angle違反を限定的にwarningとして記録する。warning以外のfailがなければ、`T=2.5e-20 N m/flagellum`・`dt_star=1e-4`で54 seed conditionとn=3/6の4 condition刻み比較を行う。
 - **Evidence:** parent Issue #243、Issue #244、Issue #245、`docs/phase2/phase2_244_2010_hex_1tau_contract.md`、`outputs/2026-09-19/142000/`。
 
 ### P2-D20: RUN–TUMBLEはRUN dataset core完了後に段階実装する

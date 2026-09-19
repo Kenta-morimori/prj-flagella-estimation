@@ -52,6 +52,7 @@ def main(argv: list[str] | None = None) -> None:
         choices=(
             "heatmap",
             "2010-torque-dt",
+            "issue244-torque-dt",
             "2010-fixed-performance",
             "2015-stage-a",
             "spring-formulations",
