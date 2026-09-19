@@ -37,7 +37,7 @@ runbookは`phase2_215_5s_axis_convergence_runbook.md`を正本とする。
 
 ## Next queue
 
-1. **Issue #244:** 2010 flagella条件・六角柱30-bead bodyのpending candidateを、cs10 User-runの1τ torque screen（10条件）で評価する。54-condition seed gridはscreenレビュー後、600τはIssue #245で扱う。
+1. **Issue #244:** 2010 flagella条件・六角柱30-bead bodyのpending candidateは、1τ torque screen（10条件）をローカル直列で完走し、replayを生成済み。全conditionが初期`4e-6 s`でhook first-failを記録したため、torque採択・54-condition seed grid・600τ（Issue #245）へ進める前にhook gateの診断が必要である。
 2. **Issue #200:** #203のprofile比較結果を受け取り，2010 projectの`dt_star`収束性を判断する．
 3. **Issue #61 / #184:** 2015 projectの`dt_star`，torque，本数条件の安定性と計算効率を検証する．
 

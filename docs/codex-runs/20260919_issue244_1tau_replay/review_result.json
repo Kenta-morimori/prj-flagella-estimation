@@ -1,0 +1,52 @@
+{
+  "status": "PASS",
+  "summary": "Issue #244の2010_hex_project 1τ fixed-reference torque screenをarchive有効で再実行し、10/10 conditionの完走、41-state archive、trajectory、3D+2D 10-panel replayを確認した。最終nonbody shapeは全conditionでpassだが、全conditionが最初の内部stepでhook first-failを記録したため、torque採択および次段階campaignは保留した。",
+  "blocking_issues": [
+    "全10 conditionでt=4e-6 sのhook first-failが再現した。原因診断とgate解釈の決定前にtorqueを採択できない。"
+  ],
+  "non_blocking_issues": [
+    "cs10 reservation #6はこのMacからcs10の名前解決ができず取消未完了だが、local campaign結果には影響しない。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": ".venv/bin/pytest -q tests/test_model_profiles.py tests/test_phase2_parallel_job.py",
+      "result": "PASS: 49 passed"
+    },
+    {
+      "command": ".githooks/pre-commit",
+      "result": "PASS: ruff format/check, issue lifecycle check, light pytest (347 passed, 479 deselected)"
+    },
+    {
+      "command": "run_multi_run.py config=conf/phase2_multi_run/2010_hex_project_torque_1tau_issue244.yaml --dry-run",
+      "result": "PASS: 10 conditions"
+    },
+    {
+      "command": "phase2_replay --input-dir outputs/2026-09-19/142000 --mode both --view 3d+2d --max-panels-per-grid 10 --target-frame-count 41",
+      "result": "PASS: 3D/2D single-page 10-condition replay, 41 frames each"
+    }
+  ],
+  "user_review_required": true,
+  "user_review_command": "3D/2D grid replayと初期hook first-failの診断方針をレビューし、torque採択前にgateの扱いを決定する。",
+  "user_review_outputs": [
+    "outputs/2026-09-19/142000/summary.csv",
+    "outputs/2026-09-19/142000/analysis/replay/grid_swim3d.mp4",
+    "outputs/2026-09-19/142000/analysis/replay/grid_projection2d.mp4",
+    "outputs/2026-09-19/142000/analysis/replay/shape_stability_metrics.png"
+  ],
+  "user_review_points": [
+    "10 conditionすべてで最終shape passと初期hook first-failが共存する理由を確認する。",
+    "n=4での中心環分散配置と、torque増加時の形状差を3D/2D replayで確認する。",
+    "hook gateを修正・再基準化・初期transientとして扱うかを決めるまで、54-condition gridを開始しない。"
+  ],
+  "adr_required": false,
+  "adr_reason": "pending candidateのscreen結果を記録しただけで、canonical model、物理解釈、dataset、phase boundaryを変更していない。",
+  "commit_type": "diagnostic",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/246",
+  "next_actions": [
+    "Issue #244で初期hook first-failを診断し、gate解釈と次のscreenを決める。",
+    "決定後にのみ別PRで54-condition seed gridを追加する。",
+    "600τ campaignはIssue #245で扱う。"
+  ]
+}
