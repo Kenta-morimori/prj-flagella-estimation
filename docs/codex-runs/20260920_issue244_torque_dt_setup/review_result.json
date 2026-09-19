@@ -24,8 +24,8 @@
   "adr_required": false,
   "adr_reason": "pending evaluation candidateのscreen契約と解析経路を拡張するだけで、canonical model、物理解釈、dataset、phase boundaryを変更していない。",
   "commit_type": "implementation",
-  "commit_hash": null,
-  "push_status": "not_pushed",
+  "commit_hash": "679ba9c",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/246",
   "next_actions": [
     "ユーザーがdt_star=1e-3の10 conditionをlocal実行する。",
