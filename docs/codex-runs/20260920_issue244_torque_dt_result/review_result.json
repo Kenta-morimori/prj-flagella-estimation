@@ -28,8 +28,8 @@
   "adr_required": false,
   "adr_reason": "pending candidateの短時間screen結果を記録し、既に承認済みのwarning方針を適用しただけで、canonical modelやdataset方針を変更していない。",
   "commit_type": "result-analysis",
-  "commit_hash": null,
-  "push_status": "not_pushed",
+  "commit_hash": "baeb788",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/246",
   "next_actions": [
     "ユーザー許可後にcs10で54-condition seed gridを開始する。",
