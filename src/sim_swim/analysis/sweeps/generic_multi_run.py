@@ -388,6 +388,9 @@ def run_campaign(argv: list[str] | None = None) -> Path:
         "output_root": str(ctx.out.root),
         "save_state_archive": save_state_archive_enabled,
         "hydrodynamics_enabled": base_simulation_cfg.hydrodynamics.enabled,
+        "development_evaluation": dict(
+            campaign.get("development_evaluation", {}) or {}
+        ),
         "replay": dict(campaign.get("replay", {}) or {}),
         "plot": dict(campaign.get("plot", {}) or {}),
         "axes": campaign_axes_metadata(campaign),
@@ -419,6 +422,7 @@ def run_campaign(argv: list[str] | None = None) -> Path:
         existing = json.loads(manifest_path.read_text(encoding="utf-8"))
         existing["input"]["campaign"] = {
             "base_config": str(base_config_path),
+            "development_evaluation": manifest["development_evaluation"],
             "replay": manifest["replay"],
             "plot": manifest["plot"],
         }

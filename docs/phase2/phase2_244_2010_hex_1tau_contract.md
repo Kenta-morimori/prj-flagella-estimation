@@ -14,28 +14,28 @@
 
 ## Stage 1: 1τ torque--Δt screen
 
-既存local run `outputs/2026-09-19/142000/` は、`n=1,4`とmotor torque
-`1.0, 2.0, 2.5, 3.0, 3.5 × 10^-20 N m`、`dt_star=1e-4`の10 conditionである。
-これを再実行せず、`conf/phase2_multi_run/2010_hex_project_torque_dt_1tau_issue244.yaml`
-で同じ10 torque--count cellの`dt_star=1e-3`を追加する。Stage 1全体は20独立conditionである。
+正本は`n=1..6`、motor torque
+`1.0, 2.0, 2.5, 3.0, 3.5 × 10^-20 N m`、`dt_star=1e-4,1e-3`の60 conditionとする。
+既存local run `outputs/2026-09-19/142000/`と`outputs/2026-09-20/000940/`の`n=1,4`・20 conditionを再利用し、
+`conf/phase2_multi_run/2010_hex_project_torque_dt_1tau_issue244.yaml`で不足40 conditionだけを追加する。
 
 - `duration_tau=1`、compact output、Brownian/switching OFF
 - reference torqueは`2.5e-20 N m`に固定し、motor torqueだけを変える
-- 新規10 conditionはユーザーがlocal直列`run_multi_run.py`で実行する。既存・新規とも同一Macのため、physical QCに加えwall timeとsteps/sも比較する。
-- `scripts/03_dataset_building/analyze_dataset.py --analysis-kind issue244-torque-dt`は両runを統合し、`n=1`・`n=4`別のtorque × `dt_star`（2×5）heatmapを作る。
-- strict simulator gateは変更しない。finite/body/flag/hook length/motor diagnosticsが正常で、最初の内部stepだけのhook angle違反、最終nonbody pass、failure sample数1をすべて満たすものだけをIssue #244の解析でwarningとする。
+- 新規40 conditionはユーザーがlocal直列`run_multi_run.py`で実行する。既存・新規とも同一Macのため、physical QCに加えwall timeとsteps/sも比較する。
+- `scripts/03_dataset_building/analyze_dataset.py --analysis-kind model-development-evaluation`は複数runを統合し、`n=1..6`別の`dt_star`（横）× torque（縦）heatmapを作る。
+- hook angleはdiagnostic-onlyとし、hook length、finite、body、flag、motor QCはPASS/FAILを維持する。warning状態は持たない。
 
-新規 `dt_star=1e-3` の10 conditionは以下で起動する。
+不足40 conditionは以下で起動する。
 
 ```bash
 .venv/bin/python scripts/01_simulate_swimming/run_multi_run.py \
   config=conf/phase2_multi_run/2010_hex_project_torque_dt_1tau_issue244.yaml \
-  'sweep.include_condition_ids=[nf01__tq1p0e20__dt1e3,nf01__tq2p0e20__dt1e3,nf01__tq2p5e20__dt1e3,nf01__tq3p0e20__dt1e3,nf01__tq3p5e20__dt1e3,nf04__tq1p0e20__dt1e3,nf04__tq2p0e20__dt1e3,nf04__tq2p5e20__dt1e3,nf04__tq3p0e20__dt1e3,nf04__tq3p5e20__dt1e3]'
+  'sweep.include_condition_ids=[nf02__tq1p0e20__dt1e4,nf02__tq1p0e20__dt1e3,nf02__tq2p0e20__dt1e4,nf02__tq2p0e20__dt1e3,nf02__tq2p5e20__dt1e4,nf02__tq2p5e20__dt1e3,nf02__tq3p0e20__dt1e4,nf02__tq3p0e20__dt1e3,nf02__tq3p5e20__dt1e4,nf02__tq3p5e20__dt1e3,nf03__tq1p0e20__dt1e4,nf03__tq1p0e20__dt1e3,nf03__tq2p0e20__dt1e4,nf03__tq2p0e20__dt1e3,nf03__tq2p5e20__dt1e4,nf03__tq2p5e20__dt1e3,nf03__tq3p0e20__dt1e4,nf03__tq3p0e20__dt1e3,nf03__tq3p5e20__dt1e4,nf03__tq3p5e20__dt1e3,nf05__tq1p0e20__dt1e4,nf05__tq1p0e20__dt1e3,nf05__tq2p0e20__dt1e4,nf05__tq2p0e20__dt1e3,nf05__tq2p5e20__dt1e4,nf05__tq2p5e20__dt1e3,nf05__tq3p0e20__dt1e4,nf05__tq3p0e20__dt1e3,nf05__tq3p5e20__dt1e4,nf05__tq3p5e20__dt1e3,nf06__tq1p0e20__dt1e4,nf06__tq1p0e20__dt1e3,nf06__tq2p0e20__dt1e4,nf06__tq2p0e20__dt1e3,nf06__tq2p5e20__dt1e4,nf06__tq2p5e20__dt1e3,nf06__tq3p0e20__dt1e4,nf06__tq3p0e20__dt1e3,nf06__tq3p5e20__dt1e4,nf06__tq3p5e20__dt1e3]'
 ```
 
 ## Stage 2: seed grid and Δt convergence
 
-Stage 1のheatmapでwarning以外のfailがないことを確認した後に限り、
+Stage 1の60 cell heatmapが全てPASSであることを確認した後に限り、
 `conf/phase2_multi_run/2010_hex_project_seed_grid_1tau_issue244.yaml`で
 `T=2.5e-20 N m/flagellum`・`dt_star=1e-4`、`n=1..6`、attach / phase seed各0..2の
 54 conditionを実行する。
@@ -43,14 +43,14 @@ Stage 1のheatmapでwarning以外のfailがないことを確認した後に限�
 54 conditionが通過した後に限り、
 `conf/phase2_multi_run/2010_hex_project_dt_convergence_1tau_issue244.yaml`で
 `n=3,6`・seed 0・`dt_star=1e-4,5e-5`の4 conditionを比較する。Issue #244の全計画は
-Stage 1の20 + seed grid 54 + convergence 4 = 78 conditionとする。
+Stage 1の60 + seed grid 54 + convergence 4 = 118 conditionとする。
 
 ## Evidence and next step
 
 各condition manifestは観測されたtotal/body/flagella beads、spring segment数、segment-repulsion pair数を記録し、wall timeとsteps/sの比較に使う。
 
-2026-09-19のlocal baseline（`outputs/2026-09-19/142000/`）は10/10 conditionが1τ（10,000 steps）を完走し、各conditionに41-state archiveとtrajectoryを保存した。最終`shape_pass_nonbody`は全conditionで`True`だった一方、全conditionが最初の内部step（`4e-6 s`）で`hook` first-failを記録した。Stage 1統合解析でその単発hook angle transientを明示的にwarning/failへ分類し、torque・Δtの採択根拠を残す。3D/2D grid replayは`analysis/replay/`に保存した。600τ campaignはIssue #245の範囲である。
+2026-09-19のlocal baseline（`outputs/2026-09-19/142000/`）は10/10 conditionが1τ（10,000 steps）を完走し、各conditionに41-state archiveとtrajectoryを保存した。最終`shape_pass_nonbody`は全conditionで`True`だった一方、全conditionが最初の内部step（`4e-6 s`）で`hook` first-failを記録した。hook angleは後方束化や長さ破綻を意味しないため、診断として保持しつつPASS/FAILから除外する。600τ campaignはIssue #245の範囲である。
 
-2026-09-20のlocal `dt_star=1e-3` 10 condition（`outputs/2026-09-20/000940/`）は、全conditionが1τ（1,000 steps）を完走し、41-state archive、trajectory、3D/2D replayを保存した。finite/body/nonbodyのstrict gateは10/10 passである。既存`dt_star=1e-4` 10 conditionは指定どおり初回hook-angle transientだけのwarning、`dt_star=1e-3`は10/10 strict passとなり、20 cellにwarning以外のfailはない。統合heatmapは`outputs/2026-09-20/000940/analysis/issue244_torque_dt/`に保存した。
+2026-09-20のlocal `dt_star=1e-3` 10 condition（`outputs/2026-09-20/000940/`）は、全conditionが1τ（1,000 steps）を完走し、41-state archive、trajectory、3D/2D replayを保存した。共通評価器は既存20 conditionと新規40 conditionを`model_development_evaluation/`へ統合し、PNG heatmapと固定camera・各べん毛軸付きのΔt別MP4を出力する。
 
 Stage 2はcs10 user-run対象であり、ユーザーが明示的に開始を許可した後に限る。54 condition jobは`conf/phase2_parallel/issue244_2010_hex_seed_grid_1tau/job.yaml`、その後の4 condition刻み比較jobは`conf/phase2_parallel/issue244_2010_hex_dt_convergence_1tau/job.yaml`を使用する。いずれも3 workers、全condition geometry preflightを必須とする。

@@ -1,0 +1,41 @@
+{
+  "status": "PASS",
+  "summary": "Issue #244の1τ screenを60 conditionへ拡張する共通model-development evaluation基盤を実装した。既存20 conditionは条件値で正規化して再利用し、不足40 conditionを検出する。hook angleはdiagnostic-only、finite/body/hook length/flag/motorはPASS/FAILとし、長時間の遊泳特徴量評価は別Issueへ分離した。",
+  "blocking_issues": [
+    "60 cell統合評価には、n=2,3,5,6の不足40 conditionのlocal user-runが必要。"
+  ],
+  "non_blocking_issues": [
+    "長時間stageと遊泳特徴量評価はそれぞれ後続Issueの責務。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest -q tests/test_issue244_torque_dt.py tests/test_phase2_generic_multi_run.py tests/test_common_replay_cli.py tests/test_phase2_parallel_job.py",
+      "result": "PASS: 101 passed"
+    },
+    {
+      "command": ".githooks/pre-commit",
+      "result": "PASS: ruff format/check、issue lifecycle check、light pytest 347 passed"
+    },
+    {
+      "command": "model-development-evaluation --dry-run with existing two run roots",
+      "result": "EXPECTED BLOCK: 既存20 conditionを認識し、不足40 conditionを正確に報告した。"
+    },
+    {
+      "command": "skill-creator quick_validate .agents/skills/model-development-evaluation",
+      "result": "PASS: Skill is valid"
+    }
+  ],
+  "user_review_required": true,
+  "user_review_command": "不足40 conditionのlocal実行後、共通evaluationを --render-replay で実行し、n=1..6のPNGとΔt別MP4を確認する。",
+  "adr_required": true,
+  "adr": "docs/adr/0021_phase2_model_development_evaluation.md",
+  "commit_type": "feat(phase2)",
+  "commit_hash": "pending",
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/246",
+  "next_actions": [
+    "ユーザーが不足40 conditionをlocal serialで実行する。",
+    "60 conditionがPASSした場合だけ、Issue #244のseed gridと刻み比較を開始する。",
+    "長時間campaign後の遊泳特徴量評価は別Issueで開始する。"
+  ]
+}

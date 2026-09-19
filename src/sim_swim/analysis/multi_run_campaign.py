@@ -12,6 +12,7 @@ import yaml
 from sim_swim.analysis.flagella_count_behavior import normalize_base_overrides
 
 CAMPAIGN_OVERRIDE_ROOTS = {
+    "development_evaluation",
     "metadata",
     "base_config",
     "base_overrides",
