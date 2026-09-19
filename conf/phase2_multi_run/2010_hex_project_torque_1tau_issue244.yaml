@@ -41,5 +41,5 @@ sweep:
 output:
   base_dir: outputs
   timestamp_subdir: true
-  save_state_archive: false
+  save_state_archive: true
   progress_interval: 1000

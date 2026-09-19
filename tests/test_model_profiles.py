@@ -256,7 +256,7 @@ def test_2010_hex_project_is_evaluation_ready_with_observed_topology() -> None:
     assert topology["segment_repulsion_pair_count"] >= 0
 
 
-def test_issue244_screen_uses_fixed_reference_torque_and_compact_1tau_contract() -> (
+def test_issue244_screen_uses_fixed_reference_torque_and_replayable_1tau_contract() -> (
     None
 ):
     campaign = yaml.safe_load(
@@ -276,6 +276,7 @@ def test_issue244_screen_uses_fixed_reference_torque_and_compact_1tau_contract()
     assert overrides["motor.enable_switching"] is False
     assert overrides["brownian.enabled"] is False
     assert overrides["output.policy"] == "compact"
+    assert campaign["output"]["save_state_archive"] is True
     assert campaign["sweep"]["axes"]["n_flagella"]["values"] == [1, 4]
     assert len(campaign["sweep"]["axes"]["motor_torque"]["values"]) == 5
 
