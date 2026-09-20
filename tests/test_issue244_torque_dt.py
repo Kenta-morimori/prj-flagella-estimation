@@ -145,6 +145,8 @@ def test_common_evaluation_reuses_runs_and_ignores_hook_angle_only(
     )
     assert outputs["summary_csv"].is_file()
     assert outputs["manifest"].is_file()
+    assert (outputs["manifest"].parent / "manifest.json").is_file()
+    assert (outputs["manifest"].parent / "run.log").is_file()
     for n_flagella in range(1, 7):
         assert outputs[f"heatmap_nf{n_flagella:02d}"].is_file()
     manifest = json.loads(outputs["manifest"].read_text(encoding="utf-8"))
@@ -214,6 +216,25 @@ def test_common_evaluation_rejects_untrusted_campaign_identity(tmp_path: Path) -
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     with pytest.raises(ValueError, match="Invalid Git provenance"):
         collect_rows(config=load_yaml(CONFIG), run_dirs=[fine, coarse])
+
+
+def test_common_evaluation_resolves_synchronized_condition_directories(
+    tmp_path: Path,
+) -> None:
+    fine, coarse = _write_runs(tmp_path)
+    manifest_path = fine / "run_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for record in manifest["conditions"]:
+        record["output_dir"] = f"/cs10/original/{record['condition_id']}"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    rows, _ = collect_rows(config=load_yaml(CONFIG), run_dirs=[fine, coarse])
+    assert len(rows) == 60
+    assert all(
+        str(fine) in row["source_output_dir"]
+        for row in rows
+        if row["dt_star"] == 1.0e-4
+    )
 
 
 def test_common_evaluation_rejects_missing_cell(tmp_path: Path) -> None:

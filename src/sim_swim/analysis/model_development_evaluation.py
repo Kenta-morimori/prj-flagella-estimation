@@ -159,6 +159,26 @@ def _source_rows(run_dir: Path) -> dict[str, dict[str, str]]:
         return {str(row["condition_id"]): row for row in csv.DictReader(handle)}
 
 
+def _resolve_condition_output_dir(
+    *, run_dir: Path, record: dict[str, Any], source_condition_id: str
+) -> Path:
+    """Resolve a condition directory after an archive is moved between hosts."""
+
+    configured = Path(str(record["output_dir"])).expanduser()
+    candidates = [configured]
+    for condition_id in (source_condition_id, str(record["condition_id"])):
+        candidates.extend(
+            (run_dir / condition_id, run_dir / "conditions" / condition_id)
+        )
+    for candidate in candidates:
+        if (candidate / "run_summary.json").is_file():
+            return candidate.resolve()
+    raise FileNotFoundError(
+        "Could not resolve synchronized condition output for "
+        f"{source_condition_id} under {run_dir}"
+    )
+
+
 def _profile_key(profile: dict[str, Any]) -> tuple[Any, ...]:
     return tuple(profile.get(key) for key in ("year", "variant", "resolution"))
 
@@ -299,15 +319,19 @@ def collect_rows(
                 raise ValueError(
                     f"Config override mismatch for {source_condition_id} in {run_dir}"
                 )
-            source_summary = _read_json(
-                Path(str(record["output_dir"])).resolve() / "run_summary.json"
+            output_dir = _resolve_condition_output_dir(
+                run_dir=run_dir,
+                record=record,
+                source_condition_id=source_condition_id,
             )
+            source_summary = _read_json(output_dir / "run_summary.json")
             _require_completed_source(
                 summary=source_summary,
                 source_row=source_rows[source_condition_id],
                 condition_id=source_condition_id,
             )
             canonical_record = dict(record)
+            canonical_record["output_dir"] = str(output_dir)
             canonical_record["condition_id"] = condition_id
             canonical_record["source_condition_id"] = source_condition_id
             records_by_id[condition_id] = (
@@ -415,7 +439,13 @@ def _write_replay_input(
             source_condition_id = str(record["condition_id"])
             record["condition_id"] = expected_by_key[_record_key(record)]
             record["source_condition_id"] = source_condition_id
-            record["output_dir"] = str(Path(str(record["output_dir"])).resolve())
+            record["output_dir"] = str(
+                _resolve_condition_output_dir(
+                    run_dir=run_dir,
+                    record=record,
+                    source_condition_id=source_condition_id,
+                )
+            )
             records.append(record)
             summary_row = dict(source_rows[source_condition_id])
             summary_row["condition_id"] = str(record["condition_id"])
@@ -514,26 +544,28 @@ def build_evaluation(
     if render_replay:
         _render_replays(rows, replay_input=replay_input, output_dir=output_dir)
         outputs["replay"] = output_dir / "replay"
+    manifest = {
+        "kind": "model_development_evaluation",
+        "config": str(config_path),
+        "stage": "short_screen",
+        "condition_count": len(rows),
+        "status_counts": {
+            status: sum(row["screen_status"] == status for row in rows)
+            for status in ("pass", "fail")
+        },
+        "qc_policy": "hook_angle_err_max_deg is diagnostic-only; all other required QC remains PASS/FAIL",
+        "provenance": provenance,
+        "outputs": {key: str(value) for key, value in outputs.items()},
+    }
+    manifest_text = json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
     manifest_path = output_dir / "evaluation_manifest.json"
-    manifest_path.write_text(
-        json.dumps(
-            {
-                "kind": "model_development_evaluation",
-                "config": str(config_path),
-                "stage": "short_screen",
-                "condition_count": len(rows),
-                "status_counts": {
-                    status: sum(row["screen_status"] == status for row in rows)
-                    for status in ("pass", "fail")
-                },
-                "qc_policy": "hook_angle_err_max_deg is diagnostic-only; all other required QC remains PASS/FAIL",
-                "provenance": provenance,
-                "outputs": {key: str(value) for key, value in outputs.items()},
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n",
+    manifest_path.write_text(manifest_text, encoding="utf-8")
+    (output_dir / "manifest.json").write_text(manifest_text, encoding="utf-8")
+    (output_dir / "run.log").write_text(
+        "model-development-evaluation completed\n"
+        f"config={config_path}\n"
+        f"condition_count={len(rows)}\n"
+        f"input_run_dirs=" + ",".join(str(path.resolve()) for path in run_dirs) + "\n",
         encoding="utf-8",
     )
     outputs["manifest"] = manifest_path
