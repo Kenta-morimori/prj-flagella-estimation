@@ -31,9 +31,10 @@ def _summary(*, hook_angle_only: bool = False, hook_length_fail: bool = False) -
         "flag_torsion_err_max_deg": {"max": 1.0},
         "body_spring_max_stretch_ratio": {"max": 0.04},
         "motor_force_balance_residual_ratio": {"max": 1.0e-12},
-        "motor_torque_balance_residual_ratio": {"max": 0.2},
+        "motor_torque_balance_residual_ratio": {"max": 0.01},
     }
     return {
+        "execution": {"status": "completed"},
         "gates": {
             "finite": {"any_fail": False},
             "shape_body": {"any_fail": False},
@@ -93,10 +94,11 @@ def _write_runs(
             json.dumps(
                 {
                     "base_config": "conf/sim_swim_2010_hex.yaml",
+                    "campaign_config": str(CONFIG.relative_to(ROOT)),
                     "model_profile": load_yaml(ROOT / "conf/sim_swim_2010_hex.yaml")[
                         "model_profile"
                     ],
-                    "git": {"commit": name},
+                    "git": {"commit": name, "is_clean": True},
                     "conditions": records,
                 }
             ),
@@ -162,6 +164,28 @@ def test_common_evaluation_rejects_remaining_hook_length_failure(
     assert selected["screen_status"] == "fail"
 
 
+def test_common_evaluation_rejects_motor_residual_and_partial_source(
+    tmp_path: Path,
+) -> None:
+    fine, coarse = _write_runs(tmp_path)
+    target = fine / "nf01__tq1p0e20__dt1e4" / "run_summary.json"
+    summary = _summary()
+    summary["all_step_metrics"]["motor_torque_balance_residual_ratio"]["max"] = 0.2
+    target.write_text(json.dumps(summary), encoding="utf-8")
+    rows, _ = collect_rows(config=load_yaml(CONFIG), run_dirs=[fine, coarse])
+    assert (
+        next(row for row in rows if row["condition_id"] == "nf01__tq1p0e20__dt1e4")[
+            "screen_status"
+        ]
+        == "fail"
+    )
+
+    summary["execution"] = {"status": "partial"}
+    target.write_text(json.dumps(summary), encoding="utf-8")
+    with pytest.raises(ValueError, match="not completed"):
+        collect_rows(config=load_yaml(CONFIG), run_dirs=[fine, coarse])
+
+
 def test_replay_manifest_uses_parent_config_for_legacy_records(tmp_path: Path) -> None:
     fine, coarse = _write_runs(tmp_path, omit_record_source_config=True)
     outputs = build_evaluation(
@@ -174,6 +198,22 @@ def test_replay_manifest_uses_parent_config_for_legacy_records(tmp_path: Path) -
     )
     assert replay_manifest["base_config"] == "conf/sim_swim_2010_hex.yaml"
     assert len(replay_manifest["conditions"]) == 60
+
+
+def test_common_evaluation_rejects_untrusted_campaign_identity(tmp_path: Path) -> None:
+    fine, coarse = _write_runs(tmp_path)
+    manifest_path = fine / "run_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["conditions"][0]["config_overrides"]["brownian"]["enabled"] = True
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(ValueError, match="Config override mismatch"):
+        collect_rows(config=load_yaml(CONFIG), run_dirs=[fine, coarse])
+
+    manifest["conditions"][0]["config_overrides"]["brownian"]["enabled"] = False
+    manifest["git"]["is_clean"] = False
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(ValueError, match="Invalid Git provenance"):
+        collect_rows(config=load_yaml(CONFIG), run_dirs=[fine, coarse])
 
 
 def test_common_evaluation_rejects_missing_cell(tmp_path: Path) -> None:

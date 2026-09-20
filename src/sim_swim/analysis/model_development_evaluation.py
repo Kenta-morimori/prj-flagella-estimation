@@ -69,7 +69,7 @@ def _all_finite(values: list[float]) -> bool:
     return all(math.isfinite(value) for value in values)
 
 
-def screen_status(summary: dict[str, Any]) -> str:
+def screen_status(summary: dict[str, Any], *, qc: dict[str, Any]) -> str:
     """Return PASS/FAIL using physical gates without hook-angle screening.
 
     Hook angle remains a diagnostic metric.  Its old 30-degree generic gate
@@ -94,6 +94,10 @@ def screen_status(summary: dict[str, Any]) -> str:
         _maximum(summary, "motor_torque_balance_residual_ratio"),
     ]
     if not _all_finite([*hook, *flag, *motor]):
+        return "fail"
+    if motor[0] > float(qc["max_motor_force_balance_residual_ratio"]) or motor[
+        1
+    ] > float(qc["max_motor_torque_balance_residual_ratio"]):
         return "fail"
     if max(hook) > NONBODY_HOOK_REL_ERR_MAX_LIMIT:
         return "fail"
@@ -138,6 +142,15 @@ def _development_contract(config: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("development_evaluation.expected_condition_count is required")
     if not isinstance(contract.get("axes"), list) or not contract["axes"]:
         raise ValueError("development_evaluation.axes is required")
+    qc = dict(contract.get("qc", {}) or {})
+    for name in (
+        "max_motor_force_balance_residual_ratio",
+        "max_motor_torque_balance_residual_ratio",
+    ):
+        if not math.isfinite(float(qc.get(name, float("nan")))):
+            raise ValueError(f"development_evaluation.qc.{name} is required")
+    if not isinstance(contract.get("accepted_source_campaigns"), list):
+        raise ValueError("development_evaluation.accepted_source_campaigns is required")
     return contract
 
 
@@ -150,7 +163,9 @@ def _profile_key(profile: dict[str, Any]) -> tuple[Any, ...]:
     return tuple(profile.get(key) for key in ("year", "variant", "resolution"))
 
 
-def _row(record: dict[str, Any], source_row: dict[str, str]) -> dict[str, Any]:
+def _row(
+    record: dict[str, Any], source_row: dict[str, str], *, qc: dict[str, Any]
+) -> dict[str, Any]:
     output_dir = Path(str(record["output_dir"])).resolve()
     summary = _read_json(output_dir / "run_summary.json")
     performance = _read_json(output_dir / "performance.json")
@@ -162,7 +177,7 @@ def _row(record: dict[str, Any], source_row: dict[str, str]) -> dict[str, Any]:
         "torque_Nm": float(axes["motor_torque"]),
         "dt_star": float(time["dt_star"]),
         "dt_internal_s": float(time["dt_internal_s"]),
-        "screen_status": screen_status(summary),
+        "screen_status": screen_status(summary, qc=qc),
         "raw_nonbody_any_fail": _gate_failed(summary, "shape_nonbody"),
         "raw_first_failure_category": str(
             dict(summary.get("gates", {}).get("shape_nonbody", {}) or {}).get(
@@ -188,6 +203,32 @@ def _row(record: dict[str, Any], source_row: dict[str, str]) -> dict[str, Any]:
     return values
 
 
+def _equal_values(left: Any, right: Any) -> bool:
+    """Compare manifest values while tolerating JSON float representation."""
+
+    if isinstance(left, dict) and isinstance(right, dict):
+        return set(left) == set(right) and all(
+            _equal_values(left[key], right[key]) for key in left
+        )
+    if isinstance(left, list) and isinstance(right, list):
+        return len(left) == len(right) and all(
+            _equal_values(a, b) for a, b in zip(left, right, strict=True)
+        )
+    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+        return math.isclose(float(left), float(right), rel_tol=1e-12, abs_tol=1e-30)
+    return left == right
+
+
+def _require_completed_source(
+    *, summary: dict[str, Any], source_row: dict[str, str], condition_id: str
+) -> None:
+    if not _bool(source_row.get("completed", "")):
+        raise ValueError(f"Source condition is not completed: {condition_id}")
+    execution = dict(summary.get("execution", {}) or {})
+    if execution.get("status") != "completed":
+        raise ValueError(f"Source run_summary is not completed: {condition_id}")
+
+
 def collect_rows(
     *, config: dict[str, Any], run_dirs: list[Path]
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -206,13 +247,26 @@ def collect_rows(
     expected_profile = dict(
         load_yaml(Path(str(config["base_config"]))).get("model_profile") or {}
     )
+    expected_base_config = str(config["base_config"])
+    accepted_campaigns = {str(item) for item in contract["accepted_source_campaigns"]}
+    qc = dict(contract["qc"])
     records_by_id: dict[str, tuple[dict[str, Any], dict[str, str]]] = {}
     provenance: list[dict[str, Any]] = []
     for run_dir in run_dirs:
         manifest = _read_json(run_dir / "run_manifest.json")
         profile = dict(manifest.get("model_profile", {}) or {})
-        if _profile_key(profile) != _profile_key(expected_profile):
+        if profile != expected_profile:
             raise ValueError(f"Model profile mismatch in {run_dir}: {profile}")
+        if str(manifest.get("base_config") or "") != expected_base_config:
+            raise ValueError(f"Base config mismatch in {run_dir}")
+        campaign_config = str(manifest.get("campaign_config") or "")
+        if campaign_config not in accepted_campaigns:
+            raise ValueError(
+                f"Unaccepted source campaign in {run_dir}: {campaign_config}"
+            )
+        git = dict(manifest.get("git", {}) or {})
+        if not str(git.get("commit") or "") or git.get("is_clean") is not True:
+            raise ValueError(f"Invalid Git provenance in {run_dir}")
         source_rows = _source_rows(run_dir)
         provenance.append(
             {
@@ -238,6 +292,21 @@ def collect_rows(
                 raise ValueError(
                     f"Missing summary row for {source_condition_id} in {run_dir}"
                 )
+            expected_record = expected[condition_id]
+            if not _equal_values(
+                record.get("config_overrides"), expected_record["config_overrides"]
+            ):
+                raise ValueError(
+                    f"Config override mismatch for {source_condition_id} in {run_dir}"
+                )
+            source_summary = _read_json(
+                Path(str(record["output_dir"])).resolve() / "run_summary.json"
+            )
+            _require_completed_source(
+                summary=source_summary,
+                source_row=source_rows[source_condition_id],
+                condition_id=source_condition_id,
+            )
             canonical_record = dict(record)
             canonical_record["condition_id"] = condition_id
             canonical_record["source_condition_id"] = source_condition_id
@@ -248,7 +317,9 @@ def collect_rows(
     missing = sorted(set(expected) - set(records_by_id))
     if missing:
         raise ValueError("Missing expected conditions: " + ", ".join(missing))
-    rows = [_row(*records_by_id[condition_id]) for condition_id in sorted(expected)]
+    rows = [
+        _row(*records_by_id[condition_id], qc=qc) for condition_id in sorted(expected)
+    ]
     rows.sort(key=lambda row: (row["n_flagella"], row["torque_Nm"], row["dt_star"]))
     return rows, provenance
 

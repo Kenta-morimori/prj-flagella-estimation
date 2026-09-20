@@ -18,6 +18,11 @@ development_evaluation:
   qc:
     exclude_diagnostics_from_gate: [hook_angle_err_max_deg]
     required_gates: [finite, shape_body, hook_length, flag, motor]
+    max_motor_force_balance_residual_ratio: 1.0e-8
+    max_motor_torque_balance_residual_ratio: 2.0e-2
+  accepted_source_campaigns:
+    - conf/phase2_multi_run/2010_hex_project_torque_1tau_issue244.yaml
+    - conf/phase2_multi_run/2010_hex_project_torque_dt_1tau_issue244.yaml
   replay:
     group_by: [dt_star, n_flagella]
     camera_3d: fixed
