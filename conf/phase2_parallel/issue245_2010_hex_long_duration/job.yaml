@@ -1,0 +1,27 @@
+schema_version: 1
+job_id: issue245_2010_hex_long_duration_2s
+configs:
+  - conf/phase2_multi_run/2010_hex_project_long_duration_2s_issue245.yaml
+conditions:
+  - nf01__as000__ps000
+  - nf01__as001__ps000
+  - nf01__as002__ps000
+  - nf02__as000__ps000
+  - nf02__as001__ps000
+  - nf02__as002__ps000
+  - nf03__as000__ps000
+  - nf03__as001__ps000
+  - nf03__as002__ps000
+  - nf04__as000__ps000
+  - nf04__as001__ps000
+  - nf04__as002__ps000
+  - nf05__as000__ps000
+  - nf05__as001__ps000
+  - nf05__as002__ps000
+  - nf06__as000__ps000
+  - nf06__as000__ps001
+  - nf06__as000__ps002
+preflight: geometry_all_conditions
+execution:
+  max_workers: 3
+  worker_policy: cs10_qualified

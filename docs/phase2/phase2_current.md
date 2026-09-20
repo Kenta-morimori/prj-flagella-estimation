@@ -38,8 +38,9 @@ runbookは`phase2_215_5s_axis_convergence_runbook.md`を正本とする。
 
 ## Next queue
 
-1. **Issue #244 / #245:** 2010 hex候補の60 cell共通short screenはstrict QCをPASS済み。2015 projectのdataset不採用を受け、長時間評価を別作業で扱う。
-2. **Issue #200:** #203のprofile比較結果を受け取り、2010 projectの`dt_star`収束性を判断する。
+1. **Issue #245:** `2010_hex_project` pending candidateは、#244の60/60 short screen PASS後に、固定`T=2.5e-20 N m/flagellum`・`dt_star=1e-3`・2.0 s（50τ、50,000 steps）の18条件long-duration評価へ進む。cs10 user-runは同一18 shardの`0.001 s` qualification 18/18 PASSとユーザーの明示許可後だけ開始する。hook angleはdiagnostic-onlyであり、遊泳特徴量解析はPASS archiveを受け取る後続Issueの責務である。
+2. **Issue #244:** Stage 1の60 cell short screenは完了済み。Stage 2の54-condition seed gridと、その結果に条件づくn=3/6・4-condition刻み比較は未開始であり、ユーザーの明示許可後にのみ開始する。
+3. **Issue #200:** #203のprofile比較結果を受け取り、2010 projectの`dt_star`収束性を判断する。
 
 ## Current blockers
 
@@ -74,6 +75,7 @@ runbookは`phase2_215_5s_axis_convergence_runbook.md`を正本とする。
 - Issue #204 feature-study reference: `docs/phase2/phase2_204_feature_study_reference.md`
 - Issue #215 5.0 s diagnostic: `docs/phase2/phase2_215_5s_axis_convergence_runbook.md`
 - Issue #244 2010 hex 1τ contract: `docs/phase2/phase2_244_2010_hex_1tau_contract.md`
+- Issue #245 2010 hex long-duration runbook: `docs/phase2/phase2_245_2010_hex_long_duration_runbook.md`
 - Axis / feature contracts: `phase2_7_flag_helix_axis_diagnostics.md`, `phase2_8_flagella_count_feature_definitions.md`
 - Model correspondence: `phase2_163_2010_potential_correspondence.md`, `phase2_167_2015_paper_conditions.md`
 - ADRs: `docs/adr/`

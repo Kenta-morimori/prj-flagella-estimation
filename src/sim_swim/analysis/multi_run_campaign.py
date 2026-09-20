@@ -233,6 +233,12 @@ def apply_campaign_cli_overrides(
         effective["base_overrides"] = _merge_nested(
             effective["base_overrides"], simulation_nested
         )
+        # A launcher qualification may intentionally use the legacy
+        # time.duration_s override.  Do not retain an incompatible canonical
+        # duration from the campaign at the same time.
+        time_override = dict(simulation_nested.get("time", {}) or {})
+        if "duration_s" in time_override:
+            effective["base_overrides"].setdefault("time", {}).pop("duration", None)
     return normalize_campaign_config(effective)
 
 

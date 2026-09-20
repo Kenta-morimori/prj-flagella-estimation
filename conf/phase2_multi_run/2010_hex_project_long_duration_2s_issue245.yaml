@@ -1,0 +1,94 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  description: Issue #245 2010 hex project 2 s long-duration evaluation.
+  source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/245
+  model_id: 2010_hex_project_issue245
+  model_notes:
+    - Pending evaluation candidate only; this campaign does not adopt a canonical model.
+    - n=6 occupies all six hex slots and is full_ring_rotation_equivalent.
+
+development_evaluation:
+  version: 1
+  profile_id: 2010_hex_project
+  stage: long_duration
+  expected_condition_count: 18
+  axes: [n_flagella, attach_seed, phase_seed]
+  qc:
+    exclude_diagnostics_from_gate: [hook_angle_err_max_deg]
+    required_gates: [finite, shape_body, hook_length, flag, motor]
+    max_motor_force_balance_residual_ratio: 1.0e-8
+    max_motor_torque_balance_residual_ratio: 2.0e-2
+  accepted_source_campaigns:
+    - conf/phase2_multi_run/2010_hex_project_long_duration_2s_issue245.yaml
+  replay:
+    group_by: [n_flagella, attach_seed, phase_seed]
+    camera_3d: fixed
+    view_range_mode: campaign-envelope
+    show_flagella_axes: true
+  long_duration:
+    duration_s: 2.0
+    reference_tau: 50
+    expected_steps: 50000
+    full_ring_rotation_equivalent: n_flagella == 6
+    feature_evaluation: separate_issue
+
+base_config: conf/sim_swim_2010_hex.yaml
+
+base_overrides:
+  time.duration: {value: 2.0, unit: s}
+  time.scale_policy: reference_torque
+  time.integration.dt_star: 1.0e-3
+  motor.torque_Nm: 2.5e-20
+  motor.reference_torque_Nm: 2.5e-20
+  motor.enable_switching: false
+  brownian.enabled: false
+  output.policy: compact
+  output.archive_interval_s: 0.001
+
+sweep:
+  axes:
+    n_flagella:
+      key: flagella.n_flagella
+      short_name: nf
+      values: [1, 2, 3, 4, 5, 6]
+      labels: ["1", "2", "3", "4", "5", "6"]
+      ids: [nf01, nf02, nf03, nf04, nf05, nf06]
+    attach_seed:
+      key: seed.attach_seed
+      short_name: as
+      values: [0, 1, 2]
+      labels: ["0", "1", "2"]
+      ids: [as000, as001, as002]
+    phase_seed:
+      key: seed.phase_seed
+      short_name: ps
+      values: [0, 1, 2]
+      labels: ["0", "1", "2"]
+      ids: [ps000, ps001, ps002]
+  include_condition_ids:
+    - nf01__as000__ps000
+    - nf01__as001__ps000
+    - nf01__as002__ps000
+    - nf02__as000__ps000
+    - nf02__as001__ps000
+    - nf02__as002__ps000
+    - nf03__as000__ps000
+    - nf03__as001__ps000
+    - nf03__as002__ps000
+    - nf04__as000__ps000
+    - nf04__as001__ps000
+    - nf04__as002__ps000
+    - nf05__as000__ps000
+    - nf05__as001__ps000
+    - nf05__as002__ps000
+    - nf06__as000__ps000
+    - nf06__as000__ps001
+    - nf06__as000__ps002
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 1000

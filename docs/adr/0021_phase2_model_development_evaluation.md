@@ -10,7 +10,7 @@ Accepted
 
 ## Decision
 
-`implementation_status: pending` のPhase 2 profileは、`development_evaluation`契約を持つ。Codexはrepository-discoverable `model-development-evaluation` skillを用い、共通集約器でshort screenのcondition coverage、profile、provenance、PASS/FAIL QC、べん毛数別PNG、固定camera replayを作成する。
+`implementation_status: pending` のPhase 2 profileは、`development_evaluation`契約を持つ。Codexはrepository-discoverable `model-development-evaluation` skillを用い、共通集約器でshort screenまたはlong_durationのcondition coverage、profile、provenance、PASS/FAIL QC、統合summary、window QC、artifact SHA-256、固定camera replayを作成する。
 
 hook angleは診断として保存するが、shape PASS/FAILには用いない。finite、body、hook length、flag、motor diagnosticsは引き続きgateとする。
 
@@ -21,3 +21,4 @@ hook angleは診断として保存するが、shape PASS/FAILには用いない�
 - Issue専用のmodel-evaluation解析器を新設しない。
 - 既存のpending 2010 hex / 2015 project / 2015 paper profileも契約を宣言する。
 - 1τ結果だけで長時間束化や特徴量の採否を主張しない。
+- long_durationは全conditionのstrict PASS、required artifact、同期後のSHA-256検証を満たすまで後続特徴量評価へ渡さない。

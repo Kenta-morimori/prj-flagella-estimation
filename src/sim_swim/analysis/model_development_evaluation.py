@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -117,27 +118,28 @@ def _expected_conditions(config: dict[str, Any]) -> dict[str, dict[str, Any]]:
     }
 
 
-def _condition_key(
-    *, n_flagella: Any, motor_torque: Any, dt_star: Any
-) -> tuple[int, float, float]:
-    return (int(n_flagella), float(motor_torque), float(dt_star))
+def _record_key(record: dict[str, Any], axis_names: list[str]) -> tuple[Any, ...]:
+    """Return the declared evaluation-axis identity for one condition."""
 
-
-def _record_key(record: dict[str, Any]) -> tuple[int, float, float]:
     axes = dict(record.get("axis_values", {}) or {})
     time = dict(record.get("time", {}) or {})
-    dt_star = axes["dt_star"] if "dt_star" in axes else time["dt_star"]
-    return _condition_key(
-        n_flagella=axes["n_flagella"],
-        motor_torque=axes["motor_torque"],
-        dt_star=dt_star,
-    )
+    values: list[Any] = []
+    for name in axis_names:
+        value = axes[name] if name in axes else time.get(name)
+        if value is None:
+            raise KeyError(f"Missing evaluation axis {name}")
+        values.append(
+            float(value) if name in {"motor_torque", "dt_star"} else int(value)
+        )
+    return tuple(values)
 
 
 def _development_contract(config: dict[str, Any]) -> dict[str, Any]:
     contract = dict(config.get("development_evaluation", {}) or {})
-    if contract.get("stage") != "short_screen":
-        raise ValueError("development_evaluation.stage must be short_screen")
+    if contract.get("stage") not in {"short_screen", "long_duration"}:
+        raise ValueError(
+            "development_evaluation.stage must be short_screen or long_duration"
+        )
     if int(contract.get("expected_condition_count", 0)) <= 0:
         raise ValueError("development_evaluation.expected_condition_count is required")
     if not isinstance(contract.get("axes"), list) or not contract["axes"]:
@@ -183,20 +185,37 @@ def _profile_key(profile: dict[str, Any]) -> tuple[Any, ...]:
     return tuple(profile.get(key) for key in ("year", "variant", "resolution"))
 
 
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _first_failure(summary: dict[str, Any]) -> tuple[str, float | str]:
+    for gate_name in ("finite", "shape_body", "shape_nonbody"):
+        gate = dict(summary.get("gates", {}).get(gate_name, {}) or {})
+        if gate.get("any_fail", False):
+            return (
+                str(gate.get("first_failure_category") or gate_name),
+                gate.get("first_failure_t_s", gate.get("first_failure_step", "")),
+            )
+    return ("", "")
+
+
 def _row(
-    record: dict[str, Any], source_row: dict[str, str], *, qc: dict[str, Any]
+    record: dict[str, Any],
+    source_row: dict[str, str],
+    *,
+    qc: dict[str, Any],
+    stage: str,
 ) -> dict[str, Any]:
     output_dir = Path(str(record["output_dir"])).resolve()
     summary = _read_json(output_dir / "run_summary.json")
     performance = _read_json(output_dir / "performance.json")
     axes = dict(record.get("axis_values", {}) or {})
     time = dict(record.get("time", {}) or {})
+    first_failure_category, first_failure_at = _first_failure(summary)
     values: dict[str, Any] = {
         "condition_id": str(record["condition_id"]),
         "n_flagella": int(axes["n_flagella"]),
-        "torque_Nm": float(axes["motor_torque"]),
-        "dt_star": float(time["dt_star"]),
-        "dt_internal_s": float(time["dt_internal_s"]),
         "screen_status": screen_status(summary, qc=qc),
         "raw_nonbody_any_fail": _gate_failed(summary, "shape_nonbody"),
         "raw_first_failure_category": str(
@@ -211,7 +230,29 @@ def _row(
         "source_condition_id": str(
             record.get("source_condition_id", record["condition_id"])
         ),
+        "first_failure_category": first_failure_category,
+        "first_failure_at": first_failure_at,
     }
+    if stage == "short_screen":
+        values.update(
+            {
+                "torque_Nm": float(axes["motor_torque"]),
+                "dt_star": float(time["dt_star"]),
+                "dt_internal_s": float(time["dt_internal_s"]),
+            }
+        )
+    else:
+        values.update(
+            {
+                "attach_seed": int(axes["attach_seed"]),
+                "phase_seed": int(axes["phase_seed"]),
+                "duration_s": float(time.get("duration_s", 0.0)),
+                "full_ring_rotation_equivalent": int(axes["n_flagella"]) == 6,
+                "run_summary_sha256": _sha256(output_dir / "run_summary.json"),
+                "performance_sha256": _sha256(output_dir / "performance.json"),
+                "state_archive_sha256": _sha256(output_dir / "state_archive.npz"),
+            }
+        )
     for metric, _ in SCREEN_METRICS[:6]:
         values[metric] = _maximum(summary, metric)
     values["local_attach_first_rel_err"] = _maximum(
@@ -255,11 +296,13 @@ def collect_rows(
     """Load completed cells and validate profile, provenance and grid coverage."""
 
     expected = _expected_conditions(config)
+    contract = _development_contract(config)
+    stage = str(contract["stage"])
+    contract_axes = [str(axis) for axis in contract["axes"]]
     expected_by_key = {
-        _record_key(condition): condition_id
+        _record_key(condition, contract_axes): condition_id
         for condition_id, condition in expected.items()
     }
-    contract = _development_contract(config)
     if len(expected) != int(contract["expected_condition_count"]):
         raise ValueError(
             "development_evaluation.expected_condition_count does not match sweep"
@@ -299,7 +342,7 @@ def collect_rows(
             record = dict(raw_record)
             source_condition_id = str(record["condition_id"])
             try:
-                condition_id = expected_by_key[_record_key(record)]
+                condition_id = expected_by_key[_record_key(record, contract_axes)]
             except KeyError as error:
                 raise ValueError(
                     f"Unexpected condition {source_condition_id} in {run_dir}"
@@ -330,6 +373,22 @@ def collect_rows(
                 source_row=source_rows[source_condition_id],
                 condition_id=source_condition_id,
             )
+            if stage == "long_duration":
+                for name in (
+                    "run_summary.json",
+                    "performance.json",
+                    "state_archive.npz",
+                ):
+                    if not (output_dir / name).is_file():
+                        raise FileNotFoundError(
+                            f"Missing required long-duration artifact for {source_condition_id}: {name}"
+                        )
+                expected_hashes = dict(record.get("artifact_sha256", {}) or {})
+                for name, expected_hash in expected_hashes.items():
+                    if _sha256(output_dir / name) != str(expected_hash):
+                        raise ValueError(
+                            f"SHA-256 mismatch for {source_condition_id}: {name}"
+                        )
             canonical_record = dict(record)
             canonical_record["output_dir"] = str(output_dir)
             canonical_record["condition_id"] = condition_id
@@ -342,9 +401,18 @@ def collect_rows(
     if missing:
         raise ValueError("Missing expected conditions: " + ", ".join(missing))
     rows = [
-        _row(*records_by_id[condition_id], qc=qc) for condition_id in sorted(expected)
+        _row(*records_by_id[condition_id], qc=qc, stage=stage)
+        for condition_id in sorted(expected)
     ]
-    rows.sort(key=lambda row: (row["n_flagella"], row["torque_Nm"], row["dt_star"]))
+    rows.sort(
+        key=(
+            (lambda row: (row["n_flagella"], row["torque_Nm"], row["dt_star"]))
+            if stage == "short_screen"
+            else (
+                lambda row: (row["n_flagella"], row["attach_seed"], row["phase_seed"])
+            )
+        )
+    )
     return rows, provenance
 
 
@@ -421,8 +489,10 @@ def _write_replay_input(
     records: list[dict[str, Any]] = []
     summary_rows: list[dict[str, str]] = []
     base_config: str | None = None
+    contract = _development_contract(config)
+    contract_axes = [str(axis) for axis in contract["axes"]]
     expected_by_key = {
-        _record_key(condition): condition_id
+        _record_key(condition, contract_axes): condition_id
         for condition_id, condition in _expected_conditions(config).items()
     }
     for run_dir in run_dirs:
@@ -437,7 +507,7 @@ def _write_replay_input(
         for raw_record in manifest.get("conditions", []) or []:
             record = dict(raw_record)
             source_condition_id = str(record["condition_id"])
-            record["condition_id"] = expected_by_key[_record_key(record)]
+            record["condition_id"] = expected_by_key[_record_key(record, contract_axes)]
             record["source_condition_id"] = source_condition_id
             record["output_dir"] = str(
                 _resolve_condition_output_dir(
@@ -472,47 +542,61 @@ def _write_replay_input(
 
 
 def _render_replays(
-    rows: list[dict[str, Any]], *, replay_input: Path, output_dir: Path
+    rows: list[dict[str, Any]], *, replay_input: Path, output_dir: Path, stage: str
 ) -> None:
     from sim_swim.analysis.phase2_replay import main as replay_main
 
-    for dt_star in sorted({float(row["dt_star"]) for row in rows}):
-        for n_flagella in sorted({int(row["n_flagella"]) for row in rows}):
-            selected = [
-                row["condition_id"]
-                for row in rows
-                if float(row["dt_star"]) == dt_star
-                and int(row["n_flagella"]) == n_flagella
-            ]
-            destination = (
-                output_dir / "replay" / f"dt{dt_star:.0e}" / f"nf{n_flagella:02d}"
+    groups: list[tuple[str, list[str]]]
+    if stage == "short_screen":
+        groups = [
+            (
+                f"dt{dt_star:.0e}/nf{n_flagella:02d}",
+                [
+                    row["condition_id"]
+                    for row in rows
+                    if float(row["dt_star"]) == dt_star
+                    and int(row["n_flagella"]) == n_flagella
+                ],
             )
-            args = [
-                "--input-dir",
-                str(replay_input),
-                "--camera-envelope-input-dir",
-                str(replay_input),
-                "--output-dir",
-                str(destination),
-                "--view",
-                "3d+2d",
-                "--mode",
-                "render-only",
-                "--camera-3d",
-                "fixed",
-                "--camera-2d",
-                "fixed",
-                "--view-range-mode",
-                "campaign-envelope",
-                "--target-frame-count",
-                "41",
-                "--max-panels-per-grid",
-                "5",
-                "--overwrite",
-            ]
-            for condition_id in selected:
-                args.extend(["--condition-id", condition_id])
-            replay_main(args)
+            for dt_star in sorted({float(row["dt_star"]) for row in rows})
+            for n_flagella in sorted({int(row["n_flagella"]) for row in rows})
+        ]
+    else:
+        groups = [
+            (
+                f"nf{int(row['n_flagella']):02d}/as{int(row['attach_seed']):03d}_ps{int(row['phase_seed']):03d}",
+                [row["condition_id"]],
+            )
+            for row in rows
+        ]
+    for group_name, selected in groups:
+        destination = output_dir / "replay" / group_name
+        args = [
+            "--input-dir",
+            str(replay_input),
+            "--camera-envelope-input-dir",
+            str(replay_input),
+            "--output-dir",
+            str(destination),
+            "--view",
+            "3d+2d",
+            "--mode",
+            "render-only",
+            "--camera-3d",
+            "fixed",
+            "--camera-2d",
+            "fixed",
+            "--view-range-mode",
+            "campaign-envelope",
+            "--target-frame-count",
+            "41",
+            "--max-panels-per-grid",
+            "5",
+            "--overwrite",
+        ]
+        for condition_id in selected:
+            args.extend(["--condition-id", condition_id])
+        replay_main(args)
 
 
 def build_evaluation(
@@ -524,36 +608,63 @@ def build_evaluation(
     dry_run: bool = False,
 ) -> dict[str, Path]:
     config = load_yaml(config_path)
+    contract = _development_contract(config)
+    stage = str(contract["stage"])
     rows, provenance = collect_rows(config=config, run_dirs=run_dirs)
     if dry_run:
         return {"validated": config_path}
     output_dir.mkdir(parents=True, exist_ok=True)
     summary_path = output_dir / "summary.csv"
     _write_csv(summary_path, rows)
-    heatmap_dir = output_dir / "heatmaps"
-    heatmap_dir.mkdir(exist_ok=True)
     outputs: dict[str, Path] = {"summary_csv": summary_path}
-    for n_flagella in sorted({int(row["n_flagella"]) for row in rows}):
-        path = heatmap_dir / f"nf{n_flagella:02d}_screen.png"
-        _plot_count([row for row in rows if int(row["n_flagella"]) == n_flagella], path)
-        outputs[f"heatmap_nf{n_flagella:02d}"] = path
+    if stage == "short_screen":
+        heatmap_dir = output_dir / "heatmaps"
+        heatmap_dir.mkdir(exist_ok=True)
+        for n_flagella in sorted({int(row["n_flagella"]) for row in rows}):
+            path = heatmap_dir / f"nf{n_flagella:02d}_screen.png"
+            _plot_count(
+                [row for row in rows if int(row["n_flagella"]) == n_flagella], path
+            )
+            outputs[f"heatmap_nf{n_flagella:02d}"] = path
+    else:
+        window_rows = [
+            {
+                "condition_id": row["condition_id"],
+                "window_start_s": 0.0,
+                "window_end_s": row["duration_s"],
+                "strict_status": row["screen_status"],
+                "first_failure_category": row["first_failure_category"],
+                "first_failure_at": row["first_failure_at"],
+            }
+            for row in rows
+        ]
+        window_path = output_dir / "window_qc.csv"
+        _write_csv(window_path, window_rows)
+        outputs["window_qc_csv"] = window_path
     replay_input = _write_replay_input(
         output_dir=output_dir, run_dirs=run_dirs, config=config
     )
     outputs["replay_input"] = replay_input
     if render_replay:
-        _render_replays(rows, replay_input=replay_input, output_dir=output_dir)
+        _render_replays(
+            rows, replay_input=replay_input, output_dir=output_dir, stage=stage
+        )
         outputs["replay"] = output_dir / "replay"
     manifest = {
         "kind": "model_development_evaluation",
         "config": str(config_path),
-        "stage": "short_screen",
+        "stage": stage,
         "condition_count": len(rows),
         "status_counts": {
             status: sum(row["screen_status"] == status for row in rows)
             for status in ("pass", "fail")
         },
         "qc_policy": "hook_angle_err_max_deg is diagnostic-only; all other required QC remains PASS/FAIL",
+        "full_ring_rotation_equivalent_condition_ids": [
+            row["condition_id"]
+            for row in rows
+            if row.get("full_ring_rotation_equivalent")
+        ],
         "provenance": provenance,
         "outputs": {key: str(value) for key, value in outputs.items()},
     }
