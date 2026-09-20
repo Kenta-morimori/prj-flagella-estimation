@@ -1,0 +1,39 @@
+{
+  "status": "PASS",
+  "summary": "cs10 queue通知workflowの固定名を[CS10-SIM] simulation queueへ変更し、Actions画面用にevent type、reservation ID、branchを含むrun-nameを追加した。GitHub標準の通知件名でCIやroadmap同期と区別できる。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "workflow_dispatchはdefault branch上のworkflowを実行するため、更新後の実メール件名確認はPR merge後の無害probeで行う。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": ".venv/bin/pytest tests/test_cs10_queue_notification_workflow.py tests/test_cs10_queue.py -q",
+      "result": "PASS: 15 passed"
+    },
+    {
+      "command": ".githooks/pre-commit",
+      "result": "PASS: ruff format/check, issue lifecycle check, light pytest (347 passed, 479 deselected)"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "notification workflowの表示改善のみであり、cs10 queueやsimulationは起動していない。",
+  "user_review_required": true,
+  "user_review_command": "PR merge後にmainから無害なworkflow_dispatchを実行し、Gmail件名に[CS10-SIM] simulation queue、Actions画面にdynamic run-nameが表示されることを確認する。",
+  "user_review_outputs": [
+    "GitHub Actions workflow run",
+    "Gmail notification subject"
+  ],
+  "user_review_points": [
+    "Gmail件名で[CS10-SIM]が他のActions通知と区別できること。",
+    "Actions画面でevent type、reservation ID、branchを確認できること。"
+  ],
+  "adr_required": false,
+  "adr_reason": "notification表示名の変更のみであり、queue実行ポリシー、通知先、Secrets、simulation条件を変更しないため。",
+  "commit_type": "ci",
+  "commit_hash": "779f152",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/246",
+  "next_actions": [
+    "PR merge後にdefault branchで無害probeを実行する。"
+  ]
+}

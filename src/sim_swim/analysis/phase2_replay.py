@@ -516,9 +516,11 @@ def _plot_cell(
             reference = estimates[0].axis
             aligned = np.asarray(
                 [
-                    estimate.axis
-                    if float(np.dot(estimate.axis, reference)) >= 0.0
-                    else -estimate.axis
+                    (
+                        estimate.axis
+                        if float(np.dot(estimate.axis, reference)) >= 0.0
+                        else -estimate.axis
+                    )
                     for estimate in estimates
                 ]
             )
@@ -1139,9 +1141,11 @@ def _plot_metrics_by_n_flagella(
     duration_s = max(_float_or_nan(row.get("duration_s")) for row in rows)
     metric_values = {
         "qc_time": [
-            duration_s
-            if _row_passes_nonbody(row)
-            else _float_or_nan(row.get("first_fail_t_s"))
+            (
+                duration_s
+                if _row_passes_nonbody(row)
+                else _float_or_nan(row.get("first_fail_t_s"))
+            )
             for row in rows
         ],
         "max_flag_bond": [
@@ -1300,9 +1304,11 @@ def _plot_metrics_as_bars(
     colors = ["#2f855a" if _row_passes_nonbody(row) else "#c05621" for row in rows]
     duration_s = max(_float_or_nan(row.get("duration_s")) for row in rows)
     first_fail = [
-        duration_s
-        if _row_passes_nonbody(row)
-        else _float_or_nan(row.get("first_fail_t_s"))
+        (
+            duration_s
+            if _row_passes_nonbody(row)
+            else _float_or_nan(row.get("first_fail_t_s"))
+        )
         for row in rows
     ]
     panels = [
@@ -1376,6 +1382,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--config", type=Path, default=None)
     parser.add_argument("--run-dir", type=Path, default=None)
     parser.add_argument("--input-dir", type=Path, default=None)
+    parser.add_argument(
+        "--camera-envelope-input-dir",
+        type=Path,
+        default=None,
+        help="Optional complete campaign used only to calculate shared fixed-camera bounds.",
+    )
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument(
         "--mode",
@@ -1541,14 +1553,28 @@ def main(argv: list[str] | None = None) -> None:
             states_by_condition.append(states)
             cfg_by_condition.append(cfg)
             rig_by_condition.append(simulator.rig)
+        envelope_states = states_by_condition
+        if args.camera_envelope_input_dir is not None:
+            envelope_rows, envelope_records, _ = _load_inputs(
+                args.camera_envelope_input_dir
+            )
+            envelope_states = [
+                load_state_archive(
+                    _archive_path(
+                        args.camera_envelope_input_dir,
+                        envelope_records[row["condition_id"]],
+                    )
+                )
+                for row in envelope_rows
+            ]
         envelopes_3d = _camera_envelopes(
-            states_by_condition,
+            envelope_states,
             dimensions=3,
             mode=args.view_range_mode,
             margin=args.view_range_margin,
         )
         envelopes_2d = _camera_envelopes(
-            states_by_condition,
+            envelope_states,
             dimensions=2,
             mode=args.view_range_mode,
             margin=args.view_range_margin,
@@ -1602,6 +1628,11 @@ def main(argv: list[str] | None = None) -> None:
             "camera_2d": args.camera_2d,
             "view_range_mode": args.view_range_mode,
             "view_range_margin": args.view_range_margin,
+            "camera_envelope_input_dir": (
+                str(args.camera_envelope_input_dir)
+                if args.camera_envelope_input_dir is not None
+                else ""
+            ),
             "axis_ticks": args.axis_ticks,
             "show_mean_flagella_axis_3d": args.show_mean_flagella_axis_3d,
         },
@@ -1609,9 +1640,9 @@ def main(argv: list[str] | None = None) -> None:
         "outputs": {
             "root": str(output_dir),
             "metrics_csv": str(metrics_path) if metrics_path is not None else "",
-            "metrics_png": str(metrics_plot_path)
-            if metrics_plot_path is not None
-            else "",
+            "metrics_png": (
+                str(metrics_plot_path) if metrics_plot_path is not None else ""
+            ),
             "render_log": str(output_dir / "run.log"),
         },
     }

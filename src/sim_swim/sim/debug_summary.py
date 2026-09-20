@@ -472,7 +472,6 @@ def _check_nonbody_shape_pass(
         return False, "hook"
     if has_hook_angle and hook_angle_err_max_deg > NONBODY_HOOK_ANGLE_ERR_MAX_DEG_LIMIT:
         return False, "hook"
-
     flag_metrics: list[float] = []
     if has_flag_bond:
         flag_metrics.append(flag_bond_rel_err_max)

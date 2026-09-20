@@ -473,6 +473,31 @@ class ModelBuilder:
         center_layer = body_layers[len(body_layers) // 2]
         if placement_mode == "uniform" and n_flagella <= 3:
             attach_ids = self._flag_attach_indices(center_layer, n_flagella)
+        elif placement_mode == "seeded_balanced_center_layer":
+            n_prism = int(center_layer.shape[0])
+            if n_prism != 6:
+                raise ValueError(
+                    "seeded_balanced_center_layer requires n_prism=6: "
+                    f"n_prism={n_prism}"
+                )
+            balanced_slots = {
+                1: (0,),
+                2: (0, 3),
+                3: (0, 2, 4),
+                4: (0, 1, 3, 4),
+                5: (0, 1, 2, 3, 4),
+                6: (0, 1, 2, 3, 4, 5),
+            }
+            if n_flagella not in balanced_slots:
+                raise ValueError(
+                    "seeded_balanced_center_layer supports n_flagella=1..6: "
+                    f"n_flagella={n_flagella}"
+                )
+            start_slot = self.attach_seed % n_prism
+            attach_ids = center_layer[
+                (start_slot + np.asarray(balanced_slots[n_flagella], dtype=int))
+                % n_prism
+            ]
         elif placement_mode == "seeded_center_layer":
             if n_flagella == 0:
                 attach_ids = np.zeros((0,), dtype=int)
@@ -512,8 +537,8 @@ class ModelBuilder:
         else:
             raise ValueError(
                 "Unsupported flagella.placement_mode:"
-                f" {placement_mode}. Use 'uniform', 'seeded_surface', or "
-                "'seeded_center_layer'."
+                f" {placement_mode}. Use 'uniform', 'seeded_surface', "
+                "'seeded_center_layer', or 'seeded_balanced_center_layer'."
             )
         initial_phase_mode = str(cfg.flagella.initial_phase_mode)
         if initial_phase_mode == "uniform":

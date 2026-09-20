@@ -37,9 +37,9 @@ runbookは`phase2_215_5s_axis_convergence_runbook.md`を正本とする。
 
 ## Next queue
 
-1. **Issue #200:** #203のprofile比較結果を受け取り，2010 projectの`dt_star`収束性を判断する．
-2. **Issue #61 / #184:** 2015 projectの`dt_star`，torque，本数条件の安定性と計算効率を検証する．
-3. **Issue #205:** 物理・数値妥当性の証拠だけを集約し，canonical modelをfreezeする．
+1. **Issue #244:** 2010 flagella条件・六角柱30-bead bodyのpending candidateは、`n=1..6`・5 torque・`dt_star=1e-4/1e-3`の60 cell共通screenを完了し、全条件が残るstrict QCをPASSした。成果物は`outputs/2026-09-20/013431/model_development_evaluation/`に統合済みである。54-condition seed gridと刻み比較はこのscreen成果物のレビュー後、600τ以上はIssue #245の範囲である。
+2. **Issue #200:** #203のprofile比較結果を受け取り，2010 projectの`dt_star`収束性を判断する．
+3. **Issue #61 / #184:** 2015 projectの`dt_star`，torque，本数条件の安定性と計算効率を検証する．
 
 ## Current blockers
 
@@ -73,6 +73,7 @@ runbookは`phase2_215_5s_axis_convergence_runbook.md`を正本とする。
 - Run summary contract: `docs/phase2/phase2_run_summary_contract.md`
 - Issue #204 feature-study reference: `docs/phase2/phase2_204_feature_study_reference.md`
 - Issue #215 5.0 s diagnostic: `docs/phase2/phase2_215_5s_axis_convergence_runbook.md`
+- Issue #244 2010 hex 1τ contract: `docs/phase2/phase2_244_2010_hex_1tau_contract.md`
 - Axis / feature contracts: `phase2_7_flag_helix_axis_diagnostics.md`, `phase2_8_flagella_count_feature_definitions.md`
 - Model correspondence: `phase2_163_2010_potential_correspondence.md`, `phase2_167_2015_paper_conditions.md`
 - ADRs: `docs/adr/`

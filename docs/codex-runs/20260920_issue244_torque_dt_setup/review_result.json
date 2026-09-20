@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "summary": "Issue #244のlocal torque--Δt screen拡張を実装した。既存dt_star=1e-4の10 conditionを再利用し、新規dt_star=1e-3の10 condition、統合20 cell heatmap、54-condition seed grid、n=3/6刻み比較の実行設定を追加した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "dt_star=1e-3の10 condition、統合heatmap、54-condition seed grid、刻み比較は未実行であり、各段階の結果レビューが必要。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": ".venv/bin/pytest -q tests/test_issue244_torque_dt.py tests/test_model_profiles.py tests/test_phase2_generic_multi_run.py tests/test_script_layout.py",
+      "result": "PASS: 89 passed"
+    },
+    {
+      "command": ".venv/bin/python scripts/01_simulate_swimming/run_multi_run.py config=conf/phase2_multi_run/2010_hex_project_torque_dt_1tau_issue244.yaml 'sweep.include_condition_ids=[...]' --dry-run",
+      "result": "PASS: dt1e3の10 conditionを展開"
+    },
+    {
+      "command": ".githooks/pre-commit",
+      "result": "PASS: ruff format/check、issue lifecycle check、light pytest 347 passed"
+    }
+  ],
+  "user_review_required": true,
+  "user_review_command": "dt_star=1e-3の10 conditionをlocal実行後、issue244-torque-dt統合heatmapを確認し、54-condition seed gridの開始可否を判断する。",
+  "adr_required": false,
+  "adr_reason": "pending evaluation candidateのscreen契約と解析経路を拡張するだけで、canonical model、物理解釈、dataset、phase boundaryを変更していない。",
+  "commit_type": "implementation",
+  "commit_hash": "679ba9c",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/246",
+  "next_actions": [
+    "ユーザーがdt_star=1e-3の10 conditionをlocal実行する。",
+    "既存dt_star=1e-4結果と統合してn=1/4別の2x5 heatmapを生成する。",
+    "warning以外のfailがない場合だけ54-condition seed gridへ進む。"
+  ]
+}

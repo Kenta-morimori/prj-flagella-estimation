@@ -67,6 +67,17 @@ campaign root の `qc_summary.json` を最初に読みます。`summary.csv` は
 `dt_comparison.csv` は同一torque内の`1e-3` / `1e-4` screen一致度、`torque_similarity.csv` は
 異torque無次元相似性の暫定診断です。`1e-5` formal reference比較は、初期screenで候補を絞った後に別campaignで行います。1 tauの遊泳速度・姿勢は記録し、単独では採否に使いません。
 
+pending model candidateの複数campaignを、再simulationせず同じ評価bundleへ統合する場合は次を使う。出力は`summary.csv`、べん毛数別heatmap PNG、replay入力manifestであり、`--render-replay`を指定した場合だけ固定cameraの3D/2D MP4を生成する。遊泳特徴量解析はここでは実行しない。
+
+```bash
+uv run python scripts/03_dataset_building/analyze_dataset.py \
+  --analysis-kind model-development-evaluation \
+  --config conf/phase2_multi_run/<candidate_short_screen>.yaml \
+  --run-dir <existing-run-root> --run-dir <new-run-root> \
+  --output-dir <new-run-root>/model_development_evaluation \
+  --render-replay
+```
+
 既存campaignの形状・後方軸整列・束化診断をtorque × `dt_star` heatmapへまとめる場合は、simulationを再起動せず次を使います。
 
 ```bash

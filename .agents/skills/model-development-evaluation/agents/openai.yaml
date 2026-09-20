@@ -1,0 +1,6 @@
+interface:
+  display_name: "Model development evaluation"
+  short_description: "Evaluate pending Phase 2 model candidates consistently."
+  default_prompt: "Use $model-development-evaluation to plan or implement a pending Phase 2 model evaluation."
+policy:
+  allow_implicit_invocation: true

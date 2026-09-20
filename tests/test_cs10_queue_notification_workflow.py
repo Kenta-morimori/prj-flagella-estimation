@@ -14,6 +14,11 @@ def test_notification_workflow_records_events_without_mail_secrets() -> None:
 
     dispatch = document["on"]["workflow_dispatch"]
     inputs = dispatch["inputs"]
+    assert document["name"] == "[CS10-SIM] simulation queue"
+    assert document["run-name"] == (
+        "[CS10-SIM] ${{ inputs.event_type }} · "
+        "#${{ inputs.reservation_id }} · ${{ inputs.branch }}"
+    )
     assert inputs["event_type"]["required"] == "true"
     assert inputs["event_type"]["options"] == [
         "succeeded",

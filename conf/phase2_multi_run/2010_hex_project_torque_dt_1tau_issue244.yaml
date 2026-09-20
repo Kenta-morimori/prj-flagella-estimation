@@ -1,0 +1,74 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  description: Issue #244 2010 hex project 1tau fixed-reference torque and dt screen.
+  source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/244
+  model_id: 2010_hex_project_issue244
+  model_notes:
+    - Pending evaluation candidate only; this screen does not adopt a canonical model.
+    - The existing local dt1e-4 screen is reused; run the dt1e-3 subset with include_condition_ids.
+
+development_evaluation:
+  version: 1
+  profile_id: 2010_hex_project
+  stage: short_screen
+  expected_condition_count: 60
+  axes: [n_flagella, motor_torque, dt_star]
+  qc:
+    exclude_diagnostics_from_gate: [hook_angle_err_max_deg]
+    required_gates: [finite, shape_body, hook_length, flag, motor]
+    max_motor_force_balance_residual_ratio: 1.0e-8
+    max_motor_torque_balance_residual_ratio: 2.0e-2
+  accepted_source_campaigns:
+    - conf/phase2_multi_run/2010_hex_project_torque_1tau_issue244.yaml
+    - conf/phase2_multi_run/2010_hex_project_torque_dt_1tau_issue244.yaml
+  replay:
+    group_by: [dt_star, n_flagella]
+    camera_3d: fixed
+    view_range_mode: campaign-envelope
+    show_flagella_axes: true
+  long_duration:
+    status: separate_issue
+    feature_evaluation: separate_issue
+
+base_config: conf/sim_swim_2010_hex.yaml
+
+base_overrides:
+  time.duration: {value: 1.0, unit: tau}
+  time.scale_policy: reference_torque
+  motor.reference_torque_Nm: 2.5e-20
+  motor.allow_reference_torque_mismatch: true
+  motor.enable_switching: false
+  brownian.enabled: false
+  output.policy: compact
+  output.archive_interval_s: 0.001
+  seed.attach_seed: 0
+  seed.phase_seed: 0
+
+sweep:
+  axes:
+    n_flagella:
+      key: flagella.n_flagella
+      short_name: nf
+      values: [1, 2, 3, 4, 5, 6]
+      labels: ["1", "2", "3", "4", "5", "6"]
+      ids: [nf01, nf02, nf03, nf04, nf05, nf06]
+    motor_torque:
+      key: motor.torque_Nm
+      short_name: tq
+      values: [1.0e-20, 2.0e-20, 2.5e-20, 3.0e-20, 3.5e-20]
+      labels: ["1.0e-20", "2.0e-20", "2.5e-20", "3.0e-20", "3.5e-20"]
+      ids: [tq1p0e20, tq2p0e20, tq2p5e20, tq3p0e20, tq3p5e20]
+    dt_star:
+      key: time.integration.dt_star
+      short_name: dt
+      values: [1.0e-4, 1.0e-3]
+      labels: ["1e-4", "1e-3"]
+      ids: [dt1e4, dt1e3]
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 1000

@@ -150,6 +150,11 @@ def dispatch(analysis_kind: str, argv: list[str]) -> None:
         summarize_campaign(args.run_dir, config_path=args.config)
         print(args.run_dir / "qc_summary.json")
         return
+    if analysis_kind == "model-development-evaluation":
+        from sim_swim.analysis.model_development_evaluation import main
+
+        main(argv)
+        return
     if analysis_kind == "2010-fixed-performance":
         from sim_swim.analysis.torque_dt_stability_campaign import (
             render_fixed_real_time_qualitative_replay,

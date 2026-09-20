@@ -31,6 +31,7 @@ from sim_swim.analysis.sweeps.generic_multi_run import (
     _manifest_condition_record,
     _summary_fieldnames,
 )
+from sim_swim.model.builder import ModelBuilder
 from sim_swim.sim.params import SimulationConfig
 
 
@@ -39,8 +40,16 @@ SWEEP_DIRECTORY = REPO_ROOT / "conf" / "phase2_sweeps"
 MULTI_RUN_DIRECTORY = REPO_ROOT / "conf" / "phase2_multi_run"
 THREAD_ENV_KEYS = ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")
 WORKER_POLICIES = {"host_cpu", "cs10_qualified"}
-JOB_KEYS = {"schema_version", "job_id", "configs", "conditions", "execution"}
+JOB_KEYS = {
+    "schema_version",
+    "job_id",
+    "configs",
+    "conditions",
+    "execution",
+    "preflight",
+}
 EXECUTION_KEYS = {"max_workers", "worker_policy"}
+PREFLIGHT_MODES = {"geometry_all_conditions"}
 CONFIG_ENTRY_KEYS = {"path", "overrides"}
 SUPPORTED_KINDS = {
     "bundling_alignment",
@@ -63,6 +72,7 @@ class ParallelJob:
     worker_policy: str
     config_overrides: dict[Path, tuple[str, ...]] = field(default_factory=dict)
     condition_ids: tuple[str, ...] = ()
+    preflight: str | None = None
 
     @property
     def task_count(self) -> int:
@@ -214,9 +224,8 @@ def load_parallel_job(path: Path) -> ParallelJob:
         effective = apply_campaign_cli_overrides(
             load_yaml(generic_configs[0]), list(config_entries[0][1])
         )
-        available = {
-            item["condition_id"] for item in build_campaign_conditions(effective)
-        }
+        available_conditions = build_campaign_conditions(effective)
+        available = {item["condition_id"] for item in available_conditions}
         unknown = [item for item in condition_ids if item not in available]
         if unknown:
             raise ValueError(
@@ -226,6 +235,30 @@ def load_parallel_job(path: Path) -> ParallelJob:
         if raw_conditions is not None:
             raise ValueError("conditions is supported only for generic_multi_run jobs")
         condition_ids = ()
+
+    preflight = data.get("preflight")
+    if preflight is not None and preflight not in PREFLIGHT_MODES:
+        raise ValueError(
+            "preflight must be one of: " + ", ".join(sorted(PREFLIGHT_MODES))
+        )
+    if preflight == "geometry_all_conditions":
+        if not generic_configs:
+            raise ValueError(
+                "geometry_all_conditions preflight requires generic_multi_run"
+            )
+        base_path = REPO_ROOT / str(effective["base_config"])
+        base_raw = load_yaml(base_path)
+        selected = {
+            item["condition_id"]: item
+            for item in available_conditions
+            if item["condition_id"] in condition_ids
+        }
+        for condition_id in condition_ids:
+            cfg = SimulationConfig.from_dict(base_raw).with_overrides(
+                selected[condition_id]["config_overrides"]
+            )
+            cfg.validate_execution_supported()
+            ModelBuilder(cfg).build()
 
     execution = _require_mapping(data.get("execution"), name="execution")
     _reject_unknown_keys(execution, allowed=EXECUTION_KEYS, name="execution")
@@ -252,6 +285,7 @@ def load_parallel_job(path: Path) -> ParallelJob:
         worker_policy=worker_policy,
         config_overrides={config: overrides for config, overrides in config_entries},
         condition_ids=condition_ids,
+        preflight=preflight,
     )
 
 
