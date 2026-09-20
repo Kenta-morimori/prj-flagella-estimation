@@ -325,12 +325,19 @@ def _write_replay_input(
     replay_input.mkdir(parents=True, exist_ok=True)
     records: list[dict[str, Any]] = []
     summary_rows: list[dict[str, str]] = []
+    base_config: str | None = None
     expected_by_key = {
         _record_key(condition): condition_id
         for condition_id, condition in _expected_conditions(config).items()
     }
     for run_dir in run_dirs:
         manifest = _read_json(run_dir / "run_manifest.json")
+        if base_config is None:
+            source_config = manifest.get("source_config_path") or manifest.get(
+                "base_config"
+            )
+            if source_config is not None:
+                base_config = str(source_config)
         source_rows = _source_rows(run_dir)
         for raw_record in manifest.get("conditions", []) or []:
             record = dict(raw_record)
@@ -349,7 +356,8 @@ def _write_replay_input(
         json.dumps(
             {
                 "kind": "model_development_replay_input",
-                "base_config": records[0]["source_config_path"],
+                "base_config": base_config
+                or str(records[0].get("source_config_path") or ""),
                 "condition_order": [record["condition_id"] for record in records],
                 "conditions": records,
             },
@@ -395,6 +403,8 @@ def _render_replays(
                 "fixed",
                 "--view-range-mode",
                 "campaign-envelope",
+                "--target-frame-count",
+                "41",
                 "--max-panels-per-grid",
                 "5",
                 "--overwrite",

@@ -1,8 +1,8 @@
 {
   "status": "PASS",
-  "summary": "Issue #244の1τ screenを60 conditionへ拡張する共通model-development evaluation基盤を実装した。既存20 conditionは条件値で正規化して再利用し、不足40 conditionを検出する。hook angleはdiagnostic-only、finite/body/hook length/flag/motorはPASS/FAILとし、長時間の遊泳特徴量評価は別Issueへ分離した。",
+  "summary": "Issue #244の1τ screenを60 conditionへ拡張する共通model-development evaluation基盤を実装し、既存20 conditionと追加40 conditionを統合した。60/60がfinite/body/hook length/flag/motor QCをPASSし、べん毛数別heatmapとΔt別・べん毛数別の固定camera 3D/2D replayを生成した。hook angleはdiagnostic-onlyであり、長時間の遊泳特徴量評価は別Issueへ分離した。",
   "blocking_issues": [
-    "60 cell統合評価には、n=2,3,5,6の不足40 conditionのlocal user-runが必要。"
+    "Issue #244の完了には、screen成果物のユーザーレビュー後にStage 2の54-condition seed gridと4-condition刻み比較が必要。"
   ],
   "non_blocking_issues": [
     "長時間stageと遊泳特徴量評価はそれぞれ後続Issueの責務。"
@@ -17,8 +17,12 @@
       "result": "PASS: ruff format/check、issue lifecycle check、light pytest 347 passed"
     },
     {
-      "command": "model-development-evaluation --dry-run with existing two run roots",
-      "result": "EXPECTED BLOCK: 既存20 conditionを認識し、不足40 conditionを正確に報告した。"
+      "command": "analyze_dataset.py --analysis-kind model-development-evaluation ... --render-replay",
+      "result": "PASS: 3つのlocal run rootを統合し、60/60 PASS、heatmap 6枚、3D/2D MP4 24本を生成した。"
+    },
+    {
+      "command": "ffprobe -count_frames on generated MP4",
+      "result": "PASS: 24/24 H.264動画がデコード可能で、各41 frames。"
     },
     {
       "command": "skill-creator quick_validate .agents/skills/model-development-evaluation",
@@ -26,7 +30,7 @@
     }
   ],
   "user_review_required": true,
-  "user_review_command": "不足40 conditionのlocal実行後、共通evaluationを --render-replay で実行し、n=1..6のPNGとΔt別MP4を確認する。",
+  "user_review_command": "outputs/2026-09-20/013431/model_development_evaluation/ のn=1..6 heatmapと、Δt別・べん毛数別3D/2D replayを確認する。",
   "adr_required": true,
   "adr": "docs/adr/0021_phase2_model_development_evaluation.md",
   "commit_type": "feat(phase2)",
@@ -34,8 +38,8 @@
   "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/246",
   "next_actions": [
-    "ユーザーが不足40 conditionをlocal serialで実行する。",
-    "60 conditionがPASSした場合だけ、Issue #244のseed gridと刻み比較を開始する。",
+    "ユーザーが60 condition screen成果物をレビューする。",
+    "レビュー後に限り、Issue #244の54-condition seed gridと4-condition刻み比較を開始する。",
     "長時間campaign後の遊泳特徴量評価は別Issueで開始する。"
   ]
 }

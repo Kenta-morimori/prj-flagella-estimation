@@ -48,7 +48,9 @@ def _summary(*, hook_angle_only: bool = False, hook_length_fail: bool = False) -
     }
 
 
-def _write_runs(root: Path) -> tuple[Path, Path]:
+def _write_runs(
+    root: Path, *, omit_record_source_config: bool = False
+) -> tuple[Path, Path]:
     config = normalize_campaign_config(load_yaml(CONFIG))
     conditions = build_campaign_conditions(config)
     result: list[Path] = []
@@ -70,14 +72,14 @@ def _write_runs(root: Path) -> tuple[Path, Path]:
                 json.dumps({"wall_time_s": 10.0, "steps_per_s": 100.0}),
                 encoding="utf-8",
             )
-            records.append(
-                {
-                    **condition,
-                    "output_dir": str(condition_dir),
-                    "source_config_path": "conf/sim_swim_2010_hex.yaml",
-                    "time": {"dt_star": dt_star, "dt_internal_s": dt_star * 0.04},
-                }
-            )
+            record = {
+                **condition,
+                "output_dir": str(condition_dir),
+                "time": {"dt_star": dt_star, "dt_internal_s": dt_star * 0.04},
+            }
+            if not omit_record_source_config:
+                record["source_config_path"] = "conf/sim_swim_2010_hex.yaml"
+            records.append(record)
             csv_rows.append(
                 {"condition_id": condition["condition_id"], "completed": "True"}
             )
@@ -158,6 +160,20 @@ def test_common_evaluation_rejects_remaining_hook_length_failure(
         row for row in rows if row["condition_id"] == "nf01__tq1p0e20__dt1e4"
     )
     assert selected["screen_status"] == "fail"
+
+
+def test_replay_manifest_uses_parent_config_for_legacy_records(tmp_path: Path) -> None:
+    fine, coarse = _write_runs(tmp_path, omit_record_source_config=True)
+    outputs = build_evaluation(
+        config_path=CONFIG,
+        run_dirs=[fine, coarse],
+        output_dir=tmp_path / "model_development_evaluation",
+    )
+    replay_manifest = json.loads(
+        (outputs["replay_input"] / "run_manifest.json").read_text(encoding="utf-8")
+    )
+    assert replay_manifest["base_config"] == "conf/sim_swim_2010_hex.yaml"
+    assert len(replay_manifest["conditions"]) == 60
 
 
 def test_common_evaluation_rejects_missing_cell(tmp_path: Path) -> None:

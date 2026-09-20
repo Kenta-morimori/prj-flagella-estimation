@@ -291,8 +291,8 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Change:** 2010の11-bead flagellum、`5.8 b`、`ds=0.58 b`、potential/hook/motor transmissionとdiagonal braceを維持し、bodyだけを六角柱30 beadsへ変更した。`n=1..6`は中心環の均等slot配置に限定し、`n=4`をgap `[1,2,1,2]`とする。
 - **Current result (2026-09-19):** `n=1,4` × 5 torque・`dt_star=1e-4`の10 conditionは1τ（10,000 steps）を完走し、最終nonbody shapeはすべてpassだった。しかし全conditionが最初の内部step（`4e-6 s`）でhook first-failを記録した。`n=1`は41 beads・113 spring segments・1,159 repulsion pairsで約27.1–27.5 steps/s、`n=4`は74 beads・146 segments・5,362 pairsで約6.71–6.75 steps/sだった。replayは3D/2Dの10-panel gridとして保存した。
 - **Decision:** `2010_hex_project`をpending evaluation candidateとしてのみ実装し、Issue #244では`n=1..6`・5 torque・`dt_star=1e-4/1e-3`の60 cellで数値安定性と計算効率を確認する。既存20 cellを再利用し、不足40 cellを追加する。hook angleはdiagnostic-onlyとし、finite/body/hook length/flag/motorをPASS/FAILとする。full screenのレビュー後に限り、`T=2.5e-20 N m/flagellum`・`dt_star=1e-4`で54 seed conditionとn=3/6の4 condition刻み比較を行う。
-- **Stage 1 result (2026-09-20):** 既存の`n=1,4`・20 cellは完走し、3D/2D replayでも形状破綻は見られなかった。`dt_star=1e-3`は実行wall timeを約1/10にしたが、steps/sは同程度であり、これはstep数の差であってper-step性能の改善ではない。60 cell統合とべん毛数別PNG/MP4は不足40 cell後に共通評価器で生成する。
-- **Evidence:** parent Issue #243、Issue #244、Issue #245、ADR 0021、`docs/phase2/phase2_244_2010_hex_1tau_contract.md`、`outputs/2026-09-19/142000/`。
+- **Stage 1 result (2026-09-21):** 既存20 cellと追加40 cellを統合し、60/60 conditionが残るstrict QC（finite/body/hook length/flag/motor）をPASSした。旧`dt_star=1e-4`の10 cellだけは初回internal stepのraw `hook`記録を持つが、hook angleはdiagnostic-onlyであり、他のQC failureはない。`dt_star=1e-3`は総wall timeを39,810.8 sから3,949.8 sへ約1/10にした一方、平均steps/sは11.175と11.274で同程度であり、per-step性能の改善ではない。べん毛数が1から6へ増えると平均steps/sは27.602から4.172へ低下した。`n=1..6`別heatmapと、`dt_star`・べん毛数別の固定camera 3D/2D MP4（各41 frames）は共通評価器で生成した。
+- **Evidence:** parent Issue #243、Issue #244、Issue #245、ADR 0021、`docs/phase2/phase2_244_2010_hex_1tau_contract.md`、`outputs/2026-09-20/013431/model_development_evaluation/evaluation_manifest.json`、`summary.csv`、`heatmaps/`、`replay/`。
 
 ### P2-D20: RUN–TUMBLEはRUN dataset core完了後に段階実装する
 

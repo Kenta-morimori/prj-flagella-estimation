@@ -51,6 +51,13 @@ Stage 1の60 + seed grid 54 + convergence 4 = 118 conditionとする。
 
 2026-09-19のlocal baseline（`outputs/2026-09-19/142000/`）は10/10 conditionが1τ（10,000 steps）を完走し、各conditionに41-state archiveとtrajectoryを保存した。最終`shape_pass_nonbody`は全conditionで`True`だった一方、全conditionが最初の内部step（`4e-6 s`）で`hook` first-failを記録した。hook angleは後方束化や長さ破綻を意味しないため、診断として保持しつつPASS/FAILから除外する。600τ campaignはIssue #245の範囲である。
 
-2026-09-20のlocal `dt_star=1e-3` 10 condition（`outputs/2026-09-20/000940/`）は、全conditionが1τ（1,000 steps）を完走し、41-state archive、trajectory、3D/2D replayを保存した。共通評価器は既存20 conditionと新規40 conditionを`model_development_evaluation/`へ統合し、PNG heatmapと固定camera・各べん毛軸付きのΔt別MP4を出力する。
+2026-09-20/21に、既存20 conditionと追加40 conditionを
+`outputs/2026-09-20/013431/model_development_evaluation/`へ統合した。60/60 conditionが
+finite/body/hook length/flag/motor QCをPASSし、欠損・重複・profile/provenance不整合はなかった。
+旧`dt_star=1e-4`の10 conditionには初回internal stepのraw `hook`記録が残るが、hook angleは
+diagnostic-onlyであり、他のfailureはない。`dt_star=1e-4`の30 conditionの総wall timeは39,810.8 s、
+`dt_star=1e-3`の30 conditionは3,949.8 sで約1/10となった。平均steps/sはそれぞれ11.175、11.274で
+同程度であり、差はper-step性能ではなくstep数に由来する。共通評価器は`n=1..6`のPNG heatmapと、
+固定camera・各べん毛軸付きのΔt別3D/2D MP4を出力し、全24動画は41 framesでデコード可能である。
 
 Stage 2はcs10 user-run対象であり、ユーザーが明示的に開始を許可した後に限る。54 condition jobは`conf/phase2_parallel/issue244_2010_hex_seed_grid_1tau/job.yaml`、その後の4 condition刻み比較jobは`conf/phase2_parallel/issue244_2010_hex_dt_convergence_1tau/job.yaml`を使用する。いずれも3 workers、全condition geometry preflightを必須とする。
