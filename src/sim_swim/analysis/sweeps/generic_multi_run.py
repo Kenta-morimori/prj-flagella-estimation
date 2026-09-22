@@ -361,13 +361,13 @@ def run_campaign(argv: list[str] | None = None) -> Path:
     condition_implementation_manifests: dict[str, dict[str, Any]] = {}
     condition_hydrodynamics_enabled: dict[str, bool] = {}
     total = len(conditions)
-    stop_request = _StopRequest()
     for index, condition in enumerate(conditions, start=1):
         logger.info(
             "[%d/%d] generic_multi_run %s", index, total, condition["condition_id"]
         )
         condition_dir = ctx.out.root / condition["condition_id"]
         condition_dir.mkdir(parents=True, exist_ok=False)
+        stop_request: _StopRequest | None = None
         try:
             cfg = SimulationConfig.from_dict(base_cfg).with_overrides(
                 condition["config_overrides"]
@@ -442,6 +442,8 @@ def run_campaign(argv: list[str] | None = None) -> Path:
                 )
 
             compact_checkpoint = cfg.output.policy == "compact"
+            if compact_checkpoint:
+                stop_request = _StopRequest()
             states = simulator.run(
                 cfg.time.duration_s,
                 logger=logger,
@@ -455,7 +457,7 @@ def run_campaign(argv: list[str] | None = None) -> Path:
                 record_body_diagnostics=True,
                 checkpoint_callback=checkpoint if compact_checkpoint else None,
                 interrupt_requested=(
-                    stop_request.requested if compact_checkpoint else None
+                    stop_request.requested if stop_request is not None else None
                 ),
             )
             if save_state_archive_enabled:
@@ -510,12 +512,12 @@ def run_campaign(argv: list[str] | None = None) -> Path:
                 + "\n",
                 encoding="utf-8",
             )
-            stop_request.restore()
             if partial:
                 raise SystemExit(130) from exc
             raise
-
-    stop_request.restore()
+        finally:
+            if stop_request is not None:
+                stop_request.restore()
 
     summary_path = ctx.out.root / "summary.csv"
     fieldnames = _summary_fieldnames(rows)

@@ -29,6 +29,11 @@ partial evidenceをreplayするには、先に
 analysis-only inputを作り、さらにreplay側で`--allow-partial`を明示する。映像には`PARTIAL`を
 記録し、dataset採択、profile昇格、canonical判定の入力に使用しない。
 
+partial evidenceは通常の3D+2D replayだけを対象とする。hydrodynamics flow archiveは正常完了時だけ
+`hydro_archive.npz`として保存し、checkpointでは保存しない。そのため`--flow-overlay` / hydrodynamics
+replayはpartial manifestを明示的に拒否する。partial flow replayが必要になった場合は、保存量・QC・
+provenanceを別Issueで設計する。
+
 ## Location and reading order
 
 - Single simulation: `<run>/sim/run_summary.json`

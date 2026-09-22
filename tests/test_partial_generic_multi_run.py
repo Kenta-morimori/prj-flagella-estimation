@@ -88,7 +88,10 @@ def test_partial_checkpoint_replay_requires_two_explicit_opt_ins(
         yaml.safe_dump(
             {
                 "base_config": "conf/sim_swim_2010.yaml",
-                "base_overrides": {"time": {"duration_s": 0.0}},
+                "base_overrides": {
+                    "time": {"duration_s": 0.0},
+                    "hydrodynamics": {"enabled": True},
+                },
                 "sweep": {
                     "axes": {
                         "n_flagella": {
@@ -134,6 +137,9 @@ def test_partial_checkpoint_replay_requires_two_explicit_opt_ins(
     manifest = json.loads((exported / "run_manifest.json").read_text())
     assert manifest["partial_checkpoint_included"] is True
     assert manifest["conditions"][0]["partial_evidence"]["status"] == "partial"
+    hydro_evidence = manifest["conditions"][0]["partial_evidence"]["hydrodynamics"]
+    assert hydro_evidence["status"] == "not_checkpointed"
+    assert hydro_evidence["flow_overlay_supported"] is False
     with pytest.raises(ValueError, match="--allow-partial"):
         _load_inputs(exported)
     rows, _, _ = _load_inputs(exported, allow_partial=True)

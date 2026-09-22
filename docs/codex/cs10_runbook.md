@@ -95,6 +95,10 @@ partial evidenceを定性評価する場合は、通常campaignとは別のanaly
 explicit opt-inが必要であり、出力映像は`PARTIAL`と表示される。dataset採択、profile昇格、
 canonical判定には使わない。
 
+partial evidenceは通常の3D+2D replay用であり、hydrodynamics flow overlayには使えない。checkpointは
+`hydro_archive.npz`を保存しないため、`--flow-overlay`はpartial manifestを明示的に拒否する。partial
+flow replayを必要とするcampaignは、このrunbookの手順を拡張せず別Issueで契約化する。
+
 ```bash
 .venv-cs10/bin/python -m sim_swim.analysis.partial_generic_multi_run \
   --campaign-config <campaign.yaml> --run-dir <campaign-root> \

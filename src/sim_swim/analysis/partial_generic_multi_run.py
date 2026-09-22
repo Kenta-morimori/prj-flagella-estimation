@@ -108,7 +108,7 @@ def export_completed_campaign(
         if (
             not archive_path.is_file()
             or not trajectory_path.is_file()
-            or (cfg.hydrodynamics.enabled and not hydro_path.is_file())
+            or (cfg.hydrodynamics.enabled and not partial and not hydro_path.is_file())
         ):
             excluded.append(
                 {"condition_id": condition["condition_id"], "reason": "missing_archive"}
@@ -125,6 +125,14 @@ def export_completed_campaign(
                 "status": "partial",
                 "state_archive": str(archive_path),
                 "trajectory": str(trajectory_path),
+                "hydrodynamics": {
+                    "status": "not_checkpointed",
+                    "flow_overlay_supported": False,
+                    "reason": (
+                        "partial evidence supports standard 3D+2D replay only; "
+                        "hydrodynamics flow archives are saved on normal completion"
+                    ),
+                },
             }
         completed_records.append(
             (

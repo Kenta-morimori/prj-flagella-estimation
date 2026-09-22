@@ -11,16 +11,23 @@ from sim_swim.analysis.sweeps.generic_multi_run import run_campaign
 class _ImmediateStop:
     """Test double: request a cooperative stop after the first internal step."""
 
+    instances: list["_ImmediateStop"] = []
+
+    def __init__(self) -> None:
+        self.restored = False
+        self.instances.append(self)
+
     def requested(self) -> str:
         return "interrupted by test SIGINT"
 
     def restore(self) -> None:
-        return None
+        self.restored = True
 
 
 def test_generic_compact_interrupt_keeps_atomic_partial_evidence(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    _ImmediateStop.instances.clear()
     campaign_path = tmp_path / "campaign.yaml"
     output_dir = tmp_path / "campaign-output"
     campaign_path.write_text(
@@ -80,3 +87,47 @@ def test_generic_compact_interrupt_keeps_atomic_partial_evidence(
     assert completion["exit_code"] == 130
     assert not (output_dir / "summary.csv").exists()
     assert not (output_dir / "run_manifest.json").exists()
+    assert _ImmediateStop.instances[0].restored is True
+
+
+def test_generic_debug_campaign_does_not_install_cooperative_signal_handler(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    campaign_path = tmp_path / "debug-campaign.yaml"
+    output_dir = tmp_path / "debug-output"
+    campaign_path.write_text(
+        "\n".join(
+            [
+                "kind: generic_multi_run",
+                "base_config: conf/sim_swim_2010.yaml",
+                "base_overrides:",
+                "  time.duration_s: 5.0e-6",
+                "  output.policy: debug",
+                "  motor.reference_torque_Nm: 2.0e-20",
+                "sweep:",
+                "  axes:",
+                "    torque:",
+                "      key: motor.torque_Nm",
+                "      values: [2.0e-20]",
+                "output:",
+                f"  base_dir: {output_dir}",
+                "  timestamp_subdir: false",
+                "  save_state_archive: false",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    class _ForbiddenStop:
+        def __init__(self) -> None:
+            raise AssertionError("debug campaign must not replace signal handlers")
+
+    monkeypatch.setattr("sim_swim.core.run_context._require_clean_git", lambda: None)
+    monkeypatch.setattr(
+        "sim_swim.analysis.sweeps.generic_multi_run._StopRequest", _ForbiddenStop
+    )
+
+    run_campaign(["--campaign-config", str(campaign_path)])
+
+    assert (output_dir / "summary.csv").is_file()
