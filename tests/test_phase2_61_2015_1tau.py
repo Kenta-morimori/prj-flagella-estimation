@@ -10,6 +10,7 @@ from sim_swim.analysis.cli_profiles import args_from_profile, load_profile
 from sim_swim.analysis.issue61_2015_1tau import analyze, analyze_supplemental
 from sim_swim.analysis.issue61_2015_1tau import _canonical_threshold_row
 from sim_swim.analysis.issue61_2015_1tau import _first_threshold_crossing
+from sim_swim.analysis.issue61_2015_1tau import _failure_details
 from sim_swim.analysis.parallel_job import (
     _aggregate_stage_a_campaign,
     build_plan,
@@ -90,6 +91,49 @@ def test_reference_evidence_hashes_the_source_manifest(tmp_path: Path) -> None:
     records = stage_a_2015._reference_evidence(evidence)
     assert records[0]["source_run_root"] == "/source/run"
     assert len(records[0]["manifest_sha256"]) == 64
+
+
+def test_stage_a_parallel_plan_passes_one_validated_evidence_file_to_all_shards(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source_manifest = tmp_path / "source-manifest.json"
+    source_manifest.write_text('{"kind": "fixture"}\n', encoding="utf-8")
+    evidence = tmp_path / "reference-evidence.json"
+    evidence.write_text(
+        json.dumps(
+            [
+                {
+                    "label": "fixture",
+                    "source_run_root": "/source/run",
+                    "manifest_path": str(source_manifest),
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CS10_STAGE_A_REFERENCE_EVIDENCE_FILE", str(evidence))
+
+    job = load_parallel_job(PARALLEL_JOB)
+    plan = build_plan(job, resolve_execution(job, None), tmp_path / "parallel")
+
+    expected = f"reference_evidence_file={evidence}"
+    assert all(expected in record["overrides"] for record in plan["configs"])
+    recorded = plan["provenance"]["stage_a_reference_evidence"]
+    assert recorded["input_path"] == str(evidence)
+    assert len(recorded["input_sha256"]) == 64
+    assert (
+        recorded["references"][0]["manifest_sha256"]
+        == stage_a_2015._reference_evidence(evidence)[0]["manifest_sha256"]
+    )
+
+
+def test_stage_a_parallel_plan_rejects_nonabsolute_evidence_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CS10_STAGE_A_REFERENCE_EVIDENCE_FILE", "evidence.json")
+    job = load_parallel_job(PARALLEL_JOB)
+    with pytest.raises(ValueError, match="existing absolute path"):
+        build_plan(job, resolve_execution(job, None), tmp_path / "parallel")
 
 
 def _campaign(tmp_path: Path, *, fail_metric: str | None = None) -> Path:
@@ -474,6 +518,96 @@ def test_issue61_streams_first_body_drift_crossing(tmp_path: Path) -> None:
     assert _first_threshold_crossing(
         tmp_path, criterion="body_length_rel_drift_max", limit=0.01
     ) == {"criterion": "body_length_rel_drift_max", "t_s": 0.2, "step": 20}
+
+
+def test_issue61_uses_earliest_timed_crossing_not_threshold_order(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "step_summary.csv").write_text(
+        "step,t_s,motor_torque_balance_residual_ratio,flag_helix_pitch_rel_err_max\n"
+        "0,0.0,0.0,0.0\n10,0.1,0.0,0.06\n20,0.2,2e-8,0.06\n",
+        encoding="utf-8",
+    )
+    summary = tmp_path / "run_summary.json"
+    summary.write_text(
+        json.dumps(
+            {
+                "execution": {"status": "completed"},
+                "gates": {
+                    name: {"status": "available", "any_fail": False}
+                    for name in ("finite", "shape_nonbody", "shape_body")
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    failures, first = _failure_details(
+        tmp_path,
+        summary,
+        {
+            "status": "completed",
+            "completion_pass": "True",
+            "finite_pass_all": "True",
+            "max_motor_torque_balance_residual_ratio": "2e-8",
+            "max_flag_helix_pitch_rel_err": "0.06",
+        },
+        {
+            "max_motor_torque_balance_residual_ratio": 1e-8,
+            "max_flag_helix_pitch_rel_err": 0.05,
+        },
+    )
+    assert failures == [
+        "max_motor_torque_balance_residual_ratio",
+        "max_flag_helix_pitch_rel_err",
+    ]
+    assert first == {
+        "criterion": "max_flag_helix_pitch_rel_err",
+        "t_s": 0.1,
+        "step": 10,
+    }
+
+
+def test_issue61_timed_threshold_outranks_untimed_gate_and_missing_raw(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "step_summary.csv").write_text(
+        "step,t_s,motor_torque_balance_residual_ratio\n0,0.0,2e-8\n",
+        encoding="utf-8",
+    )
+    summary = tmp_path / "run_summary.json"
+    summary.write_text(
+        json.dumps(
+            {
+                "execution": {"status": "completed"},
+                "gates": {
+                    "finite": {"status": "available", "any_fail": False},
+                    "shape_nonbody": {
+                        "status": "available",
+                        "any_fail": True,
+                        "first_observed_fail_t_s": None,
+                    },
+                    "shape_body": {"status": "available", "any_fail": False},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    _, first = _failure_details(
+        tmp_path,
+        summary,
+        {
+            "status": "completed",
+            "completion_pass": "True",
+            "finite_pass_all": "True",
+            "max_motor_torque_balance_residual_ratio": "2e-8",
+        },
+        {"max_motor_torque_balance_residual_ratio": 1e-8},
+    )
+    assert first == {
+        "criterion": "max_motor_torque_balance_residual_ratio",
+        "t_s": 0.0,
+        "step": 0,
+    }
 
 
 def test_issue61_maps_stage_a_compact_metrics_to_locked_names() -> None:

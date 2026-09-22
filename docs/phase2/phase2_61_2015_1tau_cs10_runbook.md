@@ -12,11 +12,12 @@ cs10上でStage A（および存在する場合はTask D）のsource manifestを
 ]
 ```
 
-Task Dが未実行ならentryを追加しない。既存manifestがcs10に存在しない場合はevidence JSONを指定せずに実行し、campaign manifestの空配列とdecisionの`none_available_at_run_start`を保持する。存在しないoutput、推測したSHA-256、Stage A/Task D outputのコピーは許可しない。
+Task Dが未実行ならentryを追加しない。evidence JSONを使う場合は`CS10_STAGE_A_REFERENCE_EVIDENCE_FILE`へ絶対pathを指定し、dry-runとdispatcherの両方へ同じ環境変数を渡す。指定時はplan生成時にJSONと参照manifestを検証し、全Stage A shardへ同じfile pathを渡す。未指定時はcampaign manifestの空配列とdecisionの`not_recorded_at_run_start`を保持し、参照元が存在しなかったとは断定しない。存在しないoutput、推測したSHA-256、Stage A/Task D outputのコピーは許可しない。
 
 まず3条件を確認する（simulationは起動しない）。
 
 ```bash
+CS10_STAGE_A_REFERENCE_EVIDENCE_FILE=/absolute/path/to/reference_evidence.json \
 .venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \
   config=conf/phase2_parallel/issue61_2015_1tau/job.yaml --dry-run
 ```
@@ -27,8 +28,13 @@ Task Dが未実行ならentryを追加しない。既存manifestがcs10に存在
 
 ```bash
 .venv-cs10/bin/python scripts/cs10/queue.py enqueue \
-  --job-yaml conf/phase2_parallel/issue61_2015_1tau/job.yaml
+  --branch codex/issue-61-2015-10tau-stability \
+  --config conf/phase2_parallel/issue61_2015_1tau/job.yaml
+CS10_STAGE_A_REFERENCE_EVIDENCE_FILE=/absolute/path/to/reference_evidence.json \
+.venv-cs10/bin/python scripts/cs10/queue.py run --once
 ```
+
+`enqueue`はbranchの固定commitをreservationへ記録する。実行前に`queue.py status`でcommitと順序を確認し、`run --once`は次の1 reservationだけを起動する。evidence fileを使わない場合はdry-runとdispatcherから環境変数を除く。既存の完了済み#61 child artifactにはevidenceを後付けしない。
 
 失敗・中断時はshard artifactを保持する。完了conditionをコピーして混在させず、新しいdated output rootでcleanなparallel jobを実行する。
 
@@ -68,7 +74,8 @@ uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind iss
 .venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \
   config=conf/phase2_parallel/issue61_2015_1tau_paper_torque_supplemental/job.yaml --dry-run
 .venv-cs10/bin/python scripts/cs10/queue.py enqueue \
-  --job-yaml conf/phase2_parallel/issue61_2015_1tau_paper_torque_supplemental/job.yaml
+  --branch codex/issue-61-2015-10tau-stability \
+  --config conf/phase2_parallel/issue61_2015_1tau_paper_torque_supplemental/job.yaml
 ```
 
 完了後はchildの`summary.csv`、`run_manifest.json`、`run_summary.json`、state archive、trajectoryを同期し、

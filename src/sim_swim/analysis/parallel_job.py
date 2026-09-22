@@ -32,7 +32,10 @@ from sim_swim.analysis.sweeps.generic_multi_run import (
     _manifest_condition_record,
     _summary_fieldnames,
 )
-from sim_swim.analysis.sweeps.stage_a_2015 import physical_torque_condition_id
+from sim_swim.analysis.sweeps.stage_a_2015 import (
+    _reference_evidence,
+    physical_torque_condition_id,
+)
 from sim_swim.model.builder import ModelBuilder
 from sim_swim.sim.params import SimulationConfig
 
@@ -470,6 +473,23 @@ def _generic_command(
 def build_plan(
     job: ParallelJob, execution: ResolvedExecution, root: Path
 ) -> dict[str, Any]:
+    evidence_file_raw = os.environ.get("CS10_STAGE_A_REFERENCE_EVIDENCE_FILE")
+    stage_a_evidence: dict[str, Any] | None = None
+    if evidence_file_raw and any(
+        load_profile_entry(task.config)["kind"] == "stage_a_2015"
+        for task in job.task_entries
+    ):
+        evidence_file = Path(evidence_file_raw)
+        if not evidence_file.is_absolute() or not evidence_file.is_file():
+            raise ValueError(
+                "CS10_STAGE_A_REFERENCE_EVIDENCE_FILE must be an existing absolute path"
+            )
+        references = _reference_evidence(evidence_file)
+        stage_a_evidence = {
+            "input_path": str(evidence_file),
+            "input_sha256": _sha256(evidence_file),
+            "references": references,
+        }
     geometry_by_condition: dict[str, dict[str, Any]] = {}
     if job.is_generic_campaign_job:
         config = job.configs[0]
@@ -502,6 +522,13 @@ def build_plan(
             if job.is_generic_campaign_job
             else job.task_entries[index - 1].overrides
         )
+        if kind == "stage_a_2015" and stage_a_evidence is not None:
+            if any(item.startswith("reference_evidence_file=") for item in overrides):
+                raise ValueError("duplicate Stage A reference_evidence_file override")
+            overrides = (
+                *overrides,
+                f"reference_evidence_file={stage_a_evidence['input_path']}",
+            )
         records.append(
             {
                 "index": index,
@@ -550,6 +577,8 @@ def build_plan(
             "hostname": socket.gethostname(),
             "python_executable": sys.executable,
             "python_version": sys.version.split()[0],
+            "stage_a_reference_evidence": stage_a_evidence
+            or {"status": "not_recorded_at_run_start"},
         },
         "configs": records,
         "dispatch_order": [],

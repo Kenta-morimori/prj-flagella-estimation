@@ -112,20 +112,29 @@ def _validate_manifest(
     return [dict(item) for item in conditions]
 
 
-def _first_gate_failure(summary: dict[str, Any]) -> dict[str, Any] | None:
+def _gate_failures(summary: dict[str, Any]) -> list[dict[str, Any]]:
+    failures: list[dict[str, Any]] = []
     execution = summary.get("execution", {})
     if execution.get("status") != "completed":
-        return {"criterion": "execution", "t_s": None, "step": None}
+        failures.append({"criterion": "execution", "t_s": None, "step": None})
     gates = summary.get("gates", {})
     for name in ("finite", "shape_nonbody", "shape_body"):
         gate = gates.get(name, {})
         if gate.get("status") != "available" or gate.get("any_fail"):
-            return {
-                "criterion": name,
-                "t_s": gate.get("first_observed_fail_t_s"),
-                "step": None,
-            }
-    return None
+            failures.append(
+                {
+                    "criterion": name,
+                    "t_s": gate.get("first_observed_fail_t_s"),
+                    "step": None,
+                }
+            )
+    return failures
+
+
+def _first_gate_failure(summary: dict[str, Any]) -> dict[str, Any] | None:
+    """Compatibility helper for consumers that report gate-only failures."""
+    failures = _gate_failures(summary)
+    return failures[0] if failures else None
 
 
 def _threshold_failures(row: dict[str, str], thresholds: dict[str, Any]) -> list[str]:
@@ -142,6 +151,48 @@ def _threshold_failures(row: dict[str, str], thresholds: dict[str, Any]) -> list
         if not math.isfinite(value) or value > limit:
             failures.append(metric)
     return failures
+
+
+def _failure_details(
+    condition_dir: Path,
+    summary_path: Path,
+    observed_row: dict[str, str],
+    thresholds: dict[str, Any],
+) -> tuple[list[str], dict[str, Any] | None]:
+    """Compare every observed crossing, including gates, in physical time order."""
+    gate_events = (
+        _gate_failures(_read_json(summary_path))
+        if summary_path.is_file()
+        else [{"criterion": "run_summary_missing", "t_s": None, "step": None}]
+    )
+    threshold_names = _threshold_failures(observed_row, thresholds)
+    events = list(gate_events)
+    for criterion in threshold_names:
+        crossing = (
+            _first_threshold_crossing(
+                condition_dir, criterion=criterion, limit=_float(thresholds[criterion])
+            )
+            if criterion in thresholds
+            else None
+        )
+        events.append(crossing or {"criterion": criterion, "t_s": None, "step": None})
+    failures = list(dict.fromkeys(event["criterion"] for event in events))
+    timed = [event for event in events if math.isfinite(_float(event.get("t_s")))]
+
+    def time_key(event: dict[str, Any], index: int) -> tuple[float, float, int]:
+        step = _float(event.get("step"))
+        return (
+            _float(event["t_s"]),
+            step if math.isfinite(step) else math.inf,
+            index,
+        )
+
+    first = (
+        min(enumerate(timed), key=lambda item: time_key(item[1], item[0]))[1]
+        if timed
+        else (events[0] if events else None)
+    )
+    return failures, first
 
 
 def _canonical_threshold_row(row: dict[str, str]) -> dict[str, str]:
@@ -309,27 +360,13 @@ def analyze(*, run_root: Path, threshold_contract: Path, output_dir: Path) -> Pa
             raise ValueError(f"summary.csv is missing {condition_id}")
         condition_dir = _condition_dir(run_root, condition)
         summary_path = condition_dir / "run_summary.json"
-        gate_failure = (
-            _first_gate_failure(_read_json(summary_path))
-            if summary_path.is_file()
-            else {"criterion": "run_summary_missing", "t_s": None, "step": None}
-        )
         observed_row = _canonical_threshold_row(row)
         for metric, value in _body_drift_metrics(condition_dir).items():
             if not math.isfinite(_float(observed_row.get(metric))):
                 observed_row[metric] = str(value)
-        threshold_failures = _threshold_failures(observed_row, thresholds)
-        failures = (
-            [gate_failure["criterion"]] if gate_failure else []
-        ) + threshold_failures
-        first = gate_failure
-        if first is None and threshold_failures:
-            criterion = threshold_failures[0]
-            first = _first_threshold_crossing(
-                condition_dir,
-                criterion=criterion,
-                limit=_float(thresholds[criterion]),
-            ) or {"criterion": criterion, "t_s": None, "step": None}
+        failures, first = _failure_details(
+            condition_dir, summary_path, observed_row, thresholds
+        )
         records.append(
             {
                 "condition_id": condition_id,
@@ -376,7 +413,7 @@ def analyze(*, run_root: Path, threshold_contract: Path, output_dir: Path) -> Pa
         "reference_evidence_status": (
             "verified"
             if manifest["reference_evidence"]
-            else "none_available_at_run_start"
+            else "not_recorded_at_run_start"
         ),
         "handoff": (
             "eligible_for_followup_evaluation_only; no supported-profile promotion or 10tau-stability claim"
@@ -425,35 +462,12 @@ def analyze_supplemental(
             raise ValueError(f"summary.csv is missing {condition_id}")
         condition_dir = _condition_dir(run_root, condition)
         summary_path = condition_dir / "run_summary.json"
-        gate_failure = (
-            _first_gate_failure(_read_json(summary_path))
-            if summary_path.is_file()
-            else {"criterion": "run_summary_missing", "t_s": None, "step": None}
-        )
         observed_row = _canonical_threshold_row(row)
         for metric, value in _body_drift_metrics(condition_dir).items():
             if not math.isfinite(_float(observed_row.get(metric))):
                 observed_row[metric] = str(value)
-        threshold_failures = _threshold_failures(observed_row, thresholds)
-        failures = (
-            [gate_failure["criterion"]] if gate_failure else []
-        ) + threshold_failures
-        crossings = [
-            _first_threshold_crossing(
-                condition_dir, criterion=criterion, limit=_float(thresholds[criterion])
-            )
-            for criterion in threshold_failures
-            if criterion in thresholds
-        ]
-        observed_crossings = [item for item in crossings if item is not None]
-        first = gate_failure or (
-            min(observed_crossings, key=lambda item: int(item["step"]))
-            if observed_crossings
-            else (
-                {"criterion": threshold_failures[0], "t_s": None, "step": None}
-                if threshold_failures
-                else None
-            )
+        failures, first = _failure_details(
+            condition_dir, summary_path, observed_row, thresholds
         )
         records.append(
             {
