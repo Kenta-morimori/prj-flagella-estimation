@@ -232,7 +232,14 @@ def ensure_worktree(reservation: Reservation) -> Path:
 
 
 def _runtime_python() -> Path:
-    python = REPOSITORY_ROOT / ".venv-cs10/bin/python"
+    configured = os.environ.get("CS10_RUNTIME_PYTHON")
+    python = (
+        Path(configured)
+        if configured is not None
+        else REPOSITORY_ROOT / ".venv-cs10/bin/python"
+    )
+    if not python.is_absolute():
+        raise RuntimeError("CS10_RUNTIME_PYTHON must be an absolute path")
     if not python.is_file():
         raise RuntimeError(f"missing shared cs10 runtime: {python}")
     return python

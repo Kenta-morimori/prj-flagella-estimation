@@ -325,6 +325,19 @@ def test_notify_dispatches_actions_workflow_without_recipient(
         queue.notify(reservation)
 
 
+def test_runtime_python_can_be_explicit_for_clean_dispatcher_worktree(
+    monkeypatch, tmp_path: Path
+) -> None:
+    queue = _load_queue("cs10_queue_runtime_python")
+    runtime = tmp_path / "python"
+    runtime.touch()
+    monkeypatch.setenv("CS10_RUNTIME_PYTHON", str(runtime))
+    assert queue._runtime_python() == runtime
+    monkeypatch.setenv("CS10_RUNTIME_PYTHON", "relative/python")
+    with pytest.raises(RuntimeError, match="absolute"):
+        queue._runtime_python()
+
+
 def test_final_notification_is_attempted_once_and_records_dispatch_result(
     monkeypatch, tmp_path: Path
 ) -> None:

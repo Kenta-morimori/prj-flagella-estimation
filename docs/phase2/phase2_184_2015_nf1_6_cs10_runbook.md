@@ -23,7 +23,7 @@ PR #242の固定commitで隔離worktreeを用意する。checkoutを変更する
   --config conf/phase2_parallel/issue184_2015_runtime_probe_0p01s/job.yaml --dry-run
 ```
 
-queueにprobeを予約6より高priorityでenqueueする。dispatcherは環境変数`CS10_QUEUE_NOTIFICATION_REF=codex/issue-61-2015-10tau-stability`を設定し、`scripts/cs10/queue.py run --once`で起動する。既定refは`main`であり、PR branch上workflowを使う今回だけoverrideする。失敗・取消でも当該予約の終端時に1通知を試み、再試行は自動では行わない。
+queueにprobeを予約6より高priorityでenqueueする。dispatcherは環境変数`CS10_RUNTIME_PYTHON=/home/people/Ktakemori/src/prj-flagella-estimation/.venv-cs10/bin/python`と`CS10_QUEUE_NOTIFICATION_REF=codex/issue-61-2015-10tau-stability`を設定し、`scripts/cs10/queue.py run --once`で起動する。実行用Pythonは共有venvを指すが、コードとconfigは固定commitのclean worktreeから読む。通知refの既定は`main`であり、PR branch上workflowを使う今回だけoverrideする。失敗・取消でも当該予約の終端時に1通知を試み、再試行は自動では行わない。
 
 ## 終了後
 
