@@ -5,7 +5,7 @@
 ## 固定契約
 
 - `conf/phase2_parallel/issue184_2015_runtime_probe_0p01s/job.yaml`を1予約として使い、`seeded_surface`・seed 0・`2.5e-20 N m`・tracking-reference・`dt_star=1e-5`・RUN固定・Brownian OFFのnf1–6を独立shardで実行する。
-- 各条件は0.01実秒=0.25τ=25,000 internal steps。`cs10_qualified`、最大3 worker、compact checkpoint 2,500 steps、output分離。全6 shardとaggregateの終端確定後にActions通知を予約単位で最大1回送る。
+- 各条件は0.01実秒=0.25τ=25,000 internal steps。configでは浮動小数点の端数による25,001 stepを避けるため`0.25 tau`として指定する。`cs10_qualified`、最大3 worker、compact checkpoint 2,500 steps、output分離。全6 shardとaggregateの終端確定後にActions通知を予約単位で最大1回送る。
 - 既存の2010 hex予約6には触れない。新probeの後にもdispatcherを`--once`で終え、予約6を自動起動しない。
 
 ## 旧runの扱い

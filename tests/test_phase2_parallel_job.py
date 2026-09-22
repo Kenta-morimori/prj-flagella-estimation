@@ -8,6 +8,7 @@ import sys
 import pytest
 
 from sim_swim.analysis import parallel_job
+from sim_swim.analysis.multi_run_campaign import apply_campaign_cli_overrides
 from sim_swim.analysis.parallel_job import (
     ParallelJob,
     build_plan,
@@ -15,6 +16,7 @@ from sim_swim.analysis.parallel_job import (
     resolve_execution,
     run_parallel_job,
 )
+from sim_swim.sim.params import SimulationConfig
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -178,7 +180,7 @@ def test_issue184_runtime_probe_is_six_isolated_25000_step_shards() -> None:
     )
     profile = parallel_job.load_yaml(job.configs[0])
     overrides = profile["base_overrides"]
-    assert overrides["time.duration"] == {"value": 0.01, "unit": "s"}
+    assert overrides["time.duration"] == {"value": 0.25, "unit": "tau"}
     assert overrides["time.scale_policy"] == "reference_torque"
     assert overrides["time.integration.dt_star"] == 1e-5
     assert (
@@ -187,6 +189,14 @@ def test_issue184_runtime_probe_is_six_isolated_25000_step_shards() -> None:
         == 2.5e-20
     )
     assert overrides["output.checkpoint_interval_steps"] == 2500
+    campaign = apply_campaign_cli_overrides(profile, [])
+    base = parallel_job.load_yaml(ROOT / campaign["base_config"])
+    simulation = SimulationConfig.from_dict(base).with_overrides(
+        campaign["base_overrides"]
+    )
+    assert simulation.total_steps == 25_000
+    assert simulation.time.duration_s == pytest.approx(0.01)
+    assert simulation.duration_star == pytest.approx(0.25)
 
 
 def test_invalid_generic_attachment_topology_is_rejected_before_output_creation(

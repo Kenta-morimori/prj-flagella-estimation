@@ -8,7 +8,8 @@ metadata:
 
 base_config: conf/sim_swim_2015.yaml
 base_overrides:
-  time.duration: {value: 0.01, unit: s}
+  # 0.25 tau is nominally 0.01 s and avoids a 25,001st step from binary rounding.
+  time.duration: {value: 0.25, unit: tau}
   time.scale_policy: reference_torque
   time.integration.dt_star: 1.0e-5
   motor.torque_Nm: 2.5e-20

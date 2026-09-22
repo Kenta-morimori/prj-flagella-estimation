@@ -4,7 +4,7 @@
   "branch": "codex/issue-61-2015-10tau-stability",
   "summary": [
     "latest mainを統合し、旧root混在の暫定横断解析とnf4/nf5長期補完設定を撤回した。",
-    "0.01 s、25,000 step、seeded_surfaceのnf1–6を3 workerで実行する単一parallel jobと、0.5 sへの定量外挿を実装した。",
+    "0.25 tau≒0.01 s、厳密に25,000 step、seeded_surfaceのnf1–6を3 workerで実行する単一parallel jobと、0.5 sへの定量外挿を実装した。",
     "通知workflow refのPR branch overrideを追加し、既定mainと予約単位の単発通知を維持した。"
   ],
   "checks": [
@@ -27,10 +27,14 @@
     {
       "command": "uv run pytest tests/test_runtime_projection.py -q",
       "result": "PASS: 7 passed after historical manifest/torque and measured job-overhead checks"
+    },
+    {
+      "command": "uv run pytest tests/test_phase2_parallel_job.py -q",
+      "result": "PASS: 35 passed after 25,000-step assertion"
     }
   ],
   "long_simulation_executed": false,
-  "long_simulation_reason": "cs10旧jobを停止し、未完走childのみ削除した。新probe実行、runtime evidenceと採否判断は次段階。旧2010 hex予約6は開始しない。",
+  "long_simulation_reason": "cs10旧jobを停止し、未完走childのみ削除した。reservation 7は25,001-step丸め誤差を検出してcancelしたため、途中artifactは隔離して25,000-step修正版で再予約する。runtime evidenceと採否判断は次段階。旧2010 hex予約6は開始しない。",
   "adr_required": false,
   "adr_reason": "物理モデル・QC閾値・dataset採択は変更しない。既存2015 projectの費用計測と運用契約の更新に限る。",
   "next_action": "固定commitをpushし、旧jobを安全停止して新probeをcs10 queueで実行する。結果同期・SHA-256/QC照合後、ユーザー採否判断を得るまでmergeしない。"

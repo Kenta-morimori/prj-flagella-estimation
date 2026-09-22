@@ -7,7 +7,7 @@ PR #242では10τ完走を追わず、同一topologyの短時間並列probeか�
 | model | 2015 project、`seeded_surface`、nf1–6、attach/phase seed 0 |
 | motor/time | `2.5e-20 N m`、motor=reference=force torque、tracking-reference、`dt_star=1e-5` |
 | motion | RUN固定、switchingなし、Brownian OFF |
-| duration | 各0.01実秒=0.25τ=25,000 steps |
+| duration | 各0.01実秒=0.25τ=25,000 steps。configは丸め誤差を避けるため`0.25 tau`で指定 |
 | execution | `cs10_qualified`、単一parallel-job予約、最大3 worker、compact checkpoint 2,500 steps |
 | purpose | 0.5実秒=12.5τ=1,250,000 stepsの計算費用外挿。物理的PASS・dataset採択・profile昇格・canonical選定は対象外 |
 

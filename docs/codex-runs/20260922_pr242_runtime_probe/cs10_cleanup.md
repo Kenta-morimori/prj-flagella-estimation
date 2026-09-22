@@ -11,3 +11,7 @@
 3. `/net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs/2026-09-15/140131/parallel/issue184_2015_nf4_nf5_10tau__direct2/children/002_nf05`
 
 旧reservation 5の完走済みnf1–3、親jobのmanifest、停止済みdirect nf1/nf2 rootは保持した。旧childを新benchmarkへコピーしない。
+
+## runtime probeの再起動判断
+
+reservation 7の最初のcheckpointで、`time.duration=0.01 s`からの浮動小数点除算が`total_steps=25,001`となることを検出した。計画の25,000 stepと一致させるためqueueをpauseしてreservation 7をcancelし、最終state=`cancelled`・通知試行済み1回・予約6は`queued`のままと確認した。reservation 7の途中artifactは削除せず、再実行と混在させない。configを等価な`0.25 tau`指定へ修正し、25,000 stepsと約0.01 sをunit testで確認してから新しい固定commitの別reservationを起動する。
