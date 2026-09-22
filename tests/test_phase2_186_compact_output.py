@@ -6,15 +6,19 @@ from pathlib import Path
 import pytest
 
 from sim_swim.analysis.flagella_count_behavior import validate_replay_fps
-from sim_swim.sim.core import Simulator
+from sim_swim.sim.core import SimulationInterrupted, Simulator
 from sim_swim.sim.params import SimulationConfig
 
 
-def _cfg(*, policy: str) -> SimulationConfig:
+def _cfg(*, policy: str, checkpoint_interval_steps: int = 2500) -> SimulationConfig:
     raw = {
         "time": {"duration_s": 0.002, "dt_s": 0.001, "dt_star": 0.001},
         "motor": {"torque_Nm": 1.0e-21, "reference_torque_Nm": 1.0e-21},
-        "output": {"policy": policy, "archive_interval_s": 0.001},
+        "output": {
+            "policy": policy,
+            "archive_interval_s": 0.001,
+            "checkpoint_interval_steps": checkpoint_interval_steps,
+        },
         "flagella": {"n_flagella": 0},
     }
     return SimulationConfig.from_dict(raw)
@@ -22,6 +26,7 @@ def _cfg(*, policy: str) -> SimulationConfig:
 
 def test_compact_keeps_every_step_qc_without_step_csv(tmp_path: Path) -> None:
     cfg = _cfg(policy="compact")
+    assert cfg.output.checkpoint_interval_steps == 2500
     states = Simulator(cfg).run(cfg.time.duration_s, step_summary_dir=tmp_path)
     summary = json.loads((tmp_path / "run_summary.json").read_text())
     assert not (tmp_path / "step_summary.csv").exists()
@@ -98,3 +103,47 @@ def test_compact_exception_writes_partial_summary(
     summary = json.loads((tmp_path / "run_summary.json").read_text())
     assert summary["execution"]["status"] == "partial"
     assert "RuntimeError" in summary["execution"]["reason"]
+
+
+def test_compact_checkpoint_callback_reports_raw_boundary_evidence(
+    tmp_path: Path,
+) -> None:
+    cfg = _cfg(policy="compact", checkpoint_interval_steps=1)
+    checkpoints: list[dict[str, object]] = []
+
+    Simulator(cfg).run(
+        cfg.time.duration_s,
+        step_summary_dir=tmp_path,
+        checkpoint_callback=lambda **payload: checkpoints.append(payload),
+    )
+
+    assert [checkpoint["completed_steps"] for checkpoint in checkpoints] == [1, 2, 2]
+    assert [checkpoint["status"] for checkpoint in checkpoints] == [
+        "running",
+        "running",
+        "completed",
+    ]
+    assert all(checkpoint["diagnostic_row"] is not None for checkpoint in checkpoints)
+    assert all(checkpoint["body_row"] is not None for checkpoint in checkpoints)
+
+
+def test_compact_cooperative_interrupt_writes_partial_summary_and_checkpoint(
+    tmp_path: Path,
+) -> None:
+    cfg = _cfg(policy="compact", checkpoint_interval_steps=2)
+    checkpoints: list[dict[str, object]] = []
+
+    with pytest.raises(SimulationInterrupted, match="test interruption"):
+        Simulator(cfg).run(
+            cfg.time.duration_s,
+            step_summary_dir=tmp_path,
+            checkpoint_callback=lambda **payload: checkpoints.append(payload),
+            interrupt_requested=lambda: "test interruption",
+        )
+
+    assert checkpoints[-1]["status"] == "partial"
+    assert checkpoints[-1]["completed_steps"] == 1
+    summary = json.loads((tmp_path / "run_summary.json").read_text())
+    performance = json.loads((tmp_path / "performance.json").read_text())
+    assert summary["execution"]["status"] == "partial"
+    assert performance["completed_steps"] == 1

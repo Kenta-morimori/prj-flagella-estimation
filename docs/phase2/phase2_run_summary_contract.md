@@ -6,6 +6,29 @@
 
 Issue #186 の `output.policy: compact` では、全内部 step の診断・strict QC をオンライン集約する一方、全step CSV は書かない。`all_step_metrics` は各数値列の min/max/final/finite、gate は first failure の時刻・category・target を持つ。compact archive は物理時間一様で、標準 `output.archive_interval_s: 0.001`（0.5 s なら約501 state）である。これは 25--1000 fps replay、約100 Hz 回転の1周期約10点、`dt_star` 間の同じ物理時間解像度を両立するためである。archive より高い fps は補間せず拒否する。未定義の将来の全step指標は compact archive だけから完全再構成できないため、必要時は短時間 debug policy を使う。
 
+## compact heartbeat と partial evidence
+
+`generic_multi_run` が compact condition を実行すると、既定で
+`output.checkpoint_interval_steps: 2500` ごと（および終端時）に次を同じ
+condition directoryへ原子的に更新する。これは resume 用stateではなく、停止・例外時にも
+定量・定性診断に残す評価証跡である。
+
+- `progress.json`: status、completed/total internal steps、`t_star`、`t_s`、wall time、steps/s、online QC extrema、first failure。
+- `diagnostic_samples.csv`: checkpoint境界のraw diagnostic/body diagnostic行（各列は`diagnostic_` / `body_`接頭辞で衝突なく保存）。平均・標準偏差・分位点・移動窓・任意の`tau`範囲は、ここから後処理で計算する。onlineの平均値を正本にしてはならない。
+- `state_archive.partial.npz` と `trajectory.partial.csv`: checkpoint時点までのreplay入力。最終の`state_archive.npz` / `trajectory.csv`とは区別する。
+
+SIGTERM/SIGINTは次のinternal step境界で安全停止し、`run_summary.json`の
+`execution.status=partial`、`performance.json`、conditionのpartial evidence、campaignの
+`campaign_completion.json`を残してexit code 130で終了する。この状態では`summary.csv`と
+`run_manifest.json`を作らず、parallel aggregateも生成しない。正常完了時は既存final artifact
+contractを維持し、`progress.json.status=completed`へ確定する。debug policyは全step CSV互換を
+維持し、heartbeat artifactを追加しない。
+
+partial evidenceをreplayするには、先に
+`python -m sim_swim.analysis.partial_generic_multi_run --include-partial-checkpoint`で
+analysis-only inputを作り、さらにreplay側で`--allow-partial`を明示する。映像には`PARTIAL`を
+記録し、dataset採択、profile昇格、canonical判定の入力に使用しない。
+
 ## Location and reading order
 
 - Single simulation: `<run>/sim/run_summary.json`

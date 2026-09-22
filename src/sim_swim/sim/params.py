@@ -590,6 +590,7 @@ class OutputParams:
     # uniformly sampled replay archive while still evaluating every-step QC.
     policy: str = "debug"
     archive_interval_s: float = 0.001
+    checkpoint_interval_steps: int = 2500
 
 
 @dataclass(frozen=True)
@@ -1862,11 +1863,16 @@ class SimulationConfig:
             timestamp_subdir=bool(_get(output_raw, "timestamp_subdir", True)),
             policy=str(_get(output_raw, "policy", "debug")),
             archive_interval_s=float(_get(output_raw, "archive_interval_s", 0.001)),
+            checkpoint_interval_steps=int(
+                _get(output_raw, "checkpoint_interval_steps", 2500)
+            ),
         )
         if output.policy not in {"debug", "compact"}:
             raise ValueError("output.policy must be 'debug' or 'compact'")
         if output.archive_interval_s <= 0.0:
             raise ValueError("output.archive_interval_s must be positive")
+        if output.checkpoint_interval_steps <= 0:
+            raise ValueError("output.checkpoint_interval_steps must be positive")
 
         hydrodynamics_raw = raw.get("hydrodynamics", {}) or {}
         hydrodynamics = HydrodynamicsParams(

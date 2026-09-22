@@ -47,10 +47,28 @@ def _completed_summary(path: Path, expected_duration_s: float) -> bool:
         return False
 
 
+def _partial_checkpoint_summary(path: Path) -> bool:
+    """Return whether a compact condition has replayable partial evidence."""
+    if not path.is_file():
+        return False
+    execution = dict(_read_json(path).get("execution", {}) or {})
+    return execution.get("status") == "partial"
+
+
 def export_completed_campaign(
-    *, campaign_config: Path, run_dir: Path, output_dir: Path, overwrite: bool
+    *,
+    campaign_config: Path,
+    run_dir: Path,
+    output_dir: Path,
+    overwrite: bool,
+    include_partial_checkpoint: bool = False,
 ) -> Path:
-    """Write an analysis-only manifest containing only completed source runs."""
+    """Write an analysis-only manifest containing completed source runs.
+
+    ``include_partial_checkpoint`` is deliberately opt-in.  It adds only
+    compact conditions with a recorded partial run summary and both checkpoint
+    archives; callers must still pass ``--allow-partial`` to the replay CLI.
+    """
     if output_dir.exists() and not overwrite:
         raise FileExistsError(f"Output already exists: {output_dir}; pass --overwrite")
     if output_dir.exists():
@@ -64,7 +82,7 @@ def export_completed_campaign(
     base_config_path = Path(str(campaign["base_config"]))
     base_cfg = load_yaml(base_config_path)
 
-    completed: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    completed_records: list[tuple[dict[str, Any], dict[str, Any]]] = []
     excluded: list[dict[str, str]] = []
     for condition in conditions:
         condition_dir = run_dir / condition["condition_id"]
@@ -75,7 +93,14 @@ def export_completed_campaign(
         archive_path = condition_dir / "state_archive.npz"
         trajectory_path = condition_dir / "trajectory.csv"
         hydro_path = condition_dir / "hydro_archive.npz"
-        if not _completed_summary(summary_path, cfg.time.duration_s):
+        is_completed = _completed_summary(summary_path, cfg.time.duration_s)
+        partial = include_partial_checkpoint and _partial_checkpoint_summary(
+            summary_path
+        )
+        if partial:
+            archive_path = condition_dir / "state_archive.partial.npz"
+            trajectory_path = condition_dir / "trajectory.partial.csv"
+        if not is_completed and not partial:
             excluded.append(
                 {"condition_id": condition["condition_id"], "reason": "not_completed"}
             )
@@ -89,29 +114,36 @@ def export_completed_campaign(
                 {"condition_id": condition["condition_id"], "reason": "missing_archive"}
             )
             continue
-        completed.append(
+        record = _manifest_condition_record(
+            run_dir,
+            condition,
+            time_manifest=cfg.time_manifest(),
+            hydrodynamics_enabled=cfg.hydrodynamics.enabled,
+        )
+        if partial:
+            record["partial_evidence"] = {
+                "status": "partial",
+                "state_archive": str(archive_path),
+                "trajectory": str(trajectory_path),
+            }
+        completed_records.append(
             (
                 _condition_row(cfg, condition, condition_dir),
-                _manifest_condition_record(
-                    run_dir,
-                    condition,
-                    time_manifest=cfg.time_manifest(),
-                    hydrodynamics_enabled=cfg.hydrodynamics.enabled,
-                ),
+                record,
             )
         )
 
-    if not completed:
+    if not completed_records:
         raise ValueError(f"No completed conditions found under {run_dir}")
-    completed.sort(
+    completed_records.sort(
         key=lambda item: (
             int(item[1]["axis_values"].get("n_flagella", 0)),
             int(item[1]["axis_values"].get("phase_seed", 0)),
             int(item[1]["axis_values"].get("attach_seed", 0)),
         )
     )
-    rows = [row for row, _ in completed]
-    records = [record for _, record in completed]
+    rows = [row for row, _ in completed_records]
+    records = [record for _, record in completed_records]
     summary_path = output_dir / "summary.csv"
     with summary_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=_summary_fieldnames(rows))
@@ -122,6 +154,9 @@ def export_completed_campaign(
         "kind": "generic_multi_run_partial_analysis",
         "created_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
         "partial": True,
+        "partial_checkpoint_included": any(
+            "partial_evidence" in record for record in records
+        ),
         "campaign_config": str(campaign_config),
         "base_config": str(base_config_path),
         "output_root": str(run_dir),
@@ -163,6 +198,14 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument(
+        "--include-partial-checkpoint",
+        action="store_true",
+        help=(
+            "Include replayable compact partial checkpoints. The generated input "
+            "remains diagnostic-only and phase2_replay also requires --allow-partial."
+        ),
+    )
     args = parser.parse_args(argv)
     print(
         export_completed_campaign(
@@ -170,6 +213,7 @@ def main(argv: list[str] | None = None) -> None:
             run_dir=args.run_dir,
             output_dir=args.output_dir,
             overwrite=args.overwrite,
+            include_partial_checkpoint=args.include_partial_checkpoint,
         )
     )
 
