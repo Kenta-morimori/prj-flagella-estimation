@@ -1,0 +1,45 @@
+{
+  "status": "PASS",
+  "summary": "PR #247をPR #248を含む最新mainへrebaseし、2010_hex_project long-duration集約器をcompact checkpoint契約へ接続した。completed sourceはrun_summary.json、performance.json、state_archive.npzを必須とし、partial checkpoint/archiveはdiagnostic-onlyとしてcompleted archive・採択入力から除外する。Issue #245はIssue Form互換のcs10 parallel metadataへ訂正済みで、runbookはqueue reservation直前のpreflightを記録する。",
+  "blocking_issues": [
+    "qualification reservationには、ユーザーの操作単位の明示許可、cs10 pre-reservation checklist、queueの既存reservation衝突なしが必要。",
+    "2秒本番reservationにはqualification 18/18 strict PASS、同期済みartifact SHA-256検証、ユーザーの明示許可が必要。"
+  ],
+  "non_blocking_issues": [
+    "遊泳特徴量解析、dataset採択、canonical model freezeは後続の独立Issueで扱う。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": ".venv/bin/pytest tests/test_issue245_long_duration.py tests/test_issue244_torque_dt.py tests/test_phase2_parallel_job.py tests/test_phase2_186_generic_checkpoints.py tests/test_model_profiles.py tests/test_issue_execution_target.py -q",
+      "result": "PASS: 72 passed"
+    },
+    {
+      "command": ".githooks/pre-commit",
+      "result": "PASS: ruff format/check、issue lifecycle check、light pytest 347 passed"
+    },
+    {
+      "command": "run_multi_run.py config=conf/phase2_multi_run/2010_hex_project_long_duration_2s_issue245.yaml --dry-run; run_parallel.py --config .../job.yaml --dry-run; run_parallel.py --config .../qualification_job.yaml --dry-run",
+      "result": "PASS: main/qualificationとも18 condition、3 workers、geometry_all_conditionsを確認"
+    }
+  ],
+  "user_review_required": true,
+  "user_review_command": "cs10上でrunbookのpre-reservation checklistを確認し、ユーザーが明示許可した場合だけqualification reservationをenqueueする。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_245_2010_hex_long_duration_runbook.md"
+  ],
+  "user_review_points": [
+    "partial checkpoint artifactはdiagnostic-onlyであり、completed archiveや採択根拠に使わない。",
+    "n=6はfull_ring_rotation_equivalentであり、対向配置を一般的な付着多様性の証拠に使わない。",
+    "2秒本番reservationの前提はqualification 18/18 PASS、SHA-256一致、ユーザー許可である。"
+  ],
+  "adr_required": false,
+  "adr_reason": "ADR 0021のlong-duration共通契約を実装済みであり、今回のcheckpoint統合は既存のcompleted/partial出力契約を適用する追補である。",
+  "commit_type": "complete",
+  "commit_hash": "",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/247",
+  "next_actions": [
+    "ユーザーがqualification reservationを明示許可するまでqueue enqueueを行わない。",
+    "qualification strict failure時は追加実行・特徴量評価・採択へ進まずdiagnostics/replayレビューで停止する。"
+  ]
+}

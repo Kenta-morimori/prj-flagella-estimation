@@ -43,6 +43,13 @@ SCREEN_METRICS: tuple[tuple[str, str], ...] = (
     ("wall_time_s", "wall time [s]"),
     ("steps_per_s", "steps/s"),
 )
+LONG_DURATION_REQUIRED_ARTIFACTS = (
+    "run_summary.json",
+    "performance.json",
+    "state_archive.npz",
+)
+PARTIAL_ARCHIVE_NAME = "state_archive.partial.npz"
+OPERATIONAL_LOG_NAMES = ("run.log", "render.log", "stdout.log", "stderr.log")
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -374,11 +381,16 @@ def collect_rows(
                 condition_id=source_condition_id,
             )
             if stage == "long_duration":
-                for name in (
-                    "run_summary.json",
-                    "performance.json",
-                    "state_archive.npz",
+                final_archive = output_dir / "state_archive.npz"
+                if (
+                    not final_archive.is_file()
+                    and (output_dir / PARTIAL_ARCHIVE_NAME).is_file()
                 ):
+                    raise ValueError(
+                        "Partial checkpoint cannot be used as a long-duration "
+                        f"source: {source_condition_id}"
+                    )
+                for name in LONG_DURATION_REQUIRED_ARTIFACTS:
                     if not (output_dir / name).is_file():
                         raise FileNotFoundError(
                             f"Missing required long-duration artifact for {source_condition_id}: {name}"
@@ -665,6 +677,21 @@ def build_evaluation(
             for row in rows
             if row.get("full_ring_rotation_equivalent")
         ],
+        "long_duration_artifact_policy": (
+            {
+                "required_completed_artifacts": list(LONG_DURATION_REQUIRED_ARTIFACTS),
+                "partial_checkpoint_artifacts": [
+                    "progress.json",
+                    "diagnostic_samples.csv",
+                    PARTIAL_ARCHIVE_NAME,
+                    "trajectory.partial.csv",
+                ],
+                "partial_checkpoint_policy": "diagnostic-only; never a completed archive or acceptance input",
+                "excluded_operational_logs": list(OPERATIONAL_LOG_NAMES),
+            }
+            if stage == "long_duration"
+            else None
+        ),
         "provenance": provenance,
         "outputs": {key: str(value) for key, value in outputs.items()},
     }

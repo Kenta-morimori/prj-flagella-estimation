@@ -10,33 +10,49 @@ Heavy/runtime execution targetは`cs10_user_run`（label: `execution:cs10`）で
 
 ## Qualification
 
-ユーザーはPRのcommitを取得後、同一18 shardを`0.001 s`に短縮して実行する。
+予約・起動の前に、ユーザーはreview済みPR commit、clean worktree、18 shard dry-run、NAS容量、
+queue/GitHub認証、既存reservationとの衝突なしを確認する。以下は予約を作成しないpre-reservation
+checklistである。
 
 ```bash
 cd ~/src/prj-flagella-estimation
-git pull --ff-only origin codex/issue-245-2010-hex-long-duration
-git rev-parse --short HEAD
-
-.venv-cs10/bin/python scripts/cs10/parallel_tmux.py start \
+git fetch origin
+git show --quiet --format='%H %s' origin/codex/issue-245-2010-hex-long-duration
+git status --porcelain
+.venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \
   --config conf/phase2_parallel/issue245_2010_hex_long_duration/qualification_job.yaml \
-  --session issue245-qualification --label issue245_2010_hex_qualification
+  --dry-run
+df -h /net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs
+gh auth status --hostname github.com
+.venv-cs10/bin/python scripts/cs10/queue.py status
+```
+
+上記が成立し、**ユーザーがqualification reservationを明示許可した後だけ**、同一18 shardを`0.001 s`に短縮して予約する。
+
+```bash
+cd ~/src/prj-flagella-estimation
+git fetch origin
+.venv-cs10/bin/python scripts/cs10/queue.py enqueue \
+  --branch origin/codex/issue-245-2010-hex-long-duration \
+  --config conf/phase2_parallel/issue245_2010_hex_long_duration/qualification_job.yaml \
+  --priority 0
 ```
 
 ```bash
-.venv-cs10/bin/python scripts/cs10/parallel_tmux.py status \
-  --control-dir outputs/YYYY-MM-DD/HHMMSS/cs10_parallel/issue245_2010_hex_qualification
+.venv-cs10/bin/python scripts/cs10/queue.py status
 ```
 
-本番へ進める条件は18/18の`job=succeeded`、`failed_configs=[]`、aggregate=`completed`、campaignの`run_summary_count=18`、全condition strict PASS、archive/manifest/summaryのSHA-256検証成功である。strict failureが1件でもあれば、本番、特徴量評価、採択へ進まずdiagnostics/replayレビューで停止する。
+本番へ進める条件は18/18の`job=succeeded`、`failed_configs=[]`、aggregate=`completed`、campaignの`run_summary_count=18`、全condition strict PASS、archive/manifest/summaryのSHA-256検証成功である。`progress.json`、`diagnostic_samples.csv`、`state_archive.partial.npz`はstrict failure時のdiagnostics/replay専用であり、completed archiveや採択根拠として使わない。strict failureが1件でもあれば、本番、特徴量評価、採択へ進まずdiagnostics/replayレビューで停止する。
 
 ## 2 s campaign, sync, and aggregation
 
-上の条件とユーザーの明示許可後だけ、本番を開始する。
+上の条件、同期済みrequired artifactのhash検証、ユーザーの明示許可後だけ、本番reservationを作成できる。
 
 ```bash
-.venv-cs10/bin/python scripts/cs10/parallel_tmux.py start \
+.venv-cs10/bin/python scripts/cs10/queue.py enqueue \
+  --branch origin/codex/issue-245-2010-hex-long-duration \
   --config conf/phase2_parallel/issue245_2010_hex_long_duration/job.yaml \
-  --session issue245-2s --label issue245_2010_hex_2s
+  --priority 0
 ```
 
 完了したcampaignをMacへ同期する際は、再解析に必要な各conditionの`state_archive.npz`、`run_summary.json`、`performance.json`、root manifestとsummaryを保持し、SHA-256を検証する。

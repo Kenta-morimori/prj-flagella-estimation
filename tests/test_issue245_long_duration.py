@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
+import sys
 
 import pytest
 
@@ -20,6 +22,16 @@ from sim_swim.analysis.multi_run_campaign import (
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "conf/phase2_multi_run/2010_hex_project_long_duration_2s_issue245.yaml"
+
+
+def _load_execution_target_module():
+    path = ROOT / "tools/codex/issue_execution_target.py"
+    spec = importlib.util.spec_from_file_location("issue_execution_target_245", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def _summary() -> dict:
@@ -111,6 +123,31 @@ def test_issue245_static_condition_contract() -> None:
     assert config["output"]["save_state_archive"] is True
 
 
+def test_issue245_cs10_issue_form_metadata_maps_to_execution_label() -> None:
+    module = _load_execution_target_module()
+    body = "\n".join(
+        (
+            "### Heavy/runtime execution target",
+            "",
+            "cs10_user_run",
+            "",
+            "### cs10 execution mode",
+            "",
+            "parallel",
+            "",
+            "### Parallel job config path",
+            "",
+            "conf/phase2_parallel/issue245_2010_hex_long_duration/job.yaml",
+            "",
+            "### Parallel worker plan",
+            "",
+            "3 workers, cs10_qualified",
+        )
+    )
+    assert module.execution_label_from_issue_body(body) == "execution:cs10"
+    assert "3 workers, cs10_qualified" in body
+
+
 def test_long_duration_collects_portable_archives_and_window_qc(tmp_path: Path) -> None:
     run_dir = _write_long_run(tmp_path)
     rows, _ = collect_rows(config=load_yaml(CONFIG), run_dirs=[run_dir])
@@ -148,3 +185,34 @@ def test_long_duration_rejects_missing_or_mismatched_archive(tmp_path: Path) -> 
     manifest_path.write_text(json.dumps(manifest))
     with pytest.raises(ValueError, match="SHA-256 mismatch"):
         collect_rows(config=load_yaml(CONFIG), run_dirs=[run_dir])
+
+
+def test_long_duration_rejects_partial_only_checkpoint(tmp_path: Path) -> None:
+    run_dir = _write_long_run(tmp_path)
+    condition = run_dir / "conditions/nf01__as000__ps000"
+    (condition / "state_archive.npz").unlink()
+    (condition / "state_archive.partial.npz").write_bytes(b"checkpoint only")
+    (condition / "progress.json").write_text(
+        json.dumps({"status": "partial"}), encoding="utf-8"
+    )
+    (condition / "diagnostic_samples.csv").write_text("step\n25\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="Partial checkpoint"):
+        collect_rows(config=load_yaml(CONFIG), run_dirs=[run_dir])
+
+
+def test_long_duration_manifest_marks_partial_artifacts_diagnostic_only(
+    tmp_path: Path,
+) -> None:
+    run_dir = _write_long_run(tmp_path)
+    outputs = build_evaluation(
+        config_path=CONFIG, run_dirs=[run_dir], output_dir=tmp_path / "evaluation"
+    )
+    manifest = json.loads(outputs["manifest"].read_text())
+    policy = manifest["long_duration_artifact_policy"]
+    assert policy["required_completed_artifacts"] == [
+        "run_summary.json",
+        "performance.json",
+        "state_archive.npz",
+    ]
+    assert policy["partial_checkpoint_policy"].startswith("diagnostic-only")
+    assert "run.log" in policy["excluded_operational_logs"]
