@@ -107,7 +107,8 @@ Phase文書の再構成，情報移行，削除を伴う場合は，このskill�
 ### 6. 報告・完了
 
 - `references/completion-policy.md`に従って`review_result.json`を作成する．
-- PASS完了時はcommit，push，PRまで行う．
+- AGENTS.mdを正本として、local PASS後は`commit → push → source Issueを参照するPR作成 → 初回完了報告`の順に行う。初回完了報告はPR作成後まで送らない。commentaryの進捗共有は妨げない。
+- ユーザーが明示的にPR不要とした場合、またはPR作成が失敗した場合だけ例外とする。失敗時は試行内容とconcrete blockerだけを報告し、完了とは扱わない。
 - FAILでも有用な診断結果は，diagnostic，wip，docs，test相当のcommitとして保存できる．
 - FAILを完了扱いにしない．
 - 文書変更時は，current，tasks，ADR，維持文書，削除文書を最終報告に含める．

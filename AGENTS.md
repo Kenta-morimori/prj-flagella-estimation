@@ -56,6 +56,7 @@ Do not read large files under `outputs/` unless compact summaries and manifests 
 * An Issue with `roadmap:triage` or `roadmap:needs-review` requires metadata correction before implementation work starts.
 * Link the source Issue from a PR. Use `Closes #<issue>` only when merge completes that Issue; otherwise use a non-closing reference and state what remains (for example, a user-run experiment or result review).
 * Do not mark a task complete without a local `review_result.json` whose status is `PASS`.
+* For a file-changing Issue implementation, **初回完了報告はPR作成後まで送らない**: local `review_result.json: PASS`、commit、push、source Issueを参照するPR作成の後にのみ送る。Commentary progress updates remain allowed before that point, but do not report implementation completion, deliverables, or a PR candidate. Exceptions are limited to ユーザーが明示的にPR不要とした場合, or PR作成が失敗した場合; in the latter case report the attempted action and the concrete blocker without claiming completion.
 * Do not merge unless required checks and `codex-review-gate` pass.
 * Do not merge changes to physical interpretation, dataset adoption, phase boundaries, output contracts, or ML policy without explicit user approval.
 * After merge, sync the default branch and delete the completed task branch unless intentionally retained.

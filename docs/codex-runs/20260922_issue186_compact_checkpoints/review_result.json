@@ -2,7 +2,7 @@
   "status": "PASS",
   "task": "Issue #186: compact generic_multi_runのheartbeat・partial evidence checkpoint",
   "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/186",
-  "summary": "compact generic_multi_runに2,500 internal steps既定のheartbeat、raw diagnostic/body sample、partial state archive、安全なSIGTERM/SIGINT停止、および明示opt-inのPARTIAL replayを追加した。物理モデル、QC閾値、積分法、resume契約は変更していない。",
+  "summary": "compact generic_multi_runに2,500 internal steps既定のheartbeat、raw diagnostic/body sample、partial state archive、安全なSIGTERM/SIGINT停止、および明示opt-inのPARTIAL replayを追加した。あわせて、file-changingなIssue実装の初回完了報告をsource-Issue-linked PR作成後へ固定するAGENTS/skill/workflow契約を追加した。物理モデル、QC閾値、積分法、resume契約は変更していない。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "cs10の長時間campaign開始・停止は本Issueのscope外であり未実行。",
@@ -28,6 +28,10 @@
     {
       "command": "git diff --check",
       "result": "PASS"
+    },
+    {
+      "command": ".venv/bin/pytest -q tests/test_codex_completion_reporting_policy.py",
+      "result": "PASS: AGENTS、issue workflow skill、completion policy、workflow文書の初回報告・例外契約を照合"
     }
   ],
   "long_simulation_executed": false,
@@ -37,12 +41,12 @@
   "user_review_outputs": [],
   "user_review_points": [],
   "adr_required": false,
-  "adr_reason": "物理解釈、dataset採択、Phase境界、ML policyを変更せず、既存compact出力の評価証跡と安全停止を追加する基盤実装であるため。",
+  "adr_reason": "物理解釈、dataset採択、Phase境界、ML policyを変更せず、既存のcommit/push/PR契約を初回報告順序まで明確化する狭いworkflow修正であるため。",
   "commit_type": "complete",
   "commit_hash": "pending",
   "push_status": "not_pushed",
   "pull_request_url": "pending",
   "next_actions": [
-    "review済みbranchをcommit/pushし、consumer campaignでcheckpoint evidenceを確認する。"
+    "PR #248のCIとtrusted review merge gateを確認し、consumer campaignでcheckpoint evidenceを確認する。"
   ]
 }
