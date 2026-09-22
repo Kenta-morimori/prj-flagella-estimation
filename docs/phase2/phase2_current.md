@@ -21,6 +21,7 @@ Phase 3が使用するcanonical physical simulation modelをfreezeする．
 - training candidate: 全時間strict passを要求
 - CLI例: `KEY=VALUE`形式を第一表記とする
 - 新規runの時間scale: `reference_torque`（`tau_s=eta*b^3/|T|`）。過去再現は`legacy_fixed_tau_s_1`を明示する
+- compact `generic_multi_run`: 2,500 internal stepsごとにheartbeat / partial evidenceを原子的に保存する（#186）。これはresumeや採択根拠ではない
 - parameter・閾値・dataset条件: config，test，registryを正本とする
 
 採択判断は`docs/phase2/phase2_tasks.md`のDecision Indexから確認する．

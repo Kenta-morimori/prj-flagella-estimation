@@ -8,7 +8,7 @@ import logging
 import math
 from pathlib import Path
 import time
-from typing import Any, List, Tuple
+from typing import Any, Callable, List, Tuple
 
 import numpy as np
 
@@ -38,6 +38,10 @@ INITIAL_GEOMETRY_CONTRACT = {
     "tangent_vs_rear_target_deg": 90.0,
     "tangent_vs_rear_abs_tol_deg": 10.0,
 }
+
+
+class SimulationInterrupted(RuntimeError):
+    """A cooperative stop requested at a completed internal-step boundary."""
 
 
 def _quat_normalize(q: np.ndarray) -> np.ndarray:
@@ -651,6 +655,8 @@ class Simulator:
         state_sample_interval_steps: int = 1,
         output_policy: str | None = None,
         archive_interval_s: float | None = None,
+        checkpoint_callback: Callable[..., None] | None = None,
+        interrupt_requested: Callable[[], str | None] | None = None,
     ) -> List[SimulationState]:
         """与えた時間だけシミュレーションして状態列を返す。
 
@@ -670,6 +676,8 @@ class Simulator:
             state_sample_interval_steps: 返却stateのstep間隔。初期・最終stateは常に残す。
             output_policy: ``debug`` は従来互換の全step CSV/state、``compact`` は
                 物理時間一様 archive とオンラインQC集約を使う。
+            checkpoint_callback: compact runの定期evidence保存callback。
+            interrupt_requested: 停止要求を返すcallback。次のstep境界で安全停止する。
         """
 
         tau_s = self.config.tau_s
@@ -684,6 +692,11 @@ class Simulator:
         output_policy = output_policy or self.config.output.policy
         if output_policy not in {"debug", "compact"}:
             raise ValueError("output_policy must be 'debug' or 'compact'")
+        checkpoint_interval_steps = (
+            self.config.output.checkpoint_interval_steps
+            if output_policy == "compact" and checkpoint_callback is not None
+            else 0
+        )
         archive_interval_s = float(
             self.config.output.archive_interval_s
             if archive_interval_s is None
@@ -778,6 +791,29 @@ class Simulator:
         next_hydro_sample_t_s = 0.0
         completed_normally = False
         completion_reason = "completed all planned steps"
+        completed = 0
+        partial_checkpoint_written = False
+
+        def emit_checkpoint(*, status: str, reason: str) -> None:
+            nonlocal partial_checkpoint_written
+            if checkpoint_callback is None:
+                return
+            elapsed_s = time.perf_counter() - wall_start
+            checkpoint_callback(
+                status=status,
+                reason=reason,
+                completed_steps=completed,
+                total_steps=total_steps,
+                t_star=float(self.engine.t_star),
+                t_s=float(self.engine.t_star * tau_s),
+                wall_time_s=elapsed_s,
+                steps_per_s=online_summary.count / max(elapsed_s, 1.0e-12),
+                online_summary=online_summary,
+                states=states,
+                diagnostic_row=(debug_recorder.last_row if debug_recorder else None),
+                body_row=(body_diag_recorder.last_row if body_diag_recorder else None),
+            )
+            partial_checkpoint_written = status == "partial"
 
         try:
             for step in range(total_steps):
@@ -859,10 +895,24 @@ class Simulator:
                         self.engine.t_star,
                         t_now,
                     )
+                if (
+                    checkpoint_interval_steps
+                    and completed % checkpoint_interval_steps == 0
+                ):
+                    emit_checkpoint(status="running", reason="checkpoint")
+                if interrupt_requested is not None and (
+                    reason := interrupt_requested()
+                ):
+                    completion_reason = reason
+                    emit_checkpoint(status="partial", reason=completion_reason)
+                    raise SimulationInterrupted(completion_reason)
             else:
                 completed_normally = True
         except Exception as exc:
-            completion_reason = f"exception: {type(exc).__name__}: {exc}"
+            if not isinstance(exc, SimulationInterrupted):
+                completion_reason = f"exception: {type(exc).__name__}: {exc}"
+            if checkpoint_callback is not None and not partial_checkpoint_written:
+                emit_checkpoint(status="partial", reason=completion_reason)
             if step_summary_dir is not None and output_policy == "compact":
                 online_summary.write(
                     run_dir=step_summary_dir,
@@ -890,6 +940,12 @@ class Simulator:
                     encoding="utf-8",
                 )
             raise
+
+        if checkpoint_callback is not None:
+            emit_checkpoint(
+                status="completed" if completed_normally else "partial",
+                reason=completion_reason,
+            )
 
         if logger is not None:
             logger.info(

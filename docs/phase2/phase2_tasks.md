@@ -274,6 +274,14 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Decision:** 既存短時間 workflow は `output.policy: debug` の全step state/CSV 互換を維持する。長時間候補は `compact` を明示し、全内部step QC をオンライン集約しながら state archive を物理時間一様に保存する。標準 cadence は 1 ms とする。compact archive は replay/通常解析用であり、未定義の全step将来指標の完全再構成を保証しない。
 - **Evidence:** Issue #186，`conf/phase2_multi_run/2015_project_compact_0p5s.yaml`，`docs/phase2/phase2_run_summary_contract.md`．
 
+### P2-D26: compact generic multi-runは途中評価証跡をcheckpoint保存する
+
+- **Status:** adopted
+- **Decision:** `output.policy=compact` の `generic_multi_run` は `output.checkpoint_interval_steps=2500` を既定として、`progress.json`、checkpoint境界のraw `diagnostic_samples.csv`、`state_archive.partial.npz`、`trajectory.partial.csv`を原子的に更新する。runtimeで正本化するのはmax/min/final、finite、first failureだけとし、平均・分位点・window統計はraw sampleから後処理する。debug policyの全step CSV互換は変えない。
+- **Interruption:** SIGTERM/SIGINT/例外では次のinternal step境界で`execution.status=partial`、`performance.json`、`campaign_completion.json`を残し、exit code 130（signal）または非0（例外）で終了する。partial campaignはaggregateせず、最終`summary.csv` / `run_manifest.json`を生成しない。
+- **Interpretation:** checkpointはevaluation evidence専用であり、resume、bitwise continuation、physical model、QC閾値、dataset採択、profile昇格、canonical判定を変更しない。partial replayはexportと`--allow-partial`の明示opt-inを要し、映像に`PARTIAL`を記録する。
+- **Evidence:** Issue #186，`src/sim_swim/analysis/sweeps/generic_multi_run.py`，`docs/phase2/phase2_run_summary_contract.md`．
+
 ### P2-D24: v1 r1 n=3 failure診断を現行v1 r2 physical-failure gateから外す
 
 - **Status:** adopted
