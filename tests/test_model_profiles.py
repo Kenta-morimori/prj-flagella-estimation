@@ -22,6 +22,10 @@ PROFILE_CASES = (
         (2010, "paper", "coarse", "supported", 15, 15, 3, 60),
     ),
     (
+        "sim_swim_2010_hex.yaml",
+        (2010, "hex_project", "hybrid", "pending", 30, 11, 3, 63),
+    ),
+    (
         "sim_swim_2015.yaml",
         (2015, "project", "refined", "pending", 30, 30, 3, 120),
     ),
@@ -231,6 +235,50 @@ def test_non_2015_pending_profile_remains_blocked_in_manifest_and_execution() ->
     }
     with pytest.raises(ValueError, match="pending model profile"):
         cfg.validate_execution_supported()
+
+
+def test_2010_hex_project_is_evaluation_ready_with_observed_topology() -> None:
+    raw = yaml.safe_load(
+        (ROOT / "conf" / "sim_swim_2010_hex.yaml").read_text(encoding="utf-8")
+    )
+    cfg = SimulationConfig.from_dict(raw)
+    cfg.validate_execution_supported()
+
+    assert cfg.implementation_manifest()["simulation"] == {
+        "implementation_status": "evaluation_ready",
+        "blocked_by": [244],
+    }
+    topology = Simulator(cfg).implementation_manifest()["topology"]
+    assert topology["total_beads"] == 63
+    assert topology["body_beads"] == 30
+    assert topology["flagellum_beads_per_filament"] == [11, 11, 11]
+    assert topology["spring_segment_count"] > 0
+    assert topology["segment_repulsion_pair_count"] >= 0
+
+
+def test_issue244_screen_uses_fixed_reference_torque_and_replayable_1tau_contract() -> (
+    None
+):
+    campaign = yaml.safe_load(
+        (
+            ROOT
+            / "conf"
+            / "phase2_multi_run"
+            / "2010_hex_project_torque_1tau_issue244.yaml"
+        ).read_text(encoding="utf-8")
+    )
+    overrides = campaign["base_overrides"]
+
+    assert overrides["time.duration"] == {"value": 1.0, "unit": "tau"}
+    assert overrides["time.integration.dt_star"] == pytest.approx(1.0e-4)
+    assert overrides["motor.reference_torque_Nm"] == pytest.approx(2.5e-20)
+    assert overrides["motor.allow_reference_torque_mismatch"] is True
+    assert overrides["motor.enable_switching"] is False
+    assert overrides["brownian.enabled"] is False
+    assert overrides["output.policy"] == "compact"
+    assert campaign["output"]["save_state_archive"] is True
+    assert campaign["sweep"]["axes"]["n_flagella"]["values"] == [1, 4]
+    assert len(campaign["sweep"]["axes"]["motor_torque"]["values"]) == 5
 
 
 def test_legacy_default_config_path_is_removed() -> None:

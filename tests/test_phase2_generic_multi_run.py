@@ -725,6 +725,8 @@ def test_replay_accepts_repeated_condition_id_filter(tmp_path: Path) -> None:
         [
             "--input-dir",
             str(tmp_path),
+            "--camera-envelope-input-dir",
+            str(tmp_path / "complete_campaign"),
             "--condition-id",
             "tau_fixed_control_T1e-21_dt1e-3",
             "--condition-id",
@@ -766,6 +768,8 @@ def test_replay_accepts_fixed_camera_and_campaign_envelope(tmp_path: Path) -> No
         [
             "--input-dir",
             str(tmp_path),
+            "--camera-envelope-input-dir",
+            str(tmp_path / "complete_campaign"),
             "--camera-3d",
             "fixed",
             "--camera-2d",
@@ -778,6 +782,7 @@ def test_replay_accepts_fixed_camera_and_campaign_envelope(tmp_path: Path) -> No
     )
 
     assert args.camera_3d == "fixed"
+    assert args.camera_envelope_input_dir == tmp_path / "complete_campaign"
     assert args.camera_2d == "fixed"
     assert args.view_range_mode == "campaign-envelope"
     assert args.view_range_margin == pytest.approx(0.2)

@@ -4,6 +4,7 @@ import sys
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
 
 from sim_swim.analysis.hydrodynamics import (
     HYDRO_ARCHIVE_FORMAT,
@@ -23,6 +24,7 @@ from sim_swim.analysis.hydrodynamics_campaign import (
 from sim_swim.analysis.hydrodynamics_replay import (
     _bounds,
     _flow_grid,
+    _manifest,
     _source_colors,
     _visible_with_common_reference,
 )
@@ -315,3 +317,10 @@ def test_hydrodynamics_replay_module_exposes_its_cli() -> None:
     )
     assert result.returncode == 0
     assert "--row-axis" in result.stdout
+
+
+def test_hydrodynamics_replay_rejects_partial_evidence(tmp_path: Path) -> None:
+    (tmp_path / "run_manifest.json").write_text('{"partial": true}', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="does not accept partial evidence"):
+        _manifest(tmp_path)

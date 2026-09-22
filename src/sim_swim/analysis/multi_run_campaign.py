@@ -14,6 +14,7 @@ from sim_swim.model.builder import ModelBuilder
 from sim_swim.sim.params import SimulationConfig
 
 CAMPAIGN_OVERRIDE_ROOTS = {
+    "development_evaluation",
     "metadata",
     "base_config",
     "base_overrides",

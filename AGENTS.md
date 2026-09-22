@@ -51,11 +51,13 @@ Do not read large files under `outputs/` unless compact summaries and manifests 
 * Before implementation, report the Issue execution target, independent-condition estimate, Mac wall-time estimate, and permitted execution scope.
 * `execution:cs10` means cs10 is the User-run heavy/runtime target. For two or more independent conditions, do not start a run until a `cs10_qualified` parallel-job YAML, per-condition output separation, and a dry-run plan have been confirmed. Do not substitute serial execution because a launcher lacks a required shard mode; prepare that mode first.
 * A serial exception for two or more independent cs10 conditions is allowed only when the Issue runbook records a concrete technical dependency, exclusive resource, or output-isolation constraint **and** links to a User's explicit pre-start Issue-comment approval. Do not connect, start tmux, or stop jobs without User authorization for that operation.
+* For a Phase 2 `model_profile.implementation_status: pending` candidate, use the repository `model-development-evaluation` skill and its `development_evaluation` contract. Do not add an Issue-specific evaluator; run short-screen QC/replay before proposing a long-duration stage. Keep swimming-feature analysis in its own downstream task.
 * Track related work with GitHub-native relationships: make a bounded child task a sub-issue of its parent, and add `blocking` / `blockedBy` only for a real completion dependency. Do not create a dependency edge merely because work is related.
 * New Issues must use the required `Roadmap category (Milestone)` form field. The roadmap sync workflow sets the Project Start date; an optional planned Target date is preserved, and a missing Target date is filled with the JST close date when the Issue closes.
 * An Issue with `roadmap:triage` or `roadmap:needs-review` requires metadata correction before implementation work starts.
 * Link the source Issue from a PR. Use `Closes #<issue>` only when merge completes that Issue; otherwise use a non-closing reference and state what remains (for example, a user-run experiment or result review).
 * Do not mark a task complete without a local `review_result.json` whose status is `PASS`.
+* For a file-changing Issue implementation, **初回完了報告はPR作成後まで送らない**: local `review_result.json: PASS`、commit、push、source Issueを参照するPR作成の後にのみ送る。Commentary progress updates remain allowed before that point, but do not report implementation completion, deliverables, or a PR candidate. Exceptions are limited to ユーザーが明示的にPR不要とした場合, or PR作成が失敗した場合; in the latter case report the attempted action and the concrete blocker without claiming completion.
 * Do not merge unless required checks and `codex-review-gate` pass.
 * Do not merge changes to physical interpretation, dataset adoption, phase boundaries, output contracts, or ML policy without explicit user approval.
 * After merge, sync the default branch and delete the completed task branch unless intentionally retained.
@@ -71,6 +73,7 @@ Do not read large files under `outputs/` unless compact summaries and manifests 
 * `docs/codex/`: Codex workflow and documentation policy.
 * `docs/codex-runs/`: run logs and review results.
 * `tools/codex/`: Codex workflow helpers and skills.
+* `.agents/skills/`: repository-discoverable Codex skills.
 
 ## Phase Documentation
 

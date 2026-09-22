@@ -1,0 +1,9 @@
+schema_version: 1
+job_id: issue244_2010_hex_dt_convergence_1tau
+configs:
+  - conf/phase2_multi_run/2010_hex_project_dt_convergence_1tau_issue244.yaml
+conditions: [nf03__dt1e4, nf03__dt5e5, nf06__dt1e4, nf06__dt5e5]
+preflight: geometry_all_conditions
+execution:
+  max_workers: 3
+  worker_policy: cs10_qualified

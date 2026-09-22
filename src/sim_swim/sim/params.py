@@ -45,8 +45,8 @@ MOTOR_ATTACH_FRAME_TANGENT_MODES = frozenset({"vector", "basal_bearing"})
 SPRING_FORMULATION_DEFAULT = "legacy"
 SPRING_FORMULATIONS = frozenset({"legacy", "fene_fraenkel"})
 MODEL_PROFILE_YEARS = frozenset({2010, 2015})
-MODEL_PROFILE_VARIANTS = frozenset({"project", "paper"})
-MODEL_PROFILE_RESOLUTIONS = frozenset({"legacy_project", "coarse", "refined"})
+MODEL_PROFILE_VARIANTS = frozenset({"project", "paper", "hex_project"})
+MODEL_PROFILE_RESOLUTIONS = frozenset({"legacy_project", "coarse", "refined", "hybrid"})
 MODEL_PROFILE_IMPLEMENTATION_STATUSES = frozenset({"supported", "pending"})
 TIME_DURATION_UNITS = frozenset({"s", "tau"})
 TIME_SCHEMA_SOURCES = frozenset(
@@ -590,6 +590,7 @@ class OutputParams:
     # uniformly sampled replay archive while still evaluating every-step QC.
     policy: str = "debug"
     archive_interval_s: float = 0.001
+    checkpoint_interval_steps: int = 2500
 
 
 @dataclass(frozen=True)
@@ -835,11 +836,7 @@ class SimulationConfig:
         if (
             profile is None
             or profile.implementation_status == "supported"
-            or (
-                profile.year == 2015
-                and profile.resolution == "refined"
-                and profile.implementation_status == "pending"
-            )
+            or self.is_pending_evaluation_candidate()
         ):
             return
         raise ValueError(
@@ -848,6 +845,18 @@ class SimulationConfig:
             f"resolution={profile.resolution}. Complete the geometry and dynamics "
             "implementation before running this profile."
         )
+
+    def is_pending_evaluation_candidate(self) -> bool:
+        """Return whether a pending profile is explicitly scoped for evaluation."""
+
+        profile = self.model_profile
+        if profile is None or profile.implementation_status != "pending":
+            return False
+        return (profile.year, profile.variant, profile.resolution) in {
+            (2015, "project", "refined"),
+            (2015, "paper", "refined"),
+            (2010, "hex_project", "hybrid"),
+        }
 
     def model_profile_manifest(self) -> dict[str, Any] | None:
         """Return JSON-serializable profile provenance when it is available."""
@@ -946,12 +955,7 @@ class SimulationConfig:
             self.model_profile is not None
             and self.model_profile.implementation_status == "pending"
         )
-        evaluation_ready = bool(
-            profile_pending
-            and self.model_profile is not None
-            and self.model_profile.year == 2015
-            and self.model_profile.resolution == "refined"
-        )
+        evaluation_ready = profile_pending and self.is_pending_evaluation_candidate()
         force_distribution = str(self.motor.force_distribution)
         dynamics: dict[str, Any] = {
             "implementation_status": "implemented",
@@ -999,7 +1003,20 @@ class SimulationConfig:
                     if profile_pending
                     else "executable"
                 ),
-                "blocked_by": [168] if evaluation_ready else [],
+                "blocked_by": (
+                    [244]
+                    if evaluation_ready
+                    and self.model_profile is not None
+                    and (
+                        self.model_profile.year,
+                        self.model_profile.variant,
+                        self.model_profile.resolution,
+                    )
+                    == (2010, "hex_project", "hybrid")
+                    else [168]
+                    if evaluation_ready
+                    else []
+                ),
             },
         }
         paper_reference = self.paper_reference_manifest()
@@ -1846,11 +1863,16 @@ class SimulationConfig:
             timestamp_subdir=bool(_get(output_raw, "timestamp_subdir", True)),
             policy=str(_get(output_raw, "policy", "debug")),
             archive_interval_s=float(_get(output_raw, "archive_interval_s", 0.001)),
+            checkpoint_interval_steps=int(
+                _get(output_raw, "checkpoint_interval_steps", 2500)
+            ),
         )
         if output.policy not in {"debug", "compact"}:
             raise ValueError("output.policy must be 'debug' or 'compact'")
         if output.archive_interval_s <= 0.0:
             raise ValueError("output.archive_interval_s must be positive")
+        if output.checkpoint_interval_steps <= 0:
+            raise ValueError("output.checkpoint_interval_steps must be positive")
 
         hydrodynamics_raw = raw.get("hydrodynamics", {}) or {}
         hydrodynamics = HydrodynamicsParams(

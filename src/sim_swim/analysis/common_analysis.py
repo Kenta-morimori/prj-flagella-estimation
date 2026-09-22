@@ -165,8 +165,8 @@ def dispatch(analysis_kind: str, argv: list[str]) -> None:
 
         main(argv)
         return
-    if analysis_kind == "issue184-2015-nf1-6-provisional":
-        from sim_swim.analysis.issue184_2015_nf1_6_provisional import main
+    if analysis_kind == "model-development-evaluation":
+        from sim_swim.analysis.model_development_evaluation import main
 
         main(argv)
         return

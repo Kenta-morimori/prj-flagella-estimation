@@ -7,8 +7,12 @@ import argparse
 import csv
 from datetime import datetime
 import json
+import os
 from pathlib import Path
+import signal
+import threading
 from typing import Any
+import uuid
 from zoneinfo import ZoneInfo
 
 from sim_swim.analysis.flagella_count_behavior import (
@@ -33,7 +37,7 @@ from sim_swim.analysis.sweeps.shape_stability_grid import (
 )
 from sim_swim.core.run_context import init_run
 from sim_swim.sim.body_shape_gate import summarize_body_shape_diagnostics_csv
-from sim_swim.sim.core import Simulator
+from sim_swim.sim.core import SimulationInterrupted, Simulator
 from sim_swim.sim.helix_retention_gate import summarize_single_flagellum_helix_retention
 from sim_swim.sim.params import SimulationConfig
 
@@ -61,6 +65,75 @@ def _parse_bool(value: Any, default: bool) -> bool:
     if text in {"0", "false", "no", "n", "off"}:
         return False
     raise ValueError(f"Invalid boolean value: {value}")
+
+
+def _atomic_path(path: Path) -> Path:
+    return path.with_name(f".{path.stem}.{uuid.uuid4().hex}.tmp{path.suffix}")
+
+
+def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
+    temporary = _atomic_path(path)
+    with temporary.open("w", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
+
+
+def _atomic_csv(path: Path, rows: list[dict[str, Any]]) -> None:
+    if not rows:
+        return
+    temporary = _atomic_path(path)
+    fields = list(dict.fromkeys(key for row in rows for key in row))
+    with temporary.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
+
+
+def _atomic_state_artifacts(condition_dir: Path, states: list[Any]) -> None:
+    archive = condition_dir / "state_archive.partial.npz"
+    trajectory = condition_dir / "trajectory.partial.csv"
+    archive_tmp = _atomic_path(archive)
+    trajectory_tmp = _atomic_path(trajectory)
+    save_state_archive(archive_tmp, states)
+    write_trajectory_csv(trajectory_tmp, states)
+    os.replace(archive_tmp, archive)
+    os.replace(trajectory_tmp, trajectory)
+
+
+class _StopRequest:
+    """Convert SIGTERM/SIGINT into a cooperative simulation-loop stop."""
+
+    def __init__(self) -> None:
+        self.reason: str | None = None
+        self.installed = threading.current_thread() is threading.main_thread()
+        if not self.installed:
+            self.previous: dict[int, Any] = {}
+            return
+        self.previous = {
+            signum: signal.getsignal(signum)
+            for signum in (signal.SIGTERM, signal.SIGINT)
+        }
+
+        def request(signum: int, _frame: Any) -> None:
+            if self.reason is None:
+                self.reason = f"interrupted by {signal.Signals(signum).name}"
+
+        for signum in self.previous:
+            signal.signal(signum, request)
+
+    def requested(self) -> str | None:
+        return self.reason
+
+    def restore(self) -> None:
+        if not self.installed:
+            return
+        for signum, handler in self.previous.items():
+            signal.signal(signum, handler)
 
 
 def _condition_row(
@@ -311,6 +384,7 @@ def run_campaign(argv: list[str] | None = None) -> Path:
         )
         condition_dir = ctx.out.root / condition["condition_id"]
         condition_dir.mkdir(parents=True, exist_ok=False)
+        stop_request: _StopRequest | None = None
         try:
             cfg = SimulationConfig.from_dict(base_cfg).with_overrides(
                 condition["config_overrides"]
@@ -320,12 +394,88 @@ def run_campaign(argv: list[str] | None = None) -> Path:
                 cfg.hydrodynamics.enabled
             )
             simulator = Simulator(cfg)
+            checkpoint_rows: list[dict[str, Any]] = []
+
+            def checkpoint(**payload: Any) -> None:
+                diagnostic = dict(payload.get("diagnostic_row") or {})
+                body = dict(payload.get("body_row") or {})
+                completed_steps = int(payload["completed_steps"])
+                if (
+                    not checkpoint_rows
+                    or checkpoint_rows[-1]["step"] != completed_steps
+                ):
+                    sample = {
+                        "step": completed_steps,
+                        "t_star": payload["t_star"],
+                        "t_s": payload["t_s"],
+                        "checkpoint_status": payload["status"],
+                        "wall_time_s": payload["wall_time_s"],
+                        "steps_per_s": payload["steps_per_s"],
+                        **{
+                            f"diagnostic_{key}": value
+                            for key, value in diagnostic.items()
+                        },
+                        **{f"body_{key}": value for key, value in body.items()},
+                    }
+                    checkpoint_rows.append(sample)
+                summary = payload["online_summary"].document(
+                    run_dir=condition_dir,
+                    completed=False,
+                    reason=str(payload["reason"]),
+                    time_manifest=cfg.time_manifest(),
+                    policy="compact",
+                )
+                _atomic_json(
+                    condition_dir / "progress.json",
+                    {
+                        "kind": "phase2_checkpoint_progress",
+                        "status": payload["status"],
+                        "updated_at": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
+                        "execution": {
+                            "completed_steps": completed_steps,
+                            "total_steps": payload["total_steps"],
+                            "t_star": payload["t_star"],
+                            "t_s": payload["t_s"],
+                            "wall_time_s": payload["wall_time_s"],
+                            "steps_per_s": payload["steps_per_s"],
+                            "reason": payload["reason"],
+                        },
+                        "online_qc": {
+                            "gates": summary["gates"],
+                            "all_step_metrics": summary["all_step_metrics"],
+                        },
+                    },
+                )
+                _atomic_csv(condition_dir / "diagnostic_samples.csv", checkpoint_rows)
+                if save_state_archive_enabled:
+                    _atomic_state_artifacts(condition_dir, list(payload["states"]))
+                logger.info(
+                    "Checkpoint %s: condition=%s step=%d/%d t_s=%.9g",
+                    payload["status"],
+                    condition["condition_id"],
+                    completed_steps,
+                    payload["total_steps"],
+                    payload["t_s"],
+                )
+
+            compact_checkpoint = cfg.output.policy == "compact"
+            if compact_checkpoint:
+                stop_request = _StopRequest()
             states = simulator.run(
                 cfg.time.duration_s,
+                logger=logger,
                 step_summary_dir=condition_dir,
                 stop_on_shape_fail=False,
-                progress_interval=progress_interval,
+                progress_interval=(
+                    min(progress_interval, cfg.output.checkpoint_interval_steps)
+                    if compact_checkpoint
+                    else progress_interval
+                ),
                 record_body_diagnostics=True,
+                checkpoint_callback=checkpoint if compact_checkpoint else None,
+                interrupt_requested=(
+                    stop_request.requested if stop_request is not None else None
+                ),
             )
             if save_state_archive_enabled:
                 save_state_archive(condition_dir / "state_archive.npz", states)
@@ -349,8 +499,9 @@ def run_campaign(argv: list[str] | None = None) -> Path:
                 simulator.implementation_manifest()
             )
         except Exception as exc:
+            partial = isinstance(exc, SimulationInterrupted)
             failure = {
-                "status": "failed",
+                "status": "partial" if partial else "failed",
                 "condition_id": condition["condition_id"],
                 "condition_index": index - 1,
                 "error_type": type(exc).__name__,
@@ -370,7 +521,7 @@ def run_campaign(argv: list[str] | None = None) -> Path:
                         **failure,
                         "completed_condition_count": len(rows),
                         "expected_condition_count": len(conditions),
-                        "exit_code": 1,
+                        "exit_code": 130 if partial else 1,
                     },
                     ensure_ascii=False,
                     indent=2,
@@ -378,7 +529,12 @@ def run_campaign(argv: list[str] | None = None) -> Path:
                 + "\n",
                 encoding="utf-8",
             )
+            if partial:
+                raise SystemExit(130) from exc
             raise
+        finally:
+            if stop_request is not None:
+                stop_request.restore()
 
     summary_path = ctx.out.root / "summary.csv"
     fieldnames = _summary_fieldnames(rows)
@@ -405,6 +561,9 @@ def run_campaign(argv: list[str] | None = None) -> Path:
         "output_root": str(ctx.out.root),
         "save_state_archive": save_state_archive_enabled,
         "hydrodynamics_enabled": base_simulation_cfg.hydrodynamics.enabled,
+        "development_evaluation": dict(
+            campaign.get("development_evaluation", {}) or {}
+        ),
         "replay": dict(campaign.get("replay", {}) or {}),
         "plot": dict(campaign.get("plot", {}) or {}),
         "axes": campaign_axes_metadata(campaign),
@@ -436,6 +595,7 @@ def run_campaign(argv: list[str] | None = None) -> Path:
         existing = json.loads(manifest_path.read_text(encoding="utf-8"))
         existing["input"]["campaign"] = {
             "base_config": str(base_config_path),
+            "development_evaluation": manifest["development_evaluation"],
             "replay": manifest["replay"],
             "plot": manifest["plot"],
         }

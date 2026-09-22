@@ -34,7 +34,13 @@ from sim_swim.sim.params import SimulationConfig
 
 
 def _manifest(root: Path) -> dict[str, Any]:
-    return json.loads((root / "run_manifest.json").read_text())
+    manifest = json.loads((root / "run_manifest.json").read_text())
+    if bool(manifest.get("partial", False)):
+        raise ValueError(
+            "Hydrodynamics flow replay does not accept partial evidence: "
+            "flow archives are checkpointed only for completed campaigns"
+        )
+    return manifest
 
 
 def _condition_dir(root: Path, record: dict[str, Any]) -> Path:

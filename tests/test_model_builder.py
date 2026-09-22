@@ -328,6 +328,82 @@ def test_seeded_center_layer_rotates_slots_independently_of_phase_seed() -> None
     )
 
 
+@pytest.mark.parametrize(
+    ("n_flagella", "slots"),
+    [
+        (1, [0]),
+        (2, [0, 3]),
+        (3, [0, 2, 4]),
+        (4, [0, 1, 3, 4]),
+        (5, [0, 1, 2, 3, 4]),
+        (6, [0, 1, 2, 3, 4, 5]),
+    ],
+)
+@pytest.mark.parametrize("attach_seed", [0, 1, 2])
+def test_seeded_balanced_center_layer_uses_rotated_unique_hex_slots(
+    n_flagella: int, slots: list[int], attach_seed: int
+) -> None:
+    model = ModelBuilder(
+        _make_cfg(
+            n_prism=6,
+            n_flagella=n_flagella,
+            n_beads_per_flagellum=11,
+            flag_length_over_b=5.8,
+            placement_mode="seeded_balanced_center_layer",
+            initial_phase_mode="seeded",
+            attach_seed=attach_seed,
+            phase_seed=7,
+        )
+    ).build()
+    expected = [12 + ((attach_seed + slot) % 6) for slot in slots]
+    assert model.flagella_attach_body_indices.tolist() == expected
+    assert len(set(expected)) == n_flagella
+
+
+def test_seeded_balanced_center_layer_n4_is_alternating_gap_layout() -> None:
+    model = ModelBuilder(
+        _make_cfg(
+            n_prism=6,
+            n_flagella=4,
+            placement_mode="seeded_balanced_center_layer",
+            attach_seed=0,
+            phase_seed=4,
+        )
+    ).build()
+    slots = model.flagella_attach_body_indices - 12
+    gaps = np.diff(np.r_[slots, slots[0] + 6])
+    assert slots.tolist() == [0, 1, 3, 4]
+    assert gaps.tolist() == [1, 2, 1, 2]
+
+
+def test_seeded_balanced_center_layer_phase_seed_does_not_change_attachment() -> None:
+    base = dict(
+        n_prism=6,
+        n_flagella=4,
+        placement_mode="seeded_balanced_center_layer",
+        initial_phase_mode="seeded",
+        attach_seed=1,
+    )
+    first = ModelBuilder(_make_cfg(**base, phase_seed=7)).build()
+    second = ModelBuilder(_make_cfg(**base, phase_seed=8)).build()
+    assert np.array_equal(
+        first.flagella_attach_body_indices, second.flagella_attach_body_indices
+    )
+    assert not np.array_equal(
+        first.flagella_initial_phases_rad, second.flagella_initial_phases_rad
+    )
+
+
+def test_seeded_balanced_center_layer_rejects_more_than_six_flagella() -> None:
+    cfg = _make_cfg(
+        n_prism=6,
+        n_flagella=7,
+        placement_mode="seeded_balanced_center_layer",
+    )
+    with pytest.raises(ValueError, match="supports n_flagella=1..6"):
+        ModelBuilder(cfg).build()
+
+
 @pytest.mark.parametrize("n_flagella", [-1, 10])
 def test_mvp_requires_n_flagella_in_range(n_flagella: int) -> None:
     cfg = _make_cfg(n_flagella=n_flagella)

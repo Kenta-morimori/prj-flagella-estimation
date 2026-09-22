@@ -32,7 +32,7 @@ DEFAULT_WORKTREE_DIR = Path.home() / "src/prj-flagella-estimation-queue-worktree
 GITHUB_BINARY = "gh"
 NOTIFICATION_REPOSITORY = "Kenta-morimori/prj-flagella-estimation"
 NOTIFICATION_WORKFLOW = "cs10-queue-notify.yml"
-NOTIFICATION_REF = "main"
+DEFAULT_NOTIFICATION_REF = "main"
 TERMINAL_STATES = {"succeeded", "failed", "cancelled", "blocked"}
 NOTIFIABLE_STATES = {"succeeded", "failed", "cancelled"}
 
@@ -304,6 +304,14 @@ def validate_notification_setup() -> None:
         raise RuntimeError("GitHub CLI is not authenticated for github.com")
 
 
+def notification_ref() -> str:
+    """Select the workflow revision; pre-merge jobs may use their PR branch."""
+    ref = os.environ.get("CS10_QUEUE_NOTIFICATION_REF", DEFAULT_NOTIFICATION_REF)
+    if not ref or ref.strip() != ref or any(char.isspace() for char in ref):
+        raise RuntimeError("invalid CS10_QUEUE_NOTIFICATION_REF")
+    return ref
+
+
 def notify(reservation: Reservation) -> None:
     """Dispatch one final reservation notification without exposing its recipient."""
     try:
@@ -318,7 +326,7 @@ def notify(reservation: Reservation) -> None:
                 "--repo",
                 NOTIFICATION_REPOSITORY,
                 "--ref",
-                NOTIFICATION_REF,
+                notification_ref(),
                 "--raw-field",
                 "event_type=job_completed",
                 "--raw-field",

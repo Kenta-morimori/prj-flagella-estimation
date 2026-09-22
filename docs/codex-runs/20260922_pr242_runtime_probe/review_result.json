@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "task": "PR #242: 2015 project nf1–6 runtime probe implementation and cs10 launch preparation",
+  "branch": "codex/issue-61-2015-10tau-stability",
+  "summary": [
+    "latest mainを統合し、旧root混在の暫定横断解析とnf4/nf5長期補完設定を撤回した。",
+    "0.01 s、25,000 step、seeded_surfaceのnf1–6を3 workerで実行する単一parallel jobと、0.5 sへの定量外挿を実装した。",
+    "通知workflow refのPR branch overrideを追加し、既定mainと予約単位の単発通知を維持した。"
+  ],
+  "checks": [
+    {
+      "command": "uv run pytest tests/test_runtime_projection.py tests/test_phase2_parallel_job.py tests/test_cs10_queue.py tests/test_cs10_queue_notification_workflow.py -q",
+      "result": "PASS: 58 passed"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_parallel.py --config conf/phase2_parallel/issue184_2015_runtime_probe_0p01s/job.yaml --dry-run",
+      "result": "PASS: 6 seeded_surface conditions, distinct child paths, geometry preflight, max 3 cs10_qualified workers"
+    },
+    {
+      "command": ".githooks/pre-commit",
+      "result": "PASS: ruff, lifecycle, 347 light tests"
+    },
+    {
+      "command": "git diff --check and git diff --cached --check",
+      "result": "PASS"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "cs10旧job停止・新probe実行、runtime evidenceと採否判断は次段階。旧2010 hex予約6は開始しない。",
+  "adr_required": false,
+  "adr_reason": "物理モデル・QC閾値・dataset採択は変更しない。既存2015 projectの費用計測と運用契約の更新に限る。",
+  "next_action": "固定commitをpushし、旧jobを安全停止して新probeをcs10 queueで実行する。結果同期・SHA-256/QC照合後、ユーザー採否判断を得るまでmergeしない。"
+}

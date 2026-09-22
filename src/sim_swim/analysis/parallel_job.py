@@ -33,6 +33,7 @@ from sim_swim.analysis.sweeps.generic_multi_run import (
     _summary_fieldnames,
 )
 from sim_swim.analysis.sweeps.stage_a_2015 import physical_torque_condition_id
+from sim_swim.model.builder import ModelBuilder
 from sim_swim.sim.params import SimulationConfig
 
 
@@ -60,6 +61,7 @@ PREFLIGHT_KEYS = {
 }
 PREFLIGHT_MODES = {"require_status", "audit_issue61_fail"}
 AGGREGATION_KINDS = {"stage_a_2015"}
+GEOMETRY_PREFLIGHT_MODE = "geometry_all_conditions"
 SUPPORTED_KINDS = {
     "bundling_alignment",
     "hook_overstretch",
@@ -94,6 +96,7 @@ class ParallelJob:
     preflight_mode: str | None = None
     preflight_required_status: str | None = None
     preflight_expected_run_root: str | None = None
+    preflight: str | None = None
 
     @property
     def task_count(self) -> int:
@@ -305,9 +308,8 @@ def load_parallel_job(path: Path) -> ParallelJob:
         effective = apply_campaign_cli_overrides(
             load_yaml(generic_configs[0]), list(tasks[0].overrides)
         )
-        available = {
-            item["condition_id"] for item in build_campaign_conditions(effective)
-        }
+        available_conditions = build_campaign_conditions(effective)
+        available = {item["condition_id"] for item in available_conditions}
         unknown = [item for item in condition_ids if item not in available]
         if unknown:
             raise ValueError(
@@ -326,6 +328,34 @@ def load_parallel_job(path: Path) -> ParallelJob:
             raise ValueError(
                 "stage_a_2015 aggregation requires only stage_a_2015 tasks"
             )
+
+    raw_preflight = data.get("preflight")
+    if (
+        raw_preflight is not None
+        and not isinstance(raw_preflight, dict)
+        and raw_preflight != GEOMETRY_PREFLIGHT_MODE
+    ):
+        raise ValueError(
+            "preflight must be geometry_all_conditions or an Issue #61 audit mapping"
+        )
+    if raw_preflight == GEOMETRY_PREFLIGHT_MODE or isinstance(raw_preflight, dict):
+        if not generic_configs:
+            raise ValueError(
+                "geometry_all_conditions preflight requires generic_multi_run"
+            )
+        base_path = REPO_ROOT / str(effective["base_config"])
+        base_raw = load_yaml(base_path)
+        selected = {
+            item["condition_id"]: item
+            for item in available_conditions
+            if item["condition_id"] in condition_ids
+        }
+        for condition_id in condition_ids:
+            cfg = SimulationConfig.from_dict(base_raw).with_overrides(
+                selected[condition_id]["config_overrides"]
+            )
+            cfg.validate_execution_supported()
+            ModelBuilder(cfg).build()
 
     execution = _require_mapping(data.get("execution"), name="execution")
     _reject_unknown_keys(execution, allowed=EXECUTION_KEYS, name="execution")
@@ -347,7 +377,7 @@ def load_parallel_job(path: Path) -> ParallelJob:
         preflight_mode,
         preflight_required_status,
         preflight_expected_run_root,
-    ) = _parse_preflight(data.get("preflight"))
+    ) = _parse_preflight(raw_preflight if isinstance(raw_preflight, dict) else None)
     return ParallelJob(
         schema_version=1,
         job_id=job_id.strip(),
@@ -364,6 +394,7 @@ def load_parallel_job(path: Path) -> ParallelJob:
         preflight_mode=preflight_mode,
         preflight_required_status=preflight_required_status,
         preflight_expected_run_root=preflight_expected_run_root,
+        preflight=raw_preflight if isinstance(raw_preflight, str) else None,
     )
 
 

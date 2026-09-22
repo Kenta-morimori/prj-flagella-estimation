@@ -306,6 +306,16 @@ def test_notify_dispatches_actions_workflow_without_recipient(
     assert commands[0].count("--raw-field") == 9
     assert "--field" not in commands[0]
 
+    monkeypatch.setenv(
+        "CS10_QUEUE_NOTIFICATION_REF", "codex/issue-61-2015-10tau-stability"
+    )
+    commands.clear()
+    queue.notify(reservation)
+    assert (
+        commands[0][commands[0].index("--ref") + 1]
+        == "codex/issue-61-2015-10tau-stability"
+    )
+
     monkeypatch.setattr(
         queue.subprocess,
         "run",

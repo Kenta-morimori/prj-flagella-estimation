@@ -31,12 +31,22 @@ PASS と言うには、次を満たす。
 
 - requested implementation / documentation change が完了している。
 - relevant tests/checks が PASS、または未実行理由が明確。
-- review step が完了している。
+- local review step（relevant tests/checks とセルフチェック）が完了している。PR作成後の CI / trusted Cloud review は merge gate であり、local PASSとは分離する。
 - `review_result.json` の `status` が `"PASS"`。
 - work log / review result が保存されている。
 - final state が commit 済み。
 - remote access があれば push 済み。
 - pushed feature branch なら PR 作成済み。
+
+## 初回完了報告
+
+file-changingなIssue実装では、初回完了報告はPR作成後まで送らない。順序は
+`local review PASS → review_result.json: PASS → commit → push → source Issueを参照するPR作成 → 初回完了報告`
+とする。commentaryによる進捗共有はこの制約の対象外だが、PR作成前に実装完了・成果物・PR候補を
+報告してはならない。
+
+例外は、ユーザーが明示的にPR不要と指定した場合、またはPR作成が失敗した場合だけである。後者では
+試行内容とconcrete blockerを報告し、成功・完了とは記載しない。
 
 ## FAIL / Diagnostic Conditions
 
@@ -78,5 +88,6 @@ FAIL commit は完了扱いにしない。commit type は `diagnostic`, `wip`, `
 - commit message は `type(scope): summary`。
 - `main` / `master` へ直接 commit しない。
 - feature branch を push したら PR を作る。
+- 初回完了報告はPR作成後まで送らない。PR作成不能時のblocker報告以外に例外を設けない。
 - GitHub issue は明示依頼がない限り作らない。
 - PR は作ってよいが、merge はしない。

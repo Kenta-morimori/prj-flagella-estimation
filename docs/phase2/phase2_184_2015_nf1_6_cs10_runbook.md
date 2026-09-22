@@ -1,57 +1,39 @@
-# Issue #184: 2015 project nf1–6 10τ cs10 runbook
+# Issue #184: 2015 project 計算費用probe cs10 runbook
 
-このcampaignは`execution:cs10`のdiagnostic-only実行である。今回に限り、未実行だったnf4/nf5を
-`seeded_surface`・attach/phase seed `0`で2 worker同時実行する。Actions通知は送らない。
+本runbookはPR #242のmerge前に、2015 projectの計算費用を実測するためのもの。物理的な採択や10τの安定性評価ではない。Issue #61の既存3条件はstrict FAILであり、pitch QCの見直しは保留する。
 
-## 現行failed job
+## 固定契約
 
-2026-09-08の`seeded_center_layer` reservationはnf4/nf5が`n_prism=6`の割り切れ制約で
-開始前に失敗した。nf1–3と完走するnf6は保持する。今回停止したnf1/nf2 direct rootは隔離し、
-暫定表にも使わない。nf1–3/nf6と新nf4/nf5だけは、topology混在を明記した暫定横断表に載せられる。
-このreservationは停止しない。
+- `conf/phase2_parallel/issue184_2015_runtime_probe_0p01s/job.yaml`を1予約として使い、`seeded_surface`・seed 0・`2.5e-20 N m`・tracking-reference・`dt_star=1e-5`・RUN固定・Brownian OFFのnf1–6を独立shardで実行する。
+- 各条件は0.01実秒=0.25τ=25,000 internal steps。`cs10_qualified`、最大3 worker、compact checkpoint 2,500 steps、output分離。全6 shardとaggregateの終端確定後にActions通知を予約単位で最大1回送る。
+- 既存の2010 hex予約6には触れない。新probeの後にもdispatcherを`--once`で終え、予約6を自動起動しない。
 
-## 実行前
+## 旧runの扱い
 
-cs10のworktreeで、以下のdry-runによりnf4/nf5、worker数、分離output、
-tracking-reference、seed、およびattachment body bead / layer / slotを確認する。
-geometry preflightが失敗したらqueueへ投入しない。
+reservation 5の旧`seeded_center_layer` jobはnf1–3のみ完走。nf4/nf5はgeometry構成に失敗し、nf6は未完走である。直接実行中のnf4/nf5 `seeded_surface`も未完走である。queueをpauseし、対象PID・process group・child状態を再確認してからreservation 5をcancel、direct nf4/nf5を停止する。旧reservation 5の`cancelled`通知1件は許容する。
 
-```bash
-export PATH=/home/people/Ktakemori/.local/bin:/usr/local/bin:/usr/bin
-cd ~/src/prj-flagella-estimation
-.venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \
-  --config conf/phase2_parallel/issue184_2015_nf4_nf5_10tau/job.yaml --dry-run
-```
+完走済みnf1–3、停止済みdirect nf1/nf2、および親jobのmanifestsは保持する。削除するのは対象・未完走を記録したnf4/nf5/nf6のchild出力のみで、削除対象と回復可能性を実施後に報告する。旧artifactを新probeへコピー・混在させない。
 
-## ユーザー実行
+## 起動前と通知
+
+PR #242の固定commitで隔離worktreeを用意する。checkoutを変更する前に、旧run停止と対象出力の処理を完了する。dry-runとgeometry/output preflightで6 condition、attachment body bead/layer/slot、3 worker、分離pathを確認する。`gh auth status`とbranch上の`cs10-queue-notify.yml`を読み取り確認し、認証情報は記録・同期しない。
 
 ```bash
 .venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \
-  --config conf/phase2_parallel/issue184_2015_nf4_nf5_10tau/job.yaml \
-  --max-workers 2 --output-root <new-nas-root>
+  --config conf/phase2_parallel/issue184_2015_runtime_probe_0p01s/job.yaml --dry-run
 ```
 
-今回のdirect runはqueue reservationを作らず、Actions通知も送らない。旧nf6は継続する。
-完了済みchild artifactを別rootへコピーしない。
+queueにprobeを予約6より高priorityでenqueueする。dispatcherは環境変数`CS10_QUEUE_NOTIFICATION_REF=codex/issue-61-2015-10tau-stability`を設定し、`scripts/cs10/queue.py run --once`で起動する。既定refは`main`であり、PR branch上workflowを使う今回だけoverrideする。失敗・取消でも当該予約の終端時に1通知を試み、再試行は自動では行わない。
 
-## 完了後
+## 終了後
 
-`job_manifest.json`が`succeeded`、`aggregation.status=completed`、nf4/nf5を確認してから
-campaign manifest、summary、compact diagnostics、state archive、trajectoryをローカル同期する。
-件数・SHA-256・QCを照合後、以下を実行する。
+`job_manifest.json`の`succeeded`、`aggregation.status=completed`、campaign completion、6つのcondition symlink/summary/performanceを確認する。必要なmanifest、summary、performance、compact diagnosticsとreplay用archiveをローカルへ同期し、件数・SHA-256・QCを照合する。cs10 operational logやcredentialsは同期しない。
 
 ```bash
-uv run python scripts/03_dataset_building/analyze_dataset.py \
-  --analysis-kind issue184-2015-nf1-6-provisional \
-  --source nf01=<old-nf01-run-root> --source nf02=<old-nf02-run-root> \
-  --source nf03=<old-nf03-run-root> --source nf04=<new-nf04-run-root> \
-  --source nf05=<new-nf05-run-root> --source nf06=<old-nf06-run-root> \
-  --output-dir <local-output>/analysis/issue184_provisional
-
-uv run python scripts/03_dataset_building/replay_dataset.py \
-  --run-dir <campaign-root> --output-dir <campaign-root>/analysis/replay \
-  --view 3d+2d --mode both --camera-3d fixed --camera-2d fixed \
-  --view-range-mode campaign-envelope --fps-out-3d 25 --fps-out-2d 25
+uv run python scripts/01_simulate_swimming/estimate_runtime.py \
+  --job-root <local-job-root> --target-duration-s 0.5 \
+  --conditions nf01,nf02,nf03,nf04,nf05,nf06 \
+  --output-dir <local-job-root>/analysis/runtime_projection
 ```
 
-暫定`issue184_provisional_decision.json`は常に`status=provisional`であり、dataset採択、profile昇格、canonical selection、Phase 3 handoffは行わない。
+`runtime_projection.csv/json`に各条件の実測wall time・steps/s、0.5秒=12.5τ=1,250,000 stepsへの50倍外挿、3-worker makespan、nf1–3の既存10τ実測との比、不確かさ、provenanceを記録する。速度測定の成功はstrict QC PASSではない。6条件が揃わなければ採否を判断しない。結果表をユーザーに提示し、2015を採用候補から外すか確認してからPR #242へ判断を記録する。

@@ -47,6 +47,11 @@ Issue Form外で作成されたIssueや不正な日付は`roadmap:triage`、reop
 
 PR URL，最終PR head SHA，push後の状態など，PR作成後にしか確定しない動的情報を tracked `review_result.json` へ後追い同期するためだけの commit は作らない。これらはPR本文，GitHub checks，最終ユーザー報告に記録する。
 
+file-changingなIssue実装では、初回完了報告はPR作成後まで送らない。local PASS、commit、push、source
+Issueを参照するPR作成の後に、PR URLと未完了のmerge gateを報告する。commentaryの進捗共有は可能だが、
+PR作成前に実装完了・成果物・PR候補として報告してはならない。例外はユーザーが明示的にPR不要とした場合、
+またはPR作成が失敗した場合だけであり、後者は試行内容とconcrete blockerを報告する。
+
 ## Run ID
 
 形式:
@@ -63,7 +68,7 @@ PASS 完了には以下が必要である。
 
 1. Requested implementation / documentation change が完了している。
 2. Relevant tests/checks が PASS，または未実行理由が明確である。
-3. Review step が完了している。
+3. Local review step が完了している。PR作成後のCI / trusted Cloud reviewはmerge gateとして別管理する。
 4. `docs/codex-runs/<run-id>/review_result.json` が `"status": "PASS"` である。
 5. Work log / review result が保存されている。
 6. Final state が commit 済みである。
@@ -166,8 +171,8 @@ Rules:
 * Start the next task from the updated default branch on a new task-specific branch.
 * Commit useful FAIL progress only when it is clearly diagnostic or WIP and does not claim completion.
 * Push the feature branch when remote access is available.
-* Send the final user report only after the final task state has been committed and pushed when remote access is available.
 * Create a PR after pushing a feature branch when GitHub remote access is available.
+* Send the first completion report only after the final task state has been committed, pushed, and its source-Issue-linked PR has been created. The only exceptions are an explicit user instruction not to create a PR, or reporting a failed PR-creation attempt and its concrete blocker.
 * Create GitHub issues when they are needed to track an accepted task, split follow-up work, or keep Project items structured.
 * Link the PR to the original source issue in the PR body. Use `Closes #<issue>` / `Fixes #<issue>` only when the PR is intended to complete that issue.
 * Target the branch specified by the task or issue. If no target branch is specified, target the repository default branch.
@@ -254,7 +259,7 @@ After the workflow is merged to `main`, repository rulesets continue to require 
 
 ## Reporting and decision gates
 
-Use small reporting units for docs, workflow, tests, narrow bug fixes, and bounded CLI helpers. Report summary, changed files, checks, review result, PR, commit, and remaining issues after each pushed PR.
+Use small reporting units for docs, workflow, tests, narrow bug fixes, and bounded CLI helpers. For file-changing Issue work, report summary, changed files, checks, review result, PR, commit, and remaining issues only after the source-Issue-linked PR exists. Progress commentary remains allowed before then; PR-creation failure may be reported only as a concrete blocker.
 
 When a task needs user visual review or a major decision, continue any independent implementation or documentation work, but stop the acceptance decision with `review_result.json` set to `FAIL`. Report the exact command, output directory, files to inspect, evaluation points, checks already passed, and the decision that is blocked.
 

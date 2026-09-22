@@ -11,6 +11,13 @@ model_profile:
   nominal_flagella_count: 3
   nominal_total_beads: 120
 
+development_evaluation:
+  version: 1
+  profile_id: 2015_paper
+  short_screen: planned
+  long_duration: planned
+  feature_evaluation: separate_issue
+
 scale:
   b_um: 1.0
   bead_radius_a_over_b: 0.06   # Kong et al. (2015): a=0.06 b

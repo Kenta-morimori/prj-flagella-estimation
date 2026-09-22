@@ -72,6 +72,42 @@ cs10 実機では、251-step（`duration_s=0.001`）screen を workers `1,2,4,6,
 
 所要時間は選択する profile の条件数・積分時間に依存する。`duration_s=0.5` 以上の長時間 campaign を開始する前には、同じ worker policy で representative workload を再qualificationする。
 
+## compact `generic_multi_run` のheartbeat確認と安全停止
+
+`output.policy: compact` の `generic_multi_run` は、既定で2,500 internal stepsごとに
+condition directoryへ`progress.json`、`diagnostic_samples.csv`、`state_archive.partial.npz`、
+`trajectory.partial.csv`を原子的に更新する。`progress.json`を先に読み、必要な範囲だけ
+`diagnostic_samples.csv`を読む。checkpointのraw sampleは後処理用であり、平均・分位点・window
+統計をruntimeのprogress値から採択してはならない。
+
+```bash
+COND_DIR=<campaign-root>/<condition-id>
+cat "$COND_DIR/progress.json"
+tail -n 3 "$COND_DIR/diagnostic_samples.csv"
+```
+
+SIGTERMまたはSIGINTでは、runnerは次のinternal step境界で停止する。`run_summary.json`の
+`execution.status=partial`、`performance.json`、`campaign_completion.json`、partial archiveを
+確認する。このexit codeは130であり、parallel jobではfailed/未aggregateとなる。途中状態から
+simulationをresumeしてはならない。
+
+partial evidenceを定性評価する場合は、通常campaignとは別のanalysis directoryを作る。二つの
+explicit opt-inが必要であり、出力映像は`PARTIAL`と表示される。dataset採択、profile昇格、
+canonical判定には使わない。
+
+partial evidenceは通常の3D+2D replay用であり、hydrodynamics flow overlayには使えない。checkpointは
+`hydro_archive.npz`を保存しないため、`--flow-overlay`はpartial manifestを明示的に拒否する。partial
+flow replayを必要とするcampaignは、このrunbookの手順を拡張せず別Issueで契約化する。
+
+```bash
+.venv-cs10/bin/python -m sim_swim.analysis.partial_generic_multi_run \
+  --campaign-config <campaign.yaml> --run-dir <campaign-root> \
+  --output-dir <analysis-only-partial-input> --include-partial-checkpoint
+.venv-cs10/bin/python scripts/03_dataset_building/replay_dataset.py \
+  --run-dir <analysis-only-partial-input> --allow-partial \
+  --output-dir <partial-replay-output>
+```
+
 ## 長時間 parallel job の標準運用
 
 Issueの`execution:cs10`は、独立conditionが8以上またはMac見積りwall timeが30分超の

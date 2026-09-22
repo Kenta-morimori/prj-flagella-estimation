@@ -21,6 +21,7 @@ Phase 3が使用するcanonical physical simulation modelをfreezeする．
 - training candidate: 全時間strict passを要求
 - CLI例: `KEY=VALUE`形式を第一表記とする
 - 新規runの時間scale: `reference_torque`（`tau_s=eta*b^3/|T|`）。過去再現は`legacy_fixed_tau_s_1`を明示する
+- compact `generic_multi_run`: 2,500 internal stepsごとにheartbeat / partial evidenceを原子的に保存する（#186）。これはresumeや採択根拠ではない
 - parameter・閾値・dataset条件: config，test，registryを正本とする
 
 採択判断は`docs/phase2/phase2_tasks.md`のDecision Indexから確認する．
@@ -37,9 +38,9 @@ runbookは`phase2_215_5s_axis_convergence_runbook.md`を正本とする。
 
 ## Next queue
 
-1. **Issue #200:** #203のprofile比較結果を受け取り，2010 projectの`dt_star`収束性を判断する．
-2. **Issue #61 / #184:** #61は2015 projectのtracking-reference・1τ torque safety/throughput screen、#184は今回未実行nf4/nf5を`seeded_surface`・seed 0で10τ補完する。旧nf1–3/nf6と新nf4/nf5はtopology混在の暫定横断結果に限り、clean evidence、dataset/profile/canonical判断には使わない。次回のnf1–6は同一topologyでclean実行する。
-3. **Issue #205:** 物理・数値妥当性の証拠だけを集約し，canonical modelをfreezeする．
+1. **Issue #61 / #184:** 2015 projectの1τ strict QC結果を保持し、`seeded_surface`のnf1–6短時間並列測定から0.5実秒の計算費用を推定する。既存の未完走10τ jobは停止し、採否判断は測定結果のレビュー後に行う。
+2. **Issue #244 / #245:** 2010 hex候補の60 cell共通short screenはstrict QCをPASS済み。#245の長時間評価は2015計算費用の判断後に扱う。
+3. **Issue #200:** #203のprofile比較結果を受け取り、2010 projectの`dt_star`収束性を判断する。
 
 ## Current blockers
 
@@ -73,6 +74,7 @@ runbookは`phase2_215_5s_axis_convergence_runbook.md`を正本とする。
 - Run summary contract: `docs/phase2/phase2_run_summary_contract.md`
 - Issue #204 feature-study reference: `docs/phase2/phase2_204_feature_study_reference.md`
 - Issue #215 5.0 s diagnostic: `docs/phase2/phase2_215_5s_axis_convergence_runbook.md`
+- Issue #244 2010 hex 1τ contract: `docs/phase2/phase2_244_2010_hex_1tau_contract.md`
 - Axis / feature contracts: `phase2_7_flag_helix_axis_diagnostics.md`, `phase2_8_flagella_count_feature_definitions.md`
 - Model correspondence: `phase2_163_2010_potential_correspondence.md`, `phase2_167_2015_paper_conditions.md`
 - ADRs: `docs/adr/`

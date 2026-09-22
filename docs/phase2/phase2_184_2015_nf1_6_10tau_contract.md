@@ -1,60 +1,18 @@
-# Phase 2 Issue #184: 2015 project nf1–6 10τ stability screen
+# Phase 2 Issue #184: 2015 project nf1–6 実行契約
 
-cs10の起動・同期・解析手順は`docs/phase2/phase2_184_2015_nf1_6_cs10_runbook.md`を正本とする。
+PR #242では10τ完走を追わず、同一topologyの短時間並列probeから計算費用を測定する。cs10手順は`docs/phase2/phase2_184_2015_nf1_6_cs10_runbook.md`を正本とする。
 
-2015 projectの`2.5e-20 N m` per-flagellum torqueにおける、長時間の形状・遊泳診断である。
-これはdiagnostic-only campaignである。dataset採択、canonical torque選定、supported profile昇格、
-Phase 3 handoffは行わない。#61のpitch QCの採否見直しも本campaignでは行わない。
-
-| item | value |
+| 項目 | PR #242 probe |
 | --- | --- |
-| profile | `conf/sim_swim_2015.yaml` project |
-| torque / scale policy | `2.5e-20 N m`; motor = reference = force torque; `reference_torque` |
-| conditions | 今回の補完は`n_flagella=4,5`のみ、`seeded_surface`、attach/phase seed `0`。nf1–3/nf6は既存`seeded_center_layer` artifactを保持する。 |
-| integration | `dt_star=1e-5`, `duration_tau=10` |
-| motion | RUN fixed、switchingなし、Brownian OFF |
-| execution | 今回限定でcs10 direct 2 worker・nf4/nf5 isolated shards・Actions通知なし |
+| model | 2015 project、`seeded_surface`、nf1–6、attach/phase seed 0 |
+| motor/time | `2.5e-20 N m`、motor=reference=force torque、tracking-reference、`dt_star=1e-5` |
+| motion | RUN固定、switchingなし、Brownian OFF |
+| duration | 各0.01実秒=0.25τ=25,000 steps |
+| execution | `cs10_qualified`、単一parallel-job予約、最大3 worker、compact checkpoint 2,500 steps |
+| purpose | 0.5実秒=12.5τ=1,250,000 stepsの計算費用外挿。物理的PASS・dataset採択・profile昇格・canonical選定は対象外 |
 
-開始前に、再解析済み#61の3 torque・1τ decision JSONとsummary CSVが揃っていなければならない。
-現行の3/3 strict FAIL（pitch / motor torque residual）は既知の診断前提としてmanifestへ保存する。
-jobは同一campaign root・3 condition・全strict FAILをauditし、不在・不整合・別campaignならsimulationを起動しない。
+#61の再解析済み3 torque・1τ decisionをpreflightでauditし、既知の3/3 strict FAILを記録する。decision欠落・不整合時は起動を拒否する。各conditionのgeometry構成はoutput root作成前に確認する。
 
-`seeded_surface`はseed 0で決定論的に中心層を優先する。今回のnf4/nf5は中心層の先頭slotから構成する。各conditionについてstrict QC、最初のfailure criterion / 時刻 / step、wall time、steps/s、
-body/flagella motion、3d+2d replayを保存する。見積りは約5.4日/condition、2 worker並列で約6日である。
+旧reservation 5の`seeded_center_layer` nf1–3完走結果は長時間performanceとの比較資料として保持する。旧nf6とdirect nf4/nf5は未完走のまま停止し、対象確認後にchild出力だけを削除する。旧・新rootを混ぜた暫定nf1–6物理集計は行わない。将来10τ screenが必要なら、全6条件を同一`seeded_surface` topology、同一commit、clean campaignで実行する。
 
-2026-09-08の`seeded_center_layer` jobはnf4/nf5が`n_prism=6`を割り切らず開始前geometry構成で失敗した。
-nf1–3と完走するnf6は保持する。今回だけは、nf4/nf5の`seeded_surface`補完結果と合わせたtopology混在の暫定横断表へ明示provenance付きで載せられるが、clean seeded-surface campaignのaggregate、dataset/profile判断、canonical選定には使わない。
-以後のdry-runは全conditionを`ModelBuilder`でgeometry-only検証し、attachment topologyをjob manifestに記録する。
-
-## 今回限定の direct procedure
-
-```bash
-.venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \
-  --config conf/phase2_parallel/issue184_2015_nf4_nf5_10tau/job.yaml --dry-run
-.venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \
-  --config conf/phase2_parallel/issue184_2015_nf4_nf5_10tau/job.yaml \
-  --max-workers 2 --output-root <new-nas-root>
-```
-
-このdirect jobはActions通知を送らない。停止済みnf1/nf2 direct rootは保持・隔離し、評価に使わない。nf4/nf5完走後、旧nf1–3/nf6と新nf4/nf5を暫定横断表へ記録する。
-次回のclean nf1–6 screenは同一topology・single reservation・単発通知を必須とする。
-
-集約済みclean campaignだけを次で正式評価する。partial / failed shardや旧`seeded_center_layer` outputは入力にできない。
-
-```bash
-uv run python scripts/03_dataset_building/analyze_dataset.py \
-  --analysis-kind issue184-2015-nf1-6 \
-  --run-root <campaign-root> \
-  --output-dir <campaign-root>/analysis/issue184_2015_nf1_6
-```
-
-今回の暫定横断表は別CLIで明示したchild rootだけを入力にする。
-
-```bash
-uv run python scripts/03_dataset_building/analyze_dataset.py \
-  --analysis-kind issue184-2015-nf1-6-provisional \
-  --source nf01=<old-nf01-run-root> --source nf02=<old-nf02-run-root> \
-  --source nf03=<old-nf03-run-root> --source nf04=<new-nf04-run-root> \
-  --source nf05=<new-nf05-run-root> --source nf06=<old-nf06-run-root> \
-  --output-dir <local-output>/analysis/issue184_provisional
-```
+計算費用の結論はprobeの6条件実測と不確かさ、nf1–3の既存10τ実測との差を示した後、ユーザーが判断する。事前閾値で2015の採否を自動決定しない。

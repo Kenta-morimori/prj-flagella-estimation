@@ -24,6 +24,7 @@ from sim_swim.analysis.cli_profiles import (
     split_config_key,
 )
 from sim_swim.analysis.flagella_count_behavior import (
+    load_state_archive,
     normalize_base_overrides,
     validate_replay_fps,
 )
@@ -327,6 +328,8 @@ def _ordered_rows(
 
 def _load_inputs(
     input_dir: Path,
+    *,
+    allow_partial: bool = False,
 ) -> tuple[list[dict[str, str]], dict[str, dict[str, Any]], Path]:
     summary_path = input_dir / "summary.csv"
     manifest_path = input_dir / "run_manifest.json"
@@ -336,6 +339,11 @@ def _load_inputs(
         raise FileNotFoundError(f"Missing run_manifest.json under {input_dir}")
     rows = _load_csv_rows(summary_path)
     manifest = _load_json(manifest_path)
+    if bool(manifest.get("partial", False)) and not allow_partial:
+        raise ValueError(
+            "Partial evidence requires --allow-partial; it is diagnostic-only "
+            "and cannot be used for adoption or canonical decisions"
+        )
     records = _condition_records(manifest)
     base_config_raw = manifest.get("base_config") or manifest.get("config")
     if base_config_raw is None and records:
@@ -350,11 +358,23 @@ def _load_inputs(
         condition_id = row["condition_id"]
         if condition_id not in records:
             raise RuntimeError(f"Missing {condition_id} in run_manifest.json")
-        archive_path = _archive_path(input_dir, records[condition_id])
+        archive_path = _archive_path(
+            input_dir,
+            records[condition_id],
+            allow_partial=allow_partial,
+        )
         if not archive_path.exists():
             raise FileNotFoundError(
                 f"Missing state archive for {condition_id}: {archive_path}"
             )
+        if allow_partial and archive_path.name == "state_archive.partial.npz":
+            try:
+                if not load_state_archive(archive_path):
+                    raise ValueError("archive contains no states")
+            except (KeyError, OSError, ValueError) as exc:
+                raise ValueError(
+                    f"Invalid partial state archive for {condition_id}: {archive_path}"
+                ) from exc
         # Generic compact summaries keep the body gate in run_summary.json.
         # Copy the first body-failure time into the in-memory row so a replay
         # does not incorrectly label a body PASS/FAIL using only non-body QC.
@@ -368,8 +388,18 @@ def _load_inputs(
     return ordered_rows, records, base_cfg_path
 
 
-def _archive_path(input_dir: Path, condition_record: dict[str, Any]) -> Path:
+def _archive_path(
+    input_dir: Path,
+    condition_record: dict[str, Any],
+    *,
+    allow_partial: bool = False,
+) -> Path:
     condition_id = str(condition_record["condition_id"])
+    partial_evidence = dict(condition_record.get("partial_evidence", {}) or {})
+    if allow_partial and partial_evidence.get("state_archive"):
+        partial_path = Path(str(partial_evidence["state_archive"]))
+        if partial_path.is_file():
+            return partial_path
     output_dir = condition_record.get("output_dir")
     candidates = []
     if output_dir:
@@ -386,6 +416,13 @@ def _archive_path(input_dir: Path, condition_record: dict[str, Any]) -> Path:
     for candidate in candidates:
         if candidate.is_file():
             return candidate
+    if allow_partial:
+        partial_candidates = [
+            candidate.with_name("state_archive.partial.npz") for candidate in candidates
+        ]
+        for candidate in partial_candidates:
+            if candidate.is_file():
+                return candidate
     return candidates[-1]
 
 
@@ -516,9 +553,11 @@ def _plot_cell(
             reference = estimates[0].axis
             aligned = np.asarray(
                 [
-                    estimate.axis
-                    if float(np.dot(estimate.axis, reference)) >= 0.0
-                    else -estimate.axis
+                    (
+                        estimate.axis
+                        if float(np.dot(estimate.axis, reference)) >= 0.0
+                        else -estimate.axis
+                    )
                     for estimate in estimates
                 ]
             )
@@ -1139,9 +1178,11 @@ def _plot_metrics_by_n_flagella(
     duration_s = max(_float_or_nan(row.get("duration_s")) for row in rows)
     metric_values = {
         "qc_time": [
-            duration_s
-            if _row_passes_nonbody(row)
-            else _float_or_nan(row.get("first_fail_t_s"))
+            (
+                duration_s
+                if _row_passes_nonbody(row)
+                else _float_or_nan(row.get("first_fail_t_s"))
+            )
             for row in rows
         ],
         "max_flag_bond": [
@@ -1300,9 +1341,11 @@ def _plot_metrics_as_bars(
     colors = ["#2f855a" if _row_passes_nonbody(row) else "#c05621" for row in rows]
     duration_s = max(_float_or_nan(row.get("duration_s")) for row in rows)
     first_fail = [
-        duration_s
-        if _row_passes_nonbody(row)
-        else _float_or_nan(row.get("first_fail_t_s"))
+        (
+            duration_s
+            if _row_passes_nonbody(row)
+            else _float_or_nan(row.get("first_fail_t_s"))
+        )
         for row in rows
     ]
     panels = [
@@ -1376,6 +1419,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--config", type=Path, default=None)
     parser.add_argument("--run-dir", type=Path, default=None)
     parser.add_argument("--input-dir", type=Path, default=None)
+    parser.add_argument(
+        "--camera-envelope-input-dir",
+        type=Path,
+        default=None,
+        help="Optional complete campaign used only to calculate shared fixed-camera bounds.",
+    )
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument(
         "--mode",
@@ -1428,6 +1477,14 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Overlay the aligned mean flagellar helix axis used for body--flagella comparison.",
     )
     parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help=(
+            "Allow a manifest explicitly marked partial. The resulting replay is "
+            "diagnostic-only and is labelled PARTIAL."
+        ),
+    )
     parser.add_argument("--show-torque-weight-panels", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(parser_argv)
@@ -1473,7 +1530,20 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
-    rows, records, base_cfg_path = _load_inputs(args.input_dir)
+    rows, records, base_cfg_path = _load_inputs(
+        args.input_dir, allow_partial=args.allow_partial
+    )
+    input_manifest = _load_json(args.input_dir / "run_manifest.json")
+    partial_input = bool(input_manifest.get("partial", False))
+    if partial_input:
+        partial_note = (
+            "PARTIAL — diagnostic-only; not for adoption or canonical decisions"
+        )
+        args.figure_note = (
+            partial_note
+            if args.figure_note is None
+            else f"{args.figure_note} | {partial_note}"
+        )
     if args.condition_id:
         requested = set(args.condition_id)
         known = {row["condition_id"] for row in rows}
@@ -1503,7 +1573,6 @@ def main(argv: list[str] | None = None) -> None:
         logger.info("Wrote metrics outputs: %s %s", metrics_path, metrics_plot_path)
 
     if args.mode in {"both", "render-only"}:
-        from sim_swim.analysis.flagella_count_behavior import load_state_archive
         from sim_swim.sim.core import Simulator
 
         states_by_condition: list[list[Any]] = []
@@ -1526,7 +1595,13 @@ def main(argv: list[str] | None = None) -> None:
                     }
                 }
             )
-            states = load_state_archive(_archive_path(args.input_dir, record))
+            states = load_state_archive(
+                _archive_path(
+                    args.input_dir,
+                    record,
+                    allow_partial=args.allow_partial,
+                )
+            )
             validate_replay_fps(states, args.fps_out_3d)
             simulator = Simulator(cfg)
             expected_beads = int(simulator.model.positions_m.shape[0])
@@ -1541,14 +1616,30 @@ def main(argv: list[str] | None = None) -> None:
             states_by_condition.append(states)
             cfg_by_condition.append(cfg)
             rig_by_condition.append(simulator.rig)
+        envelope_states = states_by_condition
+        if args.camera_envelope_input_dir is not None:
+            envelope_rows, envelope_records, _ = _load_inputs(
+                args.camera_envelope_input_dir,
+                allow_partial=args.allow_partial,
+            )
+            envelope_states = [
+                load_state_archive(
+                    _archive_path(
+                        args.camera_envelope_input_dir,
+                        envelope_records[row["condition_id"]],
+                        allow_partial=args.allow_partial,
+                    )
+                )
+                for row in envelope_rows
+            ]
         envelopes_3d = _camera_envelopes(
-            states_by_condition,
+            envelope_states,
             dimensions=3,
             mode=args.view_range_mode,
             margin=args.view_range_margin,
         )
         envelopes_2d = _camera_envelopes(
-            states_by_condition,
+            envelope_states,
             dimensions=2,
             mode=args.view_range_mode,
             margin=args.view_range_margin,
@@ -1602,16 +1693,23 @@ def main(argv: list[str] | None = None) -> None:
             "camera_2d": args.camera_2d,
             "view_range_mode": args.view_range_mode,
             "view_range_margin": args.view_range_margin,
+            "camera_envelope_input_dir": (
+                str(args.camera_envelope_input_dir)
+                if args.camera_envelope_input_dir is not None
+                else ""
+            ),
             "axis_ticks": args.axis_ticks,
             "show_mean_flagella_axis_3d": args.show_mean_flagella_axis_3d,
+            "allow_partial": args.allow_partial,
+            "partial_input": partial_input,
         },
         "conditions": [row["condition_id"] for row in rows],
         "outputs": {
             "root": str(output_dir),
             "metrics_csv": str(metrics_path) if metrics_path is not None else "",
-            "metrics_png": str(metrics_plot_path)
-            if metrics_plot_path is not None
-            else "",
+            "metrics_png": (
+                str(metrics_plot_path) if metrics_plot_path is not None else ""
+            ),
             "render_log": str(output_dir / "run.log"),
         },
     }

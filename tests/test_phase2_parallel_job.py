@@ -35,7 +35,16 @@ ISSUE61_SUPPLEMENTAL = (
     ROOT / "conf/phase2_parallel/issue61_2015_1tau_paper_torque_supplemental/job.yaml"
 )
 ISSUE184_NF10TAU = ROOT / "conf/phase2_parallel/issue184_2015_nf1_6_10tau/job.yaml"
-ISSUE184_NF45_10TAU = ROOT / "conf/phase2_parallel/issue184_2015_nf4_nf5_10tau/job.yaml"
+ISSUE184_RUNTIME_PROBE = (
+    ROOT / "conf/phase2_parallel/issue184_2015_runtime_probe_0p01s/job.yaml"
+)
+ISSUE244 = ROOT / "conf/phase2_parallel/issue244_2010_hex_torque_1tau/job.yaml"
+ISSUE244_SEED_GRID = (
+    ROOT / "conf/phase2_parallel/issue244_2010_hex_seed_grid_1tau/job.yaml"
+)
+ISSUE244_DT_CONVERGENCE = (
+    ROOT / "conf/phase2_parallel/issue244_2010_hex_dt_convergence_1tau/job.yaml"
+)
 SWEEP_A = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_off.yaml"
 SWEEP_B = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_on.yaml"
 SHAPE_SWEEP = ROOT / "conf/phase2_sweeps/shape_stability_grid.yaml"
@@ -121,7 +130,7 @@ def test_issue61_supplemental_job_is_one_isolated_paper_torque_task() -> None:
     assert plan["configs"][0]["overrides"] == []
 
 
-def test_issue184_nf1_6_job_requires_passing_issue61_preflight() -> None:
+def test_issue184_nf1_6_job_audits_issue61_failure() -> None:
     job = load_parallel_job(ISSUE184_NF10TAU)
     plan = build_plan(job, resolve_execution(job, None), ROOT / ".tmp_issue184_plan")
 
@@ -152,20 +161,32 @@ def test_issue184_nf1_6_job_requires_passing_issue61_preflight() -> None:
     ]
 
 
-def test_issue184_nf4_nf5_supplement_is_two_isolated_seeded_surface_shards() -> None:
-    job = load_parallel_job(ISSUE184_NF45_10TAU)
-    plan = build_plan(job, resolve_execution(job, None), ROOT / ".tmp_issue184_nf45")
-
-    assert job.task_count == 2
-    assert [record["condition_id"] for record in plan["configs"]] == ["nf04", "nf05"]
-    assert plan["execution"]["max_workers"] == 2
-    assert plan["preflight"]["mode"] == "audit_issue61_fail"
-    assert [
-        record["geometry_preflight"]["placement_mode"] for record in plan["configs"]
-    ] == ["seeded_surface", "seeded_surface"]
-    assert [
-        len(record["geometry_preflight"]["attachments"]) for record in plan["configs"]
-    ] == [4, 5]
+def test_issue184_runtime_probe_is_six_isolated_25000_step_shards() -> None:
+    job = load_parallel_job(ISSUE184_RUNTIME_PROBE)
+    plan = build_plan(job, resolve_execution(job, None), ROOT / ".tmp_issue184_probe")
+    assert job.task_count == 6
+    assert plan["execution"]["max_workers"] == 3
+    assert [item["condition_id"] for item in plan["configs"]] == [
+        f"nf{count:02d}" for count in range(1, 7)
+    ]
+    assert len({item["output_dir"] for item in plan["configs"]}) == 6
+    assert all(
+        item["geometry_preflight"]["placement_mode"] == "seeded_surface"
+        and item["geometry_preflight"]["attach_seed"] == 0
+        and item["geometry_preflight"]["phase_seed"] == 0
+        for item in plan["configs"]
+    )
+    profile = parallel_job.load_yaml(job.configs[0])
+    overrides = profile["base_overrides"]
+    assert overrides["time.duration"] == {"value": 0.01, "unit": "s"}
+    assert overrides["time.scale_policy"] == "reference_torque"
+    assert overrides["time.integration.dt_star"] == 1e-5
+    assert (
+        overrides["motor.torque_Nm"]
+        == overrides["motor.reference_torque_Nm"]
+        == 2.5e-20
+    )
+    assert overrides["output.checkpoint_interval_steps"] == 2500
 
 
 def test_invalid_generic_attachment_topology_is_rejected_before_output_creation(
@@ -303,6 +324,42 @@ def test_issue215_qualification_preserves_36_shards_and_duration_override() -> N
     assert all(
         record["overrides"] == ["time.duration_s=0.001"] for record in plan["configs"]
     )
+
+
+def test_issue244_hex_torque_screen_has_ten_preflighted_cs10_shards() -> None:
+    job = load_parallel_job(ISSUE244)
+    execution = resolve_execution(job, None)
+    plan = build_plan(job, execution, ROOT / ".tmp_issue244_plan")
+
+    assert job.task_count == 10
+    assert job.preflight == "geometry_all_conditions"
+    assert execution.max_workers == 3
+    assert execution.worker_policy == "cs10_qualified"
+    assert len(plan["configs"]) == 10
+    assert plan["configs"][0]["condition_id"] == "nf01__tq1p0e20"
+    assert plan["configs"][-1]["condition_id"] == "nf04__tq3p5e20"
+
+
+def test_issue244_followup_jobs_are_preflighted_and_gated() -> None:
+    seed_job = load_parallel_job(ISSUE244_SEED_GRID)
+    convergence_job = load_parallel_job(ISSUE244_DT_CONVERGENCE)
+    seed_plan = build_plan(
+        seed_job, resolve_execution(seed_job, None), ROOT / ".tmp_issue244_seed_plan"
+    )
+    convergence_plan = build_plan(
+        convergence_job,
+        resolve_execution(convergence_job, None),
+        ROOT / ".tmp_issue244_convergence_plan",
+    )
+
+    assert seed_job.task_count == 54
+    assert convergence_job.task_count == 4
+    assert seed_job.preflight == convergence_job.preflight == "geometry_all_conditions"
+    assert resolve_execution(seed_job, None).max_workers == 3
+    assert resolve_execution(convergence_job, None).worker_policy == "cs10_qualified"
+    assert seed_plan["configs"][0]["condition_id"] == "nf01__as000__ps000"
+    assert seed_plan["configs"][-1]["condition_id"] == "nf06__as002__ps002"
+    assert convergence_plan["configs"][-1]["condition_id"] == "nf06__dt5e5"
 
 
 def test_generic_aggregate_requires_all_shards_and_creates_canonical_view(

@@ -37,6 +37,7 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 | P2-D18 | 2015 refined model Stage A採否 | pending |
 | P2-D21 | reference torque比較のfixed/tracking・時間基準 | adopted |
 | P2-D24 | v1 r1 n=3 failure診断を現行v1 r2 physical-failure gateから外す | adopted |
+| P2-D25 | 2010 flagella条件を保つ六角柱30-bead evaluation candidate | pending |
 | P2-D20 | RUN–TUMBLEの段階実装 | pending |
 
 ---
@@ -254,7 +255,7 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 ### P2-D23: 2015 nf1–6 screenはseeded-surface topologyを統一する
 
 - **Background:** 2015 projectの`seeded_center_layer`は正六角柱`n_prism=6`を`n_flagella`で割り切ることを要求するため、nf4/nf5を構成できない。
-- **Decision:** 次回の#184 nf1–6・10τ screenは`seeded_surface`、attach/phase seed `0`に統一する。今回だけは未実行nf4/nf5を同topologyで補完し、旧nf1–3/nf6とtopology混在の暫定横断結果を作る。全conditionは開始前のgeometry-only preflightを通過し、attachment topologyをmanifestへ保存する。
+- **Decision:** 次回の#184 nf1–6・10τ screenは`seeded_surface`、attach/phase seed `0`に統一する。全conditionは開始前のgeometry-only preflightを通過し、attachment topologyをmanifestへ保存する。旧root混在の暫定横断案はPR #242で撤回し、未完走nf4/nf5/nf6を停止する。PR #242では同一topologyのnf1–6を各0.01実秒だけ並列測定し、0.5秒の費用へ外挿してから採否をユーザーが判断する。既存nf1–3の10τ実測は費用比較にのみ使い、物理的なclean campaignへ混ぜない。
 - **Interpretation:** 旧`seeded_center_layer` jobのnf1–3/nf6は保持する単独診断であり、clean campaignとの比較、dataset採択、2015 supported化、canonical選定の根拠には使わない。
 - **Evidence:** Issue #184，`docs/phase2/phase2_184_2015_nf1_6_10tau_contract.md`，`conf/phase2_multi_run/2015_project_t2p5e20_nf1_6_10tau.yaml`．
 
@@ -280,6 +281,14 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Decision:** 既存短時間 workflow は `output.policy: debug` の全step state/CSV 互換を維持する。長時間候補は `compact` を明示し、全内部step QC をオンライン集約しながら state archive を物理時間一様に保存する。標準 cadence は 1 ms とする。compact archive は replay/通常解析用であり、未定義の全step将来指標の完全再構成を保証しない。
 - **Evidence:** Issue #186，`conf/phase2_multi_run/2015_project_compact_0p5s.yaml`，`docs/phase2/phase2_run_summary_contract.md`．
 
+### P2-D26: compact generic multi-runは途中評価証跡をcheckpoint保存する
+
+- **Status:** adopted
+- **Decision:** `output.policy=compact` の `generic_multi_run` は `output.checkpoint_interval_steps=2500` を既定として、`progress.json`、checkpoint境界のraw `diagnostic_samples.csv`、`state_archive.partial.npz`、`trajectory.partial.csv`を原子的に更新する。runtimeで正本化するのはmax/min/final、finite、first failureだけとし、平均・分位点・window統計はraw sampleから後処理する。debug policyの全step CSV互換は変えない。
+- **Interruption:** SIGTERM/SIGINT/例外では次のinternal step境界で`execution.status=partial`、`performance.json`、`campaign_completion.json`を残し、exit code 130（signal）または非0（例外）で終了する。partial campaignはaggregateせず、最終`summary.csv` / `run_manifest.json`を生成しない。
+- **Interpretation:** checkpointはevaluation evidence専用であり、resume、bitwise continuation、physical model、QC閾値、dataset採択、profile昇格、canonical判定を変更しない。partial replayはexportと`--allow-partial`の明示opt-inを要し、映像に`PARTIAL`を記録する。
+- **Evidence:** Issue #186，`src/sim_swim/analysis/sweeps/generic_multi_run.py`，`docs/phase2/phase2_run_summary_contract.md`．
+
 ### P2-D24: v1 r1 n=3 failure診断を現行v1 r2 physical-failure gateから外す
 
 - **Status:** adopted
@@ -289,6 +298,16 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Interpretation:** v1 r1のfailureは現行v1 r2 campaignのphysical-failure gateではない。非定常回転とattach / phase seed差は，canonical model freeze後にPhase 3で評価するwithin-class variationとして残す。
 - **Decision:** Issue #158は現行v1 r2 campaignのphysical-failure blockerから外して完了する。dataset v2とIssue #205のblockerから外す。旧診断文書は履歴・探索的根拠として保持し，physical model変更の根拠には用いない。
 - **Evidence:** Task P2-8-023，Issues #157・#158・#215，`docs/phase2/phase2_158_v1_r1_nf3_proximal_diagnostics.md`，v1 r2 5 s campaign manifest．
+
+### P2-D25: 2010 flagella条件を保つ六角柱30-bead evaluation candidate
+
+- **Status:** pending
+- **Background:** 2010 projectは`n_flagella>=4`で後方束化条件の破綻があり、三角柱の同一直線上に近い付着配置が一因候補である。一方、2015 profileはflagellum beadsも増えるため、body geometryだけの比較には使えない。
+- **Change:** 2010の11-bead flagellum、`5.8 b`、`ds=0.58 b`、potential/hook/motor transmissionとdiagonal braceを維持し、bodyだけを六角柱30 beadsへ変更した。`n=1..6`は中心環の均等slot配置に限定し、`n=4`をgap `[1,2,1,2]`とする。
+- **Current result (2026-09-19):** `n=1,4` × 5 torque・`dt_star=1e-4`の10 conditionは1τ（10,000 steps）を完走し、最終nonbody shapeはすべてpassだった。しかし全conditionが最初の内部step（`4e-6 s`）でhook first-failを記録した。`n=1`は41 beads・113 spring segments・1,159 repulsion pairsで約27.1–27.5 steps/s、`n=4`は74 beads・146 segments・5,362 pairsで約6.71–6.75 steps/sだった。replayは3D/2Dの10-panel gridとして保存した。
+- **Decision:** `2010_hex_project`をpending evaluation candidateとしてのみ実装し、Issue #244では`n=1..6`・5 torque・`dt_star=1e-4/1e-3`の60 cellで数値安定性と計算効率を確認する。既存20 cellを再利用し、不足40 cellを追加する。hook angleはdiagnostic-onlyとし、finite/body/hook length/flag/motorをPASS/FAILとする。full screenのレビュー後に限り、`T=2.5e-20 N m/flagellum`・`dt_star=1e-4`で54 seed conditionとn=3/6の4 condition刻み比較を行う。
+- **Stage 1 result (2026-09-21):** 既存20 cellと追加40 cellを統合し、60/60 conditionが残るstrict QC（finite/body/hook length/flag/motor）をPASSした。旧`dt_star=1e-4`の10 cellだけは初回internal stepのraw `hook`記録を持つが、hook angleはdiagnostic-onlyであり、他のQC failureはない。`dt_star=1e-3`は総wall timeを39,810.8 sから3,949.8 sへ約1/10にした一方、平均steps/sは11.175と11.274で同程度であり、per-step性能の改善ではない。べん毛数が1から6へ増えると平均steps/sは27.602から4.172へ低下した。`n=1..6`別heatmapと、`dt_star`・べん毛数別の固定camera 3D/2D MP4（各41 frames）は共通評価器で生成した。
+- **Evidence:** parent Issue #243、Issue #244、Issue #245、ADR 0021、`docs/phase2/phase2_244_2010_hex_1tau_contract.md`、`outputs/2026-09-20/013431/model_development_evaluation/evaluation_manifest.json`、`summary.csv`、`heatmaps/`、`replay/`。
 
 ### P2-D20: RUN–TUMBLEはRUN dataset core完了後に段階実装する
 

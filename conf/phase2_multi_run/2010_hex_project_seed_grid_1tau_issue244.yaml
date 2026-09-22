@@ -1,0 +1,50 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  description: Issue #244 2010 hex project 1tau seed grid after torque-dt screen approval.
+  source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/244
+  model_id: 2010_hex_project_issue244
+  model_notes:
+    - Requires review of the torque-dt screen before user-run execution.
+    - Fixed screen candidate: T=2.5e-20 N m per flagellum and dt_star=1e-4.
+
+base_config: conf/sim_swim_2010_hex.yaml
+
+base_overrides:
+  time.duration: {value: 1.0, unit: tau}
+  time.scale_policy: reference_torque
+  time.integration.dt_star: 1.0e-4
+  motor.torque_Nm: 2.5e-20
+  motor.reference_torque_Nm: 2.5e-20
+  motor.enable_switching: false
+  brownian.enabled: false
+  output.policy: compact
+  output.archive_interval_s: 0.001
+
+sweep:
+  axes:
+    n_flagella:
+      key: flagella.n_flagella
+      short_name: nf
+      values: [1, 2, 3, 4, 5, 6]
+      labels: ["1", "2", "3", "4", "5", "6"]
+      ids: [nf01, nf02, nf03, nf04, nf05, nf06]
+    attach_seed:
+      key: seed.attach_seed
+      short_name: as
+      values: [0, 1, 2]
+      labels: ["0", "1", "2"]
+      ids: [as000, as001, as002]
+    phase_seed:
+      key: seed.phase_seed
+      short_name: ps
+      values: [0, 1, 2]
+      labels: ["0", "1", "2"]
+      ids: [ps000, ps001, ps002]
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 1000
