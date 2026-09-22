@@ -23,6 +23,14 @@
     {
       "command": "uv run ruff check src/sim_swim/analysis/issue61_2015_1tau.py src/sim_swim/analysis/parallel_job.py tests/test_phase2_61_2015_1tau.py; git diff --check",
       "result": "PASS"
+    },
+    {
+      "command": ".githooks/pre-commit",
+      "result": "PASS: ruff, lifecycle, 347 light tests"
+    },
+    {
+      "command": "cs10 streaming issue61-2015-1tau analysis and local SHA-256 verification",
+      "result": "PASS: corrected result synchronized; 3/3 strict FAIL with motor torque residual at step 0"
     }
   ],
   "long_simulation_executed": false,
