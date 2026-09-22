@@ -31,9 +31,12 @@ def _campaign(tmp_path: Path) -> Path:
         time = {
             "duration_s": 0.01,
             "total_steps": 25000,
+            "dt_star": 1e-5,
+            "tau_s": 0.04,
             "time_scale_policy": "reference_torque",
             "motor_torque_Nm": 2.5e-20,
             "reference_torque_Nm": 2.5e-20,
+            "torque_for_forces_Nm": 2.5e-20,
         }
         _write(
             child / "run_manifest.json",
@@ -61,6 +64,8 @@ def _campaign(tmp_path: Path) -> Path:
         root / "job_manifest.json",
         {
             "status": "succeeded",
+            "started_at": "2026-09-22T10:00:00+09:00",
+            "ended_at": "2026-09-22T10:07:40+09:00",
             "failed_configs": [],
             "aggregation": {"status": "completed"},
             "execution": {"max_workers": 2},
@@ -78,10 +83,17 @@ def test_projection_uses_each_completed_shard_and_worker_schedule(
     tmp_path: Path,
 ) -> None:
     root = _campaign(tmp_path)
-    historical = tmp_path / "old-nf01-performance.json"
+    historical = tmp_path / "old" / "nf01" / "performance.json"
     _write(
         historical,
         {"wall_time_s": 200000, "completed_steps": 1000000, "total_steps": 1000000},
+    )
+    old_time = json.loads((root / "campaign" / "run_manifest.json").read_text())[
+        "conditions"
+    ][0]["time"] | {"duration_s": 0.4, "total_steps": 1000000}
+    _write(
+        historical.parent.parent / "run_manifest.json",
+        {"conditions": [{"condition_id": "nf01", "time": old_time}]},
     )
     result = estimate_parallel_runtime(
         root,
@@ -96,6 +108,8 @@ def test_projection_uses_each_completed_shard_and_worker_schedule(
         15000,
     ]
     assert result["projected_makespan_s"] == 20000
+    assert result["estimated_fixed_launch_aggregation_overhead_s"] == 60
+    assert result["projected_job_wall_s"] == 20060
     assert result["projected_worker_time_s"] == 30000
     assert result["decision_scope"] == "runtime_evidence_only"
     assert result["conditions"][0]["historical_projected_wall_time_s"] == 250000
@@ -134,4 +148,35 @@ def test_projection_rejects_incomplete_or_inconsistent_evidence(
     with pytest.raises(ValueError):
         estimate_parallel_runtime(
             root, target_duration_s=0.5, expected_conditions=("nf01", "nf02", "nf03")
+        )
+
+
+def test_historical_comparison_rejects_different_torque(tmp_path: Path) -> None:
+    root = _campaign(tmp_path)
+    historical = tmp_path / "old" / "nf01" / "performance.json"
+    _write(
+        historical,
+        {"wall_time_s": 1000, "completed_steps": 1000000, "total_steps": 1000000},
+    )
+    _write(
+        historical.parent.parent / "run_manifest.json",
+        {
+            "conditions": [
+                {
+                    "condition_id": "nf01",
+                    "time": {
+                        "total_steps": 1000000,
+                        "duration_s": 0.4,
+                        "motor_torque_Nm": 1e-21,
+                    },
+                }
+            ]
+        },
+    )
+    with pytest.raises(ValueError, match="historical time/torque mismatch"):
+        estimate_parallel_runtime(
+            root,
+            target_duration_s=0.5,
+            expected_conditions=("nf01", "nf02", "nf03"),
+            historical_performance={"nf01": historical},
         )

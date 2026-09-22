@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+from datetime import datetime
 import hashlib
 import json
 import math
@@ -118,16 +119,47 @@ def estimate_parallel_runtime(
         historical_target = None
         historical_path = None
         historical_sha = None
+        historical_manifest_path = None
+        historical_manifest_sha = None
+        historical_commit = None
         if historical is not None:
             old = _json(historical)
+            old_manifest_path = historical.parent.parent / "run_manifest.json"
+            old_manifest = _json(old_manifest_path)
+            old_conditions = old_manifest.get("conditions")
+            if not isinstance(old_conditions, list) or len(old_conditions) != 1:
+                raise ValueError(f"historical manifest mismatch: {condition_id}")
+            old_condition = old_conditions[0]
+            if old_condition.get("condition_id") != condition_id:
+                raise ValueError(f"historical condition mismatch: {condition_id}")
+            old_time = old_condition.get("time", {})
+            for key in (
+                "dt_star",
+                "tau_s",
+                "time_scale_policy",
+                "motor_torque_Nm",
+                "reference_torque_Nm",
+                "torque_for_forces_Nm",
+            ):
+                if old_time.get(key) != time.get(key):
+                    raise ValueError(
+                        f"historical time/torque mismatch: {condition_id}: {key}"
+                    )
             old_steps = int(old.get("completed_steps", -1))
             if old_steps <= 0 or old_steps != int(old.get("total_steps", -2)):
                 raise ValueError(f"historical run is incomplete: {condition_id}")
-            historical_target = _positive(old.get("wall_time_s"), "historical wall") * (
-                target / (duration * old_steps / total_steps)
+            if int(old_time.get("total_steps", -1)) != old_steps:
+                raise ValueError(f"historical manifest/steps mismatch: {condition_id}")
+            historical_target = (
+                _positive(old.get("wall_time_s"), "historical wall")
+                * target
+                / _positive(old_time.get("duration_s"), "historical duration_s")
             )
             historical_path = str(historical)
             historical_sha = _hash(historical)
+            historical_manifest_path = str(old_manifest_path)
+            historical_manifest_sha = _hash(old_manifest_path)
+            historical_commit = old_manifest.get("git", {}).get("commit")
         rows.append(
             {
                 "condition_id": condition_id,
@@ -157,13 +189,40 @@ def estimate_parallel_runtime(
                 "run_summary_sha256": _hash(summary_path),
                 "historical_performance_path": historical_path,
                 "historical_performance_sha256": historical_sha,
+                "historical_manifest_path": historical_manifest_path,
+                "historical_manifest_sha256": historical_manifest_sha,
+                "historical_git_commit": historical_commit,
+                "historical_comparison_scope": (
+                    "calibration_only; different topology/long-run dynamics may affect speed"
+                    if historical is not None
+                    else None
+                ),
             }
         )
+
     # Independent workers take the next condition in config order as soon as free.
-    availability = [0.0] * workers
-    for row in rows:
-        slot = min(range(workers), key=lambda index: availability[index])
-        availability[slot] += row["projected_wall_time_s"]
+    def schedule(field: str) -> list[float]:
+        availability = [0.0] * workers
+        for row in rows:
+            slot = min(range(workers), key=lambda index: availability[index])
+            availability[slot] += row[field]
+        return availability
+
+    availability = schedule("projected_wall_time_s")
+    observed_sim_makespan = max(schedule("probe_wall_time_s"))
+    observed_job_wall = None
+    if job.get("started_at") and job.get("ended_at"):
+        observed_job_wall = (
+            datetime.fromisoformat(job["ended_at"])
+            - datetime.fromisoformat(job["started_at"])
+        ).total_seconds()
+        if observed_job_wall <= 0:
+            raise ValueError("job wall time is not positive")
+    fixed_overhead = (
+        max(0.0, observed_job_wall - observed_sim_makespan)
+        if observed_job_wall is not None
+        else None
+    )
     return {
         "kind": "parallel_runtime_projection",
         "status": "completed",
@@ -175,10 +234,16 @@ def estimate_parallel_runtime(
         "campaign_manifest_sha256": _hash(manifest_path),
         "target_duration_s": target,
         "worker_count": workers,
+        "observed_parallel_job_wall_s": observed_job_wall,
+        "observed_simulation_makespan_s": observed_sim_makespan,
+        "estimated_fixed_launch_aggregation_overhead_s": fixed_overhead,
         "projected_makespan_s": max(availability),
+        "projected_job_wall_s": (
+            max(availability) + fixed_overhead if fixed_overhead is not None else None
+        ),
         "projected_worker_time_s": sum(availability),
-        "schedule_assumption": "fixed config order; each worker runs one condition at a time; linear step scaling; no contention correction",
-        "uncertainty": "short-run startup, I/O, contention and nonlinear runtime may make the extrapolation inaccurate; historical ratios are calibration only",
+        "schedule_assumption": "fixed config order; each worker runs one condition at a time; linear step scaling; measured job overhead added once; no contention correction",
+        "uncertainty": "short-run startup, I/O, contention, nonlinear runtime and topology differences may make the extrapolation inaccurate; historical ratios are calibration only",
         "conditions": rows,
     }
 

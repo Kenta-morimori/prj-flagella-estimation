@@ -33,6 +33,9 @@ queueにprobeを予約6より高priorityでenqueueする。dispatcherは環境�
 uv run python scripts/01_simulate_swimming/estimate_runtime.py \
   --job-root <local-job-root> --target-duration-s 0.5 \
   --conditions nf01,nf02,nf03,nf04,nf05,nf06 \
+  --historical-performance nf01=<local-old-nf01-performance.json> \
+  --historical-performance nf02=<local-old-nf02-performance.json> \
+  --historical-performance nf03=<local-old-nf03-performance.json> \
   --output-dir <local-job-root>/analysis/runtime_projection
 ```
 

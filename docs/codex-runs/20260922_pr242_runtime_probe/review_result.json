@@ -23,6 +23,10 @@
     {
       "command": "git diff --check and git diff --cached --check",
       "result": "PASS"
+    },
+    {
+      "command": "uv run pytest tests/test_runtime_projection.py -q",
+      "result": "PASS: 7 passed after historical manifest/torque and measured job-overhead checks"
     }
   ],
   "long_simulation_executed": false,
