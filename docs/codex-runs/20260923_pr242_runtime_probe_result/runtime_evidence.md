@@ -30,4 +30,8 @@
 
 probe jobの実測wall timeは12.68時間。6条件を同じ順序で3 workerへ割り当てた0.5秒の外挿makespanは26.42日（condition計算時間の総和は56.85 worker日）。旧nf1–3の10τ実測との外挿比はそれぞれ0.71/0.86/0.94であり、この短時間probeからの単純外挿は旧実測より約6〜29%短い。旧runはattachment topologyが異なるため、比は較正の参考にとどめる。nf4–6には長時間実測による較正がない。
 
-有限性とbody shapeのオンラインgateは全6条件で違反なし。nf5/nf6のhook系nonbody shape違反は最初の内部step（`t_s=4e-7 s`）に記録された。`runtime_projection`のstrict QC欄は`not_evaluated`であり、速度測定の成功を物理的PASSと扱わない。長時間のthroughput、I/O、並列時の資源競合は変化し得る。2015を採用候補から外すかはユーザー判断待ちである。
+有限性とbody shapeのオンラインgateは全6条件で違反なし。nf5/nf6のhook系nonbody shape違反は最初の内部step（`t_s=4e-7 s`）に記録された。`runtime_projection`のstrict QC欄は`not_evaluated`であり、速度測定の成功を物理的PASSと扱わない。長時間のthroughput、I/O、並列時の資源競合は変化し得る。
+
+## 採否判断（2026-09-23）
+
+ユーザーは上記の費用表と未解決QCを踏まえ、2015 project modelを今回のdataset候補に不採用と判断した。これは0.5秒の全条件simulation実測やstrict QC PASSを主張するものではなく、2015 paper profileの評価、過去のStage A実装、他モデルのcanonical採択を自動決定しない。PR #242はmerge済みで、予約6はこの判断のために起動していない。

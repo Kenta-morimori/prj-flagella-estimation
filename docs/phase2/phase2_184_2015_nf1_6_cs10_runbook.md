@@ -1,6 +1,6 @@
 # Issue #184: 2015 project 計算費用probe cs10 runbook
 
-本runbookはPR #242のmerge前に、2015 projectの計算費用を実測するためのもの。物理的な採択や10τの安定性評価ではない。Issue #61の既存3条件はstrict FAILであり、pitch QCの見直しは保留する。
+本runbookはPR #242で実施済みの2015 project計算費用probeの記録であり、新規実行指示ではない。2026-09-23に2015 project modelは今回のdataset候補へ不採用と判断された。物理的な採択や10τの安定性評価ではない。Issue #61の既存3条件はstrict FAILであり、pitch QCの見直しは保留する。
 
 ## 固定契約
 
@@ -39,4 +39,4 @@ uv run python scripts/01_simulate_swimming/estimate_runtime.py \
   --output-dir <local-job-root>/analysis/runtime_projection
 ```
 
-`runtime_projection.csv/json`に各条件の実測wall time・steps/s、0.5秒=12.5τ=1,250,000 stepsへの50倍外挿、3-worker makespan、nf1–3の既存10τ実測との比、不確かさ、provenanceを記録する。予約8は6条件とaggregateを完了し、ローカル同期・SHA-256照合・費用外挿の結果を`docs/codex-runs/20260923_pr242_runtime_probe_result/runtime_evidence.md`へ記録した。nf5/nf6はオンラインhook shape gate違反がある。速度測定の成功はstrict QC PASSではない。結果表をユーザーに提示し、2015を採用候補から外すか確認してからPR #242へ判断を記録する。
+`runtime_projection.csv/json`に各条件の実測wall time・steps/s、0.5秒=12.5τ=1,250,000 stepsへの50倍外挿、3-worker makespan、nf1–3の既存10τ実測との比、不確かさ、provenanceを記録した。予約8は6条件とaggregateを完了し、ローカル同期・SHA-256照合・費用外挿の結果を`docs/codex-runs/20260923_pr242_runtime_probe_result/runtime_evidence.md`へ記録した。nf5/nf6はオンラインhook shape gate違反がある。速度測定の成功はstrict QC PASSではない。結果提示後、2015 projectはdataset候補に不採用とユーザーが判断した。

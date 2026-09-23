@@ -34,7 +34,7 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 | P2-D15 | 2010 potential formulationとproject初期軸 | adopted |
 | P2-D16 | model profileと時間schema | adopted |
 | P2-D17 | 2015 refined geometryとpaper-inspired motor | adopted |
-| P2-D18 | 2015 refined model Stage A採否 | pending |
+| P2-D18 | 2015 refined model Stage A・dataset候補判断 | dataset不採用（project） |
 | P2-D21 | reference torque比較のfixed/tracking・時間基準 | adopted |
 | P2-D24 | v1 r1 n=3 failure診断を現行v1 r2 physical-failure gateから外す | adopted |
 | P2-D25 | 2010 flagella条件を保つ六角柱30-bead evaluation candidate | pending |
@@ -236,28 +236,29 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 
 ## Pending decisions
 
-### P2-D18: 2015 refined modelのStage A採否を確定する
+### P2-D18: 2015 refined modelのStage Aとdataset候補を区別して判断する
 
-- **Status:** pending
+- **Status:** dataset不採用（2015 project、2026-09-23）。2015 paper profileの採否は本決定の対象外
 - **Background:** 2015 refined geometryとmotor dynamicsは実装済みだが，短時間安定性，integration step感度，定性挙動を確認しない限りsupported profileへ昇格できない．
 - **Change:** motor-off／motor-on，project／paper，`dt_star=1e-4`／`1e-5`を比較できるStage A runnerと判定出力を用意した．
 - **Current result:** motor-off `0.1 tau`とcanonical motor-on `1 tau`は完走した。`dt_star=1e-4`はproject profileの先頭`0.1 tau`ペアでは回転・姿勢・bead差の基準を満たしたが，paper profileでは回転量差が10%を超えた。project後方束化のtorque scale `0.5, 1, 2` × `dt_star=1e-5, 1e-4`は全6 conditionが完走し、有限性・shape・motor action-reaction gateを通過した。grid replayのユーザー目視では明瞭なcollapse / fly-awayは認められなかった。
 - **Interpretation:** Stage Aの短時間検証と定性可視化は完了したが、`dt_star=1e-4`をproject/paper共通defaultへ昇格させる根拠はない。短い実時間では小さな誤差を過大評価し得るため、同一実時間での定量評価と計算効率評価を分けて行う。
 - **Decision:** canonical `dt_star=1e-5`を維持し，`dt_star=1e-4`は非canonical referenceとする。本PRのStage A検証は完了とする。`dt_star`の有効性説明はIssue #61、reference torque policyはIssue #183、dataset v2採択向けのtorque・`dt_star`・べん毛数検証はIssue #184で実施し、2015 profileのsupported採否はそれらの後に判断する。
+- **Dataset decision (2026-09-23):** PR #242のcs10予約8で同一`seeded_surface` topologyのnf1–6各0.01実秒（25,000 step）を完走し、0.5実秒（12.5τ）への50倍外挿は各1.75/4.00/6.93/10.32/14.37/19.48日、3 worker全体で約26.42日となった。これはMac実測ではなく、旧nf1–3の10τ実測からの外挿より短い可能性がある。#61の1τ 3/3 strict FAIL（motor torque residualがstep 0、pitch違反は後続）と、nf5/nf6のstep 0 hook系online gate違反も未解決である。ユーザー判断により、2015 project modelを今回のdataset候補に採用しない。速度probeの完走を物理的PASSと解釈せず、2015 projectのsupported昇格、canonical freeze、dataset生成を行わない。2015 paper profileの採否や過去のStage A実装成果はこの判断で変更しない。
 - **Evidence:** Issue #168，PR #176，Issues #61・#183・#184，`docs/phase2/phase2_168_2015_stage_a_validation.md`，parent Issue #154．
 
 ### P2-D21: reference torque の比較契約は fixed / tracking と時間基準を分離する
 
 - **Decision:** `fixed-reference` は物性を固定した駆動torque感度、`tracking-reference` はreference torqueと物性を同時に連動させる相似候補として分離する。さらに `same-real-time` と `same-dimensionless-time` を直交して記録する。Issue #61の2015 project 1τ screenはtracking-reference / same-dimensionless-timeの安全性・throughput記録に限定し、fixed-referenceの同一実時間効率比較と混在させない。
-- **Interpretation:** 新規の2010 projectを含む全profileではtrackingを時間・物性が連動する相似候補として扱う。明示的な固定τcontrolだけは時間相似と呼ばない。#61のPASSは10τ安定性、2015 supported採択や#184へのhandoffを意味しない。再解析済みの#61は3/3 strict FAILであり、全条件のfirst observed failureはstep 0のmotor torque residual（pitch違反は後続）である。#184はtriage後に、別途許容された`dt_star`とper-flag torque policyを使う。
+- **Interpretation:** 新規の2010 projectを含む全profileではtrackingを時間・物性が連動する相似候補として扱う。明示的な固定τcontrolだけは時間相似と呼ばない。#61で仮にPASSしても10τ安定性、2015 supported採択や#184へのhandoffを意味しない。再解析済みの#61は3/3 strict FAILであり、全条件のfirst observed failureはstep 0のmotor torque residual（pitch違反は後続）である。#184の費用probeは物理的PASSではなく、2015 projectは今回のdataset候補に不採用とした。
 - **Evidence:** Issue #183，ADR 0016，`docs/phase2/phase2_183_reference_torque_comparison_contract.md`，`conf/phase2_reference_torque/*.yaml`．
 
 ### P2-D23: 2015 nf1–6 screenはseeded-surface topologyを統一する
 
 - **Background:** 2015 projectの`seeded_center_layer`は正六角柱`n_prism=6`を`n_flagella`で割り切ることを要求するため、nf4/nf5を構成できない。
-- **Decision:** 次回の#184 nf1–6・10τ screenは`seeded_surface`、attach/phase seed `0`に統一する。全conditionは開始前のgeometry-only preflightを通過し、attachment topologyをmanifestへ保存する。旧root混在の暫定横断案はPR #242で撤回し、未完走nf4/nf5/nf6を停止する。PR #242では同一topologyのnf1–6を各0.01実秒だけ並列測定し、0.5秒の費用へ外挿してから採否をユーザーが判断する。既存nf1–3の10τ実測は費用比較にのみ使い、物理的なclean campaignへ混ぜない。
+- **Decision:** #184の次回nf1–6・10τ screenを行う場合は`seeded_surface`、attach/phase seed `0`に統一し、開始前geometry-only preflightとtopology provenanceを必須にする。旧root混在の暫定横断案はPR #242で撤回し、未完走nf4/nf5/nf6を停止した。PR #242では同一topologyのnf1–6を各0.01実秒だけ並列測定し、0.5秒の費用へ外挿した。既存nf1–3の10τ実測は費用比較にのみ使い、物理的なclean campaignへ混ぜない。
 - **Measured result (2026-09-23):** reservation 8（commit `8278c82`）は6条件×25,000 stepとaggregateを完了した。0.01実秒probeのcs10 wall timeはnf1–6で0.84/1.92/3.33/4.95/6.90/9.35時間。0.5実秒へ50倍外挿すると各1.75/4.00/6.93/10.32/14.37/19.48日、3 workerの固定順序makespanは約26.4日となる。旧nf1–3の10τ実測からの外挿比は0.71/0.86/0.94で、短時間probeは過小見積りの可能性がある。nf5/nf6はstep 0のhook shape gate違反を記録した。これは計算費用の証拠であり、strict QC採択や2015 supported昇格を意味しない。
-- **Interpretation:** 旧`seeded_center_layer` jobのnf1–3/nf6は保持する単独診断であり、clean campaignとの比較、dataset採択、2015 supported化、canonical選定の根拠には使わない。
+- **Interpretation:** 旧`seeded_center_layer` jobのnf1–3は保持する単独診断であり、clean campaignとの比較、dataset採択、2015 supported化、canonical選定の根拠には使わない。費用と未解決QCを踏まえ、ユーザーは2015 projectを今回のdataset候補から外した。10τ clean campaignは今は開始しない。再検討には新たな契約と承認を要する。
 - **Evidence:** Issue #184，`docs/phase2/phase2_184_2015_nf1_6_10tau_contract.md`，`docs/codex-runs/20260923_pr242_runtime_probe_result/runtime_evidence.md`．
 
 ### P2-D22: 2010 torque-linked body stiffness候補は既定へ採用しない

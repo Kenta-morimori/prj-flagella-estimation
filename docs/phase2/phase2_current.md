@@ -14,7 +14,7 @@ Phase 3が使用するcanonical physical simulation modelをfreezeする．
 
 - 標準simulation profile: `conf/sim_swim_2010.yaml`
 - 2010 project profile: supported baseline
-- 2015 project / paper profile: Stage A検証は完了，supported採択まではpending
+- 2015 project model: dataset候補には不採用（#184、2026-09-23）。profileは診断用に保持し、supported昇格はしない。2015 paper profileの採否は別判断
 - Phase 3 handoff: freeze済みcanonical modelのsimulation archive，provenance，physical QC
 - `n_flagella=4`: diagnostic-only
 - `n_flagella>=5`: canonical training scope外
@@ -38,14 +38,13 @@ runbookは`phase2_215_5s_axis_convergence_runbook.md`を正本とする。
 
 ## Next queue
 
-1. **Issue #61 / #184:** 2015 projectの1τは3/3 strict FAILで、最初の観測済み違反は全torqueでstep 0のmotor torque residualである（pitch違反は後続）。`seeded_surface`のnf1–6・0.01実秒probeは6/6完走し、0.5実秒へ50倍外挿した3-worker費用は約26.4日。nf5/nf6はオンラインhook shape gate違反を記録した。費用と物理的採否の判断はユーザー確認待ち。
-2. **Issue #244 / #245:** 2010 hex候補の60 cell共通short screenはstrict QCをPASS済み。#245の長時間評価は2015計算費用の判断後に扱う。
-3. **Issue #200:** #203のprofile比較結果を受け取り、2010 projectの`dt_star`収束性を判断する。
+1. **Issue #244 / #245:** 2010 hex候補の60 cell共通short screenはstrict QCをPASS済み。2015 projectのdataset不採用を受け、長時間評価を別作業で扱う。
+2. **Issue #200:** #203のprofile比較結果を受け取り、2010 projectの`dt_star`収束性を判断する。
 
 ## Current blockers
 
-- 2015 supported昇格とStage B: Issue #61、#183、#184の定量評価・採択判断待ち
-- canonical model freeze: #200，#61，#184，#93の必要な物理QC・採択判断待ち（#158のv1 r1 failure診断は現行v1 r2の5 s campaignのphysical-failure gateではない）
+- 2015 projectのdataset候補・supported昇格・Stage B: 今回は進めない。将来再検討する場合は新たな根拠とユーザー判断が必要
+- canonical model freeze: 2015 projectを候補から外した上で、#200、#205および選択する2010系候補の必要な物理QC・ユーザー承認待ち（#158のv1 r1 failure診断は現行v1 r2の5 s campaignのphysical-failure gateではない）
 - dataset v2: Phase 3のcontrolled study，観測可能性，robustness，dataset freeze gate待ち
 - RUN–TUMBLE: dataset v2 RUN core完了後にIssue #69で扱う
 - `n_flagella>=4`: 現行training scope外．必要時はIssue #124で安定化する
