@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "task": "Issue #184 nf4/nf5 provisional supplement preparation",
+  "branch": "codex/issue-61-2015-10tau-stability",
+  "summary": [
+    "停止済みnf1/nf2 direct artifactを隔離し、未実行nf4/nf5だけをseeded_surface・attach/phase seed 0・2 workerで補完する。",
+    "暫定横断解析は明示した6 child rootのprovenance、topology、strict QC、first failure、throughput、motion recordを保存する。",
+    "既存のaggregate済みclean campaign専用解析は緩めず、暫定結果をdataset/profile/canonical判断から除外する。"
+  ],
+  "checks": [
+    {
+      "command": "uv run pytest tests/test_phase2_184_2015_nf1_6.py tests/test_phase2_184_2015_nf1_6_provisional.py tests/test_phase2_parallel_job.py",
+      "result": "PASS: 37 passed"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_parallel.py --config conf/phase2_parallel/issue184_2015_nf4_nf5_10tau/job.yaml --max-workers 2 --dry-run",
+      "result": "PASS: nf4/nf5 isolated seeded_surface shards, attachment topology, two workers, and separated outputs"
+    },
+    {
+      "command": ".githooks/pre-commit",
+      "result": "PASS: ruff clean; 323 passed, 505 deselected"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "long_simulation_executed": true,
+  "long_simulation_reason": "2026-09-15 14:01 JSTにcommit 4b547adでnf4/nf5 direct 2-worker jobをNAS root /net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs/2026-09-15/140131/parallel/issue184_2015_nf4_nf5_10tau__direct2 へ起動した。旧nf6は継続し、停止済みnf1/nf2 rootは隔離する。",
+  "adr_required": false,
+  "adr_reason": "diagnostic-only campaignのattachment policyとpreflightを明文化する変更であり、supported profile、dataset、canonical modelを変更しない。",
+  "next_action": "nf4/nf5 aggregateと旧nf6の終端後に、明示provenanceで暫定横断解析・condition別replayを実行し、local syncのSHA-256とQCを照合する。"
+}

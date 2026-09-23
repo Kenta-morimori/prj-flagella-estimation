@@ -1,0 +1,41 @@
+{
+  "status": "PASS",
+  "task": "PR #242: Codex review follow-up and Issue #61 chronological failure analysis",
+  "branch": "codex/issue-61-2015-10tau-stability",
+  "summary": [
+    "queue runbookを実CLIの--branch/--config契約へ訂正した。",
+    "Stage A parallel planは、指定された絶対pathのreference evidenceを出力作成前に検証し、全shardとjob manifestへ伝播する。",
+    "Issue #61は全thresholdとgateの観測時刻を比較し、観測できない違反を観測済みの早期違反より優先しない。"
+  ],
+  "checks": [
+    {
+      "command": "uv run pytest tests/test_phase2_61_2015_1tau.py tests/test_phase2_parallel_job.py",
+      "result": "PASS: 52 passed"
+    },
+    {
+      "command": "uv run python scripts/cs10/queue.py --help; uv run python scripts/cs10/queue.py enqueue --help",
+      "result": "PASS: runbookの--branch/--config引数を確認"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/run_parallel.py config=conf/phase2_parallel/issue61_2015_1tau/job.yaml --dry-run",
+      "result": "PASS: 3 isolated cs10_qualified Stage A shards; evidence未指定時はnot_recorded_at_run_start"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/analysis/issue61_2015_1tau.py src/sim_swim/analysis/parallel_job.py tests/test_phase2_61_2015_1tau.py; git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": ".githooks/pre-commit",
+      "result": "PASS: ruff, lifecycle, 347 light tests"
+    },
+    {
+      "command": "cs10 streaming issue61-2015-1tau analysis and local SHA-256 verification",
+      "result": "PASS: corrected result synchronized; 3/3 strict FAIL with motor torque residual at step 0"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "予約8は固定commit 8278c82のまま稼働を継続し、このreview follow-upを理由に停止・再実行しない。",
+  "adr_required": false,
+  "adr_reason": "locked QC閾値・物理モデル・dataset採択は変更しない。",
+  "next_action": "不変の#61 raw diagnosticsをstreaming再解析し、結果・hash照合を記録する。予約8完了後のruntime費用表とユーザー採否判断までPR #242はmergeしない。"
+}

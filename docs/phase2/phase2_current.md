@@ -38,9 +38,9 @@ runbookは`phase2_215_5s_axis_convergence_runbook.md`を正本とする。
 
 ## Next queue
 
-1. **Issue #244:** 2010 flagella条件・六角柱30-bead bodyのpending candidateは、`n=1..6`・5 torque・`dt_star=1e-4/1e-3`の60 cell共通screenを完了し、全条件が残るstrict QCをPASSした。成果物は`outputs/2026-09-20/013431/model_development_evaluation/`に統合済みである。54-condition seed gridと刻み比較はこのscreen成果物のレビュー後、600τ以上はIssue #245の範囲である。
-2. **Issue #200:** #203のprofile比較結果を受け取り，2010 projectの`dt_star`収束性を判断する．
-3. **Issue #61 / #184:** 2015 projectの`dt_star`，torque，本数条件の安定性と計算効率を検証する．
+1. **Issue #61 / #184:** 2015 projectの1τは3/3 strict FAILで、最初の観測済み違反は全torqueでstep 0のmotor torque residualである（pitch違反は後続）。`seeded_surface`のnf1–6・0.01実秒probeは6/6完走し、0.5実秒へ50倍外挿した3-worker費用は約26.4日。nf5/nf6はオンラインhook shape gate違反を記録した。費用と物理的採否の判断はユーザー確認待ち。
+2. **Issue #244 / #245:** 2010 hex候補の60 cell共通short screenはstrict QCをPASS済み。#245の長時間評価は2015計算費用の判断後に扱う。
+3. **Issue #200:** #203のprofile比較結果を受け取り、2010 projectの`dt_star`収束性を判断する。
 
 ## Current blockers
 

@@ -70,7 +70,9 @@ Phase文書の構成変更，統合，移行，削除を行う場合は，`phase
 ### 2. 実装
 
 - 実装開始時にexecution target、condition数、Mac見積り、許可される実行をユーザーへ短く報告する．
-- `execution:mac`はMac local、`execution:none`はruntimeなし、`execution:cs10`はMac実装・短時間check後にUser-run cs10 parallel jobへ進む。`execution:triage`はread-only investigationに限定する．
+- `execution:mac`はMac local、`execution:none`はruntimeなし、`execution:cs10`はMac実装・短時間check後にUser-run cs10 parallel jobへ進む。独立conditionが2以上なら、`cs10_qualified` parallel-job YAML、conditionごとのoutput分離、dry-run plan、Userが許可したlaunch操作を確認するまで開始しない。launcher未対応はserial開始の理由にしない．
+- 独立conditionが2以上のserial例外は、Issue runbookに技術的依存・排他的資源・output分離不能のいずれかを具体的に記録し、開始前のUser明示承認IssueコメントURLを確認した場合だけ許可する．
+- `execution:triage`はread-only investigationに限定する．
 - 変更を依頼scope内に限定する．
 - `scripts/`はuser-facing orchestration，`src/`は再利用可能な実装，`tools/codex/`はCodex workflow補助に使用する．
 - config，schema，testなど既存の正本を確認し，同じ情報をdocsへ複製しない．

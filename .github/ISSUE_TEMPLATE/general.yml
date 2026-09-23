@@ -44,6 +44,41 @@ body:
     validations:
       required: true
   - type: dropdown
+    id: cs10_execution_mode
+    attributes:
+      label: cs10 execution mode
+      description: cs10_user_runでは独立2 condition以上をparallelとする。runtime不要またはcs10以外では N/A。
+      options:
+        - parallel
+        - serial_exception
+        - N/A
+    validations:
+      required: true
+  - type: input
+    id: parallel_job_config
+    attributes:
+      label: Parallel job config path
+      description: parallel時は conf/phase2_parallel/<job>/job.yaml。該当しない場合は N/A。
+      placeholder: "例: conf/phase2_parallel/issue123/job.yaml"
+    validations:
+      required: true
+  - type: input
+    id: parallel_worker_plan
+    attributes:
+      label: Parallel worker plan
+      description: parallel時は worker数と cs10_qualified を記載。該当しない場合は N/A。
+      placeholder: "例: 3 workers, cs10_qualified"
+    validations:
+      required: true
+  - type: input
+    id: serial_exception_approval_url
+    attributes:
+      label: Serial exception approval URL
+      description: serial_exception時は、技術理由を記したrunbookと開始前のUser Issue-comment承認URL。該当しない場合は N/A。
+      placeholder: "例: https://github.com/OWNER/REPO/issues/123#issuecomment-123"
+    validations:
+      required: true
+  - type: dropdown
     id: roadmap_category
     attributes:
       label: Roadmap category (Milestone)

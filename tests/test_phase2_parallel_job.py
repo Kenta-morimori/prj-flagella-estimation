@@ -8,6 +8,7 @@ import sys
 import pytest
 
 from sim_swim.analysis import parallel_job
+from sim_swim.analysis.multi_run_campaign import apply_campaign_cli_overrides
 from sim_swim.analysis.parallel_job import (
     ParallelJob,
     build_plan,
@@ -15,6 +16,7 @@ from sim_swim.analysis.parallel_job import (
     resolve_execution,
     run_parallel_job,
 )
+from sim_swim.sim.params import SimulationConfig
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,6 +32,13 @@ ISSUE203_DT_CONTACT = (
 ISSUE215 = ROOT / "conf/phase2_parallel/issue215_5s_axis_convergence/job.yaml"
 ISSUE215_QUALIFICATION = (
     ROOT / "conf/phase2_parallel/issue215_5s_axis_convergence/qualification_job.yaml"
+)
+ISSUE61_SUPPLEMENTAL = (
+    ROOT / "conf/phase2_parallel/issue61_2015_1tau_paper_torque_supplemental/job.yaml"
+)
+ISSUE184_NF10TAU = ROOT / "conf/phase2_parallel/issue184_2015_nf1_6_10tau/job.yaml"
+ISSUE184_RUNTIME_PROBE = (
+    ROOT / "conf/phase2_parallel/issue184_2015_runtime_probe_0p01s/job.yaml"
 )
 ISSUE244 = ROOT / "conf/phase2_parallel/issue244_2010_hex_torque_1tau/job.yaml"
 ISSUE244_SEED_GRID = (
@@ -112,6 +121,171 @@ def test_issue203_generic_job_expands_27_independent_conditions() -> None:
     assert "scripts/01_simulate_swimming/run_multi_run.py" in command
     assert "output.timestamp_subdir=false" in command
     assert "sweep.include_condition_ids=[nf01__as000__ps000]" in command
+
+
+def test_issue61_supplemental_job_is_one_isolated_paper_torque_task() -> None:
+    job = load_parallel_job(ISSUE61_SUPPLEMENTAL)
+    plan = build_plan(job, resolve_execution(job, None), ROOT / ".tmp_issue61_plan")
+
+    assert job.task_count == 1
+    assert plan["configs"][0]["task_id"] == "project_torque_1p2em18"
+    assert plan["configs"][0]["overrides"] == []
+
+
+def test_issue184_nf1_6_job_audits_issue61_failure() -> None:
+    job = load_parallel_job(ISSUE184_NF10TAU)
+    plan = build_plan(job, resolve_execution(job, None), ROOT / ".tmp_issue184_plan")
+
+    assert job.is_generic_campaign_job
+    assert job.task_count == 6
+    assert [record["condition_id"] for record in plan["configs"]] == [
+        "nf01",
+        "nf02",
+        "nf03",
+        "nf04",
+        "nf05",
+        "nf06",
+    ]
+    assert plan["execution"]["max_workers"] == 3
+    assert plan["preflight"]["mode"] == "audit_issue61_fail"
+    assert [
+        record["geometry_preflight"]["placement_mode"] for record in plan["configs"]
+    ] == ["seeded_surface"] * 6
+    assert [
+        len(record["geometry_preflight"]["attachments"]) for record in plan["configs"]
+    ] == [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+    ]
+
+
+def test_issue184_runtime_probe_is_six_isolated_25000_step_shards() -> None:
+    job = load_parallel_job(ISSUE184_RUNTIME_PROBE)
+    plan = build_plan(job, resolve_execution(job, None), ROOT / ".tmp_issue184_probe")
+    assert job.task_count == 6
+    assert plan["execution"]["max_workers"] == 3
+    assert [item["condition_id"] for item in plan["configs"]] == [
+        f"nf{count:02d}" for count in range(1, 7)
+    ]
+    assert len({item["output_dir"] for item in plan["configs"]}) == 6
+    assert all(
+        item["geometry_preflight"]["placement_mode"] == "seeded_surface"
+        and item["geometry_preflight"]["attach_seed"] == 0
+        and item["geometry_preflight"]["phase_seed"] == 0
+        for item in plan["configs"]
+    )
+    profile = parallel_job.load_yaml(job.configs[0])
+    overrides = profile["base_overrides"]
+    assert overrides["time.duration"] == {"value": 0.25, "unit": "tau"}
+    assert overrides["time.scale_policy"] == "reference_torque"
+    assert overrides["time.integration.dt_star"] == 1e-5
+    assert (
+        overrides["motor.torque_Nm"]
+        == overrides["motor.reference_torque_Nm"]
+        == 2.5e-20
+    )
+    assert overrides["output.checkpoint_interval_steps"] == 2500
+    campaign = apply_campaign_cli_overrides(profile, [])
+    base = parallel_job.load_yaml(ROOT / campaign["base_config"])
+    simulation = SimulationConfig.from_dict(base).with_overrides(
+        campaign["base_overrides"]
+    )
+    assert simulation.total_steps == 25_000
+    assert simulation.time.duration_s == pytest.approx(0.01)
+    assert simulation.duration_star == pytest.approx(0.25)
+
+
+def test_invalid_generic_attachment_topology_is_rejected_before_output_creation(
+    tmp_path: Path,
+) -> None:
+    config = ROOT / "conf/phase2_multi_run/2015_project_t2p5e20_nf1_6_10tau.yaml"
+    job = ParallelJob(
+        schema_version=1,
+        job_id="invalid-geometry",
+        job_name="invalid_geometry",
+        config_path=ISSUE184_NF10TAU.resolve(),
+        configs=(config.resolve(),),
+        max_workers=1,
+        worker_policy="cs10_qualified",
+        config_overrides={
+            config.resolve(): ("flagella.placement_mode=seeded_center_layer",)
+        },
+        condition_ids=("nf04",),
+    )
+    root = tmp_path / "would-be-output"
+
+    with pytest.raises(ValueError, match="geometry preflight failed for nf04"):
+        run_parallel_job(job, resolve_execution(job, None), output_root=root)
+    assert not root.exists()
+
+
+def test_issue61_preflight_rejects_a_non_passing_decision(tmp_path: Path) -> None:
+    decision = tmp_path / "issue61_decision.json"
+    decision.write_text('{"status": "fail"}\n', encoding="utf-8")
+    job = ParallelJob(
+        schema_version=1,
+        job_id="gated",
+        job_name="gated",
+        config_path=EXAMPLE.resolve(),
+        configs=(SWEEP_A.resolve(),),
+        max_workers=1,
+        worker_policy="cs10_qualified",
+        preflight_decision_json=decision,
+        preflight_mode="require_status",
+        preflight_required_status="pass",
+    )
+
+    with pytest.raises(RuntimeError, match="preflight rejected"):
+        parallel_job._enforce_preflight(job)
+
+
+def test_issue61_failed_audit_is_accepted_only_with_complete_expected_rows(
+    tmp_path: Path,
+) -> None:
+    decision = tmp_path / "issue61_decision.json"
+    root = "/expected/campaign"
+    decision.write_text(
+        json.dumps(
+            {
+                "kind": "issue61_2015_1tau_torque_stability",
+                "status": "fail",
+                "conditions": 3,
+                "run_root": root,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "issue61_summary.csv").write_text(
+        "condition_id,strict_pass\n"
+        "project_torque_1em21,False\n"
+        "project_torque_2p5em20,False\n"
+        "project_torque_1em19,False\n",
+        encoding="utf-8",
+    )
+    job = ParallelJob(
+        schema_version=1,
+        job_id="audit",
+        job_name="audit",
+        config_path=EXAMPLE.resolve(),
+        configs=(SWEEP_A.resolve(),),
+        max_workers=1,
+        worker_policy="cs10_qualified",
+        preflight_decision_json=decision,
+        preflight_mode="audit_issue61_fail",
+        preflight_expected_run_root=root,
+    )
+
+    assert parallel_job._enforce_preflight(job)["decision_status"] == "fail"
+    (tmp_path / "issue61_summary.csv").write_text(
+        "condition_id,strict_pass\nproject_torque_1em21,False\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(RuntimeError, match="inconsistent"):
+        parallel_job._enforce_preflight(job)
 
 
 def test_issue203_qualification_job_preserves_27_shards_and_duration_override() -> None:
@@ -215,7 +389,22 @@ def test_generic_aggregate_requires_all_shards_and_creates_canonical_view(
             json.dumps({"status": "completed", "exit_code": 0}), encoding="utf-8"
         )
         (child_root / "run_manifest.json").write_text(
-            json.dumps({"conditions": [{"condition_id": record["condition_id"]}]}),
+            json.dumps(
+                {
+                    "conditions": [
+                        {
+                            "condition_id": record["condition_id"],
+                            "geometry": {
+                                "actual": {
+                                    "attachment_topology": record["geometry_preflight"][
+                                        "attachments"
+                                    ]
+                                }
+                            },
+                        }
+                    ]
+                }
+            ),
             encoding="utf-8",
         )
         (condition_dir / "run_summary.json").write_text(

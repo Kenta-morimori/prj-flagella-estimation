@@ -1,0 +1,17 @@
+# PR #242 cs10 cleanup（2026-09-22 JST）
+
+- queueをpause後、reservation 5を正式cancelした。最終stateは`cancelled`、exit code `-15`、通知試行済み1回。予約6は`queued`のまま。
+- direct jobのPGID 3328（nf4/nf5）にSIGTERMを送った。reservation 5のPGID 45559（nf6を含む）も終了し、対象processが存在しないことを確認した。
+- 3 childの`campaign_completion.json`はいずれも`status=running`で、`run_summary.json`、`performance.json`、compact checkpointは存在しなかった。削除前の大きさはnf6 28K、nf4 24K、nf5 28K。
+
+以下の未完走childディレクトリだけを削除し、不在を確認した。NAS上の通常削除であり、復元は管理者側のバックアップが存在する場合に限られる。
+
+1. `/net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs/2026-09-08/044446/parallel/queue-00005-14c7fb53__ccff7345439f/children/006_nf06`
+2. `/net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs/2026-09-15/140131/parallel/issue184_2015_nf4_nf5_10tau__direct2/children/001_nf04`
+3. `/net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs/2026-09-15/140131/parallel/issue184_2015_nf4_nf5_10tau__direct2/children/002_nf05`
+
+旧reservation 5の完走済みnf1–3、親jobのmanifest、停止済みdirect nf1/nf2 rootは保持した。旧childを新benchmarkへコピーしない。
+
+## runtime probeの再起動判断
+
+reservation 7の最初のcheckpointで、`time.duration=0.01 s`からの浮動小数点除算が`total_steps=25,001`となることを検出した。計画の25,000 stepと一致させるためqueueをpauseしてreservation 7をcancelし、最終state=`cancelled`・通知試行済み1回・予約6は`queued`のままと確認した。reservation 7の途中artifactは削除せず、再実行と混在させない。configを等価な`0.25 tau`指定へ修正し、25,000 stepsと約0.01 sをunit testで確認してから新しい固定commitの別reservationを起動する。

@@ -1,0 +1,19 @@
+schema_version: 1
+job_id: issue61_2015_project_1tau_tracking_stability
+aggregation: stage_a_2015
+configs:
+  - id: project_torque_1em21
+    path: conf/phase2_sweeps/2015_issue61_1tau_tracking_stability.yaml
+    overrides:
+      - motor_torques_nm=1.0e-21
+  - id: project_torque_2p5em20
+    path: conf/phase2_sweeps/2015_issue61_1tau_tracking_stability.yaml
+    overrides:
+      - motor_torques_nm=2.5e-20
+  - id: project_torque_1em19
+    path: conf/phase2_sweeps/2015_issue61_1tau_tracking_stability.yaml
+    overrides:
+      - motor_torques_nm=1.0e-19
+execution:
+  max_workers: auto
+  worker_policy: cs10_qualified

@@ -248,9 +248,17 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 
 ### P2-D21: reference torque の比較契約は fixed / tracking と時間基準を分離する
 
-- **Decision:** `fixed-reference` は物性を固定した駆動torque感度、`tracking-reference` はreference torqueと物性を同時に連動させる相似候補として分離する。さらに `same-real-time` と `same-dimensionless-time` を直交して記録し、#61の`dt_star`・計算効率比較は fixed-reference / same-real-time 内に限定する。
-- **Interpretation:** 新規の2010 projectを含む全profileではtrackingを時間・物性が連動する相似候補として扱う。明示的な固定τcontrolだけは時間相似と呼ばない。#184は #61 が許容した`dt_star`とper-flag torque policyを使い、dataset v2・0.5秒run・2015 supported採択はこのDecisionから導かない。
+- **Decision:** `fixed-reference` は物性を固定した駆動torque感度、`tracking-reference` はreference torqueと物性を同時に連動させる相似候補として分離する。さらに `same-real-time` と `same-dimensionless-time` を直交して記録する。Issue #61の2015 project 1τ screenはtracking-reference / same-dimensionless-timeの安全性・throughput記録に限定し、fixed-referenceの同一実時間効率比較と混在させない。
+- **Interpretation:** 新規の2010 projectを含む全profileではtrackingを時間・物性が連動する相似候補として扱う。明示的な固定τcontrolだけは時間相似と呼ばない。#61のPASSは10τ安定性、2015 supported採択や#184へのhandoffを意味しない。再解析済みの#61は3/3 strict FAILであり、全条件のfirst observed failureはstep 0のmotor torque residual（pitch違反は後続）である。#184はtriage後に、別途許容された`dt_star`とper-flag torque policyを使う。
 - **Evidence:** Issue #183，ADR 0016，`docs/phase2/phase2_183_reference_torque_comparison_contract.md`，`conf/phase2_reference_torque/*.yaml`．
+
+### P2-D23: 2015 nf1–6 screenはseeded-surface topologyを統一する
+
+- **Background:** 2015 projectの`seeded_center_layer`は正六角柱`n_prism=6`を`n_flagella`で割り切ることを要求するため、nf4/nf5を構成できない。
+- **Decision:** 次回の#184 nf1–6・10τ screenは`seeded_surface`、attach/phase seed `0`に統一する。全conditionは開始前のgeometry-only preflightを通過し、attachment topologyをmanifestへ保存する。旧root混在の暫定横断案はPR #242で撤回し、未完走nf4/nf5/nf6を停止する。PR #242では同一topologyのnf1–6を各0.01実秒だけ並列測定し、0.5秒の費用へ外挿してから採否をユーザーが判断する。既存nf1–3の10τ実測は費用比較にのみ使い、物理的なclean campaignへ混ぜない。
+- **Measured result (2026-09-23):** reservation 8（commit `8278c82`）は6条件×25,000 stepとaggregateを完了した。0.01実秒probeのcs10 wall timeはnf1–6で0.84/1.92/3.33/4.95/6.90/9.35時間。0.5実秒へ50倍外挿すると各1.75/4.00/6.93/10.32/14.37/19.48日、3 workerの固定順序makespanは約26.4日となる。旧nf1–3の10τ実測からの外挿比は0.71/0.86/0.94で、短時間probeは過小見積りの可能性がある。nf5/nf6はstep 0のhook shape gate違反を記録した。これは計算費用の証拠であり、strict QC採択や2015 supported昇格を意味しない。
+- **Interpretation:** 旧`seeded_center_layer` jobのnf1–3/nf6は保持する単独診断であり、clean campaignとの比較、dataset採択、2015 supported化、canonical選定の根拠には使わない。
+- **Evidence:** Issue #184，`docs/phase2/phase2_184_2015_nf1_6_10tau_contract.md`，`docs/codex-runs/20260923_pr242_runtime_probe_result/runtime_evidence.md`．
 
 ### P2-D22: 2010 torque-linked body stiffness候補は既定へ採用しない
 
@@ -266,7 +274,7 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Change:** `cs10_qualified` parallel jobを長時間・独立conditionの標準候補とし、tmux起動、確定output root、exit marker、JSON statusを`parallel_tmux.py`へ統合する。
 - **Result:** Issue #203の0.001 s qualificationは27 shardすべて成功し、8 workerのgeneric aggregateがcanonical campaignを生成した。本番2.0 s campaignは実行中であり、profile比較結果は未確定である。
 - **Interpretation:** worker数・runtime・aggregateの合否は人手のshell文字列や`grep`/`find`の副作用ではなく、job manifestとcontrol artifactから判定する必要がある。
-- **Decision:** cs10の長時間・複数conditionではparallel jobを先に検討し、serialを選ぶ場合はIssue runbookに理由を明記する。Codexのcs10操作はUserの操作単位の明示許可がある場合だけとする。これは実行運用の決定であり、physical model、dataset、`dt_star`、profile採否を変更しない。
+- **Decision:** `execution:cs10`かつ独立conditionが2以上なら、`cs10_qualified` parallel job、conditionごとのoutput分離、dry-runを確認してから開始する。serial例外は、技術的依存・排他的資源・output分離不能をIssue runbookへ記録し、開始前のUser明示承認IssueコメントURLを確認した場合だけ許可する。launcher未対応は例外理由にせず、先にshard対応を実装する。Codexのcs10操作はUserの操作単位の明示許可がある場合だけとする。これは実行運用の決定であり、physical model、dataset、`dt_star`、profile採否を変更しない。
 - **Evidence:** Issues #203・#207・#208・#209，PR #214，`docs/codex/cs10_runbook.md`，`scripts/cs10/parallel_tmux.py`，`tests/test_cs10_parallel_tmux.py`．
 
 ### P2-D19: 大量step runはcompact output policyを明示選択する

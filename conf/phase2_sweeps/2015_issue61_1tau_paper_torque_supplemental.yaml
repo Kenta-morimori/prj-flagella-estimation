@@ -1,0 +1,18 @@
+kind: stage_a_2015
+metadata:
+  role: sweep
+  canonical: false
+  description: Issue #61 supplemental 2015 project 1tau screen at the 1200 pN nm paper torque
+args:
+  stage: motor_on
+  project_config: conf/sim_swim_2015.yaml
+  profiles: [project]
+  output_base_dir: outputs
+  state_sample_count: 201
+  progress_interval: 5000
+  dt_star: 1.0e-5
+  duration_tau: 1.0
+  motor_torques_nm: [1.2e-18]
+  link_reference_torque: true
+  campaign_issue: 61
+  comparison_role: issue61_2015_project_1tau_paper_torque_supplemental
