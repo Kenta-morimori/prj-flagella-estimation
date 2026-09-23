@@ -39,4 +39,4 @@ uv run python scripts/01_simulate_swimming/estimate_runtime.py \
   --output-dir <local-job-root>/analysis/runtime_projection
 ```
 
-`runtime_projection.csv/json`に各条件の実測wall time・steps/s、0.5秒=12.5τ=1,250,000 stepsへの50倍外挿、3-worker makespan、nf1–3の既存10τ実測との比、不確かさ、provenanceを記録する。速度測定の成功はstrict QC PASSではない。6条件が揃わなければ採否を判断しない。結果表をユーザーに提示し、2015を採用候補から外すか確認してからPR #242へ判断を記録する。
+`runtime_projection.csv/json`に各条件の実測wall time・steps/s、0.5秒=12.5τ=1,250,000 stepsへの50倍外挿、3-worker makespan、nf1–3の既存10τ実測との比、不確かさ、provenanceを記録する。予約8は6条件とaggregateを完了し、ローカル同期・SHA-256照合・費用外挿の結果を`docs/codex-runs/20260923_pr242_runtime_probe_result/runtime_evidence.md`へ記録した。nf5/nf6はオンラインhook shape gate違反がある。速度測定の成功はstrict QC PASSではない。結果表をユーザーに提示し、2015を採用候補から外すか確認してからPR #242へ判断を記録する。

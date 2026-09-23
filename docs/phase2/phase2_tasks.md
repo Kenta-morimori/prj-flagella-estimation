@@ -256,8 +256,9 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 
 - **Background:** 2015 projectの`seeded_center_layer`は正六角柱`n_prism=6`を`n_flagella`で割り切ることを要求するため、nf4/nf5を構成できない。
 - **Decision:** 次回の#184 nf1–6・10τ screenは`seeded_surface`、attach/phase seed `0`に統一する。全conditionは開始前のgeometry-only preflightを通過し、attachment topologyをmanifestへ保存する。旧root混在の暫定横断案はPR #242で撤回し、未完走nf4/nf5/nf6を停止する。PR #242では同一topologyのnf1–6を各0.01実秒だけ並列測定し、0.5秒の費用へ外挿してから採否をユーザーが判断する。既存nf1–3の10τ実測は費用比較にのみ使い、物理的なclean campaignへ混ぜない。
+- **Measured result (2026-09-23):** reservation 8（commit `8278c82`）は6条件×25,000 stepとaggregateを完了した。0.01実秒probeのcs10 wall timeはnf1–6で0.84/1.92/3.33/4.95/6.90/9.35時間。0.5実秒へ50倍外挿すると各1.75/4.00/6.93/10.32/14.37/19.48日、3 workerの固定順序makespanは約26.4日となる。旧nf1–3の10τ実測からの外挿比は0.71/0.86/0.94で、短時間probeは過小見積りの可能性がある。nf5/nf6はstep 0のhook shape gate違反を記録した。これは計算費用の証拠であり、strict QC採択や2015 supported昇格を意味しない。
 - **Interpretation:** 旧`seeded_center_layer` jobのnf1–3/nf6は保持する単独診断であり、clean campaignとの比較、dataset採択、2015 supported化、canonical選定の根拠には使わない。
-- **Evidence:** Issue #184，`docs/phase2/phase2_184_2015_nf1_6_10tau_contract.md`，`conf/phase2_multi_run/2015_project_t2p5e20_nf1_6_10tau.yaml`．
+- **Evidence:** Issue #184，`docs/phase2/phase2_184_2015_nf1_6_10tau_contract.md`，`docs/codex-runs/20260923_pr242_runtime_probe_result/runtime_evidence.md`．
 
 ### P2-D22: 2010 torque-linked body stiffness候補は既定へ採用しない
 

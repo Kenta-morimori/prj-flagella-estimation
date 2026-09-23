@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "task": "PR #242 / Issue #184: cs10 reservation 8 runtime result",
+  "branch": "codex/issue-61-2015-10tau-stability",
+  "summary": "6/6 condition and aggregate completed; synchronized 83 current and 34 historical files with SHA-256 equality; projected 0.5 s cost and recorded online QC separately from physical adoption.",
+  "checks": [
+    {
+      "command": "cs10 queue status and job/campaign manifests",
+      "result": "PASS: reservation 8 succeeded; six child exit codes 0; aggregate and campaign completion completed"
+    },
+    {
+      "command": "SHA-256 diff of NAS and local non-log files",
+      "result": "PASS: 83 current and 34 historical files match"
+    },
+    {
+      "command": "uv run python scripts/01_simulate_swimming/estimate_runtime.py --target-duration-s 0.5 --conditions nf01,nf02,nf03,nf04,nf05,nf06 with three historical inputs",
+      "result": "PASS: runtime_projection.csv/json written; 3-worker makespan 26.42 days"
+    },
+    {
+      "command": "uv run pytest tests/test_runtime_projection.py -q",
+      "result": "PASS: 7 passed"
+    },
+    {
+      "command": "git diff --check; .githooks/pre-commit",
+      "result": "PASS: ruff, lifecycle, 347 light tests"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "既存の固定commit 8278c82の予約8結果を解析した。新しいsimulationは開始していない。",
+  "adr_required": false,
+  "adr_reason": "計算費用とonline QCの実測記録であり、物理model・QC threshold・採択判断は変更しない。",
+  "next_action": "費用表をユーザーに提示し、2015を現時点の採用候補から除外するか判断を得る。Cloud review再依頼・mergeは行わない。"
+}
