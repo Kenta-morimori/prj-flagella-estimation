@@ -15,4 +15,4 @@ PR #242では10τ完走を追わず、同一topologyの短時間並列probeか�
 
 旧reservation 5の`seeded_center_layer` nf1–3完走結果は長時間performanceとの比較資料として保持する。旧nf6とdirect nf4/nf5は未完走のまま停止し、対象確認後にchild出力だけを削除する。旧・新rootを混ぜた暫定nf1–6物理集計は行わない。将来10τ screenが必要なら、全6条件を同一`seeded_surface` topology、同一commit、clean campaignで実行する。
 
-計算費用の結論はprobeの6条件実測と不確かさ、nf1–3の既存10τ実測との差を示した後、ユーザーが判断する。事前閾値で2015の採否を自動決定しない。
+2026-09-23、probeの6条件実測と不確かさ、nf1–3の既存10τ実測との差を確認したユーザー判断により、2015 project modelは今回のdataset候補に不採用となった。速度probeの完走は物理的PASSではなく、#61 strict FAILとnf5/nf6のonline hook違反も解消していない。今後のclean 10τ campaignは本判断の前提ではなく、再検討する場合だけ新しい契約と承認を要する。2015 paper profileやStage A実装の維持には影響しない。

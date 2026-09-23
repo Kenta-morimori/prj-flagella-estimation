@@ -1,0 +1,44 @@
+{
+  "status": "PASS",
+  "task": "PR #242 merge後の2015 project dataset不採用判断とIssue #186受入の記録",
+  "source_issues": [
+    "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/184",
+    "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/186"
+  ],
+  "summary": "予約8の実測費用と既存strict QCを根拠に2015 project modelを今回のdataset候補へ不採用と記録した。2015 paper profileと他モデルのcanonical選定は未決定のまま維持した。#186はPR #248のmerge済み実装とlocal PASSを照合して受入完了とした。",
+  "tests_reviewed": [
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": ".githooks/pre-commit",
+      "result": "PASS: ruff format/check、Issue lifecycle check、light pytest 347 passed"
+    },
+    {
+      "command": "gh issue view 184 --json state,labels,body --jq '{state,labels:[.labels[].name],decision:(.body|contains(\"dataset候補には採用しない\"))}'",
+      "result": "PASS: state=CLOSED、execution:cs10、decision=true"
+    },
+    {
+      "command": "gh issue view 186 --json state,labels,body --jq '{state,labels:[.labels[].name],accepted:(.body|contains(\"受入結果（PR #248\"))}'",
+      "result": "PASS: state=CLOSED、execution:mac、accepted=true"
+    },
+    {
+      "command": "gh issue view 205 --json state,labels,body --jq '{state,labels:[.labels[].name],decision:(.body|contains(\"dataset候補に不採用\"))}'",
+      "result": "PASS: state=OPEN、execution:none、decision=true。canonical選定は未完了"
+    },
+    {
+      "command": "rg stale-reference search (current/tasks/#184 contract/runbook/runtime evidence)",
+      "result": "PASS: 現行の採否判断待ち・triage記述なし。P2-D18の過去形と本検証記録にだけ検索語が残る"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "PR #242の予約8の既存実測と同期済み証跡だけを参照し、新しいsimulationは不要。",
+  "user_review_required": false,
+  "adr_required": false,
+  "adr_reason": "ADR 0014のgeometry採択は変更せず、dataset候補の判断はPhase 2 Decision P2-D18とIssue #184/#205に記録した。",
+  "remaining_issues": [
+    "#205の2010系canonical候補の選定・freezeは未完了。",
+    "2015 paper profileの採否は今回判断していない。"
+  ]
+}
