@@ -1,16 +1,25 @@
-# Issue #245: 2010 hex 2 s long-duration runbook
+# Issue #245: 2010 hex 13 attachment pattern runbook
 
 ## Scope
 
-`2010_hex_project` pending candidateを、固定`T=2.5e-20 N m / flagellum`、`dt_star=1e-3`、RUN固定、Brownian/switching OFF、archive interval `0.001 s`で2.0 s（reference torqueで50τ、50,000 steps）評価する。canonical model、dataset、ML policy、遊泳特徴量解析は本Issueの対象外である。
+対象は**`2010_hex_project`のみ**である。2010 project modelのnf5/nf6は含めない。初期らせん位相は`phase_seed=0`に固定し、六角中心環のattachment slotだけを変更する。回転（C6）のみを同一視し、反射は区別する。
 
-対象は18条件である。`n=1..5`は`attach_seed=0,1,2`・`phase_seed=0`、`n=6`は`attach_seed=0`・`phase_seed=0,1,2`を使う。n=6は6 slot全占有の`full_ring_rotation_equivalent`であり、対向する2べん毛はhex固有の制約なので一般的な付着配置の多様性の根拠には使わない。
+| n | canonical slot集合 |
+| ---: | --- |
+| 1 | `0` |
+| 2 | `01`, `02`, `03` |
+| 3 | `012`, `013`, `014`, `024` |
+| 4 | `0123`, `0124`, `0134` |
+| 5 | `01234` |
+| 6 | `012345` |
 
-Heavy/runtime execution targetは`cs10_user_run`（label: `execution:cs10`）である。Codexはcs10への接続、tmux起動、job開始・停止を行わない。3 workersのscreen実測から本番の暫定見積りは約11時間であり、qualification後の実測wall timeで更新する。
+condition IDは`nf03__slots013`形式で全13条件である。n=6の全slot占有は`full_ring_rotation_equivalent: true`としてmanifest・summaryへ保存する。`T=2.5e-20 N m / flagellum`、`dt_star=1e-4`、RUN、Brownian/switching OFF、archive interval `0.001 s`、archive保存ONを固定する。
 
-## Qualification
+screenは1τ（10,000 steps）、mainは2.0 s（reference torqueで50τ、500,000 steps）である。cs10 targetは`cs10_user_run`（`execution:cs10`）。新規jobは`max_workers: auto`と`cs10_qualified`を使い、実効8 workers、`OMP_NUM_THREADS=OPENBLAS_NUM_THREADS=MKL_NUM_THREADS=1`である。1τ実測に基づく暫定見積りはscreen約42分、main約35時間、合計約36時間であり、screen実測後に更新する。
 
-予約・起動の前に、ユーザーはreview済みPR commit、clean worktree、18 shard dry-run、NAS容量、
+## 予約前確認と連続実行
+
+予約・dispatcher・tmux・job開始・停止はすべて操作ごとのユーザー明示許可が必要である。予約・起動の前に、ユーザーはreview済みPR commit、clean worktree、13 shard dry-run、NAS容量、
 queue/GitHub認証、既存reservationとの衝突なしを確認する。以下は予約を作成しないpre-reservation
 checklistである。
 
@@ -20,21 +29,21 @@ git fetch origin
 git show --quiet --format='%H %s' origin/codex/issue-245-2010-hex-long-duration
 git status --porcelain
 .venv-cs10/bin/python scripts/01_simulate_swimming/run_parallel.py \
-  --config conf/phase2_parallel/issue245_2010_hex_long_duration/qualification_job.yaml \
+  --config conf/phase2_parallel/issue245_2010_hex_long_duration/attachment_screen_job.yaml \
   --dry-run
 df -h /net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs
 gh auth status --hostname github.com
 .venv-cs10/bin/python scripts/cs10/queue.py status
 ```
 
-上記が成立し、**ユーザーがqualification reservationを明示許可した後だけ**、同一18 shardを`0.001 s`に短縮して予約する。
+ユーザーはscreenとmainを**連続してreservation / dispatcher実行してよい**と指定している。screen FAILの場合もmainを停止せず実行できるが、mainのarchive、heatmap、replayはstrict failure診断専用であり、特徴量評価・採択・canonical化の根拠にしてはならない。キャンセル等の変更はこの例外からは許可されず、別操作として明示許可を要する。
 
 ```bash
 cd ~/src/prj-flagella-estimation
 git fetch origin
 .venv-cs10/bin/python scripts/cs10/queue.py enqueue \
   --branch origin/codex/issue-245-2010-hex-long-duration \
-  --config conf/phase2_parallel/issue245_2010_hex_long_duration/qualification_job.yaml \
+  --config conf/phase2_parallel/issue245_2010_hex_long_duration/attachment_screen_job.yaml \
   --priority 0
 ```
 
@@ -42,11 +51,11 @@ git fetch origin
 .venv-cs10/bin/python scripts/cs10/queue.py status
 ```
 
-本番へ進める条件は18/18の`job=succeeded`、`failed_configs=[]`、aggregate=`completed`、campaignの`run_summary_count=18`、全condition strict PASS、archive/manifest/summaryのSHA-256検証成功である。`progress.json`、`diagnostic_samples.csv`、`state_archive.partial.npz`はstrict failure時のdiagnostics/replay専用であり、completed archiveや採択根拠として使わない。strict failureが1件でもあれば、本番、特徴量評価、採択へ進まずdiagnostics/replayレビューで停止する。
+screenとmainのenqueueおよびdispatcher起動は、実行時にそれぞれユーザーが明示許可した場合だけ行う。予約はfixed commit contractであり、branch更新だけで差し替えない。`progress.json`、`diagnostic_samples.csv`、`state_archive.partial.npz`はstrict failure時のdiagnostics/replay専用であり、completed archiveや採択根拠として使わない。
 
 ## 2 s campaign, sync, and aggregation
 
-上の条件、同期済みrequired artifactのhash検証、ユーザーの明示許可後だけ、本番reservationを作成できる。
+screen FAILでもユーザー指定の連続mainは実行可能である。ただしstrict failureが一件でもあれば、main成果物はdiagnostic-onlyであり、特徴量評価・採択・canonical化へ進めない。
 
 ```bash
 .venv-cs10/bin/python scripts/cs10/queue.py enqueue \
@@ -70,4 +79,4 @@ git fetch origin
   --render-replay
 ```
 
-集約器は`manifest.json`、`run.log`、統合summary、`window_qc.csv`、first failure、wall time、steps/s、artifact SHA-256、およびn別・seed別固定camera 3D/2D replayを作る。hook angleは値とfirst failureを保存するdiagnostic-onlyであり、finite/body/hook length/flag/motorだけがstrict PASS/FAILである。
+集約器は`manifest.json`、`run.log`、統合summary、`window_qc.csv`、first failure、wall time、steps/s、artifact SHA-256を作る。n行・canonical slot pattern列のsparse heatmapでは該当しないセルをmaskする。replayはn/pattern別にページングした固定camera 3D/2Dで、screen/main、PASS/FAIL、diagnostic-onlyをmanifestと画面へ記録する。hook angleは値とfirst failureを保存するdiagnostic-onlyであり、finite/body/hook length/flag/motorだけがstrict PASS/FAILである。

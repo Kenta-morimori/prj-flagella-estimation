@@ -2,18 +2,17 @@ kind: generic_multi_run
 metadata:
   role: sweep
   canonical: false
-  description: Issue #245 2010 hex project 2 s attachment-pattern long-duration evaluation.
+  description: Issue #245 2010 hex project 1tau attachment-pattern screen.
   source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/245
   model_id: 2010_hex_project_issue245
   model_notes:
-    - Pending evaluation candidate only; this campaign does not adopt a canonical model.
-    - Attachment patterns are canonicalized by C6 rotation only; reflections remain distinct.
-    - n=6 occupies all six hex slots and is full_ring_rotation_equivalent.
+    - Short screen for the 13 C6-rotation-canonical attachment patterns.
+    - Initial helix phase is preserved at phase_seed=0.
 
 development_evaluation:
   version: 1
   profile_id: 2010_hex_project
-  stage: long_duration
+  stage: short_screen
   expected_condition_count: 13
   axes: [attachment_pattern]
   qc:
@@ -22,23 +21,20 @@ development_evaluation:
     max_motor_force_balance_residual_ratio: 1.0e-8
     max_motor_torque_balance_residual_ratio: 2.0e-2
   accepted_source_campaigns:
-    - conf/phase2_multi_run/2010_hex_project_long_duration_2s_issue245.yaml
+    - conf/phase2_multi_run/2010_hex_project_attachment_patterns_1tau_issue245.yaml
   replay:
     group_by: [n_flagella, attachment_pattern]
     camera_3d: fixed
     view_range_mode: campaign-envelope
     show_flagella_axes: true
   long_duration:
-    duration_s: 2.0
-    reference_tau: 50
-    expected_steps: 500000
-    full_ring_rotation_equivalent: n_flagella == 6
+    status: gated_by_issue245_main
     feature_evaluation: separate_issue
 
 base_config: conf/sim_swim_2010_hex.yaml
 
 base_overrides:
-  time.duration: {value: 2.0, unit: s}
+  time.duration: {value: 1.0, unit: tau}
   time.scale_policy: reference_torque
   time.integration.dt_star: 1.0e-4
   motor.torque_Nm: 2.5e-20

@@ -53,7 +53,7 @@ cs10 実機では、251-step（`duration_s=0.001`）screen を workers `1,2,4,6,
 
 ## 並列 sweep job（Issue #209）
 
-複数の既存 sweep profile はコピーせず、`conf/phase2_parallel/<job_name>/job.yaml` から参照する。cs10 qualification を使う job には、`execution.max_workers: auto` と `execution.worker_policy: cs10_qualified` を指定する。この policy は最大8 workers と `OMP_NUM_THREADS=OPENBLAS_NUM_THREADS=MKL_NUM_THREADS=1` を各子 process に設定する。
+複数の既存 sweep profile はコピーせず、`conf/phase2_parallel/<job_name>/job.yaml` から参照する。cs10 qualification を使う job には、`execution.max_workers: auto` と `execution.worker_policy: cs10_qualified` を指定する。この policy で`auto`は**実効8 workers**を意味し、`OMP_NUM_THREADS=OPENBLAS_NUM_THREADS=MKL_NUM_THREADS=1`を各子 process に設定する。新規の`execution:cs10` parallel jobは、個別の資源制約がない限り`execution.max_workers: auto`を標準とし、過去の固定worker予約・既存jobはその固定commit契約を変更しない。
 
 まず simulation を起動しない dry-run で、worker 数、command、出力 namespace を確認する。
 

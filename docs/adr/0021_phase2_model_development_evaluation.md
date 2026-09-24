@@ -16,6 +16,8 @@ hook angleは診断として保存するが、shape PASS/FAILには用いない�
 
 長時間campaignはshort screenのレビュー後に同じ契約の`long_duration` stageとして定義する。遊泳特徴量評価は、PASSした長時間archiveを入力にする別Issueの責務とする。
 
+`2010_hex_project`のattachment比較では、compound `attachment_pattern` axisに明示slot集合を保存する。C6回転のみを同一視し反射は区別する。同期済みcompleted archiveから、pattern列・べん毛数行のsparse heatmapと固定camera 3D/2D replayを共通集約器で生成する。screen FAIL後に明示許可された連続mainを実行しても、そのmain archiveはdiagnostic-onlyであり、採択根拠にしない。
+
 ## Consequences
 
 - Issue専用のmodel-evaluation解析器を新設しない。

@@ -38,7 +38,7 @@ runbookは`phase2_215_5s_axis_convergence_runbook.md`を正本とする。
 
 ## Next queue
 
-1. **Issue #245:** `2010_hex_project` pending candidateは、#244の60/60 short screen PASS後に、固定`T=2.5e-20 N m/flagellum`・`dt_star=1e-3`・2.0 s（50τ、50,000 steps）の18条件long-duration評価へ進む。cs10 user-runは同一18 shardの`0.001 s` qualification 18/18 PASSとユーザーの明示許可後だけ開始する。hook angleはdiagnostic-onlyであり、遊泳特徴量解析はPASS archiveを受け取る後続Issueの責務である。
+1. **Issue #245:** `2010_hex_project`のみを、固定`T=2.5e-20 N m/flagellum`・`dt_star=1e-4`で評価する。初期らせん位相は`phase_seed=0`固定で、六角環の回転のみを同一視（反射は区別）した13 attachment slot patternを、1τ（10,000 steps）screenと2.0 s（50τ、500,000 steps）mainでcs10 user-runする。新規parallel jobは`cs10_qualified`の`max_workers: auto`（実効8 workers、数値ライブラリthread=1）を使う。screen FAILでもユーザー指定の連続mainは実行可能だが、その成果物はdiagnostic-onlyであり、特徴量評価・採択・canonical化には使わない。hook angleはdiagnostic-onlyである。
 2. **Issue #244:** Stage 1の60 cell short screenは完了済み。Stage 2の54-condition seed gridと、その結果に条件づくn=3/6・4-condition刻み比較は未開始であり、ユーザーの明示許可後にのみ開始する。
 3. **Issue #200:** #203のprofile比較結果を受け取り、2010 projectの`dt_star`収束性を判断する。
 

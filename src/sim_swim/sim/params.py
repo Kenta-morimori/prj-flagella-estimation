@@ -369,6 +369,7 @@ class FlagellumParams:
 
     n_flagella: int = 3
     placement_mode: str = "seeded_surface"
+    attachment_slots: tuple[int, ...] | None = None
     initial_phase_mode: str = "seeded"
     init_mode: str = "legacy_radius_pitch"
     stub_mode: str = (
@@ -1555,6 +1556,11 @@ class SimulationConfig:
         flagella = FlagellumParams(
             n_flagella=int(_get(flag_raw, "n_flagella", 3)),
             placement_mode=str(_get(flag_raw, "placement_mode", "seeded_surface")),
+            attachment_slots=(
+                tuple(int(slot) for slot in flag_raw["attachment_slots"])
+                if flag_raw.get("attachment_slots") is not None
+                else None
+            ),
             initial_phase_mode=str(_get(flag_raw, "initial_phase_mode", "seeded")),
             init_mode=str(_get(flag_raw, "init_mode", "legacy_radius_pitch")),
             stub_mode=str(_get(flag_raw, "stub_mode", "full_flagella")),

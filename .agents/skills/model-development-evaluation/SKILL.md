@@ -30,6 +30,12 @@ contract instead of creating Issue-specific analysis scripts.
 6. Keep swimming-feature analysis out of this workflow.  A later task may
    consume PASS long-duration archives through the feature registry.
 
+For a new `execution:cs10` multi-condition campaign, set
+`execution.max_workers: auto` with `worker_policy: cs10_qualified` unless a
+recorded resource constraint requires otherwise.  `auto` resolves to the
+qualified effective 8 workers and sets each numerical-library thread count to
+1.  This rule does not alter a fixed-commit historical reservation.
+
 Existing results may be reused only after validating condition coverage,
 profile identity, source manifests, and Git provenance.  The generic
 `model-development-evaluation` analysis consumes completed run directories;
