@@ -1,0 +1,79 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  description: Issue #245 2010 hex project 1tau attachment-pattern screen.
+  source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/245
+  model_id: 2010_hex_project_issue245
+  model_notes:
+    - Short screen for the 13 C6-rotation-canonical attachment patterns.
+    - Initial helix phase is preserved at phase_seed=0.
+
+development_evaluation:
+  version: 1
+  profile_id: 2010_hex_project
+  stage: short_screen
+  expected_condition_count: 13
+  axes: [attachment_pattern]
+  qc:
+    exclude_diagnostics_from_gate: [hook_angle_err_max_deg]
+    required_gates: [finite, shape_body, hook_length, flag, motor]
+    max_motor_force_balance_residual_ratio: 1.0e-8
+    max_motor_torque_balance_residual_ratio: 2.0e-2
+  accepted_source_campaigns:
+    - conf/phase2_multi_run/2010_hex_project_attachment_patterns_1tau_issue245.yaml
+  replay:
+    group_by: [n_flagella, attachment_pattern]
+    camera_3d: fixed
+    view_range_mode: campaign-envelope
+    show_flagella_axes: true
+  long_duration:
+    status: gated_by_issue245_main
+    feature_evaluation: separate_issue
+
+base_config: conf/sim_swim_2010_hex.yaml
+
+base_overrides:
+  time.duration: {value: 1.0, unit: tau}
+  time.scale_policy: reference_torque
+  time.integration.dt_star: 1.0e-4
+  motor.torque_Nm: 2.5e-20
+  motor.reference_torque_Nm: 2.5e-20
+  motor.enable_switching: false
+  brownian.enabled: false
+  flagella.placement_mode: explicit_center_layer_slots
+  seed.attach_seed: 0
+  seed.phase_seed: 0
+  output.policy: compact
+  output.archive_interval_s: 0.001
+
+sweep:
+  axes:
+    attachment_pattern:
+      keys:
+        n_flagella: flagella.n_flagella
+        attachment_slots: flagella.attachment_slots
+        motor_torque: motor.torque_Nm
+      short_name: slots
+      values:
+        - {n_flagella: 1, attachment_slots: [0], motor_torque: 2.5e-20}
+        - {n_flagella: 2, attachment_slots: [0, 1], motor_torque: 2.5e-20}
+        - {n_flagella: 2, attachment_slots: [0, 2], motor_torque: 2.5e-20}
+        - {n_flagella: 2, attachment_slots: [0, 3], motor_torque: 2.5e-20}
+        - {n_flagella: 3, attachment_slots: [0, 1, 2], motor_torque: 2.5e-20}
+        - {n_flagella: 3, attachment_slots: [0, 1, 3], motor_torque: 2.5e-20}
+        - {n_flagella: 3, attachment_slots: [0, 1, 4], motor_torque: 2.5e-20}
+        - {n_flagella: 3, attachment_slots: [0, 2, 4], motor_torque: 2.5e-20}
+        - {n_flagella: 4, attachment_slots: [0, 1, 2, 3], motor_torque: 2.5e-20}
+        - {n_flagella: 4, attachment_slots: [0, 1, 2, 4], motor_torque: 2.5e-20}
+        - {n_flagella: 4, attachment_slots: [0, 1, 3, 4], motor_torque: 2.5e-20}
+        - {n_flagella: 5, attachment_slots: [0, 1, 2, 3, 4], motor_torque: 2.5e-20}
+        - {n_flagella: 6, attachment_slots: [0, 1, 2, 3, 4, 5], motor_torque: 2.5e-20}
+      labels: [slots0, slots01, slots02, slots03, slots012, slots013, slots014, slots024, slots0123, slots0124, slots0134, slots01234, slots012345]
+      ids: [nf01__slots0, nf02__slots01, nf02__slots02, nf02__slots03, nf03__slots012, nf03__slots013, nf03__slots014, nf03__slots024, nf04__slots0123, nf04__slots0124, nf04__slots0134, nf05__slots01234, nf06__slots012345]
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 1000

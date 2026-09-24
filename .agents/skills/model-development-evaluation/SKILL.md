@@ -19,8 +19,22 @@ contract instead of creating Issue-specific analysis scripts.
    of the gate.
 4. Do not start the `long_duration` stage until the short screen is reviewed.
    Respect the Issue execution target; `execution:cs10` runs are user-run.
-5. Keep swimming-feature analysis out of this workflow.  A later task may
+   Enqueue, cancellation, pause/resume, reservation replacement, and
+   dispatcher/tmux or job start/stop each require the User's explicit
+   authorization for that exact action.
+5. Treat an enqueued reservation as a fixed-commit execution contract. A
+   branch update, rebase, PR update, CI result, or latest-main update does not
+   authorize changing it. Report the fixed-commit difference and its impact,
+   then wait for an explicit User instruction before replacing or cancelling
+   the reservation.
+6. Keep swimming-feature analysis out of this workflow.  A later task may
    consume PASS long-duration archives through the feature registry.
+
+For a new `execution:cs10` multi-condition campaign, set
+`execution.max_workers: auto` with `worker_policy: cs10_qualified` unless a
+recorded resource constraint requires otherwise.  `auto` resolves to the
+qualified effective 8 workers and sets each numerical-library thread count to
+1.  This rule does not alter a fixed-commit historical reservation.
 
 Existing results may be reused only after validating condition coverage,
 profile identity, source manifests, and Git provenance.  The generic

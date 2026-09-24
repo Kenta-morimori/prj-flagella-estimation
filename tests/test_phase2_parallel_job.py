@@ -47,6 +47,11 @@ ISSUE244_SEED_GRID = (
 ISSUE244_DT_CONVERGENCE = (
     ROOT / "conf/phase2_parallel/issue244_2010_hex_dt_convergence_1tau/job.yaml"
 )
+ISSUE245 = ROOT / "conf/phase2_parallel/issue245_2010_hex_long_duration/job.yaml"
+ISSUE245_SCREEN = (
+    ROOT
+    / "conf/phase2_parallel/issue245_2010_hex_long_duration/attachment_screen_job.yaml"
+)
 SWEEP_A = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_off.yaml"
 SWEEP_B = ROOT / "conf/phase2_sweeps/2015_stage_a_motor_on.yaml"
 SHAPE_SWEEP = ROOT / "conf/phase2_sweeps/shape_stability_grid.yaml"
@@ -370,6 +375,29 @@ def test_issue244_followup_jobs_are_preflighted_and_gated() -> None:
     assert seed_plan["configs"][0]["condition_id"] == "nf01__as000__ps000"
     assert seed_plan["configs"][-1]["condition_id"] == "nf06__as002__ps002"
     assert convergence_plan["configs"][-1]["condition_id"] == "nf06__dt5e5"
+
+
+def test_issue245_attachment_pattern_jobs_match_all_13_conditions() -> None:
+    job = load_parallel_job(ISSUE245)
+    qualification = load_parallel_job(ISSUE245_SCREEN)
+    plan = build_plan(job, resolve_execution(job, None), ROOT / ".tmp_issue245_plan")
+    qualification_plan = build_plan(
+        qualification,
+        resolve_execution(qualification, None),
+        ROOT / ".tmp_issue245_qualification_plan",
+    )
+
+    assert job.condition_ids == qualification.condition_ids
+    assert job.task_count == 13
+    assert job.preflight == qualification.preflight == "geometry_all_conditions"
+    assert resolve_execution(job, None).max_workers == 8
+    assert resolve_execution(job, None).worker_policy == "cs10_qualified"
+    assert qualification_plan["configs"][0]["condition_id"] == "nf01__slots0"
+    assert plan["configs"][-1]["condition_id"] == "nf06__slots012345"
+    assert all(
+        record["geometry_preflight"]["placement_mode"] == "explicit_center_layer_slots"
+        for record in qualification_plan["configs"]
+    )
 
 
 def test_generic_aggregate_requires_all_shards_and_creates_canonical_view(

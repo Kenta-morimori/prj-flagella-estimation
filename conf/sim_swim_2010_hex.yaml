@@ -14,8 +14,8 @@ model_profile:
 development_evaluation:
   version: 1
   profile_id: 2010_hex_project
-  short_screen: conf/phase2_multi_run/2010_hex_project_torque_dt_1tau_issue244.yaml
-  long_duration: separate_issue
+  short_screen: conf/phase2_multi_run/2010_hex_project_attachment_patterns_1tau_issue245.yaml
+  long_duration: conf/phase2_multi_run/2010_hex_project_long_duration_2s_issue245.yaml
   feature_evaluation: separate_issue
 
 scale:

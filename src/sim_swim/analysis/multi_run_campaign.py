@@ -139,7 +139,14 @@ def _normalize_axis(axis_name: str, raw_axis: dict[str, Any]) -> dict[str, Any]:
                     + ", ".join(sorted(expected))
                 )
             normalized_values.append(
-                {name: _coerce_cli_value(str(item)) for name, item in value.items()}
+                {
+                    name: (
+                        [_coerce_cli_value(str(slot)) for slot in item]
+                        if isinstance(item, list)
+                        else _coerce_cli_value(str(item))
+                    )
+                    for name, item in value.items()
+                }
             )
     normalized_labels = [
         str(label)
@@ -233,6 +240,12 @@ def apply_campaign_cli_overrides(
         effective["base_overrides"] = _merge_nested(
             effective["base_overrides"], simulation_nested
         )
+        # A launcher qualification may intentionally use the legacy
+        # time.duration_s override.  Do not retain an incompatible canonical
+        # duration from the campaign at the same time.
+        time_override = dict(simulation_nested.get("time", {}) or {})
+        if "duration_s" in time_override:
+            effective["base_overrides"].setdefault("time", {}).pop("duration", None)
     return normalize_campaign_config(effective)
 
 
@@ -418,6 +431,11 @@ def geometry_preflight(
             )
         records[condition_id] = {
             "placement_mode": str(cfg.flagella.placement_mode),
+            "attachment_slots": (
+                list(cfg.flagella.attachment_slots)
+                if cfg.flagella.attachment_slots is not None
+                else None
+            ),
             "attach_seed": cfg.seed.attach_seed,
             "phase_seed": cfg.seed.phase_seed,
             "n_flagella": int(cfg.flagella.n_flagella),

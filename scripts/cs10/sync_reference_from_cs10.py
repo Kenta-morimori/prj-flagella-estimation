@@ -50,6 +50,7 @@ def sync(host: str, remote_dir: str, local_dir: Path, *, dry_run: bool = False) 
             ["scp", f"{remote}/{name}", str(local_dir)]
             for name in (
                 "run_manifest.json",
+                "manifest.json",
                 "reference_manifest.json",
                 "summary.csv",
                 "campaign_completion.json",
