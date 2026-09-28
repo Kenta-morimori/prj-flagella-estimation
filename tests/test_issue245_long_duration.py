@@ -192,7 +192,12 @@ def test_issue245_parallel_jobs_use_cs10_qualified_auto_workers() -> None:
         assert execution.max_workers == 8
 
 
-def test_long_duration_collects_portable_archives_and_window_qc(tmp_path: Path) -> None:
+def test_long_duration_collects_portable_archives_and_window_qc(
+    monkeypatch, tmp_path: Path
+) -> None:
+    import sim_swim.analysis.attachment_slot_map as slot_map
+
+    monkeypatch.setattr(slot_map, "render_attachment_slot_map", lambda *_: {})
     run_dir = _write_long_run(tmp_path)
     rows, _ = collect_rows(config=load_yaml(CONFIG), run_dirs=[run_dir])
     assert len(rows) == 13
@@ -274,8 +279,12 @@ def test_long_duration_rejects_partial_only_checkpoint(tmp_path: Path) -> None:
 
 
 def test_long_duration_manifest_marks_partial_artifacts_diagnostic_only(
+    monkeypatch,
     tmp_path: Path,
 ) -> None:
+    import sim_swim.analysis.attachment_slot_map as slot_map
+
+    monkeypatch.setattr(slot_map, "render_attachment_slot_map", lambda *_: {})
     run_dir = _write_long_run(tmp_path)
     outputs = build_evaluation(
         config_path=CONFIG, run_dirs=[run_dir], output_dir=tmp_path / "evaluation"

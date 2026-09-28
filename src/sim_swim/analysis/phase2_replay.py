@@ -447,7 +447,7 @@ def _build_cfg(
                 "render_flagella_2d": False,
                 "show_flagella_helix_axis_3d": True,
                 "label_flagella": False,
-                "follow_camera_3d": True,
+                "follow_camera_3d": False,
                 "save_frames_3d": False,
                 "save_frames_2d": False,
             },
@@ -1451,7 +1451,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--camera-3d",
         choices=("follow", "fixed"),
-        default="follow",
+        default="fixed",
         help="Use a body-following or fixed 3D camera.",
     )
     parser.add_argument(

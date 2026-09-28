@@ -758,6 +758,12 @@ def build_evaluation(
         output_dir=output_dir, run_dirs=run_dirs, config=config
     )
     outputs["replay_input"] = replay_input
+    if rows and rows[0].get("attachment_pattern"):
+        from sim_swim.analysis.attachment_slot_map import render_attachment_slot_map
+
+        outputs.update(
+            render_attachment_slot_map(replay_input, output_dir / "attachment_slots")
+        )
     if render_replay:
         _render_replays(
             rows, replay_input=replay_input, output_dir=output_dir, stage=stage

@@ -559,7 +559,7 @@ class RenderParams:
     render_flagella_2d: bool = False
 
     save_frames_3d: bool = False
-    follow_camera_3d: bool = True
+    follow_camera_3d: bool = False
     view_range_um: float = 5.0
     timestamp_3d: bool = True
     timestamp_fmt: str = "t = {t:.3f} s"
@@ -1824,7 +1824,7 @@ class SimulationConfig:
             render_flagella=bool(_get(render_raw, "render_flagella", True)),
             render_flagella_2d=bool(_get(render_raw, "render_flagella_2d", False)),
             save_frames_3d=bool(_get(render_raw, "save_frames_3d", False)),
-            follow_camera_3d=bool(_get(render_raw, "follow_camera_3d", True)),
+            follow_camera_3d=bool(_get(render_raw, "follow_camera_3d", False)),
             view_range_um=float(_get(render_raw, "view_range_um", 5.0)),
             timestamp_3d=bool(_get(render_raw, "timestamp_3d", True)),
             timestamp_fmt=str(_get(render_raw, "timestamp_fmt", "t = {t:.3f} s")),
