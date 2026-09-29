@@ -9,6 +9,14 @@
 
 ローカル成果物：`outputs/2026-09-28/215511/issue245_output_review/`（`evaluation/attachment_slots/attachment_slots_all_conditions.png`、同`manifest.json`、`replay3d/nf01`〜`nf06`のMP4・最終PNG・manifest・run.log）。入力archiveのSHA-256は統合summaryおよびslot図manifestに記録した。
 
+### 固定世界座標での菌体移動を見せる追加replay（2026-09-29）
+
+`conf/sim_swim_2010_hex.yaml`には`render.follow_camera_3d`の指定がない。旧#245 replayも`--camera-3d fixed`と`campaign-envelope`を明示しており、全13 archiveのビーズ位置から一度決めた共通カメラ中心・画角を各frameに固定していた。したがって旧動画が菌体を追従していたわけではない。
+
+ただし旧画角幅は約7.33 µmで、菌体の初期→最終中心移動0.18〜1.36 µm（中央値0.61 µm）が視覚的に小さく見える。そこで**世界原点(0,0,0) µm固定、各軸±2.8 µm固定**の追加3D replayを、同じ13 completed archiveから生成した。初期から最終まで全body beadが画角内にあることを検証した。遠位のflagellaは画角外に出る可能性があるため、全形状観察には元のcampaign-envelope版を使う。追加動画もdiagnostic-onlyであり、strict判定・3D色・番号・QC表示・2D replayは変更しない。
+
+追加成果物：`outputs/2026-09-29/095317/issue245_fixed_world_body_motion/replay3d/nf01`〜`nf06`のMP4・最終PNG・manifest・run.log。`view_range_mode=explicit-fixed`は3D fixed camera専用のgeneric replay CLI optionで、追従カメラや既存profileの明示設定は変更しない。
+
 ## Motor torqueの同一状態診断
 
 現行の`root_torque_segment_couples`とnominal local-twist重みを再構成し、各条件の初期状態、最初の**観測済み**0.02超過、診断sample中の最大残差、最終観測状態を選んだ。初期状態には記録済みmotor診断sampleがないため、反実仮想計算は保留した。観測sampleとの照合はbody/flagの3D torque vectorの相対誤差≤0.005、torque/force残差比の絶対誤差≤0.005を条件とした。

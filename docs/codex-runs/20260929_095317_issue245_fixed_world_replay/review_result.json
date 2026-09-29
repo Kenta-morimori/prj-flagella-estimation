@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "issue": 245,
+  "pull_request": 247,
+  "scope": "2010_hex_project の同期済み2秒・13条件archiveから、世界原点固定の狭い3D画角で菌体移動を確認できる診断replayを生成",
+  "checks": [
+    "conf/sim_swim_2010_hex.yaml に render.follow_camera_3d 指定がないことと旧replay manifestのfixed/campaign-envelopeを確認",
+    "targeted pytest: 31 passed",
+    "light pre-commit: ruff format/check, issue script lifecycle, 369 passed / 550 deselected",
+    "6 MP4/PNG/manifest/run.log、13一意condition、各41 frame、全manifestでcamera_3d=fixed・explicit-fixed・center=(0,0,0) um・half-range=2.8 umを確認",
+    "全archive stateのbody beadは各軸±2.8 umの画角内（最大絶対座標2.375 um）"
+  ],
+  "local_outputs": "outputs/2026-09-29/095317/issue245_fixed_world_body_motion/replay3d/",
+  "documentation": "docs/phase2/phase2_245_2010_hex_output_motor_audit.md",
+  "adr_required": false,
+  "adr_reason": "診断replayの画角だけを追加し、物理モデル・QC判定・採択基準は変更していない。",
+  "not_run": [
+    "cs10接続・予約・dispatcher・tmux操作",
+    "simulation再実行、2D replay再生成、遊泳特徴量解析、モデル採択"
+  ],
+  "result": "旧replayも固定カメラだが広い画角で移動が見えにくかった。追加3D replayは固定世界座標で移動を示す診断資料であり、strict FAIL 13/13は不変。"
+}

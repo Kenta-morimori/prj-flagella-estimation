@@ -85,6 +85,85 @@ def test_replay_default_fixed_preserves_explicit_follow_and_does_not_recenter() 
     assert profile.render.follow_camera_3d is True
 
 
+def test_explicit_fixed_camera_is_static_and_validated() -> None:
+    args = _parse_args(
+        [
+            "--input-dir",
+            "/tmp/in",
+            "--view",
+            "3d",
+            "--camera-3d",
+            "fixed",
+            "--view-range-mode",
+            "explicit-fixed",
+            "--camera-3d-center-um",
+            "0",
+            "0",
+            "0",
+            "--camera-3d-half-range-um",
+            "2.8",
+        ]
+    )
+    assert args.camera_3d_center_um == [0.0, 0.0, 0.0]
+    assert args.camera_3d_half_range_um == 2.8
+    with pytest.raises(SystemExit):
+        _parse_args(
+            [
+                "--input-dir",
+                "/tmp/in",
+                "--view-range-mode",
+                "explicit-fixed",
+                "--camera-3d",
+                "follow",
+                "--camera-3d-center-um",
+                "0",
+                "0",
+                "0",
+                "--camera-3d-half-range-um",
+                "2.8",
+            ]
+        )
+    with pytest.raises(SystemExit):
+        _parse_args(
+            [
+                "--input-dir",
+                "/tmp/in",
+                "--view-range-mode",
+                "explicit-fixed",
+                "--camera-3d-center-um",
+                "0",
+                "0",
+                "0",
+                "--camera-3d-half-range-um",
+                "0",
+            ]
+        )
+
+    cfg = SimulationConfig.from_dict(load_yaml(Path("conf/sim_swim_2010_hex.yaml")))
+    simulator = Simulator(cfg)
+    original = simulator.model.positions_m * 1e6
+    fig = plt.figure()
+    axis = fig.add_subplot(projection="3d")
+    for offset in (0.0, 1.0):
+        state = _state(original + np.array([offset, 0.0, 0.0]))
+        state.position_um = (offset, 0.0, 0.0)
+        axis.cla()
+        _plot_cell(
+            axis,
+            st=state,
+            cfg=cfg,
+            rig=simulator.rig,
+            title="fixed world origin",
+            fail_label="",
+            camera_center_um=np.zeros(3),
+            view_range_um=2.8,
+        )
+        assert axis.get_xlim() == (-2.8, 2.8)
+        assert axis.get_ylim() == (-2.8, 2.8)
+        assert axis.get_zlim() == (-2.8, 2.8)
+    plt.close(fig)
+
+
 def test_slot_map_uses_archived_beads_and_3d_colors(tmp_path: Path) -> None:
     records = []
     for slots in ([0, 1, 2, 3], [0, 1, 2, 3, 4, 5]):

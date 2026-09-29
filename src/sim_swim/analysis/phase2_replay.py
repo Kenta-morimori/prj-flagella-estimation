@@ -1462,11 +1462,25 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--view-range-mode",
-        choices=("fixed", "condition-envelope", "campaign-envelope"),
+        choices=("fixed", "condition-envelope", "campaign-envelope", "explicit-fixed"),
         default="fixed",
         help="Use configured ranges or calculate fixed-camera bounds from archives.",
     )
     parser.add_argument("--view-range-margin", type=float, default=0.10)
+    parser.add_argument(
+        "--camera-3d-center-um",
+        type=float,
+        nargs=3,
+        default=None,
+        metavar=("X", "Y", "Z"),
+        help="Static world-coordinate centre for --view-range-mode explicit-fixed.",
+    )
+    parser.add_argument(
+        "--camera-3d-half-range-um",
+        type=float,
+        default=None,
+        help="Static half-range on each axis for --view-range-mode explicit-fixed.",
+    )
     axis_ticks = parser.add_mutually_exclusive_group()
     axis_ticks.add_argument("--axis-ticks", dest="axis_ticks", action="store_true")
     axis_ticks.add_argument("--no-axis-ticks", dest="axis_ticks", action="store_false")
@@ -1516,6 +1530,23 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--target-frame-count must be positive")
     if args.view_range_margin < 0.0:
         parser.error("--view-range-margin must be non-negative")
+    if args.view_range_mode == "explicit-fixed":
+        if args.view != "3d" or args.camera_3d != "fixed":
+            parser.error("explicit-fixed requires --view 3d --camera-3d fixed")
+        if args.camera_3d_center_um is None or args.camera_3d_half_range_um is None:
+            parser.error("explicit-fixed requires a 3D centre and half-range")
+        if (
+            not np.isfinite(args.camera_3d_center_um).all()
+            or not np.isfinite(args.camera_3d_half_range_um)
+            or args.camera_3d_half_range_um <= 0.0
+        ):
+            parser.error("explicit-fixed camera values must be finite and positive")
+    elif (
+        args.camera_3d_center_um is not None or args.camera_3d_half_range_um is not None
+    ):
+        parser.error(
+            "explicit 3D camera values require --view-range-mode explicit-fixed"
+        )
     if args.max_panels_per_grid is None:
         args.max_panels_per_grid = int(replay_cfg.get("max_panels_per_grid") or 9)
     args.max_panels_per_grid = max(1, int(args.max_panels_per_grid))
@@ -1632,18 +1663,26 @@ def main(argv: list[str] | None = None) -> None:
                 )
                 for row in envelope_rows
             ]
-        envelopes_3d = _camera_envelopes(
-            envelope_states,
-            dimensions=3,
-            mode=args.view_range_mode,
-            margin=args.view_range_margin,
-        )
-        envelopes_2d = _camera_envelopes(
-            envelope_states,
-            dimensions=2,
-            mode=args.view_range_mode,
-            margin=args.view_range_margin,
-        )
+        if args.view_range_mode == "explicit-fixed":
+            explicit_camera = (
+                np.asarray(args.camera_3d_center_um, dtype=float),
+                float(args.camera_3d_half_range_um),
+            )
+            envelopes_3d = [explicit_camera] * len(states_by_condition)
+            envelopes_2d = [None] * len(states_by_condition)
+        else:
+            envelopes_3d = _camera_envelopes(
+                envelope_states,
+                dimensions=3,
+                mode=args.view_range_mode,
+                margin=args.view_range_margin,
+            )
+            envelopes_2d = _camera_envelopes(
+                envelope_states,
+                dimensions=2,
+                mode=args.view_range_mode,
+                margin=args.view_range_margin,
+            )
         render_result = {}
         if args.view in {"3d", "3d+2d"}:
             render_result["grid_swim3d"] = _render_grid_movie(
@@ -1693,6 +1732,8 @@ def main(argv: list[str] | None = None) -> None:
             "camera_2d": args.camera_2d,
             "view_range_mode": args.view_range_mode,
             "view_range_margin": args.view_range_margin,
+            "camera_3d_center_um": args.camera_3d_center_um,
+            "camera_3d_half_range_um": args.camera_3d_half_range_um,
             "camera_envelope_input_dir": (
                 str(args.camera_envelope_input_dir)
                 if args.camera_envelope_input_dir is not None
