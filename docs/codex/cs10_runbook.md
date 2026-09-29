@@ -53,7 +53,7 @@ cs10 実機では、251-step（`duration_s=0.001`）screen を workers `1,2,4,6,
 
 ## 並列 sweep job（Issue #209）
 
-複数の既存 sweep profile はコピーせず、`conf/phase2_parallel/<job_name>/job.yaml` から参照する。cs10 qualification を使う job には、`execution.max_workers: auto` と `execution.worker_policy: cs10_qualified` を指定する。この policy は最大8 workers と `OMP_NUM_THREADS=OPENBLAS_NUM_THREADS=MKL_NUM_THREADS=1` を各子 process に設定する。
+複数の既存 sweep profile はコピーせず、`conf/phase2_parallel/<job_name>/job.yaml` から参照する。cs10 qualification を使う job には、`execution.max_workers: auto` と `execution.worker_policy: cs10_qualified` を指定する。この policy で`auto`は**実効8 workers**を意味し、`OMP_NUM_THREADS=OPENBLAS_NUM_THREADS=MKL_NUM_THREADS=1`を各子 process に設定する。新規の`execution:cs10` parallel jobは、個別の資源制約がない限り`execution.max_workers: auto`を標準とし、過去の固定worker予約・既存jobはその固定commit契約を変更しない。
 
 まず simulation を起動しない dry-run で、worker 数、command、出力 namespace を確認する。
 
@@ -165,8 +165,10 @@ child artifactへのsymlinkであるため、通常の`find`の件数を合否�
 Pythonの`Path.is_file()`でsymlinkを辿って数える。`grep "status"`もGit provenanceなどを
 混在させるため、合否判定に使わない。
 
-Codexは既定でcs10へ接続・操作しない。接続、tmux起動、long job開始・停止を行うのは、
-その操作についてUserが明示許可した場合だけとする。User実行のjobは、command、想定出力、
+Codexは既定でcs10へ接続・操作しない。接続、queue reservationの作成・取消・pause/resume、
+reservationのcommit/config/priority差し替え、dispatcher/tmuxの起動・停止、long jobの開始・停止は、
+それぞれについてUserが明示許可した場合だけ行う。CI成功、branch更新、rebase、PR更新、
+latest-main反映は、いずれの操作の許可も意味しない。User実行のjobは、command、想定出力、
 確認点、最小転送artifactをIssue runbookに記録する。
 
 ## Sequential reservation queue
@@ -177,6 +179,12 @@ branch refをcommit SHAへ固定し、reservationごとのdetached worktreeか�
 受け付ける。state、event log、reservationごとのstdout/stderrは
 `~/.local/state/prj-flagella-estimation/cs10-queue/`、worktreeは
 `~/src/prj-flagella-estimation-queue-worktrees/`に保全する。
+
+予約はbranch名ではなくenqueue時点のcommit SHAへ固定される実行契約である。enqueue後に
+branchが進んでもreservationを自動で差し替えず、fixed commitとの差異、実行への影響、
+「保持・明示許可を得て差し替え・明示許可を得て取消」の選択肢をUserへ提示する。
+`enqueue`、`cancel`、`pause`、`resume`、dispatcher/tmuxの起動・停止、既存reservationの
+commit/config/priority差し替えは、操作ごとにUserの明示許可が必要である。
 
 ```bash
 cd ~/src/prj-flagella-estimation
@@ -196,6 +204,8 @@ tmux attach -t cs10-queue
 
 初期版の同時実行数は全体で1である。priorityが高い予約を先に、同じpriorityはFIFOで実行する。
 失敗またはmanifest不整合時は全queueをpauseするため、原因を確認してから明示的に再開する。
+
+以下のmutation commandは、対象reservationと操作内容を明示したUser許可を得た後だけ実行する。
 
 ```bash
 .venv-cs10/bin/python scripts/cs10/queue.py pause

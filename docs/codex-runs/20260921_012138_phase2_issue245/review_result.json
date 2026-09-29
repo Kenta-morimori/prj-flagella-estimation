@@ -1,0 +1,45 @@
+{
+  "status": "PASS",
+  "summary": "Issue #245として、pending 2010_hex_projectの共通development_evaluation.long_duration基盤と、cs10 user-run用2.0 s・18条件campaignを実装した。hook angleはdiagnostic-onlyのまま保存し、finite/body/hook length/flag/motorはstrict gateに維持する。qualificationは同一18 shardを0.001 sへ短縮し、18/18 strict PASSとSHA-256検証が本番開始の前提である。",
+  "blocking_issues": [
+    "cs10 qualification 18/18 PASS、同期済みartifact SHA-256検証、ユーザーによる2秒本番の明示許可が必要。"
+  ],
+  "non_blocking_issues": [
+    "遊泳特徴量解析、dataset採択、canonical model freezeは後続の独立Issueで扱う。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": ".venv/bin/pytest tests/test_issue244_torque_dt.py tests/test_issue245_long_duration.py tests/test_phase2_parallel_job.py tests/test_model_profiles.py -q",
+      "result": "PASS: 63 passed"
+    },
+    {
+      "command": ".githooks/pre-commit",
+      "result": "PASS: ruff format/check、issue lifecycle check、light pytest 347 passed"
+    },
+    {
+      "command": "run_multi_run.py config=conf/phase2_multi_run/2010_hex_project_long_duration_2s_issue245.yaml --dry-run; run_parallel.py --config .../job.yaml --dry-run; run_parallel.py --config .../qualification_job.yaml --dry-run",
+      "result": "PASS: 18 condition、3 workers、geometry_all_conditions、qualificationのtime.duration_s=0.001を確認"
+    }
+  ],
+  "user_review_required": true,
+  "user_review_command": "cs10上でIssue #245 runbookのqualification jobを実行し、18/18 PASS後に同期したmodel_development_evaluationのsummary.csv、window_qc.csv、manifest.json、n別・seed別3D/2D replayを確認する。",
+  "user_review_outputs": [
+    "outputs/YYYY-MM-DD/HHMMSS/issue245_2010_hex_2s/",
+    "outputs/YYYY-MM-DD/HHMMSS/model_development_evaluation/"
+  ],
+  "user_review_points": [
+    "failed_configs=[]、aggregate completed、strict failureなし、artifact SHA-256一致を確認する。",
+    "n=6はfull_ring_rotation_equivalentであり、対向配置を一般的な付着多様性の証拠に使わない。",
+    "qualification後の実測wall timeで約11時間の本番見積りを更新し、2秒本番を明示許可する。"
+  ],
+  "adr_required": true,
+  "adr_reason": "既存ADR 0021をlong_durationの統合summary・window QC・artifact SHA-256 gateへ更新した。",
+  "commit_type": "complete",
+  "commit_hash": "",
+  "push_status": "not_pushed",
+  "pull_request_url": "",
+  "next_actions": [
+    "ユーザーがcs10 qualificationを実行する。",
+    "strict failure時は追加実行・特徴量評価・採択へ進まずdiagnostics/replayレビューで停止する。"
+  ]
+}

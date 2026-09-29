@@ -127,7 +127,9 @@ def test_frame_status_lines_include_time_torque_and_camera_mode() -> None:
     assert lines[0] == "RUN"
     assert "t = 0.000 τ (0.000000 s, 0 steps)" in lines
     assert "motor_torque_Nm = 1.000e-18" in lines
-    assert "follow_camera_3d = True" in lines
+    assert "follow_camera_3d = False" in lines
+    cfg_follow = replace(cfg, render=replace(cfg.render, follow_camera_3d=True))
+    assert "follow_camera_3d = True" in _frame_status_lines(_state(), cfg_follow)
 
 
 def test_frame_status_lines_always_include_tau_seconds_and_steps() -> None:

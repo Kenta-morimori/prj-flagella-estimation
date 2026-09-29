@@ -33,6 +33,7 @@ def _make_cfg(
     seed: int = 0,
     attach_seed: int | None = None,
     phase_seed: int | None = None,
+    attachment_slots: list[int] | None = None,
     placement_mode: str = "uniform",
     initial_phase_mode: str = "uniform",
     diagonal_braces_enabled: bool = True,
@@ -55,6 +56,8 @@ def _make_cfg(
         flagella_cfg["initial_helix_axis_from_rear_deg"] = float(
             initial_helix_axis_from_rear_deg
         )
+    if attachment_slots is not None:
+        flagella_cfg["attachment_slots"] = attachment_slots
 
     return SimulationConfig.from_dict(
         {
@@ -401,6 +404,61 @@ def test_seeded_balanced_center_layer_rejects_more_than_six_flagella() -> None:
         placement_mode="seeded_balanced_center_layer",
     )
     with pytest.raises(ValueError, match="supports n_flagella=1..6"):
+        ModelBuilder(cfg).build()
+
+
+@pytest.mark.parametrize(
+    ("n_flagella", "slots"),
+    [
+        (1, [0]),
+        (2, [0, 1]),
+        (2, [0, 2]),
+        (2, [0, 3]),
+        (3, [0, 1, 2]),
+        (3, [0, 1, 3]),
+        (3, [0, 1, 4]),
+        (3, [0, 2, 4]),
+        (4, [0, 1, 2, 3]),
+        (4, [0, 1, 2, 4]),
+        (4, [0, 1, 3, 4]),
+        (5, [0, 1, 2, 3, 4]),
+        (6, [0, 1, 2, 3, 4, 5]),
+    ],
+)
+def test_explicit_center_layer_slots_preserves_attachment_pattern(
+    n_flagella: int, slots: list[int]
+) -> None:
+    model = ModelBuilder(
+        _make_cfg(
+            n_prism=6,
+            n_flagella=n_flagella,
+            placement_mode="explicit_center_layer_slots",
+            attachment_slots=slots,
+            initial_phase_mode="seeded",
+            phase_seed=0,
+        )
+    ).build()
+    assert (model.flagella_attach_body_indices - 12).tolist() == slots
+
+
+@pytest.mark.parametrize(
+    ("n_flagella", "slots", "message"),
+    [
+        (2, [0], "length must equal"),
+        (2, [0, 0], "must be unique"),
+        (2, [0, 6], "must be in \\[0, 5\\]"),
+    ],
+)
+def test_explicit_center_layer_slots_rejects_invalid_patterns(
+    n_flagella: int, slots: list[int], message: str
+) -> None:
+    cfg = _make_cfg(
+        n_prism=6,
+        n_flagella=n_flagella,
+        placement_mode="explicit_center_layer_slots",
+        attachment_slots=slots,
+    )
+    with pytest.raises(ValueError, match=message):
         ModelBuilder(cfg).build()
 
 

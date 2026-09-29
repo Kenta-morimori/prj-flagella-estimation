@@ -1,0 +1,9 @@
+schema_version: 1
+job_id: issue245_2010_hex_attachment_patterns_1tau
+configs:
+  - conf/phase2_multi_run/2010_hex_project_attachment_patterns_1tau_issue245.yaml
+conditions: [nf01__slots0, nf02__slots01, nf02__slots02, nf02__slots03, nf03__slots012, nf03__slots013, nf03__slots014, nf03__slots024, nf04__slots0123, nf04__slots0124, nf04__slots0134, nf05__slots01234, nf06__slots012345]
+preflight: geometry_all_conditions
+execution:
+  max_workers: auto
+  worker_policy: cs10_qualified

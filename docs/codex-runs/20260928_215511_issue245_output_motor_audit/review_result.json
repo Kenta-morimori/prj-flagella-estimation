@@ -1,0 +1,24 @@
+{
+  "status": "PASS",
+  "issue": 245,
+  "pull_request": 247,
+  "scope": "2010_hex_project completed 2 s / 13-condition archive: fixed 3D replay default, archived attachment-slot map, same-state motor torque diagnostic",
+  "checks": [
+    "targeted pytest: 189 passed",
+    "CIで判明した旧camera既定値を期待するrender status testを更新し、当該22 testsを再実行してPASS",
+    ".githooks/pre-commit: ruff format/check, issue script lifecycle, light pytest 368 passed / 550 deselected",
+    "13 completed archives and summary SHA-256 validated; 13 slot-map mappings; six fixed-camera 3D groups covering 13 conditions at 41 frames; all old/new final PNG hashes equal",
+    "motor audit: 39 observed selections, 16 recorded matches with same-state full-vector comparison, 23 mismatches withheld; initial states unverified",
+    "strict development_evaluation status remains 13/13 FAIL"
+  ],
+  "local_outputs": "outputs/2026-09-28/215511/issue245_output_review/",
+  "documentation": "docs/phase2/phase2_245_2010_hex_output_motor_audit.md",
+  "adr_required": false,
+  "adr_reason": "No physical-model, strict-gate, threshold, or phase-boundary decision changed.",
+  "not_run": [
+    "cs10 connection or job/reservation/dispatcher/tmux operation",
+    "simulation rerun or new long-duration campaign",
+    "2D replay regeneration, swimming-feature analysis, model adoption or merge"
+  ],
+  "result": "The output changes are verified; the force comparison is diagnostic-only and is withheld when recorded current-force values do not match the archived-state reconstruction."
+}

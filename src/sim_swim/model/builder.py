@@ -473,6 +473,29 @@ class ModelBuilder:
         center_layer = body_layers[len(body_layers) // 2]
         if placement_mode == "uniform" and n_flagella <= 3:
             attach_ids = self._flag_attach_indices(center_layer, n_flagella)
+        elif placement_mode == "explicit_center_layer_slots":
+            n_prism = int(center_layer.shape[0])
+            slots = cfg.flagella.attachment_slots
+            if n_prism != 6:
+                raise ValueError(
+                    f"explicit_center_layer_slots requires n_prism=6: n_prism={n_prism}"
+                )
+            if slots is None:
+                raise ValueError(
+                    "explicit_center_layer_slots requires flagella.attachment_slots"
+                )
+            if len(slots) != n_flagella:
+                raise ValueError(
+                    "flagella.attachment_slots length must equal n_flagella: "
+                    f"slots={len(slots)}, n_flagella={n_flagella}"
+                )
+            if len(set(slots)) != len(slots):
+                raise ValueError("flagella.attachment_slots must be unique")
+            if any(slot < 0 or slot >= n_prism for slot in slots):
+                raise ValueError(
+                    f"flagella.attachment_slots must be in [0, 5]: slots={slots}"
+                )
+            attach_ids = center_layer[np.asarray(slots, dtype=int)]
         elif placement_mode == "seeded_balanced_center_layer":
             n_prism = int(center_layer.shape[0])
             if n_prism != 6:
@@ -538,7 +561,8 @@ class ModelBuilder:
             raise ValueError(
                 "Unsupported flagella.placement_mode:"
                 f" {placement_mode}. Use 'uniform', 'seeded_surface', "
-                "'seeded_center_layer', or 'seeded_balanced_center_layer'."
+                "'seeded_center_layer', 'seeded_balanced_center_layer', or "
+                "'explicit_center_layer_slots'."
             )
         initial_phase_mode = str(cfg.flagella.initial_phase_mode)
         if initial_phase_mode == "uniform":

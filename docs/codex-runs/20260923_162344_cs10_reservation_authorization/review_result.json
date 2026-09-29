@@ -1,0 +1,23 @@
+{
+  "status": "PASS",
+  "summary": "cs10 queue reservationを固定commitの実行契約として扱い、enqueue・cancel・pause/resume・reservation差し替え・dispatcher/tmux・job操作ごとのUser明示許可をAGENTS、model-development-evaluation skill、cs10 runbookへ統一して記録した。",
+  "tests_reviewed": [
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "rg -n 'explicit|明示許可|enqueue|cancel|pause|resume|dispatcher|tmux|fixed-commit|固定.*commit|rebase|latest-main|latest main' AGENTS.md .agents/skills/model-development-evaluation/SKILL.md docs/codex/cs10_runbook.md",
+      "result": "PASS: 3文書に操作別明示許可とfixed-commit差し替え禁止を確認"
+    }
+  ],
+  "unexecuted": [
+    "cs10 queue reservation、dispatcher、tmux、jobには操作を加えていない。"
+  ],
+  "user_review_required": false,
+  "adr_required": false,
+  "commit_type": "documentation",
+  "next_actions": [
+    "今後のcs10 mutationは対象操作を指定したUser明示許可後だけ実行する。"
+  ]
+}

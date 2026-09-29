@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "issue": 245,
+  "pull_request": 247,
+  "scope": "2010_hex_project 2秒・13条件の記録済みmotor torqueベクトルを同一stepで解析し、照合済み初回超過状態の軸／横方向成分を報告",
+  "checks": [
+    "targeted pytest: 15 passed",
+    "light pre-commit: ruff format/check、Issue lifecycle、370 passed / 550 deselected",
+    "13 completed条件、run_summary/performance/state_archiveのSHA-256、13 diagnostic CSVのSHA-256を確認",
+    "13条件×201 sample=2613時系列、初回超過13/13、照合済み42本のF別成分、4出力のSHA-256を確認",
+    "現行strict statusは13/13 FAILのまま、閾値と力モデルを変更していない"
+  ],
+  "local_outputs": "outputs/2026-09-29/101619/issue245_motor_torque_recorded_analysis/",
+  "documentation": "docs/phase2/phase2_245_2010_hex_output_motor_audit.md",
+  "adr_required": false,
+  "adr_reason": "既存記録の診断解析であり、物理モデル・採否閾値・phase境界の決定を変更していない。",
+  "not_run": [
+    "cs10のqueue・reservation・dispatcher・tmux・jobの操作（接続とファイル一覧の読み取りのみ）",
+    "simulation再実行、2秒追加campaign、遊泳特徴量解析、モデル採択、PR merge"
+  ],
+  "result": "記録値ではmotor合力が機械精度で釣り合う一方、トルク残差は横方向に継続して残る。全ベクトル反作用の同一状態での代数的釣り合いは確認済みだが、変更後の力学的安定性は未検証。"
+}

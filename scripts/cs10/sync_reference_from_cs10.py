@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
-"""Copy a cs10 reference locally, excluding operational logs, and verify hashes."""
+"""Copy a cs10 reference or parallel campaign locally and verify hashes."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
 from pathlib import Path
+import shlex
 import subprocess
+from typing import Literal
 
 
 EXCLUDED_NAMES = {"run.log", "render.log"}
+PARALLEL_CAMPAIGN_ROOT_FILES = (
+    "run_manifest.json",
+    "manifest.json",
+    "summary.csv",
+    "campaign_completion.json",
+)
+SyncLayout = Literal["reference", "parallel-campaign"]
 
 
 def _run(args: list[str], *, dry_run: bool) -> None:
@@ -26,9 +35,19 @@ def _local_hashes(root: Path) -> dict[str, str]:
     }
 
 
-def _remote_hashes(host: str, remote_dir: str) -> dict[str, str]:
+def _remote_hashes(
+    host: str, remote_dir: str, *, layout: SyncLayout = "reference"
+) -> dict[str, str]:
+    if layout == "parallel-campaign":
+        paths = " ".join(("conditions", *PARALLEL_CAMPAIGN_ROOT_FILES))
+        find = f"find -L {paths}"
+    elif layout == "reference":
+        find = "find ."
+    else:
+        raise ValueError(f"Unsupported sync layout: {layout}")
     command = (
-        f"cd {remote_dir!s} && find . -type f ! -name run.log ! -name render.log "
+        f"cd {shlex.quote(remote_dir)} && {find} "
+        "-type f ! -name run.log ! -name render.log "
         "-print0 | sort -z | xargs -0 sha256sum"
     )
     result = subprocess.run(
@@ -40,35 +59,63 @@ def _remote_hashes(host: str, remote_dir: str) -> dict[str, str]:
     }
 
 
-def sync(host: str, remote_dir: str, local_dir: Path, *, dry_run: bool = False) -> Path:
-    """Synchronize portable reference artifacts via scp without server logs."""
+def sync(
+    host: str,
+    remote_dir: str,
+    local_dir: Path,
+    *,
+    layout: SyncLayout = "reference",
+    dry_run: bool = False,
+) -> Path:
+    """Synchronize portable artifacts and verify the copied file set."""
     remote = f"{host}:{remote_dir.rstrip('/')}"
-    transfers = [
-        ["scp", "-r", f"{remote}/conditions", str(local_dir)],
-        ["scp", "-r", f"{remote}/analysis", str(local_dir)],
-        *[
-            ["scp", f"{remote}/{name}", str(local_dir)]
-            for name in (
-                "run_manifest.json",
-                "reference_manifest.json",
-                "summary.csv",
-                "campaign_completion.json",
-            )
-        ],
-    ]
+    if layout == "parallel-campaign":
+        transfers = [
+            [
+                "rsync",
+                "-aL",
+                "--exclude=run.log",
+                "--exclude=render.log",
+                f"{remote}/conditions/",
+                str(local_dir / "conditions") + "/",
+            ],
+            *[
+                ["scp", f"{remote}/{name}", str(local_dir)]
+                for name in PARALLEL_CAMPAIGN_ROOT_FILES
+            ],
+        ]
+    elif layout == "reference":
+        transfers = [
+            ["scp", "-r", f"{remote}/conditions", str(local_dir)],
+            ["scp", "-r", f"{remote}/analysis", str(local_dir)],
+            *[
+                ["scp", f"{remote}/{name}", str(local_dir)]
+                for name in (
+                    "run_manifest.json",
+                    "manifest.json",
+                    "reference_manifest.json",
+                    "summary.csv",
+                    "campaign_completion.json",
+                )
+            ],
+        ]
+    else:
+        raise ValueError(f"Unsupported sync layout: {layout}")
     if dry_run:
         for command in transfers:
             _run(command, dry_run=True)
         return local_dir
     local_dir.mkdir(parents=True, exist_ok=False)
+    if layout == "parallel-campaign":
+        (local_dir / "conditions").mkdir()
     try:
         for command in transfers:
             _run(command, dry_run=False)
         for name in EXCLUDED_NAMES:
             for path in local_dir.rglob(name):
                 path.unlink()
-        if _local_hashes(local_dir) != _remote_hashes(host, remote_dir):
-            raise RuntimeError("cs10 reference checksum mismatch")
+        if _local_hashes(local_dir) != _remote_hashes(host, remote_dir, layout=layout):
+            raise RuntimeError(f"cs10 {layout} checksum mismatch")
     except Exception:
         raise
     return local_dir
@@ -79,9 +126,20 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--host", required=True)
     parser.add_argument("--remote-dir", required=True)
     parser.add_argument("--local-dir", type=Path, required=True)
+    parser.add_argument(
+        "--layout", choices=("reference", "parallel-campaign"), default="reference"
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
-    print(sync(args.host, args.remote_dir, args.local_dir, dry_run=args.dry_run))
+    print(
+        sync(
+            args.host,
+            args.remote_dir,
+            args.local_dir,
+            layout=args.layout,
+            dry_run=args.dry_run,
+        )
+    )
 
 
 if __name__ == "__main__":

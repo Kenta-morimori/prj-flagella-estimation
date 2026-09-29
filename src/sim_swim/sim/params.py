@@ -369,6 +369,7 @@ class FlagellumParams:
 
     n_flagella: int = 3
     placement_mode: str = "seeded_surface"
+    attachment_slots: tuple[int, ...] | None = None
     initial_phase_mode: str = "seeded"
     init_mode: str = "legacy_radius_pitch"
     stub_mode: str = (
@@ -558,7 +559,7 @@ class RenderParams:
     render_flagella_2d: bool = False
 
     save_frames_3d: bool = False
-    follow_camera_3d: bool = True
+    follow_camera_3d: bool = False
     view_range_um: float = 5.0
     timestamp_3d: bool = True
     timestamp_fmt: str = "t = {t:.3f} s"
@@ -1555,6 +1556,11 @@ class SimulationConfig:
         flagella = FlagellumParams(
             n_flagella=int(_get(flag_raw, "n_flagella", 3)),
             placement_mode=str(_get(flag_raw, "placement_mode", "seeded_surface")),
+            attachment_slots=(
+                tuple(int(slot) for slot in flag_raw["attachment_slots"])
+                if flag_raw.get("attachment_slots") is not None
+                else None
+            ),
             initial_phase_mode=str(_get(flag_raw, "initial_phase_mode", "seeded")),
             init_mode=str(_get(flag_raw, "init_mode", "legacy_radius_pitch")),
             stub_mode=str(_get(flag_raw, "stub_mode", "full_flagella")),
@@ -1818,7 +1824,7 @@ class SimulationConfig:
             render_flagella=bool(_get(render_raw, "render_flagella", True)),
             render_flagella_2d=bool(_get(render_raw, "render_flagella_2d", False)),
             save_frames_3d=bool(_get(render_raw, "save_frames_3d", False)),
-            follow_camera_3d=bool(_get(render_raw, "follow_camera_3d", True)),
+            follow_camera_3d=bool(_get(render_raw, "follow_camera_3d", False)),
             view_range_um=float(_get(render_raw, "view_range_um", 5.0)),
             timestamp_3d=bool(_get(render_raw, "timestamp_3d", True)),
             timestamp_fmt=str(_get(render_raw, "timestamp_fmt", "t = {t:.3f} s")),

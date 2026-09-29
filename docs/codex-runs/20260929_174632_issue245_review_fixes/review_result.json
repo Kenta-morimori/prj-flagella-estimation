@@ -1,0 +1,20 @@
+{
+  "status": "PASS",
+  "issue": 245,
+  "pull_request": 247,
+  "scope": "PR #247 review: parallel campaign synchronization, compact first-failure timestamp, default attachment-slot map regression coverage",
+  "checks": [
+    "targeted pytest: 57 passed (cs10 sync, Issue #245 long duration, attachment map/motor audit, parallel job)",
+    "light pre-commit: ruff format/check, issue script lifecycle, 370 passed / 556 deselected",
+    "parallel-campaign sync dry-run: conditions plus four root artifacts; no analysis/reference_manifest or operational logs",
+    "local campaign symlink shape and compact first_observed_fail_t_s field inspected; git diff --check passed"
+  ],
+  "documentation": "docs/phase2/phase2_245_2010_hex_long_duration_runbook.md",
+  "adr_required": false,
+  "adr_reason": "No physical-model, acceptance-threshold, or phase-boundary decision changed; the sync and first-failure output now match the existing contract.",
+  "not_run": [
+    "cs10 connection, queue/reservation/dispatcher/tmux or job operation",
+    "simulation rerun, long-duration render, swimming-feature analysis, model adoption or PR merge"
+  ],
+  "result": "The three actionable review findings are addressed locally. The attachment-slot map remains a default output for attachment-pattern evaluation even without --render-replay. The existing 13/13 strict FAIL is unchanged."
+}
