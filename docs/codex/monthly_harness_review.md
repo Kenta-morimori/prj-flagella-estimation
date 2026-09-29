@@ -3,16 +3,17 @@
 ## 目的と境界
 
 この手順は，Codex のハーネス，`AGENTS.md`，repository skill，
-`.codex/config.toml`，および関連運用文書を月次で見直すためのものである．
-ユーザーが相談スレッドを開始したときだけ実施し，定期自動実行や自動Issue作成は行わない．
+`.codex/config.toml`，および関連運用文書を見直すためのものである．#252を継続的な
+月次親Issueとして使い，ユーザーが月次レビューの意思を明示した相談スレッドでだけ実施する．
+固定日・定期自動実行・自動Issue作成は行わない．
 
 通常の実装taskはこの文書を読む必要がない．月次棚卸し，モデル更新の提案，または
 AGENTS / skill の大きな再編時だけ参照する．
 
 ## 入力と読み方
 
-対象期間は前回の月次親Issueの作成日翌日から棚卸し日までとする．前回がなければ，
-初回ベースラインとして現行状態を記録する．
+対象期間は前回の確定レビュー以降から棚卸し日までとする．初回だけは，現行状態を
+ベースラインとして記録する．
 
 次を根拠として使う．
 
@@ -23,7 +24,8 @@ AGENTS / skill の大きな再編時だけ参照する．
    `review_result.json` を先に読み，必要な場合だけ `work_log.md` を読む．
 3. 当該repositoryのCodex task一覧と要約．詳細本文は，棚卸しの論点を裏付ける
    必要があるtaskだけに限定する．他projectのtask，私的会話，無関係な会話は読まない．
-4. モデル，skills，Codex の運用提案には，その時点の公式OpenAI documentationを使う．
+4. モデル，skills，Codex の運用提案には，その時点の公式OpenAI documentationを使い，
+   URL・参照日・根拠要点を #252 の記録へ残す．
 
 大きなログや生成物は読まない．既存のcompact summary，manifest，Issue / PR記録を優先する．
 
@@ -61,10 +63,16 @@ AGENTS / skill の大きな再編時だけ参照する．
 
 削除・統合・移動は，実際のtask evidenceと参照検索を確認してから子Issueで実施する．
 
-## モデル比較と移行判定
+## 初期設定と以後のモデル変更
 
-既定モデルは月次棚卸しだけでは変更しない．候補（原則として公式OpenAI documentationが
-推奨する現行general-purpose model）を更新する場合は，採択後の独立子Issueで現行設定と比較する．
+初期設定はIssue #254で `gpt-6-sol` と reasoning `medium` に切り替える。Solは複雑な
+coding・agentic workflow向けで，`medium` はサポートされる既定のreasoning effortである。
+Codexの一般的なコード作業では最新のgeneral-purpose model（例: Sol）が推奨されることを
+公式OpenAI資料（https://developers.openai.com/api/docs/guides/code-generation，
+2026-09-29参照）で確認する。定型の狭い作業ではLuna，複雑な横断判断ではAstraを個別選択できる。
+
+以後に既定モデルまたはreasoning effortを変更する場合だけ，採択後の独立子Issueで現行設定と
+候補を比較する。月次レビュー単体では設定を変更しない。
 
 比較corpusは，対象期間の代表taskから次の4種を選ぶ．各taskは秘密情報を除いた再実行可能な
 promptと期待結果を記録する．
@@ -83,20 +91,18 @@ GPT-6系を候補にする場合は，skillsの短い適用条件とprogressive 
 読むrouting，task相応のtesting，明示された完遂条件を特に再評価する．理由なく旧モデル向けの
 強い逐次手順や一律test要求を移植しない．
 
-## 月次Issue化
+## 月次レビューの記録とIssue化
 
-棚卸しの最後に，`execution:none` の月次親Issueを作る．Issue Formのruntime欄は
-`no_runtime`，独立condition数とMac wall timeは`N/A`，Roadmap categoryは
-`Project & Operations` とする．親Issueには次を記録する．
+ユーザーの明示依頼後，調査と提案は直ちに始める。ただし採択・保留・却下をユーザーと
+確定するまでは，#252への確定結果コメントや実装子Issueを作成しない。確定後にだけ，
+#252へ次をコメントする．
 
 * 監査日，対象期間，現行モデルと設定，参照した根拠．
 * 評価表，採択・保留・却下の判断，保留の再評価条件．
 * 採択した子Issueへのリンクと，未採択案を実装しない理由．
 
-採択した改善だけをGitHub sub-issueとして親Issueに追加する．子Issueには目的，変更対象，
+採択した改善だけを #252 のGitHub sub-issueとして追加する．子Issueには目的，変更対象，
 受入条件，リスク，必要なexecution target，独立condition数，Mac wall time見積りを記載する．
 単なる関連性ではblocking関係を作らない．
 
-この手順そのものを導入する初回親Issueでは，現行モデル，`AGENTS.md`，詳細workflow，
-project skill数，直近の代表taskをベースラインとして記録する．実装候補が採択されるまで
-子Issueを作らない．
+#252はOPENのまま維持する。新たな月次親Issueは作らない。
