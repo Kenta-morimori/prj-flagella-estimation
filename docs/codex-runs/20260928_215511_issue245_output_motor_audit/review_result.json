@@ -5,6 +5,7 @@
   "scope": "2010_hex_project completed 2 s / 13-condition archive: fixed 3D replay default, archived attachment-slot map, same-state motor torque diagnostic",
   "checks": [
     "targeted pytest: 189 passed",
+    "CIで判明した旧camera既定値を期待するrender status testを更新し、当該22 testsを再実行してPASS",
     ".githooks/pre-commit: ruff format/check, issue script lifecycle, light pytest 368 passed / 550 deselected",
     "13 completed archives and summary SHA-256 validated; 13 slot-map mappings; six fixed-camera 3D groups covering 13 conditions at 41 frames; all old/new final PNG hashes equal",
     "motor audit: 39 observed selections, 16 recorded matches with same-state full-vector comparison, 23 mismatches withheld; initial states unverified",
