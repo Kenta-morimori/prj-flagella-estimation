@@ -25,4 +25,16 @@
 
 ローカル成果物：`outputs/2026-09-28/215511/issue245_output_review/motor_torque_audit/manifest.json`と`run.log`。manifestは各Fの軸方向・横方向torque、菌体反作用、全体の力・torque残差、記録値照合、比較の有無、入力archiveとdiagnostic samplesのSHA-256を保持する。
 
+### 同一stepの記録値による時系列再解析（2026-09-29）
+
+archiveと診断値の時点差を避けるため、13条件の`diagnostic_samples.csv`に**同じstepで記録された**菌体側・べん毛側の3D motor torque vectorを直接合算した。各condition 201 sample、計2,613 sampleであり、10 ms間隔の観測値である。`run_summary.json`の全step最大値と照合し、completed archive・`run_summary.json`・`performance.json`のSHA-256を統合評価表に照合した。入力診断CSVと出力図表のSHA-256は追加manifestに記録した。
+
+全13条件で記録sampleが`0.02`を超え、最初の**sampled**超過は0.01–0.09 sである。2,613 sample中2,490 sampleが閾値超過し、sampled最大残差比は条件別に0.1705–0.3049、全step最大値は0.1990–0.3661であった。sampled最大は全step最大の81.5–96.5%に留まるため、この図から真の初回超過stepや最大stepを推定しない。記録されたmotor合力残差比のsample最大は`1.33e-16`で、力の不釣り合いではない。
+
+現行のtorque residual ratioは`||body torque + flag torque|| / Σ_i ||(r_i-r_mean)×F_motor,i||`であり、「目標motor torqueの何%か」ではない。追加CSVでは別途`||body+flag|| / (n×|T|)`も出し、sampled最大時点で条件別に1.54–7.19となった。正規化の違いを保ったまま両者を比較し、閾値`0.02`の物理的意味づけは別途判断する。
+
+最初のsampled超過時点は13/13条件で既存archive再構成と記録値が照合可能だった。計42本のべん毛について、各軸方向の`flag + body`残差はnominal torque比で最大`1.25e-15`、軸直交成分は0.275–1.561倍だった。これは**現行方式が軸方向のみを菌体に反作用として与え、実際に生成された横方向トルクを相殺していない**ことを支持する。保存状態での全ベクトル反作用が代数的に残差を消す結果とも整合する。ただし他の選択観測23件ではarchive再構成が記録値と一致していない。実装上、diagnostic torqueはstepの`positions_before_m`で計算され、compact archiveはstep後の観測状態を保存し、archive境界では補間する。これが不一致の有力要因だが、23件それぞれの原因と大きさは同一stepのforce snapshotがないため確定できない。
+
+追加成果物：`outputs/2026-09-29/101619/issue245_motor_torque_recorded_analysis/`の`recorded_torque_timeseries.png`、時系列・condition summary CSV、照合済み初回超過のF別torque CSV、manifest、run.log。これはdiagnostic-onlyであり、現行strict FAIL 13/13と閾値`0.02`を変更しない。`body_reaction_full_vector=true`は全body beadへ反作用を分配するproject実装であり、局所hook反作用の物理的適切さ、修正後の軌道・束軸・長時間安定性は別途短時間比較で検証する必要がある。
+
 [Watari & Larson (2010)](https://pmc.ncbi.nlm.nih.gov/articles/PMC2800969/)はhook近傍のtorque釣り合いとredirecting torqueを記述する。一方、このprojectの`body_reaction_full_vector=true`は反作用を**全body bead**に分配する実装上の反実仮想であり、論文の局所hookモデルと同一ではない。現行strict閾値0.02と力モデルは変更していない。motor residualの物理的妥当性、全ベクトル反作用での再実行、束軸時間変化の定量化は後続タスクとする。

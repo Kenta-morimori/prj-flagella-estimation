@@ -15,6 +15,7 @@ from sim_swim.analysis.motor_torque_archive_audit import (
     _balance,
     _observed_match,
     _per_flag,
+    _recorded_torque_series,
     audit_completed_archives,
 )
 from sim_swim.analysis.multi_run_campaign import (
@@ -304,6 +305,52 @@ def test_recorded_mismatch_and_missing_archive_stop_counterfactual(
         audit_completed_archives(evaluation, tmp_path / "audit")
 
 
+def test_recorded_same_step_torque_series_and_invalid_samples() -> None:
+    def sample(t_s: str, flag_y: str) -> dict[str, str]:
+        row = {
+            "diagnostic_t_s": t_s,
+            "diagnostic_motor_torque_balance_residual_ratio": "0.5",
+            "diagnostic_motor_force_balance_residual_ratio": "0",
+        }
+        for side, values in (
+            ("body", ("1", "0", "0")),
+            ("flag", ("-1", flag_y, "0")),
+        ):
+            for axis, value in zip("xyz", values, strict=True):
+                row[f"diagnostic_motor_net_torque_{side}_{axis}_Nm"] = value
+        return row
+
+    series, summary = _recorded_torque_series(
+        "nf01__slots0",
+        [sample("0.01", "1"), sample("0.02", "1")],
+        n_flagella=1,
+        torque_per_flag_Nm=1.0,
+        threshold=0.02,
+    )
+    assert len(series) == 2
+    assert series[0]["net_torque_Nm"] == pytest.approx(1.0)
+    assert series[0]["net_torque_over_nominal_motor_torque"] == pytest.approx(1.0)
+    assert series[0]["body_vs_negative_flag_angle_deg"] == pytest.approx(45.0)
+    assert summary["first_sampled_exceed_t_s"] == pytest.approx(0.01)
+    assert summary["sampled_exceed_count"] == 2
+    with pytest.raises(ValueError, match="unordered"):
+        _recorded_torque_series(
+            "nf01__slots0",
+            [sample("0.02", "1"), sample("0.01", "1")],
+            n_flagella=1,
+            torque_per_flag_Nm=1.0,
+            threshold=0.02,
+        )
+    with pytest.raises(ValueError, match="invalid"):
+        _recorded_torque_series(
+            "nf01__slots0",
+            [sample("0.01", "nan")],
+            n_flagella=1,
+            torque_per_flag_Nm=1.0,
+            threshold=0.02,
+        )
+
+
 def test_completed_archive_match_unlocks_only_same_state_comparison(
     tmp_path: Path,
 ) -> None:
@@ -327,6 +374,7 @@ def test_completed_archive_match_unlocks_only_same_state_comparison(
     archive = source / "state_archive.npz"
     save_state_archive(archive, states)
     (source / "run_summary.json").write_text('{"execution":{"status":"completed"}}')
+    (source / "performance.json").write_text('{"status":"completed"}')
     weight = reconstructed_segment_weights(
         cfg.motor.torque_distribution_profile,
         len(simulator.model.flagella_indices[0]) - 1,
@@ -374,7 +422,13 @@ def test_completed_archive_match_unlocks_only_same_state_comparison(
     )
     with (evaluation / "summary.csv").open("w", newline="") as handle:
         writer = csv.DictWriter(
-            handle, fieldnames=["condition_id", "state_archive_sha256"]
+            handle,
+            fieldnames=[
+                "condition_id",
+                "state_archive_sha256",
+                "run_summary_sha256",
+                "performance_sha256",
+            ],
         )
         writer.writeheader()
         writer.writerow(
@@ -383,9 +437,19 @@ def test_completed_archive_match_unlocks_only_same_state_comparison(
                 "state_archive_sha256": hashlib.sha256(
                     archive.read_bytes()
                 ).hexdigest(),
+                "run_summary_sha256": hashlib.sha256(
+                    (source / "run_summary.json").read_bytes()
+                ).hexdigest(),
+                "performance_sha256": hashlib.sha256(
+                    (source / "performance.json").read_bytes()
+                ).hexdigest(),
             }
         )
     result = audit_completed_archives(evaluation, tmp_path / "audit")
+    assert (tmp_path / "audit" / "recorded_torque_timeseries.csv").is_file()
+    assert (tmp_path / "audit" / "recorded_torque_summary.csv").is_file()
+    assert (tmp_path / "audit" / "recorded_torque_timeseries.png").is_file()
+    assert result["recorded_torque_analysis"]["sample_count"] == 1
     states_audited = result["conditions"][0]["states"]
     assert states_audited["initial"]["full_vector_same_state"] is None
     assert states_audited["sampled_maximum"]["recorded_match"]["matched"] is True
@@ -395,3 +459,8 @@ def test_completed_archive_match_unlocks_only_same_state_comparison(
         ]
         < 1e-10
     )
+    assert len(result["recorded_torque_analysis"]["output_sha256"]) == 4
+    assert (tmp_path / "audit" / "first_exceed_per_flag_torque.csv").is_file()
+    (source / "run_summary.json").write_text('{"execution":{"status":"partial"}}')
+    with pytest.raises(ValueError, match="SHA-256 mismatch.*run_summary.json"):
+        audit_completed_archives(evaluation, tmp_path / "tampered")

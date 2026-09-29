@@ -11,9 +11,11 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 from pathlib import Path
 from typing import Any
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from sim_swim.analysis.phase2_replay import _build_cfg
@@ -50,6 +52,151 @@ def _select_samples(
     if above is not None:
         selected["first_observed_above_threshold"] = above
     return selected
+
+
+def _recorded_torque_series(
+    condition_id: str,
+    samples: list[dict[str, str]],
+    *,
+    n_flagella: int,
+    torque_per_flag_Nm: float,
+    threshold: float,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Analyze same-step recorded vectors; archived positions are not involved."""
+    scale = n_flagella * abs(torque_per_flag_Nm)
+    if scale <= 0.0 or not math.isfinite(scale):
+        raise ValueError(f"{condition_id}: invalid applied motor torque scale")
+    series: list[dict[str, Any]] = []
+    for sample in samples:
+        t_s = float(sample["diagnostic_t_s"])
+        ratio = float(sample["diagnostic_motor_torque_balance_residual_ratio"])
+        force_ratio = float(sample["diagnostic_motor_force_balance_residual_ratio"])
+        body = np.asarray(
+            [
+                float(sample[f"diagnostic_motor_net_torque_body_{axis}_Nm"])
+                for axis in "xyz"
+            ]
+        )
+        flag = np.asarray(
+            [
+                float(sample[f"diagnostic_motor_net_torque_flag_{axis}_Nm"])
+                for axis in "xyz"
+            ]
+        )
+        if (
+            not np.isfinite([t_s, ratio, force_ratio]).all()
+            or not np.isfinite(body).all()
+            or not np.isfinite(flag).all()
+            or ratio < 0.0
+            or force_ratio < 0.0
+            or (series and t_s <= series[-1]["t_s"])
+        ):
+            raise ValueError(f"{condition_id}: invalid or unordered motor sample")
+        net = body + flag
+        body_norm = float(np.linalg.norm(body))
+        flag_norm = float(np.linalg.norm(flag))
+        opposite_angle_deg = (
+            math.degrees(
+                math.acos(
+                    float(
+                        np.clip(
+                            np.dot(body, -flag) / (body_norm * flag_norm),
+                            -1.0,
+                            1.0,
+                        )
+                    )
+                )
+            )
+            if body_norm > 0.0 and flag_norm > 0.0
+            else float("nan")
+        )
+        series.append(
+            {
+                "condition_id": condition_id,
+                "n_flagella": n_flagella,
+                "t_s": t_s,
+                "recorded_residual_ratio": ratio,
+                "recorded_force_residual_ratio": force_ratio,
+                "net_torque_Nm": float(np.linalg.norm(net)),
+                "net_torque_over_nominal_motor_torque": float(
+                    np.linalg.norm(net) / scale
+                ),
+                "body_torque_Nm": body_norm,
+                "flag_torque_Nm": flag_norm,
+                "body_vs_negative_flag_angle_deg": opposite_angle_deg,
+                "above_contract_threshold": ratio > threshold,
+            }
+        )
+    peak = max(series, key=lambda row: row["recorded_residual_ratio"])
+    failures = [row for row in series if row["above_contract_threshold"]]
+    summary = {
+        "condition_id": condition_id,
+        "n_flagella": n_flagella,
+        "sample_count": len(series),
+        "first_sample_t_s": series[0]["t_s"],
+        "last_sample_t_s": series[-1]["t_s"],
+        "first_sampled_exceed_t_s": failures[0]["t_s"] if failures else None,
+        "sampled_exceed_count": len(failures),
+        "sampled_peak_residual_ratio": peak["recorded_residual_ratio"],
+        "sampled_peak_t_s": peak["t_s"],
+        "sampled_peak_net_torque_Nm": peak["net_torque_Nm"],
+        "sampled_peak_net_torque_over_nominal_motor_torque": peak[
+            "net_torque_over_nominal_motor_torque"
+        ],
+        "sampled_peak_body_vs_negative_flag_angle_deg": peak[
+            "body_vs_negative_flag_angle_deg"
+        ],
+        "max_sampled_force_residual_ratio": max(
+            row["recorded_force_residual_ratio"] for row in series
+        ),
+    }
+    return series, summary
+
+
+def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
+    if not rows:
+        raise ValueError(f"No rows for {path}")
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _plot_recorded_torque_series(
+    path: Path, rows: list[dict[str, Any]], *, threshold: float
+) -> None:
+    by_condition: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        by_condition.setdefault(row["condition_id"], []).append(row)
+    n_values = sorted({int(row["n_flagella"]) for row in rows})
+    n_rows = math.ceil(len(n_values) / 2)
+    fig, axes = plt.subplots(
+        n_rows, 2, figsize=(13, max(4, 3.3 * n_rows)), sharex=True, sharey=True
+    )
+    for axis, n_flagella in zip(axes.flat, n_values, strict=False):
+        for condition_id, series in by_condition.items():
+            if int(series[0]["n_flagella"]) != n_flagella:
+                continue
+            axis.plot(
+                [row["t_s"] for row in series],
+                [row["recorded_residual_ratio"] for row in series],
+                linewidth=1.0,
+                label=condition_id.split("__", 1)[-1],
+            )
+        axis.axhline(threshold, color="black", linestyle="--", linewidth=0.8)
+        axis.set_title(f"n={n_flagella}")
+        axis.set_ylabel("recorded motor torque residual ratio")
+        axis.grid(alpha=0.2)
+        if axis.lines and len(axis.lines) > 1:
+            axis.legend(fontsize=8, loc="upper right")
+    for axis in axes.flat[len(n_values) :]:
+        axis.set_visible(False)
+    for axis in axes.flat[-2:]:
+        axis.set_xlabel("time [s]")
+    fig.suptitle("Same-step recorded motor torque balance (diagnostic-only)")
+    fig.tight_layout()
+    fig.savefig(path, dpi=180)
+    plt.close(fig)
 
 
 def _balance(
@@ -226,6 +373,8 @@ def audit_completed_archives(
     with (evaluation_dir / "summary.csv").open(encoding="utf-8", newline="") as handle:
         summary_rows = {row["condition_id"]: row for row in csv.DictReader(handle)}
     prepared = []
+    recorded_series: list[dict[str, Any]] = []
+    recorded_summaries: list[dict[str, Any]] = []
     for record in replay_manifest["conditions"]:
         condition_id = record["condition_id"]
         source_dir = Path(record["output_dir"])
@@ -235,8 +384,19 @@ def audit_completed_archives(
         for path in (archive, summary, samples_path):
             if not path.is_file():
                 raise FileNotFoundError(path)
-        if _sha256(archive) != summary_rows[condition_id]["state_archive_sha256"]:
-            raise ValueError(f"SHA-256 mismatch for {condition_id}: state_archive.npz")
+        for path, column in (
+            (archive, "state_archive_sha256"),
+            (summary, "run_summary_sha256"),
+            (source_dir / "performance.json", "performance_sha256"),
+        ):
+            expected_sha = summary_rows[condition_id].get(column)
+            if expected_sha:
+                if not path.is_file():
+                    raise FileNotFoundError(path)
+                if _sha256(path) != expected_sha:
+                    raise ValueError(
+                        f"SHA-256 mismatch for {condition_id}: {path.name}"
+                    )
         run_summary = json.loads(summary.read_text(encoding="utf-8"))
         if run_summary.get("execution", {}).get("status") != "completed":
             raise ValueError(
@@ -264,6 +424,38 @@ def audit_completed_archives(
         simulator = Simulator(cfg)
         body_indices = np.flatnonzero(simulator.model.bead_is_body)
         flagella_indices = simulator.model.flagella_indices
+        series, recorded_summary = _recorded_torque_series(
+            condition_id,
+            samples,
+            n_flagella=len(flagella_indices),
+            torque_per_flag_Nm=cfg.motor_torque_Nm,
+            threshold=threshold,
+        )
+        all_step_metric = (
+            run_summary.get("all_step_metrics", {})
+            .get("motor_torque_balance_residual_ratio", {})
+            .get("max")
+        )
+        if all_step_metric is not None:
+            all_step_max = float(all_step_metric)
+            if not math.isfinite(all_step_max) or (
+                recorded_summary["sampled_peak_residual_ratio"] > all_step_max + 1e-10
+            ):
+                raise ValueError(
+                    f"{condition_id}: sampled torque peak exceeds all-step summary"
+                )
+            recorded_summary["all_step_peak_residual_ratio"] = all_step_max
+            recorded_summary["sampled_fraction_of_all_step_peak"] = (
+                recorded_summary["sampled_peak_residual_ratio"] / all_step_max
+                if all_step_max > 0.0
+                else float("nan")
+            )
+        else:
+            recorded_summary["all_step_peak_residual_ratio"] = None
+            recorded_summary["sampled_fraction_of_all_step_peak"] = None
+        recorded_summary["source_diagnostic_samples_sha256"] = _sha256(samples_path)
+        recorded_series.extend(series)
+        recorded_summaries.append(recorded_summary)
         if positions.shape[1] != simulator.model.positions_m.shape[0]:
             raise ValueError(f"{condition_id}: geometry/archive bead count mismatch")
         chosen = {"initial": (0, None)}
@@ -325,6 +517,7 @@ def audit_completed_archives(
         requested.update(zip(steps, values, strict=True))
 
     results: list[dict[str, Any]] = []
+    first_exceed_per_flag: list[dict[str, Any]] = []
     for (
         record,
         archive,
@@ -404,6 +597,33 @@ def audit_completed_archives(
                     "same archived geometry and torque weights; not a trajectory or stability prediction"
                 )
             state_results[name] = item
+            if name == "first_observed_above_threshold" and verification is not None:
+                if verification["matched"]:
+                    for flag in per_flag_current:
+                        axis = np.asarray(flag["axis"])
+                        net = np.asarray(flag["net_torque_Nm"])
+                        axial_net = float(np.dot(net, axis))
+                        transverse_net = net - axial_net * axis
+                        first_exceed_per_flag.append(
+                            {
+                                "condition_id": record["condition_id"],
+                                "flag_id": flag["flag_id"],
+                                "sample_t_s": item["diagnostic_t_s"],
+                                "recorded_residual_ratio": verification[
+                                    "recorded_torque_residual_ratio"
+                                ],
+                                "axial_net_torque_Nm": axial_net,
+                                "transverse_net_torque_Nm": float(
+                                    np.linalg.norm(transverse_net)
+                                ),
+                                "abs_axial_net_over_nominal_torque": abs(axial_net)
+                                / abs(cfg.motor_torque_Nm),
+                                "transverse_net_over_nominal_torque": float(
+                                    np.linalg.norm(transverse_net)
+                                    / abs(cfg.motor_torque_Nm)
+                                ),
+                            }
+                        )
         results.append(
             {
                 "condition_id": record["condition_id"],
@@ -415,6 +635,23 @@ def audit_completed_archives(
             }
         )
     output_dir.mkdir(parents=True, exist_ok=True)
+    _write_csv(output_dir / "recorded_torque_timeseries.csv", recorded_series)
+    _write_csv(output_dir / "recorded_torque_summary.csv", recorded_summaries)
+    if first_exceed_per_flag:
+        _write_csv(
+            output_dir / "first_exceed_per_flag_torque.csv", first_exceed_per_flag
+        )
+    _plot_recorded_torque_series(
+        output_dir / "recorded_torque_timeseries.png",
+        recorded_series,
+        threshold=threshold,
+    )
+    analysis_outputs = [
+        "recorded_torque_timeseries.csv",
+        "recorded_torque_summary.csv",
+        "recorded_torque_timeseries.png",
+        *(["first_exceed_per_flag_torque.csv"] if first_exceed_per_flag else []),
+    ]
     manifest: dict[str, Any] = {
         "kind": "motor_torque_completed_archive_audit",
         "diagnostic_only": True,
@@ -424,6 +661,19 @@ def audit_completed_archives(
         "replay_manifest_sha256": _sha256(replay_manifest_path),
         "condition_count": len(results),
         "conditions": results,
+        "recorded_torque_analysis": {
+            "same_step_source": "diagnostic_samples.csv",
+            "sample_count": len(recorded_series),
+            "condition_summaries": recorded_summaries,
+            "verified_first_exceed_condition_count": len(
+                {row["condition_id"] for row in first_exceed_per_flag}
+            ),
+            "first_exceed_per_flag_count": len(first_exceed_per_flag),
+            "output_sha256": {
+                name: _sha256(output_dir / name) for name in analysis_outputs
+            },
+            "sampling_warning": "first exceed and peak in these files are observed 10 ms samples, not all-step first/peak; all-step maxima come from run_summary.json",
+        },
         "comparison_policy": "full_vector_body_reaction is compared only on the same saved state after matching recorded current-force diagnostics; no rerun or stability inference",
     }
     (output_dir / "manifest.json").write_text(
@@ -440,7 +690,7 @@ def audit_completed_archives(
         for item in row["states"].values()
     )
     (output_dir / "run.log").write_text(
-        f"completed diagnostic-only motor torque audit\nconditions={len(results)}\nrecorded_matches={matched}/{compared}\n",
+        f"completed diagnostic-only motor torque audit\nconditions={len(results)}\nrecorded_samples={len(recorded_series)}\nrecorded_matches={matched}/{compared}\nverified_first_exceed_conditions={len({row['condition_id'] for row in first_exceed_per_flag})}\n",
         encoding="utf-8",
     )
     return manifest
