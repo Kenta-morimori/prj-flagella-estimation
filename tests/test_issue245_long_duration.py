@@ -65,7 +65,7 @@ def _summary() -> dict:
             "shape_nonbody": {
                 "any_fail": True,
                 "first_failure_category": "hook",
-                "first_failure_t_s": 0.00004,
+                "first_observed_fail_t_s": 0.00004,
             },
         },
         "all_step_metrics": metrics,
@@ -204,15 +204,56 @@ def test_long_duration_collects_portable_archives_and_window_qc(
     assert {row["screen_status"] for row in rows} == {"pass"}
     assert sum(bool(row["full_ring_rotation_equivalent"]) for row in rows) == 1
     assert all(len(row["state_archive_sha256"]) == 64 for row in rows)
+    assert all(row["first_failure_at"] == pytest.approx(0.00004) for row in rows)
     outputs = build_evaluation(
         config_path=CONFIG, run_dirs=[run_dir], output_dir=tmp_path / "evaluation"
     )
     assert outputs["window_qc_csv"].is_file()
+    with outputs["window_qc_csv"].open(newline="", encoding="utf-8") as handle:
+        window_rows = list(csv.DictReader(handle))
+    with outputs["summary_csv"].open(newline="", encoding="utf-8") as handle:
+        summary_rows = list(csv.DictReader(handle))
+    assert len(window_rows) == len(summary_rows) == 13
+    assert all(
+        float(row["first_failure_at"]) == pytest.approx(0.00004) for row in window_rows
+    )
+    assert all(
+        float(row["first_failure_at"]) == pytest.approx(0.00004) for row in summary_rows
+    )
     assert outputs["attachment_pattern_heatmap"].is_file()
     manifest = json.loads(outputs["manifest"].read_text())
     assert manifest["full_ring_rotation_equivalent_condition_ids"] == [
         "nf06__slots012345",
     ]
+
+
+def test_attachment_slot_map_is_default_without_replay(
+    monkeypatch, tmp_path: Path
+) -> None:
+    import sim_swim.analysis.attachment_slot_map as slot_map
+
+    calls: list[Path] = []
+
+    def fake_slot_map(_replay_input: Path, destination: Path) -> dict[str, Path]:
+        calls.append(destination)
+        destination.mkdir(parents=True)
+        image = destination / "attachment_slots_all_conditions.png"
+        image.write_bytes(b"slot map")
+        return {"attachment_slot_map": image}
+
+    monkeypatch.setattr(slot_map, "render_attachment_slot_map", fake_slot_map)
+    run_dir = _write_long_run(tmp_path)
+    output_dir = tmp_path / "evaluation"
+    outputs = build_evaluation(
+        config_path=CONFIG, run_dirs=[run_dir], output_dir=output_dir
+    )
+    assert calls == [output_dir / "attachment_slots"]
+    assert outputs["attachment_slot_map"].is_file()
+    assert "replay" not in outputs
+    manifest = json.loads(outputs["manifest"].read_text())
+    assert manifest["outputs"]["attachment_slot_map"] == str(
+        outputs["attachment_slot_map"]
+    )
 
 
 def test_attachment_pattern_replay_pages_each_count(

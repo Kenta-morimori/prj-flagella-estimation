@@ -64,11 +64,11 @@ screen FAILでもユーザー指定の連続mainは実行可能である。た�
   --priority 0
 ```
 
-完了したcampaignをMacへ同期する際は、再解析に必要な各conditionの`state_archive.npz`、`run_summary.json`、`performance.json`、root manifestとsummaryを保持し、SHA-256を検証する。
+完了したparallel campaignをMacへ同期する際は、`--layout parallel-campaign`を指定する。このlayoutは実在する`conditions/`とrootの`run_manifest.json`、`manifest.json`、`summary.csv`、`campaign_completion.json`だけを対象にし、condition symlinkを実体化して転送・SHA-256検証を同じ方針で行う。Mac・cs10両側の`rsync`を使用するのは、symlinkをたどりつつ運用ログを転送対象から除外するためである。`run.log`と`render.log`は転送しない。再解析に必要な各conditionの`state_archive.npz`、`run_summary.json`、`performance.json`を保持する。`analysis/`と`reference_manifest.json`を必要とする従来のreference layoutはこのcampaignに使用しない。
 
 ```bash
 .venv/bin/python scripts/cs10/sync_reference_from_cs10.py \
-  --host cs10 --remote-dir "$CAMPAIGN" \
+  --host cs10 --remote-dir "$CAMPAIGN" --layout parallel-campaign \
   --local-dir outputs/YYYY-MM-DD/HHMMSS/issue245_2010_hex_2s
 
 .venv/bin/python scripts/03_dataset_building/analyze_dataset.py \
@@ -79,4 +79,4 @@ screen FAILでもユーザー指定の連続mainは実行可能である。た�
   --render-replay
 ```
 
-集約器は`manifest.json`、`run.log`、統合summary、`window_qc.csv`、first failure、wall time、steps/s、artifact SHA-256を作る。n行・canonical slot pattern列のsparse heatmapでは該当しないセルをmaskする。replayはn/pattern別にページングした固定camera 3D/2Dで、screen/main、PASS/FAIL、diagnostic-onlyをmanifestと画面へ記録する。hook angleは値とfirst failureを保存するdiagnostic-onlyであり、finite/body/hook length/flag/motorだけがstrict PASS/FAILである。
+集約器は`manifest.json`、`run.log`、統合summary、`window_qc.csv`、first failure、wall time、steps/s、artifact SHA-256を作る。n行・canonical slot pattern列のsparse heatmapでは該当しないセルをmaskする。attachment patternを持つ評価では、付着slot平面図とF番号・body bead対応manifestを標準出力として生成し、`--render-replay`を省いても出力する。attachment patternのない評価には適用しない。replayは`--render-replay`指定時にn/pattern別にページングした固定camera 3D/2Dで、screen/main、PASS/FAIL、diagnostic-onlyをmanifestと画面へ記録する。hook angleは値とfirst failureを保存するdiagnostic-onlyであり、finite/body/hook length/flag/motorだけがstrict PASS/FAILである。

@@ -203,9 +203,14 @@ def _first_failure(summary: dict[str, Any]) -> tuple[str, float | str]:
     for gate_name in ("finite", "shape_body", "shape_nonbody"):
         gate = dict(summary.get("gates", {}).get(gate_name, {}) or {})
         if gate.get("any_fail", False):
+            first_failure_at = gate.get("first_observed_fail_t_s")
+            if first_failure_at is None:
+                first_failure_at = gate.get(
+                    "first_failure_t_s", gate.get("first_failure_step", "")
+                )
             return (
                 str(gate.get("first_failure_category") or gate_name),
-                gate.get("first_failure_t_s", gate.get("first_failure_step", "")),
+                first_failure_at,
             )
     return ("", "")
 
