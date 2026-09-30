@@ -1,125 +1,72 @@
 # AGENTS.md
 
-This file defines the minimum repository-level instructions for Codex.
+このファイルは、Codex が常に守る最小のリポジトリ規約である。詳細な Issue / PR lifecycle は
+`docs/codex/codex_workflow.md`、Issue 単位の作業導線は
+`tools/codex/skills/flagella-issue-workflow/` を正本とする。
 
-## Project Overview
+## プロジェクト概要
 
-This repository develops a pipeline to estimate bacterial flagella counts from swimming microscopy videos.
+このリポジトリは、遊泳顕微鏡動画から細菌のべん毛本数を推定するパイプラインを開発する。
 
-Phases:
+1. Phase 1: repository、CLI、config、logging、再現性の基盤
+2. Phase 2: 3D physical simulation model、数値・物理検証、長時間安定性、canonical model の凍結
+3. Phase 3: 2D projection、pseudo-microscopy、observability、detection、細胞単位 clip 生成、dataset の凍結
+4. Phase 4: flagella-count model の学習と評価
+5. Phase 5+: 予測可視化と実データ解析支援
 
-1. Phase 1: repository, CLI, config, logging, and reproducibility foundations.
-2. Phase 2: 3D physical simulation model construction, numerical/physical validation, long-duration stability, and canonical-model freeze.
-3. Phase 3: 2D projection, pseudo-microscopy, observability, detection, per-cell clip generation, and dataset freeze.
-4. Phase 4: flagella-count model training and evaluation.
-5. Phase 5+: prediction visualization and real-data analysis support.
+## コンテキストの読み分け
 
-## Context Routing
-
-Read only what is needed for the task, in this order:
+必要なものだけを、次の順で読む。
 
 1. `AGENTS.md`
-2. The user's latest request and the target Issue or PR
-   - Read the Issue's `Heavy/runtime execution target` and its `execution:*` label.
-   - If absent, mismatched, or `execution:triage`, do read-only investigation only until the Issue is triaged.
+2. ユーザーの最新依頼と対象 Issue / PR
+   - Issue の `Heavy/runtime execution target` と `execution:*` label を確認する。
+   - 不在、不一致、または `execution:triage` なら、triage 完了まで read-only 調査に限る。
 3. `docs/phaseX/phaseX_current.md`
-4. `docs/phaseX/phaseX_guide.md` when it exists and phase-specific rules are relevant
-5. The relevant section of `docs/phaseX/phaseX_tasks.md` when past decisions are needed
-6. Live schemas, contracts, configs, tests, and active validation documents
-7. ADRs
-8. Issue / PR history, Git history, and `docs/codex-runs/*/review_result.json`
+4. 必要な場合だけ `docs/phaseX/phaseX_guide.md`
+5. 過去判断が必要な場合だけ `docs/phaseX/phaseX_tasks.md` の関連箇所
+6. 現行 schema、contract、config、test、active validation 文書
+7. ADR
+8. Issue / PR 履歴、Git 履歴、`docs/codex-runs/*/review_result.json`
 
-Use `rg -n` before opening long Markdown files, logs, CSVs, or generated outputs.
-For prior Codex runs, read `review_result.json` before `work_log.md`.
-Do not read large files under `outputs/` unless compact summaries and manifests are insufficient. For Phase 2 diagnostics, read `run_summary.json` before using the bounded `inspect_step_summary.py` CLI; never load `step_summary.csv` in full for routine analysis.
+長い Markdown、log、CSV、generated output を開く前に `rg -n` で対象を絞る。過去 Codex run は
+`review_result.json` を `work_log.md` より先に読む。`outputs/` 配下の大きなファイルは compact summary と
+manifest で不足する場合だけ読む。Phase 2 diagnostics では `run_summary.json` を先に読み、通常の分析で
+`step_summary.csv` 全体を読み込まない。
 
-新規タスクでユーザーが，#252の月次棚卸し，既定モデルまたはreasoning effortの変更提案，
-あるいはAGENTS / skillの大規模再編を明示した場合だけ，
-`docs/codex/monthly_harness_review.md` を読む。Issue作成用タスクは調査・設計・
-Issue操作・引継ぎまでとし，実装用タスクと同じ `gpt-6-sol` / `medium` を初期既定にする。
-リポジトリ変更とPR作成は実装用タスクで行う。通常の実装依頼ではこの月次手順を読まない。
+ユーザーが #252 の月次棚卸し、既定 model / reasoning effort の変更提案、または AGENTS / skill の大規模再編を
+明示した場合だけ `docs/codex/monthly_harness_review.md` を読む。Issue 作成用 task は調査・設計・Issue 操作・
+引継ぎまでとし、repository 変更と PR 作成は実装用 task で行う。通常の実装依頼では月次手順を読まない。
 
-## Language
+## 言語
 
-* Communicate with the user in Japanese unless explicitly requested otherwise.
-* Write user-facing project documents in Japanese by default.
-* Keep technical identifiers in their original form when translation reduces precision.
+* ユーザーとは、明示的な指定がない限り日本語でやり取りする。
+* ユーザー向け project 文書は既定で日本語にする。
+* 技術識別子は、翻訳すると精度が下がる場合に原文を保つ。
 
-## Repository Rules
+## リポジトリ共通規約
 
-* Do not work directly on `main` or `master`.
-* Check the current branch and `git status` before making changes.
-* Keep changes within scope; do not make broad refactors unless required.
-* Do not add dependencies without explaining why they are necessary.
-* Do not commit secrets, tokens, credentials, private data, or generated authentication files.
-* Do not run remote scripts such as `curl ... | sh` without explicit user approval.
-* Target the branch specified by the task or Issue; otherwise target the default branch.
-* Before implementation, report the Issue execution target, independent-condition estimate, Mac wall-time estimate, and permitted execution scope.
-* `execution:cs10` means cs10 is the User-run heavy/runtime target. For two or more independent conditions, do not start a run until a `cs10_qualified` parallel-job YAML, per-condition output separation, and a dry-run plan have been confirmed. Do not substitute serial execution because a launcher lacks a required shard mode; prepare that mode first.
-* New `execution:cs10` parallel jobs use `max_workers: auto` unless their runbook records a concrete resource constraint. With `worker_policy: cs10_qualified`, `auto` means the qualified effective limit of 8 workers and numerical-library threads fixed to 1; historical fixed-commit reservations and jobs remain unchanged.
-* A serial exception for two or more independent cs10 conditions is allowed only when the Issue runbook records a concrete technical dependency, exclusive resource, or output-isolation constraint **and** links to a User's explicit pre-start Issue-comment approval.
-* For `execution:cs10`, treat connection, `queue.py enqueue` / `cancel` / `pause` / `resume`, a reservation commit/config/priority replacement, dispatcher or tmux start/stop, and job start/stop as separate external operations. Each requires the User's explicit authorization for that exact operation; do not infer it from adjacent requests, CI success, a PR edit, a rebase, or a latest-main update.
-* A queue reservation is a fixed-commit execution contract. Branch movement after enqueue never authorizes an automatic replacement or cancellation. Report the fixed-commit difference, its operational impact, and available choices, then wait for the User's explicit instruction.
-* For a Phase 2 `model_profile.implementation_status: pending` candidate, use the repository `model-development-evaluation` skill and its `development_evaluation` contract. Do not add an Issue-specific evaluator; run short-screen QC/replay before proposing a long-duration stage. Keep swimming-feature analysis in its own downstream task.
-* Track related work with GitHub-native relationships: make a bounded child task a sub-issue of its parent, and add `blocking` / `blockedBy` only for a real completion dependency. Do not create a dependency edge merely because work is related.
-* New Issues must use the required `Roadmap category (Milestone)` form field. The roadmap sync workflow sets the Project Start date; an optional planned Target date is preserved, and a missing Target date is filled with the JST close date when the Issue closes.
-* An Issue with `roadmap:triage` or `roadmap:needs-review` requires metadata correction before implementation work starts.
-* Link the source Issue from a PR. Use `Closes #<issue>` only when merge completes that Issue; otherwise use a non-closing reference and state what remains (for example, a user-run experiment or result review).
-* Do not mark a task complete without a local `review_result.json` whose status is `PASS`.
-* For a file-changing Issue implementation, **初回完了報告はPR作成後まで送らない**: local `review_result.json: PASS`、commit、push、source Issueを参照するPR作成の後にのみ送る。Commentary progress updates remain allowed before that point, but do not report implementation completion, deliverables, or a PR candidate. Exceptions are limited to ユーザーが明示的にPR不要とした場合, or PR作成が失敗した場合; in the latter case report the attempted action and the concrete blocker without claiming completion.
-* Do not merge unless required checks and `codex-review-gate` pass.
-* Do not merge changes to physical interpretation, dataset adoption, phase boundaries, output contracts, or ML policy without explicit user approval.
-* After merge, sync the default branch and delete the completed task branch unless intentionally retained.
+* `main` / `master` で直接作業しない。変更前に branch と `git status` を確認する。`curl ... | sh` などの remote script は、実行前にユーザーの明示承認を得る。
+* 依頼範囲内に変更を限定し、必要のない大規模 refactor や dependency 追加をしない。secret、token、credential、private data、生成した認証ファイルを commit しない。
+* target branch は task / Issue 指定を優先し、なければ default branch とする。実装前に Issue execution target、独立 condition 数、Mac wall time 見積り、許可された実行範囲を短く報告する。
+* `execution:cs10` では、独立 condition が2以上なら `cs10_qualified` parallel-job YAML、condition ごとの output 分離、dry-run plan を確認するまで実行しない。serial 例外には Issue runbook の具体的理由と、開始前のユーザー明示 Issue コメント承認 URL が必要である。
+* `execution:cs10` の接続、`queue.py enqueue` / `cancel` / `pause` / `resume`、reservation の置換、dispatcher / tmux、job の開始・停止は別々の外部操作であり、それぞれに当該操作のユーザー明示承認が必要である。queue reservation は fixed-commit execution contract とし、enqueue 後の branch 移動から置換や cancel を推測しない。
+* Phase 2 の `model_profile.implementation_status: pending` には `model-development-evaluation` skill と `development_evaluation` contract を用いる。Issue 固有 evaluator は追加せず、長時間 stage の前に short-screen QC / replay を行う。
+* 関連作業は GitHub-native relationship で管理する。bounded child task は parent の sub-issue にし、実際の完了依存だけに `blocking` / `blockedBy` を付ける。
+* 新規 Issue では `Roadmap category (Milestone)` を必須とし、`roadmap:triage` / `roadmap:needs-review` の Issue は metadata 修正まで実装しない。
+* source Issue を PR から参照する。merge で Issue が完了する場合だけ `Closes #<issue>` を使い、それ以外は残作業を示す。完了には local `review_result.json` の `status: PASS` が必要である。
+* file-changing Issue の初回完了報告は、local PASS、commit、push、source Issue を参照する PR 作成後に限る。進捗 commentary は可とするが、PR 作成前に実装完了・成果物・PR 候補を報告しない。PR 不要の明示指定または PR 作成失敗時だけ例外とする。
+* merge には required checks と `codex-review-gate` の pass が必要である。物理解釈、dataset 採択、Phase 境界、output contract、ML policy の変更はユーザー明示承認なしに merge しない。merge 後の Issue 引継ぎ手順は `docs/codex/codex_workflow.md` に従う。
 
-## Directory Responsibilities
+## 配置、文書、再現性
 
-* `scripts/`: user-facing CLI entrypoints and orchestration.
-* `src/`: reusable implementation and core algorithms.
-* `conf/`: reproducible runtime configuration.
-* `schemas/`: machine-readable contracts.
-* `docs/phase*/`: phase state, decisions, contracts, and active validation documents.
-* `docs/adr/`: important design decisions.
-* `docs/codex/`: Codex workflow and documentation policy.
-* `docs/codex-runs/`: run logs and review results.
-* `tools/codex/`: Codex workflow helpers and skills.
-* `.agents/skills/`: repository-discoverable Codex skills.
+* `scripts/` は user-facing CLI / orchestration、`src/` は再利用可能な実装、`conf/` は再現可能な runtime 設定、`schemas/` は machine-readable contract、`docs/codex/` は Codex 運用文書、`tools/codex/` は workflow 補助を担う。
+* Phase 文書の正本は `docs/codex/phase_document_policy.md` とする。`phaseX_current.md` は現在地、`phaseX_tasks.md` は判断記録である。統合・移行・削除には `phase-document-maintenance` skill を使い、参照切れを確認する。
+* output は JST の `outputs/YYYY-MM-DD/HHMMSS/` に保存し、該当 run では `run.log` と `manifest.json` を残す。Phase 2 は `step_summary.csv` を用い、`step_summary_full.csv` を再導入しない。
+* cs10 simulation、archive analysis、render 後は、ユーザー確認用 artifact・manifest・summary・必要な reanalysis archive をローカルへ同期し、件数、SHA-256、QC を確認する。operational log と credential は同期しない。
 
-## Phase Documentation
+## 検証と報告
 
-* Follow `docs/codex/phase_document_policy.md`.
-* Treat `phaseX_current.md` as the current-state entry point.
-* Treat `phaseX_tasks.md` as the compact decision record.
-* Keep task-specific documents only when they remain live contracts, active validations, or reusable reports.
-* Update current, tasks, and ADRs when a semantic decision changes.
-* Before deleting a document, preserve its decision-bearing information and update all references.
-* Use the `phase-document-maintenance` skill for consolidation, migration, or deletion.
-
-## Output And Reproducibility
-
-* Store project outputs under `outputs/YYYY-MM-DD/HHMMSS/` using JST.
-* Applicable runs should produce `run.log` and `manifest.json`.
-* Record configs, overrides, seeds, paths, Git information, and environment details when available.
-* Preserve full diagnostics when needed, but prefer compact summaries for routine analysis.
-* Phase 2 uses `step_summary.csv`; do not reintroduce `step_summary_full.csv` without an explicit decision.
-* After any cs10 simulation, archive analysis, or render, synchronize the user-reviewable artifacts, manifests, run summaries, and required reanalysis archives to local storage before reporting completion. Verify counts, SHA-256 hashes, and QC records; do not copy cs10 operational logs or credentials.
-
-## Testing And Review
-
-* Keep default pre-commit checks lightweight.
-* Start with targeted tests and expand only when required.
-* Do not require full pytest for docs-only, planning-only, or workflow-only changes.
-* Add or update tests when changing physics, geometry, schemas, output formats, or pipeline behavior.
-* Prefer library-level tests over slow subprocess tests.
-* Do not rely only on visual inspection when automated checks are possible.
-* Record tests or simulations that were not run and the reason.
-* Do not run long simulations, sweeps, training jobs, or renders unless the user explicitly asks.
-* For user-executed long runs, provide the command, expected outputs, evaluation points, and checks already passed.
-* Documentation deletion or consolidation must include stale-reference checks.
-* Request Cloud review only once for the merge-ready final candidate, and only after the user explicitly approves that request. Do not re-request merely after addressing review feedback.
-* For work with external prerequisites or user-run runtime acceptance, request Cloud review only after those prerequisites and the applicable pre-merge verification are complete. When the full acceptance run requires merge, first complete a bounded, non-mutating probe of the same authentication or notification path; do not request review before that probe and the user's explicit approval.
-* Request a second or later Cloud review only when there is clear new review evidence (for example, material scope or risk-bearing implementation changed after the first review), and only after explaining that evidence and obtaining the user's explicit approval.
-* Resolve actionable review threads before merge.
-
-## Completion Report
-
-Report the summary, changed files, tests and checks, unexecuted long runs, user-review status, review result, documentation updates, ADR status, commit hash, push status, and remaining issues.
+* 最小の targeted test から始める。docs-only、planning-only、workflow-only 変更では full pytest を既定で要求しない。長時間 simulation、sweep、training、render はユーザー明示依頼なしに実行しない。
+* Cloud review はユーザー承認後の merge-ready final candidate に対して一度だけ依頼する。actionable review thread は merge 前に解決する。
+* 最終報告には、要約、変更ファイル、実行・未実行の check、user review、`review_result.json`、文書と ADR、commit、push、PR、残作業を記載する。

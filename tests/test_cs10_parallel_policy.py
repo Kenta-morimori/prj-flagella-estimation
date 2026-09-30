@@ -22,12 +22,12 @@ def test_agent_skill_and_runbook_share_the_cs10_parallel_gate() -> None:
     runbook = (ROOT / "docs/codex/cs10_runbook.md").read_text(encoding="utf-8")
 
     for phrase in (
-        "two or more independent conditions",
         "cs10_qualified",
         "dry-run plan",
-        "Issue-comment approval",
+        "Issue コメント承認 URL",
     ):
         assert phrase in agent
+    assert "独立 condition が2以上" in agent
     for phrase in (
         "独立conditionが2以上",
         "cs10_qualified",
