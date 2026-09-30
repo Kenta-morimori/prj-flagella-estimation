@@ -26,6 +26,14 @@
     {
       "command": "git diff --check",
       "result": "PASS: whitespace errorなし"
+    },
+    {
+      "command": "rg -n '#252の月次棚卸し|既定モデル.*reasoning effort.*変更提案|AGENTS / skillの大規模再編|通常の実装依頼ではこの月次手順を読まない' AGENTS.md",
+      "result": "PASS: 月次棚卸し、モデル更新提案、AGENTS / skill大規模再編の3類型だけを月次手順へ導き、通常実装を除外することを確認"
+    },
+    {
+      "command": "uv run ruff format --check . && uv run ruff check . && uv run python tools/codex/check_issue_script_lifecycle.py --base origin/main && uv run pytest -q -m light",
+      "result": "PASS: format、lint、lifecycle、light pytest（370 passed, 556 deselected）"
     }
   ],
   "user_review_required": false,
