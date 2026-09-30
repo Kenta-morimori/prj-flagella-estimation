@@ -221,3 +221,4 @@ uv run pytest tests/test_flagella_count_behavior_dataset.py
 * `docs/phase4/phase4_current.md`: Phase 4の現在地
 * `docs/phase4/phase4_tasks.md`: Phase 4の採択判断と根拠
 * `docs/codex/codex_workflow.md`: Codex作業，review result，commit／push方針
+* `docs/codex/monthly_harness_review.md`: Codexハーネス，AGENTS，skills，モデル設定の月次棚卸し

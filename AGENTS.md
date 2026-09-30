@@ -33,6 +33,12 @@ Use `rg -n` before opening long Markdown files, logs, CSVs, or generated outputs
 For prior Codex runs, read `review_result.json` before `work_log.md`.
 Do not read large files under `outputs/` unless compact summaries and manifests are insufficient. For Phase 2 diagnostics, read `run_summary.json` before using the bounded `inspect_step_summary.py` CLI; never load `step_summary.csv` in full for routine analysis.
 
+新規タスクでユーザーが，#252の月次棚卸し，既定モデルまたはreasoning effortの変更提案，
+あるいはAGENTS / skillの大規模再編を明示した場合だけ，
+`docs/codex/monthly_harness_review.md` を読む。Issue作成用タスクは調査・設計・
+Issue操作・引継ぎまでとし，実装用タスクと同じ `gpt-6-sol` / `medium` を初期既定にする。
+リポジトリ変更とPR作成は実装用タスクで行う。通常の実装依頼ではこの月次手順を読まない。
+
 ## Language
 
 * Communicate with the user in Japanese unless explicitly requested otherwise.
