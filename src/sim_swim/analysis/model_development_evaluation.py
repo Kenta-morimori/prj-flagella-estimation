@@ -8,6 +8,7 @@ never starts simulations.
 from __future__ import annotations
 
 import argparse
+import copy
 import csv
 import hashlib
 import json
@@ -167,6 +168,47 @@ def _development_contract(config: dict[str, Any]) -> dict[str, Any]:
     return contract
 
 
+def _reused_source_spec(
+    contract: dict[str, Any], campaign_config: str
+) -> tuple[dict[str, Any], list[str]]:
+    """Return declared defaults for a completed historical source campaign."""
+
+    sources = dict(contract.get("reused_source_campaigns", {}) or {})
+    source = dict(sources.get(campaign_config, {}) or {})
+    defaults = dict(source.get("axis_defaults", {}) or {})
+    paths = [str(path) for path in source.get("relaxed_config_override_paths", [])]
+    return defaults, paths
+
+
+def _normalize_reused_source_record(
+    record: dict[str, Any], *, axis_defaults: dict[str, Any]
+) -> dict[str, Any]:
+    """Add only contract-declared axis defaults to a historical record."""
+
+    normalized = copy.deepcopy(record)
+    axes = dict(normalized.get("axis_values", {}) or {})
+    axes.update(axis_defaults)
+    normalized["axis_values"] = axes
+    return normalized
+
+
+def _without_override_paths(value: Any, paths: list[str]) -> Any:
+    """Drop declared compatibility-only dotted paths before comparison."""
+
+    normalized = copy.deepcopy(value)
+    for path in paths:
+        current = normalized
+        parts = path.split(".")
+        for part in parts[:-1]:
+            if not isinstance(current, dict) or part not in current:
+                current = None
+                break
+            current = current[part]
+        if isinstance(current, dict):
+            current.pop(parts[-1], None)
+    return normalized
+
+
 def _source_rows(run_dir: Path) -> dict[str, dict[str, str]]:
     with (run_dir / "summary.csv").open(encoding="utf-8", newline="") as handle:
         return {str(row["condition_id"]): row for row in csv.DictReader(handle)}
@@ -251,6 +293,9 @@ def _row(
         "source_condition_id": str(
             record.get("source_condition_id", record["condition_id"])
         ),
+        "source_campaign": str(record.get("source_campaign", "")),
+        "source_git_commit": str(record.get("source_git_commit", "")),
+        "source_reused": bool(record.get("source_reused", False)),
         "first_failure_category": first_failure_category,
         "first_failure_at": first_failure_at,
     }
@@ -350,15 +395,20 @@ def collect_rows(
         if not str(git.get("commit") or "") or git.get("is_clean") is not True:
             raise ValueError(f"Invalid Git provenance in {run_dir}")
         source_rows = _source_rows(run_dir)
+        axis_defaults, relaxed_paths = _reused_source_spec(contract, campaign_config)
         provenance.append(
             {
                 "run_dir": str(run_dir.resolve()),
                 "git": dict(manifest.get("git", {}) or {}),
                 "model_profile": profile,
+                "source_campaign": campaign_config,
+                "reused_axis_defaults": axis_defaults,
             }
         )
         for raw_record in manifest.get("conditions", []) or []:
-            record = dict(raw_record)
+            record = _normalize_reused_source_record(
+                dict(raw_record), axis_defaults=axis_defaults
+            )
             source_condition_id = str(record["condition_id"])
             try:
                 condition_id = expected_by_key[_record_key(record, contract_axes)]
@@ -376,7 +426,10 @@ def collect_rows(
                 )
             expected_record = expected[condition_id]
             if not _equal_values(
-                record.get("config_overrides"), expected_record["config_overrides"]
+                _without_override_paths(record.get("config_overrides"), relaxed_paths),
+                _without_override_paths(
+                    expected_record["config_overrides"], relaxed_paths
+                ),
             ):
                 raise ValueError(
                     f"Config override mismatch for {source_condition_id} in {run_dir}"
@@ -417,6 +470,11 @@ def collect_rows(
             canonical_record["output_dir"] = str(output_dir)
             canonical_record["condition_id"] = condition_id
             canonical_record["source_condition_id"] = source_condition_id
+            canonical_record["axis_values"] = dict(expected_record["axis_values"])
+            canonical_record["axis_labels"] = dict(expected_record["axis_labels"])
+            canonical_record["source_campaign"] = campaign_config
+            canonical_record["source_git_commit"] = str(git["commit"])
+            canonical_record["source_reused"] = bool(axis_defaults)
             records_by_id[condition_id] = (
                 canonical_record,
                 source_rows[source_condition_id],
@@ -592,12 +650,16 @@ def _write_replay_input(
     base_config: str | None = None
     contract = _development_contract(config)
     contract_axes = [str(axis) for axis in contract["axes"]]
+    expected = _expected_conditions(config)
     expected_by_key = {
         _record_key(condition, contract_axes): condition_id
-        for condition_id, condition in _expected_conditions(config).items()
+        for condition_id, condition in expected.items()
     }
     for run_dir in run_dirs:
         manifest = _read_json(run_dir / "run_manifest.json")
+        campaign_config = str(manifest.get("campaign_config") or "")
+        axis_defaults, _ = _reused_source_spec(contract, campaign_config)
+        git = dict(manifest.get("git", {}) or {})
         if base_config is None:
             source_config = manifest.get("source_config_path") or manifest.get(
                 "base_config"
@@ -606,10 +668,18 @@ def _write_replay_input(
                 base_config = str(source_config)
         source_rows = _source_rows(run_dir)
         for raw_record in manifest.get("conditions", []) or []:
-            record = dict(raw_record)
+            record = _normalize_reused_source_record(
+                dict(raw_record), axis_defaults=axis_defaults
+            )
             source_condition_id = str(record["condition_id"])
-            record["condition_id"] = expected_by_key[_record_key(record, contract_axes)]
+            condition_id = expected_by_key[_record_key(record, contract_axes)]
+            record["condition_id"] = condition_id
             record["source_condition_id"] = source_condition_id
+            record["axis_values"] = dict(expected[condition_id]["axis_values"])
+            record["axis_labels"] = dict(expected[condition_id]["axis_labels"])
+            record["source_campaign"] = campaign_config
+            record["source_git_commit"] = str(git.get("commit") or "")
+            record["source_reused"] = bool(axis_defaults)
             record["output_dir"] = str(
                 _resolve_condition_output_dir(
                     run_dir=run_dir,

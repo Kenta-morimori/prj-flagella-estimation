@@ -13,6 +13,10 @@ Issue #257は`execution:cs10`のUser-run診断である。jobのenqueue、dispat
 
 全jobは`geometry_all_conditions`、`max_workers: auto`、`worker_policy: cs10_qualified`を固定する。hexとprojectはbase configが異なるため別jobである。
 
+hexの2秒比較では、Issue #245のcompleted 2秒archive（commit `f41a693`、反発ON、13 attachment配置）を固定参照として再利用する。新規cs10 jobは反発OFFの13条件だけを実行する。共通evaluatorは旧sourceのselector省略を既定値`true`として正規化し、provenance、元condition ID、Git commit、再利用区分を結果へ記録する。#245のstrict hook/motor FAILは再解釈せず、#257結果もdiagnostic-onlyとする。
+
+screen reservation #13/#14はfixed-commit contractであり、本変更に伴って停止、取消、差替えしない。projectの2秒jobはproject screenのreview後に別途判断する。
+
 ## Dry-run
 
 ```bash
