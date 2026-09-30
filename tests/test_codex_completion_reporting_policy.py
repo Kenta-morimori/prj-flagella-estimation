@@ -44,3 +44,31 @@ def test_post_merge_handoff_preserves_parent_and_requires_approval_for_followups
         "Heavy/runtime execution target",
     ):
         assert phrase in workflow
+
+
+def test_workflow_uses_japanese_headings_and_preserves_review_identifiers() -> None:
+    workflow = (ROOT / "docs/codex/codex_workflow.md").read_text(encoding="utf-8")
+
+    for heading in (
+        "## 正本",
+        "## 完了ポリシー",
+        "## 信頼できる Cloud PR review",
+        "### Gate 実装",
+    ):
+        assert heading in workflow
+
+    for legacy_heading in (
+        "## Source of truth",
+        "## Completion policy",
+        "## Trusted Cloud PR review",
+        "### Gate implementation",
+    ):
+        assert legacy_heading not in workflow
+
+    for identifier in (
+        "codex-review-gate",
+        "pull_request_target",
+        "@codex review",
+        "Didn't find any major issues",
+    ):
+        assert identifier in workflow
