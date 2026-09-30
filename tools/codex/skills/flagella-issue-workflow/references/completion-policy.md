@@ -1,93 +1,12 @@
 # Completion Policy
 
-この reference は、issue 対応の完了処理を軽く確実に行うための要約である。正本は `AGENTS.md`。
+完了条件と merge 後の引継ぎの正本は `AGENTS.md` と `docs/codex/codex_workflow.md` である。
+この reference は、必要な記録先だけを示す。
 
-## Run ID
+- run record: `docs/codex-runs/YYYYMMDD_HHMMSS_<phase>_<task-id>/review_result.json`
+- required review fields と local PASS: `docs/codex/codex_workflow.md` の「Completion policy」「Review result format」
+- `commit → push → source Issue を参照する PR → 初回完了報告`: `AGENTS.md`
+- PR マージ後の source Issue 更新と残作業の提示: `docs/codex/codex_workflow.md` の「PRマージ後のIssue引継ぎ」
 
-形式:
-
-`YYYYMMDD_HHMMSS_<phase>_<task-id>`
-
-例:
-
-`20260615_233000_codex_issue50_skill`
-
-保存先:
-
-`docs/codex-runs/<run-id>/`
-
-## Required Files
-
-原則:
-
-- `docs/codex-runs/<run-id>/review_result.json`
-- 必要なら `docs/codex-runs/<run-id>/work_log.md`
-
-`review_result.json` は完了状態の正本である。
-
-## PASS Conditions
-
-PASS と言うには、次を満たす。
-
-- requested implementation / documentation change が完了している。
-- relevant tests/checks が PASS、または未実行理由が明確。
-- local review step（relevant tests/checks とセルフチェック）が完了している。PR作成後の CI / trusted Cloud review は merge gate であり、local PASSとは分離する。
-- `review_result.json` の `status` が `"PASS"`。
-- work log / review result が保存されている。
-- final state が commit 済み。
-- remote access があれば push 済み。
-- pushed feature branch なら PR 作成済み。
-
-## 初回完了報告
-
-file-changingなIssue実装では、初回完了報告はPR作成後まで送らない。順序は
-`local review PASS → review_result.json: PASS → commit → push → source Issueを参照するPR作成 → 初回完了報告`
-とする。commentaryによる進捗共有はこの制約の対象外だが、PR作成前に実装完了・成果物・PR候補を
-報告してはならない。
-
-例外は、ユーザーが明示的にPR不要と指定した場合、またはPR作成が失敗した場合だけである。後者では
-試行内容とconcrete blockerを報告し、成功・完了とは記載しない。
-
-## FAIL / Diagnostic Conditions
-
-Phase 2 では、FAIL でも有用な診断進捗を commit / push してよい。
-
-例:
-
-- collapse mode を再現した。
-- fly-away 条件を保存した。
-- hook drift や no_bundle_drive を切り分けた。
-- failing test で次の target behavior を定義した。
-- 物理モデル差分や数値上の不一致を記録した。
-
-FAIL commit は完了扱いにしない。commit type は `diagnostic`, `wip`, `docs`, `test` 相当の内容にする。
-
-## Review Result Fields
-
-最低限、以下を埋める。
-
-- `status`
-- `summary`
-- `blocking_issues`
-- `non_blocking_issues`
-- `tests_reviewed`
-- `user_review_required`
-- `user_review_command`
-- `user_review_outputs`
-- `user_review_points`
-- `adr_required`
-- `adr_reason`
-- `commit_type`
-- `commit_hash`
-- `push_status`
-- `pull_request_url`
-- `next_actions`
-
-## Commit / Push / PR
-
-- commit message は `type(scope): summary`。
-- `main` / `master` へ直接 commit しない。
-- feature branch を push したら PR を作る。
-- 初回完了報告はPR作成後まで送らない。PR作成不能時のblocker報告以外に例外を設けない。
-- GitHub issue は明示依頼がない限り作らない。
-- PR は作ってよいが、merge はしない。
+PR 不要の明示指定または PR 作成失敗時だけ、初回完了報告の順序に例外を設ける。新規 Issue / sub-issue は、
+残作業の範囲・受入条件・execution target を提示し、ユーザー承認を得てから作成する。

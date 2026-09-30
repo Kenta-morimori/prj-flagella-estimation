@@ -1,129 +1,36 @@
 ---
 name: flagella-issue-workflow
-description: Use for issue-driven Codex work in this repository, including planning, implementation, diagnostics, testing, result analysis, review_result logging, commits, pushes, PR creation, and context-efficient routing of project documents.
+description: Issue 単位の Codex 作業で、必要な project 規約・文書・完了手順へ段階的に案内する。
 ---
 
 # Flagella Issue Workflow
 
-## Overview
+## 役割
 
-このskillは，`prj-flagella-estimation`のIssue単位作業を，必要な文書だけを読んで進めるためのworkflowである．
+この skill は Issue 駆動作業の最小ルーターである。不変の安全・実行・完了境界は `AGENTS.md`、
+詳細な Issue / PR lifecycle は `docs/codex/codex_workflow.md` を正本とする。同じ規則をここへ複製しない。
 
-目的は，`AGENTS.md`の規則を守りながら，方針検討，実装，実行，分析，文書更新，完了処理を一貫して行い，contextと実行コストを抑えることである．
+## 開始時
 
-Phase文書の構成変更，統合，移行，削除を行う場合は，`phase-document-maintenance` skillを併用する．
+1. `git status --short --branch`、最新の user request、対象 Issue / PR を確認する。
+2. Issue の execution target、condition 数、Mac 見積り、`execution:*` label、roadmap metadata を確認する。
+3. `main` / `master` で直接作業せず、作業を planning、implementation、diagnostic、review-only、workflow、または documentation-maintenance に分類する。
+4. 実装開始時は execution target、condition 数、Mac 見積り、許可された実行範囲をユーザーへ報告する。
 
-## Start
+`execution:triage`、target / label の不一致、または roadmap metadata 不備では read-only triage 以外を開始しない。
+`execution:cs10` で独立conditionが2以上なら、`cs10_qualified`、condition ごとの output 分離、dry-run plan、
+serial 例外のユーザー明示 IssueコメントURLを確認するまで runtime を開始しない。外部操作の承認境界は `AGENTS.md` と
+`docs/codex/cs10_runbook.md` を参照する。
 
-1. `git status --short --branch`で現在branchと作業treeを確認する．
-2. user request，対象Issue，対象PRを特定する．
-3. Issue Formの`Heavy/runtime execution target`、condition数、Mac wall time見積り、`execution:*` labelを確認する。不在・不一致・`execution:triage`ならread-only triage以外を開始しない．
-4. `Roadmap category (Milestone)`、Project Start date、`roadmap:*` labelを確認する。`roadmap:triage`または`roadmap:needs-review`ならmetadataを修正するまで実装を開始しない．
-5. 対象Phaseを特定する．
-6. `main`または`master`上で直接作業しない．
-7. 作業タイプを分類する．
-8. semantic decisionを伴うか確認する．
+## 必要時の参照先
 
-作業タイプ:
+- 読む順序と Phase / run record の選択: `references/context-routing.md`
+- `review_result.json`、commit、push、PR、マージ後の Issue 引継ぎ: `docs/codex/codex_workflow.md`
+- 文書量・実行量の削減: `references/resource-reduction.md`
+- Phase 文書の統合・移行・削除: `phase-document-maintenance` skill と `docs/codex/phase_document_policy.md`
 
-- `planning`: 方針検討，task decomposition，Issue draft，実装前整理
-- `implementation`: code，config，schema，test，docsの変更
-- `diagnostic`: simulation，sweep，失敗条件保存，原因切り分け
-- `review-only`: 差分レビュー，CI確認，既存結果の整理
-- `workflow`: Codex運用，skill，review result，PR方針の変更
-- `documentation-maintenance`: Phase文書の監査，統合，移行，削除
+## 完了
 
-## Context Routing
-
-常に全資料を読まず，作業タイプと対象Phaseに応じて読む文書を絞る．
-
-詳細なroutingは`references/context-routing.md`を参照する．
-
-基本順序:
-
-1. `AGENTS.md`
-2. user requestと対象Issue / PR
-3. `docs/phaseX/phaseX_current.md`
-4. `docs/phaseX/phaseX_guide.md`が存在し，Phase固有規則が必要な場合
-5. `docs/phaseX/phaseX_tasks.md`の関連section
-6. live schema，contract，config，test，active validation
-7. ADR
-8. Issue / PR履歴，Git履歴，`review_result.json`
-
-追加routing:
-
-- 完了条件，`review_result.json`，commit，push，PRについては`references/completion-policy.md`を参照する．
-- contextと実行量の削減については`references/resource-reduction.md`を参照する．
-- Phase文書の整理・統合・削除では，`phase-document-maintenance` skillと`docs/codex/phase_document_policy.md`を参照する．
-- Codex workflow全体の詳細が必要な場合のみ`docs/codex/codex_workflow.md`を参照する．
-
-## Workflow
-
-### 1. 方針検討
-
-- Issue本文，current，必要なtasks section，live contractだけでscopeを決める．
-- acceptance criteria，必要なtest / simulation，目視レビュー要否を分ける．
-- 過去判断が必要な場合は，tasksをIssue番号，decision ID，model名，dataset version，関連keywordで検索する．
-- tasksの要約だけで理由が不足する場合に限り，ADR，Issue，PR，Git履歴へ進む．
-- planningのみの依頼では，重いsimulationやfull pytestを実行しない．
-
-### 2. 実装
-
-- 実装開始時にexecution target、condition数、Mac見積り、許可される実行をユーザーへ短く報告する．
-- `execution:mac`はMac local、`execution:none`はruntimeなし、`execution:cs10`はMac実装・短時間check後にUser-run cs10 parallel jobへ進む。独立conditionが2以上なら、`cs10_qualified` parallel-job YAML、conditionごとのoutput分離、dry-run plan、Userが許可したlaunch操作を確認するまで開始しない。launcher未対応はserial開始の理由にしない．
-- 独立conditionが2以上のserial例外は、Issue runbookに技術的依存・排他的資源・output分離不能のいずれかを具体的に記録し、開始前のUser明示承認IssueコメントURLを確認した場合だけ許可する．
-- `execution:triage`はread-only investigationに限定する．
-- 変更を依頼scope内に限定する．
-- `scripts/`はuser-facing orchestration，`src/`は再利用可能な実装，`tools/codex/`はCodex workflow補助に使用する．
-- config，schema，testなど既存の正本を確認し，同じ情報をdocsへ複製しない．
-- Phase 2の物理モデル変更では，reference model，repository implementation，numerical stabilization，project-specific extensionを区別する．
-- semantic decisionが発生した場合は，完了時にcurrent，tasks，ADRの更新要否を確認する．
-
-### 3. 実行
-
-- 最小のtargeted testから開始する．
-- 重い処理は，short representative，targeted test，sweep，full executionの順で段階的に行う．
-- 長時間simulation，sweep，training，renderは，ユーザーから明示的に依頼されない限り実行しない．
-- user executionとする場合は，command，expected output，evaluation points，実行済みcheckを提示する．
-- cs10で生成・解析した成果物は、ユーザーが確認できるローカルへ同期し、件数・SHA-256・QCを検証してから完了報告する。cs10専用ログと認証情報は同期しない．
-
-### 4. 結果分析
-
-- PASS / FAILだけでなく，blocking issue，non-blocking issue，次の切り分け対象を記録する．
-- 意思決定に影響した結果と，補助的なdiagnostic resultを分ける．
-- 結果が既存判断を支持するか，置換するか，保留するかを明示する．
-- Phase 2のcollapse，fly-away，hook drift，no bundleなどは，再現条件が有用であればdiagnostic progressとして扱う．
-
-### 5. Phase文書更新
-
-semantic decisionを伴う場合は，以下を確認する．
-
-- `phaseX_current.md`の更新
-- `phaseX_tasks.md`の更新
-- ADRの作成または更新
-- task-specific docの保持・削除
-- stale referenceの更新
-
-Phase文書の再構成，情報移行，削除を伴う場合は，このskill内で詳細手順を重複させず，`phase-document-maintenance` skillへ委譲する．
-
-### 6. 報告・完了
-
-- `references/completion-policy.md`に従って`review_result.json`を作成する．
-- AGENTS.mdを正本として、local PASS後は`commit → push → source Issueを参照するPR作成 → 初回完了報告`の順に行う。初回完了報告はPR作成後まで送らない。commentaryの進捗共有は妨げない。
-- ユーザーが明示的にPR不要とした場合、またはPR作成が失敗した場合だけ例外とする。失敗時は試行内容とconcrete blockerだけを報告し、完了とは扱わない。
-- FAILでも有用な診断結果は，diagnostic，wip，docs，test相当のcommitとして保存できる．
-- FAILを完了扱いにしない．
-- 文書変更時は，current，tasks，ADR，維持文書，削除文書を最終報告に含める．
-- Issueをcloseする場合、Target dateが未設定ならroadmap sync workflowがJST終了日を補完する。予定日が既にある場合は上書きしない．
-
-## Resource Discipline
-
-- `SKILL.md`にproject historyやPhase固有の詳細を蓄積しない．
-- 長い規則やchecklistはreferenceまたはpolicyへ分離する．
-- 既存docsは`rg -n`で候補を絞ってから読む．
-- 長いMarkdown，logs，CSV，generated outputをデフォルトで全文表示しない．
-- 過去runは`review_result.json`を先に読み，必要な場合だけ`work_log.md`を読む．
-- currentへ完了履歴を追記し続けない．
-- tasksへIssue，PR，command，output pathの全文をコピーしない．
-- full test，long simulation，video renderは完了条件に必要な場合だけ実行する．
-- 最終報告では，変更内容，実行したcheck，未実行項目，残Issueを簡潔に示す．
+local review、`review_result.json`、commit、push、source-Issue-linked PR、初回完了報告の順序は
+`AGENTS.md` と `docs/codex/codex_workflow.md` に従う。PR マージ後は source Issue の受入条件を確認し、
+継続親Issueを子 PR だけで閉じない。残作業の新規 Issue / sub-issue は、具体案を提示してユーザー承認を得てから作成する。

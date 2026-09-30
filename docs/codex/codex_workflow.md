@@ -173,11 +173,24 @@ Rules:
 * Push the feature branch when remote access is available.
 * Create a PR after pushing a feature branch when GitHub remote access is available.
 * Send the first completion report only after the final task state has been committed, pushed, and its source-Issue-linked PR has been created. The only exceptions are an explicit user instruction not to create a PR, or reporting a failed PR-creation attempt and its concrete blocker.
-* Create GitHub issues when they are needed to track an accepted task, split follow-up work, or keep Project items structured.
+* 新規 GitHub Issue / sub-issue は、受入済み task の追跡、follow-up の分割、Project 構造の維持に必要な場合だけ作成する。残作業の候補を見つけただけでは作成せず、具体案を提示してユーザー承認を得る。
 * Link the PR to the original source issue in the PR body. Use `Closes #<issue>` / `Fixes #<issue>` only when the PR is intended to complete that issue.
 * Target the branch specified by the task or issue. If no target branch is specified, target the repository default branch.
 * Merge only small, non-judgment PRs when `review_result.json` is `PASS`, CI passes, `codex-review-gate` passes, and no user visual review or major design decision is pending.
 * Do not merge PRs that change physical interpretation, dataset adoption, phase boundaries, ML training policy, output contracts, or qualitative acceptance without explicit user approval.
+
+## PRマージ後のIssue引継ぎ
+
+source Issue に紐づく PR が merge されたら、PR、source Issue、ローカル `review_result.json` を照合してから
+完了状態を報告する。次を確認する。
+
+1. merge された PR と source Issue の対応、`Closes` / `Fixes` の有無、source Issue の open / closed 状態。
+2. Issue の全受入条件、PR の実装範囲、relevant check、`review_result.json: PASS` が一致すること。
+3. すべて満たす場合だけ、必要な Issue checkbox、状態、完了記録を更新する。未達の条件があれば、完了として扱わない。
+4. 継続親Issueは、子 PR または child Issue が merge / close しただけでは閉じない。親自身の受入条件と継続目的を別に確認する。
+5. 残作業があれば、範囲、受入条件、`Heavy/runtime execution target` を含む具体的な後続 task を source Issue の更新と最終報告で提示する。新規 Issue / sub-issue の作成は、ユーザー承認後に行う。
+
+GitHub 更新の権限が task にない場合は、必要な Issue 更新内容と後続 task 案を最終報告に明記し、外部状態を推測して更新済みとしない。
 
 ## Phase 2 CLI command convention
 
