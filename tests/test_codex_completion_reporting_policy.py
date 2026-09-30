@@ -48,6 +48,10 @@ def test_post_merge_handoff_preserves_parent_and_requires_approval_for_followups
 
 def test_workflow_uses_japanese_headings_and_preserves_review_identifiers() -> None:
     workflow = (ROOT / "docs/codex/codex_workflow.md").read_text(encoding="utf-8")
+    completion_reference = (
+        ROOT
+        / "tools/codex/skills/flagella-issue-workflow/references/completion-policy.md"
+    ).read_text(encoding="utf-8")
 
     for heading in (
         "## 正本",
@@ -72,3 +76,7 @@ def test_workflow_uses_japanese_headings_and_preserves_review_identifiers() -> N
         "Didn't find any major issues",
     ):
         assert identifier in workflow
+
+    for heading in ("完了ポリシー", "Review result の形式"):
+        assert f"## {heading}" in workflow
+        assert f"「{heading}」" in completion_reference

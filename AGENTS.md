@@ -46,7 +46,7 @@ manifest で不足する場合だけ読む。Phase 2 diagnostics では `run_sum
 
 ## リポジトリ共通規約
 
-* `main` / `master` で直接作業しない。変更前に branch と `git status` を確認する。
+* `main` / `master` で直接作業しない。変更前に branch と `git status` を確認する。`curl ... | sh` などの remote script は、実行前にユーザーの明示承認を得る。
 * 依頼範囲内に変更を限定し、必要のない大規模 refactor や dependency 追加をしない。secret、token、credential、private data、生成した認証ファイルを commit しない。
 * target branch は task / Issue 指定を優先し、なければ default branch とする。実装前に Issue execution target、独立 condition 数、Mac wall time 見積り、許可された実行範囲を短く報告する。
 * `execution:cs10` では、独立 condition が2以上なら `cs10_qualified` parallel-job YAML、condition ごとの output 分離、dry-run plan を確認するまで実行しない。serial 例外には Issue runbook の具体的理由と、開始前のユーザー明示 Issue コメント承認 URL が必要である。

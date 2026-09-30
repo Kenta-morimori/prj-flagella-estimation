@@ -4,7 +4,7 @@
 この reference は、必要な記録先だけを示す。
 
 - run record: `docs/codex-runs/YYYYMMDD_HHMMSS_<phase>_<task-id>/review_result.json`
-- required review fields と local PASS: `docs/codex/codex_workflow.md` の「Completion policy」「Review result format」
+- required review fields と local PASS: `docs/codex/codex_workflow.md` の「完了ポリシー」「Review result の形式」
 - `commit → push → source Issue を参照する PR → 初回完了報告`: `AGENTS.md`
 - PR マージ後の source Issue 更新と残作業の提示: `docs/codex/codex_workflow.md` の「PRマージ後のIssue引継ぎ」
 
