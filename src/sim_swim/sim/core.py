@@ -292,6 +292,9 @@ class Simulator:
             "segment_repulsion_pair_count": int(
                 self.engine.segment_pair_indices_for_repulsion.shape[0]
             ),
+            "segment_repulsion_pair_counts": dict(
+                self.engine.segment_repulsion_pair_counts
+            ),
         }
         return manifest
 

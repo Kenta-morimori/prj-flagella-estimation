@@ -1,0 +1,39 @@
+{
+  "status": "PASS",
+  "task": "Issue #257: body--flagella排除相互作用を無効化した比較契約とselectorを追加する",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/257",
+  "summary": "既定値互換のbody--flagella segment-repulsion selector、interaction別pair数のmanifest provenance、2010 hex 26条件と2010 project補足6条件のON/OFF比較契約を追加した。2010 hexの2秒段階は共通development_evaluationのshort screen review後に限る。",
+  "blocking_issues": [],
+  "non_blocking_issues": [255],
+  "tests_reviewed": [
+    {
+      "command": "uv run ruff format --check src/sim_swim/dynamics/engine.py src/sim_swim/sim/core.py src/sim_swim/sim/params.py tests/test_potentials.py tests/test_model_profiles.py tests/test_issue257_body_flagella_contact.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff check src/sim_swim/dynamics/engine.py src/sim_swim/sim/core.py src/sim_swim/sim/params.py tests/test_potentials.py tests/test_model_profiles.py tests/test_issue257_body_flagella_contact.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "long_simulation_executed": false,
+  "long_simulation_reason": "Issue #257はexecution:cs10のUser-run campaignであり、short screenと2秒比較はcs10_qualified parallel job、dry-run、ユーザーの操作単位の明示承認後にのみ開始する。",
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "既定値互換の診断selectorと未実行の比較契約であり、physical interpretation、dataset、canonical model、ML policyの採択を変更しない。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": []
+}

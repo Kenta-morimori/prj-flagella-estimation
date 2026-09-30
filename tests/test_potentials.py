@@ -246,6 +246,32 @@ def test_repulsion_excludes_body_body_and_keeps_other_segment_pairs() -> None:
     assert np.any(~first_is_body & ~second_is_body)
 
 
+def test_repulsion_can_exclude_only_body_flagella_segment_pairs() -> None:
+    raw = _minimal_config_with_spring(None)
+    raw["potentials"] = {"spring_spring_repulsion": {"body_flagella_enabled": False}}
+    cfg = SimulationConfig.from_dict(raw)
+    engine = DynamicsEngine(ModelBuilder(cfg).build(), cfg)
+    candidates = engine.segment_pair_indices_for_repulsion
+    first_is_body = engine.body_spring_mask[candidates[:, 0]]
+    second_is_body = engine.body_spring_mask[candidates[:, 1]]
+
+    assert not np.any(first_is_body | second_is_body)
+    assert np.any(~first_is_body & ~second_is_body)
+    assert engine.segment_repulsion_pair_counts["body_flagella_enabled"] is False
+    assert engine.segment_repulsion_pair_counts["body_flagella_active"] == 0
+    assert engine.segment_repulsion_pair_counts["flagella_flagella_active"] == len(
+        candidates
+    )
+
+
+def test_repulsion_body_flagella_enabled_must_be_boolean() -> None:
+    raw = _minimal_config_with_spring(None)
+    raw["potentials"] = {"spring_spring_repulsion": {"body_flagella_enabled": "false"}}
+
+    with pytest.raises(ValueError, match="body_flagella_enabled must be a boolean"):
+        SimulationConfig.from_dict(raw)
+
+
 def _minimal_config_with_spring(spring: dict[str, object] | None) -> dict[str, object]:
     config: dict[str, object] = {
         "scale": {"b_um": 1.0, "bead_radius_a_over_b": 0.1},
