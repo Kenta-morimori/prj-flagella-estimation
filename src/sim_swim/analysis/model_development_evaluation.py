@@ -25,6 +25,7 @@ from sim_swim.analysis.multi_run_campaign import (
     load_yaml,
     normalize_campaign_config,
 )
+from sim_swim.analysis.flagella_count_behavior import load_state_archive
 from sim_swim.sim.debug_summary import (
     NONBODY_FLAG_BEND_ERR_MAX_DEG_LIMIT,
     NONBODY_FLAG_BOND_REL_ERR_MAX_LIMIT,
@@ -711,6 +712,106 @@ def _render_replays(
         replay_main(args)
 
 
+def _body_axis_and_roll(
+    beads_um: np.ndarray, *, n_prism: int
+) -> tuple[np.ndarray, float]:
+    """Return the body axis and a reproducible roll marker angle from archive beads."""
+
+    layers = beads_um.shape[0] // n_prism
+    first = beads_um[:n_prism]
+    last = beads_um[(layers - 1) * n_prism : layers * n_prism]
+    axis = np.mean(last, axis=0) - np.mean(first, axis=0)
+    axis /= max(float(np.linalg.norm(axis)), 1e-18)
+    reference = np.array([1.0, 0.0, 0.0])
+    if abs(float(np.dot(axis, reference))) > 0.9:
+        reference = np.array([0.0, 1.0, 0.0])
+    e1 = np.cross(axis, reference)
+    e1 /= max(float(np.linalg.norm(e1)), 1e-18)
+    e2 = np.cross(axis, e1)
+    marker = first[0] - np.mean(first, axis=0)
+    return axis, float(np.arctan2(np.dot(marker, e2), np.dot(marker, e1)))
+
+
+def _stall_rows(
+    *, rows: list[dict[str, Any]], config: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Derive configured stall candidates from completed long-duration archives."""
+
+    diagnostic = dict(
+        config.get("development_evaluation", {}).get("stall_diagnostic", {}) or {}
+    )
+    if not diagnostic:
+        return []
+    window_s = float(diagnostic["window_ms"]) / 1000.0
+    threshold = float(diagnostic["relative_median_threshold"])
+    base = load_yaml(Path(str(config["base_config"])))
+    n_prism = int(base["body"]["prism"]["n_prism"])
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        states = load_state_archive(
+            Path(str(row["source_output_dir"])) / "state_archive.npz"
+        )
+        times = np.asarray([state.t for state in states], dtype=float)
+        speeds = np.asarray([np.linalg.norm(state.velocity_um_s) for state in states])
+        axes, phases = zip(
+            *[
+                _body_axis_and_roll(
+                    np.asarray(state.bead_positions_um)[
+                        : int(base["model_profile"]["body_beads"])
+                    ],
+                    n_prism=n_prism,
+                )
+                for state in states
+            ],
+            strict=True,
+        )
+        phases_unwrapped = np.unwrap(np.asarray(phases, dtype=float))
+        roll_hz = np.zeros_like(times)
+        if len(times) > 1:
+            roll_hz[1:] = np.abs(np.diff(phases_unwrapped) / np.diff(times)) / (
+                2.0 * np.pi
+            )
+        speed_median = float(np.nanmedian(speeds[1:]))
+        roll_median = float(np.nanmedian(roll_hz[1:]))
+        start = float(times[0])
+        while start < float(times[-1]):
+            mask = (times >= start) & (times < start + window_s)
+            if np.count_nonzero(mask) < 2:
+                start += window_s
+                continue
+            indices = np.flatnonzero(mask)
+            axis_angle = math.degrees(
+                math.acos(
+                    float(
+                        np.clip(np.dot(axes[indices[0]], axes[indices[-1]]), -1.0, 1.0)
+                    )
+                )
+            )
+            mean_speed = float(np.mean(speeds[mask]))
+            mean_roll = float(np.mean(roll_hz[mask]))
+            is_stall = bool(
+                speed_median > 0.0
+                and roll_median > 0.0
+                and mean_speed < threshold * speed_median
+                and mean_roll < threshold * roll_median
+            )
+            result.append(
+                {
+                    "condition_id": row["condition_id"],
+                    "window_start_s": start,
+                    "window_end_s": min(start + window_s, float(times[-1])),
+                    "mean_body_speed_um_s": mean_speed,
+                    "mean_body_roll_hz": mean_roll,
+                    "body_axis_angle_change_deg": axis_angle,
+                    "speed_median_um_s": speed_median,
+                    "roll_median_hz": roll_median,
+                    "stall_candidate": is_stall,
+                }
+            )
+            start += window_s
+    return result
+
+
 def build_evaluation(
     *,
     config_path: Path,
@@ -759,6 +860,40 @@ def build_evaluation(
         window_path = output_dir / "window_qc.csv"
         _write_csv(window_path, window_rows)
         outputs["window_qc_csv"] = window_path
+        stall_rows = _stall_rows(rows=rows, config=config)
+        if stall_rows:
+            stall_path = output_dir / "stall_summary.csv"
+            _write_csv(stall_path, stall_rows)
+            outputs["stall_summary_csv"] = stall_path
+            import matplotlib.pyplot as plt
+
+            fig, axes = plt.subplots(2, 1, sharex=True, figsize=(9, 5))
+            for condition_id in sorted(
+                {str(item["condition_id"]) for item in stall_rows}
+            ):
+                selected = [
+                    item for item in stall_rows if item["condition_id"] == condition_id
+                ]
+                x = [float(item["window_start_s"]) for item in selected]
+                axes[0].plot(
+                    x,
+                    [item["mean_body_speed_um_s"] for item in selected],
+                    label=condition_id,
+                )
+                axes[1].plot(
+                    x,
+                    [item["mean_body_roll_hz"] for item in selected],
+                    label=condition_id,
+                )
+            axes[0].set_ylabel("body speed [µm/s]")
+            axes[1].set_ylabel("body roll [Hz]")
+            axes[1].set_xlabel("time [s]")
+            axes[0].legend(fontsize=6, ncol=2)
+            fig.tight_layout()
+            stall_plot = output_dir / "stall_timeseries.png"
+            fig.savefig(stall_plot, dpi=150)
+            plt.close(fig)
+            outputs["stall_timeseries_png"] = stall_plot
     replay_input = _write_replay_input(
         output_dir=output_dir, run_dirs=run_dirs, config=config
     )

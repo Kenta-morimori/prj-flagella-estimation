@@ -6,7 +6,7 @@
 
 ## 実行前のtriage
 
-Issue #257は`execution:triage`である。short screenを含む実行、cs10への接続、reservation操作は、実行先・実測wall time・並列job・dry-runを確定し、ユーザーが当該操作を明示承認するまで行わない。
+Issue #257は`execution:cs10`のUser-run campaignである。short screenを含む実行、cs10への接続、reservation操作は、並列job・dry-runを確定し、ユーザーが当該操作を明示承認するまで行わない。
 
 ## 比較設定
 
@@ -17,4 +17,4 @@ Issue #257は`execution:triage`である。short screenを含む実行、cs10へ
 
 ## 2秒診断
 
-40 ms窓でbody速度とbody-rollが各condition中央値の10%未満となる同時区間をstall候補とする。body長軸角度は姿勢揺らぎ・方向転換の補助時系列とし、固定camera 3D replayで束化中の連続回転と整合するかを確認する。排除OFFでstall頻度または総時間が減少しても、仮説を支持する診断結果に留め、model採択・strict QC PASSとは解釈しない。
+40 ms窓でbody速度とbody-rollが各condition中央値の10%未満となる同時区間をstall候補とする。body長軸角度は姿勢揺らぎ・方向転換の補助時系列とし、固定camera 3D replayで束化中の連続回転と整合するかを確認する。motor residualはstrict FAILとして保持するが、ユーザーreview後の2秒診断を停止させない。排除OFFでstall頻度または総時間が減少しても、仮説を支持する診断結果に留め、model採択・strict QC PASSとは解釈しない。

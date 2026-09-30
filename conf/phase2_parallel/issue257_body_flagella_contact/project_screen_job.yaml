@@ -1,0 +1,6 @@
+schema_version: 1
+job_id: issue257_project_body_flagella_contact_screen
+configs: [conf/phase2_multi_run/2010_project_body_flagella_contact_screen_issue257.yaml]
+conditions: [nf04__bfon, nf04__bfoff, nf05__bfon, nf05__bfoff, nf06__bfon, nf06__bfoff]
+preflight: geometry_all_conditions
+execution: {max_workers: auto, worker_policy: cs10_qualified}
