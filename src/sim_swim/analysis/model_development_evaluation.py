@@ -206,12 +206,67 @@ def _without_override_paths(value: Any, paths: list[str]) -> Any:
             current = current[part]
         if isinstance(current, dict):
             current.pop(parts[-1], None)
-    return normalized
+    return _drop_empty_mappings(normalized)
+
+
+def _drop_empty_mappings(value: Any) -> Any:
+    """Remove empty mappings left by a declared compatibility-only override."""
+
+    if isinstance(value, dict):
+        return {
+            key: item
+            for key, raw_item in value.items()
+            if (item := _drop_empty_mappings(raw_item)) != {}
+        }
+    if isinstance(value, list):
+        return [_drop_empty_mappings(item) for item in value]
+    return value
 
 
 def _source_rows(run_dir: Path) -> dict[str, dict[str, str]]:
     with (run_dir / "summary.csv").open(encoding="utf-8", newline="") as handle:
         return {str(row["condition_id"]): row for row in csv.DictReader(handle)}
+
+
+def _campaign_git_provenance(
+    *, run_dir: Path, manifest: dict[str, Any]
+) -> dict[str, Any]:
+    """Return verified Git provenance, including parallel aggregate campaigns.
+
+    Aggregated campaign manifests deliberately contain only simulation metadata.
+    Their fixed-commit provenance is stored in the parent parallel job manifest.
+    Accept that layout only when the recorded porcelain status proves a clean
+    checkout; otherwise never infer Git state from the current workspace.
+    """
+
+    git = dict(manifest.get("git", {}) or {})
+    if str(git.get("commit") or "") and git.get("is_clean") is True:
+        return git
+    job_manifest = next(
+        (
+            path
+            for path in (
+                run_dir / "job_manifest.json",
+                run_dir.parent / "job_manifest.json",
+            )
+            if path.is_file()
+        ),
+        None,
+    )
+    if job_manifest is None:
+        raise ValueError(f"Invalid Git provenance in {run_dir}")
+    job = _read_json(job_manifest)
+    queued_git = dict(dict(job.get("provenance", {}) or {}).get("git", {}) or {})
+    status = str(queued_git.get("status") or "")
+    commit = str(queued_git.get("commit") or "")
+    if not commit or not status.startswith("## ") or "\n" in status:
+        raise ValueError(f"Invalid Git provenance in {run_dir}")
+    return {
+        "commit": commit,
+        "is_clean": True,
+        "source": "parallel_job_manifest",
+        "status": status,
+    }
 
 
 def _resolve_condition_output_dir(
@@ -391,15 +446,13 @@ def collect_rows(
             raise ValueError(
                 f"Unaccepted source campaign in {run_dir}: {campaign_config}"
             )
-        git = dict(manifest.get("git", {}) or {})
-        if not str(git.get("commit") or "") or git.get("is_clean") is not True:
-            raise ValueError(f"Invalid Git provenance in {run_dir}")
+        git = _campaign_git_provenance(run_dir=run_dir, manifest=manifest)
         source_rows = _source_rows(run_dir)
         axis_defaults, relaxed_paths = _reused_source_spec(contract, campaign_config)
         provenance.append(
             {
                 "run_dir": str(run_dir.resolve()),
-                "git": dict(manifest.get("git", {}) or {}),
+                "git": git,
                 "model_profile": profile,
                 "source_campaign": campaign_config,
                 "reused_axis_defaults": axis_defaults,
@@ -659,13 +712,13 @@ def _write_replay_input(
         manifest = _read_json(run_dir / "run_manifest.json")
         campaign_config = str(manifest.get("campaign_config") or "")
         axis_defaults, _ = _reused_source_spec(contract, campaign_config)
-        git = dict(manifest.get("git", {}) or {})
+        git = _campaign_git_provenance(run_dir=run_dir, manifest=manifest)
         if base_config is None:
-            source_config = manifest.get("source_config_path") or manifest.get(
-                "base_config"
-            )
-            if source_config is not None:
+            source_config = manifest.get("source_config_path")
+            if source_config is not None and Path(str(source_config)).is_file():
                 base_config = str(source_config)
+            else:
+                base_config = str(manifest.get("base_config") or "")
         source_rows = _source_rows(run_dir)
         for raw_record in manifest.get("conditions", []) or []:
             record = _normalize_reused_source_record(
@@ -680,13 +733,17 @@ def _write_replay_input(
             record["source_campaign"] = campaign_config
             record["source_git_commit"] = str(git.get("commit") or "")
             record["source_reused"] = bool(axis_defaults)
-            record["output_dir"] = str(
-                _resolve_condition_output_dir(
-                    run_dir=run_dir,
-                    record=record,
-                    source_condition_id=source_condition_id,
-                )
+            source_output_dir = _resolve_condition_output_dir(
+                run_dir=run_dir,
+                record=record,
+                source_condition_id=source_condition_id,
             )
+            record["output_dir"] = str(source_output_dir)
+            geometry_path = source_output_dir / "initial_geometry_summary.json"
+            if geometry_path.is_file():
+                geometry = dict(_read_json(geometry_path).get("geometry", {}) or {})
+                if geometry:
+                    record["geometry"] = {"actual": geometry}
             records.append(record)
             summary_row = dict(source_rows[source_condition_id])
             summary_row["condition_id"] = str(record["condition_id"])
