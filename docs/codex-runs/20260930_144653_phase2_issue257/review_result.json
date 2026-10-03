@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "task": "Issue #257: completed OFF-only 2秒診断のartifact同期とON/OFF共通評価",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/257",
+  "pull_request": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/259",
+  "summary": "cs10 reservation #15（commit e09c632）の13 OFF armを同期し、#245 commit f41a693の13 ON armと共通evaluatorで結合した。13 ON/OFF pairのcomparison summary・差分heatmap・同一fixed cameraの3D/2D pair replayを生成し、ユーザー閲覧用の共有workspace outputsへSHA-256照合付きで同期した。",
+  "checks": [
+    "cs10 queue reservation #15: succeeded, 13/13 completed, exit_code 0",
+    "parallel-campaign artifact sync: campaign 13 conditions + root artifacts + job_manifest, local/remote job_manifest SHA-256 aef9fb29ffdbb0165ae6e4870291615bdf534e491b05b7f372a384b0b0086a82",
+    "targeted pytest: 16 passed (Issue #257, Issue #245 long duration)",
+    "Ruff format/check: PASS",
+    "git diff --check: PASS",
+    "common evaluator: 26 arms (ON 13 + OFF 13), completed archives only, QC heatmap, attachment-slot map, stall summary/time series, n別grid replay、13 pair replayを生成",
+    "shared-workspace sync: 16 MB、運用logを除外、全artifact SHA-256一致、pair replay manifest 13/13"
+  ],
+  "local_outputs": "outputs/2026-10-03/131734/issue257_hex_2s_on_off_visualization/",
+  "user_review_required": true,
+  "user_review_command": "outputs/2026-10-03/131734/issue257_hex_2s_on_off_visualization/ の heatmaps/on_off_comparison.png、comparison_summary.csv、pair_replay/、replay/ を確認する。",
+  "diagnostic_result": "40 ms窓・各condition中央値の10%未満というstall定義では、ON/OFFとも0窓・0秒。全26 armがstrict FAIL（hook；motor閾値も維持）であり、canonical model、dataset、#255の解決根拠には用いない。",
+  "adr_required": false,
+  "adr_reason": "実行済みdiagnostic artifactの同期・再利用・評価互換性を修正したのみで、物理解釈、採択閾値、dataset、phase境界を変更しない。",
+  "not_run": [
+    "追加cs10 simulation、queue/reservation/dispatcher/tmuxの変更、停止、取消、差替え",
+    "project 2秒job、swimming-feature analysis、canonical model採択、PR merge"
+  ],
+  "commit_type": "follow_up",
+  "commit_hash": null,
+  "push_status": "pending"
+}

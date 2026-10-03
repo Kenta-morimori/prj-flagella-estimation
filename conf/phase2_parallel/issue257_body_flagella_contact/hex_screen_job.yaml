@@ -1,0 +1,6 @@
+schema_version: 1
+job_id: issue257_hex_body_flagella_contact_screen
+configs: [conf/phase2_multi_run/2010_hex_project_body_flagella_contact_screen_issue257.yaml]
+conditions: [nf01__slots0__bfon, nf01__slots0__bfoff, nf02__slots01__bfon, nf02__slots01__bfoff, nf02__slots02__bfon, nf02__slots02__bfoff, nf02__slots03__bfon, nf02__slots03__bfoff, nf03__slots012__bfon, nf03__slots012__bfoff, nf03__slots013__bfon, nf03__slots013__bfoff, nf03__slots014__bfon, nf03__slots014__bfoff, nf03__slots024__bfon, nf03__slots024__bfoff, nf04__slots0123__bfon, nf04__slots0123__bfoff, nf04__slots0124__bfon, nf04__slots0124__bfoff, nf04__slots0134__bfon, nf04__slots0134__bfoff, nf05__slots01234__bfon, nf05__slots01234__bfoff, nf06__slots012345__bfon, nf06__slots012345__bfoff]
+preflight: geometry_all_conditions
+execution: {max_workers: auto, worker_policy: cs10_qualified}
