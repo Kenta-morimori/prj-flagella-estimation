@@ -7,6 +7,8 @@ from pathlib import Path
 import pytest
 
 from sim_swim.analysis.model_development_evaluation import (
+    _on_off_comparison_rows,
+    _plot_on_off_comparison,
     _without_override_paths,
     _write_replay_input,
     collect_rows,
@@ -305,6 +307,46 @@ def test_issue257_replay_input_falls_back_from_stale_source_config_path(
 
     replay_manifest = json.loads((replay_input / "run_manifest.json").read_text())
     assert replay_manifest["base_config"] == "conf/sim_swim_2010_hex.yaml"
+
+
+def test_issue257_on_off_comparison_requires_complete_pairs_and_writes_heatmap(
+    tmp_path: Path,
+) -> None:
+    base = {
+        "n_flagella": 4,
+        "attachment_slots": "[0, 1, 2, 3]",
+        "source_campaign": "campaign",
+        "source_git_commit": "commit",
+        "state_archive_sha256": "a" * 64,
+        "screen_status": "fail",
+    }
+    rows = [
+        {**base, "condition_id": "nf04__slots0123__bfon"},
+        {**base, "condition_id": "nf04__slots0123__bfoff"},
+    ]
+    stalls = [
+        {
+            "condition_id": row["condition_id"],
+            "window_start_s": 0.0,
+            "window_end_s": 0.04,
+            "speed_median_um_s": 2.0 if row["condition_id"].endswith("bfon") else 3.0,
+            "roll_median_hz": 4.0,
+            "body_axis_angle_change_deg": 5.0,
+            "stall_candidate": row["condition_id"].endswith("bfoff"),
+        }
+        for row in rows
+    ]
+
+    comparison = _on_off_comparison_rows(rows=rows, stall_rows=stalls)
+
+    assert len(comparison) == 1
+    assert comparison[0]["off_minus_on_speed_median_um_s"] == 1.0
+    assert comparison[0]["off_stall_total_s"] == pytest.approx(0.04)
+    heatmap = tmp_path / "comparison.png"
+    _plot_on_off_comparison(comparison, heatmap)
+    assert heatmap.is_file()
+    with pytest.raises(ValueError, match="Incomplete ON/OFF pair"):
+        _on_off_comparison_rows(rows=[rows[0]], stall_rows=[stalls[0]])
 
 
 def test_issue257_project_contract_is_supplemental_n4_to_n6_paired_screen() -> None:

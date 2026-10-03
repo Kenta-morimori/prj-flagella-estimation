@@ -939,6 +939,166 @@ def _stall_rows(
     return result
 
 
+def _on_off_comparison_rows(
+    *, rows: list[dict[str, Any]], stall_rows: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Summarize a complete body--flagella-repulsion ON/OFF pairing."""
+
+    arms: dict[str, dict[str, dict[str, Any]]] = {}
+    windows_by_id: dict[str, list[dict[str, Any]]] = {}
+    for window in stall_rows:
+        windows_by_id.setdefault(str(window["condition_id"]), []).append(window)
+    for row in rows:
+        condition_id = str(row["condition_id"])
+        for label in ("bfon", "bfoff"):
+            suffix = f"__{label}"
+            if condition_id.endswith(suffix):
+                pair_id = condition_id.removesuffix(suffix)
+                arms.setdefault(pair_id, {})[label] = row
+                break
+    comparisons: list[dict[str, Any]] = []
+    for pair_id, pair in sorted(arms.items()):
+        if set(pair) != {"bfon", "bfoff"}:
+            raise ValueError(f"Incomplete ON/OFF pair: {pair_id}")
+        values: dict[str, Any] = {
+            "attachment_pattern": pair_id,
+            "n_flagella": int(pair["bfon"]["n_flagella"]),
+            "attachment_slots": pair["bfon"]["attachment_slots"],
+        }
+        for label, prefix in (("bfon", "on"), ("bfoff", "off")):
+            row = pair[label]
+            windows = windows_by_id.get(str(row["condition_id"]), [])
+            if not windows:
+                raise ValueError(f"Missing stall windows for {row['condition_id']}")
+            stall_windows = [item for item in windows if _bool(item["stall_candidate"])]
+            values.update(
+                {
+                    f"{prefix}_condition_id": row["condition_id"],
+                    f"{prefix}_source_campaign": row["source_campaign"],
+                    f"{prefix}_git_commit": row["source_git_commit"],
+                    f"{prefix}_state_archive_sha256": row["state_archive_sha256"],
+                    f"{prefix}_speed_median_um_s": float(
+                        windows[0]["speed_median_um_s"]
+                    ),
+                    f"{prefix}_roll_median_hz": float(windows[0]["roll_median_hz"]),
+                    f"{prefix}_axis_step_angle_median_deg": float(
+                        np.median(
+                            [
+                                float(item["body_axis_angle_change_deg"])
+                                for item in windows
+                            ]
+                        )
+                    ),
+                    f"{prefix}_stall_window_count": len(stall_windows),
+                    f"{prefix}_stall_total_s": sum(
+                        float(item["window_end_s"]) - float(item["window_start_s"])
+                        for item in stall_windows
+                    ),
+                    f"{prefix}_stall_fraction": len(stall_windows) / len(windows),
+                    f"{prefix}_strict_status": row["screen_status"],
+                }
+            )
+        for metric in (
+            "speed_median_um_s",
+            "roll_median_hz",
+            "axis_step_angle_median_deg",
+            "stall_total_s",
+            "stall_fraction",
+        ):
+            values[f"off_minus_on_{metric}"] = float(values[f"off_{metric}"]) - float(
+                values[f"on_{metric}"]
+            )
+        comparisons.append(values)
+    if len(comparisons) * 2 != len(rows):
+        raise ValueError("Every evaluated condition must belong to one ON/OFF pair")
+    return comparisons
+
+
+def _plot_on_off_comparison(rows: list[dict[str, Any]], output_path: Path) -> None:
+    """Plot attachment-level OFF-minus-ON diagnostics with zero-centered scales."""
+
+    import matplotlib.pyplot as plt
+
+    metrics = (
+        ("off_minus_on_speed_median_um_s", "Δ body speed [µm/s]"),
+        ("off_minus_on_roll_median_hz", "Δ body roll [Hz]"),
+        ("off_minus_on_stall_total_s", "Δ stall time [s]"),
+        ("off_minus_on_axis_step_angle_median_deg", "Δ axis step angle [deg]"),
+    )
+    values = np.asarray(
+        [[float(row[key]) for key, _ in metrics] for row in rows], dtype=float
+    )
+    limits = np.maximum(np.max(np.abs(values), axis=0), 1.0e-12)
+    figure, axes = plt.subplots(
+        1, len(metrics), figsize=(14, max(4.5, len(rows) * 0.34))
+    )
+    labels = [f"n={row['n_flagella']} {row['attachment_pattern']}" for row in rows]
+    for index, (axis, (_, title)) in enumerate(zip(axes, metrics, strict=True)):
+        image = axis.imshow(
+            values[:, [index]], cmap="coolwarm", vmin=-limits[index], vmax=limits[index]
+        )
+        axis.set_title(title, fontsize=9)
+        axis.set_xticks([])
+        axis.set_yticks(range(len(rows)))
+        axis.set_yticklabels(labels if index == 0 else [], fontsize=7)
+        figure.colorbar(image, ax=axis, fraction=0.08, pad=0.04)
+    figure.suptitle(
+        "Body--flagella repulsion OFF − ON (diagnostic-only; strict QC remains FAIL)",
+        fontsize=11,
+    )
+    figure.tight_layout()
+    figure.savefig(output_path, dpi=220)
+    plt.close(figure)
+
+
+def _render_on_off_pair_replays(
+    comparison_rows: list[dict[str, Any]], *, replay_input: Path, output_dir: Path
+) -> None:
+    """Render each ON/OFF pair using the same fixed cameras and sampling."""
+
+    from sim_swim.analysis.phase2_replay import main as replay_main
+
+    for row in comparison_rows:
+        destination = output_dir / "pair_replay" / str(row["attachment_pattern"])
+        replay_main(
+            [
+                "--input-dir",
+                str(replay_input),
+                "--camera-envelope-input-dir",
+                str(replay_input),
+                "--output-dir",
+                str(destination),
+                "--view",
+                "3d+2d",
+                "--mode",
+                "render-only",
+                "--camera-3d",
+                "fixed",
+                "--camera-2d",
+                "fixed",
+                "--view-range-mode",
+                "campaign-envelope",
+                "--target-frame-count",
+                "41",
+                "--max-panels-per-grid",
+                "2",
+                "--overwrite",
+                "--condition-id",
+                str(row["on_condition_id"]),
+                "--condition-id",
+                str(row["off_condition_id"]),
+            ]
+        )
+
+
+def _output_hashes(output_dir: Path) -> dict[str, str]:
+    return {
+        str(path.relative_to(output_dir)): _sha256(path)
+        for path in sorted(output_dir.rglob("*"))
+        if path.is_file() and path.name not in OPERATIONAL_LOG_NAMES
+    }
+
+
 def build_evaluation(
     *,
     config_path: Path,
@@ -1021,6 +1181,16 @@ def build_evaluation(
             fig.savefig(stall_plot, dpi=150)
             plt.close(fig)
             outputs["stall_timeseries_png"] = stall_plot
+        if stall_rows and {"bfon", "bfoff"}.issubset(
+            {str(row["condition_id"]).split("__")[-1] for row in rows}
+        ):
+            comparison_rows = _on_off_comparison_rows(rows=rows, stall_rows=stall_rows)
+            comparison_path = output_dir / "comparison_summary.csv"
+            _write_csv(comparison_path, comparison_rows)
+            outputs["comparison_summary_csv"] = comparison_path
+            comparison_heatmap = heatmap_dir / "on_off_comparison.png"
+            _plot_on_off_comparison(comparison_rows, comparison_heatmap)
+            outputs["on_off_comparison_heatmap"] = comparison_heatmap
     replay_input = _write_replay_input(
         output_dir=output_dir, run_dirs=run_dirs, config=config
     )
@@ -1036,6 +1206,30 @@ def build_evaluation(
             rows, replay_input=replay_input, output_dir=output_dir, stage=stage
         )
         outputs["replay"] = output_dir / "replay"
+        if stage == "long_duration" and "comparison_rows" in locals():
+            _render_on_off_pair_replays(
+                comparison_rows, replay_input=replay_input, output_dir=output_dir
+            )
+            outputs["pair_replay"] = output_dir / "pair_replay"
+    if "comparison_rows" in locals():
+        visualization_path = output_dir / "visualization_manifest.json"
+        visualization_path.write_text(
+            json.dumps(
+                {
+                    "kind": "on_off_visualization_bundle",
+                    "condition_pair_count": len(comparison_rows),
+                    "comparison_rows": comparison_rows,
+                    "strict_qc_note": "diagnostic-only; strict QC status is not changed",
+                    "outputs": {key: str(value) for key, value in outputs.items()},
+                    "sha256": _output_hashes(output_dir),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        outputs["visualization_manifest"] = visualization_path
     manifest = {
         "kind": "model_development_evaluation",
         "config": str(config_path),
