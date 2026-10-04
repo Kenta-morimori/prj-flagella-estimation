@@ -1,0 +1,41 @@
+{
+  "status": "PASS",
+  "summary": "Issue #256として、AGENTS.mdを日本語中心の最小規約へ再構成し、Issue skillの重複を正本への導線へ集約し、PRマージ後のIssue引継ぎを追加した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "Cloud reviewとmergeは、PRのmerge-ready final candidateに対するユーザー承認後に行う。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run ruff format --check tests/test_codex_completion_reporting_policy.py tests/test_cs10_parallel_policy.py",
+      "result": "PASS: 対象Python testは整形済み"
+    },
+    {
+      "command": "uv run ruff check tests/test_codex_completion_reporting_policy.py tests/test_cs10_parallel_policy.py",
+      "result": "PASS: 対象Python testのlint errorなし"
+    },
+    {
+      "command": "uv run pytest -q tests/test_codex_completion_reporting_policy.py tests/test_cs10_parallel_policy.py",
+      "result": "PASS: 5 passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS: whitespace errorなし"
+    },
+    {
+      "command": "rg -n 'monthly_harness_review|PRマージ後のIssue引継ぎ|継続親Issue|ユーザー承認後|cs10_qualified|dry-run plan' AGENTS.md docs/codex tools/codex/skills tests",
+      "result": "PASS: 月次導線、cs10 gate、継続親Issue境界、後続taskの承認境界を確認"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": true,
+  "adr_reason": "PRマージ後のIssue引継ぎと正本分担を恒久workflowとして追加するため、ADR 0022に記録した。",
+  "commit_type": "complete",
+  "commit_hash": "",
+  "push_status": "not_pushed",
+  "pull_request_url": "",
+  "next_actions": []
+}

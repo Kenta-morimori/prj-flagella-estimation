@@ -1,0 +1,41 @@
+{
+  "status": "PASS",
+  "summary": "PR #258 の Codex review P2/P3 を修正し、remote script の明示承認境界と翻訳後 workflow 見出しへの skill reference を回復した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "PR #258 の merge は本記録の対象外であり、required checks と codex-review-gate が pass した後にユーザー指示で行う。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "git diff --check",
+      "result": "PASS: whitespace errorなし"
+    },
+    {
+      "command": "rg -n 'curl .*\\| sh|完了ポリシー|Review result の形式' AGENTS.md tools/codex/skills/flagella-issue-workflow/references/completion-policy.md docs/codex/codex_workflow.md tests/test_codex_completion_reporting_policy.py",
+      "result": "PASS: P2/P3 の規約と正本参照を確認"
+    },
+    {
+      "command": "uv run pytest -q tests/test_codex_completion_reporting_policy.py tests/test_cs10_parallel_policy.py",
+      "result": "PASS: 6 passed"
+    },
+    {
+      "command": "uv run ruff format --check tests/test_codex_completion_reporting_policy.py tests/test_cs10_parallel_policy.py && uv run ruff check tests/test_codex_completion_reporting_policy.py tests/test_cs10_parallel_policy.py",
+      "result": "PASS: 対象Python testは整形済み、lint errorなし"
+    },
+    {
+      "command": "uv run pytest -q -m light",
+      "result": "PASS: 370 passed, 558 deselected"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "ADR 0022 が正本分担とPRマージ後引継ぎの恒久判断を記録済みであり、今回の変更はレビュー指摘に対する安全境界と参照整合性の回復である。",
+  "commit_type": "complete",
+  "commit_hash": "",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/258",
+  "next_actions": []
+}

@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "summary": "PR #258 と Issue #256 の GitHub Development closing relationship を確立し、docs/codex/codex_workflow.md の自然言語を日本語へ統一した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "PR #258 の CI と Codex Cloud review は PR-level merge gate として残る。merge はこの記録の対象外である。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "git diff --check",
+      "result": "PASS: whitespace errorなし"
+    },
+    {
+      "command": "rg -n '^(#{1,3} (Source of truth|Issue execution target|Issue Roadmap metadata|Completion policy|Test policy|Merge-final self-check policy|Review result format|Phase 2 CLI command convention|ADR policy|Trusted Cloud PR review|Gate implementation|Reporting and decision gates|Task progress updates)|For |The |This |Do not |After |Create |Use |When |Rules:|Examples:|Required )' docs/codex/codex_workflow.md",
+      "result": "PASS: 旧英語見出し・文頭の自然言語候補なし"
+    },
+    {
+      "command": "uv run pytest -q tests/test_codex_completion_reporting_policy.py tests/test_cs10_parallel_policy.py",
+      "result": "PASS: 6 passed"
+    },
+    {
+      "command": "gh api graphql addCloseIssueReferences と closingIssuesReferences query",
+      "result": "PASS: PR #258 の closingIssuesReferences が Issue #256 を返す"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": "",
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "ADR 0022 が正本分担とPRマージ後引継ぎの恒久判断を記録済みであり、今回の変更はその文書の言語統一とDevelopment紐付けである。",
+  "commit_type": "complete",
+  "commit_hash": "",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/258",
+  "next_actions": []
+}
