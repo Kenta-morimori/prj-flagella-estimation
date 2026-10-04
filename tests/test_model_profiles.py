@@ -254,6 +254,9 @@ def test_2010_hex_project_is_evaluation_ready_with_observed_topology() -> None:
     assert topology["flagellum_beads_per_filament"] == [11, 11, 11]
     assert topology["spring_segment_count"] > 0
     assert topology["segment_repulsion_pair_count"] >= 0
+    counts = topology["segment_repulsion_pair_counts"]
+    assert counts["body_flagella_enabled"] is True
+    assert counts["active_total"] == topology["segment_repulsion_pair_count"]
 
 
 def test_issue244_screen_uses_fixed_reference_torque_and_replayable_1tau_contract() -> (

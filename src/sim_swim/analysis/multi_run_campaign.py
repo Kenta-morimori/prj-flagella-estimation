@@ -7,10 +7,13 @@ import re
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import yaml
 
 from sim_swim.analysis.flagella_count_behavior import normalize_base_overrides
+from sim_swim.dynamics.forces import compute_hook_forces
 from sim_swim.model.builder import ModelBuilder
+from sim_swim.sim.debug_summary import _triplet_angles_rad
 from sim_swim.sim.params import SimulationConfig
 
 CAMPAIGN_OVERRIDE_ROOTS = {
@@ -406,6 +409,101 @@ def geometry_preflight(
             )
             cfg.validate_execution_supported()
             model = ModelBuilder(cfg).build()
+            initial_hook_qc: dict[str, Any] = {}
+            if cfg.flagella.initial_hook_force_neutral and model.hook_triplets.size:
+                triplets = model.hook_triplets
+                angles_deg = np.degrees(
+                    _triplet_angles_rad(model.positions_m, triplets)
+                )
+                angle_error_deg = float(np.max(np.abs(angles_deg - 90.0)))
+                hook_lengths_m = np.linalg.norm(
+                    model.positions_m[triplets[:, 1]]
+                    - model.positions_m[triplets[:, 0]],
+                    axis=1,
+                )
+                length_error_m = float(
+                    np.max(np.abs(hook_lengths_m - cfg.hook.length_over_b * cfg.b_m))
+                )
+                hook_force_norm_N = float(
+                    np.linalg.norm(
+                        compute_hook_forces(
+                            model.positions_m,
+                            triplets,
+                            cfg.hook.kb_over_T * abs(cfg.motor.torque_Nm),
+                            cfg.hook.threshold_deg,
+                        )
+                    )
+                )
+                body = model.positions_m[model.body_indices]
+                flags = [model.positions_m[idx] for idx in model.flagella_indices]
+                bead_distances_m = [
+                    float(
+                        np.min(
+                            np.linalg.norm(
+                                flag[:, None, :]
+                                - np.delete(body, int(attach_idx), axis=0)[None, :, :],
+                                axis=-1,
+                            )
+                        )
+                    )
+                    for flag, attach_idx in zip(
+                        flags, model.flagella_attach_body_indices
+                    )
+                ]
+                bead_distances_m.extend(
+                    float(
+                        np.min(
+                            np.linalg.norm(
+                                flags[i][:, None, :] - flags[j][None, :, :],
+                                axis=-1,
+                            )
+                        )
+                    )
+                    for i in range(len(flags))
+                    for j in range(i + 1, len(flags))
+                )
+                min_bead_distance_m = min(bead_distances_m)
+                body_center = np.mean(body, axis=0)
+                min_outward_projection_m = min(
+                    float(
+                        np.dot(
+                            flag[0] - body[int(attach_idx)],
+                            body[int(attach_idx)] - body_center,
+                        )
+                    )
+                    for flag, attach_idx in zip(
+                        flags, model.flagella_attach_body_indices
+                    )
+                )
+                if (
+                    not np.isfinite(
+                        [
+                            angle_error_deg,
+                            length_error_m,
+                            hook_force_norm_N,
+                            min_bead_distance_m,
+                            min_outward_projection_m,
+                        ]
+                    ).all()
+                    or angle_error_deg > 1e-6
+                    or length_error_m > 1e-15
+                    or hook_force_norm_N > 1e-18
+                    or min_bead_distance_m < 2.0 * model.bead_radius_m - 1e-15
+                    or min_outward_projection_m <= 0.0
+                ):
+                    raise ValueError(
+                        "initial hook force neutralization failed: "
+                        f"angle_error_deg={angle_error_deg}, "
+                        f"length_error_m={length_error_m}, "
+                        f"force_norm_N={hook_force_norm_N}"
+                    )
+                initial_hook_qc = {
+                    "initial_hook_angle_max_abs_error_deg": angle_error_deg,
+                    "initial_hook_len_max_abs_error_m": length_error_m,
+                    "initial_hook_force_norm_N": hook_force_norm_N,
+                    "initial_min_nonattached_bead_distance_m": min_bead_distance_m,
+                    "initial_min_outward_projection_m2": min_outward_projection_m,
+                }
         except Exception as exc:
             raise ValueError(
                 f"geometry preflight failed for {condition_id}: {exc}"
@@ -431,6 +529,7 @@ def geometry_preflight(
             )
         records[condition_id] = {
             "placement_mode": str(cfg.flagella.placement_mode),
+            "initial_hook_force_neutral": bool(cfg.flagella.initial_hook_force_neutral),
             "attachment_slots": (
                 list(cfg.flagella.attachment_slots)
                 if cfg.flagella.attachment_slots is not None
@@ -440,6 +539,7 @@ def geometry_preflight(
             "phase_seed": cfg.seed.phase_seed,
             "n_flagella": int(cfg.flagella.n_flagella),
             "attachments": attachment,
+            **initial_hook_qc,
         }
     return records
 

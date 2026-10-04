@@ -1,0 +1,48 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  description: Issue #257 2010 project n=4--6 body--flagella repulsion ON/OFF short screen.
+  source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/257
+  model_id: 2010_project_issue257_contact_diagnostic
+  model_notes:
+    - Supplemental comparison only; the primary candidate is 2010_hex_project.
+    - body_flagella_enabled is the only interaction difference between paired arms.
+
+base_config: conf/sim_swim_2010.yaml
+
+base_overrides:
+  time.duration: {value: 1.0, unit: tau}
+  time.scale_policy: reference_torque
+  time.integration.dt_star: 1.0e-4
+  motor.torque_Nm: 2.5e-20
+  motor.reference_torque_Nm: 2.5e-20
+  motor.enable_switching: false
+  brownian.enabled: false
+  flagella.placement_mode: seeded_surface
+  flagella.initial_phase_mode: seeded
+  seed.attach_seed: 0
+  seed.phase_seed: 0
+  output.policy: compact
+  output.archive_interval_s: 0.001
+
+sweep:
+  axes:
+    n_flagella:
+      key: flagella.n_flagella
+      short_name: nf
+      values: [4, 5, 6]
+      labels: ["4", "5", "6"]
+      ids: [nf04, nf05, nf06]
+    body_flagella_repulsion:
+      key: potentials.spring_spring_repulsion.body_flagella_enabled
+      short_name: bf
+      values: [true, false]
+      labels: [enabled, disabled]
+      ids: [bfon, bfoff]
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 1000

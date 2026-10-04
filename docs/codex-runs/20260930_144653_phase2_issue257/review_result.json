@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "task": "Issue #257: completed OFF-only 2秒診断のartifact同期とON/OFF共通評価",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/257",
+  "pull_request": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/259",
+  "summary": "cs10 reservation #12（commit f41a693）のON archiveを共有workspaceへ再同期し、#15のOFF archiveと共通evaluatorで結合した。n別replayをreplay/nfXX直下へ整理し、6 panel上限でn=2の6 armを2×3・1 pageに描画した。新規bundleを共有workspaceへ転送し、初期hook角度と診断結論を記録した。",
+  "checks": [
+    "cs10 queue reservation #15: succeeded, 13/13 completed, exit_code 0",
+    "parallel-campaign artifact sync: campaign 13 conditions + root artifacts + job_manifest, local/remote job_manifest SHA-256 aef9fb29ffdbb0165ae6e4870291615bdf534e491b05b7f372a384b0b0086a82",
+    "targeted pytest: 17 passed (Issue #257, Issue #245 long duration)",
+    "Ruff format/check: PASS",
+    "git diff --check: PASS",
+    "common evaluator: 26 arms (ON 13 + OFF 13), completed archives only, QC heatmap, attachment-slot map, stall summary/time series, n別grid replay、13 pair replayを生成",
+    "#245 ON archiveをcs10から13/13再同期し、parallel-campaign syncで全ファイルSHA-256一致",
+    "n=2 replay: 6 conditions、3D/2Dとも1 page、2×3、41 framesをmanifestと最終PNGで確認",
+    "新規shared-workspace bundle: 運用logを除外し、全artifact SHA-256一致、n別grid 6/6、pair replay 13/13",
+    "初期形状再構成: 全26 conditionのt=0 hook角度誤差31.106〜32.383°、ON/OFF同一、raw閾値30°超",
+    "CI同期テストfixture修正後: targeted pytest 31 passed、full pytest 940 passed、Ruff check/formatとgit diff --check PASS"
+  ],
+  "local_outputs": "outputs/2026-10-04/131754/issue257_hex_2s_on_off_visualization/",
+  "user_review_required": true,
+  "user_review_command": "共有workspaceの outputs/2026-10-04/131754/issue257_hex_2s_on_off_visualization/replay/nf02/grid_swim3d_final.png と grid_swim3d.mp4、heatmaps/on_off_comparison.png、comparison_summary.csv、pair_replay/ を確認する。",
+  "diagnostic_result": "40 ms窓・各condition中央値の10%未満というstall定義では、13ペアのON/OFFとも0窓・0秒で改善の有無は判定不能。t=0のhook角度誤差31.106〜32.383°は初期配置で生じており診断専用。全26 armのstrict FAILはmotor torque residual閾値超過による。canonical model、dataset、#255の解決根拠には用いない。",
+  "adr_required": false,
+  "adr_reason": "実行済みdiagnostic artifactの同期・再利用・評価互換性を修正したのみで、物理解釈、採択閾値、dataset、phase境界を変更しない。",
+  "not_run": [
+    "追加cs10 simulation、queue/reservation/dispatcher/tmuxの変更、停止、取消、差替え",
+    "project 2秒job、swimming-feature analysis、canonical model採択、PR merge"
+  ],
+  "commit_type": "follow_up",
+  "commit_hash": null,
+  "push_status": "pending"
+}

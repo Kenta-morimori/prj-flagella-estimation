@@ -38,6 +38,7 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 | P2-D21 | reference torque比較のfixed/tracking・時間基準 | adopted |
 | P2-D24 | v1 r1 n=3 failure診断を現行v1 r2 physical-failure gateから外す | adopted |
 | P2-D25 | 2010 flagella条件を保つ六角柱30-bead evaluation candidate | pending |
+| P2-D26 | body–flagella排除OFFの2秒診断と初期hook角度の扱い | diagnostic |
 | P2-D20 | RUN–TUMBLEの段階実装 | pending |
 
 ---
@@ -311,6 +312,17 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Stage 1 result (2026-09-21):** 既存20 cellと追加40 cellを統合し、60/60 conditionが残るstrict QC（finite/body/hook length/flag/motor）をPASSした。旧`dt_star=1e-4`の10 cellだけは初回internal stepのraw `hook`記録を持つが、hook angleはdiagnostic-onlyであり、他のQC failureはない。`dt_star=1e-3`は総wall timeを39,810.8 sから3,949.8 sへ約1/10にした一方、平均steps/sは11.175と11.274で同程度であり、per-step性能の改善ではない。べん毛数が1から6へ増えると平均steps/sは27.602から4.172へ低下した。`n=1..6`別heatmapと、`dt_star`・べん毛数別の固定camera 3D/2D MP4（各41 frames）は共通評価器で生成した。
 - **Long-duration decision (Issue #245, 2026-09-24):** 対象は`2010_hex_project`のみとし、2010 projectのnf5/nf6は本campaignへ含めない。旧600τ・seed gridを置換し、初期らせん位相`phase_seed=0`固定、六角環の回転だけを同一視して反射を区別する13 attachment pattern（nf01 slots0、nf02 slots01/02/03、nf03 slots012/013/014/024、nf04 slots0123/0124/0134、nf05 slots01234、nf06 slots012345）を評価する。固定`T=2.5e-20 N m/flagellum`・`dt_star=1e-4`、1τ（10,000 steps）screenと2.0 s（50τ、500,000 steps）mainである。nf6は`full_ring_rotation_equivalent`として記録する。新規parallel jobは`cs10_qualified`の`max_workers: auto`（実効8 workers、数値ライブラリthread=1）を使う。screen FAIL後もユーザー指定の連続mainは可能だが、main成果物はdiagnostic-onlyであり、特徴量評価・採択・canonical化へ渡さない。同期済みcompleted archiveからsparse heatmapと固定camera 3D/2D replayを生成する。
 - **Evidence:** parent Issue #243、Issue #244、Issue #245、ADR 0021、`docs/phase2/phase2_244_2010_hex_1tau_contract.md`、`outputs/2026-09-20/013431/model_development_evaluation/evaluation_manifest.json`、`summary.csv`、`heatmaps/`、`replay/`。
+
+### P2-D26: body–flagella排除OFFの2秒比較は診断に留める
+
+- **Status:** diagnostic
+- **Comparison:** Issue #245のON 13条件を再利用し、Issue #257のOFF 13条件と同じattachment配置・数値設定で比較した。40 ms窓のbody速度とbody-rollが各condition中央値の10%未満に同時低下した区間をstall候補とした。
+- **Result:** 全13ペアでON/OFFともstall候補0窓・0秒。OFFの速度中央値がONを上回るのは2/13ペアだった。nf=5のreplayには回転・並進・姿勢の乱れが見られるが、現行stall指標では捉えられない。全26 armのstrict FAILはmotor torque residual超過（0.1007〜0.3661、閾値0.02）による。生記録上のhook first-failは角度diagnosticであり、hook長はstrict閾値内だった。
+- **Interpretation:** stall指標が両armでゼロのため、排除OFFが一時停止を改善する仮説は本指標では判定できない。nf=5の乱れの原因も断定しない。初期配置を再構成すると全26条件でt=0のhook角度誤差が31.106〜32.383°となり、生記録閾値30°を既に超えていた。既存archiveは修正前の形状として保持する。
+- **Pending geometry change:** PR #259では既定OFFの`initial_hook_force_neutral`を追加し、新しいhex短時間screenだけで有効化する。各べん毛を内部形状・位相・軸を保って平行移動し、t=0のhook角90°、hook力の数値上ゼロ、hook長、外向き、非付着body beadとflagellum bead間およびflagellum同士の中心距離≥bead直径をpreflightで確認する。13配置×ON/OFF×位相seed 0/1/7のgeometryのみ確認し、simulationは未実行である。segment間の完全非接触はこの制約では保証できず、既存形状にも近接があるため、bead clearanceと混同しない。
+- **Decision:** #257結果はdiagnostic-onlyとし、canonical採択、dataset、#255の解決根拠に用いない。projectの2秒比較は実施しない。初期hook中立化は既定OFFのまま実装を保持し、動的な妥当性検証は後続PRに委ねる。PR #259のmerge後は診断結果と残課題を#257へ記録してcloseする。
+- **評価器の整理:** completed `attachment_pattern` archiveから`t=0`初期形状図を標準生成し、`attachment_slots/`と併置する。#257専用のstall・ON/OFF差分・pair replay・旧ON結合特例は共通評価器から除く。既存の比較bundleは改変せず、旧診断の再解析は当時の固定commitとarchiveで行う。
+- **Evidence:** Issues #245・#257、PR #259、`docs/phase2/phase2_257_body_flagella_contact_contract.md`、`outputs/2026-10-04/131754/issue257_hex_2s_on_off_visualization/`の`comparison_summary.csv`・`summary.csv`・`stall_summary.csv`・pair replay。
 
 ### P2-D20: RUN–TUMBLEはRUN dataset core完了後に段階実装する
 

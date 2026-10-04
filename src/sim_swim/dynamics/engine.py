@@ -261,15 +261,7 @@ class DynamicsEngine:
             dtype=bool,
         )
         self.body_spring_mask[self.body_spring_rows] = True
-        if self.model.segment_pair_indices.size > 0:
-            seg_pairs = self.model.segment_pair_indices
-            body_body_seg = (
-                self.body_spring_mask[seg_pairs[:, 0]]
-                & self.body_spring_mask[seg_pairs[:, 1]]
-            )
-            self.segment_pair_indices_for_repulsion = seg_pairs[~body_body_seg]
-        else:
-            self.segment_pair_indices_for_repulsion = self.model.segment_pair_indices
+        self.segment_repulsion_pair_counts = self._select_segment_repulsion_pairs()
         self.body_indices = self.model.body_indices.astype(int, copy=False)
         self.bead_is_body = self.model.bead_is_body.astype(bool, copy=False)
         self.motor_local_hook_scale = float(cfg.motor.local_hook_scale)
@@ -359,6 +351,52 @@ class DynamicsEngine:
 
         self.external_force_callback = callback
 
+    def _select_segment_repulsion_pairs(self) -> dict[str, int | bool]:
+        """Select active segment repulsion pairs and retain their provenance.
+
+        A body-only segment has two body endpoints. Every other segment
+        contains at least one flagellar bead, including a hook segment.
+        """
+
+        candidates = self.model.segment_pair_indices
+        enabled = bool(
+            self.cfg.potentials.spring_spring_repulsion.body_flagella_enabled
+        )
+        if candidates.size == 0:
+            self.segment_pair_indices_for_repulsion = candidates
+            return {
+                "body_flagella_enabled": enabled,
+                "all_non_neighbor": 0,
+                "body_body_excluded": 0,
+                "body_flagella_candidate": 0,
+                "flagella_flagella_candidate": 0,
+                "body_flagella_active": 0,
+                "flagella_flagella_active": 0,
+                "active_total": 0,
+            }
+
+        first_body = self.body_spring_mask[candidates[:, 0]]
+        second_body = self.body_spring_mask[candidates[:, 1]]
+        body_body = first_body & second_body
+        body_flagella = first_body ^ second_body
+        flagella_flagella = ~first_body & ~second_body
+        active = ~body_body
+        if not enabled:
+            active &= ~body_flagella
+        self.segment_pair_indices_for_repulsion = candidates[active]
+        return {
+            "body_flagella_enabled": enabled,
+            "all_non_neighbor": int(candidates.shape[0]),
+            "body_body_excluded": int(np.count_nonzero(body_body)),
+            "body_flagella_candidate": int(np.count_nonzero(body_flagella)),
+            "flagella_flagella_candidate": int(np.count_nonzero(flagella_flagella)),
+            "body_flagella_active": int(np.count_nonzero(active & body_flagella)),
+            "flagella_flagella_active": int(
+                np.count_nonzero(active & flagella_flagella)
+            ),
+            "active_total": int(np.count_nonzero(active)),
+        }
+
     def _initial_reference_angles_rad(self) -> tuple[np.ndarray, np.ndarray]:
         theta0 = np.zeros((self.model.bending_triplets.shape[0],), dtype=float)
         for idx, (i, j, k) in enumerate(self.model.bending_triplets):
@@ -401,9 +439,11 @@ class DynamicsEngine:
             key = (
                 "normal"
                 if state == int(PolymorphState.NORMAL)
-                else "semicoiled"
-                if state == int(PolymorphState.SEMICOILED)
-                else "curly1"
+                else (
+                    "semicoiled"
+                    if state == int(PolymorphState.SEMICOILED)
+                    else "curly1"
+                )
             )
             theta0[i] = math.radians(float(bend_map[key]))
 
@@ -414,9 +454,11 @@ class DynamicsEngine:
             key = (
                 "normal"
                 if state == int(PolymorphState.NORMAL)
-                else "semicoiled"
-                if state == int(PolymorphState.SEMICOILED)
-                else "curly1"
+                else (
+                    "semicoiled"
+                    if state == int(PolymorphState.SEMICOILED)
+                    else "curly1"
+                )
             )
             phi0[i] = _wrap_angle(math.radians(float(torsion_map[key])))
 

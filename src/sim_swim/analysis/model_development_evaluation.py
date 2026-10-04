@@ -171,6 +171,47 @@ def _source_rows(run_dir: Path) -> dict[str, dict[str, str]]:
         return {str(row["condition_id"]): row for row in csv.DictReader(handle)}
 
 
+def _campaign_git_provenance(
+    *, run_dir: Path, manifest: dict[str, Any]
+) -> dict[str, Any]:
+    """Return verified Git provenance, including parallel aggregate campaigns.
+
+    Aggregated campaign manifests deliberately contain only simulation metadata.
+    Their fixed-commit provenance is stored in the parent parallel job manifest.
+    Accept that layout only when the recorded porcelain status proves a clean
+    checkout; otherwise never infer Git state from the current workspace.
+    """
+
+    git = dict(manifest.get("git", {}) or {})
+    if str(git.get("commit") or "") and git.get("is_clean") is True:
+        return git
+    job_manifest = next(
+        (
+            path
+            for path in (
+                run_dir / "job_manifest.json",
+                run_dir.parent / "job_manifest.json",
+            )
+            if path.is_file()
+        ),
+        None,
+    )
+    if job_manifest is None:
+        raise ValueError(f"Invalid Git provenance in {run_dir}")
+    job = _read_json(job_manifest)
+    queued_git = dict(dict(job.get("provenance", {}) or {}).get("git", {}) or {})
+    status = str(queued_git.get("status") or "")
+    commit = str(queued_git.get("commit") or "")
+    if not commit or not status.startswith("## ") or "\n" in status:
+        raise ValueError(f"Invalid Git provenance in {run_dir}")
+    return {
+        "commit": commit,
+        "is_clean": True,
+        "source": "parallel_job_manifest",
+        "status": status,
+    }
+
+
 def _resolve_condition_output_dir(
     *, run_dir: Path, record: dict[str, Any], source_condition_id: str
 ) -> Path:
@@ -250,6 +291,9 @@ def _row(
         "source_condition_id": str(
             record.get("source_condition_id", record["condition_id"])
         ),
+        "source_campaign": str(record.get("source_campaign", "")),
+        "source_git_commit": str(record.get("source_git_commit", "")),
+        "source_reused": bool(record.get("source_reused", False)),
         "first_failure_category": first_failure_category,
         "first_failure_at": first_failure_at,
     }
@@ -345,15 +389,14 @@ def collect_rows(
             raise ValueError(
                 f"Unaccepted source campaign in {run_dir}: {campaign_config}"
             )
-        git = dict(manifest.get("git", {}) or {})
-        if not str(git.get("commit") or "") or git.get("is_clean") is not True:
-            raise ValueError(f"Invalid Git provenance in {run_dir}")
+        git = _campaign_git_provenance(run_dir=run_dir, manifest=manifest)
         source_rows = _source_rows(run_dir)
         provenance.append(
             {
                 "run_dir": str(run_dir.resolve()),
-                "git": dict(manifest.get("git", {}) or {}),
+                "git": git,
                 "model_profile": profile,
+                "source_campaign": campaign_config,
             }
         )
         for raw_record in manifest.get("conditions", []) or []:
@@ -416,6 +459,11 @@ def collect_rows(
             canonical_record["output_dir"] = str(output_dir)
             canonical_record["condition_id"] = condition_id
             canonical_record["source_condition_id"] = source_condition_id
+            canonical_record["axis_values"] = dict(expected_record["axis_values"])
+            canonical_record["axis_labels"] = dict(expected_record["axis_labels"])
+            canonical_record["source_campaign"] = campaign_config
+            canonical_record["source_git_commit"] = str(git["commit"])
+            canonical_record["source_reused"] = False
             records_by_id[condition_id] = (
                 canonical_record,
                 source_rows[source_condition_id],
@@ -591,31 +639,44 @@ def _write_replay_input(
     base_config: str | None = None
     contract = _development_contract(config)
     contract_axes = [str(axis) for axis in contract["axes"]]
+    expected = _expected_conditions(config)
     expected_by_key = {
         _record_key(condition, contract_axes): condition_id
-        for condition_id, condition in _expected_conditions(config).items()
+        for condition_id, condition in expected.items()
     }
     for run_dir in run_dirs:
         manifest = _read_json(run_dir / "run_manifest.json")
+        campaign_config = str(manifest.get("campaign_config") or "")
+        git = _campaign_git_provenance(run_dir=run_dir, manifest=manifest)
         if base_config is None:
-            source_config = manifest.get("source_config_path") or manifest.get(
-                "base_config"
-            )
-            if source_config is not None:
+            source_config = manifest.get("source_config_path")
+            if source_config is not None and Path(str(source_config)).is_file():
                 base_config = str(source_config)
+            else:
+                base_config = str(manifest.get("base_config") or "")
         source_rows = _source_rows(run_dir)
         for raw_record in manifest.get("conditions", []) or []:
             record = dict(raw_record)
             source_condition_id = str(record["condition_id"])
-            record["condition_id"] = expected_by_key[_record_key(record, contract_axes)]
+            condition_id = expected_by_key[_record_key(record, contract_axes)]
+            record["condition_id"] = condition_id
             record["source_condition_id"] = source_condition_id
-            record["output_dir"] = str(
-                _resolve_condition_output_dir(
-                    run_dir=run_dir,
-                    record=record,
-                    source_condition_id=source_condition_id,
-                )
+            record["axis_values"] = dict(expected[condition_id]["axis_values"])
+            record["axis_labels"] = dict(expected[condition_id]["axis_labels"])
+            record["source_campaign"] = campaign_config
+            record["source_git_commit"] = str(git.get("commit") or "")
+            record["source_reused"] = False
+            source_output_dir = _resolve_condition_output_dir(
+                run_dir=run_dir,
+                record=record,
+                source_condition_id=source_condition_id,
             )
+            record["output_dir"] = str(source_output_dir)
+            geometry_path = source_output_dir / "initial_geometry_summary.json"
+            if geometry_path.is_file():
+                geometry = dict(_read_json(geometry_path).get("geometry", {}) or {})
+                if geometry:
+                    record["geometry"] = {"actual": geometry}
             records.append(record)
             summary_row = dict(source_rows[source_condition_id])
             summary_row["condition_id"] = str(record["condition_id"])
@@ -650,7 +711,7 @@ def _render_replays(
     if rows and rows[0].get("attachment_pattern"):
         groups = [
             (
-                f"nf{n_flagella:02d}/attachment_patterns",
+                f"nf{n_flagella:02d}",
                 [
                     row["condition_id"]
                     for row in rows
@@ -703,7 +764,7 @@ def _render_replays(
             "--target-frame-count",
             "41",
             "--max-panels-per-grid",
-            "5",
+            "6",
             "--overwrite",
         ]
         for condition_id in selected:
@@ -765,9 +826,18 @@ def build_evaluation(
     outputs["replay_input"] = replay_input
     if rows and rows[0].get("attachment_pattern"):
         from sim_swim.analysis.attachment_slot_map import render_attachment_slot_map
+        from sim_swim.analysis.initial_geometry_plot import render_initial_geometry
 
         outputs.update(
             render_attachment_slot_map(replay_input, output_dir / "attachment_slots")
+        )
+        base_config = load_yaml(Path(str(config["base_config"])))
+        outputs.update(
+            render_initial_geometry(
+                replay_input,
+                output_dir / "initial_geometry",
+                b_um=float(base_config["scale"]["b_um"]),
+            )
         )
     if render_replay:
         _render_replays(

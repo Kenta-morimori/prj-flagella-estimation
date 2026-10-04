@@ -18,6 +18,7 @@ PARALLEL_CAMPAIGN_ROOT_FILES = (
     "summary.csv",
     "campaign_completion.json",
 )
+PARALLEL_CAMPAIGN_PROVENANCE_FILE = "job_manifest.json"
 SyncLayout = Literal["reference", "parallel-campaign"]
 
 
@@ -53,10 +54,29 @@ def _remote_hashes(
     result = subprocess.run(
         ["ssh", host, command], check=True, text=True, capture_output=True
     )
-    return {
+    hashes = {
         line.split(maxsplit=1)[1].removeprefix("./"): line.split(maxsplit=1)[0]
         for line in result.stdout.splitlines()
     }
+    if layout == "parallel-campaign":
+        provenance = (
+            subprocess.run(
+                [
+                    "ssh",
+                    host,
+                    f"cd {shlex.quote(remote_dir)} && sha256sum ../{PARALLEL_CAMPAIGN_PROVENANCE_FILE}",
+                ],
+                check=True,
+                text=True,
+                capture_output=True,
+            )
+            .stdout.strip()
+            .split(maxsplit=1)
+        )
+        if len(provenance) != 2:
+            raise RuntimeError("cs10 job manifest checksum was not produced")
+        hashes[PARALLEL_CAMPAIGN_PROVENANCE_FILE] = provenance[0]
+    return hashes
 
 
 def sync(
@@ -82,6 +102,11 @@ def sync(
             *[
                 ["scp", f"{remote}/{name}", str(local_dir)]
                 for name in PARALLEL_CAMPAIGN_ROOT_FILES
+            ],
+            [
+                "scp",
+                f"{host}:{remote_dir.rstrip('/').rsplit('/', 1)[0]}/{PARALLEL_CAMPAIGN_PROVENANCE_FILE}",
+                str(local_dir),
             ],
         ]
     elif layout == "reference":

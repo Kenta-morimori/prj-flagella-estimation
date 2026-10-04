@@ -390,6 +390,7 @@ class FlagellumParams:
     length_over_b: float = 5.8
     helix_init: FlagellaHelixInitParams = field(default_factory=FlagellaHelixInitParams)
     initial_helix_axis_from_rear_deg: float | None = None
+    initial_hook_force_neutral: bool = False
 
 
 @dataclass(frozen=True)
@@ -460,6 +461,9 @@ class SpringSpringRepulsionParams:
     A_ss_over_T: float = 1.0
     a_ss_over_b: float = 0.2
     cutoff_over_b: float = 0.2
+    # Keep the historical interaction set by default.  Diagnostic candidates
+    # may disable only body-only / flagellum-containing segment interactions.
+    body_flagella_enabled: bool = True
 
 
 @dataclass(frozen=True)
@@ -1577,6 +1581,9 @@ class SimulationConfig:
                 if flag_raw.get("initial_helix_axis_from_rear_deg") not in (None, "")
                 else None
             ),
+            initial_hook_force_neutral=bool(
+                _get(flag_raw, "initial_hook_force_neutral", False)
+            ),
         )
 
         fluid_raw = raw.get("fluid", {}) or {}
@@ -1759,10 +1766,17 @@ class SimulationConfig:
         if cutoff is None and "cutoff_um" in rep_raw:
             cutoff = float(rep_raw["cutoff_um"]) / max(scale.b_um, 1e-12)
 
+        body_flagella_enabled = rep_raw.get("body_flagella_enabled", True)
+        if not isinstance(body_flagella_enabled, bool):
+            raise ValueError(
+                "potentials.spring_spring_repulsion.body_flagella_enabled "
+                "must be a boolean"
+            )
         repulsion = SpringSpringRepulsionParams(
             A_ss_over_T=float(a_over if a_over is not None else 1.0),
             a_ss_over_b=float(a_len if a_len is not None else 0.2),
             cutoff_over_b=float(cutoff if cutoff is not None else 0.2),
+            body_flagella_enabled=body_flagella_enabled,
         )
 
         potentials = PotentialsParams(

@@ -43,6 +43,7 @@ def _campaign(tmp_path: Path) -> tuple[Path, Path]:
         "campaign_completion.json",
     ):
         (campaign / name).write_bytes(name.encode())
+    (campaign.parent / "job_manifest.json").write_bytes(b"job provenance")
     return campaign, child
 
 
@@ -68,9 +69,11 @@ def test_parallel_campaign_dry_run_selects_only_live_artifacts(
         "--exclude=render.log",
     ]
     assert commands[0][4] == "cs10:/remote/campaign/conditions/"
-    assert [Path(command[1]).name for command in commands[1:]] == list(
-        module.PARALLEL_CAMPAIGN_ROOT_FILES
-    )
+    assert [Path(command[1]).name for command in commands[1:]] == [
+        *module.PARALLEL_CAMPAIGN_ROOT_FILES,
+        module.PARALLEL_CAMPAIGN_PROVENANCE_FILE,
+    ]
+    assert commands[-1][1] == "cs10:/remote/job_manifest.json"
     assert not any(
         "/analysis" in item or "reference_manifest" in item
         for command in commands
@@ -100,6 +103,8 @@ def test_remote_hashes_follow_parallel_symlinks_and_exclude_logs(
 
     def fake_run(args: list[str], **_kwargs: object) -> SimpleNamespace:
         commands.append(args)
+        if "sha256sum ../job_manifest.json" in args[2]:
+            return SimpleNamespace(stdout="def456  ../job_manifest.json\n")
         return SimpleNamespace(
             stdout="abc123  conditions/nf01__slots0/state_archive.npz\n"
         )
@@ -108,13 +113,17 @@ def test_remote_hashes_follow_parallel_symlinks_and_exclude_logs(
     result = module._remote_hashes(
         "cs10", "/remote/campaign", layout="parallel-campaign"
     )
-    assert result == {"conditions/nf01__slots0/state_archive.npz": "abc123"}
+    assert result == {
+        "conditions/nf01__slots0/state_archive.npz": "abc123",
+        "job_manifest.json": "def456",
+    }
     command = commands[0][2]
     assert (
         "find -L conditions run_manifest.json manifest.json summary.csv campaign_completion.json"
         in command
     )
     assert "! -name run.log ! -name render.log" in command
+    assert "sha256sum ../job_manifest.json" in commands[1][2]
 
 
 def test_parallel_campaign_sync_dereferences_and_verifies_hashes(
@@ -135,7 +144,10 @@ def test_parallel_campaign_sync_dereferences_and_verifies_hashes(
                 ignore=shutil.ignore_patterns("run.log", "render.log"),
             )
         else:
-            source = campaign / Path(args[1]).name
+            source_root = (
+                campaign.parent if "job_manifest.json" in args[1] else campaign
+            )
+            source = source_root / Path(args[1]).name
             if not source.is_file():
                 raise FileNotFoundError(source)
             shutil.copy2(source, local)
@@ -148,6 +160,9 @@ def test_parallel_campaign_sync_dereferences_and_verifies_hashes(
         }
         files.update(
             {name: campaign / name for name in module.PARALLEL_CAMPAIGN_ROOT_FILES}
+        )
+        files[module.PARALLEL_CAMPAIGN_PROVENANCE_FILE] = (
+            campaign.parent / module.PARALLEL_CAMPAIGN_PROVENANCE_FILE
         )
         return {
             name: hashlib.sha256(path.read_bytes()).hexdigest()
@@ -164,6 +179,7 @@ def test_parallel_campaign_sync_dereferences_and_verifies_hashes(
     ).read_bytes() == b"completed archive"
     assert not (local / "conditions/nf01__slots0").is_symlink()
     assert not (local / "conditions/nf01__slots0/run.log").exists()
+    assert (local / "job_manifest.json").read_bytes() == b"job provenance"
 
 
 def test_parallel_campaign_sync_rejects_missing_artifact_and_hash_mismatch(
@@ -180,7 +196,10 @@ def test_parallel_campaign_sync_rejects_missing_artifact_and_hash_mismatch(
                 campaign / "conditions", destination, symlinks=False, dirs_exist_ok=True
             )
         else:
-            source = campaign / Path(args[1]).name
+            source_root = (
+                campaign.parent if "job_manifest.json" in args[1] else campaign
+            )
+            source = source_root / Path(args[1]).name
             if not source.is_file():
                 raise FileNotFoundError(source)
             shutil.copy2(source, destination)
