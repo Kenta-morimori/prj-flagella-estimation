@@ -12,7 +12,7 @@ Issue #257は`execution:cs10`のUser-run campaignである。short screenを含�
 
 - hex short screen: `2010_hex_project_body_flagella_contact_screen_issue257.yaml`。#245の13 attachment配置をON/OFFで比較する26条件。
 - hex 2 s: `2010_hex_project_body_flagella_contact_2s_issue257.yaml`。short screenをreviewした後、#245のcompleted ON 13条件を再利用し、OFF 13条件だけを新規実行した。motor strict FAILが残るため、ユーザー承認により両armを診断専用で比較した。
-- project補足: `2010_project_body_flagella_contact_{screen,2s}_issue257.yaml`。`n=4,5,6`をON/OFFで比較する各6条件。
+- project補足: `2010_project_body_flagella_contact_screen_issue257.yaml`。`n=4,5,6`のON/OFF 6条件。project 2秒比較は実施せず、未使用のconfig/jobをPR #259から除く。
 - 全armでtorque、Δt、seed、archive、Brownian/switchingを固定する。motor residualは#255との並行診断として記録し、採択根拠にはしない。
 
 ## 2秒診断
@@ -25,10 +25,12 @@ Issue #257は`execution:cs10`のUser-run campaignである。short screenを含�
 
 26条件すべてで`first_failure_category=hook`が最初の内部step（4 µs）に記録された。元の生記録はhook角度誤差30°超を拾うが、角度は本契約ではdiagnostic-onlyである。実行設定から初期モデルを再構成すると、t=0の角度誤差は全26条件で31.106〜32.383°であり、ON/OFFで同一だった。したがって初回記録は初期配置と角度基準の不整合に由来し、排除ON/OFFの差や最初の時間積分による発生ではない。既存archiveの形状・閾値は変更しない。
 
-hook長の最大相対誤差は全条件で0.0509〜0.1007とstrict閾値1.0未満である。一方、motor torque residualは0.1007〜0.3661でstrict閾値0.02を全条件で超え、26/26 armがstrict FAILである。比較はdiagnostic-onlyのままとし、#255の解決根拠、canonical model、datasetには渡さない。projectの2秒比較は未実行であり、#257は本PRのmergeでは完了しない。
+hook長の最大相対誤差は全条件で0.0509〜0.1007とstrict閾値1.0未満である。一方、motor torque residualは0.1007〜0.3661でstrict閾値0.02を全条件で超え、26/26 armがstrict FAILである。比較はdiagnostic-onlyのままとし、#255の解決根拠、canonical model、datasetには渡さない。projectの2秒比較は実施しない。merge承認後に全本数overview画像と結論・残課題を#257へ記録し、closeする。
 
 ## pending初期hook中立配置
 
 PR #259で既定OFFの`flagella.initial_hook_force_neutral`を追加し、`2010_hex_project_hook_neutral_screen_issue257.yaml`の26条件だけでONにする。各べん毛の位相・螺旋軸・内部bond/曲げ/ねじれを変えずに全体を平行移動し、hook長を固定して初期hook角を90°にする。90°はhookポテンシャルの適用分岐に入るが平衡角であるため、t=0の曲げ力は数値許容差内でゼロとなる。preflightでは角度90°±1e-6°、hook長、hook力、外向き、非付着body beadとflagellum beadおよびflagellum同士の中心距離≥bead直径を確認する。bead clearanceはsegment間の完全非接触を意味せず、後者は固定した形状・hook長の下では保証しない。
 
 この変更は初期geometryのみの候補であり、simulationは未実行である。旧#245/#257の26 archiveは修正前モデルの診断結果として分離し、新候補へのQC PASSや長時間結果として再解釈しない。従来の30° raw指標、動作中のstrict QC閾値、motor residualの扱いは変えない。新short screenの実行には別途ユーザーの操作別承認が必要である。
+
+共通評価器は今後のcompleted `attachment_pattern` archiveから`initial_geometry/`図を`attachment_slots/`と同時に生成する。既存の#257診断bundleは変更しない。過去のON/OFF結合評価を再実行する場合は、専用処理を含む固定commit `de05985` と当時のcompleted archive・SHA-256を使用し、現行HEADの汎用評価器へ旧ON sourceを入力しない。

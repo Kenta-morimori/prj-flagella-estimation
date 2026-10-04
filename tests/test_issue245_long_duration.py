@@ -196,8 +196,10 @@ def test_long_duration_collects_portable_archives_and_window_qc(
     monkeypatch, tmp_path: Path
 ) -> None:
     import sim_swim.analysis.attachment_slot_map as slot_map
+    import sim_swim.analysis.initial_geometry_plot as geometry_plot
 
     monkeypatch.setattr(slot_map, "render_attachment_slot_map", lambda *_: {})
+    monkeypatch.setattr(geometry_plot, "render_initial_geometry", lambda *_, **__: {})
     run_dir = _write_long_run(tmp_path)
     rows, _ = collect_rows(config=load_yaml(CONFIG), run_dirs=[run_dir])
     assert len(rows) == 13
@@ -231,6 +233,7 @@ def test_attachment_slot_map_is_default_without_replay(
     monkeypatch, tmp_path: Path
 ) -> None:
     import sim_swim.analysis.attachment_slot_map as slot_map
+    import sim_swim.analysis.initial_geometry_plot as geometry_plot
 
     calls: list[Path] = []
 
@@ -242,6 +245,17 @@ def test_attachment_slot_map_is_default_without_replay(
         return {"attachment_slot_map": image}
 
     monkeypatch.setattr(slot_map, "render_attachment_slot_map", fake_slot_map)
+
+    def fake_geometry(
+        _replay_input: Path, destination: Path, *, b_um: float
+    ) -> dict[str, Path]:
+        assert b_um > 0
+        destination.mkdir(parents=True)
+        image = destination / "all_counts_overview.png"
+        image.write_bytes(b"initial geometry")
+        return {"initial_geometry_overview": image}
+
+    monkeypatch.setattr(geometry_plot, "render_initial_geometry", fake_geometry)
     run_dir = _write_long_run(tmp_path)
     output_dir = tmp_path / "evaluation"
     outputs = build_evaluation(
@@ -249,10 +263,14 @@ def test_attachment_slot_map_is_default_without_replay(
     )
     assert calls == [output_dir / "attachment_slots"]
     assert outputs["attachment_slot_map"].is_file()
+    assert outputs["initial_geometry_overview"].is_file()
     assert "replay" not in outputs
     manifest = json.loads(outputs["manifest"].read_text())
     assert manifest["outputs"]["attachment_slot_map"] == str(
         outputs["attachment_slot_map"]
+    )
+    assert manifest["outputs"]["initial_geometry_overview"] == str(
+        outputs["initial_geometry_overview"]
     )
 
 
@@ -362,8 +380,10 @@ def test_long_duration_manifest_marks_partial_artifacts_diagnostic_only(
     tmp_path: Path,
 ) -> None:
     import sim_swim.analysis.attachment_slot_map as slot_map
+    import sim_swim.analysis.initial_geometry_plot as geometry_plot
 
     monkeypatch.setattr(slot_map, "render_attachment_slot_map", lambda *_: {})
+    monkeypatch.setattr(geometry_plot, "render_initial_geometry", lambda *_, **__: {})
     run_dir = _write_long_run(tmp_path)
     outputs = build_evaluation(
         config_path=CONFIG, run_dirs=[run_dir], output_dir=tmp_path / "evaluation"

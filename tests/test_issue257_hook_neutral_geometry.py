@@ -167,3 +167,28 @@ def test_neutral_placement_rejects_unachievable_bead_clearance() -> None:
         _neutralize_initial_hooks_without_bead_overlap(
             body, [flag], np.array([0]), hook_length_um=0.25, bead_diameter_um=10.0
         )
+
+
+def test_switch_off_exactly_restores_default_initial_geometry(screen) -> None:
+    campaign, conditions = screen
+    base = load_yaml(ROOT / campaign["base_config"])
+    assert SimulationConfig.from_dict(base).flagella.initial_hook_force_neutral is False
+    for condition in conditions:
+        overrides = {
+            key: value
+            for key, value in condition["config_overrides"].items()
+            if key != "flagella.initial_hook_force_neutral"
+        }
+        default = ModelBuilder(
+            SimulationConfig.from_dict(base).with_overrides(overrides)
+        ).build()
+        explicit_off = ModelBuilder(
+            SimulationConfig.from_dict(base).with_overrides(
+                {**overrides, "flagella.initial_hook_force_neutral": False}
+            )
+        ).build()
+        np.testing.assert_array_equal(default.positions_m, explicit_off.positions_m)
+        np.testing.assert_array_equal(
+            default.flagella_initial_phases_rad,
+            explicit_off.flagella_initial_phases_rad,
+        )

@@ -18,6 +18,10 @@ hook angleは診断として保存するが、shape PASS/FAILには用いない�
 
 `2010_hex_project`のattachment比較では、compound `attachment_pattern` axisに明示slot集合を保存する。C6回転のみを同一視し反射は区別する。同期済みcompleted archiveから、pattern列・べん毛数行のsparse heatmapと固定camera 3D/2D replayを共通集約器で生成する。screen FAIL後に明示許可された連続mainを実行しても、そのmain archiveはdiagnostic-onlyであり、採択根拠にしない。
 
+`attachment_pattern`を持つmulti-runのcompleted archive評価では、replay指定に依存せず、`t=0`の実座標から`attachment_slots/`と並ぶ`initial_geometry/`を標準生成する。全本数overviewは各本数の均等配置（なければcondition ID順の先頭）を示し、本数別図は全配置を示す。同一座標のarmだけを同一panelへ集約し、camera・座標範囲・べん毛色を統一する。入力archiveと画像のSHA-256、condition対応をmanifestに残す。partial・欠損archiveは受け入れない。
+
+Issue #257の40 ms stall判定、ON/OFF差分図、pair replay、#245旧ON campaignのselector補完は汎用評価器の契約ではない。生成済み診断bundleは履歴として保持し、再解析が必要なら当時の固定commitとarchiveを用いる。
+
 ## Consequences
 
 - Issue専用のmodel-evaluation解析器を新設しない。

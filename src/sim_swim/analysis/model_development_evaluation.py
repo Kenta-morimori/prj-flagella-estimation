@@ -8,7 +8,6 @@ never starts simulations.
 from __future__ import annotations
 
 import argparse
-import copy
 import csv
 import hashlib
 import json
@@ -26,7 +25,6 @@ from sim_swim.analysis.multi_run_campaign import (
     load_yaml,
     normalize_campaign_config,
 )
-from sim_swim.analysis.flagella_count_behavior import load_state_archive
 from sim_swim.sim.debug_summary import (
     NONBODY_FLAG_BEND_ERR_MAX_DEG_LIMIT,
     NONBODY_FLAG_BOND_REL_ERR_MAX_LIMIT,
@@ -166,61 +164,6 @@ def _development_contract(config: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(contract.get("accepted_source_campaigns"), list):
         raise ValueError("development_evaluation.accepted_source_campaigns is required")
     return contract
-
-
-def _reused_source_spec(
-    contract: dict[str, Any], campaign_config: str
-) -> tuple[dict[str, Any], list[str]]:
-    """Return declared defaults for a completed historical source campaign."""
-
-    sources = dict(contract.get("reused_source_campaigns", {}) or {})
-    source = dict(sources.get(campaign_config, {}) or {})
-    defaults = dict(source.get("axis_defaults", {}) or {})
-    paths = [str(path) for path in source.get("relaxed_config_override_paths", [])]
-    return defaults, paths
-
-
-def _normalize_reused_source_record(
-    record: dict[str, Any], *, axis_defaults: dict[str, Any]
-) -> dict[str, Any]:
-    """Add only contract-declared axis defaults to a historical record."""
-
-    normalized = copy.deepcopy(record)
-    axes = dict(normalized.get("axis_values", {}) or {})
-    axes.update(axis_defaults)
-    normalized["axis_values"] = axes
-    return normalized
-
-
-def _without_override_paths(value: Any, paths: list[str]) -> Any:
-    """Drop declared compatibility-only dotted paths before comparison."""
-
-    normalized = copy.deepcopy(value)
-    for path in paths:
-        current = normalized
-        parts = path.split(".")
-        for part in parts[:-1]:
-            if not isinstance(current, dict) or part not in current:
-                current = None
-                break
-            current = current[part]
-        if isinstance(current, dict):
-            current.pop(parts[-1], None)
-    return _drop_empty_mappings(normalized)
-
-
-def _drop_empty_mappings(value: Any) -> Any:
-    """Remove empty mappings left by a declared compatibility-only override."""
-
-    if isinstance(value, dict):
-        return {
-            key: item
-            for key, raw_item in value.items()
-            if (item := _drop_empty_mappings(raw_item)) != {}
-        }
-    if isinstance(value, list):
-        return [_drop_empty_mappings(item) for item in value]
-    return value
 
 
 def _source_rows(run_dir: Path) -> dict[str, dict[str, str]]:
@@ -448,20 +391,16 @@ def collect_rows(
             )
         git = _campaign_git_provenance(run_dir=run_dir, manifest=manifest)
         source_rows = _source_rows(run_dir)
-        axis_defaults, relaxed_paths = _reused_source_spec(contract, campaign_config)
         provenance.append(
             {
                 "run_dir": str(run_dir.resolve()),
                 "git": git,
                 "model_profile": profile,
                 "source_campaign": campaign_config,
-                "reused_axis_defaults": axis_defaults,
             }
         )
         for raw_record in manifest.get("conditions", []) or []:
-            record = _normalize_reused_source_record(
-                dict(raw_record), axis_defaults=axis_defaults
-            )
+            record = dict(raw_record)
             source_condition_id = str(record["condition_id"])
             try:
                 condition_id = expected_by_key[_record_key(record, contract_axes)]
@@ -479,10 +418,7 @@ def collect_rows(
                 )
             expected_record = expected[condition_id]
             if not _equal_values(
-                _without_override_paths(record.get("config_overrides"), relaxed_paths),
-                _without_override_paths(
-                    expected_record["config_overrides"], relaxed_paths
-                ),
+                record.get("config_overrides"), expected_record["config_overrides"]
             ):
                 raise ValueError(
                     f"Config override mismatch for {source_condition_id} in {run_dir}"
@@ -527,7 +463,7 @@ def collect_rows(
             canonical_record["axis_labels"] = dict(expected_record["axis_labels"])
             canonical_record["source_campaign"] = campaign_config
             canonical_record["source_git_commit"] = str(git["commit"])
-            canonical_record["source_reused"] = bool(axis_defaults)
+            canonical_record["source_reused"] = False
             records_by_id[condition_id] = (
                 canonical_record,
                 source_rows[source_condition_id],
@@ -711,7 +647,6 @@ def _write_replay_input(
     for run_dir in run_dirs:
         manifest = _read_json(run_dir / "run_manifest.json")
         campaign_config = str(manifest.get("campaign_config") or "")
-        axis_defaults, _ = _reused_source_spec(contract, campaign_config)
         git = _campaign_git_provenance(run_dir=run_dir, manifest=manifest)
         if base_config is None:
             source_config = manifest.get("source_config_path")
@@ -721,9 +656,7 @@ def _write_replay_input(
                 base_config = str(manifest.get("base_config") or "")
         source_rows = _source_rows(run_dir)
         for raw_record in manifest.get("conditions", []) or []:
-            record = _normalize_reused_source_record(
-                dict(raw_record), axis_defaults=axis_defaults
-            )
+            record = dict(raw_record)
             source_condition_id = str(record["condition_id"])
             condition_id = expected_by_key[_record_key(record, contract_axes)]
             record["condition_id"] = condition_id
@@ -732,7 +665,7 @@ def _write_replay_input(
             record["axis_labels"] = dict(expected[condition_id]["axis_labels"])
             record["source_campaign"] = campaign_config
             record["source_git_commit"] = str(git.get("commit") or "")
-            record["source_reused"] = bool(axis_defaults)
+            record["source_reused"] = False
             source_output_dir = _resolve_condition_output_dir(
                 run_dir=run_dir,
                 record=record,
@@ -839,266 +772,6 @@ def _render_replays(
         replay_main(args)
 
 
-def _body_axis_and_roll(
-    beads_um: np.ndarray, *, n_prism: int
-) -> tuple[np.ndarray, float]:
-    """Return the body axis and a reproducible roll marker angle from archive beads."""
-
-    layers = beads_um.shape[0] // n_prism
-    first = beads_um[:n_prism]
-    last = beads_um[(layers - 1) * n_prism : layers * n_prism]
-    axis = np.mean(last, axis=0) - np.mean(first, axis=0)
-    axis /= max(float(np.linalg.norm(axis)), 1e-18)
-    reference = np.array([1.0, 0.0, 0.0])
-    if abs(float(np.dot(axis, reference))) > 0.9:
-        reference = np.array([0.0, 1.0, 0.0])
-    e1 = np.cross(axis, reference)
-    e1 /= max(float(np.linalg.norm(e1)), 1e-18)
-    e2 = np.cross(axis, e1)
-    marker = first[0] - np.mean(first, axis=0)
-    return axis, float(np.arctan2(np.dot(marker, e2), np.dot(marker, e1)))
-
-
-def _stall_rows(
-    *, rows: list[dict[str, Any]], config: dict[str, Any]
-) -> list[dict[str, Any]]:
-    """Derive configured stall candidates from completed long-duration archives."""
-
-    diagnostic = dict(
-        config.get("development_evaluation", {}).get("stall_diagnostic", {}) or {}
-    )
-    if not diagnostic:
-        return []
-    window_s = float(diagnostic["window_ms"]) / 1000.0
-    threshold = float(diagnostic["relative_median_threshold"])
-    base = load_yaml(Path(str(config["base_config"])))
-    n_prism = int(base["body"]["prism"]["n_prism"])
-    result: list[dict[str, Any]] = []
-    for row in rows:
-        states = load_state_archive(
-            Path(str(row["source_output_dir"])) / "state_archive.npz"
-        )
-        times = np.asarray([state.t for state in states], dtype=float)
-        speeds = np.asarray([np.linalg.norm(state.velocity_um_s) for state in states])
-        axes, phases = zip(
-            *[
-                _body_axis_and_roll(
-                    np.asarray(state.bead_positions_um)[
-                        : int(base["model_profile"]["body_beads"])
-                    ],
-                    n_prism=n_prism,
-                )
-                for state in states
-            ],
-            strict=True,
-        )
-        phases_unwrapped = np.unwrap(np.asarray(phases, dtype=float))
-        roll_hz = np.zeros_like(times)
-        if len(times) > 1:
-            roll_hz[1:] = np.abs(np.diff(phases_unwrapped) / np.diff(times)) / (
-                2.0 * np.pi
-            )
-        speed_median = float(np.nanmedian(speeds[1:]))
-        roll_median = float(np.nanmedian(roll_hz[1:]))
-        start = float(times[0])
-        while start < float(times[-1]):
-            mask = (times >= start) & (times < start + window_s)
-            if np.count_nonzero(mask) < 2:
-                start += window_s
-                continue
-            indices = np.flatnonzero(mask)
-            axis_angle = math.degrees(
-                math.acos(
-                    float(
-                        np.clip(np.dot(axes[indices[0]], axes[indices[-1]]), -1.0, 1.0)
-                    )
-                )
-            )
-            mean_speed = float(np.mean(speeds[mask]))
-            mean_roll = float(np.mean(roll_hz[mask]))
-            is_stall = bool(
-                speed_median > 0.0
-                and roll_median > 0.0
-                and mean_speed < threshold * speed_median
-                and mean_roll < threshold * roll_median
-            )
-            result.append(
-                {
-                    "condition_id": row["condition_id"],
-                    "window_start_s": start,
-                    "window_end_s": min(start + window_s, float(times[-1])),
-                    "mean_body_speed_um_s": mean_speed,
-                    "mean_body_roll_hz": mean_roll,
-                    "body_axis_angle_change_deg": axis_angle,
-                    "speed_median_um_s": speed_median,
-                    "roll_median_hz": roll_median,
-                    "stall_candidate": is_stall,
-                }
-            )
-            start += window_s
-    return result
-
-
-def _on_off_comparison_rows(
-    *, rows: list[dict[str, Any]], stall_rows: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
-    """Summarize a complete body--flagella-repulsion ON/OFF pairing."""
-
-    arms: dict[str, dict[str, dict[str, Any]]] = {}
-    windows_by_id: dict[str, list[dict[str, Any]]] = {}
-    for window in stall_rows:
-        windows_by_id.setdefault(str(window["condition_id"]), []).append(window)
-    for row in rows:
-        condition_id = str(row["condition_id"])
-        for label in ("bfon", "bfoff"):
-            suffix = f"__{label}"
-            if condition_id.endswith(suffix):
-                pair_id = condition_id.removesuffix(suffix)
-                arms.setdefault(pair_id, {})[label] = row
-                break
-    comparisons: list[dict[str, Any]] = []
-    for pair_id, pair in sorted(arms.items()):
-        if set(pair) != {"bfon", "bfoff"}:
-            raise ValueError(f"Incomplete ON/OFF pair: {pair_id}")
-        values: dict[str, Any] = {
-            "attachment_pattern": pair_id,
-            "n_flagella": int(pair["bfon"]["n_flagella"]),
-            "attachment_slots": pair["bfon"]["attachment_slots"],
-        }
-        for label, prefix in (("bfon", "on"), ("bfoff", "off")):
-            row = pair[label]
-            windows = windows_by_id.get(str(row["condition_id"]), [])
-            if not windows:
-                raise ValueError(f"Missing stall windows for {row['condition_id']}")
-            stall_windows = [item for item in windows if _bool(item["stall_candidate"])]
-            values.update(
-                {
-                    f"{prefix}_condition_id": row["condition_id"],
-                    f"{prefix}_source_campaign": row["source_campaign"],
-                    f"{prefix}_git_commit": row["source_git_commit"],
-                    f"{prefix}_state_archive_sha256": row["state_archive_sha256"],
-                    f"{prefix}_speed_median_um_s": float(
-                        windows[0]["speed_median_um_s"]
-                    ),
-                    f"{prefix}_roll_median_hz": float(windows[0]["roll_median_hz"]),
-                    f"{prefix}_axis_step_angle_median_deg": float(
-                        np.median(
-                            [
-                                float(item["body_axis_angle_change_deg"])
-                                for item in windows
-                            ]
-                        )
-                    ),
-                    f"{prefix}_stall_window_count": len(stall_windows),
-                    f"{prefix}_stall_total_s": sum(
-                        float(item["window_end_s"]) - float(item["window_start_s"])
-                        for item in stall_windows
-                    ),
-                    f"{prefix}_stall_fraction": len(stall_windows) / len(windows),
-                    f"{prefix}_strict_status": row["screen_status"],
-                }
-            )
-        for metric in (
-            "speed_median_um_s",
-            "roll_median_hz",
-            "axis_step_angle_median_deg",
-            "stall_total_s",
-            "stall_fraction",
-        ):
-            values[f"off_minus_on_{metric}"] = float(values[f"off_{metric}"]) - float(
-                values[f"on_{metric}"]
-            )
-        comparisons.append(values)
-    if len(comparisons) * 2 != len(rows):
-        raise ValueError("Every evaluated condition must belong to one ON/OFF pair")
-    return comparisons
-
-
-def _plot_on_off_comparison(rows: list[dict[str, Any]], output_path: Path) -> None:
-    """Plot attachment-level OFF-minus-ON diagnostics with zero-centered scales."""
-
-    import matplotlib.pyplot as plt
-
-    metrics = (
-        ("off_minus_on_speed_median_um_s", "Δ body speed [µm/s]"),
-        ("off_minus_on_roll_median_hz", "Δ body roll [Hz]"),
-        ("off_minus_on_stall_total_s", "Δ stall time [s]"),
-        ("off_minus_on_axis_step_angle_median_deg", "Δ axis step angle [deg]"),
-    )
-    values = np.asarray(
-        [[float(row[key]) for key, _ in metrics] for row in rows], dtype=float
-    )
-    limits = np.maximum(np.max(np.abs(values), axis=0), 1.0e-12)
-    figure, axes = plt.subplots(
-        1, len(metrics), figsize=(14, max(4.5, len(rows) * 0.34))
-    )
-    labels = [f"n={row['n_flagella']} {row['attachment_pattern']}" for row in rows]
-    for index, (axis, (_, title)) in enumerate(zip(axes, metrics, strict=True)):
-        image = axis.imshow(
-            values[:, [index]], cmap="coolwarm", vmin=-limits[index], vmax=limits[index]
-        )
-        axis.set_title(title, fontsize=9)
-        axis.set_xticks([])
-        axis.set_yticks(range(len(rows)))
-        axis.set_yticklabels(labels if index == 0 else [], fontsize=7)
-        figure.colorbar(image, ax=axis, fraction=0.08, pad=0.04)
-    figure.suptitle(
-        "Body--flagella repulsion OFF − ON (diagnostic-only; strict QC remains FAIL)",
-        fontsize=11,
-    )
-    figure.tight_layout()
-    figure.savefig(output_path, dpi=220)
-    plt.close(figure)
-
-
-def _render_on_off_pair_replays(
-    comparison_rows: list[dict[str, Any]], *, replay_input: Path, output_dir: Path
-) -> None:
-    """Render each ON/OFF pair using the same fixed cameras and sampling."""
-
-    from sim_swim.analysis.phase2_replay import main as replay_main
-
-    for row in comparison_rows:
-        destination = output_dir / "pair_replay" / str(row["attachment_pattern"])
-        replay_main(
-            [
-                "--input-dir",
-                str(replay_input),
-                "--camera-envelope-input-dir",
-                str(replay_input),
-                "--output-dir",
-                str(destination),
-                "--view",
-                "3d+2d",
-                "--mode",
-                "render-only",
-                "--camera-3d",
-                "fixed",
-                "--camera-2d",
-                "fixed",
-                "--view-range-mode",
-                "campaign-envelope",
-                "--target-frame-count",
-                "41",
-                "--max-panels-per-grid",
-                "2",
-                "--overwrite",
-                "--condition-id",
-                str(row["on_condition_id"]),
-                "--condition-id",
-                str(row["off_condition_id"]),
-            ]
-        )
-
-
-def _output_hashes(output_dir: Path) -> dict[str, str]:
-    return {
-        str(path.relative_to(output_dir)): _sha256(path)
-        for path in sorted(output_dir.rglob("*"))
-        if path.is_file() and path.name not in OPERATIONAL_LOG_NAMES
-    }
-
-
 def build_evaluation(
     *,
     config_path: Path,
@@ -1147,89 +820,30 @@ def build_evaluation(
         window_path = output_dir / "window_qc.csv"
         _write_csv(window_path, window_rows)
         outputs["window_qc_csv"] = window_path
-        stall_rows = _stall_rows(rows=rows, config=config)
-        if stall_rows:
-            stall_path = output_dir / "stall_summary.csv"
-            _write_csv(stall_path, stall_rows)
-            outputs["stall_summary_csv"] = stall_path
-            import matplotlib.pyplot as plt
-
-            fig, axes = plt.subplots(2, 1, sharex=True, figsize=(9, 5))
-            for condition_id in sorted(
-                {str(item["condition_id"]) for item in stall_rows}
-            ):
-                selected = [
-                    item for item in stall_rows if item["condition_id"] == condition_id
-                ]
-                x = [float(item["window_start_s"]) for item in selected]
-                axes[0].plot(
-                    x,
-                    [item["mean_body_speed_um_s"] for item in selected],
-                    label=condition_id,
-                )
-                axes[1].plot(
-                    x,
-                    [item["mean_body_roll_hz"] for item in selected],
-                    label=condition_id,
-                )
-            axes[0].set_ylabel("body speed [µm/s]")
-            axes[1].set_ylabel("body roll [Hz]")
-            axes[1].set_xlabel("time [s]")
-            axes[0].legend(fontsize=6, ncol=2)
-            fig.tight_layout()
-            stall_plot = output_dir / "stall_timeseries.png"
-            fig.savefig(stall_plot, dpi=150)
-            plt.close(fig)
-            outputs["stall_timeseries_png"] = stall_plot
-        if stall_rows and {"bfon", "bfoff"}.issubset(
-            {str(row["condition_id"]).split("__")[-1] for row in rows}
-        ):
-            comparison_rows = _on_off_comparison_rows(rows=rows, stall_rows=stall_rows)
-            comparison_path = output_dir / "comparison_summary.csv"
-            _write_csv(comparison_path, comparison_rows)
-            outputs["comparison_summary_csv"] = comparison_path
-            comparison_heatmap = heatmap_dir / "on_off_comparison.png"
-            _plot_on_off_comparison(comparison_rows, comparison_heatmap)
-            outputs["on_off_comparison_heatmap"] = comparison_heatmap
     replay_input = _write_replay_input(
         output_dir=output_dir, run_dirs=run_dirs, config=config
     )
     outputs["replay_input"] = replay_input
     if rows and rows[0].get("attachment_pattern"):
         from sim_swim.analysis.attachment_slot_map import render_attachment_slot_map
+        from sim_swim.analysis.initial_geometry_plot import render_initial_geometry
 
         outputs.update(
             render_attachment_slot_map(replay_input, output_dir / "attachment_slots")
+        )
+        base_config = load_yaml(Path(str(config["base_config"])))
+        outputs.update(
+            render_initial_geometry(
+                replay_input,
+                output_dir / "initial_geometry",
+                b_um=float(base_config["scale"]["b_um"]),
+            )
         )
     if render_replay:
         _render_replays(
             rows, replay_input=replay_input, output_dir=output_dir, stage=stage
         )
         outputs["replay"] = output_dir / "replay"
-        if stage == "long_duration" and "comparison_rows" in locals():
-            _render_on_off_pair_replays(
-                comparison_rows, replay_input=replay_input, output_dir=output_dir
-            )
-            outputs["pair_replay"] = output_dir / "pair_replay"
-    if "comparison_rows" in locals():
-        visualization_path = output_dir / "visualization_manifest.json"
-        visualization_path.write_text(
-            json.dumps(
-                {
-                    "kind": "on_off_visualization_bundle",
-                    "condition_pair_count": len(comparison_rows),
-                    "comparison_rows": comparison_rows,
-                    "strict_qc_note": "diagnostic-only; strict QC status is not changed",
-                    "outputs": {key: str(value) for key, value in outputs.items()},
-                    "sha256": _output_hashes(output_dir),
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-            + "\n",
-            encoding="utf-8",
-        )
-        outputs["visualization_manifest"] = visualization_path
     manifest = {
         "kind": "model_development_evaluation",
         "config": str(config_path),

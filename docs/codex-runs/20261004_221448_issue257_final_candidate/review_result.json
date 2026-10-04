@@ -1,0 +1,27 @@
+{
+  "status": "PASS",
+  "task": "PR #259: initial_geometry標準出力、#257専用評価コード整理、base branch更新",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/257",
+  "pull_request": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/259",
+  "summary": "completed attachment-pattern archiveのt=0からinitial_geometry図を標準生成し、同一座標のON/OFFのみ重複排除する。#257専用stall・差分・pair replay・旧ON結合特例を共通評価器から外し、未実行project 2秒設定を除いた。hook中立化は既定OFFで残す。",
+  "checks": [
+    "targeted pytest: 22 passed",
+    "full pytest: 947 passed",
+    "Ruff check/format: PASS",
+    "git diff --check: PASS",
+    "旧completed archive 26条件から13 panel・7 PNGを共有workspaceに生成し、画像SHA-256とcondition coverageを照合",
+    "origin/mainを衝突なくmerge"
+  ],
+  "limitations": [
+    "生成した図は初期hook中立化前の旧archiveを示す。新配置のsimulation結果ではない",
+    "旧ON/#257 OFF結合診断の再解析には固定commit de05985と当時のarchiveを使用する"
+  ],
+  "user_review_required": true,
+  "user_review": "初期形状図とPR差分を確認する。Codex Cloud reviewはユーザーが2026-10-04に明示依頼済み。",
+  "adr_required": true,
+  "adr_reason": "共通評価の標準出力を変更するためADR 0021へ追記した。",
+  "not_run": [
+    "simulation、cs10接続・queue・dispatcher操作、既存reservationの変更",
+    "project 2秒比較、PR merge、Issue close"
+  ]
+}
