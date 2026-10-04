@@ -284,6 +284,44 @@ def test_attachment_pattern_replay_pages_each_count(
     ]
     assert selected == [row["condition_id"] for row in rows]
     assert all("--camera-3d" in call and "--camera-2d" in call for call in calls)
+    assert all(call[call.index("--max-panels-per-grid") + 1] == "6" for call in calls)
+    assert any(
+        str(tmp_path / "evaluation/replay/nf02") == call[call.index("--output-dir") + 1]
+        for call in calls
+    )
+
+
+def test_attachment_pattern_replay_keeps_six_conditions_on_one_grid(
+    monkeypatch, tmp_path: Path
+) -> None:
+    calls: list[list[str]] = []
+
+    def fake_replay_main(args: list[str]) -> None:
+        calls.append(args)
+
+    import sim_swim.analysis.phase2_replay as replay_module
+
+    monkeypatch.setattr(replay_module, "main", fake_replay_main)
+    rows = [
+        {
+            "condition_id": f"nf02__slots{index}__bf{arm}",
+            "n_flagella": 2,
+            "attachment_pattern": "x",
+        }
+        for index in range(3)
+        for arm in ("on", "off")
+    ]
+    _render_replays(
+        rows,
+        replay_input=tmp_path / "replay_input",
+        output_dir=tmp_path / "evaluation",
+        stage="long_duration",
+    )
+
+    assert len(calls) == 1
+    assert calls[0][calls[0].index("--max-panels-per-grid") + 1] == "6"
+    selected = [arg for arg in calls[0] if arg.startswith("nf02__slots")]
+    assert len(selected) == 6
 
 
 def test_long_duration_rejects_missing_or_mismatched_archive(tmp_path: Path) -> None:

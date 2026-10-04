@@ -778,7 +778,7 @@ def _render_replays(
     if rows and rows[0].get("attachment_pattern"):
         groups = [
             (
-                f"nf{n_flagella:02d}/attachment_patterns",
+                f"nf{n_flagella:02d}",
                 [
                     row["condition_id"]
                     for row in rows
@@ -831,7 +831,7 @@ def _render_replays(
             "--target-frame-count",
             "41",
             "--max-panels-per-grid",
-            "5",
+            "6",
             "--overwrite",
         ]
         for condition_id in selected:
