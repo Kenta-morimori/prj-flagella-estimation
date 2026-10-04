@@ -318,7 +318,8 @@ Issue単位の進捗台帳，branch一覧，acceptance criteria一覧，実行co
 - **Status:** diagnostic
 - **Comparison:** Issue #245のON 13条件を再利用し、Issue #257のOFF 13条件と同じattachment配置・数値設定で比較した。40 ms窓のbody速度とbody-rollが各condition中央値の10%未満に同時低下した区間をstall候補とした。
 - **Result:** 全13ペアでON/OFFともstall候補0窓・0秒。OFFの速度中央値がONを上回るのは2/13ペアだった。nf=5のreplayには回転・並進・姿勢の乱れが見られるが、現行stall指標では捉えられない。全26 armのstrict FAILはmotor torque residual超過（0.1007〜0.3661、閾値0.02）による。生記録上のhook first-failは角度diagnosticであり、hook長はstrict閾値内だった。
-- **Interpretation:** stall指標が両armでゼロのため、排除OFFが一時停止を改善する仮説は本指標では判定できない。nf=5の乱れの原因も断定しない。初期配置を再構成すると全26条件でt=0のhook角度誤差が31.106〜32.383°となり、生記録閾値30°を既に超えていた。これは初期配置と角度基準の設計上の不整合として未解決のまま記録し、今回の形状・閾値変更や再実行はしない。
+- **Interpretation:** stall指標が両armでゼロのため、排除OFFが一時停止を改善する仮説は本指標では判定できない。nf=5の乱れの原因も断定しない。初期配置を再構成すると全26条件でt=0のhook角度誤差が31.106〜32.383°となり、生記録閾値30°を既に超えていた。既存archiveは修正前の形状として保持する。
+- **Pending geometry change:** PR #259では既定OFFの`initial_hook_force_neutral`を追加し、新しいhex短時間screenだけで有効化する。各べん毛を内部形状・位相・軸を保って平行移動し、t=0のhook角90°、hook力の数値上ゼロ、hook長、外向き、非付着body beadとflagellum bead間およびflagellum同士の中心距離≥bead直径をpreflightで確認する。13配置×ON/OFF×位相seed 0/1/7のgeometryのみ確認し、simulationは未実行である。segment間の完全非接触はこの制約では保証できず、既存形状にも近接があるため、bead clearanceと混同しない。
 - **Decision:** #257結果はdiagnostic-onlyとし、canonical採択、dataset、#255の解決根拠に用いない。projectの2秒比較は未実行であり、#257はPR #259のmergeでcloseしない。
 - **Evidence:** Issues #245・#257、PR #259、`docs/phase2/phase2_257_body_flagella_contact_contract.md`、`outputs/2026-10-04/131754/issue257_hex_2s_on_off_visualization/`の`comparison_summary.csv`・`summary.csv`・`stall_summary.csv`・pair replay。
 

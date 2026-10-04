@@ -17,6 +17,8 @@ hexの2秒比較では、Issue #245のcompleted 2秒archive（commit `f41a693`�
 
 screen reservation #13/#14はfixed-commit contractであり、本変更に伴って停止、取消、差替えしない。projectの2秒jobはproject screenのreview後に別途判断する。
 
+PR #259の追加候補`hex_hook_neutral_screen_job.yaml`は別のpending 26条件screenで、既存job・archive・reservationを変更しない。`flagella.initial_hook_force_neutral=true`をこの新設定だけに適用し、geometry preflightで初期hook力ゼロとbead clearanceを確認する。dry-runまではローカルで実施可能だが、cs10接続、enqueue、dispatcher起動は各操作への明示承認を受けるまで行わない。short screenの結果をユーザーがreviewするまで、2秒実行へ進めない。
+
 ## Dry-run
 
 ```bash

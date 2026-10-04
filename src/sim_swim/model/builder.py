@@ -182,6 +182,103 @@ def _ensure_arr4(values: list[tuple[int, int, int, int]]) -> np.ndarray:
     return np.asarray(values, dtype=int)
 
 
+def _neutralize_initial_hooks_without_bead_overlap(
+    body_um: np.ndarray,
+    flagella_um: list[np.ndarray],
+    attach_ids: np.ndarray,
+    hook_length_um: float,
+    bead_diameter_um: float,
+) -> None:
+    """Translate whole flagella to zero-hook-force, outward, bead-clear positions.
+
+    A hook direction must be perpendicular to its basal tangent. The remaining
+    one-dimensional freedom is searched deterministically, first against the
+    body and then jointly against the other flagella. No internal flagellum
+    coordinate or attachment bead is changed.
+    """
+    if not flagella_um:
+        return
+    body_center = np.mean(body_um, axis=0)
+    candidates: list[np.ndarray] = []
+    body_clearance: list[np.ndarray] = []
+    angle_offsets = np.deg2rad(np.arange(-88.0, 90.0, 2.0))
+    for points, attach_idx in zip(flagella_um, attach_ids):
+        attach = body_um[int(attach_idx)]
+        tangent = points[1] - points[0]
+        tangent /= float(np.linalg.norm(tangent))
+        outward = attach - body_center
+        outward /= float(np.linalg.norm(outward))
+        reference = outward - float(np.dot(outward, tangent)) * tangent
+        reference_norm = float(np.linalg.norm(reference))
+        if reference_norm <= 1e-12:
+            raise ValueError("Cannot find an outward zero-force hook direction")
+        reference /= reference_norm
+        lateral = np.cross(tangent, reference)
+        directions = (
+            np.cos(angle_offsets)[:, None] * reference
+            + np.sin(angle_offsets)[:, None] * lateral
+        )
+        # The original first bead is exactly one hook length from attachment.
+        shifted = points[None, :, :] + (
+            attach[None, None, :]
+            + hook_length_um * directions[:, None, :]
+            - points[None, :1, :]
+        )
+        other_body = np.delete(body_um, int(attach_idx), axis=0)
+        distances = np.linalg.norm(
+            shifted[:, :, None, :] - other_body[None, None, :, :], axis=-1
+        )
+        candidates.append(shifted)
+        body_clearance.append(np.min(distances, axis=(1, 2)))
+
+    # Begin with the body-clear candidate, then resolve flagellum interactions.
+    picks = [int(np.argmax(clearance)) for clearance in body_clearance]
+    for _ in range(8):
+        changed = False
+        for flag_id, shifted in enumerate(candidates):
+            score = body_clearance[flag_id].copy()
+            for other_id, other in enumerate(candidates):
+                if other_id == flag_id:
+                    continue
+                other_points = other[picks[other_id]]
+                distances = np.linalg.norm(
+                    shifted[:, :, None, :] - other_points[None, None, :, :],
+                    axis=-1,
+                )
+                score = np.minimum(score, np.min(distances, axis=(1, 2)))
+            best = int(np.argmax(score))
+            if best != picks[flag_id]:
+                picks[flag_id] = best
+                changed = True
+        if not changed:
+            break
+
+    min_clearance = min(
+        float(body_clearance[flag_id][pick]) for flag_id, pick in enumerate(picks)
+    )
+    for flag_id, other_id in combinations(range(len(flagella_um)), 2):
+        min_clearance = min(
+            min_clearance,
+            float(
+                np.min(
+                    np.linalg.norm(
+                        candidates[flag_id][picks[flag_id]][:, None, :]
+                        - candidates[other_id][picks[other_id]][None, :, :],
+                        axis=-1,
+                    )
+                )
+            ),
+        )
+    if min_clearance < bead_diameter_um - 1e-9:
+        raise ValueError(
+            "No collision-free initial hook-neutral placement found: "
+            f"minimum_distance_to_bead_diameter="
+            f"{min_clearance / bead_diameter_um:.6f}"
+        )
+    for points, shifted, pick in zip(flagella_um, candidates, picks):
+        points[:] = shifted[pick]
+
+
 class ModelBuilder:
     """設定から bead-spring モデルを構築する。"""
 
@@ -801,6 +898,14 @@ class ModelBuilder:
 
             hook_triplets.append((int(attach_idx), int(idx[0]), int(idx[1])))
 
+        if cfg.flagella.initial_hook_force_neutral:
+            _neutralize_initial_hooks_without_bead_overlap(
+                body_um,
+                points_all[1:],
+                attach_ids,
+                hook_length_um,
+                2.0 * cfg.bead_radius_m / UM_TO_M,
+            )
         positions_um = np.concatenate(points_all, axis=0)
         positions_m = positions_um * UM_TO_M
 

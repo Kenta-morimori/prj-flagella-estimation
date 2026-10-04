@@ -1,0 +1,27 @@
+{
+  "status": "PASS",
+  "task": "PR #259: pending初期hook力ゼロ配置とbead clearanceの実装・geometry検証",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/257",
+  "pull_request": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/259",
+  "summary": "既定OFFのinitial_hook_force_neutralを新しいhex short screenだけでONにし、全べん毛を内部形状・位相・螺旋軸を保って平行移動する。初期hook角90度、曲げ力ゼロ、hook長、外向きとbead中心距離をgeometry preflightで確認する。旧#245/#257 archiveは修正前モデルとして保持する。",
+  "checks": [
+    "13 attachment配置×ON/OFF×phase_seed 0/1/7の78形状でhook角90度±1e-6度、hook力<1e-18 N、hook長、外向き、非付着body beadとflagellum beadおよびflagellum同士の中心距離≥bead直径を確認。最小中心距離は約0.236 b",
+    "新hex short-screen job dry-run: 26条件、geometry_all_conditions、cs10_qualified実効8 worker、26件の出力分離",
+    "targeted pytest: 6 passed",
+    "full pytest: 947 passed",
+    "Ruff check/format: PASS",
+    "git diff --check: PASS"
+  ],
+  "limitations": [
+    "bead中心距離のQCはsegment間の完全非接触を意味しない。固定した螺旋軸・内部形状・hook長の下で、body springとflagellum segmentには既存形状にも近接があり、初期segment間距離≥0.2 bは保証できない",
+    "新初期geometryのsimulationは未実行であり、動作中のQC・遊泳改善・採択を主張しない"
+  ],
+  "user_review_required": true,
+  "user_review": "初期bead clearanceの受入範囲と旧診断bundleのreplay・定量結果を確認する。Cloud review依頼はユーザーの別途明示承認まで行わない。",
+  "adr_required": false,
+  "adr_reason": "pending候補の初期geometryとpreflightのみのopt-in変更であり、canonical採択、dataset、strict QC閾値、#255の結論を変更しない。",
+  "not_run": [
+    "simulation、cs10接続・enqueue・dispatcher操作、既存reservationの停止・変更",
+    "Cloud review、PR merge、project 2秒比較"
+  ]
+}
