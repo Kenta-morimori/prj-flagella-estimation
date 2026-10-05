@@ -12,6 +12,10 @@ preflightではhook–長軸角度誤差、hook角度誤差、hook長、hook初�
 
 2026-10-05の実装後preflightは38/38 armで通過した。hook–長軸角度誤差は0°、hook角度誤差の最大は`2.84e-14°`、最小非付着ビーズ間距離はhex `0.440 µm`・project `0.362 µm`、各付着ビーズとの最小距離は`0.250 µm`であり、ビーズ直径`0.200 µm`を上回る。固定cameraの19形状画像とSHA-256をローカル`outputs/2026-10-05/120858/issue255_initial_geometry_preview/manifest.json`に記録した。
 
+追加の2D配置確認では、菌体長軸の`+x`方向から`y–z`面へ投影する。grayは菌体、色線は各べん毛、黒線はhookを示す。hex 13配置とproject 6配置をそれぞれ一覧化し、各モデルのn=1..6について3D像と軸方向投影を横に並べたoverviewも生成する。hexのoverviewは各本数で均等なattachment slotsを代表として選び、選択したcondition IDをmanifestに固定する。画像はt=0のpreflight結果であり、1τでの形状安定性はユーザー確認後に評価する。6画像とSHA-256は`outputs/2026-10-05/122448/issue255_initial_geometry_preview/manifest.json`に記録した。
+
+project campaignの複合sweep軸は`count_torque`とする。各conditionの`axis_values.n_flagella`を整数に保ち、`motor_torque`とともに共通evaluatorとpreviewがそのまま参照できる。condition IDと12条件の対比較は変えない。
+
 画像の再生成は、MacのPython環境で次を実行する。`--output-dir`には新しいJST時刻のdirectoryを指定する。
 
 ```bash

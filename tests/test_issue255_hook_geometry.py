@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import hashlib
+import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -67,6 +72,8 @@ def test_issue255_geometry_and_paired_contract(
     base = load_yaml(ROOT / campaign["base_config"])
     by_shape: dict[str, list[tuple[SimulationConfig, object]]] = {}
     for condition in conditions:
+        assert isinstance(condition["axis_values"]["n_flagella"], int)
+        assert float(condition["axis_values"]["motor_torque"]) == 2.5e-20
         cfg = SimulationConfig.from_dict(base).with_overrides(
             condition["config_overrides"]
         )
@@ -154,3 +161,39 @@ def test_reaction_pair_heatmap_retains_both_arms(tmp_path: Path) -> None:
     assert output.is_file() and output.stat().st_size > 1000
     with pytest.raises(ValueError, match="exactly two arms"):
         _plot_reaction_pairs(rows[:1], output)
+
+
+@pytest.mark.parametrize("model_name,expected_shapes", [("hex", 13), ("project", 6)])
+def test_preview_adds_axial_projection_and_overview(
+    model_name: str, expected_shapes: int, tmp_path: Path
+) -> None:
+    output_dir = tmp_path / model_name
+    environment = {**os.environ, "MPLCONFIGDIR": str(tmp_path / "mpl_cache")}
+    subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts/01_simulate_swimming/preview_initial_geometry.py"),
+            "--config",
+            str(CAMPAIGNS[model_name]),
+            "--output-dir",
+            str(output_dir),
+        ],
+        cwd=ROOT,
+        env=environment,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    manifest = json.loads((output_dir / "manifest.json").read_text())
+    campaign = manifest["campaigns"][0]
+    assert campaign["unique_shape_count"] == expected_shapes
+    assert len(campaign["overview_condition_ids"]) == 6
+    assert "onto y-z" in campaign["axial_projection"]
+    for path_key, hash_key in (
+        ("image", "image_sha256"),
+        ("axial_image", "axial_image_sha256"),
+        ("overview_image", "overview_image_sha256"),
+    ):
+        path = Path(campaign[path_key])
+        assert path.is_file()
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == campaign[hash_key]

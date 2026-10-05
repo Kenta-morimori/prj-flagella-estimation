@@ -11,7 +11,7 @@ development_evaluation:
   profile_id: 2010_project
   stage: short_screen
   expected_condition_count: 12
-  axes: [n_flagella, body_reaction_full_vector]
+  axes: [count_torque, body_reaction_full_vector]
   qc:
     exclude_diagnostics_from_gate: [hook_angle_err_max_deg]
     required_gates: [finite, shape_body, hook_length, flag, motor]
@@ -49,7 +49,7 @@ base_overrides:
 
 sweep:
   axes:
-    n_flagella:
+    count_torque:
       keys:
         n_flagella: flagella.n_flagella
         motor_torque: motor.torque_Nm
