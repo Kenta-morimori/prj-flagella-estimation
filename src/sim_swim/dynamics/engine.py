@@ -1053,6 +1053,12 @@ class DynamicsEngine:
                     full_vector_body_reaction=(
                         self.cfg.motor.body_reaction_full_vector
                     ),
+                    body_reaction_support=self.cfg.motor.body_reaction_support,
+                    flagella_attach_body_indices=(
+                        self.model.flagella_attach_body_indices
+                    ),
+                    body_ring_edges=self.model.body_ring_edges,
+                    body_vertical_edges=self.model.body_vertical_edges,
                 )
             else:
                 raise ValueError(

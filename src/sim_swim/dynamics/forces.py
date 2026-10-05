@@ -982,6 +982,10 @@ def compute_root_torque_segment_couples_forces(
     torque_per_flag: np.ndarray,
     segment_weights: list[np.ndarray],
     full_vector_body_reaction: bool = False,
+    body_reaction_support: str = "all_body",
+    flagella_attach_body_indices: np.ndarray | None = None,
+    body_ring_edges: np.ndarray | None = None,
+    body_vertical_edges: np.ndarray | None = None,
 ) -> tuple[np.ndarray, MotorForceDiagnostics]:
     """root torque を segment ごとの local force couple として分配する。"""
 
@@ -996,6 +1000,18 @@ def compute_root_torque_segment_couples_forces(
     flag_force_sum = 0.0
     body_force_sum = 0.0
     body_idx = body_indices.astype(int, copy=False)
+    local_reaction = body_reaction_support == "attach_one_ring"
+    if local_reaction and (
+        not full_vector_body_reaction
+        or flagella_attach_body_indices is None
+        or body_ring_edges is None
+        or body_vertical_edges is None
+        or len(flagella_attach_body_indices) < len(flagella_indices)
+    ):
+        raise ValueError(
+            "Local full-vector reaction requires attachment and body edges"
+        )
+    support_counts: list[int] = []
 
     for f_id, flag_idx_raw in enumerate(flagella_indices):
         if f_id >= torque_per_flag.shape[0]:
@@ -1072,14 +1088,33 @@ def compute_root_torque_segment_couples_forces(
             continue
 
         if full_vector_body_reaction:
+            reaction_idx = body_idx
+            if local_reaction:
+                reaction_idx = _attach_body_support(
+                    attach_index=int(flagella_attach_body_indices[f_id]),
+                    body_ring_edges=body_ring_edges,
+                    body_vertical_edges=body_vertical_edges,
+                )
+                if reaction_idx.size < 3:
+                    raise RuntimeError(
+                        f"Local body reaction solver failed for flagellum {f_id} "
+                        f"with {reaction_idx.size} support beads"
+                    )
             body_forces, body_degenerate, body_torque, body_force = (
                 _zero_net_force_vector_torque_drive(
                     positions_m=positions_m,
-                    indices=body_idx,
+                    indices=reaction_idx,
                     origin=origin,
                     target_torque_Nm=-applied_flag_torque,
                 )
             )
+            if local_reaction and body_degenerate:
+                raise RuntimeError(
+                    f"Local body reaction solver failed for flagellum {f_id} "
+                    f"with {reaction_idx.size} support beads"
+                )
+            if local_reaction:
+                support_counts.append(int(reaction_idx.size))
         else:
             applied_axis_torque = float(np.dot(applied_flag_torque, axis))
             body_forces, body_degenerate, body_torque, body_force = (
@@ -1112,4 +1147,5 @@ def compute_root_torque_segment_couples_forces(
         Tb_norm_mean=(body_torque_sum * inv if valid_count > 0 else float("nan")),
         Fa_norm_mean=(flag_force_sum * inv if valid_count > 0 else float("nan")),
         Fb_norm_mean=(body_force_sum * inv if valid_count > 0 else float("nan")),
+        reaction_support_bead_counts=tuple(support_counts),
     )

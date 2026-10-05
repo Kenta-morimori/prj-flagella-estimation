@@ -411,6 +411,7 @@ class MotorParams:
     allow_reference_torque_mismatch: bool = False
     force_distribution: str = MOTOR_FORCE_DISTRIBUTION_DEFAULT
     body_reaction_full_vector: bool = False
+    body_reaction_support: str = "all_body"
     torque_distribution_profile: str = MOTOR_TORQUE_DISTRIBUTION_PROFILE_DEFAULT
     reverse_n_flagella: int = 1
     enable_switching: bool = False
@@ -995,8 +996,19 @@ class SimulationConfig:
             and self.motor.body_reaction_full_vector
         ):
             dynamics["body_reaction_model"] = (
-                "all_body_beads_zero_net_force_full_vector_torque_couple"
+                "local_attach_one_ring_zero_net_force_full_vector_torque_couple"
+                if self.motor.body_reaction_support == "attach_one_ring"
+                else "all_body_beads_zero_net_force_full_vector_torque_couple"
             )
+            dynamics["body_reaction_support"] = self.motor.body_reaction_support
+            if self.motor.body_reaction_support == "attach_one_ring":
+                dynamics["body_reaction_fallback_model"] = "none"
+                if reaction_support_bead_counts is not None:
+                    dynamics["reaction_support_bead_counts"] = sorted(
+                        {int(value) for value in reaction_support_bead_counts}
+                    )
+                if reaction_fallback_used is not None:
+                    dynamics["reaction_fallback_used"] = bool(reaction_fallback_used)
 
         manifest = {
             "dynamics": dynamics,
@@ -1628,6 +1640,9 @@ class SimulationConfig:
             body_reaction_full_vector=bool(
                 _get(motor_raw, "body_reaction_full_vector", False)
             ),
+            body_reaction_support=str(
+                _get(motor_raw, "body_reaction_support", "all_body")
+            ),
             torque_distribution_profile=normalize_motor_torque_distribution_profile(
                 profile_raw
                 if profile_raw not in (None, "")
@@ -1697,6 +1712,18 @@ class SimulationConfig:
                 _get(motor_raw, "local_torsion_scale", MOTOR_LOCAL_SCALE_DEFAULT)
             ),
         )
+        if motor.body_reaction_support not in {"all_body", "attach_one_ring"}:
+            raise ValueError(
+                "motor.body_reaction_support must be all_body or attach_one_ring"
+            )
+        if motor.body_reaction_support == "attach_one_ring" and (
+            motor.force_distribution != "root_torque_segment_couples"
+            or not motor.body_reaction_full_vector
+        ):
+            raise ValueError(
+                "motor.body_reaction_support=attach_one_ring requires "
+                "root_torque_segment_couples and body_reaction_full_vector=true"
+            )
 
         thermal = K_B * max(brownian.temperature_K, 1e-9)
         b_m = max(scale.b_um, 1e-9) * 1e-6
