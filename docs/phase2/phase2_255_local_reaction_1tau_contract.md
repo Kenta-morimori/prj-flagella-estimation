@@ -30,3 +30,6 @@ hook対菌体長軸角度は診断値であり、新しい閾値を設けない�
 完了後はrun summaryを先に読み、必要成果物をローカル同期して
 件数とSHA-256を照合し、QC・角度・固定camera replayをレビューする。
 2sは開始しない。
+
+実行結果は`docs/phase2/phase2_255_local_reaction_1tau_results.md`に記録した。
+実測wall timeはhex 42分41秒、project 9分41秒、合計約52分22秒。
