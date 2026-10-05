@@ -391,6 +391,7 @@ class FlagellumParams:
     helix_init: FlagellaHelixInitParams = field(default_factory=FlagellaHelixInitParams)
     initial_helix_axis_from_rear_deg: float | None = None
     initial_hook_force_neutral: bool = False
+    initial_hook_body_axis_perpendicular: bool = False
 
 
 @dataclass(frozen=True)
@@ -1583,6 +1584,9 @@ class SimulationConfig:
             ),
             initial_hook_force_neutral=bool(
                 _get(flag_raw, "initial_hook_force_neutral", False)
+            ),
+            initial_hook_body_axis_perpendicular=bool(
+                _get(flag_raw, "initial_hook_body_axis_perpendicular", False)
             ),
         )
 

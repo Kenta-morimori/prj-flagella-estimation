@@ -463,6 +463,12 @@ def geometry_preflight(
                     for j in range(i + 1, len(flags))
                 )
                 min_bead_distance_m = min(bead_distances_m)
+                min_attachment_bead_distance_m = min(
+                    float(np.min(np.linalg.norm(flag - body[int(attach_idx)], axis=1)))
+                    for flag, attach_idx in zip(
+                        flags, model.flagella_attach_body_indices
+                    )
+                )
                 body_center = np.mean(body, axis=0)
                 min_outward_projection_m = min(
                     float(
@@ -475,6 +481,28 @@ def geometry_preflight(
                         flags, model.flagella_attach_body_indices
                     )
                 )
+                body_axis = np.mean(
+                    model.positions_m[model.body_layer_indices[-1]], axis=0
+                ) - np.mean(model.positions_m[model.body_layer_indices[0]], axis=0)
+                body_axis /= np.linalg.norm(body_axis)
+                hook_vectors = (
+                    model.positions_m[triplets[:, 1]]
+                    - model.positions_m[triplets[:, 0]]
+                )
+                axis_error_deg = float(
+                    np.max(
+                        np.degrees(
+                            np.arcsin(
+                                np.clip(
+                                    np.abs(hook_vectors @ body_axis)
+                                    / np.linalg.norm(hook_vectors, axis=1),
+                                    0.0,
+                                    1.0,
+                                )
+                            )
+                        )
+                    )
+                )
                 if (
                     not np.isfinite(
                         [
@@ -482,14 +510,25 @@ def geometry_preflight(
                             length_error_m,
                             hook_force_norm_N,
                             min_bead_distance_m,
+                            min_attachment_bead_distance_m,
                             min_outward_projection_m,
+                            axis_error_deg,
                         ]
                     ).all()
                     or angle_error_deg > 1e-6
                     or length_error_m > 1e-15
                     or hook_force_norm_N > 1e-18
                     or min_bead_distance_m < 2.0 * model.bead_radius_m - 1e-15
+                    or (
+                        cfg.flagella.initial_hook_body_axis_perpendicular
+                        and min_attachment_bead_distance_m
+                        < 2.0 * model.bead_radius_m - 1e-15
+                    )
                     or min_outward_projection_m <= 0.0
+                    or (
+                        cfg.flagella.initial_hook_body_axis_perpendicular
+                        and axis_error_deg > 1e-6
+                    )
                 ):
                     raise ValueError(
                         "initial hook force neutralization failed: "
@@ -502,7 +541,9 @@ def geometry_preflight(
                     "initial_hook_len_max_abs_error_m": length_error_m,
                     "initial_hook_force_norm_N": hook_force_norm_N,
                     "initial_min_nonattached_bead_distance_m": min_bead_distance_m,
+                    "initial_min_attachment_bead_distance_m": min_attachment_bead_distance_m,
                     "initial_min_outward_projection_m2": min_outward_projection_m,
+                    "initial_hook_body_axis_error_deg": axis_error_deg,
                 }
         except Exception as exc:
             raise ValueError(
@@ -530,6 +571,9 @@ def geometry_preflight(
         records[condition_id] = {
             "placement_mode": str(cfg.flagella.placement_mode),
             "initial_hook_force_neutral": bool(cfg.flagella.initial_hook_force_neutral),
+            "initial_hook_body_axis_perpendicular": bool(
+                cfg.flagella.initial_hook_body_axis_perpendicular
+            ),
             "attachment_slots": (
                 list(cfg.flagella.attachment_slots)
                 if cfg.flagella.attachment_slots is not None

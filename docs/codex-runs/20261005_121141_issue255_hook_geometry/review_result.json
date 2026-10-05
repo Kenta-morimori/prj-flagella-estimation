@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "summary": "Issue #255の初期hook直交・中立配置をopt-inで実装し、hex 13配置とproject n=1..6の38 armでgeometry preflight、固定camera画像、1τ parallel dry-runを確認した。simulationは未実行。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "初期形状のpreflightは時間発展の安定性を示さない。",
+    "現行軸方向反作用のmotor torque residual FAILは既存の課題であり、1τで再評価する。"
+  ],
+  "tests_reviewed": [
+    "pytest: test_issue255_hook_geometry.py、test_issue257_hook_neutral_geometry.py、test_issue245_long_duration.py、test_issue244_torque_dt.py — 30 passed",
+    "ruff check / format --check、git diff --check — PASS",
+    "hex 26条件とproject 12条件のparallel-job dry-run — planned、8 workers、condition別output分離",
+    "initial geometry preflight 38/38 arm — hook角度と長軸直交、hook長、初期力、ビーズ非重複 PASS",
+    "固定camera画像19形状を目視確認。ローカルmanifestとSHA-256: outputs/2026-10-05/120858/issue255_initial_geometry_preview/manifest.json"
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "outputs/2026-10-05/120858/issue255_initial_geometry_preview/2010_hex_project_motor_reaction_1tau_issue255_initial_geometry.png",
+    "outputs/2026-10-05/120858/issue255_initial_geometry_preview/2010_project_motor_reaction_1tau_issue255_initial_geometry.png"
+  ],
+  "user_review_points": [
+    "1τ実行前に初期配置画像と38条件の対比較契約を確認する。"
+  ],
+  "adr_required": true,
+  "adr_reason": "opt-inの初期物理モデル幾何を変更するためADR 0023を追加した。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "ユーザーが1τの実行段階を指示した後、cs10接続、enqueue、job開始の各操作について個別の明示承認を確認する。",
+    "1τ QCと固定camera replayをレビューしてから2s候補対を決定する。"
+  ]
+}
