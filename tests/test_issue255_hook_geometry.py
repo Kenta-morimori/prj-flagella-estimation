@@ -169,6 +169,34 @@ def test_reaction_pair_heatmap_retains_both_arms(tmp_path: Path) -> None:
         _plot_reaction_pairs(rows[:1], output)
 
 
+@pytest.mark.parametrize("stage", ["short_screen", "long_duration"])
+def test_development_replay_uses_motor_gate_and_excludes_hook_angle(stage: str) -> None:
+    from sim_swim.analysis.phase2_replay import _fail_label
+
+    assert (
+        _fail_label(
+            {
+                "status": "pass",
+                "body_shape_pass": "True",
+                "development_evaluation_status": "fail",
+                "development_evaluation_stage": stage,
+            }
+        )
+        == f"{stage} FAIL (diagnostic-only)"
+    )
+    assert (
+        _fail_label(
+            {
+                "first_fail_t_s": "0.01",
+                "first_fail_category_nonbody": "hook",
+                "development_evaluation_status": "pass",
+                "development_evaluation_stage": stage,
+            }
+        )
+        == f"{stage} PASS"
+    )
+
+
 @pytest.mark.parametrize("model_name,expected_shapes", [("hex", 13), ("project", 3)])
 def test_preview_adds_axial_projection_and_overview(
     model_name: str, expected_shapes: int, tmp_path: Path

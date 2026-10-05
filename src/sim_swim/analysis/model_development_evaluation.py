@@ -687,7 +687,11 @@ def _plot_reaction_pairs(rows: list[dict[str, Any]], output_path: Path) -> None:
 
 
 def _write_replay_input(
-    *, output_dir: Path, run_dirs: list[Path], config: dict[str, Any]
+    *,
+    output_dir: Path,
+    run_dirs: list[Path],
+    config: dict[str, Any],
+    evaluation_rows: list[dict[str, Any]],
 ) -> Path:
     """Build a replay-only manifest retaining absolute source archives."""
 
@@ -697,6 +701,7 @@ def _write_replay_input(
     summary_rows: list[dict[str, str]] = []
     base_config: str | None = None
     contract = _development_contract(config)
+    statuses = {row["condition_id"]: row["screen_status"] for row in evaluation_rows}
     contract_axes = [str(axis) for axis in contract["axes"]]
     expected = _expected_conditions(config)
     expected_by_key = {
@@ -739,6 +744,8 @@ def _write_replay_input(
             records.append(record)
             summary_row = dict(source_rows[source_condition_id])
             summary_row["condition_id"] = str(record["condition_id"])
+            summary_row["development_evaluation_status"] = statuses[condition_id]
+            summary_row["development_evaluation_stage"] = str(contract["stage"])
             summary_rows.append(summary_row)
     records.sort(key=lambda record: str(record["condition_id"]))
     summary_rows.sort(key=lambda row: str(row["condition_id"]))
@@ -889,7 +896,7 @@ def build_evaluation(
         _write_csv(window_path, window_rows)
         outputs["window_qc_csv"] = window_path
     replay_input = _write_replay_input(
-        output_dir=output_dir, run_dirs=run_dirs, config=config
+        output_dir=output_dir, run_dirs=run_dirs, config=config, evaluation_rows=rows
     )
     outputs["replay_input"] = replay_input
     if rows and rows[0].get("attachment_pattern"):

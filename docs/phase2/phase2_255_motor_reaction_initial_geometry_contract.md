@@ -52,3 +52,8 @@ cs10での開始前には固定commit、clean worktree、NAS空き容量、既�
 ## 2sへの移行
 
 1τ完了後にQCと固定camera replayをレビューする。finite・body・hook長・flag形状が安定した**対のみ**を候補にし、projectはn=1..3に限定する。2s config/job、condition数、wall timeをその時点で確定する。現行反作用のmotor FAILが残る対を実行する場合は、strict FAILを保持した診断専用とし、特徴量評価やモデル採択に用いない。新たな反作用方式、閾値変更、局所hook物理解釈は別判断とする。
+# 実行後の結果
+
+32条件の1τを固定commit `6592e14` で完了した。
+QC、角度診断、replay、2s候補は [1τ結果](phase2_255_1tau_results.md) を参照。
+2sはユーザーレビュー待ちで未実行。
