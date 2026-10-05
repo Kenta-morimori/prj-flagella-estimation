@@ -24,7 +24,6 @@ from sim_swim.model.builder import (
 from sim_swim.sim.debug_summary import _triplet_angles_rad
 from sim_swim.sim.params import SimulationConfig
 
-
 ROOT = Path(__file__).resolve().parents[1]
 CAMPAIGN = (
     ROOT / "conf/phase2_multi_run/2010_hex_project_hook_neutral_screen_issue257.yaml"

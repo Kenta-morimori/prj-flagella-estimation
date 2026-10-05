@@ -5,7 +5,6 @@ import stat
 import subprocess
 from pathlib import Path
 
-
 HOOK_PATH = Path(__file__).resolve().parents[1] / ".githooks" / "pre-commit"
 
 

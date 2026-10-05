@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = ROOT / "schemas/phase3_clip_metadata.schema.json"
 EXAMPLE_PATH = ROOT / "examples/phase3/clip_metadata_minimal.json"

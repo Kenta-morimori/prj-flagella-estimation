@@ -9,7 +9,6 @@ import math
 from pathlib import Path
 from typing import Any
 
-
 TORQUES_NM = (1.0e-21, 2.5e-20, 1.0e-19)
 SUPPLEMENTAL_TORQUE_NM = 1.2e-18
 EXPECTED_DT_STAR = 1.0e-5

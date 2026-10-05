@@ -1,11 +1,12 @@
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
+from sim_swim.analysis.flagella_count_behavior import save_state_archive
 from sim_swim.analysis.hydrodynamics import (
     HYDRO_ARCHIVE_FORMAT,
     HydroSample,
@@ -15,7 +16,6 @@ from sim_swim.analysis.hydrodynamics import (
     stokes_fluid_resistance,
     velocity_contributions,
 )
-from sim_swim.dynamics.hydro_rpy import compute_rpy_pair_mobility
 from sim_swim.analysis.hydrodynamics_campaign import (
     FLOW_SLICE_GRID_SIZE,
     analyze_campaign,
@@ -28,14 +28,13 @@ from sim_swim.analysis.hydrodynamics_replay import (
     _source_colors,
     _visible_with_common_reference,
 )
-from sim_swim.analysis.flagella_count_behavior import save_state_archive
 from sim_swim.analysis.multi_run_campaign import (
     build_campaign_conditions,
     load_yaml,
     normalize_campaign_config,
 )
-from sim_swim.sim.core import Simulator
-from sim_swim.sim.core import SimulationState
+from sim_swim.dynamics.hydro_rpy import compute_rpy_pair_mobility
+from sim_swim.sim.core import SimulationState, Simulator
 from sim_swim.sim.params import SimulationConfig
 
 

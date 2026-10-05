@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass
-from datetime import datetime
 import json
 import math
 import platform
-from pathlib import Path
 import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -19,16 +19,15 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
 import numpy as np
 import yaml
+from matplotlib.lines import Line2D
 
 from flagella_estimation.phase3.feature_comparison import body_axis_angles_rad
 from flagella_estimation.phase3.render import render_clip_array, select_frames
 from flagella_estimation.phase3.windows import generate_windows
 from flagella_estimation.phase4.baseline import FEATURE_NAMES, extract_clip_features
 from sim_swim.analysis.flagella_count_behavior import load_state_archive
-
 
 THREE_D_FEATURE_NAMES = (
     "cell_displacement_um",

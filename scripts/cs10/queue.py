@@ -9,22 +9,21 @@ one checked-in parallel-job config through ``parallel_tmux.py run``.
 from __future__ import annotations
 
 import argparse
-from contextlib import contextmanager
-from dataclasses import asdict, dataclass
-from datetime import datetime
 import fcntl
 import json
 import os
-from pathlib import Path
-import signal
 import shutil
+import signal
 import sqlite3
 import subprocess
 import time
+from contextlib import contextmanager
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from pathlib import Path
 from typing import Any, Iterator
 from uuid import uuid4
 from zoneinfo import ZoneInfo
-
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_STATE_DIR = Path.home() / ".local/state/prj-flagella-estimation/cs10-queue"

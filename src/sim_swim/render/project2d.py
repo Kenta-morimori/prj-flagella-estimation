@@ -9,10 +9,10 @@ import cv2
 import numpy as np
 
 from sim_swim.render.body2d import BodyCapsuleRenderConfig, render_body_capsule_frame
+from sim_swim.render.video_writer import VideoRenderResult, open_mp4_writer
 from sim_swim.sim.core import SimulationState
 from sim_swim.sim.flagella_geometry import FlagellaRig
 from sim_swim.sim.params import SimulationConfig
-from sim_swim.render.video_writer import VideoRenderResult, open_mp4_writer
 
 
 def _flagella_colors(n: int) -> list[tuple[int, int, int]]:

@@ -4,18 +4,17 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime
 import importlib.metadata
 import json
 import os
-from pathlib import Path
 import platform
 import shutil
 import subprocess
 import sys
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
-
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ROOT = REPOSITORY_ROOT / "src"
@@ -83,6 +82,7 @@ def collect_probe() -> dict[str, Any]:
     import cv2
     import numpy
     import scipy
+
     import sim_swim
 
     return {

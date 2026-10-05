@@ -21,7 +21,6 @@ from sim_swim.analysis.issue61_2015_1tau import (
     _rows,
 )
 
-
 EXPECTED_IDS = tuple(f"nf{index:02d}" for index in range(1, 7))
 EXPECTED_TORQUE_NM = 2.5e-20
 

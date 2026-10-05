@@ -2,6 +2,7 @@
 """Render one Mac-side #203 composite replay without re-simulation."""
 
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 

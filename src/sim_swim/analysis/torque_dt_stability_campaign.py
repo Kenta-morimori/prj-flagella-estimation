@@ -7,20 +7,20 @@ the legacy 2010 ``tau_s=1`` baseline or the #183 tracking-reference outputs.
 from __future__ import annotations
 
 import csv
-from dataclasses import asdict
-from datetime import datetime
 import json
 import math
-from pathlib import Path
 import time
+from dataclasses import asdict
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
 import numpy as np
 
+from sim_swim.analysis.flagella_count_behavior import save_state_archive
 from sim_swim.analysis.multi_run_campaign import load_yaml
 from sim_swim.analysis.torque_dt_stability import build_plan
-from sim_swim.analysis.flagella_count_behavior import save_state_archive
 from sim_swim.core.run_context import init_run
 from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import SimulationConfig

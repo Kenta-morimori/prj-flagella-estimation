@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import datetime
-import json
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -13,13 +13,13 @@ import matplotlib
 import yaml
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 
-from sim_swim.analysis.flagella_count_behavior import load_state_archive
-from flagella_estimation.phase3.render import select_frames
 from flagella_estimation.phase3.pipeline import _environment_info, _git_info
+from flagella_estimation.phase3.render import select_frames
+from sim_swim.analysis.flagella_count_behavior import load_state_archive
 from sim_swim.render.body2d import BodyCapsuleRenderConfig, render_body_capsule_frame
 from sim_swim.render.grid_movie import (
     auto_grid_layout,

@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import yaml
 
-
 DOMAINS = ("3d", "2d")
 ANGLE = "body_flagella_axis_angle_deg"
 

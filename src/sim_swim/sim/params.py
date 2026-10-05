@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import math
+import warnings
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-import math
 from typing import Any
-import warnings
 
 K_B = 1.380649e-23
 DT_STAR_TARGET = 1.0e-3

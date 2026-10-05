@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
-from datetime import datetime
 import json
-from pathlib import Path
 import platform
 import re
 import subprocess
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -20,7 +20,6 @@ from flagella_estimation.phase3.render import select_frames
 from sim_swim.analysis.flagella_count_behavior import load_state_archive
 from sim_swim.render.body2d import BodyCapsuleRenderConfig, render_body_capsule_frame
 from sim_swim.render.grid_movie import GridLayout, compose_grid_frame, write_mp4_grid
-
 
 _CONDITION_ID = re.compile(r"^as(?P<attach>\d+)__ps(?P<phase>\d+)__nf(?P<n>\d+)$")
 

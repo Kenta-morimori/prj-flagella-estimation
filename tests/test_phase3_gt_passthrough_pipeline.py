@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 import csv
-from dataclasses import replace
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
 import pytest
 
+from flagella_estimation.phase3.feature_comparison import (
+    PIXEL_FEATURES,
+    grouped_nearest_centroid_pixel_baseline,
+    pixel_features,
+)
 from flagella_estimation.phase3.metadata import build_gt_passthrough_metadata
-from flagella_estimation.phase3.feature_comparison import pixel_features
 from flagella_estimation.phase3.pipeline import (
     Phase3Config,
     build_clip_dataset,
@@ -17,22 +21,18 @@ from flagella_estimation.phase3.pipeline import (
     select_samples,
     validate_training_candidate,
 )
+from flagella_estimation.phase3.render import render_clip_array
 from flagella_estimation.phase3.replay import (
     ReplayConfig,
     _load_replay_clip,
     render_3d_2d_grid_mp4,
     render_contact_sheet,
 )
-from flagella_estimation.phase3.render import render_clip_array
 from flagella_estimation.phase3.splits import (
-    assign_grouped_splits,
     assert_no_group_leakage,
+    assign_grouped_splits,
 )
 from flagella_estimation.phase3.windows import FrameWindow, generate_windows
-from flagella_estimation.phase3.feature_comparison import (
-    PIXEL_FEATURES,
-    grouped_nearest_centroid_pixel_baseline,
-)
 from sim_swim.analysis.flagella_count_behavior import save_state_archive
 from sim_swim.render.body2d import render_body_capsule_frame
 from sim_swim.sim.core import SimulationState

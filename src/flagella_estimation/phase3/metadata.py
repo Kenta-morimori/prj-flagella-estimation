@@ -6,9 +6,8 @@ from pathlib import Path
 from typing import Any
 
 from flagella_estimation.phase3.render import FrameGeometry
-from sim_swim.render.body2d import RENDER_MODE_BODY_CAPSULE_ORTHOGRAPHIC
 from flagella_estimation.phase3.windows import FrameWindow
-
+from sim_swim.render.body2d import RENDER_MODE_BODY_CAPSULE_ORTHOGRAPHIC
 
 SCHEMA_VERSION = "phase3_clip_metadata/v0"
 PIPELINE_NAME = "phase3_gt_passthrough"

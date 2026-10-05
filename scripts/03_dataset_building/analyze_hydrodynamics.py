@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Analyze compact RPY hydrodynamics archives without re-simulation."""
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 from sim_swim.analysis.hydrodynamics_campaign import main

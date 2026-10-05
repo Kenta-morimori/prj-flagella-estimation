@@ -2,10 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from sim_swim.analysis.torque_dt_stability import build_plan
 from sim_swim.analysis.multi_run_campaign import load_yaml
+from sim_swim.analysis.torque_dt_stability import build_plan
 from sim_swim.sim.params import SimulationConfig
-
 
 CONFIG = Path("conf/phase2_sweeps/2010_project_torque_linked_dt_stability.yaml")
 

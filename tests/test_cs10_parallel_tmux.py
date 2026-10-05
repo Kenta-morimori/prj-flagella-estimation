@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import importlib.util
 import json
-from datetime import datetime
-from pathlib import Path
 import subprocess
 import sys
+from datetime import datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pytest
-
 
 ROOT = Path(__file__).resolve().parents[1]
 ISSUE203 = ROOT / "conf/phase2_parallel/issue203_uniform_torque_profile/job.yaml"

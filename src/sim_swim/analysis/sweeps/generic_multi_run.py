@@ -5,14 +5,14 @@ from __future__ import annotations
 
 import argparse
 import csv
-from datetime import datetime
 import json
 import os
-from pathlib import Path
 import signal
 import threading
-from typing import Any
 import uuid
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from sim_swim.analysis.flagella_count_behavior import (

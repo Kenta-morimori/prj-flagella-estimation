@@ -12,21 +12,25 @@ from sim_swim.analysis.issue203_composite_replay import (
     reconstructed_segment_weights,
 )
 from sim_swim.analysis.issue203_torque_profile_comparison import _flag_axes, load_config
-from sim_swim.analysis.torque_profile_dt_contact import (
-    CombineConfig,
-    _first_fail,
-    _min_bead_distances,
-    combine as combine_contact,
-    extract as extract_contact,
-)
 from sim_swim.analysis.motion_feature_study import (
     load_config as load_motion_feature_config,
 )
-from sim_swim.analysis.phase2_replay import _archive_path, _torque_weight_frames
 from sim_swim.analysis.multi_run_campaign import (
     apply_campaign_cli_overrides,
     build_campaign_conditions,
     load_yaml,
+)
+from sim_swim.analysis.phase2_replay import _archive_path, _torque_weight_frames
+from sim_swim.analysis.torque_profile_dt_contact import (
+    CombineConfig,
+    _first_fail,
+    _min_bead_distances,
+)
+from sim_swim.analysis.torque_profile_dt_contact import (
+    combine as combine_contact,
+)
+from sim_swim.analysis.torque_profile_dt_contact import (
+    extract as extract_contact,
 )
 
 

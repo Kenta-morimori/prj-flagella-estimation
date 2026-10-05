@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-
 SCRIPT = (
     Path(__file__).parents[1]
     / "scripts/03_dataset_building/stage_issue215_reference.py"

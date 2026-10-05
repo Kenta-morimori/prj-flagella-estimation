@@ -5,11 +5,10 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import shutil
 import tempfile
+from pathlib import Path
 from typing import Any
-
 
 ROOT_FILES = ("run_manifest.json", "summary.csv", "campaign_completion.json")
 CONDITION_FILES = ("run_summary.json", "state_archive.npz", "hydro_archive.npz")

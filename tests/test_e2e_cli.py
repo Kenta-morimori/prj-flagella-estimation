@@ -5,8 +5,8 @@ import importlib.util
 import json
 from pathlib import Path
 
-import yaml
 import pytest
+import yaml
 
 
 def test_script_generates_outputs(

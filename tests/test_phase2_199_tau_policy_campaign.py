@@ -5,15 +5,14 @@ from pathlib import Path
 import pytest
 
 from sim_swim.analysis.multi_run_campaign import load_yaml
+from sim_swim.analysis.sweeps.generic_multi_run import run_campaign
 from sim_swim.analysis.torque_dt_stability import build_plan
 from sim_swim.analysis.torque_dt_stability_campaign import (
     _assert_condition,
     _campaign_output_paths,
     _validate_campaign_contract,
 )
-from sim_swim.analysis.sweeps.generic_multi_run import run_campaign
 from sim_swim.sim.params import SimulationConfig
-
 
 CONFIG = Path("conf/phase2_multi_run/2010_project_tau_policy_torque_dt_0p05s.yaml")
 

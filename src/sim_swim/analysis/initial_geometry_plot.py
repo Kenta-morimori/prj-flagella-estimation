@@ -16,7 +16,6 @@ matplotlib.use("Agg")
 from sim_swim.analysis.flagella_count_behavior import load_state_archive
 from sim_swim.render.render3d import _flagella_colors
 
-
 _BALANCED_SLOTS = {
     1: (0,),
     2: (0, 3),

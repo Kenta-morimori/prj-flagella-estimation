@@ -4,14 +4,14 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import sys
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 from sim_swim.analysis.behavior_dataset_replay import main as replay_dataset
-from sim_swim.analysis.phase2_replay import main as replay_run
 from sim_swim.analysis.hydrodynamics_replay import main as replay_hydrodynamics
+from sim_swim.analysis.phase2_replay import main as replay_run
 
 
 def main(argv: list[str] | None = None) -> None:

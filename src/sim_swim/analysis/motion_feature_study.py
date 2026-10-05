@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass
-from datetime import datetime
 import hashlib
 import json
 import math
-from pathlib import Path
 import platform
 import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -20,13 +20,12 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
 import numpy as np
 import yaml
+from matplotlib.lines import Line2D
 
 from flagella_estimation.phase3.feature_comparison import body_axis_angles_rad
 from flagella_estimation.phase3.render import render_clip_array
-
 
 FEATURES = (
     "mean_speed_um_s",

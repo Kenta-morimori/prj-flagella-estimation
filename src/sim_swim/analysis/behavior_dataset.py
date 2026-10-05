@@ -5,13 +5,13 @@ from __future__ import annotations
 
 import argparse
 import csv
-from datetime import datetime
 import json
 import math
-from pathlib import Path
 import shutil
 import subprocess
 import sys
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -22,7 +22,6 @@ from sim_swim.analysis.cli_profiles import (
     split_config_key,
 )
 from sim_swim.analysis.multi_run_campaign import apply_campaign_cli_overrides, load_yaml
-
 
 METADATA_FIELDS = [
     "sample_id",

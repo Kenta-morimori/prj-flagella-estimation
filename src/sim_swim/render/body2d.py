@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
 import json
 import math
+from dataclasses import dataclass
 
 import cv2
 import numpy as np
 
 from sim_swim.sim.core import SimulationState
-
 
 RENDER_MODE_BODY_CAPSULE_ORTHOGRAPHIC = "body_capsule_orthographic_v1"
 

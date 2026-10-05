@@ -7,11 +7,11 @@ import argparse
 import json
 import math
 import os
-from pathlib import Path
 import re
 import shutil
 import sys
 import tempfile
+from pathlib import Path
 from typing import Any
 
 os.environ.setdefault(
@@ -26,7 +26,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 import yaml
-
 
 DEFAULT_DATASET_ROOT = Path("outputs/phase2_analysis/flagella_count_behavior/datasets")
 

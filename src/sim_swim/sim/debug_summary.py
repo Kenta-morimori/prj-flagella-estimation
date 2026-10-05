@@ -15,8 +15,8 @@ from sim_swim.sim.helix_axis import (
     angle_deg_between,
     estimate_body_axis,
     estimate_flag_helix_axis,
-    helix_axis_centered_metrics,
     helix_axis_alignment_metrics,
+    helix_axis_centered_metrics,
 )
 from sim_swim.sim.hook_frame import (
     hook_attach_layer_indices,

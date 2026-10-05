@@ -5,16 +5,16 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
+from sim_swim.analysis import common_analysis
 from sim_swim.analysis.behavior_dataset_distributions import (
     analyze_dataset as analyze_3d,
 )
 from sim_swim.analysis.behavior_dataset_separability import analyze_2d_separability
-from sim_swim.analysis import common_analysis
 
 HEATMAP_MAIN = common_analysis.HEATMAP_MAIN
 dispatch = common_analysis.dispatch

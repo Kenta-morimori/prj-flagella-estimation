@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from sim_swim.sim.params import SimulationConfig
 from sim_swim.sim.core import Simulator
+from sim_swim.sim.params import SimulationConfig
 
 pytestmark = pytest.mark.light
 
