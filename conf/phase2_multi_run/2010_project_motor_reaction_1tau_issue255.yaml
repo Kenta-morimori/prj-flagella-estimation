@@ -10,7 +10,7 @@ development_evaluation:
   version: 1
   profile_id: 2010_project
   stage: short_screen
-  expected_condition_count: 12
+  expected_condition_count: 6
   axes: [count_torque, body_reaction_full_vector]
   qc:
     exclude_diagnostics_from_gate: [hook_angle_err_max_deg]
@@ -58,11 +58,8 @@ sweep:
         - {n_flagella: 1, motor_torque: 2.5e-20}
         - {n_flagella: 2, motor_torque: 2.5e-20}
         - {n_flagella: 3, motor_torque: 2.5e-20}
-        - {n_flagella: 4, motor_torque: 2.5e-20}
-        - {n_flagella: 5, motor_torque: 2.5e-20}
-        - {n_flagella: 6, motor_torque: 2.5e-20}
-      labels: ['1', '2', '3', '4', '5', '6']
-      ids: [nf01, nf02, nf03, nf04, nf05, nf06]
+      labels: ['1', '2', '3']
+      ids: [nf01, nf02, nf03]
     body_reaction_full_vector:
       key: motor.body_reaction_full_vector
       short_name: rx

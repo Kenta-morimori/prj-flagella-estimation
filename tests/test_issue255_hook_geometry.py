@@ -37,7 +37,7 @@ CAMPAIGNS = {
 }
 
 
-@pytest.mark.parametrize("model_name,expected", [("hex", 26), ("project", 12)])
+@pytest.mark.parametrize("model_name,expected", [("hex", 26), ("project", 6)])
 def test_issue255_geometry_and_paired_contract(
     model_name: str, expected: int, tmp_path: Path
 ) -> None:
@@ -58,7 +58,7 @@ def test_issue255_geometry_and_paired_contract(
         == expected
     )
     assert job.preflight == "geometry_all_conditions"
-    assert execution.max_workers == 8
+    assert execution.max_workers == min(8, expected)
     assert execution.worker_policy == "cs10_qualified"
     assert set(execution.thread_environment.values()) == {"1"}
     assert len({item["output_dir"] for item in plan["configs"]}) == expected
@@ -100,6 +100,12 @@ def test_issue255_geometry_and_paired_contract(
         )
 
     assert len(by_shape) == expected // 2
+    if model_name == "project":
+        assert {pair[0][0].flagella.n_flagella for pair in by_shape.values()} == {
+            1,
+            2,
+            3,
+        }
     for pair in by_shape.values():
         assert len(pair) == 2
         (axis_cfg, axis_model), (full_cfg, full_model) = pair
@@ -163,7 +169,7 @@ def test_reaction_pair_heatmap_retains_both_arms(tmp_path: Path) -> None:
         _plot_reaction_pairs(rows[:1], output)
 
 
-@pytest.mark.parametrize("model_name,expected_shapes", [("hex", 13), ("project", 6)])
+@pytest.mark.parametrize("model_name,expected_shapes", [("hex", 13), ("project", 3)])
 def test_preview_adds_axial_projection_and_overview(
     model_name: str, expected_shapes: int, tmp_path: Path
 ) -> None:
@@ -187,7 +193,7 @@ def test_preview_adds_axial_projection_and_overview(
     manifest = json.loads((output_dir / "manifest.json").read_text())
     campaign = manifest["campaigns"][0]
     assert campaign["unique_shape_count"] == expected_shapes
-    assert len(campaign["overview_condition_ids"]) == 6
+    assert len(campaign["overview_condition_ids"]) == min(expected_shapes, 6)
     assert "onto y-z" in campaign["axial_projection"]
     for path_key, hash_key in (
         ("image", "image_sha256"),

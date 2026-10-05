@@ -1,0 +1,36 @@
+{
+  "status": "PASS",
+  "summary": "Issue #255の1τ契約をhex 26条件とproject n=1..3の6条件、計32条件へ更新した。16初期形状のpreflight・図・両jobのdry-runを確認した。simulationは未実行。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "t=0配置は時間発展の形状安定性を示さない。",
+    "cs10接続、各jobのenqueue、dispatcher/job開始には操作別のユーザー明示承認が必要。"
+  ],
+  "tests_reviewed": [
+    "test_issue255_hook_geometry.pyとtest_issue257_hook_neutral_geometry.py: 13 passed",
+    "hex 26条件・project 6条件のdry-run: planned、preflight全条件、condition別output 32件、実効8/6 workers",
+    "初期配置manifest: 32 arm、16形状、画像6枚のSHA-256一致。outputs/2026-10-05/124223/issue255_initial_geometry_preview/manifest.json",
+    "project n=1..3の3D/2D overviewを目視確認",
+    "ruff check / format --check、git diff --check: PASS"
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "outputs/2026-10-05/124223/issue255_initial_geometry_preview/2010_hex_project_motor_reaction_1tau_issue255_all_counts_overview.png",
+    "outputs/2026-10-05/124223/issue255_initial_geometry_preview/2010_project_motor_reaction_1tau_issue255_all_counts_overview.png",
+    "outputs/2026-10-05/124223/issue255_initial_geometry_preview/manifest.json"
+  ],
+  "user_review_points": [
+    "1τ実行許可は取得済み。各cs10外部操作の承認は実行直前に確認する。"
+  ],
+  "adr_required": false,
+  "adr_reason": "既存のIssue #255候補の対象本数を絞る変更で、物理相互作用・閾値・canonical判断を変更しない。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/261",
+  "next_actions": [
+    "固定commitからのcs10接続、各jobのenqueue、dispatcher/job開始の操作別承認を確認する。",
+    "1τ終了後、32条件のQC・角度診断・固定camera replayをレビューして2s候補を決める。"
+  ]
+}
