@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import replace
 import shutil
 import subprocess
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -17,8 +17,8 @@ from sim_swim.render.render3d import (
     save_swim_movie,
 )
 from sim_swim.render.video_writer import open_mp4_writer
-from sim_swim.sim.flagella_geometry import FlagellaRig
 from sim_swim.sim.core import SimulationState, Simulator
+from sim_swim.sim.flagella_geometry import FlagellaRig
 from sim_swim.sim.params import SimulationConfig
 
 

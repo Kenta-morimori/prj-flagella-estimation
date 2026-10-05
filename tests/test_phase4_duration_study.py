@@ -3,21 +3,21 @@ from __future__ import annotations
 import csv
 import json
 import os
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 import numpy as np
 import pytest
 
+from flagella_estimation.phase3.render import render_clip_array
 from flagella_estimation.phase4.duration_study import (
     DurationStudyConfig,
-    analyze_duration_seed_study,
     _resolve_raw_dir,
+    analyze_duration_seed_study,
     load_duration_study_config,
     summarize_2d_motion,
     summarize_states_3d,
 )
-from flagella_estimation.phase3.render import render_clip_array
 from sim_swim.analysis.flagella_count_behavior import save_state_archive
 from sim_swim.sim.core import SimulationState
 

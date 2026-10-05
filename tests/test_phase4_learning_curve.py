@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import csv
-from copy import deepcopy
 import json
+from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
 import pytest
-
 from phase4_test_utils import write_phase4_fixture_dataset
+
 from flagella_estimation.phase4.learning_curve import (
     GroupFeature,
     Phase4LearningCurveConfig,

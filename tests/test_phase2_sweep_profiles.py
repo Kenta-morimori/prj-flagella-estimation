@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-from sim_swim.analysis.sweeps import shape_stability_grid
 from sim_swim.analysis.cli_profiles import (
     args_from_profile,
     format_profile_description,
@@ -19,6 +18,7 @@ from sim_swim.analysis.cli_profiles import (
     split_config_key,
     sweep_aliases,
 )
+from sim_swim.analysis.sweeps import shape_stability_grid
 
 
 def _load_script(path: Path, name: str):

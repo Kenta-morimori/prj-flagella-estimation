@@ -5,16 +5,15 @@ from __future__ import annotations
 
 import argparse
 import csv
-from datetime import datetime
 import json
 import math
-from pathlib import Path
 import sys
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
 import numpy as np
-
 
 DEFAULT_DATASET_DIR = Path(
     "outputs/phase2_analysis/flagella_count_behavior/datasets/v1"

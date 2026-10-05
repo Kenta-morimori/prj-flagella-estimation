@@ -4,8 +4,8 @@ import csv
 import hashlib
 import importlib.util
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -20,7 +20,6 @@ from sim_swim.analysis.multi_run_campaign import (
     normalize_campaign_config,
 )
 from sim_swim.analysis.parallel_job import load_parallel_job, resolve_execution
-
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "conf/phase2_multi_run/2010_hex_project_long_duration_2s_issue245.yaml"

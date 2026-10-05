@@ -5,15 +5,15 @@ from flagella_estimation.phase4.freeze import (
     DatasetFreezePolicy,
     audit_phase4_dataset_freeze,
 )
-from flagella_estimation.phase4.training import (
-    Phase4BaselineConfig,
-    load_baseline_config,
-    train_baseline_classifier,
-)
 from flagella_estimation.phase4.learning_curve import (
     Phase4LearningCurveConfig,
     evaluate_grouped_learning_curve,
     load_learning_curve_config,
+)
+from flagella_estimation.phase4.training import (
+    Phase4BaselineConfig,
+    load_baseline_config,
+    train_baseline_classifier,
 )
 
 __all__ = [

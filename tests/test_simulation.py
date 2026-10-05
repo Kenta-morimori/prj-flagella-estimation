@@ -14,9 +14,9 @@ from sim_swim.sim.body_shape_gate import (
 from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import (
     DynamicsMode,
+    SimulationConfig,
     infer_dynamics_mode,
     validate_dynamics_mode_consistency,
-    SimulationConfig,
 )
 from sim_swim.sim.single_flagellum_gate import summarize_single_flagellum_short_run
 

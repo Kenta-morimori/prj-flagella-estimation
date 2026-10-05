@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import numpy as np
-
 
 VALID_SPLITS = {"train", "val", "test"}
 

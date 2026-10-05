@@ -7,7 +7,6 @@ import argparse
 import json
 from pathlib import Path
 
-
 TARGET_TO_LABEL = {
     "mac_only": "execution:mac",
     "cs10_user_run": "execution:cs10",

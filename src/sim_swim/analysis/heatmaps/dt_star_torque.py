@@ -8,8 +8,8 @@ import csv
 from pathlib import Path
 
 import matplotlib
-from matplotlib.colors import BoundaryNorm, ListedColormap
 import numpy as np
+from matplotlib.colors import BoundaryNorm, ListedColormap
 
 matplotlib.use("Agg")
 

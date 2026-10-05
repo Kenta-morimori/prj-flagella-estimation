@@ -5,11 +5,10 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-from pathlib import Path
 import shlex
 import subprocess
+from pathlib import Path
 from typing import Literal
-
 
 EXCLUDED_NAMES = {"run.log", "render.log"}
 PARALLEL_CAMPAIGN_ROOT_FILES = (

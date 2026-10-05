@@ -8,7 +8,6 @@ import pytest
 from sim_swim.analysis.multi_run_campaign import load_yaml
 from sim_swim.sim.params import SimulationConfig
 
-
 CONFIG_DIR = Path("conf/phase2_multi_run")
 
 

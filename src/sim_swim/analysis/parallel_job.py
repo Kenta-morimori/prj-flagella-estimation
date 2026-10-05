@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime
 import csv
 import hashlib
 import json
 import os
-from pathlib import Path
 import socket
 import subprocess
 import sys
 import time
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable, Literal
 from uuid import uuid4
 from zoneinfo import ZoneInfo
@@ -38,7 +38,6 @@ from sim_swim.analysis.sweeps.stage_a_2015 import (
 )
 from sim_swim.model.builder import ModelBuilder
 from sim_swim.sim.params import SimulationConfig
-
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SWEEP_DIRECTORY = REPO_ROOT / "conf" / "phase2_sweeps"

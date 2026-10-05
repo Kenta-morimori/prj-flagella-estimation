@@ -4,8 +4,8 @@ import csv
 import importlib.util
 import json
 import math
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -23,7 +23,6 @@ from sim_swim.analysis.multi_run_campaign import (
 from sim_swim.render.video_writer import VideoRenderResult
 from sim_swim.sim.core import SimulationState
 from sim_swim.sim.params import SimulationConfig
-
 
 ROOT = Path(__file__).resolve().parents[1]
 

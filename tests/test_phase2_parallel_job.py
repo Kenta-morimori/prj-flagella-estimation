@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -17,7 +17,6 @@ from sim_swim.analysis.parallel_job import (
     run_parallel_job,
 )
 from sim_swim.sim.params import SimulationConfig
-
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE = ROOT / "conf/phase2_parallel/example_stage_a_validation/job.yaml"

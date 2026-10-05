@@ -5,12 +5,15 @@ import json
 from pathlib import Path
 
 import pytest
-from sim_swim.analysis.cli_profiles import args_from_profile, load_profile
 
-from sim_swim.analysis.issue61_2015_1tau import analyze, analyze_supplemental
-from sim_swim.analysis.issue61_2015_1tau import _canonical_threshold_row
-from sim_swim.analysis.issue61_2015_1tau import _first_threshold_crossing
-from sim_swim.analysis.issue61_2015_1tau import _failure_details
+from sim_swim.analysis.cli_profiles import args_from_profile, load_profile
+from sim_swim.analysis.issue61_2015_1tau import (
+    _canonical_threshold_row,
+    _failure_details,
+    _first_threshold_crossing,
+    analyze,
+    analyze_supplemental,
+)
 from sim_swim.analysis.parallel_job import (
     _aggregate_stage_a_campaign,
     build_plan,
@@ -18,7 +21,6 @@ from sim_swim.analysis.parallel_job import (
     resolve_execution,
 )
 from sim_swim.analysis.sweeps import stage_a_2015
-
 
 TORQUES = (1.0e-21, 2.5e-20, 1.0e-19)
 ROOT = Path(__file__).parents[1]

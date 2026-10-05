@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
-import sys
 
 from sim_swim.analysis.cli_profiles import (
     args_from_profile,
@@ -26,7 +26,6 @@ from sim_swim.analysis.heatmaps import (
     motor_scale_collapse,
     shape_stability_grid,
 )
-
 
 HEATMAP_MAIN: dict[str, Callable[[list[str]], Any]] = {
     "motor_scale_collapse": motor_scale_collapse.main,

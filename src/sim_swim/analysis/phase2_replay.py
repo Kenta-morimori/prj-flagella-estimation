@@ -5,19 +5,19 @@ from __future__ import annotations
 
 import argparse
 import csv
-from datetime import datetime
 import json
 import logging
-from pathlib import Path
 import subprocess
 import sys
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from matplotlib.backends.backend_agg import FigureCanvasAgg
 import matplotlib.pyplot as plt
 import numpy as np
 import yaml
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from sim_swim.analysis.cli_profiles import (
     key_value_args_to_cli_args,

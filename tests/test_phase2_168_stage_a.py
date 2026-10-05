@@ -9,17 +9,16 @@ import numpy as np
 import pytest
 import yaml
 
-from sim_swim.analysis.flagella_count_behavior import save_state_archive
-from sim_swim.analysis.cli_profiles import args_from_profile, load_profile
 from sim_swim.analysis import stage_a_2015_analysis
+from sim_swim.analysis.cli_profiles import args_from_profile, load_profile
+from sim_swim.analysis.flagella_count_behavior import save_state_archive
 from sim_swim.analysis.stage_a_2015_analysis import (
     THRESHOLD_POLICY,
     evaluate_motor_on,
     propose_thresholds,
 )
 from sim_swim.analysis.sweeps import stage_a_2015
-from sim_swim.sim.core import Simulator
-from sim_swim.sim.core import SimulationState
+from sim_swim.sim.core import SimulationState, Simulator
 from sim_swim.sim.params import SimulationConfig
 
 ROOT = Path(__file__).parents[1]

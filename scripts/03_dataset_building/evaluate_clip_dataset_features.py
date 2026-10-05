@@ -2,9 +2,10 @@
 """Evaluate reusable 3D source and 2D pixel features for a clip dataset."""
 
 from __future__ import annotations
+
 import argparse
-from pathlib import Path
 import sys
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 from flagella_estimation.phase3.feature_comparison import evaluate

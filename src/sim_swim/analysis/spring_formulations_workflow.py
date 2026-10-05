@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 from sim_swim.analysis.cli_profiles import key_value_args_to_cli_args
 from sim_swim.analysis.spring_formulation_comparison import (

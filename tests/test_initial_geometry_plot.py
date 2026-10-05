@@ -16,7 +16,6 @@ from sim_swim.analysis.multi_run_campaign import (
 )
 from sim_swim.sim.core import SimulationState
 
-
 ROOT = Path(__file__).resolve().parents[1]
 CAMPAIGN = (
     ROOT

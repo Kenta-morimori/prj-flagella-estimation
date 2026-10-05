@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
-from pathlib import Path
 import shutil
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
 
 ROOT = Path(__file__).resolve().parents[1]
 SYNC_SCRIPT = ROOT / "scripts/cs10/sync_reference_from_cs10.py"

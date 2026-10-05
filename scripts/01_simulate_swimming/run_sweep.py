@@ -4,8 +4,8 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import sys
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
 
@@ -28,7 +28,6 @@ from sim_swim.analysis.sweeps import (
     single_flagellum_torque,
     stage_a_2015,
 )
-
 
 SWEEP_MAIN = {
     "motor_scale": motor_scale.main,

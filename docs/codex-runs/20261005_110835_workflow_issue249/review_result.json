@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "summary": "Issue #249: Ruff I ルールを有効化し、134 Python ファイルの既存 import を機械的に整列した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    {
+      "command": "uv run ruff format --check . && uv run ruff check .",
+      "result": "PASS: 224 files formatted; all lint checks passed"
+    },
+    {
+      "command": ".githooks/pre-commit",
+      "result": "PASS: Ruff checks, issue script lifecycle, 372 light tests"
+    },
+    {
+      "command": "uv run pytest -q",
+      "result": "PASS: 947 tests"
+    },
+    {
+      "command": "git diff --check; changed Python AST and import-alias comparison",
+      "result": "PASS: 134 Python files with no non-import AST changes or import alias additions/removals"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "Lint 設定と import 順の変更のみで、設計・schema・物理モデル・出力契約は変更しない。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": []
+}

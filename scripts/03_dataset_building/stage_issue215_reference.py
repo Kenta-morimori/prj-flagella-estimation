@@ -6,11 +6,10 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-from pathlib import Path
 import shutil
 import tempfile
+from pathlib import Path
 from typing import Any
-
 
 ROOT_FILES = ("run_manifest.json", "summary.csv", "campaign_completion.json", "run.log")
 MOTION_FEATURE_FILES = (

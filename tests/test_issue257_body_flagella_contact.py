@@ -11,7 +11,6 @@ from sim_swim.analysis.multi_run_campaign import (
 )
 from sim_swim.analysis.parallel_job import load_parallel_job, resolve_execution
 
-
 ROOT = Path(__file__).resolve().parents[1]
 JOB_DIR = ROOT / "conf/phase2_parallel/issue257_body_flagella_contact"
 CONF_DIR = ROOT / "conf/phase2_multi_run"

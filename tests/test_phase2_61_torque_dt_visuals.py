@@ -7,7 +7,6 @@ import pytest
 
 from sim_swim.analysis.torque_dt_stability_visuals import build_visuals, feature_rows
 
-
 pytestmark = pytest.mark.light
 
 

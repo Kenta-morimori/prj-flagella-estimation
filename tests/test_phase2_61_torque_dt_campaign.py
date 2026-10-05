@@ -8,7 +8,9 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
+from sim_swim.analysis import torque_dt_stability_campaign as campaign
 from sim_swim.analysis.multi_run_campaign import load_yaml
+from sim_swim.analysis.sweeps.generic_multi_run import run_campaign
 from sim_swim.analysis.torque_dt_stability import build_plan
 from sim_swim.analysis.torque_dt_stability_campaign import (
     _assert_condition,
@@ -18,11 +20,8 @@ from sim_swim.analysis.torque_dt_stability_campaign import (
     render_fixed_real_time_qualitative_replay,
     summarize_campaign,
 )
-from sim_swim.analysis import torque_dt_stability_campaign as campaign
-from sim_swim.analysis.sweeps.generic_multi_run import run_campaign
 from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import SimulationConfig
-
 
 CONFIG = Path("conf/phase2_multi_run/2010_project_torque_dt_initial_screen.yaml")
 PERFORMANCE_CONFIG = Path(

@@ -32,7 +32,6 @@ from sim_swim.sim.debug_summary import (
     NONBODY_HOOK_REL_ERR_MAX_LIMIT,
 )
 
-
 SCREEN_METRICS: tuple[tuple[str, str], ...] = (
     ("hook_angle_err_max_deg", "max hook angle error [deg]"),
     ("hook_len_rel_err_max", "max hook length relative error"),

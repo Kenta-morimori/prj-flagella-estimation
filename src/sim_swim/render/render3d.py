@@ -11,15 +11,15 @@ import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from sim_swim.model.types import PolymorphState
-from sim_swim.sim.core import SimulationState
-from sim_swim.sim.flagella_geometry import FlagellaRig
-from sim_swim.sim.helix_axis import estimate_flag_helix_axis
-from sim_swim.sim.params import SimulationConfig
 from sim_swim.render.video_writer import (
     VideoRenderResult,
     VideoWriterSelection,
     open_mp4_writer,
 )
+from sim_swim.sim.core import SimulationState
+from sim_swim.sim.flagella_geometry import FlagellaRig
+from sim_swim.sim.helix_axis import estimate_flag_helix_axis
+from sim_swim.sim.params import SimulationConfig
 
 
 def _flagella_colors(n: int) -> list[tuple[float, float, float]]:

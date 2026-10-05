@@ -5,6 +5,7 @@ import math
 import numpy as np
 import pytest
 
+from sim_swim.dynamics.engine import DynamicsEngine
 from sim_swim.dynamics.forces import (
     compute_bending_forces,
     compute_hook_forces,
@@ -12,7 +13,6 @@ from sim_swim.dynamics.forces import (
     compute_spring_forces,
     compute_torsion_forces,
 )
-from sim_swim.dynamics.engine import DynamicsEngine
 from sim_swim.model.builder import ModelBuilder, _segment_pairs_without_neighbors
 from sim_swim.sim.params import SimulationConfig
 

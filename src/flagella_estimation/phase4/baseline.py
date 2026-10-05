@@ -6,7 +6,6 @@ from dataclasses import dataclass
 
 import numpy as np
 
-
 FEATURE_NAMES = (
     "intensity_mean",
     "intensity_std",

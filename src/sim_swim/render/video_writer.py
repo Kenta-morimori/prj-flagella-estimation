@@ -7,15 +7,14 @@ not an acceptable delivery format for this project.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import os
-from pathlib import Path
 import shutil
 import subprocess
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Sequence
 
 import numpy as np
-
 
 DEFAULT_MP4_CODECS: tuple[str, ...] = ("ffmpeg:libx264",)
 

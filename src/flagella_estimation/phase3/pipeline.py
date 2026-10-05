@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass
-from datetime import datetime
 import json
-from pathlib import Path
 import platform
 import subprocess
 import sys
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -26,8 +26,8 @@ from flagella_estimation.phase3.render import (
     select_frames,
 )
 from flagella_estimation.phase3.splits import (
-    assign_grouped_splits,
     assert_no_group_leakage,
+    assign_grouped_splits,
 )
 from flagella_estimation.phase3.windows import generate_windows
 from sim_swim.analysis.flagella_count_behavior import load_state_archive

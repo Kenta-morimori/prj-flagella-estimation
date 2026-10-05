@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import argparse
 import csv
-from datetime import datetime
 import hashlib
 import json
 import math
-from pathlib import Path
 import time
 import traceback
+from datetime import datetime
+from decimal import Decimal
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
-from decimal import Decimal
 
 from sim_swim.analysis.flagella_count_behavior import (
     save_state_archive,

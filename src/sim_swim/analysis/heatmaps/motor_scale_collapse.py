@@ -14,8 +14,8 @@ Example:
 
 from __future__ import annotations
 
-import csv
 import argparse
+import csv
 from pathlib import Path
 
 import matplotlib

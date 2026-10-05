@@ -1,17 +1,20 @@
 """Render fixed-world, phase-seed RPY hydrodynamics comparison videos."""
 
 from __future__ import annotations
+
 import argparse
 import gc
 import json
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
+
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import yaml
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+
 from sim_swim.analysis.flagella_count_behavior import (
     load_state_archive,
     normalize_base_overrides,

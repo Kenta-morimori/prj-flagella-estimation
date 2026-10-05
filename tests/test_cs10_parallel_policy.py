@@ -10,7 +10,6 @@ from sim_swim.analysis.parallel_job import (
     resolve_execution,
 )
 
-
 ROOT = Path(__file__).parents[1]
 
 

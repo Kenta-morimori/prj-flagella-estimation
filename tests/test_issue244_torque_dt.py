@@ -16,7 +16,6 @@ from sim_swim.analysis.multi_run_campaign import (
     normalize_campaign_config,
 )
 
-
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "conf/phase2_multi_run/2010_hex_project_torque_dt_1tau_issue244.yaml"
 

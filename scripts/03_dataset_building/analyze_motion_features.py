@@ -2,9 +2,10 @@
 """Analyze reusable 3D/2D motion features from a generic multi-run campaign."""
 
 from __future__ import annotations
+
 import argparse
-from pathlib import Path
 import sys
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 from sim_swim.analysis.motion_feature_study import (

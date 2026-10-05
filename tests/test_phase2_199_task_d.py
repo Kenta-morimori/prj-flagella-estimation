@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import csv
 
-from sim_swim.analysis.task_d_2015_tau_linked import _close, _grid_key, _safety
-from sim_swim.analysis.task_d_2015_tau_linked import _task_a_style_features
+from sim_swim.analysis.task_d_2015_tau_linked import (
+    _close,
+    _grid_key,
+    _safety,
+    _task_a_style_features,
+)
 
 
 def test_task_d_grid_key_normalizes_floating_point_dt_representation() -> None:

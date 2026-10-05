@@ -8,7 +8,6 @@ import pytest
 
 from sim_swim.analysis.issue184_2015_nf1_6 import analyze
 
-
 ROOT = Path(__file__).parents[1]
 IDS = tuple(f"nf{index:02d}" for index in range(1, 7))
 

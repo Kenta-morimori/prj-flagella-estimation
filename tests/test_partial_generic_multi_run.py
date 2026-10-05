@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 import yaml
 
-from sim_swim.analysis.partial_generic_multi_run import export_completed_campaign
 from sim_swim.analysis.flagella_count_behavior import save_state_archive
+from sim_swim.analysis.partial_generic_multi_run import export_completed_campaign
 from sim_swim.analysis.phase2_replay import _load_inputs
 from sim_swim.sim.core import SimulationState
 

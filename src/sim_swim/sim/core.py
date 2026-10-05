@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
 import logging
 import math
-from pathlib import Path
 import time
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable, List, Tuple
 
 import numpy as np
 
-from sim_swim.analysis.run_summary import write_run_summary
-from sim_swim.analysis.online_run_summary import OnlineRunSummary
 from sim_swim.analysis.hydrodynamics import HydroSample
+from sim_swim.analysis.online_run_summary import OnlineRunSummary
+from sim_swim.analysis.run_summary import write_run_summary
 from sim_swim.dynamics.engine import DynamicsEngine
 from sim_swim.model.builder import ModelBuilder
 from sim_swim.sim.debug_summary import (

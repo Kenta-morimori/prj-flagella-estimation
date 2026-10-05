@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 import yaml
-
 from phase4_test_utils import write_phase4_fixture_dataset
+
 from flagella_estimation.phase4.freeze import DatasetFreezePolicy
 from flagella_estimation.phase4.freeze_workflow import (
     Phase4FreezeAuditConfig,

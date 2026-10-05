@@ -15,7 +15,6 @@ from typing import Any
 
 import numpy as np
 
-
 THREED_FEATURES = (
     "cell_displacement",
     "cell_path_length",
