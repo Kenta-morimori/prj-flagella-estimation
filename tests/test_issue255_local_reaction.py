@@ -81,6 +81,7 @@ def test_local_reaction_contract_and_force_balance(
             model.positions_m, ModelBuilder(global_full).build().positions_m
         )
         assert preflight[cid]["initial_hook_body_axis_error_deg"] < 1e-6
+        assert preflight[cid]["initial_helix_rear_angle_max_deg"] < 1e-6
         weights = [np.ones(len(ids) - 1) for ids in model.flagella_indices]
         common = dict(
             positions_m=model.positions_m,
@@ -134,6 +135,58 @@ def test_local_reaction_fails_without_body_support() -> None:
             flagella_attach_body_indices=model.flagella_attach_body_indices,
             body_ring_edges=np.zeros((0, 2), dtype=int),
             body_vertical_edges=np.zeros((0, 2), dtype=int),
+        )
+
+
+@pytest.mark.parametrize("model_name,expected", [("hex", 13), ("project", 3)])
+def test_local_reaction_2s_preserves_1tau_conditions(
+    model_name: str, expected: int, tmp_path: Path
+) -> None:
+    config_name = "2010_hex_project" if model_name == "hex" else "2010_project"
+    campaign_dir = ROOT / "conf/phase2_multi_run"
+    screen = normalize_campaign_config(
+        load_yaml(campaign_dir / f"{config_name}_local_reaction_1tau_issue255.yaml")
+    )
+    main = normalize_campaign_config(
+        load_yaml(campaign_dir / f"{config_name}_local_reaction_2s_issue255.yaml")
+    )
+    assert main["development_evaluation"]["stage"] == "long_duration"
+    assert (
+        main["development_evaluation"]["qc"] == screen["development_evaluation"]["qc"]
+    )
+    assert main["sweep"] == screen["sweep"]
+    assert main["base_config"] == screen["base_config"]
+    main_overrides = dict(main["base_overrides"])
+    main_overrides["time"] = dict(main_overrides["time"])
+    main_overrides["time"]["duration"] = screen["base_overrides"]["time"]["duration"]
+    assert main_overrides == screen["base_overrides"]
+    conditions = build_campaign_conditions(main)
+    preflight = geometry_preflight(main, conditions)
+    job = load_parallel_job(
+        ROOT
+        / f"conf/phase2_parallel/issue255_motor_reaction/{model_name}_local_2s_job.yaml"
+    )
+    execution = resolve_execution(job, None)
+    plan = build_plan(job, execution, tmp_path / "plan")
+    assert len(conditions) == len(preflight) == len(plan["configs"]) == expected
+    assert execution.max_workers == min(8, expected)
+    assert len({record["output_dir"] for record in plan["configs"]}) == expected
+    base = load_yaml(ROOT / main["base_config"])
+    for condition in conditions:
+        cid = condition["condition_id"]
+        cfg = SimulationConfig.from_dict(base).with_overrides(
+            condition["config_overrides"]
+        )
+        assert cfg.total_steps == 500_000
+        assert cfg.motor.body_reaction_support == "attach_one_ring"
+        assert preflight[cid]["initial_helix_rear_angle_max_deg"] <= 1e-6
+        assert preflight[cid]["initial_hook_angle_max_abs_error_deg"] <= 1e-6
+        assert preflight[cid]["initial_hook_body_axis_error_deg"] <= 1e-6
+        assert preflight[cid]["initial_hook_force_norm_N"] <= 1e-18
+        assert preflight[cid]["initial_min_outward_projection_m2"] > 0
+        assert (
+            preflight[cid]["initial_min_nonattached_bead_distance_m"]
+            >= 2 * cfg.scale.bead_radius_a_over_b * cfg.b_m
         )
 
 

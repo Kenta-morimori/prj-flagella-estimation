@@ -14,6 +14,11 @@ from sim_swim.analysis.flagella_count_behavior import normalize_base_overrides
 from sim_swim.dynamics.forces import compute_hook_forces
 from sim_swim.model.builder import ModelBuilder
 from sim_swim.sim.debug_summary import _triplet_angles_rad
+from sim_swim.sim.helix_axis import (
+    angle_deg_between,
+    estimate_body_axis,
+    estimate_flag_helix_axis,
+)
 from sim_swim.sim.params import SimulationConfig
 
 CAMPAIGN_OVERRIDE_ROOTS = {
@@ -411,6 +416,29 @@ def geometry_preflight(
             model = ModelBuilder(cfg).build()
             initial_hook_qc: dict[str, Any] = {}
             if cfg.flagella.initial_hook_force_neutral and model.hook_triplets.size:
+                if cfg.flagella.initial_helix_axis_from_rear_deg == 0.0:
+                    rear = estimate_body_axis(
+                        model.positions_m,
+                        model.body_layer_indices,
+                        model.body_indices,
+                    ).rear_direction
+                    rear_angles = []
+                    for flag_id, indices in enumerate(model.flagella_indices):
+                        helix_axis = estimate_flag_helix_axis(
+                            model.positions_m, indices, flag_id
+                        )
+                        if helix_axis.degenerate:
+                            raise ValueError(
+                                "Initial flagellum helix axis is degenerate"
+                            )
+                        rear_angles.append(angle_deg_between(helix_axis.axis, rear))
+                    rear_error_deg = float(np.max(rear_angles))
+                    if not np.isfinite(rear_error_deg) or rear_error_deg > 1e-6:
+                        raise ValueError(
+                            "Initial flagella are not rearward aligned: "
+                            f"max_angle_deg={rear_error_deg}"
+                        )
+                    initial_hook_qc["initial_helix_rear_angle_max_deg"] = rear_error_deg
                 triplets = model.hook_triplets
                 angles_deg = np.degrees(
                     _triplet_angles_rad(model.positions_m, triplets)
@@ -536,15 +564,17 @@ def geometry_preflight(
                         f"length_error_m={length_error_m}, "
                         f"force_norm_N={hook_force_norm_N}"
                     )
-                initial_hook_qc = {
-                    "initial_hook_angle_max_abs_error_deg": angle_error_deg,
-                    "initial_hook_len_max_abs_error_m": length_error_m,
-                    "initial_hook_force_norm_N": hook_force_norm_N,
-                    "initial_min_nonattached_bead_distance_m": min_bead_distance_m,
-                    "initial_min_attachment_bead_distance_m": min_attachment_bead_distance_m,
-                    "initial_min_outward_projection_m2": min_outward_projection_m,
-                    "initial_hook_body_axis_error_deg": axis_error_deg,
-                }
+                initial_hook_qc.update(
+                    {
+                        "initial_hook_angle_max_abs_error_deg": angle_error_deg,
+                        "initial_hook_len_max_abs_error_m": length_error_m,
+                        "initial_hook_force_norm_N": hook_force_norm_N,
+                        "initial_min_nonattached_bead_distance_m": min_bead_distance_m,
+                        "initial_min_attachment_bead_distance_m": min_attachment_bead_distance_m,
+                        "initial_min_outward_projection_m2": min_outward_projection_m,
+                        "initial_hook_body_axis_error_deg": axis_error_deg,
+                    }
+                )
         except Exception as exc:
             raise ValueError(
                 f"geometry preflight failed for {condition_id}: {exc}"
