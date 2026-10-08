@@ -25,6 +25,7 @@ class OnlineRunSummary:
         self.count = 0
         self.last_t_s: float | None = None
         self.extrema: dict[str, dict[str, float | None]] = {}
+        self.maximum_times: dict[str, float] = {}
         self.gates = {
             key: self._gate() for key in ("finite", "shape_nonbody", "shape_body")
         }
@@ -61,6 +62,14 @@ class OnlineRunSummary:
             item["final"] = number if math.isfinite(number) else None
             item["finite"] = bool(item["finite"]) and math.isfinite(number)
             if math.isfinite(number):
+                if item["max"] is None or number > float(item["max"]):
+                    self.maximum_times[key] = (
+                        float(row.get("force_evaluation_t_s", t_s))
+                        if key.startswith(
+                            ("component_", "motor_drive_", "motor_reaction_")
+                        )
+                        else t_s
+                    )
                 item["min"] = (
                     number if item["min"] is None else min(float(item["min"]), number)
                 )
@@ -121,6 +130,14 @@ class OnlineRunSummary:
             item["final"] = number if math.isfinite(number) else None
             item["finite"] = bool(item["finite"]) and math.isfinite(number)
             if math.isfinite(number):
+                if item["max"] is None or number > float(item["max"]):
+                    self.maximum_times[key] = (
+                        float(row.get("force_evaluation_t_s", t_s))
+                        if key.startswith(
+                            ("component_", "motor_drive_", "motor_reaction_")
+                        )
+                        else t_s
+                    )
                 item["min"] = (
                     number if item["min"] is None else min(float(item["min"]), number)
                 )
@@ -230,6 +247,8 @@ class OnlineRunSummary:
                 "time_spacing_s": {"min_s": None, "median_s": None, "max_s": None},
                 "episode_definition": "every internal step aggregated online",
                 "diagnostic_time_reference": "post_step",
+                "force_balance_time_reference": "pre_step; force_evaluation_t_s",
+                "component_torque_origin": "pre_step all-bead centroid",
                 "persistent_observed_min_consecutive_fail_samples": 1,
                 "episode_storage_limit_per_gate": 1,
                 "output_policy": policy,
@@ -237,7 +256,7 @@ class OnlineRunSummary:
             "gates": self.gates,
             "all_step_metrics": self.extrema,
             "extrema": {
-                key: {"value": val["max"], "t_s": None}
+                key: {"value": val["max"], "t_s": self.maximum_times.get(key)}
                 for key, val in self.extrema.items()
             },
             "source_file_size_bytes": {

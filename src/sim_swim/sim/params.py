@@ -412,6 +412,8 @@ class MotorParams:
     force_distribution: str = MOTOR_FORCE_DISTRIBUTION_DEFAULT
     body_reaction_full_vector: bool = False
     body_reaction_support: str = "all_body"
+    attach_frame_reaction: str = "legacy"
+    segment_torque_correction: str = "none"
     torque_distribution_profile: str = MOTOR_TORQUE_DISTRIBUTION_PROFILE_DEFAULT
     reverse_n_flagella: int = 1
     enable_switching: bool = False
@@ -973,6 +975,10 @@ class SimulationConfig:
                 else "project_implementation"
             ),
         }
+        if self.motor.attach_frame_reaction != "legacy":
+            dynamics["attach_frame_reaction"] = self.motor.attach_frame_reaction
+        if self.motor.segment_torque_correction != "none":
+            dynamics["segment_torque_correction"] = self.motor.segment_torque_correction
         if force_distribution == "hook_coupled_body_reaction":
             dynamics.update(
                 {
@@ -1643,6 +1649,12 @@ class SimulationConfig:
             body_reaction_support=str(
                 _get(motor_raw, "body_reaction_support", "all_body")
             ),
+            attach_frame_reaction=str(
+                _get(motor_raw, "attach_frame_reaction", "legacy")
+            ),
+            segment_torque_correction=str(
+                _get(motor_raw, "segment_torque_correction", "none")
+            ),
             torque_distribution_profile=normalize_motor_torque_distribution_profile(
                 profile_raw
                 if profile_raw not in (None, "")
@@ -1712,6 +1724,26 @@ class SimulationConfig:
                 _get(motor_raw, "local_torsion_scale", MOTOR_LOCAL_SCALE_DEFAULT)
             ),
         )
+        if motor.attach_frame_reaction not in {"legacy", "energy_gradient"}:
+            raise ValueError(
+                "motor.attach_frame_reaction must be legacy or energy_gradient"
+            )
+        if motor.segment_torque_correction not in {"none", "minimum_norm"}:
+            raise ValueError(
+                "motor.segment_torque_correction must be none or minimum_norm"
+            )
+        if (
+            motor.attach_frame_reaction == "energy_gradient"
+            and motor.local_attach_frame_tangent_mode != "vector"
+        ):
+            raise ValueError("energy_gradient requires vector tangent mode")
+        if motor.segment_torque_correction != "none" and (
+            motor.force_distribution != "root_torque_segment_couples"
+            or not motor.body_reaction_full_vector
+        ):
+            raise ValueError(
+                "minimum_norm requires segment couples and full-vector reaction"
+            )
         if motor.body_reaction_support not in {"all_body", "attach_one_ring"}:
             raise ValueError(
                 "motor.body_reaction_support must be all_body or attach_one_ring"

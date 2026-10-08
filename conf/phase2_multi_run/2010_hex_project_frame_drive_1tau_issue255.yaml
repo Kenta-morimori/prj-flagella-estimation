@@ -1,0 +1,104 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  description: 'Issue #255 frame energy gradient and minimum-norm motor torque correction;
+    nf3/4/5 one condition each.'
+  source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/255
+  model_id: 2010_hex_project_issue255_frame_drive
+development_evaluation:
+  version: 1
+  profile_id: 2010_hex_project
+  stage: short_screen
+  expected_condition_count: 3
+  axes:
+  - attachment_pattern
+  qc:
+    exclude_diagnostics_from_gate:
+    - hook_angle_err_max_deg
+    required_gates:
+    - finite
+    - shape_body
+    - hook_length
+    - flag
+    - motor
+    max_motor_force_balance_residual_ratio: 1.0e-08
+    max_motor_torque_balance_residual_ratio: 0.02
+  accepted_source_campaigns:
+  - conf/phase2_multi_run/2010_hex_project_frame_drive_1tau_issue255.yaml
+  replay:
+    group_by:
+    - n_flagella
+    - attachment_pattern
+    camera_3d: fixed
+    view_range_mode: campaign-envelope
+    show_flagella_axes: true
+  long_duration:
+    status: requires_short_screen_review
+    feature_evaluation: separate_issue
+base_config: conf/sim_swim_2010_hex.yaml
+base_overrides:
+  time.duration:
+    value: 1.0
+    unit: tau
+  time.scale_policy: reference_torque
+  time.integration.dt_star: 0.0001
+  motor.torque_Nm: 2.5e-20
+  motor.reference_torque_Nm: 2.5e-20
+  motor.enable_switching: false
+  motor.body_reaction_full_vector: true
+  motor.body_reaction_support: attach_one_ring
+  brownian.enabled: false
+  potentials.spring_spring_repulsion.body_flagella_enabled: false
+  flagella.placement_mode: explicit_center_layer_slots
+  flagella.initial_hook_force_neutral: true
+  flagella.initial_hook_body_axis_perpendicular: true
+  seed.attach_seed: 0
+  seed.phase_seed: 0
+  output.policy: compact
+  output.archive_interval_s: 0.001
+  motor.attach_frame_reaction: energy_gradient
+  motor.segment_torque_correction: minimum_norm
+sweep:
+  axes:
+    attachment_pattern:
+      keys:
+        n_flagella: flagella.n_flagella
+        attachment_slots: flagella.attachment_slots
+        motor_torque: motor.torque_Nm
+      short_name: slots
+      values:
+      - n_flagella: 3
+        attachment_slots:
+        - 0
+        - 2
+        - 4
+        motor_torque: 2.5e-20
+      - n_flagella: 4
+        attachment_slots:
+        - 0
+        - 1
+        - 3
+        - 4
+        motor_torque: 2.5e-20
+      - n_flagella: 5
+        attachment_slots:
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
+        motor_torque: 2.5e-20
+      labels:
+      - slots024
+      - slots0134
+      - slots01234
+      ids:
+      - nf03__slots024
+      - nf04__slots0134
+      - nf05__slots01234
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 1000
