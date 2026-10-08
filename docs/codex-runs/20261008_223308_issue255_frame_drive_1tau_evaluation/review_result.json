@@ -1,0 +1,40 @@
+{
+  "status": "PASS",
+  "summary": "Issue #255 queue #22の1tau3条件をローカル同期・SHA-256照合し、共通QC・局所solver telemetry・固定camera replay・旧#20比較を評価した。1sは未予約。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "QCは3/3 PASSだが束化は未確認。束の広がりは約1%大きく、nf5の遊泳方向と菌体軸に終端約48度のずれが残る。",
+    "全トルクの小さい残差はtorsion成分に残る。frame/motor修正だけで全系の厳密保存を主張しない。",
+    "候補CのみでA/Bの動的寄与は未識別。1sはユーザーレビューと段階実行許可後。"
+  ],
+  "tests_reviewed": [
+    "queue #22 succeeded; 3/3 condition each10000steps, 0.04s, fixed e9a9998; aggregate completed",
+    "remote/local file set and SHA-256 match: 32 files",
+    "common development_evaluation short_screen: 3/3 PASS finite/body/hook length/flag/motor",
+    "per-step support min/max=5; solver success=1; fallback=0",
+    "fixed-camera 3D/2D replay 6 videos each41frames (ffprobe), terminal3D and 2D/time-series visual QA",
+    "baseline #20 commit/provenance, same physical configs except intended modes/time, dt/scale/archive spacing and initial coordinates verified;41 aligned states per arm",
+    "source simulation implementation unchanged this turn: docs/results only; no new full pytest required"
+  ],
+  "user_review_required": true,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "docs/phase2/phase2_255_frame_drive_1tau_results.md",
+    "outputs/2026-10-08/223308/evaluation/replay",
+    "outputs/2026-10-08/223308/diagnostics/initial_final_axial_2d.png",
+    "outputs/2026-10-08/223308/diagnostics/baseline_vs_corrected_timeseries.png"
+  ],
+  "user_review_points": [
+    "3条件を1sへ進めるか。単純比例wall time約9時間26分。",
+    "1tauでは数値的修正を確認できるが、安定束化や滑らかな遊泳の採択判断はできない。"
+  ],
+  "adr_required": false,
+  "adr_reason": "結果報告のみで採択・物理モデル変更なし。ADR0025はProposed。",
+  "commit_type": "partial",
+  "commit_hash": null,
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/261",
+  "next_actions": [
+    "1tauのQC/replayをレビュー後、1s3条件の予約・開始を判断する。"
+  ]
+}
