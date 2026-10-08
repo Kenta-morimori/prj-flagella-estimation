@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from itertools import combinations
+from itertools import combinations, product
 
 import numpy as np
 
@@ -277,6 +277,97 @@ def _neutralize_initial_hooks_without_bead_overlap(
         )
     for points, shifted, pick in zip(flagella_um, candidates, picks):
         points[:] = shifted[pick]
+
+
+def _rotate_initial_flagella_for_perpendicular_neutral_hooks(
+    body_um: np.ndarray,
+    flagella_um: list[np.ndarray],
+    attach_ids: np.ndarray,
+    body_axis: np.ndarray,
+    bead_diameter_um: float,
+) -> None:
+    """Keep each first bead fixed and rotate whole chains to neutral side hooks.
+
+    The two axial rotations per chain make its basal tangent perpendicular to
+    the existing hook, which is already perpendicular to the body axis. Choose
+    the collision-clear combination with the largest minimum bead distance.
+    """
+    if not flagella_um:
+        return
+    if len(flagella_um) > 6:
+        raise ValueError(
+            "Perpendicular neutral hook placement supports at most 6 flagella"
+        )
+    axis = body_axis / float(np.linalg.norm(body_axis))
+    candidates: list[tuple[np.ndarray, np.ndarray]] = []
+    body_clearances: list[tuple[float, float]] = []
+    for points, attach_idx in zip(flagella_um, attach_ids):
+        hook = points[0] - body_um[int(attach_idx)]
+        hook_unit = hook / float(np.linalg.norm(hook))
+        if abs(float(np.dot(hook_unit, axis))) > 1e-10:
+            raise ValueError("Initial hook is not perpendicular to the body axis")
+        tangent = points[1] - points[0]
+        transverse = tangent - float(np.dot(tangent, axis)) * axis
+        transverse_norm = float(np.linalg.norm(transverse))
+        if transverse_norm <= 1e-12:
+            raise ValueError("Basal tangent has no transverse component")
+        transverse /= transverse_norm
+        alternatives = []
+        clearances = []
+        other_body = np.delete(body_um, int(attach_idx), axis=0)
+        for sign in (1.0, -1.0):
+            target = sign * np.cross(axis, hook_unit)
+            angle = math.atan2(
+                float(np.dot(axis, np.cross(transverse, target))),
+                float(np.dot(transverse, target)),
+            )
+            rotated = (
+                points[0] + (points - points[0]) @ _rotation_about_axis(axis, angle).T
+            )
+            alternatives.append(rotated)
+            own_attach_clearance = float(
+                np.min(np.linalg.norm(rotated - body_um[int(attach_idx)], axis=1))
+            )
+            clearances.append(
+                -math.inf
+                if own_attach_clearance < bead_diameter_um - 1e-9
+                else float(
+                    np.min(
+                        np.linalg.norm(
+                            rotated[:, None, :] - other_body[None, :, :], axis=-1
+                        )
+                    )
+                )
+            )
+        candidates.append((alternatives[0], alternatives[1]))
+        body_clearances.append((clearances[0], clearances[1]))
+
+    best_clearance = -math.inf
+    best_choice: tuple[int, ...] | None = None
+    for choice in product((0, 1), repeat=len(candidates)):
+        clearance = min(body_clearances[i][pick] for i, pick in enumerate(choice))
+        for i, j in combinations(range(len(candidates)), 2):
+            if clearance <= best_clearance:
+                break
+            first = candidates[i][choice[i]]
+            second = candidates[j][choice[j]]
+            clearance = min(
+                clearance,
+                float(
+                    np.min(
+                        np.linalg.norm(first[:, None, :] - second[None, :, :], axis=-1)
+                    )
+                ),
+            )
+        if clearance > best_clearance:
+            best_clearance, best_choice = clearance, choice
+    if best_choice is None or best_clearance < bead_diameter_um - 1e-9:
+        raise ValueError(
+            "No bead-clear perpendicular neutral hook placement found: "
+            f"minimum_distance_to_bead_diameter={best_clearance / bead_diameter_um:.6f}"
+        )
+    for points, alternatives, pick in zip(flagella_um, candidates, best_choice):
+        points[:] = alternatives[pick]
 
 
 class ModelBuilder:
@@ -898,7 +989,20 @@ class ModelBuilder:
 
             hook_triplets.append((int(attach_idx), int(idx[0]), int(idx[1])))
 
-        if cfg.flagella.initial_hook_force_neutral:
+        if cfg.flagella.initial_hook_body_axis_perpendicular:
+            if not cfg.flagella.initial_hook_force_neutral:
+                raise ValueError(
+                    "flagella.initial_hook_body_axis_perpendicular requires "
+                    "flagella.initial_hook_force_neutral=true"
+                )
+            _rotate_initial_flagella_for_perpendicular_neutral_hooks(
+                body_um,
+                points_all[1:],
+                attach_ids,
+                body_axis,
+                2.0 * cfg.bead_radius_m / UM_TO_M,
+            )
+        elif cfg.flagella.initial_hook_force_neutral:
             _neutralize_initial_hooks_without_bead_overlap(
                 body_um,
                 points_all[1:],

@@ -1,0 +1,74 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  description: Issue #255 project hook geometry and motor reaction paired 1tau screen.
+  source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/255
+  model_id: 2010_project_issue255_motor_reaction
+
+development_evaluation:
+  version: 1
+  profile_id: 2010_project
+  stage: short_screen
+  expected_condition_count: 6
+  axes: [count_torque, body_reaction_full_vector]
+  qc:
+    exclude_diagnostics_from_gate: [hook_angle_err_max_deg]
+    required_gates: [finite, shape_body, hook_length, flag, motor]
+    max_motor_force_balance_residual_ratio: 1.0e-8
+    max_motor_torque_balance_residual_ratio: 2.0e-2
+  accepted_source_campaigns:
+    - conf/phase2_multi_run/2010_project_motor_reaction_1tau_issue255.yaml
+  replay:
+    group_by: [n_flagella, body_reaction_full_vector]
+    camera_3d: fixed
+    view_range_mode: campaign-envelope
+    show_flagella_axes: true
+  long_duration:
+    status: requires_short_screen_review
+    feature_evaluation: separate_issue
+
+base_config: conf/sim_swim_2010.yaml
+base_overrides:
+  time.duration: {value: 1.0, unit: tau}
+  time.scale_policy: reference_torque
+  time.integration.dt_star: 1.0e-4
+  motor.torque_Nm: 2.5e-20
+  motor.reference_torque_Nm: 2.5e-20
+  motor.enable_switching: false
+  brownian.enabled: false
+  potentials.spring_spring_repulsion.body_flagella_enabled: false
+  flagella.placement_mode: seeded_surface
+  flagella.initial_phase_mode: seeded
+  flagella.initial_hook_force_neutral: true
+  flagella.initial_hook_body_axis_perpendicular: true
+  seed.attach_seed: 0
+  seed.phase_seed: 0
+  output.policy: compact
+  output.archive_interval_s: 0.001
+
+sweep:
+  axes:
+    count_torque:
+      keys:
+        n_flagella: flagella.n_flagella
+        motor_torque: motor.torque_Nm
+      short_name: nf
+      values:
+        - {n_flagella: 1, motor_torque: 2.5e-20}
+        - {n_flagella: 2, motor_torque: 2.5e-20}
+        - {n_flagella: 3, motor_torque: 2.5e-20}
+      labels: ['1', '2', '3']
+      ids: [nf01, nf02, nf03]
+    body_reaction_full_vector:
+      key: motor.body_reaction_full_vector
+      short_name: rx
+      values: [false, true]
+      labels: [axis, full]
+      ids: [rxaxis, rxfull]
+
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 1000

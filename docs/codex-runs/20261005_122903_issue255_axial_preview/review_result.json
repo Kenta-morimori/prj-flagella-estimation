@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "summary": "Issue #255のt=0初期形状について、hex全13配置とproject n=1..6の軸方向2D投影、各モデルn=1..6の3D/2D並列overviewを追加した。project campaignの複合sweep軸が数値のn_flagellaを上書きする不具合も修正した。simulationは未実行。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "t=0画像は時間発展の形状安定性を示さない。1τ実行判断はユーザーによる画像確認後に行う。"
+  ],
+  "tests_reviewed": [
+    "test_issue255_hook_geometry.py、test_initial_geometry_plot.py、test_issue257_hook_neutral_geometry.py: 16 passed",
+    "ruff check、ruff format --check、git diff --check: PASS",
+    "project 12条件のparallel-job dry-run: planned、cs10_qualified、実効8 workers、condition別output分離",
+    "preview manifest: 38条件、19形状、6画像のSHA-256を照合。ローカルoutputs/2026-10-05/122448/issue255_initial_geometry_preview/manifest.json",
+    "hex/projectのoverviewと全配置2D画像を目視確認"
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "outputs/2026-10-05/122448/issue255_initial_geometry_preview/2010_hex_project_motor_reaction_1tau_issue255_all_counts_overview.png",
+    "outputs/2026-10-05/122448/issue255_initial_geometry_preview/2010_project_motor_reaction_1tau_issue255_all_counts_overview.png",
+    "outputs/2026-10-05/122448/issue255_initial_geometry_preview/2010_hex_project_motor_reaction_1tau_issue255_axial_projection.png",
+    "outputs/2026-10-05/122448/issue255_initial_geometry_preview/2010_project_motor_reaction_1tau_issue255_axial_projection.png"
+  ],
+  "user_review_points": [
+    "1τ実行可否の判断には、hexとprojectそれぞれの2D配置図でhookとべん毛の初期位置を確認する。"
+  ],
+  "adr_required": false,
+  "adr_reason": "既存のIssue #255初期幾何と実行契約を可視化する追加であり、新たな物理判断を導入しない。project sweep軸名は数値本数を保つための設定修正。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/261",
+  "next_actions": [
+    "ユーザーが画像を確認し1τ実行を選んだ後、cs10接続、enqueue、job開始の各操作について個別の明示承認を確認する。"
+  ]
+}

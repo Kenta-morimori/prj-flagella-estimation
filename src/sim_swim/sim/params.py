@@ -391,6 +391,7 @@ class FlagellumParams:
     helix_init: FlagellaHelixInitParams = field(default_factory=FlagellaHelixInitParams)
     initial_helix_axis_from_rear_deg: float | None = None
     initial_hook_force_neutral: bool = False
+    initial_hook_body_axis_perpendicular: bool = False
 
 
 @dataclass(frozen=True)
@@ -410,6 +411,9 @@ class MotorParams:
     allow_reference_torque_mismatch: bool = False
     force_distribution: str = MOTOR_FORCE_DISTRIBUTION_DEFAULT
     body_reaction_full_vector: bool = False
+    body_reaction_support: str = "all_body"
+    attach_frame_reaction: str = "legacy"
+    segment_torque_correction: str = "none"
     torque_distribution_profile: str = MOTOR_TORQUE_DISTRIBUTION_PROFILE_DEFAULT
     reverse_n_flagella: int = 1
     enable_switching: bool = False
@@ -971,6 +975,10 @@ class SimulationConfig:
                 else "project_implementation"
             ),
         }
+        if self.motor.attach_frame_reaction != "legacy":
+            dynamics["attach_frame_reaction"] = self.motor.attach_frame_reaction
+        if self.motor.segment_torque_correction != "none":
+            dynamics["segment_torque_correction"] = self.motor.segment_torque_correction
         if force_distribution == "hook_coupled_body_reaction":
             dynamics.update(
                 {
@@ -994,8 +1002,19 @@ class SimulationConfig:
             and self.motor.body_reaction_full_vector
         ):
             dynamics["body_reaction_model"] = (
-                "all_body_beads_zero_net_force_full_vector_torque_couple"
+                "local_attach_one_ring_zero_net_force_full_vector_torque_couple"
+                if self.motor.body_reaction_support == "attach_one_ring"
+                else "all_body_beads_zero_net_force_full_vector_torque_couple"
             )
+            dynamics["body_reaction_support"] = self.motor.body_reaction_support
+            if self.motor.body_reaction_support == "attach_one_ring":
+                dynamics["body_reaction_fallback_model"] = "none"
+                if reaction_support_bead_counts is not None:
+                    dynamics["reaction_support_bead_counts"] = sorted(
+                        {int(value) for value in reaction_support_bead_counts}
+                    )
+                if reaction_fallback_used is not None:
+                    dynamics["reaction_fallback_used"] = bool(reaction_fallback_used)
 
         manifest = {
             "dynamics": dynamics,
@@ -1584,6 +1603,9 @@ class SimulationConfig:
             initial_hook_force_neutral=bool(
                 _get(flag_raw, "initial_hook_force_neutral", False)
             ),
+            initial_hook_body_axis_perpendicular=bool(
+                _get(flag_raw, "initial_hook_body_axis_perpendicular", False)
+            ),
         )
 
         fluid_raw = raw.get("fluid", {}) or {}
@@ -1623,6 +1645,15 @@ class SimulationConfig:
             ),
             body_reaction_full_vector=bool(
                 _get(motor_raw, "body_reaction_full_vector", False)
+            ),
+            body_reaction_support=str(
+                _get(motor_raw, "body_reaction_support", "all_body")
+            ),
+            attach_frame_reaction=str(
+                _get(motor_raw, "attach_frame_reaction", "legacy")
+            ),
+            segment_torque_correction=str(
+                _get(motor_raw, "segment_torque_correction", "none")
             ),
             torque_distribution_profile=normalize_motor_torque_distribution_profile(
                 profile_raw
@@ -1693,6 +1724,38 @@ class SimulationConfig:
                 _get(motor_raw, "local_torsion_scale", MOTOR_LOCAL_SCALE_DEFAULT)
             ),
         )
+        if motor.attach_frame_reaction not in {"legacy", "energy_gradient"}:
+            raise ValueError(
+                "motor.attach_frame_reaction must be legacy or energy_gradient"
+            )
+        if motor.segment_torque_correction not in {"none", "minimum_norm"}:
+            raise ValueError(
+                "motor.segment_torque_correction must be none or minimum_norm"
+            )
+        if (
+            motor.attach_frame_reaction == "energy_gradient"
+            and motor.local_attach_frame_tangent_mode != "vector"
+        ):
+            raise ValueError("energy_gradient requires vector tangent mode")
+        if motor.segment_torque_correction != "none" and (
+            motor.force_distribution != "root_torque_segment_couples"
+            or not motor.body_reaction_full_vector
+        ):
+            raise ValueError(
+                "minimum_norm requires segment couples and full-vector reaction"
+            )
+        if motor.body_reaction_support not in {"all_body", "attach_one_ring"}:
+            raise ValueError(
+                "motor.body_reaction_support must be all_body or attach_one_ring"
+            )
+        if motor.body_reaction_support == "attach_one_ring" and (
+            motor.force_distribution != "root_torque_segment_couples"
+            or not motor.body_reaction_full_vector
+        ):
+            raise ValueError(
+                "motor.body_reaction_support=attach_one_ring requires "
+                "root_torque_segment_couples and body_reaction_full_vector=true"
+            )
 
         thermal = K_B * max(brownian.temperature_K, 1e-9)
         b_m = max(scale.b_um, 1e-9) * 1e-6

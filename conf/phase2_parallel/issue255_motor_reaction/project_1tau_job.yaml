@@ -1,0 +1,6 @@
+schema_version: 1
+job_id: issue255_project_motor_reaction_1tau
+configs: [conf/phase2_multi_run/2010_project_motor_reaction_1tau_issue255.yaml]
+conditions: [nf01__rxaxis, nf01__rxfull, nf02__rxaxis, nf02__rxfull, nf03__rxaxis, nf03__rxfull]
+preflight: geometry_all_conditions
+execution: {max_workers: auto, worker_policy: cs10_qualified}

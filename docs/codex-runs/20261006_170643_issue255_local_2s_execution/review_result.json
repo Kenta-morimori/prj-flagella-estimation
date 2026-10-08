@@ -1,0 +1,36 @@
+{
+  "status": "PASS",
+  "summary": "Issue #255の局所・全ベクトル反作用2s設定をhex13・project n=1..3の3条件で検証。全16条件の初期後方整列・hook平衡・ビーズ非重複preflight、並列dry-run、設定同一性を確認した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "2sの時間発展中の形状・motor安定性はcs10実行後に判定する。"
+  ],
+  "tests_reviewed": [
+    "targeted pytest: 84 passed",
+    "hex13・project3のparallel dry-run: planned、geometry全条件PASS、condition別output、実効8/3 workers",
+    "初期らせん軸の後方角最大0°、hook初期曲げ力最大9.09e-28 N、hook平衡角・長さ・外向き・ビーズ非重複PASS",
+    "2sと1τの物理設定・QC閾値一致、2sは50tauで500000 step",
+    "ruff check/format、git diff --check: PASS"
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "docs/phase2/phase2_255_local_reaction_2s_contract.md",
+    "conf/phase2_parallel/issue255_motor_reaction/hex_local_2s_job.yaml",
+    "conf/phase2_parallel/issue255_motor_reaction/project_local_2s_job.yaml"
+  ],
+  "user_review_points": [
+    "ユーザーはcs10接続・両jobの予約・dispatcher起動と実行を承認済み。",
+    "時間発展中の90°偏差は診断専用で、新しいFAIL閾値はない。"
+  ],
+  "adr_required": false,
+  "adr_reason": "ADR 0024のpending局所反作用候補を、物理条件を変えずに2sへ延長するため。",
+  "commit_type": "partial",
+  "commit_hash": null,
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/261",
+  "next_actions": [
+    "変更をcommit/pushしIssue #255とPR #261の実行契約を更新する。",
+    "確定commitでcs10の2件を予約・開始し、成果物を同期・評価する。"
+  ]
+}

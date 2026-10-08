@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable
 
 import numpy as np
 
+from sim_swim.dynamics.balance_diagnostics import BALANCE_COLUMNS, component_balance
 from sim_swim.dynamics.brownian import sample_brownian_displacement
 from sim_swim.dynamics.forces import (
     MotorForceDiagnostics,
@@ -24,6 +25,7 @@ from sim_swim.dynamics.forces import (
     compute_spring_forces,
     compute_torsion_forces,
 )
+from sim_swim.dynamics.frame_potential import attachment_frame_energy_forces
 from sim_swim.dynamics.hydro_rpy import compute_rpy_mobility
 from sim_swim.model.types import PolymorphState, SimModel
 from sim_swim.sim.hook_frame import (
@@ -108,6 +110,7 @@ class StepDiagnostics:
     local_twist_abs_mean_deg: float
     local_twist_abs_max_deg: float
     local_twist_tip_activity_ratio: float
+    force_balance_diagnostics: dict[str, float] = field(default_factory=dict)
 
 
 class DynamicsEngine:
@@ -915,6 +918,7 @@ class DynamicsEngine:
                 fd_eps_m=self.torsion_fd_eps_m,
             )
 
+        frame_forces = np.zeros_like(pos)
         hook_forces = np.zeros_like(pos)
         if self.cfg.hook.enabled:
             hook_forces = compute_hook_forces(
@@ -963,20 +967,40 @@ class DynamicsEngine:
                         if self.motor_local_attach_frame_tangent_mode == "vector"
                         else 0.0
                     )
-                    hook_forces += compute_attach_frame_target_forces(
-                        positions_m=pos,
-                        hook_triplets=self.model.hook_triplets,
-                        attach_first_target_vectors_m=attach_first_targets,
-                        first_second_target_vectors_m=first_second_targets,
-                        attach_first_rest_lengths_m=(
-                            self.hook_attach_first_rest_lengths_m
-                        ),
-                        first_second_rest_lengths_m=(
-                            self.hook_first_second_rest_lengths_m
-                        ),
-                        k_position=self.k_hook * frame_position_extra_scale,
-                        k_tangent=self.k_hook * vector_tangent_scale,
-                    )
+                    if self.cfg.motor.attach_frame_reaction == "energy_gradient":
+                        _, frame_forces = attachment_frame_energy_forces(
+                            pos,
+                            self.model,
+                            self.hook_attach_layer_indices,
+                            (
+                                self.hook_attach_first_frame_local_m,
+                                self.hook_first_second_frame_local_m,
+                            ),
+                            (
+                                self.hook_attach_first_rest_lengths_m,
+                                self.hook_first_second_rest_lengths_m,
+                            ),
+                            (
+                                self.k_hook * frame_position_extra_scale,
+                                self.k_hook * vector_tangent_scale,
+                            ),
+                        )
+                    else:
+                        frame_forces = compute_attach_frame_target_forces(
+                            positions_m=pos,
+                            hook_triplets=self.model.hook_triplets,
+                            attach_first_target_vectors_m=attach_first_targets,
+                            first_second_target_vectors_m=first_second_targets,
+                            attach_first_rest_lengths_m=(
+                                self.hook_attach_first_rest_lengths_m
+                            ),
+                            first_second_rest_lengths_m=(
+                                self.hook_first_second_rest_lengths_m
+                            ),
+                            k_position=self.k_hook * frame_position_extra_scale,
+                            k_tangent=self.k_hook * vector_tangent_scale,
+                        )
+                    hook_forces += frame_forces
                     if (
                         self.motor_local_attach_frame_tangent_mode == "basal_bearing"
                         and frame_tangent_extra_scale > 0.0
@@ -1053,6 +1077,13 @@ class DynamicsEngine:
                     full_vector_body_reaction=(
                         self.cfg.motor.body_reaction_full_vector
                     ),
+                    body_reaction_support=self.cfg.motor.body_reaction_support,
+                    segment_torque_correction=self.cfg.motor.segment_torque_correction,
+                    flagella_attach_body_indices=(
+                        self.model.flagella_attach_body_indices
+                    ),
+                    body_ring_edges=self.model.body_ring_edges,
+                    body_vertical_edges=self.model.body_vertical_edges,
                 )
             else:
                 raise ValueError(
@@ -1114,7 +1145,37 @@ class DynamicsEngine:
         self.model.positions_m = pos_after
         self.t_star += dt_star_eff
         body_equiv_norm = np.linalg.norm(body_equiv_forces, axis=1)
+        balance = dict.fromkeys(BALANCE_COLUMNS, 0.0)
+        balance.update(
+            component_balance(
+                pos_before,
+                {
+                    "spring": spring_forces,
+                    "bend": bend_forces,
+                    "torsion": torsion_forces,
+                    "hook": hook_forces - frame_forces,
+                    "frame": frame_forces,
+                    "repulsion": repulsion_forces,
+                    "motor": motor_forces,
+                    "total": forces,
+                },
+            )
+        )
+        balance.update(dict(motor_diag.drive_metrics))
+        support = motor_diag.reaction_support_bead_counts
+        balance.update(
+            {
+                "force_evaluation_t_s": self.t_star * self.cfg.tau_s - dt_s,
+                "motor_reaction_support_count_min": min(support, default=0),
+                "motor_reaction_support_count_max": max(support, default=0),
+                "motor_reaction_fallback_used": int(motor_diag.reaction_fallback_used),
+                "motor_reaction_solver_success": int(
+                    bool(support) and not motor_diag.degenerate_axis_count
+                ),
+            }
+        )
         return StepDiagnostics(
+            force_balance_diagnostics=balance,
             dt_star=dt_star_eff,
             dt_s=dt_s,
             positions_before_m=pos_before,

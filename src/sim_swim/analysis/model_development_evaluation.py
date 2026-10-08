@@ -276,6 +276,7 @@ def _row(
             dict(record.get("axis_labels", {}) or {}).get("attachment_pattern", "")
         ),
         "attachment_slots": json.dumps(axes.get("attachment_slots", [])),
+        "body_reaction_full_vector": axes.get("body_reaction_full_vector", ""),
         "screen_status": screen_status(summary, qc=qc),
         "raw_nonbody_any_fail": _gate_failed(summary, "shape_nonbody"),
         "raw_first_failure_category": str(
@@ -626,8 +627,71 @@ def _plot_attachment_patterns(rows: list[dict[str, Any]], output_path: Path) -> 
     plt.close(figure)
 
 
+def _plot_reaction_pairs(rows: list[dict[str, Any]], output_path: Path) -> None:
+    """Compare reaction arms for one flagellum count without collapsing cells."""
+
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import BoundaryNorm, ListedColormap
+
+    patterns = sorted({str(row["attachment_pattern"]) for row in rows})
+    arms = (False, True)
+    by_cell = {
+        (str(row["attachment_pattern"]), bool(row["body_reaction_full_vector"])): row
+        for row in rows
+    }
+    if len(by_cell) != len(rows) or len(by_cell) != len(patterns) * len(arms):
+        raise ValueError("Reaction-pair heatmap requires exactly two arms per shape")
+    panels = (("screen_status", "screen status"),) + SCREEN_METRICS
+    figure, axes = plt.subplots(
+        3, 3, figsize=(14, max(10, 2.0 * len(patterns))), constrained_layout=True
+    )
+    for axis, (metric, label) in zip(axes.flat, panels, strict=True):
+        matrix = np.full((len(patterns), len(arms)), np.nan)
+        for i, pattern in enumerate(patterns):
+            for j, arm in enumerate(arms):
+                value = by_cell[(pattern, arm)][metric]
+                matrix[i, j] = (
+                    {"fail": 0.0, "pass": 1.0}[value]
+                    if metric == "screen_status"
+                    else float(value)
+                )
+        if metric == "screen_status":
+            image = axis.imshow(
+                matrix,
+                aspect="auto",
+                cmap=ListedColormap(["#c53d3d", "#278b6e"]),
+                norm=BoundaryNorm([-0.5, 0.5, 1.5], 2),
+            )
+            colorbar = figure.colorbar(image, ax=axis, shrink=0.8)
+            colorbar.set_ticks([0, 1], labels=["FAIL", "PASS"])
+        else:
+            image = axis.imshow(matrix, aspect="auto", cmap="viridis")
+            figure.colorbar(image, ax=axis, shrink=0.8)
+        axis.set_title(label, fontsize=10)
+        axis.set_xticks(range(2), ["axis", "full vector"])
+        axis.set_yticks(
+            range(len(patterns)),
+            [pattern or "single placement" for pattern in patterns],
+        )
+        axis.tick_params(axis="y", labelsize=7)
+        for (i, j), value in np.ndenumerate(matrix):
+            label_text = (
+                {0.0: "FAIL", 1.0: "PASS"}[value]
+                if metric == "screen_status"
+                else f"{value:.3g}"
+            )
+            axis.text(j, i, label_text, ha="center", va="center", fontsize=7)
+    figure.suptitle(f"Motor reaction pairs | n={rows[0]['n_flagella']}")
+    figure.savefig(output_path, dpi=220)
+    plt.close(figure)
+
+
 def _write_replay_input(
-    *, output_dir: Path, run_dirs: list[Path], config: dict[str, Any]
+    *,
+    output_dir: Path,
+    run_dirs: list[Path],
+    config: dict[str, Any],
+    evaluation_rows: list[dict[str, Any]],
 ) -> Path:
     """Build a replay-only manifest retaining absolute source archives."""
 
@@ -637,6 +701,7 @@ def _write_replay_input(
     summary_rows: list[dict[str, str]] = []
     base_config: str | None = None
     contract = _development_contract(config)
+    statuses = {row["condition_id"]: row["screen_status"] for row in evaluation_rows}
     contract_axes = [str(axis) for axis in contract["axes"]]
     expected = _expected_conditions(config)
     expected_by_key = {
@@ -679,6 +744,8 @@ def _write_replay_input(
             records.append(record)
             summary_row = dict(source_rows[source_condition_id])
             summary_row["condition_id"] = str(record["condition_id"])
+            summary_row["development_evaluation_status"] = statuses[condition_id]
+            summary_row["development_evaluation_stage"] = str(contract["stage"])
             summary_rows.append(summary_row)
     records.sort(key=lambda record: str(record["condition_id"]))
     summary_rows.sort(key=lambda row: str(row["condition_id"]))
@@ -789,7 +856,16 @@ def build_evaluation(
     summary_path = output_dir / "summary.csv"
     _write_csv(summary_path, rows)
     outputs: dict[str, Path] = {"summary_csv": summary_path}
-    if rows and rows[0].get("attachment_pattern"):
+    if rows and isinstance(rows[0].get("body_reaction_full_vector"), bool):
+        heatmap_dir = output_dir / "heatmaps"
+        heatmap_dir.mkdir(exist_ok=True)
+        for n_flagella in sorted({int(row["n_flagella"]) for row in rows}):
+            path = heatmap_dir / f"nf{n_flagella:02d}_reaction_pairs.png"
+            _plot_reaction_pairs(
+                [row for row in rows if int(row["n_flagella"]) == n_flagella], path
+            )
+            outputs[f"heatmap_nf{n_flagella:02d}"] = path
+    elif rows and rows[0].get("attachment_pattern"):
         heatmap_dir = output_dir / "heatmaps"
         heatmap_dir.mkdir(exist_ok=True)
         path = heatmap_dir / "attachment_patterns_qc.png"
@@ -820,7 +896,7 @@ def build_evaluation(
         _write_csv(window_path, window_rows)
         outputs["window_qc_csv"] = window_path
     replay_input = _write_replay_input(
-        output_dir=output_dir, run_dirs=run_dirs, config=config
+        output_dir=output_dir, run_dirs=run_dirs, config=config, evaluation_rows=rows
     )
     outputs["replay_input"] = replay_input
     if rows and rows[0].get("attachment_pattern"):
