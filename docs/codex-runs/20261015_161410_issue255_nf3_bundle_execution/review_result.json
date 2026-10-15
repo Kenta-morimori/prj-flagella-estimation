@@ -1,0 +1,28 @@
+{
+  "status": "PASS",
+  "scope": "short screen QC/replay review; not physical adoption",
+  "queue": 24,
+  "fixed_commit": "0bed3d348fc74159ca218b2e292ace5a1db8fd19",
+  "all_conditions_completed": true,
+  "common_qc_pass": 4,
+  "synced_files": 49,
+  "sha256_verified": true,
+  "rotation_valid_fraction_all": 1.0,
+  "replay_3d_2d": "2 videos x41frames; terminal and geometry/time-series reviewed",
+  "observations": [
+    "No acute shape rupture at0.04s; no claim of bundling yet",
+    "Additional frame position restoration OFF raises initial rotation and hook deformation, still QC pass",
+    "C3 symmetry: identical spin histories alone do not establish emergent synchronization"
+  ],
+  "long_stage_decision": "Proceed all4 to1s under explicit user authorization",
+  "canonical_adopted": false,
+  "summary": "queue24 short-screen4条件の同期・QC・回転・replayレビューを完了し、ユーザー許可でqueue25の1sを開始。goalの最終比較は実行待ち。",
+  "blocking_issues": [],
+  "user_review_required": true,
+  "adr_required": false,
+  "adr_reason": "実行記録とshort結果のみ。ADR0026はProposed。",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/261",
+  "next_actions": [
+    "queue25完了後に同期照合・全4条件比較。goalはactive。"
+  ]
+}
