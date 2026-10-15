@@ -456,6 +456,7 @@ class TorsionPotentialParams:
     kt_over_T: float = 10.0
     phi0_deg: dict[str, float] | None = None
     fd_eps_over_b: float = 0.1
+    force_method: str = "finite_difference"
 
 
 @dataclass(frozen=True)
@@ -600,6 +601,7 @@ class OutputParams:
     policy: str = "debug"
     archive_interval_s: float = 0.001
     checkpoint_interval_steps: int = 2500
+    rotation_diagnostics: bool = False
 
 
 @dataclass(frozen=True)
@@ -979,6 +981,8 @@ class SimulationConfig:
             dynamics["attach_frame_reaction"] = self.motor.attach_frame_reaction
         if self.motor.segment_torque_correction != "none":
             dynamics["segment_torque_correction"] = self.motor.segment_torque_correction
+        if self.potentials.torsion.force_method != "finite_difference":
+            dynamics["torsion_force_method"] = self.potentials.torsion.force_method
         if force_distribution == "hook_coupled_body_reaction":
             dynamics.update(
                 {
@@ -1814,7 +1818,12 @@ class SimulationConfig:
                 {"normal": -60.0, "semicoiled": 65.0, "curly1": 120.0},
             ),
             fd_eps_over_b=float(fd_eps_over_b if fd_eps_over_b is not None else 0.1),
+            force_method=str(torsion_raw.get("force_method", "finite_difference")),
         )
+        if torsion.force_method not in {"finite_difference", "analytic"}:
+            raise ValueError(
+                "potentials.torsion.force_method must be finite_difference or analytic"
+            )
 
         rep_raw = (raw.get("potentials", {}) or {}).get(
             "spring_spring_repulsion", {}
@@ -1941,11 +1950,14 @@ class SimulationConfig:
         )
 
         output_raw = raw.get("output", {}) or {}
+        if not isinstance(output_raw.get("rotation_diagnostics", False), bool):
+            raise ValueError("output.rotation_diagnostics must be boolean")
         output = OutputParams(
             base_dir=str(_get(output_raw, "base_dir", "outputs")),
             timestamp_subdir=bool(_get(output_raw, "timestamp_subdir", True)),
             policy=str(_get(output_raw, "policy", "debug")),
             archive_interval_s=float(_get(output_raw, "archive_interval_s", 0.001)),
+            rotation_diagnostics=output_raw.get("rotation_diagnostics", False),
             checkpoint_interval_steps=int(
                 _get(output_raw, "checkpoint_interval_steps", 2500)
             ),

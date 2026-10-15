@@ -191,8 +191,14 @@ def compute_torsion_forces(
     phi0_rad: np.ndarray,
     kt: float,
     fd_eps_m: float,
+    method: str = "finite_difference",
 ) -> np.ndarray:
-    """torsion（四つ組）力を有限差分で計算する。"""
+    """Evaluate the same wrapped quadratic energy with an explicit force method."""
+
+    if method == "analytic":
+        return compute_torsion_forces_analytic(positions_m, quads, phi0_rad, kt)
+    if method != "finite_difference":
+        raise ValueError(f"Unknown torsion force method: {method}")
 
     forces = np.zeros_like(positions_m)
     eps = max(fd_eps_m, 1e-12)
@@ -213,6 +219,60 @@ def compute_torsion_forces(
                 grad = (up - um) / (2.0 * eps)
                 forces[ids[local], axis] += -grad
 
+    return forces
+
+
+def compute_torsion_forces_analytic(
+    positions_m: np.ndarray,
+    quads: np.ndarray,
+    phi0_rad: np.ndarray,
+    kt: float,
+) -> np.ndarray:
+    """Exact position derivative of _torsion_energy_quad, away from its cusp.
+
+    Reverse differentiation through the projected dihedral definition preserves
+    the energy and its angle convention. Undefined collinear geometry and the
+    wrapped-energy cusp fail explicitly; no force projection or fallback.
+    """
+    forces = np.zeros_like(positions_m)
+    if len(quads) == 0 or kt == 0:
+        return forces
+    points = positions_m[quads]
+    b0 = points[:, 0] - points[:, 1]
+    b1 = points[:, 2] - points[:, 1]
+    b2 = points[:, 3] - points[:, 2]
+    length = np.linalg.norm(b1, axis=1)
+    if np.any(length <= 1e-15):
+        raise RuntimeError("degenerate torsion central bond")
+    n = b1 / length[:, None]
+    u = np.sum(b0 * n, axis=1)
+    z = np.sum(b2 * n, axis=1)
+    v = b0 - u[:, None] * n
+    w = b2 - z[:, None] * n
+    if np.any(
+        np.linalg.norm(v, axis=1) <= 1e-10 * np.linalg.norm(b0, axis=1)
+    ) or np.any(np.linalg.norm(w, axis=1) <= 1e-10 * np.linalg.norm(b2, axis=1)):
+        raise RuntimeError("degenerate torsion plane")
+    x = np.sum(v * w, axis=1)
+    y = np.sum(np.cross(n, v) * w, axis=1)
+    dphi = (np.arctan2(y, x) - phi0_rad + np.pi) % (2 * np.pi) - np.pi
+    if np.any(np.abs(np.abs(dphi) - np.pi) < 1e-12):
+        raise RuntimeError("torsion wrapped-energy cusp")
+    denom = x * x + y * y
+    gx = (-y / denom)[:, None]
+    gy = (x / denom)[:, None]
+    av = gx * w + gy * np.cross(w, n)
+    aw = gx * v + gy * np.cross(n, v)
+    an = gy * np.cross(v, w)
+    avn = np.sum(av * n, axis=1)[:, None]
+    awn = np.sum(aw * n, axis=1)[:, None]
+    ab0 = av - avn * n
+    ab2 = aw - awn * n
+    an -= u[:, None] * av + avn * b0 + z[:, None] * aw + awn * b2
+    ab1 = (an - np.sum(an * n, axis=1)[:, None] * n) / length[:, None]
+    gradient = np.stack([ab0, -ab0 - ab1, ab1 - ab2, ab2], axis=1)
+    local = -kt * dphi[:, None, None] * gradient
+    np.add.at(forces, quads.ravel(), local.reshape(-1, 3))
     return forces
 
 

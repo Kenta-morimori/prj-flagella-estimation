@@ -1,0 +1,13 @@
+schema_version: 1
+job_id: issue255_nf3_bundle_1s
+configs:
+- conf/phase2_multi_run/2010_hex_project_nf3_bundle_1s_issue255.yaml
+conditions:
+- nf03__slots024__A
+- nf03__slots024__B
+- nf03__slots024__C
+- nf03__slots024__D
+preflight: geometry_all_conditions
+execution:
+  max_workers: auto
+  worker_policy: cs10_qualified

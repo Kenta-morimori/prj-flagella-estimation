@@ -908,6 +908,7 @@ class DynamicsEngine:
                 * self.flag_torsion_stiffness_scale
                 * (self.motor_local_torsion_scale if motor_on else 1.0),
                 fd_eps_m=self.torsion_fd_eps_m,
+                method=self.cfg.potentials.torsion.force_method,
             )
         if self.flag_nonlocal_torsion_rows.size > 0:
             torsion_forces += compute_torsion_forces(
@@ -916,6 +917,7 @@ class DynamicsEngine:
                 phi0_rad=phi0[self.flag_nonlocal_torsion_rows],
                 kt=self.k_torsion * self.flag_torsion_stiffness_scale,
                 fd_eps_m=self.torsion_fd_eps_m,
+                method=self.cfg.potentials.torsion.force_method,
             )
 
         frame_forces = np.zeros_like(pos)

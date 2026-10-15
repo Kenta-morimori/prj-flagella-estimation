@@ -1,0 +1,40 @@
+{
+  "status": "PASS",
+  "summary": "nf3 slots024の4方式比較に向け、torsion解析勾配・毎内部step回転積算・再利用可能なpost-run診断と1tau/1s設定を実装検証。これは実行準備のlocal PASSであり、goalの束回転成立・4方式の動的比較は未完了。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "四方式の動的比較はcs10実行待ち。",
+    "位相は変形鎖のbest-fit axial spinであり厳密なrod material twistではない。fit残差と周期数を併記する。",
+    "新旧archiveはtorsion数値方式が異なる。新4方式間の比較を優先。"
+  ],
+  "tests_reviewed": [
+    "full pytest 994 PASS (182.26s); final targeted suite after added degenerate phase and force-balance checks PASS",
+    "FD energy gradient/convergence, rigid covariance, total force/torque, cusp/degenerate explicit failures, legacy default equality",
+    "synthetic body co-rotation removed; output interval20rad phase retained; straight-chain invalid",
+    "real Simulator bounded20-step recorder/archive/reusable analysis integration",
+    "4 conditions same initial positions; all controls equal except frame scale and torque correction; deformed engine total torque<1e-30 Nm each",
+    "both job dry-run planned, all geometry preflight,4 workers, output separation",
+    "15 saved-state FD epsilon audit: 1e-20 to1e-34 Nm net torque",
+    "ruff check/format and diff check PASS"
+  ],
+  "user_review_required": true,
+  "user_review_outputs": [
+    "docs/phase2/phase2_255_nf3_bundle_contract.md",
+    "docs/adr/0026_phase2_torsion_gradient_and_bundle_diagnostics.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-10-15/160836/issue255_nf3_bundle_preparation"
+  ],
+  "user_review_points": [
+    "fixed commitを示してcs10接続・4条件enqueue・dispatcher/job開始の承認を確認。",
+    "1tau QC/replay review後に1s stageへ進む。2sとcanonical採択なし。"
+  ],
+  "adr_required": true,
+  "adr_reason": "新しいtorsion force implementationとrotation outputをopt-inで追加。ADR0026はProposed。",
+  "commit_type": "partial",
+  "commit_hash": null,
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/261",
+  "next_actions": [
+    "cs10で4条件short screenを実行して比較。",
+    "QC/replayをレビューし1s実行、同期照合・束形状/回転/軸整列の比較。"
+  ]
+}

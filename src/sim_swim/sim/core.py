@@ -25,6 +25,7 @@ from sim_swim.sim.debug_summary import (
 from sim_swim.sim.flagella_geometry import FlagellaRig
 from sim_swim.sim.helix_axis import estimate_helix_radius_pitch_over_b
 from sim_swim.sim.params import SimulationConfig
+from sim_swim.sim.rotation_diagnostics import RotationDiagnosticsRecorder
 
 M_TO_UM = 1e6
 
@@ -790,6 +791,13 @@ class Simulator:
             else None
         )
         online_summary = OnlineRunSummary(expected_steps=total_steps)
+        rotation_recorder = (
+            RotationDiagnosticsRecorder(
+                self.model, step_summary_dir, archive_interval_s
+            )
+            if step_summary_dir is not None and self.config.output.rotation_diagnostics
+            else None
+        )
         next_archive_t_s = archive_interval_s
         next_hydro_sample_t_s = 0.0
         completed_normally = False
@@ -824,6 +832,10 @@ class Simulator:
                 step_diag = self.engine.step(dt_star)
                 t_star_after = self.engine.t_star
                 completed = step + 1
+                if rotation_recorder is not None:
+                    rotation_recorder.record(
+                        step_diag, t_star_after * tau_s, final=completed == total_steps
+                    )
 
                 if self.config.hydrodynamics.enabled:
                     t_before_s = t_star_before * tau_s
@@ -912,6 +924,8 @@ class Simulator:
             else:
                 completed_normally = True
         except Exception as exc:
+            if rotation_recorder is not None:
+                rotation_recorder.close()
             if not isinstance(exc, SimulationInterrupted):
                 completion_reason = f"exception: {type(exc).__name__}: {exc}"
             if checkpoint_callback is not None and not partial_checkpoint_written:
@@ -944,6 +958,8 @@ class Simulator:
                 )
             raise
 
+        if rotation_recorder is not None:
+            rotation_recorder.close()
         if checkpoint_callback is not None:
             emit_checkpoint(
                 status="completed" if completed_normally else "partial",
