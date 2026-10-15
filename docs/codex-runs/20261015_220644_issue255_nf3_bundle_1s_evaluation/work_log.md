@@ -1,0 +1,3 @@
+# 実施記録
+
+queue25の正常実行を確認して予定時刻までinterruptible待機。全4件完了後に49ファイル同期・SHA256一致、run_summary先読、共通QC4/4PASS、1001保存状態と内部step積算回転を解析。固定camera replayと初期/終端worldYZ図を確認し、frame力を保存座標で静的照合。位置復元による接近抑制を確認したが密な定常束は未確認。Cのみ2s候補を準備しdry-run/targeted test。未予約。goalはactive。
