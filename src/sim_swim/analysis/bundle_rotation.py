@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 from pathlib import Path
 
@@ -58,6 +59,77 @@ def write_csv(path, rows):
         writer.writerows(rows)
 
 
+def observation_windows(end_s: float) -> list[tuple[float, float]]:
+    """Keep historical windows and cover the actual end of a longer archive."""
+    end = round(end_s, 9)
+    candidates = [
+        (0.0, end),
+        (0.0, 0.2),
+        (0.2, 0.5),
+        (0.5, 0.75),
+        (0.75, 1.0),
+        (max(0.0, end - 0.5), end),
+        (max(0.0, end - 0.25), end),
+    ]
+    return list(dict.fromkeys((lo, hi) for lo, hi in candidates if 0 <= lo < hi <= end))
+
+
+def completed_rotation_cycles(rows: list[dict], n_flags: int) -> tuple[list[dict], str]:
+    """Compare full signed best-fit-spin turns, without asserting stationarity.
+
+    Flag 0 is the reference clock. Reversals, missing phase or an invalid flag
+    prevent a cycle report. No phase unwrapping, gap filling or partial cycles.
+    """
+    phase = np.array([r["flag0_phase_rad"] for r in rows], dtype=float)
+    times = np.array([r["t_s"] for r in rows], dtype=float)
+    if (
+        not all(r[f"flag{i}_valid"] for r in rows for i in range(n_flags))
+        or not np.isfinite(phase).all()
+    ):
+        return [], "unavailable: invalid rotation phase"
+    direction = np.sign(phase[-1] - phase[0])
+    progress = direction * (phase - phase[0])
+    if direction == 0 or np.any(np.diff(progress) <= 0):
+        return [], "unavailable: non-monotone rotation"
+    if np.max(np.diff(progress)) >= np.pi / 2:
+        return [], "unavailable: geometry sampling does not resolve a rotation cycle"
+    turns = int(np.floor(progress[-1] / (2 * np.pi)))
+    if turns < 1:
+        return [], "unavailable: less than one completed turn"
+    boundaries = np.interp(np.arange(turns + 1) * 2 * np.pi, progress, times)
+    records = []
+    for i, (start, end) in enumerate(zip(boundaries[:-1], boundaries[1:]), 1):
+        selected = [r for r in rows if start <= r["t_s"] <= end]
+        record = {
+            "condition_id": rows[0]["condition_id"],
+            "cycle": i,
+            "direction": int(direction),
+            "start_s": float(start),
+            "end_s": float(end),
+            "period_s": float(end - start),
+            "samples": len(selected),
+        }
+        for key in (
+            "bundle_radius_mean_um",
+            "helix_pair_angle_mean_deg",
+            "bundle_rear_angle_deg",
+        ):
+            values = np.array([r[key] for r in rows])
+            first, last = np.interp([start, end], times, values)
+            record[key + "_start"] = float(first)
+            record[key + "_end"] = float(last)
+            record[key + "_boundary_change"] = float(last - first)
+            record[key + "_mean"] = (
+                float(np.mean([r[key] for r in selected])) if selected else float("nan")
+            )
+        for flag in range(n_flags):
+            values = np.array([r[f"flag{flag}_phase_rad"] for r in rows])
+            first, last = np.interp([start, end], times, values)
+            record[f"flag{flag}_net_turns"] = float((last - first) / (2 * np.pi))
+        records.append(record)
+    return records, "available: complete best-fit-spin turns; no stationarity gate"
+
+
 def analyze(run_dir: Path, evaluation_dir: Path, output_dir: Path):
     # Compact summaries and common QC precede archives.
     manifest = json.loads((run_dir / "run_manifest.json").read_text())
@@ -69,6 +141,7 @@ def analyze(run_dir: Path, evaluation_dir: Path, output_dir: Path):
     baseline = SimulationConfig.from_dict(load_yaml(Path(manifest["base_config"])))
     all_rows = []
     windows = []
+    cycles = []
     provenance = []
     for record in manifest["conditions"]:
         cid = record["condition_id"]
@@ -158,15 +231,7 @@ def analyze(run_dir: Path, evaluation_dir: Path, output_dir: Path):
                     )
             rows.append(row)
         all_rows.extend(rows)
-        for lo, hi in [
-            (0.0, float(times[-1])),
-            (0.0, 0.2),
-            (0.2, 0.5),
-            (0.5, 0.75),
-            (0.75, 1.0),
-        ]:
-            if hi > times[-1] + 1e-9:
-                continue
+        for lo, hi in observation_windows(float(times[-1])):
             window = [r for r in rows if lo - 1e-9 <= r["t_s"] <= hi + 1e-9]
             item = {
                 "condition_id": cid,
@@ -204,6 +269,10 @@ def analyze(run_dir: Path, evaluation_dir: Path, output_dir: Path):
                     )
                     item[f"flag{i}_phase_drift_range_rad"] = float(np.ptp(relative))
             windows.append(item)
+        condition_cycles, cycle_status = completed_rotation_cycles(
+            rows, cfg.flagella.n_flagella
+        )
+        cycles.extend(condition_cycles)
         provenance.append(
             {
                 "condition_id": cid,
@@ -212,6 +281,8 @@ def analyze(run_dir: Path, evaluation_dir: Path, output_dir: Path):
                 "state_count": len(times),
                 "rotation_time_match_error_s": offset,
                 "rotation_valid_fraction": float(valid.mean()),
+                "cycle_report_status": cycle_status,
+                "completed_reference_turns": len(condition_cycles),
                 "whole_run_net_turns": (
                     (phases[-1] - phases[0]) / (2 * np.pi)
                 ).tolist(),
@@ -222,11 +293,24 @@ def analyze(run_dir: Path, evaluation_dir: Path, output_dir: Path):
     write_csv(output_dir / "bundle_rotation_timeseries.csv", all_rows)
     if windows:
         write_csv(output_dir / "bundle_rotation_windows.csv", windows)
+    if cycles:
+        write_csv(output_dir / "bundle_rotation_cycles.csv", cycles)
+    else:
+        (output_dir / "bundle_rotation_cycles.csv").unlink(missing_ok=True)
     _plot(all_rows, output_dir)
     (output_dir / "manifest.json").write_text(
         json.dumps(
             {
                 "analysis": "bundle_rotation",
+                "analyzer_source_sha256": hashlib.sha256(
+                    Path(__file__).read_bytes()
+                ).hexdigest(),
+                "run_manifest_sha256": hashlib.sha256(
+                    (run_dir / "run_manifest.json").read_bytes()
+                ).hexdigest(),
+                "qc_summary_sha256": hashlib.sha256(
+                    (evaluation_dir / "summary.csv").read_bytes()
+                ).hexdigest(),
                 "source_run": str(run_dir.resolve()),
                 "qc_source": str(evaluation_dir.resolve()),
                 "acceptance_gate": False,

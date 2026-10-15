@@ -1,0 +1,26 @@
+{
+  "status": "PASS",
+  "summary": "回転周期単位の形状収束診断を汎用解析へ追加し、completed1s4条件を再解析。C/Dは同位相でも幅が縮小しており未収束。goalはactive。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "C2sの追加範囲承認が未回答。準備commit792d0d8を維持し、新規予約なし。"
+  ],
+  "tests_reviewed": [
+    "synthetic positive/negative uniform spin, invalid/reversal/missing phase, undersampled geometry, actual terminal windows:5 PASS",
+    "completed archive reanalysis:all4 QCpass,1001 states each;C2 completecycles;D2 cycles;A/B1 cycle",
+    "matched cycle Cperiod .3730/.3705s;radius boundary .8606/.7773um",
+    "analyzer/inputmanifest/QCsummary SHA256 recorded",
+    "ruff/diff check PASS;simulation implementation unchanged so no fullpytest repeated"
+  ],
+  "user_review_required": true,
+  "user_review_outputs": [
+    "docs/phase2/phase2_255_nf3_bundle_results.md",
+    "outputs/2026-10-15/161410/issue255_nf3_bundle_execution/long_bundle_rotation/bundle_rotation_cycles.csv"
+  ],
+  "adr_required": false,
+  "adr_reason": "挙動診断の追加。QC gateと物理採択なし。",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/261",
+  "next_actions": [
+    "Cの2s追加観測範囲について既存の質問への回答を待つ。"
+  ]
+}

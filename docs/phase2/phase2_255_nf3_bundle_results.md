@@ -87,3 +87,12 @@ Cは追加方向復元なし・motor横方向補正なしで、内部力の釣�
 Cの物理条件を変えず、初期状態から2s=500,000 stepへ延ばす候補を用意した。resumeではない。`conf/phase2_multi_run/2010_hex_project_nf3_bundle_C_2s_issue255.yaml`、`conf/phase2_parallel/issue255_motor_reaction/nf3_bundle_C_2s_job.yaml`。1条件、cs10_qualified実効1 worker、geometry preflight/dry-run通過。Cとの全設定の一致（実行時間だけ異なる）をtargeted testで確認した。
 
 #25のC実測4時間45分からの単純比例で約9時間30分＋集約費用。ただし単一workerと共有機負荷により変わる。目的は、全時間2.5周・終盤0.5周しか観測できなかったCが、さらに収束するか・開いたまま周期状態になるかを確認すること。密な束になる保証はない。先の実行承認質問は2sを含めない範囲だったため、この候補は未予約・未開始で次の判断待ちとする。
+
+
+## 回転周期単位の再評価
+
+時間窓に加え、flag0の積算best-fit axial spinの完全な1周を基準に、境界時刻を内挿して比較した。欠測・逆転・停止・geometry保存が1周あたり4点以下の条件は周期形状を判定不能とし、部分周期を混ぜない。回転位相は先述のbest-fit指標であり、厳密なmaterial twistではない。
+
+Cの第1/第2周期は0.3730/0.3705sで近い。一方、同じ回転位相での束mean radiusは1周後.8606µm→2周後.7773µm、約9.7%縮小。Dも.9001→.8005µm、約11.1%縮小。したがって、回転周期が近くても形状はまだ収束していない。角速度・速度の瞬時変動だけを定常性のFAIL理由とせず、周期を通した形状の変化と区別する。
+
+`long_bundle_rotation/bundle_rotation_cycles.csv`に完全周期のみを保存。2s以上のarchiveでも実際の終端0.5s/0.25s窓を評価できるよう汎用解析を更新した。入力run manifest・QC summary・解析sourceのSHA-256もmanifestへ記録する。synthetic定速の正/逆回転、欠測、非単調回転、保存不足、長時間終端窓のtargeted testsを通過。simulationと物理設定は変更せず、新しいcs10実行は開始していない。
