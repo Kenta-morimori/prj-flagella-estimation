@@ -112,27 +112,3 @@ def test_four_conditions_internal_torque_balance_on_deformed_geometry():
         assert metrics["component_total_torque_norm_Nm"] < 1e-30
         assert metrics["motor_reaction_solver_success"] == 1
         assert metrics["motor_reaction_fallback_used"] == 0
-
-
-def test_candidate_C_extension_changes_duration_only():
-    from dataclasses import asdict
-
-    _, _, configs = configurations()
-    campaign = normalize_campaign_config(
-        load_yaml(
-            ROOT
-            / "conf/phase2_multi_run/2010_hex_project_nf3_bundle_C_2s_issue255.yaml"
-        )
-    )
-    conditions = build_campaign_conditions(campaign)
-    assert len(conditions) == 1
-    assert conditions[0]["condition_id"] == "nf03__slots024__C"
-    cfg = SimulationConfig.from_dict(
-        load_yaml(ROOT / campaign["base_config"])
-    ).with_overrides(conditions[0]["config_overrides"])
-    assert np.isclose(cfg.time.duration_s, 2.0, atol=1e-14, rtol=0)
-    assert cfg.total_steps == 500000
-    a, b = asdict(configs[2]), asdict(cfg)
-    a.pop("time")
-    b.pop("time")
-    assert a == b

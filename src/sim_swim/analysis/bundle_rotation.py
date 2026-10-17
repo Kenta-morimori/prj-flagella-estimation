@@ -54,7 +54,9 @@ def section_spreads(points: np.ndarray, indices: list[np.ndarray]) -> dict[str, 
 
 def write_csv(path, rows):
     with path.open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0]))
+        # Per-flag fields differ across counts in a multi-condition campaign.
+        fields = list(dict.fromkeys(key for row in rows for key in row))
+        writer = csv.DictWriter(f, fieldnames=fields)
         writer.writeheader()
         writer.writerows(rows)
 

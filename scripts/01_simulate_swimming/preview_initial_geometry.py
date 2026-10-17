@@ -30,15 +30,6 @@ from sim_swim.model.builder import ModelBuilder
 from sim_swim.render.render3d import _flagella_colors
 from sim_swim.sim.params import SimulationConfig
 
-_OVERVIEW_SLOTS = {
-    1: (0,),
-    2: (0, 3),
-    3: (0, 2, 4),
-    4: (0, 1, 3, 4),
-    5: (0, 1, 2, 3, 4),
-    6: (0, 1, 2, 3, 4, 5),
-}
-
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -113,7 +104,7 @@ def _render_axial_and_overview(items, output_dir: Path, stem: str) -> dict[str, 
     )
     for ax, (condition, model, points) in zip(axes.flat, items):
         _plot_axial(ax, model, points, axial_limit)
-        ax.set_title(condition["condition_id"].removesuffix("__rxaxis"), fontsize=9)
+        ax.set_title(condition["condition_id"], fontsize=9)
     for ax in axes.flat[len(items) :]:
         ax.axis("off")
     fig.suptitle("Initial geometry · axial projection at t=0", fontsize=13)
@@ -124,21 +115,10 @@ def _render_axial_and_overview(items, output_dir: Path, stem: str) -> dict[str, 
 
     by_count = {}
     for item in items:
-        n_flagella = int(item[0]["axis_values"]["n_flagella"])
+        n_flagella = len(item[1].flagella_indices)
         by_count.setdefault(n_flagella, []).append(item)
-    representatives = []
-    for n_flagella, candidates in sorted(by_count.items()):
-        representatives.append(
-            next(
-                (
-                    item
-                    for item in candidates
-                    if tuple(item[0]["axis_values"].get("attachment_slots", []))
-                    == _OVERVIEW_SLOTS.get(n_flagella)
-                ),
-                candidates[0],
-            )
-        )
+    # Campaign order is the deterministic representative policy; no slot presets.
+    representatives = [candidates[0] for _, candidates in sorted(by_count.items())]
     overview_rows = math.ceil(len(representatives) / 2)
     figure = plt.figure(figsize=(14.5, 3.35 * overview_rows))
     for index, (condition, model, points) in enumerate(representatives):
@@ -150,7 +130,7 @@ def _render_axial_and_overview(items, output_dir: Path, stem: str) -> dict[str, 
         _plot_spatial(spatial, model, points, spatial_limits)
         _plot_axial(axial, model, points, axial_limit)
         spatial.set_title(
-            condition["condition_id"].removesuffix("__rxaxis") + " · 3D",
+            condition["condition_id"] + " · 3D",
             fontsize=9,
         )
         axial.set_title("axial projection", fontsize=9)
@@ -183,45 +163,43 @@ def render_config(config_path: Path, output_dir: Path) -> dict[str, object]:
     conditions = build_campaign_conditions(campaign)
     preflight = geometry_preflight(campaign, conditions)
     base = load_yaml(Path(campaign["base_config"]))
-    selected = [
-        condition
-        for condition in conditions
-        if not condition["axis_values"].get("body_reaction_full_vector", False)
-    ]
     items = []
-    for condition in selected:
+    seen = set()
+    for condition in conditions:
         cfg = SimulationConfig.from_dict(base).with_overrides(
             condition["config_overrides"]
         )
         model = ModelBuilder(cfg).build()
+        # Mechanics labels/arms do not identify a geometry. Preserve all distinct
+        # coordinates and connectivity, including full-vector-only campaigns.
+        signature = (
+            model.positions_m.shape,
+            model.positions_m.tobytes(),
+            tuple(model.body_indices),
+            tuple(tuple(ids) for ids in model.flagella_indices),
+            tuple(model.flagella_attach_body_indices),
+            tuple(tuple(ids) for ids in model.body_layer_indices),
+        )
+        if signature in seen:
+            continue
+        seen.add(signature)
         items.append((condition, model, model.positions_m / cfg.b_m))
-    columns = min(4, len(selected))
-    rows = math.ceil(len(selected) / columns)
+    if not items:
+        raise ValueError("Initial geometry preview requires at least one condition")
+    columns = min(4, len(items))
+    rows = math.ceil(len(items) / columns)
     fig = plt.figure(figsize=(4.3 * columns, 3.5 * rows), constrained_layout=True)
-    for index, (condition, model, positions_over_b) in enumerate(items, start=1):
-        positions = positions_over_b * float(base["scale"]["b_um"])
+    all_points_um = np.concatenate([model.positions_m * 1e6 for _, model, _ in items])
+    limits_um = np.column_stack(
+        (all_points_um.min(axis=0) - 0.35, all_points_um.max(axis=0) + 0.35)
+    )
+    for index, (condition, model, _) in enumerate(items, start=1):
         ax = fig.add_subplot(rows, columns, index, projection="3d")
-        body = positions[model.body_indices]
-        ax.scatter(body[:, 0], body[:, 1], body[:, 2], s=15, c="#666666", alpha=0.8)
-        for flag_id, (ids, attach) in enumerate(
-            zip(model.flagella_indices, model.flagella_attach_body_indices)
-        ):
-            points = positions[ids]
-            color = plt.cm.tab10(flag_id % 10)
-            ax.plot(
-                points[:, 0], points[:, 1], points[:, 2], color=color, linewidth=1.5
-            )
-            hook = positions[[int(attach), int(ids[0])]]
-            ax.plot(hook[:, 0], hook[:, 1], hook[:, 2], color=color, linewidth=2.3)
-            ax.scatter(points[0, 0], points[0, 1], points[0, 2], color=color, s=12)
-        ax.set(xlim=(-7, 2), ylim=(-3, 3), zlim=(-3, 3))
-        ax.set_box_aspect((9, 6, 6))
-        ax.view_init(elev=20, azim=-65)
-        ax.set_title(condition["condition_id"].removesuffix("__rxaxis"), fontsize=9)
+        _plot_spatial(ax, model, model.positions_m * 1e6, limits_um)
+        ax.set_title(condition["condition_id"], fontsize=9)
         ax.set_xlabel("x (µm)", fontsize=7)
         ax.set_ylabel("y (µm)", fontsize=7)
         ax.set_zlabel("z (µm)", fontsize=7)
-        ax.tick_params(labelsize=6)
     image_path = output_dir / f"{config_path.stem}_initial_geometry.png"
     fig.savefig(image_path, dpi=170)
     plt.close(fig)
@@ -232,7 +210,9 @@ def render_config(config_path: Path, output_dir: Path) -> dict[str, object]:
         "image": str(image_path),
         "image_sha256": _sha256(image_path),
         "condition_count": len(conditions),
-        "unique_shape_count": len(selected),
+        "unique_shape_count": len(items),
+        "selection_policy": "first campaign occurrence of each exact geometry and connectivity",
+        "spatial_limits_um": limits_um.tolist(),
         "preflight": preflight,
         **additional,
     }
@@ -250,11 +230,9 @@ def main() -> None:
         "created_at_jst": datetime.now(ZoneInfo("Asia/Tokyo")).isoformat(),
         "simulation_executed": False,
         "camera": {
-            "elev_deg": 20,
-            "azim_deg": -65,
-            "xlim_um": [-7, 2],
-            "ylim_um": [-3, 3],
-            "zlim_um": [-3, 3],
+            "elev_deg": 18,
+            "azim_deg": -67,
+            "limits_policy": "shared campaign geometry envelope; see spatial_limits_um",
         },
         "axial_projection": "body +x direction onto y-z, coordinates in b",
         "campaigns": records,

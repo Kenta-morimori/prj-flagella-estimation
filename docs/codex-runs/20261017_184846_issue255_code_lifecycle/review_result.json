@@ -1,0 +1,36 @@
+{
+  "status": "PASS",
+  "summary": "PR限定物を削除・#263引継ぎ・共通化・再現性証拠保全へ分類。未使用C2s設定/testを削除し、previewの特定arm/slot/軸名依存を除去。本数混在CSVを修正。merge前の共通workflow/skillへ棚卸しを追加。物理設定・QC閾値・既存profile既定は変更なし。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "密な定常束は未達で#263へ引継ぎ。実装保持とモデル採択を区別。",
+    "初期previewは菌体軸+xを前提とするt=0描画。任意姿勢のarchiveにはreplayを使う。"
+  ],
+  "tests_reviewed": [
+    "full pytest:1004 PASS in207.21s",
+    "preview/campaign/geometry/cycles targeted:17 PASS; mixed-count CSV added tests included in7 PASS",
+    "ruff format/check PASS; git diff --check PASS",
+    "Deleted candidate consumer scan src/scripts/tests/conf:no active references",
+    "Preview arbitrary condition IDs/aliased count key/full-vector-only:4 conditions ->1 geometry; generated3D image visually checked without clipping",
+    "Existing short/long execution manifests, result docs, physical tests, historical reviews preserved; unexecuted C2s restorable from792d0d8"
+  ],
+  "user_review_required": true,
+  "user_review_outputs": [
+    "docs/phase2/phase2_255_merge_handoff.md",
+    "docs/codex/codex_workflow.md",
+    "tools/codex/skills/flagella-issue-workflow/SKILL.md"
+  ],
+  "user_review_points": [
+    "削除・引継ぎ・共通化・証拠保全の分類",
+    "motor補正は比較候補として保持、C基準はOFF",
+    "今後のmerge前棚卸し方針"
+  ],
+  "adr_required": false,
+  "adr_reason": "共通CLI/CSVの再利用性とworkflow整理。物理モデル・canonical採択変更なし。既存ADR維持。",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/261",
+  "next_actions": [],
+  "merge_gates": {
+    "cloud_review": "ユーザー指示で未依頼のまま保留。再承認を推測しない。",
+    "merge": "未実施。ユーザー承認とCI/review gate通過が必要。"
+  }
+}

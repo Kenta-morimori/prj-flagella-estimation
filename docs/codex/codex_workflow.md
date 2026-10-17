@@ -105,6 +105,11 @@ merge 直前の final candidate だけ、次のセルフチェックを行う。
 * `phase*_current.md`、task table、PR 本文、Issue 本文/コメントの完了状態が矛盾していないことを確認する。
 * PR 前または merge 前に必要な対象 test を実行する。高リスク変更では full pytest を実行し、省略する場合は理由を `review_result.json` に記録する。
 * `git diff --check` と、変更した JSON / YAML / Markdown の軽い構文確認を行う。
+* PR限定のコード・設定・testを棚卸しし、次の処置をPR本文またはhandoffへ記録する。Issue名を含むことだけを理由に削除・共通化しない。
+  * **削除**：一時調査・未使用・見送りの実行候補など。呼出元、不要になった専用test、activeな参照も同時に整理する。
+  * **後続へ引継ぎ**：未解決の実験候補。引継ぎ先Issue、仮説、利用する設定・実装、未採択事項を明記する。古い予約・開始許可は引き継がない。
+  * **共通機能として保持／共通化**：再利用する力学・診断・CLI等。特定Issue、条件ID、slot、ローカルoutput、固定時刻への暗黙依存を外し、必要な入力と制限を明示してtargeted testで確認する。将来利用を想像しただけの大規模抽象化はしない。
+  * **再現性の証拠として保全**：実行済み／予約済みcampaign・回帰test・結果・manifest・review記録。実行用候補と履歴を区別し、移動・削除する場合は固定commitなどの復元先と消費側の参照を確認する。
 
 この merge 前の最終セルフチェックは品質ゲートであり、pre-commit hook を重くする理由にはしない。PR 作成後にしか確定しない CI / `codex-review-gate` の結果は、PR checklist と GitHub checks で管理する。`review_result.json` の `next_actions` には、それらを未完了の task work として残さない。
 

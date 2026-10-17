@@ -1,9 +1,12 @@
+import csv
+
 import numpy as np
 import pytest
 
 from sim_swim.analysis.bundle_rotation import (
     completed_rotation_cycles,
     observation_windows,
+    write_csv,
 )
 
 
@@ -58,3 +61,22 @@ def test_accumulated_turns_do_not_imply_resolved_cycle_geometry():
     a = rows()[::50]
     assert completed_rotation_cycles(a, 1)[0] == []
     assert "sampling" in completed_rotation_cycles(a, 1)[1]
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_mixed_flagella_counts_export_without_dropping_fields(tmp_path, reverse):
+    records = [
+        {"condition_id": "single", "flag0_phase_rad": 1.0},
+        {
+            "condition_id": "triple",
+            "flag0_phase_rad": 2.0,
+            "flag1_phase_rad": 2.1,
+            "flag2_phase_rad": 2.2,
+        },
+    ]
+    output = tmp_path / "mixed.csv"
+    write_csv(output, records[::-1] if reverse else records)
+    with output.open() as stream:
+        result = {row["condition_id"]: row for row in csv.DictReader(stream)}
+    assert result["single"]["flag2_phase_rad"] == ""
+    assert float(result["triple"]["flag2_phase_rad"]) == pytest.approx(2.2)
