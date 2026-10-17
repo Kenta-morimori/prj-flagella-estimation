@@ -14,6 +14,8 @@ parallel-jobは`conf/phase2_parallel/issue262_repulsion_off/hex_1tau_job.yaml`�
 
 実行先は`cs10_user_run`／`execution:cs10`。Macでheavy simulationを行わない。#255局所方式の実測参考値は13条件の1τが42分41秒、2秒が約41時間。OFFの所要時間はscreen実測から再見積りする。cs10接続、enqueue、dispatcher/tmux、job開始・停止、予約の変更は操作ごとにユーザーの明示承認を得る。予約後のcommit移動を予約変更の許可とみなさない。
 
+2026-10-17の#262 OFF screenは25分28秒で完了した。結果と2秒の暫定所要時間は`phase2_262_repulsion_off_1tau_results.md`を参照する。既存dispatcherが稼働中ならenqueue直後に自動開始するため、次のreservationではenqueue前に稼働状態を確認し、自動開始の承認も先に得る。
+
 ## archiveの検証と診断
 
 対照は`outputs/2026-10-08/171556/issue255_hex_local_2s/`のcompleted archiveを使う。13 condition ID、profile、config、実行commit `e94c7cd4f0e31f99169b28ff5025e58e3b02b7cc`、各500,000 step、`outputs/2026-10-08/171556/sync_verification.json`の122ファイルSHA-256を照合する。対照と新規OFFは各々の元campaign configで共通評価し、設定一致を検証するまで評価器入力を結合しない。
