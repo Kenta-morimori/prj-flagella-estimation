@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "summary": "Issue #263の初回実装として、C対照とopt-in初期束配置・位相摂動の3条件を用意。共通幾何preflight、静的preview、cs10 parallel dry-runを確認。動的screen・物理採択は未実施。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "3条件のcs10短期screenは未実行。接続・予約・開始には操作ごとのユーザー明示承認が必要。",
+    "初期束は静的に狭くなったが、束維持・定常回転・推進は未確認。",
+    "Cのframe・motor等の物理前提は未採択。screen結果に応じて一項目ずつ再評価する。"
+  ],
+  "tests_reviewed": [
+    "targeted pytest: 42 PASS (19.47s)",
+    "ruff check and format --check: PASS",
+    "git diff --check: PASS",
+    "geometry preview: 3 conditions, hook length and non-overlap preflight PASS; images visually reviewed",
+    "parallel dry-run: cs10_qualified, effective 3 workers, one numerical thread each, separate condition outputs"
+  ],
+  "user_review_required": true,
+  "user_review_command": "Review the preview images and preflight manifest before authorizing each cs10 operation.",
+  "user_review_outputs": [
+    "outputs/2026-10-17/193744/issue263_initial_geometry_preview/manifest.json",
+    "outputs/2026-10-17/193744/dry_run_plan.json",
+    "docs/phase2/phase2_263_initial_bundle_screen.md"
+  ],
+  "user_review_points": [
+    "新配置の後方接線hookと初期束幅が物理候補として妥当か",
+    "短期screen後に長時間候補と必要観測周期数を決める"
+  ],
+  "adr_required": true,
+  "adr_reason": "初期後方束配置の物理候補と非貫通・hook制約をADR 0027に記録。採択済みモデルへ変更しない。",
+  "commit_type": "diagnostic",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "ユーザーが静的幾何を確認後、固定commitと操作範囲を示してcs10の各操作の承認を得る",
+    "短期screenの共通QC・replay・束回転診断をレビューし、次段階を判断する"
+  ]
+}
