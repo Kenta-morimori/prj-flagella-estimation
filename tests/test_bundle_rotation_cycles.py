@@ -20,6 +20,9 @@ def rows(direction=1):
             "bundle_radius_mean_um": 1.0 - 0.1 * t,
             "helix_pair_angle_mean_deg": 20.0 - t,
             "bundle_rear_angle_deg": 2.0,
+            "contour_0.75_spread_um": 1.2 - 0.2 * t,
+            "contour_1.00_spread_um": 1.3 - 0.3 * t,
+            "speed_um_s": 0.4 + 0.1 * t,
         }
         for t in np.linspace(0.0, 1.25, 126)
     ]
@@ -33,6 +36,9 @@ def test_full_cycles_preserve_sign_and_measure_boundary_drift(direction):
         assert cycle["period_s"] == pytest.approx(0.5)
         assert cycle["flag0_net_turns"] == pytest.approx(direction)
         assert cycle["bundle_radius_mean_um_boundary_change"] == pytest.approx(-0.05)
+        assert cycle["contour_0.75_spread_um_boundary_change"] == pytest.approx(-0.1)
+        assert cycle["contour_1.00_spread_um_boundary_change"] == pytest.approx(-0.15)
+        assert cycle["speed_um_s_boundary_change"] == pytest.approx(0.05)
     assert cycles[-1]["end_s"] == pytest.approx(
         1.0
     )  # remaining quarter second is not a cycle

@@ -1,0 +1,40 @@
+{
+  "status": "PASS",
+  "summary": "Issue #263の初回実装とcs10予約#26の3条件1τ短期screenを完了。固定commit 526a7f03で全件完走、portable 38ファイルをSHA-256照合、共通QC 3/3 PASS、固定camera replayと束回転診断を確認。完全回転周期は0件で物理採択・canonical freezeは未実施。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "初期束の短期幅はCより狭いが、完全回転周期は0件。束維持・定常回転・持続推進は未確認。",
+    "Cのframe・motor等の物理前提は未採択。screen結果に応じて一項目ずつ再評価する。"
+  ],
+  "tests_reviewed": [
+    "targeted pytest: initial implementation 42 PASS; post-screen evaluator and related tests 20 PASS (42.43s)",
+    "ruff check and format --check: PASS",
+    "git diff --check: PASS",
+    "geometry preview: 3 conditions, hook length and non-overlap preflight PASS; images visually reviewed",
+    "parallel dry-run: cs10_qualified, effective 3 workers, one numerical thread each, separate condition outputs",
+    "cs10 queue #26: fixed commit 526a7f03, 3/3 completed, exit 0; 38 portable files exact set and SHA-256 matched",
+    "development_evaluation: 3/3 PASS; fixed 3D/2D replay 41 frames each; bundle_rotation analyzed 3 conditions with 0 complete cycles"
+  ],
+  "user_review_required": true,
+  "user_review_command": "Review the 1τ QC, fixed-camera replay, and bundle_rotation results before selecting any long-duration validation contract.",
+  "user_review_outputs": [
+    "outputs/2026-10-17/193744/issue263_initial_geometry_preview/manifest.json",
+    "outputs/2026-10-17/193744/dry_run_plan.json",
+    "outputs/2026-10-17/195417/issue263_short_screen/manifest.json",
+    "docs/phase2/phase2_263_initial_bundle_screen.md"
+  ],
+  "user_review_points": [
+    "新配置の短期束幅とQCを踏まえて長時間候補を残すか",
+    "必要な完全回転周期数と長時間検証条件を決める"
+  ],
+  "adr_required": true,
+  "adr_reason": "初期後方束配置の物理候補と非貫通・hook制約をADR 0027に記録。採択済みモデルへ変更しない。",
+  "commit_type": "diagnostic",
+  "commit_hash": "526a7f03ea276a9637715d060b30546a9f16df44",
+  "push_status": "pushed_initial_commit",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "短期screenの共通QC・replay・束回転診断をユーザーとレビューし、必要回転周期数・長時間条件を判断する",
+    "新たな物理変更が必要なら#255のA/B/C/D証拠を踏まえ一項目ずつ対照化し、ユーザー判断を受ける"
+  ]
+}

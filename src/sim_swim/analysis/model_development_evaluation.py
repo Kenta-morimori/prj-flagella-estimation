@@ -267,15 +267,22 @@ def _row(
     performance = _read_json(output_dir / "performance.json")
     axes = dict(record.get("axis_values", {}) or {})
     time = dict(record.get("time", {}) or {})
+    overrides = dict(record.get("config_overrides", {}) or {})
+    flagella = dict(overrides.get("flagella", {}) or {})
+    motor = dict(overrides.get("motor", {}) or {})
     first_failure_category, first_failure_at = _first_failure(summary)
     values: dict[str, Any] = {
         "condition_id": str(record["condition_id"]),
-        "n_flagella": int(axes["n_flagella"]),
+        "n_flagella": int(
+            axes["n_flagella"] if "n_flagella" in axes else flagella["n_flagella"]
+        ),
         "attachment_pattern": str(axes.get("attachment_pattern", "")),
         "attachment_pattern_label": str(
             dict(record.get("axis_labels", {}) or {}).get("attachment_pattern", "")
         ),
-        "attachment_slots": json.dumps(axes.get("attachment_slots", [])),
+        "attachment_slots": json.dumps(
+            axes.get("attachment_slots", flagella.get("attachment_slots", []))
+        ),
         "body_reaction_full_vector": axes.get("body_reaction_full_vector", ""),
         "screen_status": screen_status(summary, qc=qc),
         "raw_nonbody_any_fail": _gate_failed(summary, "shape_nonbody"),
@@ -300,7 +307,11 @@ def _row(
     if stage == "short_screen":
         values.update(
             {
-                "torque_Nm": float(axes["motor_torque"]),
+                "torque_Nm": float(
+                    axes["motor_torque"]
+                    if "motor_torque" in axes
+                    else motor["torque_Nm"]
+                ),
                 "dt_star": float(time["dt_star"]),
                 "dt_internal_s": float(time["dt_internal_s"]),
             }
@@ -309,7 +320,7 @@ def _row(
         values.update(
             {
                 "duration_s": float(time.get("duration_s", 0.0)),
-                "full_ring_rotation_equivalent": int(axes["n_flagella"]) == 6,
+                "full_ring_rotation_equivalent": values["n_flagella"] == 6,
                 "run_summary_sha256": _sha256(output_dir / "run_summary.json"),
                 "performance_sha256": _sha256(output_dir / "performance.json"),
                 "state_archive_sha256": _sha256(output_dir / "state_archive.npz"),
@@ -801,13 +812,26 @@ def _render_replays(
             for n_flagella in sorted({int(row["n_flagella"]) for row in rows})
         ]
     elif stage == "long_duration":
-        groups = [
-            (
-                f"nf{int(row['n_flagella']):02d}/as{int(row['attach_seed']):03d}_ps{int(row['phase_seed']):03d}",
-                [row["condition_id"]],
-            )
-            for row in rows
-        ]
+        if all("attach_seed" in row and "phase_seed" in row for row in rows):
+            groups = [
+                (
+                    f"nf{int(row['n_flagella']):02d}/as{int(row['attach_seed']):03d}_ps{int(row['phase_seed']):03d}",
+                    [row["condition_id"]],
+                )
+                for row in rows
+            ]
+        else:
+            groups = [
+                (
+                    f"nf{n_flagella:02d}",
+                    [
+                        row["condition_id"]
+                        for row in rows
+                        if int(row["n_flagella"]) == n_flagella
+                    ],
+                )
+                for n_flagella in sorted({int(row["n_flagella"]) for row in rows})
+            ]
     for group_name, selected in groups:
         destination = output_dir / "replay" / group_name
         args = [

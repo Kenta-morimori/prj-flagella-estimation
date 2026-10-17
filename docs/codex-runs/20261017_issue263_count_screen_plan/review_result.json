@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "summary": "Issue #263の次段階をnf3～6各1配置の1τ short screenへ変更。5°初期方位摂動は次段階から除外し、2秒観測はscreenレビュー後の候補に限定した。固定commitのcs10予約#29はqueuedで、simulation結果は未取得。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "nf4～6は動的QC未確認。静的幾何preflightのみで長時間実行へ進めない。",
+    "本数と付着slotの組合せが同時に変わるため、本数単独の因果効果は推定しない。",
+    "旧nf3・3条件の2秒計画は未予約・未実行のまま置き換えた。"
+  ],
+  "tests_reviewed": [
+    "targeted pytest: Issue #263, bundle rotation cycles, parallel job 49 PASS",
+    "ruff check and git diff --check PASS",
+    "Mac/cs10 fixed-commit simulation-free dry-run: 1τ and 2 s jobs each have 4 separate conditions, 4 workers, one numerical thread per worker, and matching job/config hashes and geometry preflight"
+  ],
+  "user_review_required": true,
+  "user_review_command": "1τ screenのQCと固定camera replayを確認してから、2秒観測の対象と所要時間を決める。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_initial_bundle_screen.md",
+    "outputs/2026-10-17/223411/issue263_count_plan/count_screen_dry_run_plan.json",
+    "outputs/2026-10-17/223411/issue263_count_plan/long_2s_dry_run_plan.json"
+  ],
+  "user_review_points": [
+    "nf3～6の各1配置のQC・束維持・推進を比較する",
+    "2秒を中間観測点とし、各本数で5完全周期を目標にする",
+    "新しい物理パラメータ変更やcanonical採択は別判断にする"
+  ],
+  "adr_required": false,
+  "adr_reason": "既存ADR 0027のcompact_rearを本数別に用い、物理式は変更しない。",
+  "commit_type": "diagnostic",
+  "commit_hash": "0a938a667421616ba204ccd4b35153b9676998a9",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "cs10予約#29（固定commit 0a938a6）の開始・完走後、共通QCと固定camera replayを評価する",
+    "QC・replayレビュー後に2秒jobの対象を決める"
+  ]
+}

@@ -392,6 +392,8 @@ class FlagellumParams:
     initial_helix_axis_from_rear_deg: float | None = None
     initial_hook_force_neutral: bool = False
     initial_hook_body_axis_perpendicular: bool = False
+    initial_bundle_mode: str = "none"
+    initial_phase_offsets_deg: tuple[float, ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -1609,6 +1611,12 @@ class SimulationConfig:
             ),
             initial_hook_body_axis_perpendicular=bool(
                 _get(flag_raw, "initial_hook_body_axis_perpendicular", False)
+            ),
+            initial_bundle_mode=str(_get(flag_raw, "initial_bundle_mode", "none")),
+            initial_phase_offsets_deg=(
+                tuple(float(value) for value in flag_raw["initial_phase_offsets_deg"])
+                if flag_raw.get("initial_phase_offsets_deg") is not None
+                else None
             ),
         )
 
