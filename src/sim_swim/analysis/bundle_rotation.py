@@ -115,7 +115,12 @@ def completed_rotation_cycles(rows: list[dict], n_flags: int) -> tuple[list[dict
             "bundle_radius_mean_um",
             "helix_pair_angle_mean_deg",
             "bundle_rear_angle_deg",
+            "contour_0.75_spread_um",
+            "contour_1.00_spread_um",
+            "speed_um_s",
         ):
+            if not all(key in row for row in rows):
+                continue
             values = np.array([r[key] for r in rows])
             first, last = np.interp([start, end], times, values)
             record[key + "_start"] = float(first)

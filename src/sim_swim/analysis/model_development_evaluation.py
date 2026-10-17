@@ -320,7 +320,7 @@ def _row(
         values.update(
             {
                 "duration_s": float(time.get("duration_s", 0.0)),
-                "full_ring_rotation_equivalent": int(axes["n_flagella"]) == 6,
+                "full_ring_rotation_equivalent": values["n_flagella"] == 6,
                 "run_summary_sha256": _sha256(output_dir / "run_summary.json"),
                 "performance_sha256": _sha256(output_dir / "performance.json"),
                 "state_archive_sha256": _sha256(output_dir / "state_archive.npz"),
@@ -812,13 +812,26 @@ def _render_replays(
             for n_flagella in sorted({int(row["n_flagella"]) for row in rows})
         ]
     elif stage == "long_duration":
-        groups = [
-            (
-                f"nf{int(row['n_flagella']):02d}/as{int(row['attach_seed']):03d}_ps{int(row['phase_seed']):03d}",
-                [row["condition_id"]],
-            )
-            for row in rows
-        ]
+        if all("attach_seed" in row and "phase_seed" in row for row in rows):
+            groups = [
+                (
+                    f"nf{int(row['n_flagella']):02d}/as{int(row['attach_seed']):03d}_ps{int(row['phase_seed']):03d}",
+                    [row["condition_id"]],
+                )
+                for row in rows
+            ]
+        else:
+            groups = [
+                (
+                    f"nf{n_flagella:02d}",
+                    [
+                        row["condition_id"]
+                        for row in rows
+                        if int(row["n_flagella"]) == n_flagella
+                    ],
+                )
+                for n_flagella in sorted({int(row["n_flagella"]) for row in rows})
+            ]
     for group_name, selected in groups:
         destination = output_dir / "replay" / group_name
         args = [

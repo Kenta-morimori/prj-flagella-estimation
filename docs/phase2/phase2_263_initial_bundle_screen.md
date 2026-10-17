@@ -35,3 +35,22 @@ screen成果物は共通`development_evaluation`のfinite/body/hook length/flag/
 #255の保存済みA/B/C/D 1s比較では、frame追加位置復元を外したC/Dの束幅はA/Bより狭かった一方、Cでも2周期を通じて束幅が縮小し、収束は確認されなかった。今回のCの1τ回転0.11464 turnは#255短期Cと一致する。新配置の1τで束幅と速度が改善しても、Cのframe・motor前提の採択や長時間挙動の改善を意味しない。次はユーザーレビュー後、必要な完全回転周期数と長時間条件を決める。物理変更が必要ならframe復元・motor補正などを一項目ずつ対照化する。
 
 成果物は`outputs/2026-10-17/195417/issue263_short_screen/`に保存。`source/`のportable 38ファイルをcs10とファイル集合・SHA-256全件照合した。`manifest.json`にqueue、固定commit、主要SHA-256、QC、replayを記録し、`evaluation/`と`bundle_rotation/`を同じrootに保持した。operational logは同期していない。
+
+## 次タスク：2秒の長時間観測チェックポイント（実行前契約案）
+
+1τで完全周期は0件。#255のCは1秒で2.519周、最初の2周期で同位相の束半径が約9.7%縮小した。巻き付き・束形状の緩和と、その後の維持を分けるため、`conf/phase2_multi_run/2010_hex_nf3_bundle_2s_issue263.yaml`でC／compact rear／flag 1位相5°の**同じ3条件を初期状態から2秒**観測する。1τからのresumeではない。3条件間の物理設定・seed・時間刻み・出力間隔は短期screenと同一で、時間指定だけ2秒（50τ、500,000 step/条件）にする。#255の旧C 1秒archiveは履歴比較に使うが、2秒の直接対照を代替しない。
+
+`conf/phase2_parallel/issue263_initial_bundle/long_2s_job.yaml`は`cs10_qualified`、autoの実効3 workers、数値ライブラリ各1 thread、条件別出力と全条件geometry preflightを使う。Macではsimulationしない。#26の1τ約10分および#25の1秒約4時間45分からの単純外挿では、cs10 wall timeは概ね8～11時間を見込む。共有機負荷で変動するため保証値ではない。2秒は**中間判定点**であり、ここで定常成立を自動判定しない。
+
+Mac上のsimulationなしdry-runは`outputs/2026-10-17/222223/issue263_long_2s_plan/dry_run_plan.json`に保存した。3条件の出力分離、preflight、実効3 workers、数値thread各1を確認済み。固定commitでのcs10側dry-runは実行開始前に照合する。
+
+判定の順序と記録を実行前に固定する。
+
+1. 各`run_summary.json`を先に読み、3/3完走と共通`development_evaluation`のfinite/body/hook length/flag/motor QCを判定する。QC未達条件のarchiveを束診断へ流さず、Cとの対比較で初期幾何起因を調べる。
+2. QC通過archiveから固定cameraの3D／2D replay、`bundle_rotation`時系列・完全周期CSVを生成する。完全周期はflag 0の菌体相対best-fit axial spinで定義し、位相欠測・逆転・保存不足を「判定不能」として残す。これは厳密なmaterial twistでも、3本の自発同期の直接証拠でもない。
+3. 各周期の同位相境界で束半径、べん毛間軸角、輪郭長75%位置・先端の横方向広がりを比較する。周期平均の回転周期・速度、flag間の積算位相差、推進方向も併記する。輪郭広がりは接触や位相的な絡み合いを直接証明しないので、replayを併せて確認する。
+4. **観測量の十分性**として各条件で完全周期5件以上を目標にし、先頭2周期を初期緩和として分離して末尾3周期を比較する。#255のCでは2周期でも形状が変化し続けたため、この数を採る。5周期未満、QC失敗、または末尾3周期でも明瞭な一方向の形状変化が続けば、成立／不成立を断定せず観測延長または仮説修正をレビューする。
+
+最後の3周期では、同位相の束半径と75%／先端広がりの周期間変化率を数値で示す。5%を超える変化は#255の約9.7%縮小を見逃さないための**延長レビュー旗**とする。新しい物理QCのFAIL閾値やモデル採択基準にはしない。束軸・べん毛間軸角、周期、速度、位相差は各周期の値と傾向を提示し、許容変動の採択はデータとreplayのレビューで判断する。2秒で十分な周期が取れない場合、3～4秒への延長候補を別の固定commit契約として準備し、予約を自動追加しない。
+
+この節は実行条件をレビュー可能にする準備であり、長時間jobの予約・開始を記録するものではない。長時間開始前に、固定commit、job範囲、dry-run plan、所要時間を示してユーザー判断を受ける。新規hook・motor・相互作用の変更、canonical採択、本数展開は含めない。

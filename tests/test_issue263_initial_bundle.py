@@ -1,16 +1,23 @@
+import csv
 import json
+from copy import deepcopy
 from dataclasses import asdict
 from pathlib import Path
 
 import numpy as np
 
-from sim_swim.analysis.model_development_evaluation import _row
+from sim_swim.analysis.model_development_evaluation import (
+    _render_replays,
+    _row,
+    build_evaluation,
+)
 from sim_swim.analysis.multi_run_campaign import (
     build_campaign_conditions,
     geometry_preflight,
     load_yaml,
     normalize_campaign_config,
 )
+from sim_swim.analysis.parallel_job import load_parallel_job, resolve_execution
 from sim_swim.model.builder import ModelBuilder
 from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import SimulationConfig
@@ -19,6 +26,8 @@ ROOT = Path(__file__).resolve().parents[1]
 CAMPAIGN = (
     ROOT / "conf/phase2_multi_run/2010_hex_nf3_bundle_initial_screen_issue263.yaml"
 )
+LONG_CAMPAIGN = ROOT / "conf/phase2_multi_run/2010_hex_nf3_bundle_2s_issue263.yaml"
+LONG_JOB = ROOT / "conf/phase2_parallel/issue263_initial_bundle/long_2s_job.yaml"
 
 
 def test_initial_bundle_screen_preserves_c_and_compacts_with_clear_hooks():
@@ -116,3 +125,136 @@ def test_common_evaluator_accepts_fixed_count_and_torque(tmp_path: Path):
     assert row["n_flagella"] == 3
     assert json.loads(row["attachment_slots"]) == [0, 2, 4]
     assert row["torque_Nm"] == 2.5e-20
+    (tmp_path / "state_archive.npz").write_bytes(b"test archive")
+    record["time"]["duration_s"] = 2.0
+    long_row = _row(record, {"completed": "True"}, qc={}, stage="long_duration")
+    assert long_row["duration_s"] == 2.0
+    assert long_row["full_ring_rotation_equivalent"] is False
+
+
+def test_two_second_checkpoint_changes_only_duration():
+    short = build_campaign_conditions(normalize_campaign_config(load_yaml(CAMPAIGN)))
+    long_config = normalize_campaign_config(load_yaml(LONG_CAMPAIGN))
+    longer = build_campaign_conditions(long_config)
+    assert [row["condition_id"] for row in short] == [
+        row["condition_id"] for row in longer
+    ]
+    for before, after in zip(short, longer, strict=True):
+        old = deepcopy(before["config_overrides"])
+        new = deepcopy(after["config_overrides"])
+        assert old["time"]["duration"] == {"value": 1.0, "unit": "tau"}
+        assert new["time"]["duration"] == {"value": 2.0, "unit": "s"}
+        old["time"].pop("duration")
+        new["time"].pop("duration")
+        assert old == new
+    assert long_config["development_evaluation"]["stage"] == "long_duration"
+    assert (
+        long_config["development_evaluation"]["long_duration"]["expected_steps"]
+        == 500000
+    )
+    job = load_parallel_job(LONG_JOB)
+    execution = resolve_execution(job, None)
+    assert job.condition_ids == tuple(row["condition_id"] for row in longer)
+    assert execution.worker_policy == "cs10_qualified"
+    assert execution.max_workers == 3
+
+
+def test_long_evaluation_groups_fixed_geometry_conditions(monkeypatch, tmp_path: Path):
+    import sim_swim.analysis.phase2_replay as replay
+
+    calls = []
+    monkeypatch.setattr(replay, "main", lambda args: calls.append(args))
+    rows = [
+        {"condition_id": name, "n_flagella": 3}
+        for name in (
+            "nf03__slots024__C",
+            "nf03__slots024__bundle",
+            "nf03__slots024__bundle_phase5",
+        )
+    ]
+    _render_replays(
+        rows,
+        replay_input=tmp_path / "input",
+        output_dir=tmp_path / "output",
+        stage="long_duration",
+    )
+    assert len(calls) == 1
+    args = calls[0]
+    assert args.count("--condition-id") == 3
+    assert args[args.index("--camera-3d") + 1] == "fixed"
+    assert args[args.index("--camera-2d") + 1] == "fixed"
+    assert str(tmp_path / "output" / "replay" / "nf03") in args
+
+
+def test_two_second_common_evaluation_accepts_three_portable_sources(tmp_path: Path):
+    campaign = normalize_campaign_config(load_yaml(LONG_CAMPAIGN))
+    source = tmp_path / "source"
+    source.mkdir()
+    records = []
+    summary_rows = []
+    metrics = {
+        name: {"max": value}
+        for name, value in {
+            "local_attach_first_rel_err": 0.01,
+            "hook_len_rel_err_max": 0.01,
+            "flag_bond_rel_err_max": 0.01,
+            "flag_bend_err_max_deg": 1.0,
+            "flag_torsion_err_max_deg": 1.0,
+            "motor_force_balance_residual_ratio": 1e-12,
+            "motor_torque_balance_residual_ratio": 1e-12,
+        }.items()
+    }
+    for condition in build_campaign_conditions(campaign):
+        cid = condition["condition_id"]
+        directory = source / "conditions" / cid
+        directory.mkdir(parents=True)
+        (directory / "run_summary.json").write_text(
+            json.dumps(
+                {
+                    "execution": {"status": "completed"},
+                    "gates": {
+                        "finite": {"any_fail": False},
+                        "shape_body": {"any_fail": False},
+                        "shape_nonbody": {"any_fail": False},
+                    },
+                    "all_step_metrics": metrics,
+                }
+            )
+        )
+        (directory / "performance.json").write_text(
+            json.dumps({"wall_time_s": 1.0, "steps_per_s": 500.0})
+        )
+        (directory / "state_archive.npz").write_bytes(b"portable archive")
+        records.append(
+            {
+                **condition,
+                "output_dir": f"/cs10/original/{cid}",
+                "time": {"duration_s": 2.0},
+            }
+        )
+        summary_rows.append({"condition_id": cid, "completed": "True"})
+    with (source / "summary.csv").open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=["condition_id", "completed"])
+        writer.writeheader()
+        writer.writerows(summary_rows)
+    (source / "run_manifest.json").write_text(
+        json.dumps(
+            {
+                "base_config": campaign["base_config"],
+                "campaign_config": str(LONG_CAMPAIGN.relative_to(ROOT)),
+                "model_profile": load_yaml(ROOT / campaign["base_config"])[
+                    "model_profile"
+                ],
+                "git": {"commit": "test", "is_clean": True},
+                "conditions": records,
+            }
+        )
+    )
+    output = build_evaluation(
+        config_path=LONG_CAMPAIGN,
+        run_dirs=[source],
+        output_dir=tmp_path / "evaluation",
+    )
+    result = json.loads(output["manifest"].read_text())
+    assert result["status_counts"] == {"pass": 3, "fail": 0}
+    assert output["window_qc_csv"].is_file()
