@@ -466,9 +466,10 @@ class SpringSpringRepulsionParams:
     A_ss_over_T: float = 1.0
     a_ss_over_b: float = 0.2
     cutoff_over_b: float = 0.2
-    # Keep the historical interaction set by default.  Diagnostic candidates
-    # may disable only body-only / flagellum-containing segment interactions.
+    # Preserve historical interactions by default; diagnostics may disable
+    # body--flagella and flagella--flagella pairs independently.
     body_flagella_enabled: bool = True
+    flagella_flagella_enabled: bool = True
 
 
 @dataclass(frozen=True)
@@ -1844,11 +1845,18 @@ class SimulationConfig:
                 "potentials.spring_spring_repulsion.body_flagella_enabled "
                 "must be a boolean"
             )
+        flagella_flagella_enabled = rep_raw.get("flagella_flagella_enabled", True)
+        if not isinstance(flagella_flagella_enabled, bool):
+            raise ValueError(
+                "potentials.spring_spring_repulsion.flagella_flagella_enabled "
+                "must be a boolean"
+            )
         repulsion = SpringSpringRepulsionParams(
             A_ss_over_T=float(a_over if a_over is not None else 1.0),
             a_ss_over_b=float(a_len if a_len is not None else 0.2),
             cutoff_over_b=float(cutoff if cutoff is not None else 0.2),
             body_flagella_enabled=body_flagella_enabled,
+            flagella_flagella_enabled=flagella_flagella_enabled,
         )
 
         potentials = PotentialsParams(
