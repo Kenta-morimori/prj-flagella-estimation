@@ -31,6 +31,8 @@ serial 例外のユーザー明示 IssueコメントURLを確認するまで run
 
 ## 完了
 
+merge準備では `docs/codex/codex_workflow.md` の最終セルフチェックに従い、PR限定物を削除・後続引継ぎ・共通化／保持・再現性証拠の保全へ分類し、処置と参照先を記録する。
+
 local review、`review_result.json`、commit、push、source-Issue-linked PR、初回完了報告の順序は
 `AGENTS.md` と `docs/codex/codex_workflow.md` に従う。PR マージ後は source Issue の受入条件を確認し、
 継続親Issueを子 PR だけで閉じない。残作業の新規 Issue / sub-issue は、具体案を提示してユーザー承認を得てから作成する。

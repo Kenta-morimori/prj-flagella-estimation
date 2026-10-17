@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "summary": "queue25の4条件1sを同期・SHA256照合・共通QC・replay・回転/束診断で比較し、追加位置復元が接近を抑える要因を対比較/力の向きから確認。密な定常束回転は未確認、goalはactive。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "密な束は全4方式で未確認。C/Dの閉じ込みは改善するが遠位が開く。",
+    "全時間1.88-2.52周、終盤<1周で定常性未証明。",
+    "C2s候補は実行許可範囲の追加判断待ち。"
+  ],
+  "tests_reviewed": [
+    "queue25 all4 each250000steps;aggregate completed;ended20261015 21:11JST",
+    "49 files remote/local SHA256 matched",
+    "commonQC4/4PASS;allstep support5/solver1/fallback0",
+    "matched actual configs except two settings and output namespace;initial positions exactly identical",
+    "1001 states/arm;internal-step integrated rotation valid1.0;2 replay videos41frames",
+    "3D terminal/geometrytimeseries and sharedworldYZinitial/final visualQA",
+    "paired late width effect26.3/26.8percent;counterfactual static force outward documented separately from actual forces",
+    "C2s config duration-only/500000steps/onecondition targetedtestPASS and preflightdryrunPASS",
+    "no simulation implementation change this turn;fullpytest not repeated;ruff/diffcheckPASS"
+  ],
+  "user_review_required": true,
+  "user_review_outputs": [
+    "docs/phase2/phase2_255_nf3_bundle_results.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-10-15/161410/issue255_nf3_bundle_execution/long_evaluation/replay",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-10-15/161410/issue255_nf3_bundle_execution/long_bundle_rotation",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-10-15/161410/issue255_nf3_bundle_execution/goal_completion_audit.json"
+  ],
+  "user_review_points": [
+    "追加位置復元を外したCを次候補とするか。",
+    "Cのみ2sの追加観測に進むか。物理設定を変えず参考見積り約9.5時間。"
+  ],
+  "adr_required": false,
+  "adr_reason": "既存候補の結果報告とduration-only実行候補。ADR0026はProposed維持。",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/261",
+  "next_actions": [
+    "Cの緩和途中と定常的開きの区別に追加観測が必要。2s候補は未予約。goalは未完了。"
+  ]
+}

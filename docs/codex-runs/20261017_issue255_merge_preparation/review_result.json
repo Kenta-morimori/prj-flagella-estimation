@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "summary": "PR #261のmerge範囲、検証限界、候補Cの区別、C2s見送り、#263への引継ぎを整理。既存profile既定・QC閾値・物理採択・simulationは変更なし。local PASSはCloud reviewやmerge承認を代替しない。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "密な定常束は未達。#263で開発する。",
+    "project2sは取消済み・未評価。hex結果を一般化しない。",
+    "Cloud review未依頼。codex-review-gateは有効review不在でFAIL。merge前に承認を得て実施する。"
+  ],
+  "tests_reviewed": [
+    "pytest: hook geometry/local reaction/frame drive/analytic torsion/rotation diagnostics/nf3 campaign/rotation cycles: 45 PASS (50.66s)",
+    "git diff --check PASS",
+    "GitHub existing test checks SUCCESS at d551929b9d7a6071548531f0e9ffd3f96643c5f1; new head CI must be rechecked",
+    "review threads:0; review gate failure reason: Complete one Codex or Copilot review for a commit still in this PR."
+  ],
+  "user_review_required": true,
+  "user_review_outputs": [
+    "docs/phase2/phase2_255_merge_handoff.md",
+    "docs/phase2/phase2_255_nf3_bundle_results.md"
+  ],
+  "adr_required": false,
+  "adr_reason": "今回は文書・handoff整理のみ。実装設計ADR0023～0026を維持し、物理候補を採択へ変更しない。",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/261",
+  "next_actions": [
+    "最終commitをpushしPR・Issueの現在地を更新",
+    "最終候補へのCloud review承認を確認。review後の指摘対応・CI/gateを確認",
+    "ユーザー明示承認後にmerge。#255の完了判断はmerge後に当初受入範囲と照合"
+  ]
+}

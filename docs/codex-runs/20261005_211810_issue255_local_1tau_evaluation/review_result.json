@@ -1,0 +1,40 @@
+{
+  "status": "PASS",
+  "summary": "Issue #255のcs10局所反作用1τをhex13・project3の計16条件で完了し、同期・QC・replay・既存2方式との比較を確認した。2sは未実行。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "hexのhook対菌体長軸角度偏差は1τ終端まで増加し、長時間安定性は未確認。",
+    "汎用2D replayは菌体が主に写るため、保存座標に基づく軸方向2D初期・終端図を補助診断とした。"
+  ],
+  "tests_reviewed": [
+    "cs10 queue #18 hex13・#19 project3: 全condition succeeded、固定commit 2e8f91a6913e0ef22de58337cfa0aaaf63c9175a",
+    "source artifactのremote/local SHA-256: hex122・project32ファイル一致",
+    "子run manifest16件のSHA-256一致、support5ビーズ、fallbackなし",
+    "共通development_evaluation: finite/body/hook length/flag/motor 全16条件PASS",
+    "replay18動画の各41フレームと3D・2D contact sheet、軸方向2D初期・終端図を確認",
+    "成果物manifestの248ファイルのサイズとSHA-256を再照合",
+    "git diff --check: PASS"
+  ],
+  "user_review_required": true,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "outputs/2026-10-05/210315/diagnostics/review.html",
+    "outputs/2026-10-05/210315/diagnostics/hex_axial_initial_final.png",
+    "outputs/2026-10-05/210315/diagnostics/project_axial_initial_final.png",
+    "docs/phase2/phase2_255_local_reaction_1tau_results.md"
+  ],
+  "user_review_points": [
+    "局所方式は全16条件で1τ QC PASSだが、hex角度偏差最大12.22°かつ終端で増加傾向。",
+    "2sの対象・開始は別判断。今回2sは開始していない。"
+  ],
+  "adr_required": true,
+  "adr_reason": "新方式の物理的採択は保留し、ADR 0024をProposedに保つ。",
+  "commit_type": "partial",
+  "commit_hash": null,
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/261",
+  "next_actions": [
+    "結果文書とlocal reviewをcommit/pushしてPR #261とIssue #255を更新する。",
+    "ユーザーが1τの形状と角度をレビューして2s候補を決める。"
+  ]
+}

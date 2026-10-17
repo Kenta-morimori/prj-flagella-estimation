@@ -1,0 +1,31 @@
+{
+  "status": "PASS",
+  "summary": "queue23の1s3条件を同期・SHA256照合し、共通QC/replay/旧20比較を評価。評価作業のPASSであり物理採択ではない。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "束化・滑らかな安定遊泳の改善なし。",
+    "torsion総力・総トルク残差、nf5駆動力増大が残る。",
+    "Cのみでframe/motor個別の動的寄与は不明。"
+  ],
+  "tests_reviewed": [
+    "queue23 succeeded;3x250000 steps;aggregate completed;fixed64ab089",
+    "32 files remote/local SHA256 match",
+    "common QC 3/3 PASS",
+    "solver success/support5/fallback0 all steps",
+    "6 replay videos each41 frames;0/.5/1s visual QA;initial/final2D and timeseries reviewed",
+    "1001 common archive states;physical config/initial geometry/provenance comparison verified",
+    "docs-only;full pytest not repeated"
+  ],
+  "user_review_required": true,
+  "user_review_outputs": [
+    "docs/phase2/phase2_255_frame_drive_1s_results.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-10-15/104206/evaluation/replay",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-10-15/104206/diagnostics"
+  ],
+  "adr_required": false,
+  "adr_reason": "結果報告のみ。ADR0025はProposed。",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/261",
+  "next_actions": [
+    "ユーザーレビュー後にtorsion・motor力増大の調査範囲を判断。2s未開始。"
+  ]
+}

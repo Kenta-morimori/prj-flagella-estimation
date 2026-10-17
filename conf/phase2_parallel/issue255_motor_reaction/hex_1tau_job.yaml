@@ -1,0 +1,6 @@
+schema_version: 1
+job_id: issue255_hex_motor_reaction_1tau
+configs: [conf/phase2_multi_run/2010_hex_project_motor_reaction_1tau_issue255.yaml]
+conditions: [nf01__slots0__rxaxis, nf01__slots0__rxfull, nf02__slots01__rxaxis, nf02__slots01__rxfull, nf02__slots02__rxaxis, nf02__slots02__rxfull, nf02__slots03__rxaxis, nf02__slots03__rxfull, nf03__slots012__rxaxis, nf03__slots012__rxfull, nf03__slots013__rxaxis, nf03__slots013__rxfull, nf03__slots014__rxaxis, nf03__slots014__rxfull, nf03__slots024__rxaxis, nf03__slots024__rxfull, nf04__slots0123__rxaxis, nf04__slots0123__rxfull, nf04__slots0124__rxaxis, nf04__slots0124__rxfull, nf04__slots0134__rxaxis, nf04__slots0134__rxfull, nf05__slots01234__rxaxis, nf05__slots01234__rxfull, nf06__slots012345__rxaxis, nf06__slots012345__rxfull]
+preflight: geometry_all_conditions
+execution: {max_workers: auto, worker_policy: cs10_qualified}

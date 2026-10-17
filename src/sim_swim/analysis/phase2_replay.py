@@ -186,6 +186,11 @@ def _has_body_failure(row: dict[str, str]) -> bool:
 
 
 def _fail_label(row: dict[str, str]) -> str:
+    development_status = row.get("development_evaluation_status", "").lower()
+    if development_status in {"pass", "fail"}:
+        stage = row.get("development_evaluation_stage", "development_evaluation")
+        suffix = " (diagnostic-only)" if development_status == "fail" else ""
+        return f"{stage} {development_status.upper()}{suffix}"
     fail_t = str(row.get("first_fail_t_s", ""))
     fail_c = str(row.get("first_fail_category_nonbody", ""))
     if _has_first_fail(row):

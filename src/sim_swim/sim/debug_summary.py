@@ -9,6 +9,7 @@ from typing import TextIO
 
 import numpy as np
 
+from sim_swim.dynamics.balance_diagnostics import BALANCE_COLUMNS
 from sim_swim.dynamics.engine import StepDiagnostics
 from sim_swim.model.types import PolymorphState, SimModel
 from sim_swim.sim.helix_axis import (
@@ -33,6 +34,7 @@ PROXIMAL_FLAG_BOND_REL_ERR_FIELDS = tuple(
 )
 
 STEP_SUMMARY_COLUMNS = [
+    *BALANCE_COLUMNS,
     "step",
     "t_star",
     "dt_star",
@@ -2675,6 +2677,8 @@ class StepSummaryRecorder:
             "brownian_enabled": bool(diag.brownian_enabled),
             "brownian_disp_mean_um": brownian_disp_mean_um,
         }
+        row.update(dict.fromkeys(BALANCE_COLUMNS, 0.0))
+        row.update(diag.force_balance_diagnostics)
         if self._writer is not None and self._csv_fp is not None:
             self._writer.writerow(row)
             self._rows_since_flush += 1

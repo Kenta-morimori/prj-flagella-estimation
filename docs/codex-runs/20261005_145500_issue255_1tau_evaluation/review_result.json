@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "summary": "固定commit6592e14の32条件1τを同期・評価。共通replayへdevelopment QCを反映し再生成。2s未実行。",
+  "blocking_issues": [],
+  "non_blocking_issues": ["軸方向motor FAIL 11条件は診断専用", "hex hook角度は1τ終端でも増加"],
+  "tests_reviewed": ["targeted pytest: 81 passed", "ruff check/format: PASS", "git diff --check: PASS", "同期298ファイルの件数・SHA-256一致", "20 MP4各41frameのdecode検証", "全32条件の中間・終端固定camera画像確認"],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": ["outputs/2026-10-05/142734/diagnostics/review.html", "outputs/2026-10-05/142734/diagnostics/manifest.json"],
+  "user_review_points": ["次段階2sの対象と開始は別途ユーザー判断。今回の解析完了とは分離する。"],
+  "adr_required": false,
+  "adr_reason": "解析表示修正と結果記録。物理モデル・閾値・canonical採択は変更なし。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/261",
+  "next_actions": ["ユーザーによるQC/replayレビューと2s候補選定", "2s未開始。cloud review/merge未実施。"]
+}

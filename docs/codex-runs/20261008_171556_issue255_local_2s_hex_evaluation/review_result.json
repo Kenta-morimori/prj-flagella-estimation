@@ -1,0 +1,39 @@
+{
+  "status": "PASS",
+  "summary": "Issue #255のcs10 queue #20（hex13条件）2s結果をローカルへ同期し、SHA-256、共通QC、3D/2D replay、角度・初期終端形状を評価した。queue #21は未完のため未評価。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "現行の共通QCは13条件すべてPASSだが、後方軸角は終端で5/13条件が90°超、pitch fitにも大きな外れ値がある。これらは現行ゲート外の形状診断としてユーザーレビューが必要。",
+    "per-stepの局所solver/support/fallback telemetryは同期artifactに記録されていない。全conditionの完走・motor残差と実装のno-fallback経路から成功を判断した。"
+  ],
+  "tests_reviewed": [
+    "cs10 queue #20: 13/13 succeeded、各500,000 step・2.0 s、固定commit e94c7cd4f0e31f99169b28ff5025e58e3b02b7cc",
+    "cs10 campaignとローカルartifact 122ファイルの集合・SHA-256全件一致",
+    "共通development_evaluation long_duration: 13/13 PASS、finite/body/hook length/flag/motorを全step要約で確認",
+    "固定cameraの3D・2D replay 12動画をffprobeで各41フレームと確認し、終端3Dと2Dサンプルを目視確認",
+    "約1 ms間隔の保存座標からhook対菌体長軸角度時系列と初期・終端の固定軸2D配置図を再計算",
+    "initial geometry preflight 13/13 PASS、motor degenerate/split rank deficient count 全条件0"
+  ],
+  "user_review_required": true,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "docs/phase2/phase2_255_local_reaction_2s_results.md",
+    "outputs/2026-10-08/171556/evaluation_hex/replay",
+    "outputs/2026-10-08/171556/diagnostics/hex_axial_initial_final.png",
+    "outputs/2026-10-08/171556/diagnostics/hex_hook_axis_timeseries.png"
+  ],
+  "user_review_points": [
+    "共通QCのPASSと、後方整列・pitch・3D形状の診断上の懸念を分けて判断する。",
+    "#21が完了してから同じ文書へprojectの3条件を追加し、16条件の総合判断を行う。"
+  ],
+  "adr_required": false,
+  "adr_reason": "今回の解析では物理モデルやcanonical profileを採択しない。ADR 0024はProposedのまま。",
+  "commit_type": "partial",
+  "commit_hash": null,
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/261",
+  "next_actions": [
+    "結果文書とlocal reviewをcommit/pushしIssue #255・PR #261へhexの途中結果を記録する。",
+    "queue #21完了後、project3条件を別ディレクトリへ同期・評価してこの結果文書へ追記する。"
+  ]
+}

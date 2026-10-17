@@ -1,0 +1,43 @@
+{
+  "status": "PASS",
+  "summary": "Issue #255のframe全エネルギー勾配とmotor最小ノルム補正を独立opt-inで実装し、nf3/4/5各1配置・両修正Cの3条件で1tau/1s実行準備を完了。simulation・cs10操作は未実施。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "束化・軸整列・安定遊泳の改善は未評価。候補Cだけの3条件ではframe/motor単独の動的寄与を識別できない。",
+    "最小ノルム補正は横方向トルクを抑えるが、既存segment駆動の大きい局所力を必ず解消しない。",
+    "1s用jobは候補。1tau共通QC/replayのレビューと実行許可前に開始しない。"
+  ],
+  "tests_reviewed": [
+    "最終full pytest: 984 passed in 200.67s",
+    "targeted: model profiles/frame-drive/motor/local-reaction 62 PASS",
+    "frame有限差分勾配・総力/総トルク・剛体回転/並進・縮退エラー",
+    "motor変形・近軸segment・最小ノルム・トルク/合力・縮退エラー",
+    "既存16初期形状のframe初期ゼロ力・既存local reaction preflight",
+    "候補3条件の1tau/1s物理条件・初期位置一致、geometry preflight、CLI dry-run、出力分離・実効3workers",
+    "診断CSVのschema/row統合とpre-step極値時刻",
+    "ruff check/format check・git diff --check PASS"
+  ],
+  "user_review_required": true,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "docs/phase2/phase2_255_frame_drive_contract.md",
+    "docs/adr/0025_phase2_frame_drive_conservative_candidates.md",
+    "outputs/2026-10-08/191543/issue255_frame_drive_preparation/1tau_dry_run.json",
+    "outputs/2026-10-08/191543/issue255_frame_drive_preparation/1s_dry_run.json"
+  ],
+  "user_review_points": [
+    "nf3 slots024 / nf4 slots0134 / nf5 slots01234各1条件・両修正Cで実行する。単独arm追加は別判断。",
+    "新しいcs10操作は未実施。旧reservation #21は操作・置換しない。",
+    "1tauのQC/replayをレビューしてから1s対象と開始を判断する。canonical採択・2sは含めない。"
+  ],
+  "adr_required": true,
+  "adr_reason": "独立opt-inの物理モデル候補2方式を追加。ADR 0025 Proposedとして採択と区別。",
+  "commit_type": "partial",
+  "commit_hash": null,
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/261",
+  "next_actions": [
+    "新規1tauの実行許可・固定commit確認後にcs10で3条件を実行する。",
+    "完了artifactを同期・SHA-256照合し共通QC/replayと#20対照を確認してから1sへ進む。"
+  ]
+}

@@ -222,6 +222,12 @@ def test_long_duration_collects_portable_archives_and_window_qc(
         float(row["first_failure_at"]) == pytest.approx(0.00004) for row in summary_rows
     )
     assert outputs["attachment_pattern_heatmap"].is_file()
+    with (outputs["replay_input"] / "summary.csv").open() as handle:
+        replay_rows = list(csv.DictReader(handle))
+    assert {row["development_evaluation_status"] for row in replay_rows} == {"pass"}
+    assert {row["development_evaluation_stage"] for row in replay_rows} == {
+        "long_duration"
+    }
     manifest = json.loads(outputs["manifest"].read_text())
     assert manifest["full_ring_rotation_equivalent_condition_ids"] == [
         "nf06__slots012345",
