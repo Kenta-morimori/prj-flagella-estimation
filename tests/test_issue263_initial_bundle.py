@@ -26,7 +26,9 @@ ROOT = Path(__file__).resolve().parents[1]
 CAMPAIGN = (
     ROOT / "conf/phase2_multi_run/2010_hex_nf3_bundle_initial_screen_issue263.yaml"
 )
-LONG_CAMPAIGN = ROOT / "conf/phase2_multi_run/2010_hex_nf3_bundle_2s_issue263.yaml"
+COUNT_SCREEN = ROOT / "conf/phase2_multi_run/2010_hex_nf3to6_bundle_1tau_issue263.yaml"
+LONG_CAMPAIGN = ROOT / "conf/phase2_multi_run/2010_hex_nf3to6_bundle_2s_issue263.yaml"
+COUNT_JOB = ROOT / "conf/phase2_parallel/issue263_initial_bundle/count_screen_job.yaml"
 LONG_JOB = ROOT / "conf/phase2_parallel/issue263_initial_bundle/long_2s_job.yaml"
 
 
@@ -133,9 +135,16 @@ def test_common_evaluator_accepts_fixed_count_and_torque(tmp_path: Path):
 
 
 def test_two_second_checkpoint_changes_only_duration():
-    short = build_campaign_conditions(normalize_campaign_config(load_yaml(CAMPAIGN)))
+    short_config = normalize_campaign_config(load_yaml(COUNT_SCREEN))
+    short = build_campaign_conditions(short_config)
     long_config = normalize_campaign_config(load_yaml(LONG_CAMPAIGN))
     longer = build_campaign_conditions(long_config)
+    assert [row["condition_id"] for row in short] == [
+        "nf03__slots024__bundle",
+        "nf04__slots0134__bundle",
+        "nf05__slots01234__bundle",
+        "nf06__slots012345__bundle",
+    ]
     assert [row["condition_id"] for row in short] == [
         row["condition_id"] for row in longer
     ]
@@ -152,11 +161,22 @@ def test_two_second_checkpoint_changes_only_duration():
         long_config["development_evaluation"]["long_duration"]["expected_steps"]
         == 500000
     )
-    job = load_parallel_job(LONG_JOB)
-    execution = resolve_execution(job, None)
-    assert job.condition_ids == tuple(row["condition_id"] for row in longer)
-    assert execution.worker_policy == "cs10_qualified"
-    assert execution.max_workers == 3
+    for path in (COUNT_JOB, LONG_JOB):
+        job = load_parallel_job(path)
+        execution = resolve_execution(job, None)
+        assert job.condition_ids == tuple(row["condition_id"] for row in longer)
+        assert execution.worker_policy == "cs10_qualified"
+        assert execution.max_workers == 4
+    preflight = geometry_preflight(short_config, short)
+    for row in short:
+        record = preflight[row["condition_id"]]
+        assert record["initial_min_nonattached_bead_distance_m"] >= 2e-7 - 1e-15
+        assert record["initial_hook_len_max_abs_error_m"] < 1e-15
+        assert record["initial_hook_force_norm_N"] < 1e-18
+        assert (
+            row["axis_values"]["phase_offsets_deg"]
+            == [0] * row["axis_values"]["n_flagella"]
+        )
 
 
 def test_long_evaluation_groups_fixed_geometry_conditions(monkeypatch, tmp_path: Path):
@@ -164,13 +184,13 @@ def test_long_evaluation_groups_fixed_geometry_conditions(monkeypatch, tmp_path:
 
     calls = []
     monkeypatch.setattr(replay, "main", lambda args: calls.append(args))
+    config = normalize_campaign_config(load_yaml(LONG_CAMPAIGN))
     rows = [
-        {"condition_id": name, "n_flagella": 3}
-        for name in (
-            "nf03__slots024__C",
-            "nf03__slots024__bundle",
-            "nf03__slots024__bundle_phase5",
-        )
+        {
+            "condition_id": row["condition_id"],
+            "n_flagella": row["axis_values"]["n_flagella"],
+        }
+        for row in build_campaign_conditions(config)
     ]
     _render_replays(
         rows,
@@ -178,15 +198,15 @@ def test_long_evaluation_groups_fixed_geometry_conditions(monkeypatch, tmp_path:
         output_dir=tmp_path / "output",
         stage="long_duration",
     )
-    assert len(calls) == 1
-    args = calls[0]
-    assert args.count("--condition-id") == 3
-    assert args[args.index("--camera-3d") + 1] == "fixed"
-    assert args[args.index("--camera-2d") + 1] == "fixed"
-    assert str(tmp_path / "output" / "replay" / "nf03") in args
+    assert len(calls) == 4
+    for n_flagella, args in enumerate(calls, 3):
+        assert args.count("--condition-id") == 1
+        assert args[args.index("--camera-3d") + 1] == "fixed"
+        assert args[args.index("--camera-2d") + 1] == "fixed"
+        assert str(tmp_path / "output" / "replay" / f"nf{n_flagella:02d}") in args
 
 
-def test_two_second_common_evaluation_accepts_three_portable_sources(tmp_path: Path):
+def test_two_second_common_evaluation_accepts_four_portable_sources(tmp_path: Path):
     campaign = normalize_campaign_config(load_yaml(LONG_CAMPAIGN))
     source = tmp_path / "source"
     source.mkdir()
@@ -256,5 +276,5 @@ def test_two_second_common_evaluation_accepts_three_portable_sources(tmp_path: P
         output_dir=tmp_path / "evaluation",
     )
     result = json.loads(output["manifest"].read_text())
-    assert result["status_counts"] == {"pass": 3, "fail": 0}
+    assert result["status_counts"] == {"pass": 4, "fail": 0}
     assert output["window_qc_csv"].is_file()

@@ -384,8 +384,10 @@ def _place_initial_rear_bundle(
     """Move rigid filaments toward the rear axis without changing their shape.
 
     A small, fixed hook-direction grid makes the selected initial state
-    reproducible.  Hook force is ranked before bundle width; geometry that
-    overlaps another non-bonded bead is never accepted.
+    reproducible.  ``phase_offsets_deg`` rotates a whole filament rigidly
+    about the rear body axis with its first bead fixed; it does not change
+    motor phase or intrinsic helical phase. Hook force is ranked before bundle
+    width; geometry that overlaps another non-bonded bead is never accepted.
     """
     from sim_swim.dynamics.forces import compute_hook_forces
 

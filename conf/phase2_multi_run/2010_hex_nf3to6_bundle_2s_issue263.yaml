@@ -1,0 +1,76 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/263
+  model_id: 2010_hex_issue263_count_bundle
+  description: C mechanics; one compact rear-bundle attachment pattern for each count 3–6, 2 s observation checkpoint.
+development_evaluation:
+  version: 1
+  profile_id: 2010_hex_project
+  stage: long_duration
+  expected_condition_count: 4
+  axes: [bundle_candidate]
+  qc:
+    exclude_diagnostics_from_gate: [hook_angle_err_max_deg]
+    required_gates: [finite, shape_body, hook_length, flag, motor]
+    max_motor_force_balance_residual_ratio: 1.0e-08
+    max_motor_torque_balance_residual_ratio: 0.02
+  accepted_source_campaigns:
+    - conf/phase2_multi_run/2010_hex_nf3to6_bundle_2s_issue263.yaml
+  replay:
+    group_by: [n_flagella]
+    camera_3d: fixed
+    view_range_mode: campaign-envelope
+    show_flagella_axes: true
+  long_duration:
+    duration_s: 2.0
+    reference_tau: 50
+    expected_steps: 500000
+    full_ring_rotation_equivalent: n_flagella == 6
+    feature_evaluation: separate_issue
+base_config: conf/sim_swim_2010_hex.yaml
+base_overrides:
+  time.duration: {value: 2.0, unit: s}
+  time.scale_policy: reference_torque
+  time.integration.dt_star: 0.0001
+  motor.torque_Nm: 2.5e-20
+  motor.reference_torque_Nm: 2.5e-20
+  motor.enable_switching: false
+  motor.body_reaction_full_vector: true
+  motor.body_reaction_support: attach_one_ring
+  motor.attach_frame_reaction: energy_gradient
+  motor.local_attach_frame_position_scale: 1.0
+  motor.segment_torque_correction: none
+  brownian.enabled: false
+  potentials.spring_spring_repulsion.body_flagella_enabled: false
+  potentials.torsion.force_method: analytic
+  flagella.placement_mode: explicit_center_layer_slots
+  flagella.initial_hook_force_neutral: true
+  flagella.initial_hook_body_axis_perpendicular: true
+  seed.attach_seed: 0
+  seed.phase_seed: 0
+  output.policy: compact
+  output.archive_interval_s: 0.001
+  output.rotation_diagnostics: true
+sweep:
+  axes:
+    bundle_candidate:
+      keys:
+        n_flagella: flagella.n_flagella
+        attachment_slots: flagella.attachment_slots
+        bundle_mode: flagella.initial_bundle_mode
+        phase_offsets_deg: flagella.initial_phase_offsets_deg
+      short_name: candidate
+      values:
+        - {n_flagella: 3, attachment_slots: [0, 2, 4], bundle_mode: compact_rear, phase_offsets_deg: [0, 0, 0]}
+        - {n_flagella: 4, attachment_slots: [0, 1, 3, 4], bundle_mode: compact_rear, phase_offsets_deg: [0, 0, 0, 0]}
+        - {n_flagella: 5, attachment_slots: [0, 1, 2, 3, 4], bundle_mode: compact_rear, phase_offsets_deg: [0, 0, 0, 0, 0]}
+        - {n_flagella: 6, attachment_slots: [0, 1, 2, 3, 4, 5], bundle_mode: compact_rear, phase_offsets_deg: [0, 0, 0, 0, 0, 0]}
+      labels: [nf3 slots024, nf4 slots0134, nf5 slots01234, nf6 slots012345]
+      ids: [nf03__slots024__bundle, nf04__slots0134__bundle, nf05__slots01234__bundle, nf06__slots012345__bundle]
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 1000

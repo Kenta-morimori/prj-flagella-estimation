@@ -2,7 +2,7 @@
 
 ## 比較契約
 
-`conf/phase2_multi_run/2010_hex_nf3_bundle_initial_screen_issue263.yaml`の3条件を比較する。`nf03__slots024__C`は#255四方式比較のCと同じ初期座標・物理設定。`bundle`はopt-inの後方コンパクト配置、`bundle_phase5`は同配置のflag 1だけを後方軸まわりに5°回す。3条件はnf3、slots024、T=2.5e-20 N m/本、dt_star=1e-4、Brownian/switching OFF、菌体–べん毛排除OFF、べん毛同士反発ONを共有する。
+`conf/phase2_multi_run/2010_hex_nf3_bundle_initial_screen_issue263.yaml`の3条件を比較する。`nf03__slots024__C`は#255四方式比較のCと同じ初期座標・物理設定。`bundle`はopt-inの後方コンパクト配置、`bundle_phase5`は同配置のflag 1だけを**根元固定で菌体後方軸まわりに5°剛体回転**させた初期方位摂動である。設定名に`phase`が含まれるが、motor位相やらせん自身の軸まわりの位相ではない。3条件はnf3、slots024、T=2.5e-20 N m/本、dt_star=1e-4、Brownian/switching OFF、菌体–べん毛排除OFF、べん毛同士反発ONを共有する。
 
 初期配置の手順・制限はADR 0027。preflightでは束半径・後方軸角・べん毛間軸角、hook長・角度・力、最小ビーズ間距離を記録する。非重複・hook長が成立しなければsimulationを始めない。t=0の幾何成立を遊泳の成立と扱わない。
 
@@ -28,29 +28,31 @@ screen成果物は共通`development_evaluation`のfinite/body/hook length/flag/
 |---|---:|---:|---:|---:|
 | C | 1.0133 | 2.650 | 0.492 | 0.11464 |
 | compact rear | 0.7919 | 1.720 | 0.628 | 0.13516 |
-| compact rear + flag 1位相5° | 0.7856 | 1.734 | 0.637 | 0.13478 |
+| compact rear + flag 1初期方位5° | 0.7856 | 1.734 | 0.637 | 0.13478 |
 
-束半径は全条件で初期より縮小し、終端は順に0.9932、0.7787、0.7724 µm。軸角は終端4.667、2.903、2.928°。位相摂動条件のflag 1対flag 0の積算位相差変動は0.0050 rad、回転診断のvalid fractionは全条件1.0。共通QCを通った保存状態のみを`bundle_rotation`へ渡した。完全な回転周期は全条件0件で、速度CVは0.354、0.413、0.405。これらは初期過渡を含む短い窓の診断であり、密な束の維持、位相同期、定常回転、持続推進を判定できない。
+束半径は全条件で初期より縮小し、終端は順に0.9932、0.7787、0.7724 µm。軸角は終端4.667、2.903、2.928°。初期方位摂動条件のflag 1対flag 0の積算回転差変動は0.0050 rad、回転診断のvalid fractionは全条件1.0。共通QCを通った保存状態のみを`bundle_rotation`へ渡した。完全な回転周期は全条件0件で、速度CVは0.354、0.413、0.405。これらは初期過渡を含む短い窓の診断であり、密な束の維持、位相同期、定常回転、持続推進を判定できない。
 
 #255の保存済みA/B/C/D 1s比較では、frame追加位置復元を外したC/Dの束幅はA/Bより狭かった一方、Cでも2周期を通じて束幅が縮小し、収束は確認されなかった。今回のCの1τ回転0.11464 turnは#255短期Cと一致する。新配置の1τで束幅と速度が改善しても、Cのframe・motor前提の採択や長時間挙動の改善を意味しない。次はユーザーレビュー後、必要な完全回転周期数と長時間条件を決める。物理変更が必要ならframe復元・motor補正などを一項目ずつ対照化する。
 
 成果物は`outputs/2026-10-17/195417/issue263_short_screen/`に保存。`source/`のportable 38ファイルをcs10とファイル集合・SHA-256全件照合した。`manifest.json`にqueue、固定commit、主要SHA-256、QC、replayを記録し、`evaluation/`と`bundle_rotation/`を同じrootに保持した。operational logは同期していない。
 
-## 次タスク：2秒の長時間観測チェックポイント（実行前契約案）
+## 次タスク：nf=3～6を各1配置で比較（実行前契約案）
 
-1τで完全周期は0件。#255のCは1秒で2.519周、最初の2周期で同位相の束半径が約9.7%縮小した。巻き付き・束形状の緩和と、その後の維持を分けるため、`conf/phase2_multi_run/2010_hex_nf3_bundle_2s_issue263.yaml`でC／compact rear／flag 1位相5°の**同じ3条件を初期状態から2秒**観測する。1τからのresumeではない。3条件間の物理設定・seed・時間刻み・出力間隔は短期screenと同一で、時間指定だけ2秒（50τ、500,000 step/条件）にする。#255の旧C 1秒archiveは履歴比較に使うが、2秒の直接対照を代替しない。
+ユーザーの指摘により、次の比較から初期方位5°摂動を外し、nf=3～6の各本数で1配置ずつを試す。n3の旧3条件screenは履歴証拠として残すが、次stageの3 armをそのまま2秒へ延長しない。各本数の配置は、nf3 slots024、nf4 slots0134、nf5 slots01234、nf6 slots012345とし、全flagの初期方位offsetを0°に固定する。いずれもCのframe・motor・torsion等の設定、各flagのトルク、時間刻み、seedを共有する。本数と付着slotの組合せは同時に変わるため、1条件ずつの結果から本数単独の因果効果や成立範囲を断定しない。nf4～6は探索的診断であり、training scopeやcanonical採択の変更ではない。
 
-`conf/phase2_parallel/issue263_initial_bundle/long_2s_job.yaml`は`cs10_qualified`、autoの実効3 workers、数値ライブラリ各1 thread、条件別出力と全条件geometry preflightを使う。Macではsimulationしない。#26の1τ約10分および#25の1秒約4時間45分からの単純外挿では、cs10 wall timeは概ね8～11時間を見込む。共有機負荷で変動するため保証値ではない。2秒は**中間判定点**であり、ここで定常成立を自動判定しない。
+| 本数 | 付着slots | 初期束半径 [µm] | 最小非付着ビーズ間距離 [µm] |
+|---|---|---:|---:|
+| 3 | 024 | 0.813 | 0.250 |
+| 4 | 0134 | 0.813 | 0.250 |
+| 5 | 01234 | 0.792 | 0.250 |
+| 6 | 012345 | 0.813 | 0.250 |
 
-Mac上のsimulationなしdry-runは`outputs/2026-10-17/222223/issue263_long_2s_plan/dry_run_plan.json`に保存した。固定commit `027403be769b891b701e608cba8fb49d81d3b546`でのcs10側dry-runも同階層の`cs10_dry_run_plan.json`に保存。job/configのSHA-256、3条件の設定、実効3 workers、数値thread各1、条件別出力が一致した。幾何preflightも数値許容差1e-18以内で一致し、作業用のcs10 worktreeは削除した。`manifest.json`に照合結果とplanのSHA-256を残した。
+上表はsimulationなしのgeometry preflight。ビーズ直径0.200 µmを超え、hook長誤差は1e-15 m未満、初期hook力normは1e-18 N未満だった。**静的成立は動的QCや束維持を保証しない。** n4～6は未screenの新条件なので、`conf/phase2_multi_run/2010_hex_nf3to6_bundle_1tau_issue263.yaml`の4条件（各0.04秒・10,000 step）を共通short-screen QCと固定camera replayに通す。parallel jobは`conf/phase2_parallel/issue263_initial_bundle/count_screen_job.yaml`。n3も同じjobに含めて同一commit・環境で比較し、旧#26のn3束条件との再現性を確認する。screenのQC未達条件は長時間へ進めず、Cおよび同一jobの他本数との対比較で原因を切り分ける。Macのsimulationなしdry-runは`outputs/2026-10-17/223411/issue263_count_plan/`に記録し、4条件の出力分離・4 workers・数値thread各1を確認した。
 
-判定の順序と記録を実行前に固定する。
+4条件のQCとreplayをレビューした後、通過条件だけを初期状態から2秒（50τ、500,000 step/条件）観測する候補を`conf/phase2_multi_run/2010_hex_nf3to6_bundle_2s_issue263.yaml`と`conf/phase2_parallel/issue263_initial_bundle/long_2s_job.yaml`に用意した。1τからのresumeではない。現時点のjobは4条件を列挙しているが、screen未達条件が出たら実行前に範囲・configを改め、予約を自動継続しない。`cs10_qualified`、autoの実効4 workers、各数値ライブラリthread 1、条件別出力、全条件geometry preflightを用いる。Macでは長時間simulationしない。旧nf3の実測外挿では2秒に8～11時間程度だが、nf4～6の計算負荷は未測定なので、screen実測を使って予約前にwall timeを更新する。
 
-1. 各`run_summary.json`を先に読み、3/3完走と共通`development_evaluation`のfinite/body/hook length/flag/motor QCを判定する。QC未達条件のarchiveを束診断へ流さず、Cとの対比較で初期幾何起因を調べる。
-2. QC通過archiveから固定cameraの3D／2D replay、`bundle_rotation`時系列・完全周期CSVを生成する。完全周期はflag 0の菌体相対best-fit axial spinで定義し、位相欠測・逆転・保存不足を「判定不能」として残す。これは厳密なmaterial twistでも、3本の自発同期の直接証拠でもない。
-3. 各周期の同位相境界で束半径、べん毛間軸角、輪郭長75%位置・先端の横方向広がりを比較する。周期平均の回転周期・速度、flag間の積算位相差、推進方向も併記する。輪郭広がりは接触や位相的な絡み合いを直接証明しないので、replayを併せて確認する。
-4. **観測量の十分性**として各条件で完全周期5件以上を目標にし、先頭2周期を初期緩和として分離して末尾3周期を比較する。#255のCでは2周期でも形状が変化し続けたため、この数を採る。5周期未満、QC失敗、または末尾3周期でも明瞭な一方向の形状変化が続けば、成立／不成立を断定せず観測延長または仮説修正をレビューする。
+長時間archiveは各`run_summary.json`を先に読み、共通`development_evaluation`のfinite/body/hook length/flag/motor QCを判定し、PASSの保存状態のみを`bundle_rotation`へ渡す。各本数を固定camera 3D／2D replayで確認する。flag 0の菌体相対best-fit axial spinの完全周期を基準に、束半径、べん毛間軸角、輪郭長75%位置と先端の広がり、周期平均速度を同位相で比較する。これは厳密なmaterial twistや位相的な絡み合いの直接測定ではない。n6では対称性だけによる回転一致を同期の証拠としない。
 
-最後の3周期では、同位相の束半径と75%／先端広がりの周期間変化率を数値で示す。5%を超える変化は#255の約9.7%縮小を見逃さないための**延長レビュー旗**とする。新しい物理QCのFAIL閾値やモデル採択基準にはしない。束軸・べん毛間軸角、周期、速度、位相差は各周期の値と傾向を提示し、許容変動の採択はデータとreplayのレビューで判断する。2秒で十分な周期が取れない場合、3～4秒への延長候補を別の固定commit契約として準備し、予約を自動追加しない。
+**観測量の十分性**は本数ごとに完全周期5件以上を目標とし、先頭2周期を緩和として分離、末尾3周期の形状変化を記録する。#255のCは最初の2周期でも束半径が約9.7%縮小した。末尾の束半径または75%／先端広がりが周期間で5%を超えて変化した場合は、延長レビューの旗を立てる。これは新しい物理QCのFAIL閾値でも自動採択基準でもない。5周期未満・QC未達・継続的な形状変化があれば、成立／不成立を断定せず、観測延長または物理仮説の見直しをユーザーと判断する。
 
-この節は実行条件をレビュー可能にする準備であり、長時間jobの予約・開始を記録するものではない。長時間開始前に、固定commit、job範囲、dry-run plan、所要時間を示してユーザー判断を受ける。新規hook・motor・相互作用の変更、canonical採択、本数展開は含めない。
+旧nf3・3条件の2秒案（commit `027403b`でdry-run済み）は**未予約・未実行で置き換え**る。旧planは`outputs/2026-10-17/222223/issue263_long_2s_plan/`に履歴として保存する。新しい4条件の固定commit・Mac/cs10 dry-run、実行範囲・所要時間を確認する前に予約・開始しない。新規hook・motor・相互作用の変更やcanonical freezeは含めない。

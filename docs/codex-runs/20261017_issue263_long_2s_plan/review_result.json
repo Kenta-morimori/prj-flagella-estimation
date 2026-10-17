@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #263の2秒長時間観測チェックポイントを実行前契約として準備。短期3条件から時間指定だけを変更し、共通evaluatorの固定幾何long-duration対応と完全周期ごとの輪郭広がり診断を補修。simulationは未開始。",
+  "summary": "履歴記録：Issue #263のnf3・3条件の2秒観測案を準備したが、ユーザーの本数条件見直しにより未予約・未実行のまま廃止。後続はnf3～6各1配置のscreenを先行する。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "2秒は中間判定点であり、5完全周期と初期緩和後3周期を満たす保証はない。未達なら延長条件を再レビューする。",
@@ -12,14 +12,14 @@
     "duration-only comparison with the three completed short-screen conditions"
   ],
   "user_review_required": true,
-  "user_review_command": "Review the 2 s observation checkpoint, five-cycle sufficiency target, and extension triggers before cs10 reservation and job start.",
+  "user_review_command": "この旧nf3・3条件jobは予約・開始しない。後続のnf3～6計画を参照する。",
   "user_review_outputs": [
     "docs/phase2/phase2_263_initial_bundle_screen.md",
     "outputs/2026-10-17/222223/issue263_long_2s_plan/manifest.json",
     "outputs/2026-10-17/222223/issue263_long_2s_plan/dry_run_plan.json"
   ],
   "user_review_points": [
-    "最初の長時間観測点を2秒・3条件とするか",
+    "旧案は未予約・未実行であり、nf3～6各1配置の計画に置き換えた",
     "5完全周期、先頭2周期の緩和分離、末尾3周期の形状比較を観測量の十分性とするか",
     "末尾の同位相束半径・輪郭広がりの5%変化を延長レビュー旗として扱うか"
   ],
@@ -30,6 +30,6 @@
   "push_status": "not_pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
   "next_actions": [
-    "ユーザーレビュー後に2秒jobの予約・開始と、完走後の共通QC・replay・周期診断を判断する"
+    "nf3～6各1配置の1τ short screenを先に実行・評価し、2秒jobの範囲を再判断する"
   ]
 }
