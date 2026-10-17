@@ -1,8 +1,10 @@
+import json
 from dataclasses import asdict
 from pathlib import Path
 
 import numpy as np
 
+from sim_swim.analysis.model_development_evaluation import _row
 from sim_swim.analysis.multi_run_campaign import (
     build_campaign_conditions,
     geometry_preflight,
@@ -96,3 +98,21 @@ def test_compact_initial_geometry_can_integrate_two_steps():
     states = simulator.run(8e-6, output_policy="compact", archive_interval_s=4e-6)
     assert len(states) == 3
     assert np.isfinite(states[-1].bead_positions_um).all()
+
+
+def test_common_evaluator_accepts_fixed_count_and_torque(tmp_path: Path):
+    campaign = normalize_campaign_config(load_yaml(CAMPAIGN))
+    record = build_campaign_conditions(campaign)[0]
+    (tmp_path / "run_summary.json").write_text(
+        json.dumps({"gates": {}, "all_step_metrics": {}}), encoding="utf-8"
+    )
+    (tmp_path / "performance.json").write_text(
+        json.dumps({"wall_time_s": 1.0, "steps_per_s": 1000.0}),
+        encoding="utf-8",
+    )
+    record["output_dir"] = str(tmp_path)
+    record["time"] = {"dt_star": 1e-4, "dt_internal_s": 4e-6}
+    row = _row(record, {"completed": "True"}, qc={}, stage="short_screen")
+    assert row["n_flagella"] == 3
+    assert json.loads(row["attachment_slots"]) == [0, 2, 4]
+    assert row["torque_Nm"] == 2.5e-20

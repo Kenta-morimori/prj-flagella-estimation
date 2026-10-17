@@ -267,15 +267,22 @@ def _row(
     performance = _read_json(output_dir / "performance.json")
     axes = dict(record.get("axis_values", {}) or {})
     time = dict(record.get("time", {}) or {})
+    overrides = dict(record.get("config_overrides", {}) or {})
+    flagella = dict(overrides.get("flagella", {}) or {})
+    motor = dict(overrides.get("motor", {}) or {})
     first_failure_category, first_failure_at = _first_failure(summary)
     values: dict[str, Any] = {
         "condition_id": str(record["condition_id"]),
-        "n_flagella": int(axes["n_flagella"]),
+        "n_flagella": int(
+            axes["n_flagella"] if "n_flagella" in axes else flagella["n_flagella"]
+        ),
         "attachment_pattern": str(axes.get("attachment_pattern", "")),
         "attachment_pattern_label": str(
             dict(record.get("axis_labels", {}) or {}).get("attachment_pattern", "")
         ),
-        "attachment_slots": json.dumps(axes.get("attachment_slots", [])),
+        "attachment_slots": json.dumps(
+            axes.get("attachment_slots", flagella.get("attachment_slots", []))
+        ),
         "body_reaction_full_vector": axes.get("body_reaction_full_vector", ""),
         "screen_status": screen_status(summary, qc=qc),
         "raw_nonbody_any_fail": _gate_failed(summary, "shape_nonbody"),
@@ -300,7 +307,11 @@ def _row(
     if stage == "short_screen":
         values.update(
             {
-                "torque_Nm": float(axes["motor_torque"]),
+                "torque_Nm": float(
+                    axes["motor_torque"]
+                    if "motor_torque" in axes
+                    else motor["torque_Nm"]
+                ),
                 "dt_star": float(time["dt_star"]),
                 "dt_internal_s": float(time["dt_internal_s"]),
             }
