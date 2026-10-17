@@ -8,7 +8,7 @@
   ],
   "tests_reviewed": [
     "targeted pytest: Issue #263 geometry/long contract and portable-source evaluation, bundle rotation cycles, Issue #245 long evaluator 23 PASS",
-    "local cs10_qualified parallel dry-run: 3 separate outputs, 3 workers, one numerical thread each, geometry preflight",
+    "local and cs10 fixed-commit cs10_qualified parallel dry-run: identical job/config hashes, 3 separate outputs, 3 workers, one numerical thread each, geometry preflight within numerical tolerance",
     "duration-only comparison with the three completed short-screen conditions"
   ],
   "user_review_required": true,
@@ -30,7 +30,6 @@
   "push_status": "not_pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
   "next_actions": [
-    "固定commitでcs10 dry-runを照合する",
     "ユーザーレビュー後に2秒jobの予約・開始と、完走後の共通QC・replay・周期診断を判断する"
   ]
 }

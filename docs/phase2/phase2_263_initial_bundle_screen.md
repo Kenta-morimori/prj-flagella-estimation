@@ -42,7 +42,7 @@ screen成果物は共通`development_evaluation`のfinite/body/hook length/flag/
 
 `conf/phase2_parallel/issue263_initial_bundle/long_2s_job.yaml`は`cs10_qualified`、autoの実効3 workers、数値ライブラリ各1 thread、条件別出力と全条件geometry preflightを使う。Macではsimulationしない。#26の1τ約10分および#25の1秒約4時間45分からの単純外挿では、cs10 wall timeは概ね8～11時間を見込む。共有機負荷で変動するため保証値ではない。2秒は**中間判定点**であり、ここで定常成立を自動判定しない。
 
-Mac上のsimulationなしdry-runは`outputs/2026-10-17/222223/issue263_long_2s_plan/dry_run_plan.json`に保存した。3条件の出力分離、preflight、実効3 workers、数値thread各1を確認済み。固定commitでのcs10側dry-runは実行開始前に照合する。
+Mac上のsimulationなしdry-runは`outputs/2026-10-17/222223/issue263_long_2s_plan/dry_run_plan.json`に保存した。固定commit `027403be769b891b701e608cba8fb49d81d3b546`でのcs10側dry-runも同階層の`cs10_dry_run_plan.json`に保存。job/configのSHA-256、3条件の設定、実効3 workers、数値thread各1、条件別出力が一致した。幾何preflightも数値許容差1e-18以内で一致し、作業用のcs10 worktreeは削除した。`manifest.json`に照合結果とplanのSHA-256を残した。
 
 判定の順序と記録を実行前に固定する。
 
