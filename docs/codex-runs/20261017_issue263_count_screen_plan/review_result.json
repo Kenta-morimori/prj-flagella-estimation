@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #263の次段階をnf3～6各1配置の1τ short screenへ変更。5°初期方位摂動は次段階から除外し、2秒観測はscreenレビュー後の候補に限定した。新しいsimulationは未開始。",
+  "summary": "Issue #263の次段階をnf3～6各1配置の1τ short screenへ変更。5°初期方位摂動は次段階から除外し、2秒観測はscreenレビュー後の候補に限定した。固定commitのcs10予約#29はqueuedで、simulation結果は未取得。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "nf4～6は動的QC未確認。静的幾何preflightのみで長時間実行へ進めない。",
@@ -10,7 +10,7 @@
   "tests_reviewed": [
     "targeted pytest: Issue #263, bundle rotation cycles, parallel job 49 PASS",
     "ruff check and git diff --check PASS",
-    "Mac simulation-free dry-run: 1τ and 2 s jobs each have 4 separate conditions, 4 workers, one numerical thread per worker, and geometry preflight"
+    "Mac/cs10 fixed-commit simulation-free dry-run: 1τ and 2 s jobs each have 4 separate conditions, 4 workers, one numerical thread per worker, and matching job/config hashes and geometry preflight"
   ],
   "user_review_required": true,
   "user_review_command": "1τ screenのQCと固定camera replayを確認してから、2秒観測の対象と所要時間を決める。",
@@ -27,12 +27,11 @@
   "adr_required": false,
   "adr_reason": "既存ADR 0027のcompact_rearを本数別に用い、物理式は変更しない。",
   "commit_type": "diagnostic",
-  "commit_hash": null,
-  "push_status": "not_pushed",
+  "commit_hash": "0a938a667421616ba204ccd4b35153b9676998a9",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
   "next_actions": [
-    "固定commitのcs10 dry-runを照合する",
-    "4条件の1τ short screenを実行し、共通QCと固定camera replayを評価する",
+    "cs10予約#29（固定commit 0a938a6）の開始・完走後、共通QCと固定camera replayを評価する",
     "QC・replayレビュー後に2秒jobの対象を決める"
   ]
 }

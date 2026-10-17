@@ -55,4 +55,4 @@ screen成果物は共通`development_evaluation`のfinite/body/hook length/flag/
 
 **観測量の十分性**は本数ごとに完全周期5件以上を目標とし、先頭2周期を緩和として分離、末尾3周期の形状変化を記録する。#255のCは最初の2周期でも束半径が約9.7%縮小した。末尾の束半径または75%／先端広がりが周期間で5%を超えて変化した場合は、延長レビューの旗を立てる。これは新しい物理QCのFAIL閾値でも自動採択基準でもない。5周期未満・QC未達・継続的な形状変化があれば、成立／不成立を断定せず、観測延長または物理仮説の見直しをユーザーと判断する。
 
-旧nf3・3条件の2秒案（commit `027403b`でdry-run済み）は**未予約・未実行で置き換え**る。旧planは`outputs/2026-10-17/222223/issue263_long_2s_plan/`に履歴として保存する。新しい4条件の固定commit・Mac/cs10 dry-run、実行範囲・所要時間を確認する前に予約・開始しない。新規hook・motor・相互作用の変更やcanonical freezeは含めない。
+旧nf3・3条件の2秒案（commit `027403b`でdry-run済み）は**未予約・未実行で置き換え**る。旧planは`outputs/2026-10-17/222223/issue263_long_2s_plan/`に履歴として保存する。新しい4条件の固定commit `0a938a667421616ba204ccd4b35153b9676998a9`でMac/cs10のsimulationなしdry-runを照合し、job/config hash・4条件の幾何値・実効4 workers・条件別出力が一致した。cs10予約#29には**1τ short screenのみ**を登録し、2026-10-17 22:35 JST時点でqueued。先行job #28の実行中であり、#29のsimulation結果はまだない。2秒jobは予約・開始していない。新規hook・motor・相互作用の変更やcanonical freezeは含めない。
