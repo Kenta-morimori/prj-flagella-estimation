@@ -272,6 +272,56 @@ def test_repulsion_body_flagella_enabled_must_be_boolean() -> None:
         SimulationConfig.from_dict(raw)
 
 
+def test_repulsion_can_disable_all_flagellar_segment_pairs() -> None:
+    raw = _minimal_config_with_spring(None)
+    raw["potentials"] = {
+        "spring_spring_repulsion": {
+            "body_flagella_enabled": False,
+            "flagella_flagella_enabled": False,
+        }
+    }
+    cfg = SimulationConfig.from_dict(raw)
+    model = ModelBuilder(cfg).build()
+    engine = DynamicsEngine(model, cfg)
+    counts = engine.segment_repulsion_pair_counts
+
+    assert counts["body_flagella_candidate"] > 0
+    assert counts["flagella_flagella_candidate"] > 0
+    assert counts["body_flagella_active"] == 0
+    assert counts["flagella_flagella_active"] == 0
+    assert counts["active_total"] == 0
+    assert len(engine.segment_pair_indices_for_repulsion) == 0
+    springs = model.spring_pairs
+    is_body_end = model.bead_is_body[springs]
+    hook_rows = np.flatnonzero(is_body_end[:, 0] ^ is_body_end[:, 1])
+    flag_only_rows = np.flatnonzero(~is_body_end.any(axis=1))
+    pairs = model.segment_pair_indices
+    assert any(
+        hook in pair and any(flag in pair for flag in flag_only_rows)
+        for hook in hook_rows
+        for pair in pairs
+    )
+    assert any(
+        first in flag_only_rows
+        and second in flag_only_rows
+        and model.bead_flag_ids[springs[first, 0]]
+        == model.bead_flag_ids[springs[second, 0]]
+        for first, second in pairs
+    )
+
+
+def test_repulsion_flagella_flagella_default_and_type() -> None:
+    raw = _minimal_config_with_spring(None)
+    assert SimulationConfig.from_dict(
+        raw
+    ).potentials.spring_spring_repulsion.flagella_flagella_enabled
+    raw["potentials"] = {
+        "spring_spring_repulsion": {"flagella_flagella_enabled": "false"}
+    }
+    with pytest.raises(ValueError, match="flagella_flagella_enabled must be a boolean"):
+        SimulationConfig.from_dict(raw)
+
+
 def _minimal_config_with_spring(spring: dict[str, object] | None) -> dict[str, object]:
     config: dict[str, object] = {
         "scale": {"b_um": 1.0, "bead_radius_a_over_b": 0.1},

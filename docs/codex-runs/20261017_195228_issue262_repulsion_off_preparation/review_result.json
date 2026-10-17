@@ -1,0 +1,41 @@
+{
+  "status": "PASS",
+  "summary": "Issue #262の#255局所反作用固定モデルに対するsegment反発全OFF実装、13配置の1τ/2秒campaign、共通QC契約、cs10並列job、再解析専用の菌体軸診断をローカルで検証した。実行と2秒の遊泳判定は未実施。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "#262の13配置short screenと2秒診断はcs10ユーザー実行・段階レビュー・操作別承認待ち。",
+    "#255対照は旧有限差分torsion・未解決の束化/軸整列を含み、今回の結論はこの固定モデル内に限定する。"
+  ],
+  "tests_reviewed": [
+    "full pytest: 1013 PASS",
+    "最終変更後targeted pytest: 40 PASS; model/multi-run/parallel回帰: 173 PASS",
+    "ruff check/format、git diff --check: PASS",
+    "1τ/2秒dry-run: 各13分離出力、cs10_qualified実効8 workers、数値ライブラリ各1 thread",
+    "13配置geometry preflight PASS、#255との差はflagella_flagella_enabled=falseのみ",
+    "#255対照: 13 completed/各500000 step、固定commit、122/122ファイルSHA-256一致",
+    "対照archiveの軸解析: 各配置20個の0.1秒窓、13配置の時系列と図を生成"
+  ],
+  "user_review_required": true,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "docs/phase2/phase2_262_repulsion_off_contract.md",
+    "outputs/2026-10-17/195156/issue262_reference_axis_audit/manifest.json",
+    "outputs/2026-10-17/195156/issue262_reference_axis_audit/nf03__slots024_axis.png"
+  ],
+  "user_review_points": [
+    "対照archiveは既存#255局所反作用・べん毛間反発ONであり、#262 OFF armは未実行。",
+    "1τのQC・固定camera replayをレビューしてから2秒条件と実行可否を判断する。",
+    "cs10操作は接続、enqueue、dispatcher/job開始等の各操作ごとに明示承認が必要。"
+  ],
+  "adr_required": false,
+  "adr_reason": "既定trueのopt-in診断設定を追加するが、採択済みモデル・物理解釈・QC閾値・canonical方針は変更しない。条件と限界は#262契約に記録した。",
+  "commit_type": "diagnostic",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "このローカル準備をcommit/pushし#262参照のPRを作成する。",
+    "cs10操作別のユーザー承認後に1τ screenを実行・同期し、QC/replayをレビューする。",
+    "レビュー結果に基づき2秒の対象と実行承認を別途決める。"
+  ]
+}
