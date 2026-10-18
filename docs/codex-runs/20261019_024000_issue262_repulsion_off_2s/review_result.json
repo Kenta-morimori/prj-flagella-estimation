@@ -1,0 +1,52 @@
+{
+  "status": "FAIL",
+  "summary": "Issue #262の固定commit a444a1bdによる2秒OFF診断は13/13配置が500000 step完走し、共通strict QC 13/13 PASS、portable 122件と子manifest 13件のSHA-256照合、固定camera replay、3D長軸方向時系列と0.1秒窓の同時刻ON/OFF比較まで完了した。13配置で2秒内の方向変動を観測したが、ユーザーのvisual reviewと物理解釈の判断は未了。",
+  "blocking_issues": [
+    "2秒結果の3D/2D replayと13配置の記述的『揺れあり』分類について、ユーザーのvisual reviewが未了。",
+    "物理解釈を含むmergeとcanonical採択はユーザー承認待ち。"
+  ],
+  "non_blocking_issues": [
+    "長軸方向の変動には連続的な旋回や緩和も含まれ、この分類だけで周期的wobbleや原因を特定できない。",
+    "両armは旧有限差分torsionとlegacy frameを使い、束化・軸整列の懸念が残る。",
+    "OFF/ON最大0.1秒値は異なる時間窓の場合があり、直接比較にはpaired_axis_windows.csvの同時刻窓を使う。"
+  ],
+  "tests_reviewed": [
+    "cs10 queue #28 succeeded、13/13 completed、各500000 step連続、campaign_completion completed_condition_count=13",
+    "全run_summaryのonline finite/shape PASS、共通development_evaluation strict finite/body/hook length/flag/motor 13/13 PASS",
+    "122 portable artifactと13子run_manifestのリモート／ローカルSHA-256全件一致",
+    "全13配置でbody_flagella_enabled=false、flagella_flagella_enabled=false、両candidate非ゼロ、body_flagella_active=flagella_flagella_active=active_total=0",
+    "固定camera 3D/2D replay計12本、各41フレーム、全動画decode PASS",
+    "13配置×2002 archive states、0.1秒窓260件、配置別x/y/z時系列・plot 13件、13配置の文書表とID一致",
+    "#255元設定の対照は13/13 strict PASS、13/13 completed、122 SHA一致。ON/OFF base/condition設定はflagella_flagella_enabled以外一致、260窓が同時刻対応",
+    "git diff --check PASS、結果文書とHTMLレビューの13配置・参照fileを照合"
+  ],
+  "user_review_required": true,
+  "user_review_command": "open outputs/2026-10-19/023732/issue262_2s_review.html",
+  "user_review_outputs": [
+    "docs/phase2/phase2_262_repulsion_off_2s_results.md",
+    "outputs/2026-10-19/023732/issue262_2s_review.html",
+    "outputs/2026-10-19/023732/issue262_2s_evaluation/summary.csv",
+    "outputs/2026-10-19/023732/issue262_2s_evaluation/initial_geometry/",
+    "outputs/2026-10-19/023732/issue262_2s_evaluation/replay/",
+    "outputs/2026-10-19/023732/issue262_axis_diagnostic/axis_timeseries.csv",
+    "outputs/2026-10-19/023732/issue262_axis_diagnostic/paired_axis_windows.csv",
+    "outputs/2026-10-19/023732/sync_verification.json",
+    "outputs/2026-10-19/023732/condition_manifest_verification.json"
+  ],
+  "user_review_points": [
+    "13配置の3D長軸方向変動を『揺れあり』とする記述的分類と、時間帯・replayの根拠を確認する。",
+    "周期的wobble、連続旋回、緩和をこの2秒診断だけでは区別できないという限界を確認する。",
+    "物理解釈を含むPR mergeを行うか判断する。"
+  ],
+  "adr_required": false,
+  "adr_reason": "固定済みの旧#255モデル内での診断を記録した。canonical model、QC閾値、Phase境界、output contractを変更しない。",
+  "commit_type": "diagnostic",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/265",
+  "next_actions": [
+    "ユーザーが2秒レビュー入口の3D/2D replay、時系列、13配置分類を確認する。",
+    "ユーザーレビュー後にlocal review_resultを再評価し、PASSになればmerge gateを確認する。",
+    "物理解釈を含むmergeやcanonical採択は明示承認後だけ行う。"
+  ]
+}

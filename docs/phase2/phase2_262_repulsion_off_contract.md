@@ -16,6 +16,8 @@ parallel-jobは`conf/phase2_parallel/issue262_repulsion_off/hex_1tau_job.yaml`�
 
 2026-10-17の#262 OFF screenは25分28秒で完了した。結果と2秒の暫定所要時間は`phase2_262_repulsion_off_1tau_results.md`を参照する。既存dispatcherが稼働中ならenqueue直後に自動開始するため、次のreservationではenqueue前に稼働状態を確認し、自動開始の承認も先に得る。
 
+2026-10-19にqueue #28の2秒stageも13/13配置で完走した。同期、共通QC、長軸方向の0.1秒窓、対照との同時刻比較、配置別の記述的分類は`phase2_262_repulsion_off_2s_results.md`を参照する。物理解釈とmergeのユーザー判断は未了。
+
 ## archiveの検証と診断
 
 対照は`outputs/2026-10-08/171556/issue255_hex_local_2s/`のcompleted archiveを使う。13 condition ID、profile、config、実行commit `e94c7cd4f0e31f99169b28ff5025e58e3b02b7cc`、各500,000 step、`outputs/2026-10-08/171556/sync_verification.json`の122ファイルSHA-256を照合する。対照と新規OFFは各々の元campaign configで共通評価し、設定一致を検証するまで評価器入力を結合しない。
