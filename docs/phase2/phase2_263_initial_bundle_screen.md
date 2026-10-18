@@ -36,7 +36,7 @@ screen成果物は共通`development_evaluation`のfinite/body/hook length/flag/
 
 成果物は`outputs/2026-10-17/195417/issue263_short_screen/`に保存。`source/`のportable 38ファイルをcs10とファイル集合・SHA-256全件照合した。`manifest.json`にqueue、固定commit、主要SHA-256、QC、replayを記録し、`evaluation/`と`bundle_rotation/`を同じrootに保持した。operational logは同期していない。
 
-## 次タスク：nf=3～6を各1配置で比較（実行前契約案）
+## nf=3～6各1配置の短期screen
 
 ユーザーの指摘により、次の比較から初期方位5°摂動を外し、nf=3～6の各本数で1配置ずつを試す。n3の旧3条件screenは履歴証拠として残すが、次stageの3 armをそのまま2秒へ延長しない。各本数の配置は、nf3 slots024、nf4 slots0134、nf5 slots01234、nf6 slots012345とし、全flagの初期方位offsetを0°に固定する。いずれもCのframe・motor・torsion等の設定、各flagのトルク、時間刻み、seedを共有する。本数と付着slotの組合せは同時に変わるため、1条件ずつの結果から本数単独の因果効果や成立範囲を断定しない。nf4～6は探索的診断であり、training scopeやcanonical採択の変更ではない。
 
@@ -47,12 +47,25 @@ screen成果物は共通`development_evaluation`のfinite/body/hook length/flag/
 | 5 | 01234 | 0.792 | 0.250 |
 | 6 | 012345 | 0.813 | 0.250 |
 
-上表はsimulationなしのgeometry preflight。ビーズ直径0.200 µmを超え、hook長誤差は1e-15 m未満、初期hook力normは1e-18 N未満だった。**静的成立は動的QCや束維持を保証しない。** n4～6は未screenの新条件なので、`conf/phase2_multi_run/2010_hex_nf3to6_bundle_1tau_issue263.yaml`の4条件（各0.04秒・10,000 step）を共通short-screen QCと固定camera replayに通す。parallel jobは`conf/phase2_parallel/issue263_initial_bundle/count_screen_job.yaml`。n3も同じjobに含めて同一commit・環境で比較し、旧#26のn3束条件との再現性を確認する。screenのQC未達条件は長時間へ進めず、Cおよび同一jobの他本数との対比較で原因を切り分ける。Macのsimulationなしdry-runは`outputs/2026-10-17/223411/issue263_count_plan/`に記録し、4条件の出力分離・4 workers・数値thread各1を確認した。
+上表はsimulationなしのgeometry preflight。ビーズ直径0.200 µmを超え、hook長誤差は1e-15 m未満、初期hook力normは1e-18 N未満だった。**静的成立は動的QCや束維持を保証しない。** `conf/phase2_multi_run/2010_hex_nf3to6_bundle_1tau_issue263.yaml`と`conf/phase2_parallel/issue263_initial_bundle/count_screen_job.yaml`で4条件（各0.04秒・10,000 step）を比較した。Mac/cs10のsimulationなしdry-runは`outputs/2026-10-17/223411/issue263_count_plan/`に記録し、4条件の出力分離・4 workers・数値thread各1・幾何値の一致を確認した。
 
-4条件のQCとreplayをレビューした後、通過条件だけを初期状態から2秒（50τ、500,000 step/条件）観測する候補を`conf/phase2_multi_run/2010_hex_nf3to6_bundle_2s_issue263.yaml`と`conf/phase2_parallel/issue263_initial_bundle/long_2s_job.yaml`に用意した。1τからのresumeではない。現時点のjobは4条件を列挙しているが、screen未達条件が出たら実行前に範囲・configを改め、予約を自動継続しない。`cs10_qualified`、autoの実効4 workers、各数値ライブラリthread 1、条件別出力、全条件geometry preflightを用いる。Macでは長時間simulationしない。旧nf3の実測外挿では2秒に8～11時間程度だが、nf4～6の計算負荷は未測定なので、screen実測を使って予約前にwall timeを更新する。
+cs10予約#29は固定commit `0a938a667421616ba204ccd4b35153b9676998a9`で4/4条件を完走した。portable 49ファイルを`outputs/2026-10-19/030435/issue263_count_screen/source/`へ同期し、cs10とのファイル集合・SHA-256全件一致を確認した。各`run_summary.json`で10,000 step・0.04秒を確認後、共通`development_evaluation`のfinite/body/hook length/flag/motor QCは**4/4 PASS**。各本数の固定camera 3D／2D replayは41 frameずつ生成した。3Dの最終frameでは、短期窓内で大きな形状破綻は見えない。2D投影は菌体像が支配的で個々のべん毛判読には適さない。
+
+| 本数 | 束半径 初期→終端 [µm] | べん毛間軸角 終端 [°] | 速度中央値 [µm/s] | flag 0積算回転 [turn] | cs10 wall [分] |
+|---|---:|---:|---:|---:|---:|
+| 3 | 0.813→0.779 | 2.903 | 0.628 | 0.135 | 9.0 |
+| 4 | 0.813→0.778 | 2.964 | 0.904 | 0.148 | 13.4 |
+| 5 | 0.792→0.758 | 3.137 | 1.306 | 0.157 | 18.6 |
+| 6 | 0.813→0.779 | 3.496 | 1.593 | 0.167 | 26.1 |
+
+QCを通った保存状態のみを`bundle_rotation`に渡した。回転valid fractionは全条件1.0だが、**完全周期は全条件0件**。束半径はこの短期窓でいずれも縮小し、束維持・位相同期・定常推進・絡み合いの有無を判定できない。速度は本数とともに増えるが、付着slotsも同時に変わり、初期過渡を含むため本数の因果効果とは解釈しない。nf3の`state_archive.npz`と`trajectory.csv`は旧予約#26の同条件とSHA-256まで一致した。成果物・主要hash・QC・replay frame数は`outputs/2026-10-19/030435/issue263_count_screen/manifest.json`に記録した。
+
+## 長時間観測の候補と保留条件
+
+4条件のQCは通ったが、2秒（50τ、500,000 step/条件）は**未予約・未実行**。候補設定は`conf/phase2_multi_run/2010_hex_nf3to6_bundle_2s_issue263.yaml`と`conf/phase2_parallel/issue263_initial_bundle/long_2s_job.yaml`に置く。1τからのresumeではなく初期状態から走らせる。`cs10_qualified`、autoの実効4 workers、各数値ライブラリthread 1、条件別出力、全条件geometry preflightを用いる。Macでは長時間simulationしない。#29の実測速度を単純外挿するとnf3/4/5/6はそれぞれ約7.5/11.1/15.5/21.7時間で、parallel wallは最も遅いnf6に律速され**約22時間以上**を見込む。長時間での速度低下や共有機負荷を含まないので保証値ではない。短期screenだけで定常成立を宣言せず、ユーザーがQCとreplayを確認してから長時間条件・予約を判断する。
 
 長時間archiveは各`run_summary.json`を先に読み、共通`development_evaluation`のfinite/body/hook length/flag/motor QCを判定し、PASSの保存状態のみを`bundle_rotation`へ渡す。各本数を固定camera 3D／2D replayで確認する。flag 0の菌体相対best-fit axial spinの完全周期を基準に、束半径、べん毛間軸角、輪郭長75%位置と先端の広がり、周期平均速度を同位相で比較する。これは厳密なmaterial twistや位相的な絡み合いの直接測定ではない。n6では対称性だけによる回転一致を同期の証拠としない。
 
 **観測量の十分性**は本数ごとに完全周期5件以上を目標とし、先頭2周期を緩和として分離、末尾3周期の形状変化を記録する。#255のCは最初の2周期でも束半径が約9.7%縮小した。末尾の束半径または75%／先端広がりが周期間で5%を超えて変化した場合は、延長レビューの旗を立てる。これは新しい物理QCのFAIL閾値でも自動採択基準でもない。5周期未満・QC未達・継続的な形状変化があれば、成立／不成立を断定せず、観測延長または物理仮説の見直しをユーザーと判断する。
 
-旧nf3・3条件の2秒案（commit `027403b`でdry-run済み）は**未予約・未実行で置き換え**る。旧planは`outputs/2026-10-17/222223/issue263_long_2s_plan/`に履歴として保存する。新しい4条件の固定commit `0a938a667421616ba204ccd4b35153b9676998a9`でMac/cs10のsimulationなしdry-runを照合し、job/config hash・4条件の幾何値・実効4 workers・条件別出力が一致した。cs10予約#29には**1τ short screenのみ**を登録し、2026-10-17 22:35 JST時点でqueued。先行job #28の実行中であり、#29のsimulation結果はまだない。2秒jobは予約・開始していない。新規hook・motor・相互作用の変更やcanonical freezeは含めない。
+旧nf3・3条件の2秒案（commit `027403b`でdry-run済み）は**未予約・未実行で置き換え**た。旧planは`outputs/2026-10-17/222223/issue263_long_2s_plan/`に履歴として保存する。新規hook・motor・相互作用の変更やcanonical freezeは含めない。

@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "summary": "Issue #263の次段階をnf3～6各1配置の1τ short screenへ変更。5°初期方位摂動は次段階から除外し、2秒観測はscreenレビュー後の候補に限定した。固定commitのcs10予約#29はqueuedで、simulation結果は未取得。",
+  "summary": "履歴記録：Issue #263の次段階をnf3～6各1配置の1τ short screenへ変更。5°初期方位摂動は次段階から除外し、2秒観測はscreenレビュー後の候補に限定した。準備時点ではcs10予約#29はqueuedだった。完走結果は20261019_issue263_count_screen_resultを参照。",
   "blocking_issues": [],
   "non_blocking_issues": [
     "nf4～6は動的QC未確認。静的幾何preflightのみで長時間実行へ進めない。",
@@ -31,7 +31,7 @@
   "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
   "next_actions": [
-    "cs10予約#29（固定commit 0a938a6）の開始・完走後、共通QCと固定camera replayを評価する",
-    "QC・replayレビュー後に2秒jobの対象を決める"
+    "cs10予約#29の完走結果は20261019_issue263_count_screen_result/review_result.jsonに記録した",
+    "QC・replayのユーザーレビュー後に2秒jobの対象を決める"
   ]
 }

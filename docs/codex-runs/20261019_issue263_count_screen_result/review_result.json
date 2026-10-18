@@ -1,0 +1,39 @@
+{
+  "status": "PASS",
+  "summary": "Issue #263のnf3～6各1配置1τ短期screenを固定commit 0a938a6で完了。cs10予約#29の4/4条件完走、portable 49ファイルの集合・SHA-256一致、共通QC 4/4 PASS、固定camera replayと束回転診断を確認。完全回転周期は全条件0件で、定常遊泳・物理採択・canonical freezeは未判断。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "1τでは完全回転周期が0件で、束維持・絡み合い・定常推進を判定できない。",
+    "本数と付着slotsが同時に変わるため、本数単独の因果効果は推定しない。",
+    "2秒4条件のparallel wallは#29実測単純外挿で約22時間以上。長時間stageは未予約・未実行。"
+  ],
+  "tests_reviewed": [
+    "cs10 queue #29: fixed commit 0a938a667421616ba204ccd4b35153b9676998a9, 4/4 completed, exit 0, each 10000 steps / 0.04 s",
+    "portable 49 files: exact remote/local file set and SHA-256 match; operational logs excluded",
+    "development_evaluation: 4/4 PASS; fixed 3D/2D replay 41 frames each for nf3–6",
+    "bundle_rotation: four QC-PASS conditions analyzed, rotation valid fraction 1.0, zero complete cycles",
+    "nf3 compact condition state_archive.npz and trajectory.csv exactly match previous queue #26"
+  ],
+  "user_review_required": true,
+  "user_review_command": "Review the nf3–6 short-screen QC, fixed-camera replay, and zero-cycle limitation before deciding the 2 s long-duration scope and reservation.",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_initial_bundle_screen.md",
+    "outputs/2026-10-19/030435/issue263_count_screen/manifest.json",
+    "outputs/2026-10-19/030435/issue263_count_screen/evaluation/replay/",
+    "outputs/2026-10-19/030435/issue263_count_screen/bundle_rotation/bundle_rotation_windows.csv"
+  ],
+  "user_review_points": [
+    "全条件QC PASSでも短期窓の束半径縮小と0完全周期をどう扱うか",
+    "約22時間以上の2秒・4条件観測を実施するか、対象・観測期間を調整するか",
+    "長時間後も5完全周期と末尾3周期の形状比較を十分性目標にするか"
+  ],
+  "adr_required": false,
+  "adr_reason": "既存ADR 0027のcompact_rear候補を本数別に評価しただけで、物理式は変更していない。",
+  "commit_type": "diagnostic",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "ユーザーが短期screenのQCとreplayを確認し、長時間観測の対象・時間・予約可否を判断する"
+  ]
+}
