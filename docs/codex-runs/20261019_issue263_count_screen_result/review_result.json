@@ -30,8 +30,8 @@
   "adr_required": false,
   "adr_reason": "既存ADR 0027のcompact_rear候補を本数別に評価しただけで、物理式は変更していない。",
   "commit_type": "diagnostic",
-  "commit_hash": null,
-  "push_status": "not_pushed",
+  "commit_hash": "6ebd2ef",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
   "next_actions": [
     "ユーザーが短期screenのQCとreplayを確認し、長時間観測の対象・時間・予約可否を判断する"
