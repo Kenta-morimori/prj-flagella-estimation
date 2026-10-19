@@ -32,7 +32,7 @@
 
 Mの候補として`motor.segment_torque_distribution: arm_weighted_minimum_norm`をopt-in実装する。segmentの既存重みを`w_i`、主軸垂直腕を`r⊥,i`とし、各segmentへ配る軸トルクを`τ_i = τ w_i |r⊥,i|² / Σ_j w_j |r⊥,j|²`に変える。各segmentの力対は従来式で計算するので、**一つの腕だけがゼロへ近づく場合**はそのsegmentの力がゼロへ近づき、他の腕がトルクを受け持つ。全segmentの有効腕が失われたら明示的に失敗させる。これは重み付き力normを最小にする分配の一候補で、総軸トルクと力対のゼロ合力を保つが、横方向トルクの消失や良い遊泳を保証しない。既定`fixed_weights`、frame、hook、反発、QC閾値は変更しない。既存`minimum_norm`横トルク補正との同時指定は比較を混ぜるため拒否する。
 
-共通QCを通ったarchiveの`bundle_rotation`には、保存状態ごとの各べん毛根元segmentの主軸垂直腕とその最小値を追加する。これはread-onlyの診断で、固定commitのsimulation力学やQC判定を変更しない。
+共通QCを通ったarchiveの`bundle_rotation`には、保存状態ごとの各べん毛根元segmentの主軸垂直腕とその最小値、菌体前方軸への符号付き速度、完全回転周期ごとの前方変位を追加する。これはread-onlyの診断で、固定commitのsimulation力学やQC判定を変更しない。前方変位は各時刻の菌体前方軸へ速度を射影して積分した量で、世界座標での直線変位とは異なる。
 
 一つのrunで物理変更を重ねない。複数armを同じ`cs10_qualified` jobで並列実行しても、各armはC/compact基準から**一項目だけ**変えた対照とする。交互作用を問う必要が出たときだけ、明示的な2因子比較を追加する。nf4～6のcompact配置は探索的な本数展開であり、nf3のG/M/F/Rの因果対比較を代替しない。
 

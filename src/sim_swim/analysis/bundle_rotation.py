@@ -134,6 +134,7 @@ def completed_rotation_cycles(rows: list[dict], n_flags: int) -> tuple[list[dict
             "contour_0.75_spread_um",
             "contour_1.00_spread_um",
             "speed_um_s",
+            "forward_speed_um_s",
         ):
             if not all(key in row for row in rows):
                 continue
@@ -144,6 +145,20 @@ def completed_rotation_cycles(rows: list[dict], n_flags: int) -> tuple[list[dict
             record[key + "_boundary_change"] = float(last - first)
             record[key + "_mean"] = (
                 float(np.mean([r[key] for r in selected])) if selected else float("nan")
+            )
+        if all("forward_speed_um_s" in row for row in rows):
+            sample_times = np.r_[start, times[(times > start) & (times < end)], end]
+            forward_speed = np.interp(
+                sample_times,
+                times,
+                [r["forward_speed_um_s"] for r in rows],
+            )
+            record["forward_displacement_um"] = float(
+                np.sum(
+                    0.5
+                    * (forward_speed[:-1] + forward_speed[1:])
+                    * np.diff(sample_times)
+                )
             )
         for flag in range(n_flags):
             values = np.array([r[f"flag{flag}_phase_rad"] for r in rows])
@@ -238,6 +253,7 @@ def analyze(run_dir: Path, evaluation_dir: Path, output_dir: Path):
                 "helix_pair_angle_mean_deg": alignment.pair_angle_deg_mean,
                 "helix_pair_angle_max_deg": alignment.pair_angle_deg_max,
                 "speed_um_s": float(speed[j]),
+                "forward_speed_um_s": float(np.dot(velocity[j], body.axis) * 1e6),
                 "motor_root_min_lateral_arm_um": (
                     float(finite_root_arms.min()) if finite_root_arms.size else np.nan
                 ),
@@ -280,12 +296,16 @@ def analyze(run_dir: Path, evaluation_dir: Path, output_dir: Path):
                 "helix_pair_angle_max_deg",
                 "travel_body_axis_angle_deg",
                 "speed_um_s",
+                "forward_speed_um_s",
             ]:
                 data = np.array([r[key] for r in window])
                 item[key + "_median"] = float(np.nanmedian(data))
                 item[key + "_p95"] = float(np.nanpercentile(data, 95))
             sp = np.array([r["speed_um_s"] for r in window])
             item["speed_cv"] = float(np.std(sp) / max(np.mean(sp), 1e-30))
+            item["forward_sample_fraction"] = float(
+                np.mean([r["forward_speed_um_s"] > 0 for r in window])
+            )
             root_arms = np.array([r["motor_root_min_lateral_arm_um"] for r in window])
             finite_root_arms = root_arms[np.isfinite(root_arms)]
             item["motor_root_min_lateral_arm_um_min"] = (

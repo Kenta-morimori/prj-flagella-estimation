@@ -32,6 +32,7 @@ def rows(direction=1):
             "contour_0.75_spread_um": 1.2 - 0.2 * t,
             "contour_1.00_spread_um": 1.3 - 0.3 * t,
             "speed_um_s": 0.4 + 0.1 * t,
+            "forward_speed_um_s": 0.4 + 0.1 * t,
         }
         for t in np.linspace(0.0, 1.25, 126)
     ]
@@ -48,6 +49,9 @@ def test_full_cycles_preserve_sign_and_measure_boundary_drift(direction):
         assert cycle["contour_0.75_spread_um_boundary_change"] == pytest.approx(-0.1)
         assert cycle["contour_1.00_spread_um_boundary_change"] == pytest.approx(-0.15)
         assert cycle["speed_um_s_boundary_change"] == pytest.approx(0.05)
+        assert cycle["forward_displacement_um"] == pytest.approx(
+            0.2 + 0.025 * (cycle["start_s"] + cycle["end_s"])
+        )
     assert cycles[-1]["end_s"] == pytest.approx(
         1.0
     )  # remaining quarter second is not a cycle
