@@ -26,7 +26,7 @@ AGENTS / skill の大きな再編時だけ参照する．
 3. 当該repositoryのCodex task一覧と要約．詳細本文は，棚卸しの論点を裏付ける
    必要があるtaskだけに限定する．他projectのtask，私的会話，無関係な会話は読まない．
 4. モデル，skills，Codex の運用提案には，その時点の公式OpenAI documentationを使い，
-   URL・参照日・根拠要点を #252 の記録へ残す．
+   URL・参照日・根拠要点を当該月次親Issueへ記録する．#252には索引と短い要約だけを残す．
 
 大きなログや生成物は読まない．既存のcompact summary，manifest，Issue / PR記録を優先する．
 

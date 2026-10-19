@@ -1,6 +1,6 @@
 # Issue #268: 同一モデル指示評価結果
 
-2026-10-19 にアプリ同梱 Codex CLI `0.162.0-alpha.17.2` を使い、`gpt-6.1-sol` / `medium`、read-only sandbox で `evaluation_cases.md` の7ケースを現行版と候補版に1回ずつ実行した。候補は Phase 文書整理 skill のルート文書だけを231行から25行へ縮め、詳細は既存 checklist と policy に案内した。比較対象の repository コピーでは、それ以外の内容と prompt を同一にした。ユーザーはこの評価で repository 内容を Codex/OpenAI へ送信することを明示承認した。
+2026-10-19 にアプリ同梱 Codex CLI `0.162.0-alpha.17.2` を使い、`gpt-6.1-sol` / `medium`、read-only sandbox で `evaluation_cases.md` の7ケースを現行版と候補版に1回ずつ実行した。候補は Phase 文書整理 skill のルート文書だけを231行から25行へ縮め、詳細は既存 checklist と policy に案内した。使用した25行の全文は `candidate_phase_document_maintenance_SKILL.md` に保存した。現行版の元ファイル `tools/codex/skills/phase-document-maintenance/SKILL.md` の SHA-256 は `b02834b5439b68f500b90e47acbb58974aae7c9b159d842069704f938b3ffd73`、候補の SHA-256 は `6a142eb21c9c1762a50b9f2bc03218dae7281a7dc48958be7fa81de3a942f990`。比較対象の repository コピーでは、それ以外の内容と prompt を同一にした。ユーザーはこの評価で repository 内容を Codex/OpenAI へ送信することを明示承認した。
 
 | 指標 | 現行版 | 候補版 |
 | --- | ---: | ---: |

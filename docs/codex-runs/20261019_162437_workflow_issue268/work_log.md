@@ -15,7 +15,7 @@
 ## 第2段階: 指示評価
 
 - `instruction_audit.md` に分類、正本、変更候補と根拠を記録。`evaluation_cases.md` と `eval_prompts/` に7ケースの期待結果・禁止操作・再実行可能な prompt を保存した。
-- ユーザーの外部送信承認後、現行版と Phase 文書整理 skill ルート短縮候補を同じモデル・effort・read-only sandbox で比較。`evaluation_results.md` に14回の結果を記録した。
+- ユーザーの外部送信承認後、現行版と Phase 文書整理 skill ルート短縮候補を同じモデル・effort・read-only sandbox で比較。候補全文を `candidate_phase_document_maintenance_SKILL.md` に保存し、`evaluation_results.md` に14回の結果を記録した。
 - 両版とも7/7ケースで期待結果と安全境界を満たしたが、候補は Phase 文書ケースの入力 token・command 数を減らさなかった。短縮と skill の移動・symlink は見送り、AGENTS・skill・policy test を変更しなかった。
 - cs10 操作別承認、Phase 2 QC、local PASS と CI / review gate の分離を保持した。料金・credit は取得できず、所要時間はファイル時刻の代理指標とした。
 
