@@ -38,7 +38,7 @@
   "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
   "next_actions": [
-    "25τ証拠をIssue #263とPR #264へ反映する",
+    "25τ証拠はIssue #263のコメントとPR #264へ反映済み。ユーザーの科学的レビューを受ける",
     "ユーザーレビュー後に次の実行・対照条件を決める。2秒stageは未予約。"
   ]
 }
