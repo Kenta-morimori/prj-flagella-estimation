@@ -86,6 +86,14 @@ queue #31は予約した固定commitで5/5条件・各250,000 step、1.0秒を�
 
 この5条件では腕重みmotorと横トルク補正はcompact単独からの大きな改善を示さず、frame復元は回転を遅くしつつ、終端の軸角を大きくした。この結果だけで物理候補を採択しない。次の観測時間・対照を決める前に、束の分離、周期前進の変動、frame/hook拘束、反発ON/OFFをどう切り分けるかをレビューする。反発OFFはPR #265の設定が現行モデルへ入った後、同一モデル・初期条件で単独比較する。
 
+### 次の複数周期観測と定性replay
+
+25τの結果を踏まえ、ユーザーは十分な回転周期の観測と定性replayの生成を指示した。最も遅かったframe復元条件の第2完全周期は0.4395秒だった。先頭2周期を緩和として除いて後半5周期程度まで余裕を持つよう、**3.5秒＝87.5τ、875,000 step**を次の固定長checkpointとする。この周期外挿が成立すれば約8回転だが、周期が変化すれば達成周期数を実測し、足りない場合は延長をレビューする。時間延長だけで束形成を期待・採択せず、同一時刻の束幅、軸角、周期前進、菌体自転、根元腕を確認する。
+
+`conf/phase2_multi_run/2010_hex_nf3_mechanism_3p5s_issue263.yaml`と`conf/phase2_parallel/issue263_initial_bundle/mechanism_3p5s_job.yaml`は25τと**同じ5条件・同じ物理設定・同じ初期配置**を保ち、時間とそれに伴う評価契約だけを延長する。C、compact、compact＋腕重みmotor、compact＋frame復元、compact＋横トルク補正はそれぞれ独立出力で、`cs10_qualified`を用いる。25τの実測14.6–14.9 step/sから並列wallは約16.3–16.7時間、負荷余裕を含め17時間以上を見込む。Macではsimulationなしdry-runのみ実施する。
+
+25τarchiveから既に101 frame・100 fps・固定camera・共通視野の3D grid replayを`outputs/2026-10-19/171000/issue263_mechanism_25tau/qualitative_replay/grid_swim3d.mp4`に追加した。平均べん毛軸を重ね、回転と束の開閉を目視しやすくする。3.5秒の完走後もまず各`run_summary.json`、共通QC、標準の固定camera 3D/2D replayを確認する。QC-PASS archiveには同じ共通視野の**176 frame・50 fps（約0.02秒/描画frame）**の3D/2D replayを別途生成する。さらに各条件単独の3D replayで交差・接近・絡みを確認し、映像が示す幾何と数値上の接触・軸角を区別する。2D投影は現状では菌体像が支配的であり、べん毛が見えない場合は3Dの補助に留める。映像は科学的採択の代わりにしない。
+
 1. 既存archiveのprovenance・診断を再利用し、現行Cの1秒と今回のcompact 1τを基準にする。現行Cでは旧16τ腕崩壊が再現しなかったため、compactを少なくとも25τ（1秒）観測し、腕長・駆動力・トルク・菌体自転・束形状・推進を同時刻で確認する。Mのopt-in候補は静的力対と1-stepのtargeted testを通したうえで1τへ進め、Rの設定はPR #265との重複実装なしに取り込む方法を確定する。
 2. 新しい物理armを含むbounded `short_screen`では、各armの静的preflight、共通strict QC、固定camera 3D/2D replayを先にレビューする。新候補のFAILを隠すためにQC閾値を緩めない。#262の16τ事象を検査するdynamic windowは**25τ以上**とし、1τだけの結果からM/Rを否定しない。必要なら1τの数値ゲートを別に置く。
 3. short-screenで問題のないarmだけを長時間stageへ進める。2秒＝50τは最初の観測checkpointであり、5完全周期に届かない、後半の形状が変化し続ける、または自転・推進の停止が残る場合は達成を宣言しない。次の延長時間は実測周期から決める。
