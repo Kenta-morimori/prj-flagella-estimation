@@ -36,6 +36,12 @@ MECHANISM_SCREEN = (
 MECHANISM_JOB = (
     ROOT / "conf/phase2_parallel/issue263_initial_bundle/mechanism_1tau_job.yaml"
 )
+MECHANISM_25TAU = (
+    ROOT / "conf/phase2_multi_run/2010_hex_nf3_mechanism_25tau_issue263.yaml"
+)
+MECHANISM_25TAU_JOB = (
+    ROOT / "conf/phase2_parallel/issue263_initial_bundle/mechanism_25tau_job.yaml"
+)
 
 
 def test_mechanism_screen_has_independent_one_change_controls():
@@ -85,6 +91,25 @@ def test_mechanism_screen_has_independent_one_change_controls():
     assert job.condition_ids == tuple(ids)
     assert execution.max_workers == 5
     assert execution.worker_policy == "cs10_qualified"
+
+
+def test_mechanism_25tau_preserves_screen_arms_and_waits_for_review():
+    short = normalize_campaign_config(load_yaml(MECHANISM_SCREEN))
+    longer = normalize_campaign_config(load_yaml(MECHANISM_25TAU))
+    a = build_campaign_conditions(short)
+    b = build_campaign_conditions(longer)
+    assert [x["condition_id"] for x in a] == [x["condition_id"] for x in b]
+    for short_row, long_row in zip(a, b, strict=True):
+        left = deepcopy(short_row["config_overrides"])
+        right = deepcopy(long_row["config_overrides"])
+        assert left["time"].pop("duration") == {"value": 1.0, "unit": "tau"}
+        assert right["time"].pop("duration") == {"value": 25.0, "unit": "tau"}
+        assert left == right
+    assert longer["development_evaluation"]["stage"] == "long_duration"
+    assert longer["development_evaluation"]["long_duration"]["expected_steps"] == 250000
+    job = load_parallel_job(MECHANISM_25TAU_JOB)
+    assert job.condition_ids == tuple(x["condition_id"] for x in b)
+    assert resolve_execution(job, None).max_workers == 5
 
 
 def test_initial_bundle_screen_preserves_c_and_compacts_with_clear_hooks():
