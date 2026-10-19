@@ -185,10 +185,6 @@ branchが進んでもreservationを自動で差し替えず、fixed commitとの
 「保持・明示許可を得て差し替え・明示許可を得て取消」の選択肢をUserへ提示する。
 `enqueue`、`cancel`、`pause`、`resume`、dispatcher/tmuxの起動・停止、既存reservationの
 commit/config/priority差し替えは、操作ごとにUserの明示許可が必要である。
-既存dispatcherが稼働中の場合、enqueue直後にjobが自動開始し得る。enqueue前に`tmux ls`と
-`queue.py status`でdispatcher・予約の状態を確認し、稼働中ならenqueueと自動job開始の
-両操作について明示許可を得てからenqueueする。dispatcherが未稼働なら起動とjob開始の
-許可をそれぞれ得てから起動する。
 
 ```bash
 cd ~/src/prj-flagella-estimation

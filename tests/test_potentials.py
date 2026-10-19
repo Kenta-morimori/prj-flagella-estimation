@@ -14,6 +14,7 @@ from sim_swim.dynamics.forces import (
     compute_torsion_forces,
 )
 from sim_swim.model.builder import ModelBuilder, _segment_pairs_without_neighbors
+from sim_swim.sim.core import Simulator
 from sim_swim.sim.params import SimulationConfig
 
 pytestmark = pytest.mark.light
@@ -270,6 +271,32 @@ def test_repulsion_body_flagella_enabled_must_be_boolean() -> None:
 
     with pytest.raises(ValueError, match="body_flagella_enabled must be a boolean"):
         SimulationConfig.from_dict(raw)
+
+
+def test_repulsion_can_exclude_only_flagella_flagella_segment_pairs() -> None:
+    raw = _minimal_config_with_spring(None)
+    raw["potentials"] = {
+        "spring_spring_repulsion": {"flagella_flagella_enabled": False}
+    }
+    cfg = SimulationConfig.from_dict(raw)
+    engine = DynamicsEngine(ModelBuilder(cfg).build(), cfg)
+    counts = engine.segment_repulsion_pair_counts
+    pairs = engine.segment_pair_indices_for_repulsion
+    first_is_body = engine.body_spring_mask[pairs[:, 0]]
+    second_is_body = engine.body_spring_mask[pairs[:, 1]]
+
+    assert counts["body_flagella_enabled"] is True
+    assert counts["flagella_flagella_enabled"] is False
+    assert counts["body_flagella_candidate"] > 0
+    assert counts["flagella_flagella_candidate"] > 0
+    assert counts["body_flagella_active"] == counts["body_flagella_candidate"]
+    assert counts["flagella_flagella_active"] == 0
+    assert counts["active_total"] == len(pairs)
+    assert np.all(first_is_body ^ second_is_body)
+    manifest_counts = Simulator(cfg).implementation_manifest()["topology"][
+        "segment_repulsion_pair_counts"
+    ]
+    assert manifest_counts == counts
 
 
 def test_repulsion_can_disable_all_flagellar_segment_pairs() -> None:
