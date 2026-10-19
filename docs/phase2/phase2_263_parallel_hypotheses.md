@@ -58,6 +58,8 @@ cs10 queue #30は固定simulation commit `949560e7d339234bd7c3b788341ddc8f5814ee
 
 このQC・replayと限界を踏まえ、ユーザーは同じ5条件の25τ並列観測を選択した。25τでは速度の符号、根元腕・駆動力・トルク、菌体自転、回転位相、束幅・軸角を同じ時刻で比較し、特に旧基準の16τ付近と後半の挙動を確認する。結果を見て2秒以上の継続条件を決める。
 
+25τのMac/cs10双方のsimulationなしdry-runは、job SHA-256 `10ef80c16724a607b131dc463510c1b3ad34a1ae0c52d769ac76cde051ee379e`、multi-run config SHA-256 `3394cced62d315a93e91e397069b35387d6379774be37cf8ccde6f32cab611c7`で一致し、5出力・実効5 workers・各thread 1・幾何preflight成立を確認した。cs10 queue #31は固定commit `86730223478058e002c9ac5fe9947fa96ff22d32`、`mechanism_25tau_job.yaml`で予約され、2026-10-19 12:18 JSTにはrunningだった。既存dispatcherを利用する。2秒stageは25τのQC・replayと機序診断をレビューするまで未予約とする。
+
 1. 既存archiveのprovenance・診断を再利用し、現行Cの1秒と今回のcompact 1τを基準にする。現行Cでは旧16τ腕崩壊が再現しなかったため、compactを少なくとも25τ（1秒）観測し、腕長・駆動力・トルク・菌体自転・束形状・推進を同時刻で確認する。Mのopt-in候補は静的力対と1-stepのtargeted testを通したうえで1τへ進め、Rの設定はPR #265との重複実装なしに取り込む方法を確定する。
 2. 新しい物理armを含むbounded `short_screen`では、各armの静的preflight、共通strict QC、固定camera 3D/2D replayを先にレビューする。新候補のFAILを隠すためにQC閾値を緩めない。#262の16τ事象を検査するdynamic windowは**25τ以上**とし、1τだけの結果からM/Rを否定しない。必要なら1τの数値ゲートを別に置く。
 3. short-screenで問題のないarmだけを長時間stageへ進める。2秒＝50τは最初の観測checkpointであり、5完全周期に届かない、後半の形状が変化し続ける、または自転・推進の停止が残る場合は達成を宣言しない。次の延長時間は実測周期から決める。

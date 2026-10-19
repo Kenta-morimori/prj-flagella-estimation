@@ -29,7 +29,7 @@
   "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
   "next_actions": [
-    "同じ5条件の25τ jobを固定commitでcs10_qualified dry-runして予約する",
+    "cs10 queue #31の固定commit 86730223478058e002c9ac5fe9947fa96ff22d32での5条件25τ完走を監視する",
     "完走後に共通QC、固定camera replay、束・回転・菌体自転・前進の同時刻比較を行う"
   ]
 }
