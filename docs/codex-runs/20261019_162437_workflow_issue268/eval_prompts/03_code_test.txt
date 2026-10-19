@@ -1,0 +1,1 @@
+Evaluation case: code plus targeted test. Inspect the repository layout and identify where a small reusable CSV parsing fix and its focused test would belong. Explain which checks are needed before PR and which expensive checks are unnecessary for a minor parser change. Do not edit files or run tests. Keep the response under 180 Japanese words.

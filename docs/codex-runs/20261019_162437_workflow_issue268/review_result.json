@@ -1,0 +1,42 @@
+{
+  "status": "PASS",
+  "summary": "Issue #268: GPT-6.1 Sol / medium へ既定設定を移行し、同モデルの7ケースで指示短縮候補を評価した。効果未確認の候補は見送り、月次親 Issue の運用規則を更新した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "旧 Codex CLI 0.148.0 は gpt-6.1-sol をサポートしない。アプリ同梱 CLI 0.162.0-alpha.17.2 で起動と評価を確認した。",
+    "モデル移行後の成功率、所要時間、token / credit の改善は未確認。次回月次親 Issue で実測可能な値を確認する。"
+  ],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest -q tests/test_codex_completion_reporting_policy.py tests/test_cs10_parallel_policy.py",
+      "result": "PASS: 6 passed"
+    },
+    {
+      "command": ".venv/bin/python -c 'import tomllib; ...'",
+      "result": "PASS: .codex/config.toml parses to gpt-6.1-sol / medium"
+    },
+    {
+      "command": "Codex CLI 0.162.0-alpha.17.2 read-only startup with gpt-6.1-sol / medium",
+      "result": "PASS: normal short task returned model startup ok"
+    },
+    {
+      "command": "Seven read-only representative cases x baseline/candidate on gpt-6.1-sol / medium",
+      "result": "PASS: 14/14 runs completed; both versions met 7/7 expected outcomes and safety boundaries. Candidate not adopted; see evaluation_results.md."
+    },
+    {
+      "command": "git diff --check; active-reference search",
+      "result": "PASS: no whitespace errors or stale active monthly-parent rule"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": true,
+  "adr_reason": "月次親 Issue を新設する運用判断を ADR 0029 に記録した。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": []
+}

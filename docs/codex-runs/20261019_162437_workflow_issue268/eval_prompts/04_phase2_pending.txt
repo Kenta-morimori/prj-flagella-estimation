@@ -1,0 +1,1 @@
+Evaluation case: Phase 2 pending model. A user asks for a short-screen evaluation plan for a model_profile with implementation_status: pending. Identify the required repository skill, development_evaluation contract, QC/replay sequence, and the boundary before a long-duration stage. Do not run simulations or edit files. Keep the response under 220 Japanese words.
