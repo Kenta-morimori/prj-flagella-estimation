@@ -158,12 +158,14 @@ commit message の形式:
 * `main` または `master` に直接 commit しない。
 * merge 後は default branch を同期し、merge 済み task branch を local と remote で削除し、古い remote-tracking ref を prune する。merge 前の branch と、継続作業のため明示的に保持する branch は保全する。
 * 次の task は、更新済み default branch から新しい task-specific branch で開始する。
+* Issue 用 branch を作るときは、先に `gh issue develop --list <issue> --repo <owner/repo>` で Development 欄の linked branch を確認する。未連携なら、task / Issue が指定した target branch（指定がなければ repository default branch）を基点に `gh issue develop <issue> --base <target-branch> --name <branch> --repo <owner/repo>` で作成し、`--list` と Issue の Development 欄で連携を確認する。`--base` は後続の `gh pr create` の base にもなるため、PR 作成時にも target を確認する。作業 checkout が別に必要なら、その linked branch を fetch して使う。
+* branch が既に存在する場合は、Issue の Development 欄と PR の linked Issue を確認する。PR が source Issue に既に linked なら関係を重複作成しない。削除済み branch は履歴を無理に復元せず、現存する PR と Issue の関係を確認する。どちらにも連携がなければ、Issue の Development 欄から既存 branch を選んで連携するか、Issue から新しい branch を作る。
 * 有用な `FAIL` 進捗は、明確に diagnostic または WIP であり完了を主張しない場合だけ commit する。
 * remote access があれば feature branch を push する。
 * GitHub remote access があれば、feature branch を push した後に PR を作成する。
 * 初回完了報告は、final task state の commit・push と source-Issue-linked PR の作成後にだけ送る。例外は、PR を作成しないという明示的なユーザー指示、または PR 作成失敗の試行と concrete blocker の報告だけである。
 * 新規 GitHub Issue / sub-issue は、受入済み task の追跡、follow-up の分割、Project 構造の維持に必要な場合だけ作成する。残作業の候補を見つけただけでは作成せず、具体案を提示してユーザー承認を得る。
-* PR 本文で元の source Issue に PR を紐付ける。PR がその Issue を完了する意図のときだけ `Closes #<issue>` / `Fixes #<issue>` を使う。
+* PR 本文で元の source Issue に PR を紐付ける。branch の Development 連携だけでは PR と Issue の対応を省略しない。PR がその Issue を完了する意図のときだけ `Closes #<issue>` / `Fixes #<issue>` を使い、途中 PR では `Refs #<issue>` などで参照する。GitHub は Development 欄で linked PR を default branch に merge した際に Issue を自動 close し得るため、途中 PR の merge 後も Issue 状態と残受入条件を確認し、未完了なら reopen する（[GitHub Docs](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue)）。
 * task または Issue が指定した branch を target とする。target branch の指定がなければ repository default branch を target とする。
 * `review_result.json` が `PASS`、CI が pass、`codex-review-gate` が pass であり、ユーザー visual review や major design decision が未解決でない場合だけ、小規模で判断不要な PR を merge する。
 * 物理解釈、dataset adoption、phase boundary、ML training policy、output contract、または qualitative acceptance を変更する PR は、明示的なユーザー承認なしに merge しない。
