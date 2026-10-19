@@ -158,7 +158,7 @@ commit message の形式:
 * `main` または `master` に直接 commit しない。
 * merge 後は default branch を同期し、merge 済み task branch を local と remote で削除し、古い remote-tracking ref を prune する。merge 前の branch と、継続作業のため明示的に保持する branch は保全する。
 * 次の task は、更新済み default branch から新しい task-specific branch で開始する。
-* Issue 用 branch を作るときは、先に `gh issue develop --list <issue> --repo <owner/repo>` で Development 欄の linked branch を確認する。未連携なら、default branch を基点に `gh issue develop <issue> --base <default-branch> --name <branch> --repo <owner/repo>` で作成し、`--list` と Issue の Development 欄で連携を確認する。作業 checkout が別に必要なら、その linked branch を fetch して使う。
+* Issue 用 branch を作るときは、先に `gh issue develop --list <issue> --repo <owner/repo>` で Development 欄の linked branch を確認する。未連携なら、task / Issue が指定した target branch（指定がなければ repository default branch）を基点に `gh issue develop <issue> --base <target-branch> --name <branch> --repo <owner/repo>` で作成し、`--list` と Issue の Development 欄で連携を確認する。`--base` は後続の `gh pr create` の base にもなるため、PR 作成時にも target を確認する。作業 checkout が別に必要なら、その linked branch を fetch して使う。
 * branch が既に存在する場合は、Issue の Development 欄と PR の linked Issue を確認する。PR が source Issue に既に linked なら関係を重複作成しない。削除済み branch は履歴を無理に復元せず、現存する PR と Issue の関係を確認する。どちらにも連携がなければ、Issue の Development 欄から既存 branch を選んで連携するか、Issue から新しい branch を作る。
 * 有用な `FAIL` 進捗は、明確に diagnostic または WIP であり完了を主張しない場合だけ commit する。
 * remote access があれば feature branch を push する。

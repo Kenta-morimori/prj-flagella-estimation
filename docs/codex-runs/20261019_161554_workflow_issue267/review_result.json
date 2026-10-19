@@ -13,7 +13,7 @@
       "result": "PASS"
     },
     {
-      "command": "gh issue develop --list 262, 263, 267; gh pr view 264, 265",
+      "command": "gh issue develop --list 262; gh issue develop --list 263; gh issue develop --list 267; gh pr view 264; gh pr view 265",
       "result": "PASS: #267 branch linked; #262/#263 に linked branch はなく、#265 は merged、#264 は open と確認。既存関係は変更していない。"
     }
   ],

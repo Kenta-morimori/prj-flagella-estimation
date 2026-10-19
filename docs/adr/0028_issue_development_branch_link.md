@@ -10,6 +10,6 @@
 
 ## 判断
 
-Issue 用 branch の作成前に linked branch を確認し、未連携なら `gh issue develop` で Issue から branch を作る。既存・削除済み branch は現存する Development 欄と PR の関係を先に確認し、重複した連携や履歴の復元を避ける。PR 本文にも source Issue を記し、完了を意図しない PR に `Closes` / `Fixes` を付けない。linked PR の merge による Issue 自動 close の可能性があるため、merge 後は残受入条件と Issue 状態を照合する。
+Issue 用 branch の作成前に linked branch を確認し、未連携なら `gh issue develop` で task / Issue の target branch（指定がなければ default branch）から branch を作る。既存・削除済み branch は現存する Development 欄と PR の関係を先に確認し、重複した連携や履歴の復元を避ける。PR 本文にも source Issue を記し、完了を意図しない PR に `Closes` / `Fixes` を付けない。linked PR の merge による Issue 自動 close の可能性があるため、merge 後は残受入条件と Issue 状態を照合する。
 
 具体的な手順の正本は `docs/codex/codex_workflow.md` とする。
