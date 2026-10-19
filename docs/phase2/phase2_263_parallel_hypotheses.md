@@ -12,6 +12,8 @@
 
 旧#262と現行#263は、べん毛間反発だけを変えた比較ではない。#262の2秒ON/OFFは**両方とも菌体–べん毛反発OFF**で、べん毛同士の反発だけをON/OFFにした。旧基準には有限差分torsionとlegacy frame反作用が含まれた。#255で現行Cに使う解析torsionとenergy-gradient frame反作用を導入し、局所one-ring全ベクトルmotor反作用を維持した。今回のPR #264が追加した比較候補は、Cから初期幾何だけを変えるopt-in `compact_rear`と、compactを基準にsegmentトルク配分だけを変えるopt-in腕重みmotorである。frame復元1.25と横トルク補正は#255からある設定を独立した対照として使い、排除体積の相互作用は今回変更していない。現行5条件はいずれも**菌体–べん毛反発OFF・べん毛間反発ON**である。#262の反発ON/OFF差、#255の基準モデル変更、#263の初期配置差を混ぜて滑らかな回転の原因とはしない。
 
+**#257の実行済みモデルとCの作用上の差：**#257ではべん毛側のsegment力対が作る実トルクの軸方向成分だけを、菌体全体へ逆向きに配った。Cでは実トルクの全3成分を、付着ビーズと周囲1 ringの計5ビーズへ逆向きに配る。両者のべん毛側は拡散重みのsegment力対で、Cのmotor横方向補正はOFFである。#257の追加frame位置復元はscale 1.25なので有効だったが、Cはscale 1.0、追加tangentも1.0で、追加frame力は**ゼロ**である。Cは`energy_gradient`を設定しているものの、この条件ではその計算法と`legacy`の差は軌道へ作用しない。Cと#257のframeの実効差は追加位置復元力の有無である。torsionは同じポテンシャルを#257では有限差分、Cでは解析勾配で力へ変換する。#257のstrict motor FAILをtorsionやframeだけの効果とは解釈しない。
+
 [#262の原因監査](https://github.com/Kenta-morimori/prj-flagella-estimation/pull/265)は、旧有限差分torsion・legacy frameを含む旧局所反作用モデルの`nf03__slots024`で、0.64–0.80秒に根元segmentの最小横方向lever arm中央値がON 0.0073 µm、OFF 0.0076 µmとなり、菌体自転が約0.16秒鈍化したと報告する。反発OFFでも起きるため、反発の有無だけでは説明できない。ただし、現行#263のCとはframe・torsionが異なる。
 
 現行Cの保存済み#255四方式1秒archiveを、`run_summary.json`がcompleted・250,000 stepsであることを確認してからread-only再解析した。入力は`outputs/2026-10-15/161410/issue255_nf3_bundle_execution/long_source/conditions/nf03__slots024__C/state_archive.npz`（SHA-256 `e4d62670a739cda62fed9163b2d2ee387d449c0504609792d531da37f895d294`）。各保存状態の11ビーズ/べん毛からSVD第一主軸を求め、根元segment `(bead 0 − bead 1)`の主軸垂直成分の長さを3本で最小化した。10 msごとの既存`diagnostic_samples.csv`の駆動診断とも照合した。
