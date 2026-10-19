@@ -10,7 +10,7 @@
     "両armは旧有限差分torsionとlegacy frameを使い、束化・軸整列の懸念が残る。",
     "OFF/ON最大0.1秒値は異なる時間窓の場合があり、直接比較にはpaired_axis_windows.csvの同時刻窓を使う。",
     "べん毛の幾何学的なまとまり指標は配置によって増減し、1 seedだけでは排除体積OFFによる束化悪化を一般化できない。",
-    "nf03__slots024では0.64–0.80 sの菌体長軸まわり材料点回転が両armでほぼ停止し、0.95–1.05 sには両armで再開している。力学的原因は未特定。"
+    "nf03__slots024では0.64–0.80 sの菌体長軸まわり材料点回転が両armでほぼ停止し、0.95–1.05 sには両armで再開している。根元segmentのlever arm縮小とmotor横方向トルク増大が最有力の実装上の機序だが、修正モデルの軌道・時間刻み収束は未検証。"
   ],
   "tests_reviewed": [
     "cs10 queue #28 succeeded、13/13 completed、各500000 step連続、campaign_completion completed_condition_count=13",
@@ -21,12 +21,14 @@
     "13配置×2002 archive states、0.1秒窓260件、配置別x/y/z時系列・plot 13件、13配置の文書表とID一致",
     "#255元設定の対照は13/13 strict PASS、13/13 completed、122 SHA一致。ON/OFF base/condition設定はflagella_flagella_enabled以外一致、260窓が同時刻対応",
     "archive-only追加解析: 2本以上12配置の1.5–2.0 sでらせん軸間角・束半径をON/OFF同一時刻窓で比較。全13配置の30菌体bead軸まわり回転をON/OFFで算出し、nf03__slots024の0.64–0.80 sで両armの自転鈍化、0.8 s以降の再開を確認。5断面リングでも照合し、26 archiveのSHA-256は同期記録と一致",
+    "archive-only原因監査: nf03__slots024の根元segment横方向lever arm、motor torque/force、菌体自転の同時刻推移を照合。保存姿勢で決定論的local twist状態、力、RPY mobilityを再評価し、横トルク補正と解析的torsionを固定姿勢反実仮想として確認。新規simulationなし",
     "git diff --check PASS、結果文書とHTMLレビューの13配置・参照fileを照合"
   ],
   "user_review_required": true,
   "user_review_command": "open outputs/2026-10-19/023732/issue262_2s_review.html",
   "user_review_outputs": [
     "docs/phase2/phase2_262_repulsion_off_2s_results.md",
+    "docs/phase2/phase2_262_body_roll_cause_audit.md",
     "outputs/2026-10-19/023732/issue262_2s_review.html",
     "outputs/2026-10-19/023732/issue262_2s_evaluation/summary.csv",
     "outputs/2026-10-19/023732/issue262_2s_evaluation/initial_geometry/",
@@ -37,6 +39,8 @@
     "outputs/2026-10-19/023732/issue262_followup_analysis/nf03_slots024_axis_vs_material_roll.png",
     "outputs/2026-10-19/023732/issue262_followup_analysis/body_roll/nf03_slots024_body_axial_roll_16tau.png",
     "outputs/2026-10-19/023732/issue262_followup_analysis/body_roll/sixteen_tau_comparison.csv",
+    "outputs/2026-10-19/023732/issue262_followup_analysis/cause_analysis/nf03_slots024_rotation_cause_timeline.png",
+    "outputs/2026-10-19/023732/issue262_followup_analysis/cause_analysis/motor_snapshot_decomposition.csv",
     "outputs/2026-10-19/023732/sync_verification.json",
     "outputs/2026-10-19/023732/condition_manifest_verification.json"
   ],

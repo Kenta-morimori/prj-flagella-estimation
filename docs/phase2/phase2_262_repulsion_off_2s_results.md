@@ -52,6 +52,8 @@ cs10 queue #28は固定commit `a444a1bd45422d9b5b911df44ee61b397a30f809`、`conf
 
 追加のarchive-only図・集計CSV・method manifestは`outputs/2026-10-19/023732/issue262_followup_analysis/`に保存した。菌体材料点の全13配置時系列、区間集計、16τ図、5断面リングの照合、再解析スクリプトは同ディレクトリの`body_roll/`に置いた。これは受入閾値の追加や再simulationではない。
 
+16τ付近の自転鈍化について、根元segmentのlever arm、motor力と全ベクトル反作用、保存姿勢での力・mobility分解を[別の原因監査](phase2_262_body_roll_cause_audit.md)に記録した。排除体積の比較から独立したモデル安定性の検討であり、完全な修正軌道による因果検証は未了。
+
 ## レビュー入口と限界
 
 - ローカルレビュー：`outputs/2026-10-19/023732/issue262_2s_review.html`。13配置のQC、3D方向成分・角度plot、0.1秒窓、固定camera 3D/2D replayを開ける。
