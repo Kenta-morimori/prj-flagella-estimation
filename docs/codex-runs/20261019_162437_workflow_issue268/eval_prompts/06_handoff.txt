@@ -1,0 +1,1 @@
+Evaluation case: PR completion and post-merge handoff. Read the current repository workflow and explain what must be checked after a child Issue PR merges before closing its parent Issue. Include local PASS versus CI/review gate and remaining acceptance criteria. Do not mutate GitHub or files. Keep the response under 180 Japanese words.

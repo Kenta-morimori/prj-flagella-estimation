@@ -1,0 +1,1 @@
+Evaluation case: docs-only. A user requests a narrow wording correction in docs/codex/codex_workflow.md. Inspect the repository instructions and explain the smallest verification and completion path. Do not edit files or create a PR. Keep the response under 180 Japanese words.

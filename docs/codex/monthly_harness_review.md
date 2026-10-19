@@ -4,7 +4,8 @@
 
 この手順は，Codex のハーネス，`AGENTS.md`，repository skill，
 `.codex/config.toml`，および関連運用文書を見直すためのものである．#252を継続的な
-月次親Issueとして使い，ユーザーが月次レビューの意思を明示した相談スレッドでだけ実施する．
+月次索引とし，判断が確定した各回の月次親Issueをそのsub-issueとして作る．ユーザーが
+月次レビューの意思を明示した相談スレッドでだけ実施する．
 固定日・定期自動実行・自動Issue作成は行わない．
 
 通常の実装taskはこの文書を読む必要がない．月次棚卸し，モデル更新の提案，または
@@ -25,7 +26,7 @@ AGENTS / skill の大きな再編時だけ参照する．
 3. 当該repositoryのCodex task一覧と要約．詳細本文は，棚卸しの論点を裏付ける
    必要があるtaskだけに限定する．他projectのtask，私的会話，無関係な会話は読まない．
 4. モデル，skills，Codex の運用提案には，その時点の公式OpenAI documentationを使い，
-   URL・参照日・根拠要点を #252 の記録へ残す．
+   URL・参照日・根拠要点を当該月次親Issueへ記録する．#252には索引と短い要約だけを残す．
 
 大きなログや生成物は読まない．既存のcompact summary，manifest，Issue / PR記録を優先する．
 
@@ -65,14 +66,17 @@ AGENTS / skill の大きな再編時だけ参照する．
 
 ## 初期設定と以後のモデル変更
 
-初期設定はIssue #254で `gpt-6-sol` と reasoning `medium` に切り替える。Solは複雑な
-coding・agentic workflow向けで，`medium` はサポートされる既定のreasoning effortである。
-Codexの一般的なコード作業では最新のgeneral-purpose model（例: Sol）が推奨されることを
-公式OpenAI資料（https://developers.openai.com/api/docs/guides/code-generation，
-2026-09-29参照）で確認する。定型の狭い作業ではLuna，複雑な横断判断ではAstraを個別選択できる。
+2026-09-29 の初期設定では Issue #254 で `gpt-6-sol` と reasoning `medium` に切り替えた。
+当時、Solを複雑な coding・agentic workflow 向けとし，`medium` を既定のreasoning effortとした。
+一般的なコード作業のモデル選択は当時の公式OpenAI資料
+（https://developers.openai.com/api/docs/guides/code-generation，2026-09-29参照）で確認した。
+これは初期設定の判断履歴であり、現行の repository 既定値は `.codex/config.toml` を正本とする。
 
-以後に既定モデルまたはreasoning effortを変更する場合だけ，採択後の独立子Issueで現行設定と
-候補を比較する。月次レビュー単体では設定を変更しない。
+以後に既定モデルまたはreasoning effortを変更する場合は，通常，採択後の独立子Issueで現行設定と
+候補を比較する。月次レビュー単体では設定を変更しない。2026-10月の #266 / #268 では，
+ユーザー判断により `gpt-6-sol` / `medium` と `gpt-6.1-sol` / `medium` の事前比較を省略した。
+これは今回だけの明示例外であり，移行後の task 成功，手戻り，必要な検証の欠落，所要時間，
+取得できる token / credit を次回の月次親Issueで確認する。改善は実測まで主張しない。
 
 比較corpusは，対象期間の代表taskから次の4種を選ぶ．各taskは秘密情報を除いた再実行可能な
 promptと期待結果を記録する．
@@ -94,15 +98,20 @@ GPT-6系を候補にする場合は，skillsの短い適用条件とprogressive 
 ## 月次レビューの記録とIssue化
 
 ユーザーの明示依頼後，調査と提案は直ちに始める。ただし採択・保留・却下をユーザーと
-確定するまでは，#252への確定結果コメントや実装子Issueを作成しない。確定後にだけ，
-#252へ次をコメントする．
+確定するまでは，#252への確定結果コメント，月次親Issue，実装子Issueを作成しない。
+確定後，#252のsub-issueとしてその回の月次親Issueを1件作る。月次親を評価・根拠・
+採択／保留／却下・進捗の正本とし，#252には月次親への索引と短い要約だけを記録する．
+
+月次親Issueには次を記録する．
 
 * 監査日，対象期間，現行モデルと設定，参照した根拠．
 * 評価表，採択・保留・却下の判断，保留の再評価条件．
-* 採択した子Issueへのリンクと，未採択案を実装しない理由．
+* 採択した実装子Issueへのリンクと，未採択案を実装しない理由．
 
-採択した改善だけを #252 のGitHub sub-issueとして追加する．子Issueには目的，変更対象，
+採択した改善だけを当該月次親のGitHub sub-issueとして追加する．実装子Issueには目的，変更対象，
 受入条件，リスク，必要なexecution target，独立condition数，Mac wall time見積りを記載する．
 単なる関連性ではblocking関係を作らない．
 
-#252はOPENのまま維持する。新たな月次親Issueは作らない。
+#252はOPENのまま維持する。採択事項がない回も月次親に判断を記録し，記録確定後に閉じる。
+採択事項がある回は子Issueの完了と実装結果の振り返りを月次親に記録してから閉じる。
+次回に持ち越した実測項目は次回の月次親で確認する。
