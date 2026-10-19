@@ -365,10 +365,14 @@ class DynamicsEngine:
         enabled = bool(
             self.cfg.potentials.spring_spring_repulsion.body_flagella_enabled
         )
+        flagella_enabled = bool(
+            self.cfg.potentials.spring_spring_repulsion.flagella_flagella_enabled
+        )
         if candidates.size == 0:
             self.segment_pair_indices_for_repulsion = candidates
             return {
                 "body_flagella_enabled": enabled,
+                "flagella_flagella_enabled": flagella_enabled,
                 "all_non_neighbor": 0,
                 "body_body_excluded": 0,
                 "body_flagella_candidate": 0,
@@ -386,9 +390,12 @@ class DynamicsEngine:
         active = ~body_body
         if not enabled:
             active &= ~body_flagella
+        if not flagella_enabled:
+            active &= ~flagella_flagella
         self.segment_pair_indices_for_repulsion = candidates[active]
         return {
             "body_flagella_enabled": enabled,
+            "flagella_flagella_enabled": flagella_enabled,
             "all_non_neighbor": int(candidates.shape[0]),
             "body_body_excluded": int(np.count_nonzero(body_body)),
             "body_flagella_candidate": int(np.count_nonzero(body_flagella)),

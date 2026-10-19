@@ -1,0 +1,27 @@
+{
+  "status": "PASS",
+  "summary": "PR #265を、べん毛間segment反発を独立してON/OFFできる汎用設定とその検証に限定した。既定trueで従来挙動を維持し、設定値・種別別pair数を既存implementation manifestに記録する。旧#255モデルの1τ・2秒診断と物理解釈はこのlocal reviewの受入対象ではない。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "#262の旧モデル診断・16τ付近の自転鈍化・未了のvisual reviewはIssueコメントで保全し、基準モデル更新後の再比較までIssueをopenに維持する。",
+    "旧診断専用ファイルはPRのmerge差分から外したが、固定実行commitと結果文書のcommitはIssue #262に記録済み。"
+  ],
+  "tests_reviewed": [
+    "uv run pytest -q: 1007 passed",
+    "最終変更後 uv run pytest -q tests/test_potentials.py: 28 passed",
+    "uv run ruff check と uv run ruff format --check（変更コード・テスト）: PASS",
+    "git diff --check origin/main: PASS",
+    "べん毛間だけOFF、両反発OFF、既定ON、非boolean設定拒否、hook・同一べん毛内の候補、implementation manifestの設定値・pair数を対象テストで確認"
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": false,
+  "adr_reason": "既定trueの独立した診断用設定を追加するだけで、motor・基準モデル・物理解釈・canonical方針は変更しない。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/265",
+  "next_actions": []
+}
