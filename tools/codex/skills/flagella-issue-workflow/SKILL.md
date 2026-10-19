@@ -26,6 +26,7 @@ serial 例外のユーザー明示 IssueコメントURLを確認するまで run
 
 - 読む順序と Phase / run record の選択: `references/context-routing.md`
 - `review_result.json`、commit、push、PR、マージ後の Issue 引継ぎ: `docs/codex/codex_workflow.md`
+- Issue 用 branch と GitHub Development 欄の連携: `docs/codex/codex_workflow.md` の「Commit / push / PR」
 - 文書量・実行量の削減: `references/resource-reduction.md`
 - Phase 文書の統合・移行・削除: `phase-document-maintenance` skill と `docs/codex/phase_document_policy.md`
 

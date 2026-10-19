@@ -1,0 +1,31 @@
+{
+  "status": "PASS",
+  "summary": "Issue #267: Issue 用 branch と GitHub Development 欄の連携確認、既存・削除済み branch の扱い、途中 PR の参照と merge 後の Issue 状態確認を workflow に追加した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest -q tests/test_codex_completion_reporting_policy.py tests/test_cs10_parallel_policy.py -k 'completion_reporting or post_merge_handoff or agent_skill_and_runbook_share_the_cs10_parallel_gate'",
+      "result": "PASS: 4 passed, 2 deselected"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "gh issue develop --list 262, 263, 267; gh pr view 264, 265",
+      "result": "PASS: #267 branch linked; #262/#263 に linked branch はなく、#265 は merged、#264 は open と確認。既存関係は変更していない。"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": true,
+  "adr_reason": "Issue と Development の連携手順を workflow に追加する判断を ADR 0028 に記録した。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": []
+}
