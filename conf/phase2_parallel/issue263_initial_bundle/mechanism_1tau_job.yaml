@@ -1,0 +1,14 @@
+schema_version: 1
+job_id: issue263_nf3_mechanism_1tau
+configs:
+  - conf/phase2_multi_run/2010_hex_nf3_mechanism_1tau_issue263.yaml
+conditions:
+  - nf03__slots024__C
+  - nf03__slots024__bundle
+  - nf03__slots024__arm_weighted
+  - nf03__slots024__frame_125
+  - nf03__slots024__torque_corrected
+preflight: geometry_all_conditions
+execution:
+  max_workers: auto
+  worker_policy: cs10_qualified

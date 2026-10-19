@@ -30,6 +30,61 @@ COUNT_SCREEN = ROOT / "conf/phase2_multi_run/2010_hex_nf3to6_bundle_1tau_issue26
 LONG_CAMPAIGN = ROOT / "conf/phase2_multi_run/2010_hex_nf3to6_bundle_2s_issue263.yaml"
 COUNT_JOB = ROOT / "conf/phase2_parallel/issue263_initial_bundle/count_screen_job.yaml"
 LONG_JOB = ROOT / "conf/phase2_parallel/issue263_initial_bundle/long_2s_job.yaml"
+MECHANISM_SCREEN = (
+    ROOT / "conf/phase2_multi_run/2010_hex_nf3_mechanism_1tau_issue263.yaml"
+)
+MECHANISM_JOB = (
+    ROOT / "conf/phase2_parallel/issue263_initial_bundle/mechanism_1tau_job.yaml"
+)
+
+
+def test_mechanism_screen_has_independent_one_change_controls():
+    campaign = normalize_campaign_config(load_yaml(MECHANISM_SCREEN))
+    conditions = build_campaign_conditions(campaign)
+    ids = [row["condition_id"] for row in conditions]
+    assert ids == [
+        "nf03__slots024__C",
+        "nf03__slots024__bundle",
+        "nf03__slots024__arm_weighted",
+        "nf03__slots024__frame_125",
+        "nf03__slots024__torque_corrected",
+    ]
+    base = SimulationConfig.from_dict(load_yaml(ROOT / campaign["base_config"]))
+    configs = [base.with_overrides(row["config_overrides"]) for row in conditions]
+    original = normalize_campaign_config(load_yaml(CAMPAIGN))
+    reference_rows = {
+        row["condition_id"]: row for row in build_campaign_conditions(original)
+    }
+    for index in (0, 1):
+        reference = base.with_overrides(reference_rows[ids[index]]["config_overrides"])
+        assert asdict(configs[index]) == asdict(reference)
+    compact = asdict(configs[1])
+    for index, path, value in (
+        (2, ("motor", "segment_torque_distribution"), "arm_weighted_minimum_norm"),
+        (3, ("motor", "local_attach_frame_position_scale"), 1.25),
+        (4, ("motor", "segment_torque_correction"), "minimum_norm"),
+    ):
+        changed = asdict(configs[index])
+        section, field = path
+        assert changed[section].pop(field) == value
+        baseline = deepcopy(compact)
+        baseline[section].pop(field)
+        assert changed == baseline
+        np.testing.assert_array_equal(
+            ModelBuilder(configs[index]).build().positions_m,
+            ModelBuilder(configs[1]).build().positions_m,
+        )
+    preflight = geometry_preflight(campaign, conditions)
+    assert len(preflight) == 5
+    for condition in conditions:
+        record = preflight[condition["condition_id"]]
+        assert record["initial_min_nonattached_bead_distance_m"] > 2e-7
+        assert record["initial_hook_len_max_abs_error_m"] < 1e-15
+    job = load_parallel_job(MECHANISM_JOB)
+    execution = resolve_execution(job, None)
+    assert job.condition_ids == tuple(ids)
+    assert execution.max_workers == 5
+    assert execution.worker_policy == "cs10_qualified"
 
 
 def test_initial_bundle_screen_preserves_c_and_compacts_with_clear_hooks():

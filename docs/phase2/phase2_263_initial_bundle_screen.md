@@ -1,5 +1,7 @@
 # Issue #263：初期束配置と短期screen
 
+次段階の達成目標、#262の旧基準で見つかった自転鈍化との相違、独立した仮説の並列比較は[並列仮説と次の比較](phase2_263_parallel_hypotheses.md)を参照する。
+
 ## 比較契約
 
 `conf/phase2_multi_run/2010_hex_nf3_bundle_initial_screen_issue263.yaml`の3条件を比較する。`nf03__slots024__C`は#255四方式比較のCと同じ初期座標・物理設定。`bundle`はopt-inの後方コンパクト配置、`bundle_phase5`は同配置のflag 1だけを**根元固定で菌体後方軸まわりに5°剛体回転**させた初期方位摂動である。設定名に`phase`が含まれるが、motor位相やらせん自身の軸まわりの位相ではない。3条件はnf3、slots024、T=2.5e-20 N m/本、dt_star=1e-4、Brownian/switching OFF、菌体–べん毛排除OFF、べん毛同士反発ONを共有する。
