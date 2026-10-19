@@ -15,6 +15,7 @@ from pathlib import Path
 import numpy as np
 
 from sim_swim.analysis.multi_run_campaign import load_yaml
+from sim_swim.dynamics.forces import _principal_axis_or_none
 from sim_swim.model.builder import ModelBuilder
 from sim_swim.sim.debug_summary import (
     _bundle_metrics,
@@ -50,6 +51,21 @@ def section_spreads(points: np.ndarray, indices: list[np.ndarray]) -> dict[str, 
             np.sqrt(np.mean(radius**2)) * 1e6
         )
     return values
+
+
+def motor_root_lateral_arms_um(
+    points: np.ndarray, indices: list[np.ndarray]
+) -> np.ndarray:
+    """Saved-state first segment arms relative to the motor's fitted flag axis."""
+    arms = np.full(len(indices), np.nan)
+    for flag_id, ids in enumerate(indices):
+        chain = points[ids]
+        axis = _principal_axis_or_none(chain)
+        if axis is None or len(chain) < 2:
+            continue
+        segment = chain[0] - chain[1]
+        arms[flag_id] = np.linalg.norm(segment - np.dot(segment, axis) * axis) * 1e6
+    return arms
 
 
 def write_csv(path, rows):
@@ -207,6 +223,8 @@ def analyze(run_dir: Path, evaluation_dir: Path, output_dir: Path):
             alignment = helix_axis_alignment_metrics([h.axis for h in helix])
             bundle = _bundle_metrics(p, model, cfg, body.axis, body.rear_direction)
             radius = _flag_helix_bundle_radius_stats_um(p, model.flagella_indices)[0]
+            root_arms = motor_root_lateral_arms_um(p, model.flagella_indices)
+            finite_root_arms = root_arms[np.isfinite(root_arms)]
             angle = (
                 angle_deg_between(velocity[j], body.axis)
                 if speed[j] > floor
@@ -220,12 +238,16 @@ def analyze(run_dir: Path, evaluation_dir: Path, output_dir: Path):
                 "helix_pair_angle_mean_deg": alignment.pair_angle_deg_mean,
                 "helix_pair_angle_max_deg": alignment.pair_angle_deg_max,
                 "speed_um_s": float(speed[j]),
+                "motor_root_min_lateral_arm_um": (
+                    float(finite_root_arms.min()) if finite_root_arms.size else np.nan
+                ),
                 "travel_body_axis_angle_deg": min(angle, 180 - angle)
                 if np.isfinite(angle)
                 else np.nan,
                 **section_spreads(p, model.flagella_indices),
             }
             for i in range(cfg.flagella.n_flagella):
+                row[f"flag{i}_motor_root_lateral_arm_um"] = float(root_arms[i])
                 row[f"flag{i}_phase_rad"] = float(phases[j, i])
                 row[f"flag{i}_omega_rad_s"] = float(angular_speed[j, i])
                 row[f"flag{i}_valid"] = bool(valid[j, i])
@@ -264,6 +286,14 @@ def analyze(run_dir: Path, evaluation_dir: Path, output_dir: Path):
                 item[key + "_p95"] = float(np.nanpercentile(data, 95))
             sp = np.array([r["speed_um_s"] for r in window])
             item["speed_cv"] = float(np.std(sp) / max(np.mean(sp), 1e-30))
+            root_arms = np.array([r["motor_root_min_lateral_arm_um"] for r in window])
+            finite_root_arms = root_arms[np.isfinite(root_arms)]
+            item["motor_root_min_lateral_arm_um_min"] = (
+                float(finite_root_arms.min()) if finite_root_arms.size else np.nan
+            )
+            item["motor_root_min_lateral_arm_um_median"] = (
+                float(np.median(finite_root_arms)) if finite_root_arms.size else np.nan
+            )
             for i in range(cfg.flagella.n_flagella):
                 phase = np.array([r[f"flag{i}_phase_rad"] for r in window])
                 omega = np.array([r[f"flag{i}_omega_rad_s"] for r in window])

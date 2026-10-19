@@ -5,9 +5,18 @@ import pytest
 
 from sim_swim.analysis.bundle_rotation import (
     completed_rotation_cycles,
+    motor_root_lateral_arms_um,
     observation_windows,
     write_csv,
 )
+
+
+def test_motor_root_lateral_arm_uses_first_segment_and_flag_axis():
+    x = np.arange(6, dtype=float)
+    y = np.array([0.0, 0.1, -0.1, -0.1, 0.1, 0.0])
+    points = np.column_stack((x, y, np.zeros(6))) * 1e-6
+    arms = motor_root_lateral_arms_um(points, [np.arange(6)])
+    assert arms == pytest.approx([0.1])
 
 
 def rows(direction=1):
