@@ -1,0 +1,44 @@
+{
+  "status": "PASS",
+  "summary": "Issue #263の5条件25τ機序観測を固定commit 8673022で完了。cs10予約#31は5/5条件・各250,000 step完走、portable 60ファイルの集合・SHA-256一致、共通QC 5/5 PASS。固定camera 3D/2D replay、束・回転・推進・菌体材料点自転を比較した。全条件約2.3～2.7回転・完全周期2件で、目標の5周期には未達。旧#262モデルの16τ付近の根元腕崩壊・菌体自転停止は再現せず、安定した束遊泳は未確認。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "完全周期は各2件で、初期緩和後5周期・後半3周期の定常性評価には不足する。",
+    "全条件で周期平均の符号付き前方変位が一定でなく、終端3D replayでもべん毛が広がる。",
+    "1 ms保存状態より短い内部stepの根元腕極値と、分離配置からの自発的束形成は評価していない。",
+    "2秒以上の追加実行、物理候補採択、標準モデル凍結は保留。"
+  ],
+  "tests_reviewed": [
+    "cs10 queue #31: fixed commit 86730223478058e002c9ac5fe9947fa96ff22d32, five expected nf3 condition IDs, job succeeded, failed_configs empty",
+    "portable 60 files / 19,988,647 bytes: exact remote/local file set and SHA-256 match; operational logs excluded",
+    "five run_summary.json: completed, contiguous 250000 steps, online finite/body/nonbody PASS, read before detailed analysis",
+    "development_evaluation: 5/5 strict QC PASS; fixed-camera 3D/2D replay 41 frames each",
+    "bundle_rotation: five QC-PASS archives, two complete cycles each; signed forward displacement, bundle radius, helix pair angle, motor root lateral arm",
+    "saved-state body material-point rotation: 0.64–0.80 s all five continue rotating; root arm in same window >=0.25 um",
+    "3D replay mid/final visually inspected; 2D projection body-dominated"
+  ],
+  "user_review_required": true,
+  "user_review_command": "25τの周期別前進、束形状、自転、16τ窓を確認し、次の対照・観測周期数・2秒以上の実行範囲を決める。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_parallel_hypotheses.md",
+    "outputs/2026-10-19/171000/issue263_mechanism_25tau/manifest.json",
+    "outputs/2026-10-19/171000/issue263_mechanism_25tau/evaluation/replay/nf03/",
+    "outputs/2026-10-19/171000/issue263_mechanism_25tau/bundle_rotation/bundle_rotation_cycles.csv",
+    "outputs/2026-10-19/171000/issue263_mechanism_25tau/analysis/body_roll_material.csv"
+  ],
+  "user_review_points": [
+    "compact条件はCより終端束半径・軸角が小さい一方、完全周期2件の前進変位がまだ負またはゼロ近傍である。",
+    "16τ付近の旧モデル根元腕崩壊・菌体自転停止は現行5条件で再現しない。",
+    "5完全周期以上を得る次の観測時間と、反発ON/OFF・frame/hookの単独対照をどの順で進めるか。"
+  ],
+  "adr_required": false,
+  "adr_reason": "ADR 0028は既存の提案候補として保持。25τ観測による物理式・採択判断の変更はない。",
+  "commit_type": "diagnostic",
+  "commit_hash": "e1759b939e3c6fda5e1f465a7f944af4280d9200",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "25τ証拠をIssue #263とPR #264へ反映する",
+    "ユーザーレビュー後に次の実行・対照条件を決める。2秒stageは未予約。"
+  ]
+}
