@@ -13,7 +13,10 @@
     "13対の座標・設定一致、body_flagella_enabledだけ差分",
     "nf3 slots024 OFFが既存compact単独と時間以外の全設定・座標一致",
     "short/long duration-only; preview13形状・代表6本数overview目視確認",
-    "初期弾性力・反発力をdt=0で記録"
+    "初期弾性力・反発力をdt=0で記録",
+    "commit hook: ruff format/check・lifecycle PASS、light pytest 372 PASS",
+    "cs10固定commit dry-run: 26条件、入力SHA・worker計画一致、geometry丸め誤差内一致",
+    "21:43 JST: 予約#34 queued・commit/config一致、先行#33保持"
   ],
   "user_review_required": false,
   "user_review_command": "予約後、short完走時に共通QCとreplayを生成し、2秒stageの前にユーザーレビュー。",
@@ -26,8 +29,10 @@
   "commit_type": "complete",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
   "next_actions": [
-    "固定commitのcs10 dry-run照合後、短期26条件を予約する。",
+    "先行#33終了後の予約#34の開始・進捗を確認し、実測で終了見込みを更新。",
     "完走時にportable同期・全hash確認・run_summary先読・共通QC/replay。",
     "2秒stageはレビュー後に予約。"
-  ]
+  ],
+  "execution_commit": "71ed7529d362474235b931494af6cafcf3fe2edf",
+  "queue_id": 34
 }

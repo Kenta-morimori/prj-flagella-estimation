@@ -47,3 +47,9 @@ campaignは`conf/phase2_multi_run/`、jobは`conf/phase2_parallel/issue263_initi
 本数別heatmap、固定camera・ON/OFF共通視野の3D/2D replayを生成する。QC-PASSでは束幅・べん毛間軸角・菌体軸角・接近/接触、べん毛回転・菌体材料点自転、符号付き前進、後退割合・持続時間、首振りと横変位を記録する。位相PCAの見かけの回転と材料点自転を区別する。shortは初期過渡・数値安定性のscreenであり、定常性を判定しない。
 
 2秒checkpointでは全区間・共通の後半1〜2秒・旧事象を含む0.64〜0.80秒を比較し、初期2回転を除いた周期平均も併記する。観測周期数不足は未判定として記録する。nf3の既存compact周期約0.37秒から約5回転を見込めるが、他本数へ外挿して成立としない。完全対称条件の軸一定や回転一致を自然な揺れ・自発同期の証拠にしない。科学的採択、canonical freeze、dataset採択、mergeは含めない。
+
+## 短期予約 #34
+
+2026-10-20 21:43 JST、固定commit `71ed7529d362474235b931494af6cafcf3fe2edf`、`compact_count13_contact_1tau_job.yaml`で予約#34を作成し、queuedを確認した。Mac/cs10 dry-runは26 ID・実効8 workers・thread各1・job/campaign SHA-256が一致。幾何値はplatform差の丸め誤差（rtol/atol=1e-12）内で一致した。job SHA-256は`864d8773425520eb0d8999a1b9fd707c2d4b933efd25ffa06241a2805b45d9f9`、campaign SHA-256は`745360e95d0e4d9894605ceaad5e9e2d764336bb616774bcc92b7bfddc8e4362`。
+
+同時刻の先行#33は23/26完走、最遅nf6 ONが2,500/10,000 step・2.414 step/sで、平均速度外挿の完了見込みは22:21 JSTごろ。#34は先行終了後の開始待ちであり、22:21開始を保証しない。既存dispatcherを用い、#33・queue・実行条件は変更しない。この後のbranch更新は予約記録だけで、#34の固定commitを差し替えない。次回22:40 JSTごろ開始状態と自条件の速度を確認し、完了見込みに応じて同じ監視を再設定する。2秒stageは未予約。
