@@ -53,3 +53,7 @@ campaignは`conf/phase2_multi_run/`、jobは`conf/phase2_parallel/issue263_initi
 2026-10-20 21:43 JST、固定commit `71ed7529d362474235b931494af6cafcf3fe2edf`、`compact_count13_contact_1tau_job.yaml`で予約#34を作成し、queuedを確認した。Mac/cs10 dry-runは26 ID・実効8 workers・thread各1・job/campaign SHA-256が一致。幾何値はplatform差の丸め誤差（rtol/atol=1e-12）内で一致した。job SHA-256は`864d8773425520eb0d8999a1b9fd707c2d4b933efd25ffa06241a2805b45d9f9`、campaign SHA-256は`745360e95d0e4d9894605ceaad5e9e2d764336bb616774bcc92b7bfddc8e4362`。
 
 同時刻の先行#33は23/26完走、最遅nf6 ONが2,500/10,000 step・2.414 step/sで、平均速度外挿の完了見込みは22:21 JSTごろ。#34は先行終了後の開始待ちであり、22:21開始を保証しない。既存dispatcherを用い、#33・queue・実行条件は変更しない。この後のbranch更新は予約記録だけで、#34の固定commitを差し替えない。次回22:40 JSTごろ開始状態と自条件の速度を確認し、完了見込みに応じて同じ監視を再設定する。2秒stageは未予約。
+
+## 短期screen完了
+
+予約#34は2026-10-21 00:10:43 JSTに26/26完走。portable291ファイル・8,974,401 bytesのSHA-256全件一致、共通strict QC26/26PASS、14本の固定camera3D/2D replayとarchive診断を完了した。結果は[`phase2_263_compact_count_contact_short_result.md`](phase2_263_compact_count_contact_short_result.md)。完全周期0、全条件で初期の前進変位は負。2秒stageは未予約でユーザーレビュー待ち。
