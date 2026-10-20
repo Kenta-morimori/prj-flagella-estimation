@@ -66,3 +66,7 @@ remote root：`/net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/output
 両群とも最初のFAILは8 µs（2 step後）で、bond相対誤差3.027（上限1.0）、曲げ誤差113.20°（上限60°）、torsion誤差163.45°（上限120°）。ONは35 sample・最終FAIL時刻0.644 ms、OFFは34 sample・0.380 ms。終端の`final_pass=true`を全区間PASSと解釈しない。両群の初回failure snapshotは同値で、同snapshotの反発力は0。この時点の失敗を菌体–べん毛反発のONだけでは説明できない。初期応力の解放・力の特異性・刻み感度の切分けは未実施であり、原因は断定しない。
 
 失敗済み2条件のrun_summaryを先に読み、ローカル`outputs/2026-10-20/211600/issue263_queue33_failure/`へ同期し、2ファイルの件数・bytes・SHA-256一致を確認した。全26条件のportable同期、共通evaluator、replay、束・回転診断はまだ行っていない。失敗報告で監視をPAUSEDとし、simulation・queue・実行条件は変更・停止しない。2秒stageは未予約のまま保留する。
+
+## 後続の管理先
+
+2026-10-20のユーザー判断により、密集・同位相配置の成立性と動的安定性は子Issue #271へ切り分けた。対象モデル・profile・実装条件は実装時に確定し、上記試作を自動採用しない。本PRの現行実行計画は従来compactへ戻し、`phase2_263_compact_count_contact_runbook.md`に記録する。予約#33とその失敗証拠は歴史的記録として保持する。

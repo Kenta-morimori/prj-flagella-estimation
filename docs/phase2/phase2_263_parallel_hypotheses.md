@@ -1,5 +1,7 @@
 # Issue #263：束遊泳を目標にした並列仮説と次の比較
 
+> 現行の本数・排除体積比較：[`phase2_263_compact_count_contact_runbook.md`](phase2_263_compact_count_contact_runbook.md)。密集・同位相配置は子Issue #271へ切り分け、対象モデル・実装条件は保留。
+
 > 次の比較（2026-10-20ユーザー指定）：密集・同位相の初期配置を短期QCで確認し、本数1〜6の13付着配置×菌体–べん毛反発ON/OFFを各2秒で観測する。具体的な初期形状・応力・26条件の実行契約は[同位相初期束と排除体積対比較runbook](phase2_263_dense_bundle_contact_runbook.md)を正本とする。
 
 ## 目的と判定の単位

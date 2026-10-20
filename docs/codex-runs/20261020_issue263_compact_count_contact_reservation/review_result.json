@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "summary": "#271へ密集・同位相検証を切り分け、従来compactの13付着配置×菌体–べん毛反発26条件のshort/2秒設定と全条件幾何・対比較・既存compact一致を確認。今回のPASSは実装とpreflightに限定し、動的QC・科学的採択は未確定。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "2秒stageはshort QC・replayのユーザーレビューまで未予約。",
+    "追加位置復元処理とscaleの削除は既存のマージ前残作業。",
+    "#33の密集配置FAILは#271の参考証拠として保持し、対象モデルは保留。"
+  ],
+  "tests_reviewed": [
+    "targeted pytest: 107 PASS",
+    "short/long dry-run: 26条件、cs10_qualified 8 workers・thread各1、全geometry成立",
+    "13対の座標・設定一致、body_flagella_enabledだけ差分",
+    "nf3 slots024 OFFが既存compact単独と時間以外の全設定・座標一致",
+    "short/long duration-only; preview13形状・代表6本数overview目視確認",
+    "初期弾性力・反発力をdt=0で記録"
+  ],
+  "user_review_required": false,
+  "user_review_command": "予約後、short完走時に共通QCとreplayを生成し、2秒stageの前にユーザーレビュー。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_compact_count_contact_runbook.md",
+    "outputs/2026-10-20/213900/issue263_compact_count_contact/manifest.json"
+  ],
+  "adr_required": false,
+  "adr_reason": "既存compactの条件展開と実行設定。物理式・既定profile・モデル採択は変更しない。",
+  "commit_type": "complete",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "固定commitのcs10 dry-run照合後、短期26条件を予約する。",
+    "完走時にportable同期・全hash確認・run_summary先読・共通QC/replay。",
+    "2秒stageはレビュー後に予約。"
+  ]
+}
