@@ -14,7 +14,8 @@
     "short/long parallel dry-run: 26出力分離、cs10_qualified最大8 workers・各thread 1",
     "共通preflight: 初期hook/弾性力、曲げ/ねじれ誤差、遠位同位相誤差、座標SHA-256を記録",
     "preview: 全13形状の固定camera3D/軸投影を生成、各本数overviewを目視確認",
-    "runtime initial geometryとimplementation manifestへ座標ファイルSHAと位相を保持、改竄/誤配置/形状変更を明示拒否"
+    "runtime initial geometryとimplementation manifestへ座標ファイルSHAと位相を保持、改竄/誤配置/形状変更を明示拒否",
+    "cs10 fixed-commit dry-run: Macとjob/campaign/座標SHA一致、26条件・8 workers。予約#33は50445ec固定でrunning、2秒未予約"
   ],
   "user_review_required": true,
   "user_review_command": "短期26条件のQC・replayと初期応力解放をレビューし、同じ26条件の2秒予約へ進む。",
@@ -27,8 +28,10 @@
   "adr_reason": "既存力学を維持するopt-in初期状態と保存provenance。物理式採択・既定profile変更・canonical化は行わない。",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
   "next_actions": [
-    "固定commitでcs10のshort 26条件dry-run・予約・開始を確認する。",
+    "cs10予約#33の短期26条件を固定commit 50445ecで監視する。",
     "short完走時にportable件数・SHA、run_summary先読、共通QC・replayを確認する。",
     "shortレビューまで2秒stageは未予約。"
-  ]
+  ],
+  "execution_commit": "50445ec4b6c8385fc7bc08c354cbc24ac0e3ea03",
+  "queue_id": 33
 }

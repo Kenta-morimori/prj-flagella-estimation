@@ -52,3 +52,9 @@ campaignは`conf/phase2_multi_run/`、jobは`conf/phase2_parallel/issue263_initi
 1τのwallは約1〜3時間を粗い計画枠とし、新配置と反発ONの実測で更新する。2秒本番は13,000,000 internal stepで、26条件・8 workersの数日規模を想定するが、短期screenの条件別速度から見積もり直す。反発ONの追加計算や共有機負荷を旧nf3の実測だけで正確に外挿しない。
 
 short完走時は固定commit、26 ID、座標hash、portable件数・SHA-256を照合し、run_summaryを先に読む。共通strict QC、本数別heatmap、固定camera 3D/2D replay、初期応力解放・束幅・回転・符号付き推進を記録する。FAILがあれば原因を報告し、閾値を緩めたり条件を黙って除いたりして本番へ進めない。short QC・replayのレビュー後に2秒を予約・開始する。本番では各ON/OFF対の同時刻・同位相、周期平均の前進、自転・首振り・束維持と接近を比較し、完全対称条件だけの同期や、与えた束が維持されたことを自発的束形成と解釈しない。
+
+## 短期予約 #33
+
+2026-10-20 20:28 JST、固定commit `50445ec4b6c8385fc7bc08c354cbc24ac0e3ea03`で26条件の1τを予約し、既存dispatcherでrunningを確認した。Mac/cs10のdry-runはjob・campaign・初期座標のSHA-256が一致し、26条件・実効8 workersだった。初期座標のSHA-256は`0f77418e8fe9aede584ab385e1eac8edc7a64b695bba271e731a4a25da179983`。最初のnf1 OFFの2,500 step checkpointでは有限性・body・nonbodyにFAILなし。他の条件を含む全26条件の完走・QCはまだ未確認である。2秒jobは未予約。
+
+remote root：`/net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs/2026-10-20/202839/parallel/queue-00033-2f3bc9b0__3719eafce3f9`。この後のbranch更新は文書・実行記録だけとし、予約commitのモデル・初期座標・実行条件を差し替えない。
