@@ -1145,6 +1145,8 @@ class ModelBuilder:
                 2.0 * cfg.bead_radius_m / UM_TO_M,
             )
         bundle_mode = cfg.flagella.initial_bundle_mode
+        initial_geometry_metadata = {}
+        reference_positions_um = None
         offsets = cfg.flagella.initial_phase_offsets_deg
         if offsets is not None and (
             len(offsets) != n_flagella or not np.isfinite(offsets).all()
@@ -1152,7 +1154,39 @@ class ModelBuilder:
             raise ValueError(
                 "initial_phase_offsets_deg must contain one finite value per flagellum"
             )
-        if bundle_mode == "compact_rear":
+        if bundle_mode == "phase_aligned_rear":
+            from sim_swim.model.initial_bundle import load_initial_bundle
+
+            if (
+                cfg.flagella.initial_hook_force_neutral
+                or cfg.flagella.initial_hook_body_axis_perpendicular
+            ):
+                raise ValueError(
+                    "phase_aligned_rear requires hook preprocessing disabled"
+                )
+            if any(offsets or ()):
+                raise ValueError(
+                    "phase_aligned_rear state already defines its physical phase"
+                )
+            reference_positions_um = np.concatenate(points_all, axis=0)
+            selected, initial_geometry_metadata = load_initial_bundle(
+                cfg,
+                body_um,
+                points_all[1:],
+                np.asarray(attach_ids),
+                np.asarray([pair for pair in spring_pairs if max(pair) < n_body]),
+            )
+            for points, target in zip(points_all[1:], selected):
+                points[:] = target
+            initial_phases = np.full(
+                n_flagella, math.radians(initial_geometry_metadata["common_phase_deg"])
+            )
+        elif (
+            cfg.flagella.initial_bundle_state_path is not None
+            or cfg.flagella.initial_bundle_state_sha256 is not None
+        ):
+            raise ValueError("initial_bundle_state_path requires phase_aligned_rear")
+        elif bundle_mode == "compact_rear":
             if not cfg.flagella.initial_hook_body_axis_perpendicular:
                 raise ValueError(
                     "compact_rear requires initial_hook_body_axis_perpendicular=true"
@@ -1180,8 +1214,16 @@ class ModelBuilder:
             spring_rest_arr = np.zeros((0,), dtype=float)
         else:
             spring_rest_arr = np.linalg.norm(
-                positions_m[spring_pairs_arr[:, 1]]
-                - positions_m[spring_pairs_arr[:, 0]],
+                (
+                    positions_m
+                    if reference_positions_um is None
+                    else reference_positions_um * UM_TO_M
+                )[spring_pairs_arr[:, 1]]
+                - (
+                    positions_m
+                    if reference_positions_um is None
+                    else reference_positions_um * UM_TO_M
+                )[spring_pairs_arr[:, 0]],
                 axis=1,
             )
         bending_triplets_arr = _ensure_arr3(bending_triplets)
@@ -1233,4 +1275,5 @@ class ModelBuilder:
             torque_signs=np.ones((n_flagella,), dtype=float),
             bead_is_body=bead_is_body,
             bead_flag_ids=bead_flag_ids,
+            initial_geometry_metadata=initial_geometry_metadata,
         )

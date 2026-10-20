@@ -420,8 +420,14 @@ def geometry_preflight(
             cfg.validate_execution_supported()
             model = ModelBuilder(cfg).build()
             initial_hook_qc: dict[str, Any] = {}
-            if cfg.flagella.initial_hook_force_neutral and model.hook_triplets.size:
-                if cfg.flagella.initial_helix_axis_from_rear_deg == 0.0:
+            if (
+                cfg.flagella.initial_hook_force_neutral
+                or cfg.flagella.initial_bundle_mode == "phase_aligned_rear"
+            ) and model.hook_triplets.size:
+                if (
+                    cfg.flagella.initial_helix_axis_from_rear_deg == 0.0
+                    and cfg.flagella.initial_bundle_mode != "phase_aligned_rear"
+                ):
                     rear = estimate_body_axis(
                         model.positions_m,
                         model.body_layer_indices,
@@ -577,7 +583,8 @@ def geometry_preflight(
                         and min_outward_projection_m <= 0.0
                     )
                     or (
-                        cfg.flagella.initial_bundle_mode == "compact_rear"
+                        cfg.flagella.initial_bundle_mode
+                        in {"compact_rear", "phase_aligned_rear"}
                         and min_outward_projection_m < -1e-20
                     )
                     or (
@@ -628,6 +635,10 @@ def geometry_preflight(
                 }
             )
         initial_bundle_metrics: dict[str, float] = {}
+        if model.initial_geometry_metadata:
+            from sim_swim.model.initial_bundle import initial_bundle_force_metrics
+
+            initial_hook_qc.update(initial_bundle_force_metrics(cfg, model))
         if model.flagella_indices:
             body_geometry = estimate_body_axis(
                 model.positions_m, model.body_layer_indices, model.body_indices
@@ -677,6 +688,7 @@ def geometry_preflight(
             "attachments": attachment,
             **initial_bundle_metrics,
             **initial_hook_qc,
+            "initial_geometry_state": model.initial_geometry_metadata,
         }
     return records
 

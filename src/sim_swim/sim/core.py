@@ -282,6 +282,8 @@ class Simulator:
             reaction_fallback_used=self.engine.motor_reaction_fallback_used,
         )
         manifest["geometry"]["actual"] = self.initial_geometry_summary["geometry"]
+        if self.model.initial_geometry_metadata:
+            manifest["geometry"]["initial_state"] = self.model.initial_geometry_metadata
         manifest["topology"] = {
             "total_beads": int(self.model.positions_m.shape[0]),
             "body_beads": int(self.model.body_indices.size),
@@ -606,6 +608,12 @@ class Simulator:
                 }
             )
 
+        if self.model.initial_geometry_metadata:
+            summary["initial_geometry_state"] = self.model.initial_geometry_metadata
+            summary["flagella"]["initial_phase_source"] = "imported common distal phase"
+            summary["flagella"]["source_of_truth"].append(
+                "flagella.initial_bundle_state_path + SHA-256"
+            )
         return summary
 
     def _observe(self, t: float, prev: SimulationState | None) -> SimulationState:

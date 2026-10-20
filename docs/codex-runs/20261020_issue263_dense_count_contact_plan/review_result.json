@@ -1,0 +1,34 @@
+{
+  "status": "PASS",
+  "summary": "同位相・密集後方らせんと応力を記録した接続部のopt-in初期座標読込を実装。13付着配置×菌体–べん毛反発ON/OFFの26条件について、1τ screenと2秒の設定・geometry preflight・dry-run・previewを確認。動的な束維持は未評価。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "接続部に初期弾性応力が残り、short screenで束が開く可能性を評価する。",
+    "既存のnear-equilibrium初期geometry診断は意図的な接続部変形をFAILとして表示し続ける。strict QC閾値は維持する。",
+    "2秒stageはshort QC・replayレビュー後に予約する。"
+  ],
+  "tests_reviewed": [
+    "targeted pytest: 279 PASS; ruff check PASS; git diff --check PASS",
+    "26条件のgeometry preflight: 13対のON/OFFで座標・物理条件一致、body_flagella_enabledのみ差分",
+    "13配置すべてで固定hook/shaft長と元のspring自然長を維持、非付着bead/segment非重複、初期反発力0",
+    "short/long parallel dry-run: 26出力分離、cs10_qualified最大8 workers・各thread 1",
+    "共通preflight: 初期hook/弾性力、曲げ/ねじれ誤差、遠位同位相誤差、座標SHA-256を記録",
+    "preview: 全13形状の固定camera3D/軸投影を生成、各本数overviewを目視確認",
+    "runtime initial geometryとimplementation manifestへ座標ファイルSHAと位相を保持、改竄/誤配置/形状変更を明示拒否"
+  ],
+  "user_review_required": true,
+  "user_review_command": "短期26条件のQC・replayと初期応力解放をレビューし、同じ26条件の2秒予約へ進む。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_dense_bundle_contact_runbook.md",
+    "docs/phase2/figures/issue263_phase_aligned_initial_bundle.png",
+    "outputs/2026-10-20/200230/issue263_dense_geometry/manifest.json"
+  ],
+  "adr_required": false,
+  "adr_reason": "既存力学を維持するopt-in初期状態と保存provenance。物理式採択・既定profile変更・canonical化は行わない。",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "固定commitでcs10のshort 26条件dry-run・予約・開始を確認する。",
+    "short完走時にportable件数・SHA、run_summary先読、共通QC・replayを確認する。",
+    "shortレビューまで2秒stageは未予約。"
+  ]
+}

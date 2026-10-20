@@ -393,6 +393,8 @@ class FlagellumParams:
     initial_hook_force_neutral: bool = False
     initial_hook_body_axis_perpendicular: bool = False
     initial_bundle_mode: str = "none"
+    initial_bundle_state_path: str | None = None
+    initial_bundle_state_sha256: str | None = None
     initial_phase_offsets_deg: tuple[float, ...] | None = None
 
 
@@ -1618,6 +1620,16 @@ class SimulationConfig:
                 _get(flag_raw, "initial_hook_body_axis_perpendicular", False)
             ),
             initial_bundle_mode=str(_get(flag_raw, "initial_bundle_mode", "none")),
+            initial_bundle_state_path=(
+                str(flag_raw["initial_bundle_state_path"])
+                if flag_raw.get("initial_bundle_state_path") not in (None, "")
+                else None
+            ),
+            initial_bundle_state_sha256=(
+                str(flag_raw["initial_bundle_state_sha256"])
+                if flag_raw.get("initial_bundle_state_sha256") not in (None, "")
+                else None
+            ),
             initial_phase_offsets_deg=(
                 tuple(float(value) for value in flag_raw["initial_phase_offsets_deg"])
                 if flag_raw.get("initial_phase_offsets_deg") is not None
