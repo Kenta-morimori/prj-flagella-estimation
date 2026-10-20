@@ -107,14 +107,28 @@ def completed_rotation_cycles(rows: list[dict], n_flags: int) -> tuple[list[dict
         return [], "unavailable: invalid rotation phase"
     direction = np.sign(phase[-1] - phase[0])
     progress = direction * (phase - phase[0])
-    if direction == 0 or np.any(np.diff(progress) <= 0):
+    # A completed run can append its final state after the last regular archive
+    # sample.  The two timestamps differ by roundoff while the phase is identical.
+    # Exclude only that near-duplicate from the strictly monotone phase clock;
+    # a real plateau or reversal over an archive interval remains unavailable.
+    near_duplicate = (
+        (np.diff(times) >= 0)
+        & (np.diff(times) <= 1e-9)
+        & (np.abs(np.diff(progress)) <= 1e-12)
+    )
+    keep = np.r_[True, ~near_duplicate]
+    clock_times = times[keep]
+    clock_progress = progress[keep]
+    if direction == 0 or np.any(np.diff(clock_progress) <= 0):
         return [], "unavailable: non-monotone rotation"
-    if np.max(np.diff(progress)) >= np.pi / 2:
+    if np.max(np.diff(clock_progress)) >= np.pi / 2:
         return [], "unavailable: geometry sampling does not resolve a rotation cycle"
-    turns = int(np.floor(progress[-1] / (2 * np.pi)))
+    turns = int(np.floor(clock_progress[-1] / (2 * np.pi)))
     if turns < 1:
         return [], "unavailable: less than one completed turn"
-    boundaries = np.interp(np.arange(turns + 1) * 2 * np.pi, progress, times)
+    boundaries = np.interp(
+        np.arange(turns + 1) * 2 * np.pi, clock_progress, clock_times
+    )
     records = []
     for i, (start, end) in enumerate(zip(boundaries[:-1], boundaries[1:]), 1):
         selected = [r for r in rows if start <= r["t_s"] <= end]

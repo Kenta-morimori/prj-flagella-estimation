@@ -69,6 +69,16 @@ def test_missing_phase_and_reversal_are_not_completed_cycles():
     assert completed_rotation_cycles(a, 1)[0] == []
 
 
+def test_near_duplicate_completed_terminal_state_preserves_cycles():
+    a = rows()
+    a.append({**a[-1], "t_s": a[-1]["t_s"] + 7e-11})
+    cycles, status = completed_rotation_cycles(a, 1)
+    assert status.startswith("available")
+    assert len(cycles) == 2
+    a[-1]["t_s"] += 0.01
+    assert completed_rotation_cycles(a, 1)[0] == []
+
+
 def test_longer_run_has_actual_terminal_windows_and_no_duplicates():
     windows = observation_windows(1.999999999998)
     assert (1.5, 2.0) in windows and (1.75, 2.0) in windows
