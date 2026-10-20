@@ -1,7 +1,9 @@
 {
-  "status": "PASS",
-  "summary": "同位相・密集後方らせんと応力を記録した接続部のopt-in初期座標読込を実装。13付着配置×菌体–べん毛反発ON/OFFの26条件について、1τ screenと2秒の設定・geometry preflight・dry-run・previewを確認。動的な束維持は未評価。",
-  "blocking_issues": [],
+  "status": "FAIL",
+  "summary": "静的設計・実装checkはPASSだが、固定commit 50445ecの予約#33でnf02 slots02 ON/OFF両方に全step集計のflag形状FAILを確認。2秒stageの受入を停止。",
+  "blocking_issues": [
+    "nf02 slots02 ON/OFFともt=8µsにbond相対誤差3.027、曲げ113.20°、torsion163.45°。終端PASSでも全step any_fail=true。密集初期状態の動的安定性は未成立。"
+  ],
   "non_blocking_issues": [
     "接続部に初期弾性応力が残り、short screenで束が開く可能性を評価する。",
     "既存のnear-equilibrium初期geometry診断は意図的な接続部変形をFAILとして表示し続ける。strict QC閾値は維持する。",
@@ -15,23 +17,28 @@
     "共通preflight: 初期hook/弾性力、曲げ/ねじれ誤差、遠位同位相誤差、座標SHA-256を記録",
     "preview: 全13形状の固定camera3D/軸投影を生成、各本数overviewを目視確認",
     "runtime initial geometryとimplementation manifestへ座標ファイルSHAと位相を保持、改竄/誤配置/形状変更を明示拒否",
-    "cs10 fixed-commit dry-run: Macとjob/campaign/座標SHA一致、26条件・8 workers。予約#33は50445ec固定でrunning、2秒未予約"
+    "cs10 fixed-commit dry-run: Macとjob/campaign/座標SHA一致、26条件・8 workers。予約#33は50445ec固定でrunning、2秒未予約",
+    "2026-10-20 21:15 JST: 18/26完走、8 running。FAIL2条件のrun_summary先読・2ファイルSHA256全件一致。共通evaluator/replay未実行。"
   ],
   "user_review_required": true,
-  "user_review_command": "短期26条件のQC・replayと初期応力解放をレビューし、同じ26条件の2秒予約へ進む。",
+  "user_review_command": "run_summaryのfirst_failure_snapshotとrunbookの失敗記録を確認する。原因切分け・新しい初期状態の判断まで2秒実行を保留。",
   "user_review_outputs": [
     "docs/phase2/phase2_263_dense_bundle_contact_runbook.md",
     "docs/phase2/figures/issue263_phase_aligned_initial_bundle.png",
-    "outputs/2026-10-20/200230/issue263_dense_geometry/manifest.json"
+    "outputs/2026-10-20/200230/issue263_dense_geometry/manifest.json",
+    "outputs/2026-10-20/211600/issue263_queue33_failure/manifest.json"
   ],
   "adr_required": false,
   "adr_reason": "既存力学を維持するopt-in初期状態と保存provenance。物理式採択・既定profile変更・canonical化は行わない。",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
   "next_actions": [
-    "cs10予約#33の短期26条件を固定commit 50445ecで監視する。",
-    "short完走時にportable件数・SHA、run_summary先読、共通QC・replayを確認する。",
-    "shortレビューまで2秒stageは未予約。"
+    "失敗を報告して監視automationをPAUSED。queue33の残り実行は変更せず保持。",
+    "全26条件portable同期・共通QC/replayは未実施。原因切分けの再開時に完了状態を確認する。",
+    "初期応力解放・力の特異性・刻み感度は未切分け。無断で閾値変更や再予約をしない。"
   ],
   "execution_commit": "50445ec4b6c8385fc7bc08c354cbc24ac0e3ea03",
-  "queue_id": 33
+  "queue_id": 33,
+  "commit_type": "diagnostic",
+  "commit_hash": "b28ac18",
+  "push_status": "pushed"
 }

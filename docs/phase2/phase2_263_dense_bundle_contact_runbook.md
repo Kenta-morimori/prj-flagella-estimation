@@ -58,3 +58,11 @@ short完走時は固定commit、26 ID、座標hash、portable件数・SHA-256を
 2026-10-20 20:28 JST、固定commit `50445ec4b6c8385fc7bc08c354cbc24ac0e3ea03`で26条件の1τを予約し、既存dispatcherでrunningを確認した。Mac/cs10のdry-runはjob・campaign・初期座標のSHA-256が一致し、26条件・実効8 workersだった。初期座標のSHA-256は`0f77418e8fe9aede584ab385e1eac8edc7a64b695bba271e731a4a25da179983`。最初のnf1 OFFの2,500 step checkpointでは有限性・body・nonbodyにFAILなし。他の条件を含む全26条件の完走・QCはまだ未確認である。2秒jobは未予約。
 
 remote root：`/net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs/2026-10-20/202839/parallel/queue-00033-2f3bc9b0__3719eafce3f9`。この後のbranch更新は文書・実行記録だけとし、予約commitのモデル・初期座標・実行条件を差し替えない。
+
+## 21:15 JSTの失敗検出と保留
+
+予約#33は固定commitのままrunning、18/26条件完走・8条件実行中だった。`nf02__slots02__bfon`と`nf02__slots02__bfoff`は10,000 step完走したが、`run_summary.json`の全internal step集計で`shape_nonbody.any_fail=true`（flag）となった。これは初期geometryのnear-equilibrium診断ではなく、時間発展中の形状QCの失敗である。
+
+両群とも最初のFAILは8 µs（2 step後）で、bond相対誤差3.027（上限1.0）、曲げ誤差113.20°（上限60°）、torsion誤差163.45°（上限120°）。ONは35 sample・最終FAIL時刻0.644 ms、OFFは34 sample・0.380 ms。終端の`final_pass=true`を全区間PASSと解釈しない。両群の初回failure snapshotは同値で、同snapshotの反発力は0。この時点の失敗を菌体–べん毛反発のONだけでは説明できない。初期応力の解放・力の特異性・刻み感度の切分けは未実施であり、原因は断定しない。
+
+失敗済み2条件のrun_summaryを先に読み、ローカル`outputs/2026-10-20/211600/issue263_queue33_failure/`へ同期し、2ファイルの件数・bytes・SHA-256一致を確認した。全26条件のportable同期、共通evaluator、replay、束・回転診断はまだ行っていない。失敗報告で監視をPAUSEDとし、simulation・queue・実行条件は変更・停止しない。2秒stageは未予約のまま保留する。
