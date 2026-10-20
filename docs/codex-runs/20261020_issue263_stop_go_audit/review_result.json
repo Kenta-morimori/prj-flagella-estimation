@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "summary": "C/compact各351保存状態の力・RPY応答を時間を進めず再評価した。軸一定は完全C3対称性と決定論条件による。進行・停止・後退は実速度であり、べん毛と菌体の回転は継続する。形状・根元姿勢変化による弾性力と流体応答の相殺を直接機序として支持し、hook/motorの上流因果分離は保留する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "hook自由度、分布motor力、らせん変形、離散化・積分のうち上流原因の独立した切り分けは未実施。",
+    "同じ保存座標における速度成分分解であり、力を消した動的対照として解釈しない。",
+    "回転と推進の繰返しがあっても、今回の大きい後退・停止を目標達成とみなさない。"
+  ],
+  "tests_reviewed": [
+    "固定commit fbfac59ae2628cbec853377909f39f6844fda513のQC-PASS archiveを再利用、run_summary確認済み、再simulationなし",
+    "C/compact各351状態のzero-duration力評価とRPY応答、元の拡散motor重みを再構成",
+    "compact 1–3.4秒の保存差分速度との絶対誤差中央値4.05e-5 µm/s、相関0.9765。接触付近の瞬間値と1ms差分の差は残る",
+    "6保存状態の任意剛体回転・並進: 最大総力共変誤差8.2e-13、最大軸速度差5.6e-14 µm/s",
+    "compact全archiveのC3対称性: 最大RMS1.15e-13 µm、菌体軸横成分最大1.12e-13",
+    "科学図の描画・目視確認、保存script・入力archive・出力CSV/JSON/図のSHA-256 manifest作成",
+    "docs/figureのみのrepository変更: JSON構文とgit diff --checkを確認"
+  ],
+  "user_review_required": true,
+  "user_review_outputs": [
+    "docs/phase2/figures/issue263_stop_go_audit.png",
+    "docs/phase2/phase2_263_parallel_hypotheses.md",
+    "outputs/2026-10-20/184200/issue263_mechanism_3p5s/stop_go_audit/manifest.json"
+  ],
+  "user_review_points": [
+    "軸一定は拘束ではなく完全対称条件の結果で、非対称性への頑健性とは区別する。",
+    "2.83秒のnear-zero速度はmotorが継続している状態でbendと他成分の速度寄与が相殺する。",
+    "次は同じモデルの時間延長より根元可動域・motorから変形への仕事伝達の原因検証を優先する。"
+  ],
+  "adr_required": false,
+  "adr_reason": "保存結果の診断であり物理モデル・採択判断は変更しない。",
+  "simulation_commit": "fbfac59ae2628cbec853377909f39f6844fda513",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "診断図と直接機序・未確定の上流候補をユーザーへ説明する。",
+    "新しいhook/motor変更を行う場合は仮説・単独対照条件を具体化して判断する。"
+  ]
+}
