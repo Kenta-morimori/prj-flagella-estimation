@@ -17,8 +17,8 @@
     "QC-PASS archive束/回転/前進・共通rigid-fit菌体材料点診断",
     "heatmap regression・共通評価targeted21 PASS、ruff/diffcheck PASS"
   ],
-  "user_review_required": true,
-  "user_review_command": "本数別3D/2D replayと結果文書をレビューし、2秒×26条件への進行を判断。",
+  "user_review_required": false,
+  "user_review_command": "2026-10-21ユーザーが短期結果提示後の2秒実行を明示承認。合意済み2秒までの予約・開始の再承認待ちは不要。",
   "user_review_outputs": [
     "docs/phase2/phase2_263_compact_count_contact_short_result.md",
     "outputs/2026-10-21/002200/issue263_compact_count_contact/manifest.json",
@@ -31,6 +31,7 @@
   "queue_id": 34,
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
   "next_actions": [
-    "2秒stageはユーザーのshort QC/replayレビュー待ち。"
-  ]
+    "2秒予約#35の進捗を監視し、完走後に共通QC・replay・周期診断。"
+  ],
+  "user_review_outcome": "2秒26条件を承認。予約#35、固定71ed752。"
 }

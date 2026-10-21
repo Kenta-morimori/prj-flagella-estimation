@@ -1,0 +1,32 @@
+{
+  "status": "PASS",
+  "summary": "短期QC26/26PASS・replay提示後のユーザー明示承認を受け、同じ固定commit71ed752でcompact26条件×2秒を予約#35へ登録。queue競合なし、dry-runと入力SHA・worker計画照合PASS。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "92.15hは短期速度による初期見積り。実測で更新。",
+    "追加位置復元処理・scale削除はマージ前残作業。",
+    "2秒の数値/物理QC・科学的解釈は完走後に行う。"
+  ],
+  "tests_reviewed": [
+    "#34 same26condition representative workload qualification: strictQC26/26PASS, fixedcamera14videos checked",
+    "Mac/cs10 long dryrun26conditions, geometry, 8workers/thread1, job/campaignSHA match",
+    "fixed71ed752 config/job bytes match workingcopy; laterPR changes diagnostic/docs/test only",
+    "queue unpaused・other active/queued0 before enqueue; #35 fixedcommit/config match"
+  ],
+  "user_review_required": false,
+  "user_review_command": "2026-10-21ユーザーの明示許可により合意済み2秒まで予約・開始。再承認待ち不要。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_compact_count_contact_runbook.md",
+    "outputs/2026-10-21/091700/issue263_compact_2s_reservation/manifest.json"
+  ],
+  "adr_required": false,
+  "adr_reason": "既存compact条件の観測時間延長・予約。物理式/既定profile変更なし。",
+  "commit_type": "diagnostic",
+  "execution_commit": "71ed7529d362474235b931494af6cafcf3fe2edf",
+  "queue_id": 35,
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "予約#35の正常開始・進捗を確認し、実測で終了見込みを更新。",
+    "完走後にportable同期全hash・共通QC/replay・周期診断。"
+  ]
+}

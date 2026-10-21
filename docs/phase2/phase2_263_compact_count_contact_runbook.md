@@ -57,3 +57,15 @@ campaignは`conf/phase2_multi_run/`、jobは`conf/phase2_parallel/issue263_initi
 ## 短期screen完了
 
 予約#34は2026-10-21 00:10:43 JSTに26/26完走。portable291ファイル・8,974,401 bytesのSHA-256全件一致、共通strict QC26/26PASS、14本の固定camera3D/2D replayとarchive診断を完了した。結果は[`phase2_263_compact_count_contact_short_result.md`](phase2_263_compact_count_contact_short_result.md)。完全周期0、全条件で初期の前進変位は負。2秒stageは未予約でユーザーレビュー待ち。
+
+## 2秒の実行許可と予約 #35（2026-10-21）
+
+ユーザーは短期結果の提示後に「長時間で見てみましょう。2s実行を許可」「他の予約との兼ね合いを見つつ、基本的に2s実行まで予約してよい。承認待ちによるタイムロスを避けたい」と指示した。これにより今回の2秒stageは進行承認済み。本スレッドで合意した条件のshort QC・replay確認から2秒予約・開始までは継続的な許可として扱い、同じ操作の再承認を求めない。数値QC・replay確認は省略せず、FAILをPASSとして長時間stageへ流さない。
+
+実行前にqueueはunpaused、他のrunning/queued予約は0だった。**2026-10-21 09:17 JST、予約#35**をpriority0で登録した。固定commitは短期#34と同じ`71ed7529d362474235b931494af6cafcf3fe2edf`。`compact_count13_contact_2s_job.yaml`、13配置×ON/OFF、各2秒・500,000 step、総13,000,000 step。既存dispatcherを用い、他の予約を置換・取消・並べ替えしない。
+
+Mac/cs10 dry-runで26 ID、幾何preflight、実効8 workers・数値thread各1が一致し、job SHA-256 `b00213f1e03c9148be752675798b9c33b674fe77150654726fd26497f38e9792`、campaign SHA-256 `5ebfef81d872a41b945d6f263aa0bb2b957bfaf72dc0fd32ccda89d0b5ae0d87`も一致した。representative workloadは同じ26条件・同じ力学/dt/出力間隔/worker方針の#34実測を用いて再確認した。新規の物理変更はなく、同じ初期座標・物理設定を時間だけ延長する。現PR headとの差分は解析表示修正・test・文書であり、予約の力計算を差し替えない。
+
+短期の各条件速度を500,000 stepへ外挿し、同じ8workerの順序でdispatchした見込みは**約92.15時間（約3.84日）**。09:17開始なら10/25 05:26 JSTごろだが、共有負荷・長時間の形状変化で速度が変わるため初期見積りである。条件別見積りとdry-run証拠は`outputs/2026-10-21/091700/issue263_compact_2s_reservation/`。実測で開始・終了見込みを更新する。Macではsimulationを行わない。
+
+完走時は固定commitと26 ID、portable件数/全SHA、run_summary先読、共通strict QC、本数別heatmapと固定camera3D/2D replayを確認する。QC-PASS archiveでは0.64〜0.80秒・後半1〜2秒・初期2回転後の周期窓を比較し、束維持・べん毛回転・菌体材料点自転・符号付き推進・停止/後退・hook姿勢を記録する。初期応力/反発緩和、周期不足、対称性の解釈を残す。2秒完走だけでモデル採択や定常性を宣言しない。
