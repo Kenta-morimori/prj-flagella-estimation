@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import IntEnum
 
 import numpy as np
@@ -51,3 +51,4 @@ class SimModel:
     torque_signs: np.ndarray
     bead_is_body: np.ndarray
     bead_flag_ids: np.ndarray
+    initial_geometry_metadata: dict = field(default_factory=dict)

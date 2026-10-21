@@ -1048,6 +1048,7 @@ def compute_root_torque_segment_couples_forces(
     body_ring_edges: np.ndarray | None = None,
     body_vertical_edges: np.ndarray | None = None,
     segment_torque_correction: str = "none",
+    segment_torque_distribution: str = "fixed_weights",
 ) -> tuple[np.ndarray, MotorForceDiagnostics]:
     """root torque を segment ごとの local force couple として分配する。"""
 
@@ -1113,11 +1114,28 @@ def compute_root_torque_segment_couples_forces(
             seg_w = np.ones((seg_count,), dtype=float)
         seg_w = seg_w / max(float(np.sum(seg_w)), 1e-12)
 
+        if segment_torque_distribution == "arm_weighted_minimum_norm":
+            arm_perp2_by_segment = np.empty(seg_count, dtype=float)
+            for seg_id in range(seg_count):
+                arm = flag_pts[seg_id] - flag_pts[seg_id + 1]
+                arm_perp = arm - float(np.dot(arm, axis)) * axis
+                arm_perp2_by_segment[seg_id] = float(np.dot(arm_perp, arm_perp))
+            weighted_arm2 = float(np.dot(seg_w, arm_perp2_by_segment))
+            if weighted_arm2 <= 1e-30:
+                raise RuntimeError(
+                    f"Arm-weighted segment torque has no usable arm for flagellum {f_id}"
+                )
+            effective_seg_w = seg_w * arm_perp2_by_segment / weighted_arm2
+        elif segment_torque_distribution == "fixed_weights":
+            effective_seg_w = seg_w
+        else:
+            raise ValueError("Unknown segment torque distribution")
+
         flag_forces = np.zeros_like(positions_m)
         flag_force_norms: list[float] = []
         local_degenerate = 0
         for seg_id in range(seg_count):
-            target_tau = tau * float(seg_w[seg_id])
+            target_tau = tau * float(effective_seg_w[seg_id])
             if abs(target_tau) <= 0.0:
                 continue
 

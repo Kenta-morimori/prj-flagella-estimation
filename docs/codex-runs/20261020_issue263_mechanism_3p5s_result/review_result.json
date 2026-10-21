@@ -1,0 +1,45 @@
+{
+  "status": "PASS",
+  "summary": "Issue #263のcs10予約#32を固定commit fbfac59ae2628cbec853377909f39f6844fda513で5/5条件・各3.5秒完走として確認。portable 60件のSHA-256全件一致、run_summary先読、共通strict QC 5/5 PASS、標準と定性評価用の固定camera replay、束・回転・菌体自転・符号付き推進・根元腕のarchive診断を完了した。これは分析作業のPASSであり、物理モデルの採択ではない。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "定性3Dと軸角では密な一本の束形成・持続接触は確認できない。",
+    "compact系の約3べん毛周期ごとの繰返しは後半2ブロックだけで、長時間定常性の確定には不足する。",
+    "追加位置復元処理とscale設定はPRマージ前に削除し、既存profileへの影響を整理する。",
+    "ユーザーが不要と判断したtorsion単独の追加動的検証は行っていない。"
+  ],
+  "tests_reviewed": [
+    "cs10 queue #32: 固定commit、nf3の5条件、job succeeded・aggregate completed・failed_configs 0",
+    "portable 60件・68,216,676 bytes: remote/localのファイル集合・SHA-256全件一致、operational log除外",
+    "各run_summary.json: 875,000 step連続・3.5 s完走・online finite/body/nonbody PASSを詳細分析より先に確認",
+    "共通development_evaluation: strict QC 5/5 PASS、標準固定camera 3D/2D replay各41 frame",
+    "汎用bundle_rotation: 終端のほぼ同時刻・同位相重複を除外して再解析、完全周期9/9/9/8/9件、pytest tests/test_bundle_rotation_cycles.py 9 PASS",
+    "176 frame・50 fpsの共通視野3D/2Dと条件別3D計7動画: manifest、ffprobe実frame数、SHA-256を確認",
+    "3D中間・終端と2D中間frameを目視。2Dは菌体像が支配的で、3Dで束形状を判断"
+  ],
+  "user_review_required": true,
+  "user_review_command": "3.5秒replayと3周期ブロック別の形状・推進を確認し、束形成と長時間定常性の判定、および次の単独変更の要否を判断する。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_parallel_hypotheses.md",
+    "outputs/2026-10-20/184200/issue263_mechanism_3p5s/manifest.json",
+    "outputs/2026-10-20/184200/issue263_mechanism_3p5s/qualitative_replay/grid_swim3d.mp4",
+    "outputs/2026-10-20/184200/issue263_mechanism_3p5s/qualitative_replay/grid_projection2d.mp4",
+    "outputs/2026-10-20/184200/issue263_mechanism_3p5s/bundle_rotation/bundle_rotation_cycles.csv",
+    "outputs/2026-10-20/184200/issue263_mechanism_3p5s/analysis/mechanism_summary.json"
+  ],
+  "user_review_points": [
+    "compact単独で9.487回転、菌体自転3.050回、全3.5秒の符号付き前進+0.344 µmを観測した。",
+    "compactの後半3周期ブロック前進は+0.1523/+0.1532 µmだが、各単一べん毛周期は常に前進しない。",
+    "腕重みmotor・横トルク補正はcompactと大差なく、frame復元は束幅を小さくする一方で周期・推進の変動が大きい。",
+    "5条件は同じ菌体–べん毛反発OFF・べん毛間反発ONで、排除体積ON/OFFの因果比較ではない。"
+  ],
+  "adr_required": false,
+  "adr_reason": "保存archiveの診断と周期分析器の重複終端行対処のみ。物理式・モデル採択は変更していない。",
+  "simulation_commit": "fbfac59ae2628cbec853377909f39f6844fda513",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "Issue #263とPR #264に3.5秒結果を日本語で反映し、ユーザーのreplayレビューを受ける。",
+    "PRマージ前に追加位置復元処理・scale設定を削除し、既存profileの影響をレビューする。",
+    "科学的採択・次のcs10 job予約はユーザーレビュー後に判断する。"
+  ]
+}

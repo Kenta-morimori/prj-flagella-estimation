@@ -370,6 +370,140 @@ def _rotate_initial_flagella_for_perpendicular_neutral_hooks(
         points[:] = alternatives[pick]
 
 
+def _place_initial_rear_bundle(
+    body_um: np.ndarray,
+    flagella_um: list[np.ndarray],
+    attach_ids: np.ndarray,
+    body_axis: np.ndarray,
+    hook_length_um: float,
+    bead_diameter_um: float,
+    phase_offsets_deg: tuple[float, ...],
+    hook_kb_Nm: float,
+    hook_threshold_deg: float,
+) -> None:
+    """Move rigid filaments toward the rear axis without changing their shape.
+
+    A small, fixed hook-direction grid makes the selected initial state
+    reproducible.  ``phase_offsets_deg`` rotates a whole filament rigidly
+    about the rear body axis with its first bead fixed; it does not change
+    motor phase or intrinsic helical phase. Hook force is ranked before bundle
+    width; geometry that overlaps another non-bonded bead is never accepted.
+    """
+    from sim_swim.dynamics.forces import compute_hook_forces
+
+    if len(phase_offsets_deg) != len(flagella_um):
+        raise ValueError("initial_phase_offsets_deg length must equal n_flagella")
+    if not np.isfinite(phase_offsets_deg).all():
+        raise ValueError("initial_phase_offsets_deg must be finite")
+    rear = -body_axis / float(np.linalg.norm(body_axis))
+    center = np.mean(body_um, axis=0)
+    body_axial = (body_um - center) @ body_axis
+    body_transverse = (body_um - center) - np.outer(body_axial, body_axis)
+    body_outer_radius = float(np.max(np.linalg.norm(body_transverse, axis=1)))
+    originals = [points.copy() for points in flagella_um]
+    for points, offset in zip(originals, phase_offsets_deg):
+        if offset:
+            points[:] = (
+                points[0]
+                + (points - points[0])
+                @ _rotation_about_axis(rear, math.radians(offset)).T
+            )
+
+    best: tuple[tuple[float, float, float], list[np.ndarray]] | None = None
+
+    def transverse_width(chains: list[np.ndarray]) -> float:
+        return float(
+            np.mean(
+                [
+                    np.linalg.norm(
+                        (points - center)
+                        - np.outer((points - center) @ body_axis, body_axis),
+                        axis=1,
+                    ).mean()
+                    for points in chains
+                ]
+            )
+        )
+
+    baseline_width = transverse_width(originals)
+    for angle_deg in (60.0, 70.0, 80.0, 90.0):
+        angle = math.radians(angle_deg)
+        trial = []
+        for points, attach_idx in zip(originals, attach_ids):
+            attach = body_um[int(attach_idx)]
+            radial = attach - center
+            radial -= np.dot(radial, body_axis) * body_axis
+            radial /= np.linalg.norm(radial)
+            target = attach + hook_length_um * (
+                math.cos(angle) * radial + math.sin(angle) * rear
+            )
+            if float(np.dot(target - attach, radial)) < -1e-9:
+                raise ValueError("Initial bundle hook points into the body")
+            trial.append(points + target - points[0])
+        clearance = math.inf
+        for points, attach_idx in zip(trial, attach_ids):
+            other_body = np.delete(body_um, int(attach_idx), axis=0)
+            clearance = min(
+                clearance,
+                float(
+                    np.min(
+                        np.linalg.norm(
+                            points[:, None, :] - other_body[None, :, :], axis=-1
+                        )
+                    )
+                ),
+            )
+            axial = (points - center) @ body_axis
+            inside_body_length = (axial >= body_axial.min()) & (
+                axial <= body_axial.max()
+            )
+            transverse = (points - center) - np.outer(axial, body_axis)
+            if np.any(
+                np.linalg.norm(transverse[inside_body_length], axis=1)
+                < body_outer_radius - 1e-9
+            ):
+                clearance = -math.inf
+        for i, j in combinations(range(len(trial)), 2):
+            clearance = min(
+                clearance,
+                float(
+                    np.min(
+                        np.linalg.norm(
+                            trial[i][:, None, :] - trial[j][None, :, :], axis=-1
+                        )
+                    )
+                ),
+            )
+        if clearance < bead_diameter_um - 1e-9:
+            continue
+        width = transverse_width(trial)
+        if width >= baseline_width - 1e-9:
+            continue
+        positions = np.concatenate([body_um, *trial]) * UM_TO_M
+        start = len(body_um)
+        triplets = []
+        for attach_idx, points in zip(attach_ids, trial):
+            triplets.append((int(attach_idx), start, start + 1))
+            start += len(points)
+        force = float(
+            np.linalg.norm(
+                compute_hook_forces(
+                    positions,
+                    np.asarray(triplets, dtype=int),
+                    hook_kb_Nm,
+                    hook_threshold_deg,
+                )
+            )
+        )
+        score = (force, width, angle_deg)
+        if best is None or score < best[0]:
+            best = (score, trial)
+    if best is None:
+        raise ValueError("No non-overlapping, narrower rear bundle placement found")
+    for points, selected in zip(flagella_um, best[1]):
+        points[:] = selected
+
+
 class ModelBuilder:
     """設定から bead-spring モデルを構築する。"""
 
@@ -1010,6 +1144,68 @@ class ModelBuilder:
                 hook_length_um,
                 2.0 * cfg.bead_radius_m / UM_TO_M,
             )
+        bundle_mode = cfg.flagella.initial_bundle_mode
+        initial_geometry_metadata = {}
+        reference_positions_um = None
+        offsets = cfg.flagella.initial_phase_offsets_deg
+        if offsets is not None and (
+            len(offsets) != n_flagella or not np.isfinite(offsets).all()
+        ):
+            raise ValueError(
+                "initial_phase_offsets_deg must contain one finite value per flagellum"
+            )
+        if bundle_mode == "phase_aligned_rear":
+            from sim_swim.model.initial_bundle import load_initial_bundle
+
+            if (
+                cfg.flagella.initial_hook_force_neutral
+                or cfg.flagella.initial_hook_body_axis_perpendicular
+            ):
+                raise ValueError(
+                    "phase_aligned_rear requires hook preprocessing disabled"
+                )
+            if any(offsets or ()):
+                raise ValueError(
+                    "phase_aligned_rear state already defines its physical phase"
+                )
+            reference_positions_um = np.concatenate(points_all, axis=0)
+            selected, initial_geometry_metadata = load_initial_bundle(
+                cfg,
+                body_um,
+                points_all[1:],
+                np.asarray(attach_ids),
+                np.asarray([pair for pair in spring_pairs if max(pair) < n_body]),
+            )
+            for points, target in zip(points_all[1:], selected):
+                points[:] = target
+            initial_phases = np.full(
+                n_flagella, math.radians(initial_geometry_metadata["common_phase_deg"])
+            )
+        elif (
+            cfg.flagella.initial_bundle_state_path is not None
+            or cfg.flagella.initial_bundle_state_sha256 is not None
+        ):
+            raise ValueError("initial_bundle_state_path requires phase_aligned_rear")
+        elif bundle_mode == "compact_rear":
+            if not cfg.flagella.initial_hook_body_axis_perpendicular:
+                raise ValueError(
+                    "compact_rear requires initial_hook_body_axis_perpendicular=true"
+                )
+            _place_initial_rear_bundle(
+                body_um,
+                points_all[1:],
+                attach_ids,
+                body_axis,
+                hook_length_um,
+                2.0 * cfg.bead_radius_m / UM_TO_M,
+                offsets or (0.0,) * n_flagella,
+                cfg.hook.kb_over_T * abs(cfg.motor.torque_Nm),
+                cfg.hook.threshold_deg,
+            )
+        elif bundle_mode != "none" or any(offsets or ()):
+            raise ValueError(
+                "nonzero phase offsets require initial_bundle_mode=compact_rear"
+            )
         positions_um = np.concatenate(points_all, axis=0)
         positions_m = positions_um * UM_TO_M
 
@@ -1018,8 +1214,16 @@ class ModelBuilder:
             spring_rest_arr = np.zeros((0,), dtype=float)
         else:
             spring_rest_arr = np.linalg.norm(
-                positions_m[spring_pairs_arr[:, 1]]
-                - positions_m[spring_pairs_arr[:, 0]],
+                (
+                    positions_m
+                    if reference_positions_um is None
+                    else reference_positions_um * UM_TO_M
+                )[spring_pairs_arr[:, 1]]
+                - (
+                    positions_m
+                    if reference_positions_um is None
+                    else reference_positions_um * UM_TO_M
+                )[spring_pairs_arr[:, 0]],
                 axis=1,
             )
         bending_triplets_arr = _ensure_arr3(bending_triplets)
@@ -1071,4 +1275,5 @@ class ModelBuilder:
             torque_signs=np.ones((n_flagella,), dtype=float),
             bead_is_body=bead_is_body,
             bead_flag_ids=bead_flag_ids,
+            initial_geometry_metadata=initial_geometry_metadata,
         )

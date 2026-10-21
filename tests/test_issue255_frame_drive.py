@@ -188,6 +188,95 @@ def test_engine_correction_telemetry():
     assert metrics["motor_reaction_fallback_used"] == 0
 
 
+def test_arm_weighted_motor_distribution_avoids_single_short_arm():
+    cfg, model, _ = geometry()
+    pos = model.positions_m.copy()
+    ids = model.flagella_indices[0]
+    from sim_swim.dynamics.forces import _principal_axis_or_none
+
+    axis = _principal_axis_or_none(pos[ids])
+    perpendicular = np.cross(axis, np.array([0.0, 1.0, 0.0]))
+    perpendicular /= np.linalg.norm(perpendicular)
+    pos[ids[1]] = pos[ids[0]] + (0.1 * axis + 1e-4 * perpendicular) * cfg.b_m
+    common = dict(
+        positions_m=pos,
+        flagella_indices=model.flagella_indices,
+        body_indices=model.body_indices,
+        torque_per_flag=np.full(3, cfg.motor_torque_Nm),
+        segment_weights=[
+            np.geomspace(1, 0.001, len(flag) - 1) for flag in model.flagella_indices
+        ],
+        full_vector_body_reaction=True,
+        body_reaction_support="attach_one_ring",
+        flagella_attach_body_indices=model.flagella_attach_body_indices,
+        body_ring_edges=model.body_ring_edges,
+        body_vertical_edges=model.body_vertical_edges,
+    )
+    fixed, _ = compute_root_torque_segment_couples_forces(**common)
+    np.testing.assert_array_equal(
+        fixed,
+        compute_root_torque_segment_couples_forces(
+            **common, segment_torque_distribution="fixed_weights"
+        )[0],
+    )
+    adaptive, diag = compute_root_torque_segment_couples_forces(
+        **common, segment_torque_distribution="arm_weighted_minimum_norm"
+    )
+    assert np.isfinite(adaptive).all()
+    assert np.linalg.norm(adaptive[ids]) < 0.2 * np.linalg.norm(fixed[ids])
+    assert np.linalg.norm(adaptive.sum(axis=0)) < cfg.motor_torque_Nm * 1e-8
+    assert (
+        np.linalg.norm(np.cross(pos - pos.mean(0), adaptive).sum(axis=0))
+        < cfg.motor_torque_Nm * 1e-8
+    )
+    assert diag.reaction_support_bead_counts == (5, 5, 5)
+    for flag in model.flagella_indices:
+        flag_force = adaptive[flag]
+        flag_pos = pos[flag]
+        fitted_axis = _principal_axis_or_none(flag_pos)
+        if np.dot(fitted_axis, flag_pos[-1] - flag_pos[0]) < 0:
+            fitted_axis = -fitted_axis
+        torque = np.cross(flag_pos - flag_pos[0], flag_force).sum(axis=0)
+        assert np.dot(torque, fitted_axis) == pytest.approx(
+            cfg.motor_torque_Nm, rel=1e-8
+        )
+
+
+def test_arm_weighted_motor_distribution_config_and_provenance():
+    cfg, _, _ = geometry()
+    configured = cfg.with_overrides(
+        {"motor": {"segment_torque_distribution": "arm_weighted_minimum_norm"}}
+    )
+    assert configured.motor.segment_torque_distribution == "arm_weighted_minimum_norm"
+    assert (
+        configured.implementation_manifest()["dynamics"]["segment_torque_distribution"]
+        == "arm_weighted_minimum_norm"
+    )
+    with pytest.raises(ValueError):
+        cfg.with_overrides({"motor": {"segment_torque_distribution": "invalid"}})
+    with pytest.raises(ValueError):
+        configured.with_overrides(
+            {"motor": {"segment_torque_correction": "minimum_norm"}}
+        )
+
+
+def test_arm_weighted_motor_distribution_engine_step():
+    cfg, _, _ = geometry()
+    cfg = replace(
+        cfg,
+        motor=replace(
+            cfg.motor,
+            attach_frame_reaction="energy_gradient",
+            segment_torque_distribution="arm_weighted_minimum_norm",
+        ),
+    )
+    model = ModelBuilder(cfg).build()
+    diag = DynamicsEngine(model, cfg).step(cfg.dt_star)
+    metrics = diag.force_balance_diagnostics
+    assert np.isfinite(metrics["motor_drive_force_norm_max_N"])
+    assert metrics["motor_reaction_solver_success"] == 1
+
+
 @pytest.mark.parametrize(
     "override",
     [

@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "summary": "履歴記録：Issue #263のnf3・3条件の2秒観測案を準備したが、ユーザーの本数条件見直しにより未予約・未実行のまま廃止。後続はnf3～6各1配置のscreenを先行する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "2秒は中間判定点であり、5完全周期と初期緩和後3周期を満たす保証はない。未達なら延長条件を再レビューする。",
+    "長時間結果の物理解釈、許容変動の採択、モデル採択は未実施。"
+  ],
+  "tests_reviewed": [
+    "targeted pytest: Issue #263 geometry/long contract and portable-source evaluation, bundle rotation cycles, Issue #245 long evaluator 23 PASS",
+    "local and cs10 fixed-commit cs10_qualified parallel dry-run: identical job/config hashes, 3 separate outputs, 3 workers, one numerical thread each, geometry preflight within numerical tolerance",
+    "duration-only comparison with the three completed short-screen conditions"
+  ],
+  "user_review_required": true,
+  "user_review_command": "この旧nf3・3条件jobは予約・開始しない。後続のnf3～6計画を参照する。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_initial_bundle_screen.md",
+    "outputs/2026-10-17/222223/issue263_long_2s_plan/manifest.json",
+    "outputs/2026-10-17/222223/issue263_long_2s_plan/dry_run_plan.json"
+  ],
+  "user_review_points": [
+    "旧案は未予約・未実行であり、nf3～6各1配置の計画に置き換えた",
+    "5完全周期、先頭2周期の緩和分離、末尾3周期の形状比較を観測量の十分性とするか",
+    "末尾の同位相束半径・輪郭広がりの5%変化を延長レビュー旗として扱うか"
+  ],
+  "adr_required": false,
+  "adr_reason": "ADR 0027の物理候補を変えず、観測時間と既存診断の出力範囲だけを追加する。",
+  "commit_type": "diagnostic",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "nf3～6各1配置の1τ short screenを先に実行・評価し、2秒jobの範囲を再判断する"
+  ]
+}

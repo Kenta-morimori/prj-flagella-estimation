@@ -5,9 +5,18 @@ import pytest
 
 from sim_swim.analysis.bundle_rotation import (
     completed_rotation_cycles,
+    motor_root_lateral_arms_um,
     observation_windows,
     write_csv,
 )
+
+
+def test_motor_root_lateral_arm_uses_first_segment_and_flag_axis():
+    x = np.arange(6, dtype=float)
+    y = np.array([0.0, 0.1, -0.1, -0.1, 0.1, 0.0])
+    points = np.column_stack((x, y, np.zeros(6))) * 1e-6
+    arms = motor_root_lateral_arms_um(points, [np.arange(6)])
+    assert arms == pytest.approx([0.1])
 
 
 def rows(direction=1):
@@ -20,6 +29,10 @@ def rows(direction=1):
             "bundle_radius_mean_um": 1.0 - 0.1 * t,
             "helix_pair_angle_mean_deg": 20.0 - t,
             "bundle_rear_angle_deg": 2.0,
+            "contour_0.75_spread_um": 1.2 - 0.2 * t,
+            "contour_1.00_spread_um": 1.3 - 0.3 * t,
+            "speed_um_s": 0.4 + 0.1 * t,
+            "forward_speed_um_s": 0.4 + 0.1 * t,
         }
         for t in np.linspace(0.0, 1.25, 126)
     ]
@@ -33,6 +46,12 @@ def test_full_cycles_preserve_sign_and_measure_boundary_drift(direction):
         assert cycle["period_s"] == pytest.approx(0.5)
         assert cycle["flag0_net_turns"] == pytest.approx(direction)
         assert cycle["bundle_radius_mean_um_boundary_change"] == pytest.approx(-0.05)
+        assert cycle["contour_0.75_spread_um_boundary_change"] == pytest.approx(-0.1)
+        assert cycle["contour_1.00_spread_um_boundary_change"] == pytest.approx(-0.15)
+        assert cycle["speed_um_s_boundary_change"] == pytest.approx(0.05)
+        assert cycle["forward_displacement_um"] == pytest.approx(
+            0.2 + 0.025 * (cycle["start_s"] + cycle["end_s"])
+        )
     assert cycles[-1]["end_s"] == pytest.approx(
         1.0
     )  # remaining quarter second is not a cycle
@@ -47,6 +66,16 @@ def test_missing_phase_and_reversal_are_not_completed_cycles():
     assert completed_rotation_cycles(a, 1)[0] == []
     a = rows()
     a[10]["flag0_phase_rad"] = float("nan")
+    assert completed_rotation_cycles(a, 1)[0] == []
+
+
+def test_near_duplicate_completed_terminal_state_preserves_cycles():
+    a = rows()
+    a.append({**a[-1], "t_s": a[-1]["t_s"] + 7e-11})
+    cycles, status = completed_rotation_cycles(a, 1)
+    assert status.startswith("available")
+    assert len(cycles) == 2
+    a[-1]["t_s"] += 0.01
     assert completed_rotation_cycles(a, 1)[0] == []
 
 
