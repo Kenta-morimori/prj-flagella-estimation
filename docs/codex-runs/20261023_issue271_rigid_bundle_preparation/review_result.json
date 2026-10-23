@@ -1,0 +1,43 @@
+{
+  "status": "PASS",
+  "summary": "Issue #271のcs10短期予約直前までの実装準備。形状保存の共通軸初期束、13代表配置の静的audit、旧nf02 slots02初期QC FAILの原因切分けと回帰、5条件の1τ job・Mac dry-runを完了。cs10接続・予約・開始は未実施。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "全時間1τの動的strict QC、固定camera replay、複数周期の遊泳判定はcs10実行後に確認する。",
+    "隣接slotsの最短segment距離は0.20151677 µmで、cutoff 0.2 µmとの差が小さい。",
+    "内向きhookと根元3 shaft segmentの菌体貫通は条件付き接続近似。"
+  ],
+  "tests_reviewed": [
+    "targeted pytest: 157 PASS（Issue #271/#263初期束、parallel job、sweep、generic multi-run）; 追加asset改竄test 6 PASS",
+    "ruff check・ruff format --check・git diff --check PASS",
+    "13代表配置+1摂動の静的audit、座標再生成SHA-256一致、全鎖内部形状・hook・有限segment距離・初期力/エネルギー確認",
+    "旧nf02 slots02 ON/OFFの8 µs FAIL再現、motor OFF/半刻み/torsion OFFの一項目対照と新nf02同刻み10 step PASS",
+    "新5条件の各10 internal step strict形状QC PASS、Mac dry-run 5独立出力・5 workers・数値thread各1・全件geometry preflight PASS",
+    "固定camera初期配置3D/軸投影previewを目視確認"
+  ],
+  "user_review_required": false,
+  "user_review_command": "予約・モデル採択は本taskの対象外。runbook、初期配置preview、旧FAIL診断を次のcs10実行判断時にレビューする。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_271_rigid_common_bundle_runbook.md",
+    "outputs/2026-10-23/155900/issue271_static_geometry/manifest.json",
+    "outputs/2026-10-23/160000/issue271_initial_steps/manifest.json",
+    "outputs/2026-10-23/160001/issue271_dry_run/manifest.json",
+    "outputs/2026-10-23/160222/issue271_initial_preview/manifest.json"
+  ],
+  "user_review_points": [
+    "全べん毛後方束RUNのt=0形状と内向きhookの接続近似",
+    "旧FAILのほぼ共線torsion増幅という数値的原因と剛体配置による回避",
+    "短期screenの5条件と予約後に必要な全時間QC・replay"
+  ],
+  "adr_required": false,
+  "adr_reason": "既定profile・力学式・QC閾値を変えず、pending候補のopt-in初期座標と診断を追加した。物理モデルの採択やcanonical freezeは行わない。",
+  "commit_type": "diagnostic",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": [
+    "ユーザーが短期実行を判断する際、最終PR headの固定commitとMac/cs10のjob・campaign・座標SHA-256を照合する。",
+    "cs10接続、queue enqueue、dispatcher/tmux、job開始はそれぞれ別途のユーザー明示承認後に行う。",
+    "短期完走後、全時間strict QCと固定camera 3D/2D replayをレビューしてから長時間stageを設計する。"
+  ]
+}

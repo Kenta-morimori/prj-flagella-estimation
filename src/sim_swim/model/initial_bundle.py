@@ -225,6 +225,15 @@ def initial_bundle_force_metrics(cfg, model):
     )
     phi = np.degrees(_torsion_angles_rad(model.positions_m, torsions))
     torsion_error = (phi - cfg.potentials.torsion.phi0_deg["normal"] + 180) % 360 - 180
+    torque = abs(cfg.motor.torque_Nm)
+    bend_energy_over_T = (
+        0.5 * cfg.potentials.bend.kb_over_T * float(np.sum(np.radians(bend_error) ** 2))
+    )
+    torsion_energy_over_T = (
+        0.5
+        * cfg.potentials.torsion.kt_over_T
+        * float(np.sum(np.radians(torsion_error) ** 2))
+    )
     return {
         "initial_elastic_force_norm_N": float(np.linalg.norm(elastic)),
         "initial_elastic_force_max_N": float(np.linalg.norm(elastic, axis=1).max()),
@@ -233,5 +242,12 @@ def initial_bundle_force_metrics(cfg, model):
         ),
         "initial_flag_bend_error_max_deg": float(abs(bend_error).max()),
         "initial_flag_torsion_error_max_deg": float(abs(torsion_error).max()),
+        "initial_flag_bend_angle_max_deg": float(
+            cfg.potentials.bend.theta0_deg["normal"] + bend_error.max()
+        ),
+        "initial_flag_bend_energy_over_T": bend_energy_over_T,
+        "initial_flag_torsion_energy_over_T": torsion_energy_over_T,
+        "initial_flag_elastic_energy_Nm": torque
+        * (bend_energy_over_T + torsion_energy_over_T),
         "initial_force_evaluation_dt_s": 0.0,
     }

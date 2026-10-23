@@ -1,0 +1,14 @@
+schema_version: 1
+job_id: issue271_rigid_bundle_1tau
+configs:
+  - conf/phase2_multi_run/2010_hex_rigid_bundle_1tau_issue271.yaml
+conditions:
+  - nf01__slots0__base
+  - nf02__slots02__base
+  - nf03__slots024__base
+  - nf06__slots012345__base
+  - nf03__slots024__tilt1deg
+preflight: geometry_all_conditions
+execution:
+  max_workers: auto
+  worker_policy: cs10_qualified
