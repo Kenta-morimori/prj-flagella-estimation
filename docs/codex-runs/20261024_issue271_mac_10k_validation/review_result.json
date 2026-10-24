@@ -1,0 +1,43 @@
+{
+  "status": "PASS",
+  "summary": "Issue #271の追加Mac短期確認。5条件を各10,000 step、合計50,000 step完走し、development_evaluationの全時間strict QCは5/5 PASS。cs10予約はSSH認証失敗により未実施。",
+  "review_scope": "Mac 1τ short-screen、全時間QC、固定camera replay、予約前の入力固定確認",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "cs10へSSHの公開鍵認証が通らず、queue/NAS/cs10 dry-runの再照合と予約は未実施。予約作業は認証復旧待ち。",
+    "2D replayは既存rendererの菌体投影のみで、べん毛束の2D可視性は確認できない。",
+    "1τは複数周期の束維持・菌体自転・符号付き前進の採択根拠にならない。"
+  ],
+  "tests_reviewed": [
+    "parallel job 5条件すべてcompleted、条件別run_summary各10,000 step・有限性/shape_nonbody/shape_bodyの全step any_fail=false",
+    "共通development_evaluationのstrict QC: pass=5、fail=0。hook角のみ既定の診断除外。",
+    "固定camera 3D/2D replay各4本、全8動画41 frameを生成。nf2/nf6 3D終端を目視確認。",
+    "座標・campaign・parallel-job SHA-256が準備時の記録と一致。PR #264 headも不変。",
+    "Mac出力manifestで条件、wall time、入力・評価・動画のSHA-256を固定。"
+  ],
+  "user_review_required": false,
+  "user_review_command": "短期QCとreplayを確認済み。cs10予約はユーザー許可済みだがSSH認証復旧とqueue/NAS preflightが必要。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_271_rigid_common_bundle_runbook.md",
+    "outputs/2026-10-24/141900/issue271_mac_10k/manifest.json",
+    "outputs/2026-10-24/141900/issue271_mac_10k/model_development_evaluation/evaluation_manifest.json",
+    "outputs/2026-10-24/141900/issue271_mac_10k/model_development_evaluation/replay/dt1e-04/nf06/grid_swim3d_final.png"
+  ],
+  "user_review_points": [
+    "全5条件の1τ strict QC PASSと、旧FAIL対応のnf2 slots02の全step PASS",
+    "nf6の後方束3D replayと、2D rendererの表示範囲",
+    "cs10 SSH認証復旧後に固定commitを予約し、dispatcher/job開始は別扱い"
+  ],
+  "adr_required": false,
+  "adr_reason": "既存候補・QC閾値・力学式・実行設定を変更せず、短期実測と予約判断を記録した。",
+  "commit_type": "diagnostic",
+  "reviewed_code_commit": "5ac720ce9de2f86b023e0c03d25541f8d04fbfc5",
+  "push_status": "reviewed_code_commit_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/272",
+  "next_actions": [
+    "cs10用SSH認証を復旧する。",
+    "PR head・3入力SHA・NAS mount/容量・queue状態・cs10 dry-runを再照合し、ユーザー許可済みのqueue予約を固定commitで作成する。",
+    "dispatcher/tmuxとjob開始には各操作の別途明示許可が必要。",
+    "短期QC以降の複数周期・遊泳判定は別途設計する。"
+  ]
+}
