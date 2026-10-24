@@ -44,6 +44,8 @@ Macのsimulationなしdry-runは`outputs/2026-10-23/160001/issue271_dry_run/`に
 
 5条件並列のMac wall timeは約15分。固定cameraの3D replay終端ではnf2/nf6の後方らせん束が視認できた。2D replayは既存renderer仕様により菌体投影のみを描くため、べん毛束の2D可視性を立証しない。8本のreplay動画（本数別3D/2D）と入力・成果物SHA-256を同manifestに固定した。短期QC PASSは複数周期の束維持・菌体自転・符号付き前進の判定を意味しない。
 
-ユーザーはMac確認後のcs10予約を許可した。最初のSSH試行はMac既定のユーザー名`kentatakemori`を使ったため拒否されたが、ユーザー指摘を受けて正しい`Ktakemori@cs10`で接続できた。2026-10-24時点でqueueはpauseなし、予約#35がrunning。NAS mountとproject出力先の書込み権限は正常で、空き容量約47 TB、cs10 Python 3.11.15とGitHub CLI認証も確認した。PR head・3入力SHA・cs10 dry-runの再照合と`queue.py enqueue`は**未実施**。レビュー済みcommitを予約した後も、dispatcher/tmux起動とjob開始は別操作として扱う。
+ユーザーはMac確認後のcs10予約を許可した。最初のSSH試行はMac既定のユーザー名`kentatakemori`を使ったため拒否されたが、ユーザー指摘を受けて正しい`Ktakemori@cs10`で接続できた。2026-10-24の予約前照合ではqueueはpauseなし、予約#35がrunning。NAS mountとproject出力先の書込み権限は正常で、空き容量約47 TB、cs10 Python 3.11.15とGitHub CLI認証も確認した。PR #264 headは`82962a3cd1e8a467e968c7b8b84fb645021a58a4`で不変、予約直前のPR #272 headは`fc320bd0b2c7b84b64dfa35c8477675ce59a549e`。3入力SHAも上記の記録と一致した。
+
+cs10のsimulationなしdry-runは`outputs/2026-10-24/143900/issue271_cs10_preflight/`に保存した。全5条件のgeometry preflightとoutput分離、実効5 workers、数値ライブラリthread各1を確認した。dry-run planのSHA-256は`6ac2e23cb43939739788319ee3e26c6a12334cdef95cc29a7bf17165fffdc016`。`queue.py enqueue`で**予約#36**（priority 0）を作成し、固定commitは`fc320bd0b2c7b84b64dfa35c8477675ce59a549e`、configは`conf/phase2_parallel/issue271_rigid_bundle/short_1tau_job.yaml`。直後のqueue照合では#35がrunning、#36がqueued、pauseなし。dispatcher/tmux起動とjob開始はCodexから実施していない。以後の文書commitでPR branchが進んでも予約#36のcommitは保持し、差し替え・取消・pause/resumeは別途明示許可が必要。
 
 完走後はportable artifactをローカルへ同期して件数・SHA-256・QCを確認し、各`run_summary.json`を先に読む。共通evaluatorの全時間strict QCと本数別heatmap、固定camera 3D/2D replayをレビューしてから長時間stageを設計する。複数完全周期では初期緩和を挙動評価から分けてもQCの全時間FAIL履歴を保持し、全べん毛の束幅・軸角、位相差、べん毛回転、菌体材料点自転、周期平均の符号付き前進を同時刻で評価する。短期だけで遊泳再現を採択しない。
