@@ -1154,22 +1154,26 @@ class ModelBuilder:
             raise ValueError(
                 "initial_phase_offsets_deg must contain one finite value per flagellum"
             )
-        if bundle_mode == "phase_aligned_rear":
+        if bundle_mode in {"phase_aligned_rear", "rigid_common_axis_rear"}:
             from sim_swim.model.initial_bundle import load_initial_bundle
+            from sim_swim.model.rigid_common_bundle import load_rigid_common_bundle
 
             if (
                 cfg.flagella.initial_hook_force_neutral
                 or cfg.flagella.initial_hook_body_axis_perpendicular
             ):
-                raise ValueError(
-                    "phase_aligned_rear requires hook preprocessing disabled"
-                )
+                raise ValueError(f"{bundle_mode} requires hook preprocessing disabled")
             if any(offsets or ()):
                 raise ValueError(
-                    "phase_aligned_rear state already defines its physical phase"
+                    f"{bundle_mode} state already defines its physical phase"
                 )
             reference_positions_um = np.concatenate(points_all, axis=0)
-            selected, initial_geometry_metadata = load_initial_bundle(
+            loader = (
+                load_initial_bundle
+                if bundle_mode == "phase_aligned_rear"
+                else load_rigid_common_bundle
+            )
+            selected, initial_geometry_metadata = loader(
                 cfg,
                 body_um,
                 points_all[1:],
@@ -1178,14 +1182,22 @@ class ModelBuilder:
             )
             for points, target in zip(points_all[1:], selected):
                 points[:] = target
-            initial_phases = np.full(
-                n_flagella, math.radians(initial_geometry_metadata["common_phase_deg"])
-            )
+            if bundle_mode == "phase_aligned_rear":
+                initial_phases = np.full(
+                    n_flagella,
+                    math.radians(initial_geometry_metadata["common_phase_deg"]),
+                )
+            else:
+                initial_phases = np.array(
+                    [math.atan2(p[0, 2], p[0, 1]) for p in selected], dtype=float
+                )
         elif (
             cfg.flagella.initial_bundle_state_path is not None
             or cfg.flagella.initial_bundle_state_sha256 is not None
         ):
-            raise ValueError("initial_bundle_state_path requires phase_aligned_rear")
+            raise ValueError(
+                "initial_bundle_state_path requires an imported bundle mode"
+            )
         elif bundle_mode == "compact_rear":
             if not cfg.flagella.initial_hook_body_axis_perpendicular:
                 raise ValueError(

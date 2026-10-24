@@ -422,11 +422,13 @@ def geometry_preflight(
             initial_hook_qc: dict[str, Any] = {}
             if (
                 cfg.flagella.initial_hook_force_neutral
-                or cfg.flagella.initial_bundle_mode == "phase_aligned_rear"
+                or cfg.flagella.initial_bundle_mode
+                in {"phase_aligned_rear", "rigid_common_axis_rear"}
             ) and model.hook_triplets.size:
                 if (
                     cfg.flagella.initial_helix_axis_from_rear_deg == 0.0
-                    and cfg.flagella.initial_bundle_mode != "phase_aligned_rear"
+                    and cfg.flagella.initial_bundle_mode
+                    not in {"phase_aligned_rear", "rigid_common_axis_rear"}
                 ):
                     rear = estimate_body_axis(
                         model.positions_m,
@@ -572,7 +574,10 @@ def geometry_preflight(
                         cfg.flagella.initial_bundle_mode == "none"
                         and hook_force_norm_N > 1e-18
                     )
-                    or min_bead_distance_m < 2.0 * model.bead_radius_m - 1e-15
+                    or (
+                        cfg.flagella.initial_bundle_mode != "rigid_common_axis_rear"
+                        and min_bead_distance_m < 2.0 * model.bead_radius_m - 1e-15
+                    )
                     or (
                         cfg.flagella.initial_hook_body_axis_perpendicular
                         and min_attachment_bead_distance_m

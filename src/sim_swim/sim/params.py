@@ -393,6 +393,7 @@ class FlagellumParams:
     initial_hook_force_neutral: bool = False
     initial_hook_body_axis_perpendicular: bool = False
     initial_bundle_mode: str = "none"
+    initial_bundle_variant: str = "base"
     initial_bundle_state_path: str | None = None
     initial_bundle_state_sha256: str | None = None
     initial_phase_offsets_deg: tuple[float, ...] | None = None
@@ -1620,6 +1621,9 @@ class SimulationConfig:
                 _get(flag_raw, "initial_hook_body_axis_perpendicular", False)
             ),
             initial_bundle_mode=str(_get(flag_raw, "initial_bundle_mode", "none")),
+            initial_bundle_variant=str(
+                _get(flag_raw, "initial_bundle_variant", "base")
+            ),
             initial_bundle_state_path=(
                 str(flag_raw["initial_bundle_state_path"])
                 if flag_raw.get("initial_bundle_state_path") not in (None, "")

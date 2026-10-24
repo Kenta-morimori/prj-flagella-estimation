@@ -1,0 +1,48 @@
+{
+  "status": "PASS",
+  "summary": "Issue #271の追加Mac短期確認。5条件を各10,000 step、合計50,000 step完走し、development_evaluationの全時間strict QCは5/5 PASS。同じ1τのcs10予約#36は重複と判明し、開始前に取消した。",
+  "review_scope": "Mac 1τ short-screen、全時間QC、固定camera replay、cs10 dry-runと予約#36の取消確認",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "cs10では#271の動的QCを実行していない。今後の長時間stageは条件と判定基準を別途固定する。",
+    "2D replayは既存rendererの菌体投影のみで、べん毛束の2D可視性は確認できない。",
+    "1τは複数周期の束維持・菌体自転・符号付き前進の採択根拠にならない。"
+  ],
+  "tests_reviewed": [
+    "parallel job 5条件すべてcompleted、条件別run_summary各10,000 step・有限性/shape_nonbody/shape_bodyの全step any_fail=false",
+    "共通development_evaluationのstrict QC: pass=5、fail=0。hook角のみ既定の診断除外。",
+    "固定camera 3D/2D replay各4本、全8動画41 frameを生成。nf2/nf6 3D終端を目視確認。",
+    "座標・campaign・parallel-job SHA-256が準備時の記録と一致。PR #264 headも不変。",
+    "Mac出力manifestで条件、wall time、入力・評価・動画のSHA-256を固定。",
+    "cs10 dry-run: geometry preflight 5件、独立出力5件、実効5 workers・BLAS thread各1。NAS mount/空き容量/書込み、queue状態、GitHub CLI認証を照合。",
+    "queue予約#36をcommit fc320bd0b2c7b84b64dfa35c8477675ce59a549eで作成したが、Macと同一の1τだったためユーザー許可を受け開始前にcancelled。先行#35はrunning、pauseなしで不変。"
+  ],
+  "user_review_required": false,
+  "user_review_command": "短期QCとreplay、予約#36の開始前取消を確認する。#271のcs10実行予約は残っていない。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_271_rigid_common_bundle_runbook.md",
+    "outputs/2026-10-24/141900/issue271_mac_10k/manifest.json",
+    "outputs/2026-10-24/141900/issue271_mac_10k/model_development_evaluation/evaluation_manifest.json",
+    "outputs/2026-10-24/141900/issue271_mac_10k/model_development_evaluation/replay/dt1e-04/nf06/grid_swim3d_final.png",
+    "outputs/2026-10-24/143900/issue271_cs10_preflight/manifest.json",
+    "outputs/2026-10-24/143900/issue271_cs10_preflight/cancellation.json"
+  ],
+  "user_review_points": [
+    "全5条件の1τ strict QC PASSと、旧FAIL対応のnf2 slots02の全step PASS",
+    "nf6の後方束3D replayと、2D rendererの表示範囲",
+    "予約#36は開始前にcancelled。dispatcher/job開始はCodexから未実施"
+  ],
+  "adr_required": false,
+  "adr_reason": "既存候補・QC閾値・力学式・実行設定を変更せず、短期実測と予約判断を記録した。",
+  "commit_type": "diagnostic",
+  "reviewed_code_commit": "5ac720ce9de2f86b023e0c03d25541f8d04fbfc5",
+  "reservation_commit": "fc320bd0b2c7b84b64dfa35c8477675ce59a549e",
+  "reservation_id": 36,
+  "reservation_final_state": "cancelled_before_start",
+  "push_status": "reviewed_code_commit_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/272",
+  "next_actions": [
+    "Macの1τ short-screen結果を使い、複数周期の条件・評価区間・遊泳判定基準を別途設計する。",
+    "新たなcs10予約・dispatcher/tmux・job開始はそれぞれ別途明示許可が必要。"
+  ]
+}

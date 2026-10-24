@@ -610,7 +610,11 @@ class Simulator:
 
         if self.model.initial_geometry_metadata:
             summary["initial_geometry_state"] = self.model.initial_geometry_metadata
-            summary["flagella"]["initial_phase_source"] = "imported common distal phase"
+            summary["flagella"]["initial_phase_source"] = (
+                "imported common distal phase"
+                if self.config.flagella.initial_bundle_mode == "phase_aligned_rear"
+                else "imported rigid common-axis geometry"
+            )
             summary["flagella"]["source_of_truth"].append(
                 "flagella.initial_bundle_state_path + SHA-256"
             )
