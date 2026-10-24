@@ -44,6 +44,6 @@ Macのsimulationなしdry-runは`outputs/2026-10-23/160001/issue271_dry_run/`に
 
 5条件並列のMac wall timeは約15分。固定cameraの3D replay終端ではnf2/nf6の後方らせん束が視認できた。2D replayは既存renderer仕様により菌体投影のみを描くため、べん毛束の2D可視性を立証しない。8本のreplay動画（本数別3D/2D）と入力・成果物SHA-256を同manifestに固定した。短期QC PASSは複数周期の束維持・菌体自転・符号付き前進の判定を意味しない。
 
-ユーザーはMac確認後のcs10予約を許可したが、2026-10-24の接続試行はVPN経路到達後に`Permission denied (publickey...)`で停止した。現MacのSSH agentにはcs10が受け付ける鍵がなく、runbook記載の`id_ed25519_github_cs10`も見当たらない。よってcs10のNAS/queue/dry-run再照合と`queue.py enqueue`は**未実施**。認証が復旧したら、PR head・3入力SHA・queue状態・NAS mount/容量・cs10 dry-runを再確認し、レビュー済みcommitをenqueueする。dispatcher/tmux起動とjob開始は別操作として扱う。
+ユーザーはMac確認後のcs10予約を許可した。最初のSSH試行はMac既定のユーザー名`kentatakemori`を使ったため拒否されたが、ユーザー指摘を受けて正しい`Ktakemori@cs10`で接続できた。2026-10-24時点でqueueはpauseなし、予約#35がrunning。NAS mountとproject出力先の書込み権限は正常で、空き容量約47 TB、cs10 Python 3.11.15とGitHub CLI認証も確認した。PR head・3入力SHA・cs10 dry-runの再照合と`queue.py enqueue`は**未実施**。レビュー済みcommitを予約した後も、dispatcher/tmux起動とjob開始は別操作として扱う。
 
 完走後はportable artifactをローカルへ同期して件数・SHA-256・QCを確認し、各`run_summary.json`を先に読む。共通evaluatorの全時間strict QCと本数別heatmap、固定camera 3D/2D replayをレビューしてから長時間stageを設計する。複数完全周期では初期緩和を挙動評価から分けてもQCの全時間FAIL履歴を保持し、全べん毛の束幅・軸角、位相差、べん毛回転、菌体材料点自転、周期平均の符号付き前進を同時刻で評価する。短期だけで遊泳再現を採択しない。
