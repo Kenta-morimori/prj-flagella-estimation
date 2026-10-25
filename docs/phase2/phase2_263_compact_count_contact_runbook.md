@@ -69,3 +69,7 @@ Mac/cs10 dry-runで26 ID、幾何preflight、実効8 workers・数値thread各1�
 短期の各条件速度を500,000 stepへ外挿し、同じ8workerの順序でdispatchした見込みは**約92.15時間（約3.84日）**。09:17開始なら10/25 05:26 JSTごろだが、共有負荷・長時間の形状変化で速度が変わるため初期見積りである。条件別見積りとdry-run証拠は`outputs/2026-10-21/091700/issue263_compact_2s_reservation/`。実測で開始・終了見込みを更新する。Macではsimulationを行わない。
 
 完走時は固定commitと26 ID、portable件数/全SHA、run_summary先読、共通strict QC、本数別heatmapと固定camera3D/2D replayを確認する。QC-PASS archiveでは0.64〜0.80秒・後半1〜2秒・初期2回転後の周期窓を比較し、束維持・べん毛回転・菌体材料点自転・符号付き推進・停止/後退・hook姿勢を記録する。初期応力/反発緩和、周期不足、対称性の解釈を残す。2秒完走だけでモデル採択や定常性を宣言しない。
+
+## 2秒完走・結果（2026-10-25）
+
+予約#35は17:03:47 JSTに26/26完走、共通strict QC26/26PASS。portable291件236,782,129bytesの全SHA一致、26条件の定量評価と標準/定性の固定camera3D/2D計28本を検証した。詳細は[`phase2_263_compact_count_contact_2s_result.md`](phase2_263_compact_count_contact_2s_result.md)。ONは5配置で後半平均前進が負、OFFも後退と幾何学的重なりが残る。数値QC成立と目的の遊泳成立を分け、モデル採択・追加予約はしない。

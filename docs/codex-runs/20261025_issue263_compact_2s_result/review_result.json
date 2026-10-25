@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "summary": "予約#35の26条件完走・固定commit/全portableSHA照合・共通strictQC26/26PASS・26条件定量評価・28本固定camera replayと時系列図・Issue/PR結果反映を行う分析作業。科学的採択は未達として分離。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "ONの5配置は後半平均前進が負、5配置のreference位相非単調で周期比較不可。",
+    "OFFでも後退・body/flag幾何学的重なりが残りモデル採択不可。",
+    "観測時間は2秒checkpointで長時間定常性未判定。",
+    "追加位置復元処理/scale削除はマージ前残作業。"
+  ],
+  "tests_reviewed": [
+    "26ID・固定71ed752・job/campaignSHA照合",
+    "291files/236782129bytes remote-local全ファイル集合/SHA一致",
+    "run_summary先読、500001連続step/計画通り完走、全stepfinite/body/nonbodyPASS",
+    "共通strictQC26/26PASS・本数別heatmap",
+    "標準14MP4x41frame25fps・定性14MP4x201frame50fps、coverage/frame/fps/SHA検証",
+    "全26条件の固定時間窓/周期/束/回転/材料点自転/前進/接近・hook診断",
+    "nf3/nf6の3D目視・定量図確認、主比較窓2.0秒まで"
+  ],
+  "user_review_required": true,
+  "user_review_command": "全26条件の比較表、nf3 slots024時系列図、定性3Dreplayをレビューし、次の物理仮説を判断。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_compact_count_contact_2s_result.md",
+    "outputs/2026-10-25/201900/issue263_compact_count_contact_2s/manifest.json",
+    "outputs/2026-10-25/201900/issue263_compact_count_contact_2s/qualitative_replay"
+  ],
+  "adr_required": false,
+  "adr_reason": "完走archiveの評価・証拠記録のみ。物理式/既定profile/採択変更なし。",
+  "commit_type": "diagnostic",
+  "execution_commit": "71ed7529d362474235b931494af6cafcf3fe2edf",
+  "queue_id": 35,
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "科学的採択は保留。結果レビュー後に次の機序比較を判断。",
+    "追加位置復元処理/scale削除はマージ前の別作業として保持。"
+  ]
+}
