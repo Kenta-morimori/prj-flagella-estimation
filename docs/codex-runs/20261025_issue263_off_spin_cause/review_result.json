@@ -1,0 +1,39 @@
+{
+  "status": "PASS",
+  "summary": "予約#35の保存済み反発OFF全13配置を走査し、nf6の全鎖回転鈍化・根元segment間接触・同一状態での駆動/弾性/反発の釣り合いを記録した。距離計算の単位依存不具合と有限力cutoffを再現し、物理的な接触抵抗と数値実装の寄与の分離は未完了と明記した診断成果。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "根本原因の動的な分離は未完了。距離計算修正と時間刻み対照はユーザー判断待ち。",
+    "1ms保存状態の瞬時力再計算とinternal-step積算回転は時間分解能が異なり、完全な再現ではない。",
+    "線分間距離の単位依存不具合は未修正。反発cutoffは有限力から0へ不連続。",
+    "追加位置復元処理/scale削除は既存のマージ前残作業。"
+  ],
+  "tests_reviewed": [
+    "固定実行commitと解析worktreeのdynamics/model/params差分なし",
+    "全13反発OFF配置の各鎖1ms積算spinと100ms窓最小を走査",
+    "5条件各177保存状態のstep(0)で位置不変、force/source線形分解",
+    "成分和誤差最大1.49e-14回転/秒、共通rigid-fit微小変位との誤差最大0.000113回転/秒",
+    "nf6根元segment接触の前/減速中/回復後を照合、図2枚を目視確認",
+    "同一線分のm/um距離計算が1.005/0.100umとなる静的再現",
+    "既存strictQC26/26PASS・portable照合済みarchiveのみ使用"
+  ],
+  "user_review_required": true,
+  "user_review_command": "原因監査と3条件の機序比較案をレビュー。相互作用変更はIssue #263の事前判断規約に従い、距離計算のみの修正とdt対照の設計・実装への可否を確認する。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_off_spin_cause_audit.md",
+    "outputs/2026-10-25/221000/issue263_off_spin_audit/manifest.json",
+    "outputs/2026-10-25/221000/issue263_off_spin_audit/nf6_root_contacts.png"
+  ],
+  "adr_required": false,
+  "adr_reason": "保存済み結果の診断と対照案。モデルの式/設定/採択を変更していない。",
+  "commit_type": "diagnostic",
+  "execution_commit": "71ed7529d362474235b931494af6cafcf3fe2edf",
+  "queue_id": 35,
+  "root_cause_status": "immediate contact/elastic resistance identified; physical versus numerical origin unresolved",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "ユーザー判断後に距離計算修正だけを含むtargeted testと対照profileを設計する。",
+    "nf6の現行4us・距離修正4us・距離修正2usの1秒機序screen案。新規計算未予約。",
+    "torsion方式の追加比較と#271の密集配置検証は行わない。"
+  ]
+}
