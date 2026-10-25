@@ -468,77 +468,74 @@ def _closest_points_on_segments(
     p2: np.ndarray,
     q2: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, float, float, float]:
-    u = q1 - p1
-    v = q2 - p2
-    w = p1 - p2
+    """Closest points of closed segments, independently of the length unit.
+
+    Normalize lengths before solving the interior stationary point. If that
+    point is outside the parameter box, minimize on its four edges. Cross
+    products avoid cancellation in ``a*c-b*b`` for nearly parallel segments;
+    no dimensionful parallel or zero-length tolerance is used.
+    """
+    u_m = q1 - p1
+    v_m = q2 - p2
+    scale = max(float(np.linalg.norm(u_m)), float(np.linalg.norm(v_m)))
+    if scale == 0.0:
+        return p1.copy(), p2.copy(), 0.0, 0.0, float(np.linalg.norm(p1 - p2))
+    u, v, w = u_m / scale, v_m / scale, (p1 - p2) / scale
     a = float(np.dot(u, u))
     b = float(np.dot(u, v))
     c = float(np.dot(v, v))
     d = float(np.dot(u, w))
     e = float(np.dot(v, w))
-    denom = a * c - b * b
+    # Scalar triple products avoid repeated tiny np.cross allocations in the
+    # all-segment-pairs loop, while retaining the near-parallel cross formula.
+    ux, uy, uz = u
+    vx, vy, vz = v
+    wx, wy, wz = w
+    cx, cy, cz = uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx
+    denom = float(cx * cx + cy * cy + cz * cz)
+    if denom > 0.0:
+        s = float(
+            (
+                (vy * wz - vz * wy) * cx
+                + (vz * wx - vx * wz) * cy
+                + (vx * wy - vy * wx) * cz
+            )
+            / denom
+        )
+        t = float(
+            (
+                (uy * wz - uz * wy) * cx
+                + (uz * wx - ux * wz) * cy
+                + (ux * wy - uy * wx) * cz
+            )
+            / denom
+        )
+        if 0.0 <= s <= 1.0 and 0.0 <= t <= 1.0:
+            distance = float(np.linalg.norm(w + s * u - t * v) * scale)
+            return p1 + s * u_m, p2 + t * v_m, s, t, distance
 
-    if denom <= 1e-20:
-        # Segments are parallel or nearly parallel.
-        # Fall back to checking the minimal distance among endpoint-to-segment pairs.
-        #
-        # Candidate 1: p1 to segment [p2, q2]
-        c_len2 = max(c, 1e-20)
-        t1 = float(np.dot(p1 - p2, v) / c_len2)
-        t1 = float(np.clip(t1, 0.0, 1.0))
-        pa1 = p1
-        pb1 = p2 + t1 * v
-        d1 = float(np.dot(pa1 - pb1, pa1 - pb1))
-
-        # Candidate 2: q1 to segment [p2, q2]
-        t2 = float(np.dot(q1 - p2, v) / c_len2)
-        t2 = float(np.clip(t2, 0.0, 1.0))
-        pa2 = q1
-        pb2 = p2 + t2 * v
-        d2 = float(np.dot(pa2 - pb2, pa2 - pb2))
-
-        # Candidate 3: p2 to segment [p1, q1]
-        a_len2 = max(a, 1e-20)
-        s3 = float(np.dot(p2 - p1, u) / a_len2)
-        s3 = float(np.clip(s3, 0.0, 1.0))
-        pa3 = p1 + s3 * u
-        pb3 = p2
-        d3 = float(np.dot(pa3 - pb3, pa3 - pb3))
-
-        # Candidate 4: q2 to segment [p1, q1]
-        s4 = float(np.dot(q2 - p1, u) / a_len2)
-        s4 = float(np.clip(s4, 0.0, 1.0))
-        pa4 = p1 + s4 * u
-        pb4 = q2
-        d4 = float(np.dot(pa4 - pb4, pa4 - pb4))
-
-        # Select the best candidate
-        dists = [d1, d2, d3, d4]
-        idx_min = int(np.argmin(dists))
-        if idx_min == 0:
-            s = 0.0
-            t = t1
-            pa, pb = pa1, pb1
-        elif idx_min == 1:
-            s = 1.0
-            t = t2
-            pa, pb = pa2, pb2
-        elif idx_min == 2:
-            s = s3
-            t = 0.0
-            pa, pb = pa3, pb3
-        else:
-            s = s4
-            t = 1.0
-            pa, pb = pa4, pb4
-    else:
-        s = np.clip((b * e - c * d) / denom, 0.0, 1.0)
-        t = np.clip((a * e - b * d) / denom, 0.0, 1.0)
-        pa = p1 + s * u
-        pb = p2 + t * v
-    dvec = pa - pb
-    dist = _safe_norm(dvec)
-    return pa, pb, s, t, dist
+    candidates: list[tuple[float, float]] = []
+    if c > 0.0:
+        candidates.extend(
+            [
+                (0.0, float(np.clip(e / c, 0.0, 1.0))),
+                (1.0, float(np.clip((e + b) / c, 0.0, 1.0))),
+            ]
+        )
+    if a > 0.0:
+        candidates.extend(
+            [
+                (float(np.clip(-d / a, 0.0, 1.0)), 0.0),
+                (float(np.clip((b - d) / a, 0.0, 1.0)), 1.0),
+            ]
+        )
+    parameters = np.asarray(candidates)
+    delta = w + parameters[:, :1] * u - parameters[:, 1:] * v
+    distances_squared = np.sum(delta * delta, axis=1)
+    best = int(np.argmin(distances_squared))
+    s, t = candidates[best]
+    distance = float(np.sqrt(distances_squared[best]) * scale)
+    return p1 + s * u_m, p2 + t * v_m, s, t, distance
 
 
 def compute_segment_repulsion_forces(

@@ -1,0 +1,39 @@
+{
+  "status": "PASS",
+  "summary": "線分間距離の単位依存・独立clampを修正し、targeted test、nf6の4us/2usの1tau/25tau campaignとparallel-job、simulationなしpreflight/preview/dry-run、費用外挿と旧対照の照合を準備した。ユーザー指定どおりcs10の接続・予約・開始は行っていない。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "動的な修正後結果は未取得。根元接触による回転鈍化の物理/数値寄与の分離は今後の比較が必要。",
+    "反発cutoffの不連続・頂点近傍のsegment対加算は今回変更していない。",
+    "速度見積りは旧cs10実測とMac同一状態評価の費用比からの外挿で、共有負荷や新軌道の費用は未確定。",
+    "追加位置復元処理/scaleの削除は既存のマージ前残作業。"
+  ],
+  "tests_reviewed": [
+    "修正前：幾何回帰27ケース中9FAIL/18PASSで不具合を検出",
+    "修正後：幾何27・既存potential25・campaign3、55PASS",
+    "既存Issue263初期配置・評価契約8PASS",
+    "両parallel dry-run：cs10_qualified実効2workers、各1thread、条件別出力",
+    "共通geometry preflightとpreview：同一初期配置、hook力0、長さ誤差0",
+    "step(0)：初期反発0、弾性力ノルム2.94e-26N、interflag segment最短0.4221um",
+    "旧対照のrun_summary先読・固定commit/設定/座標の照合、時間窓0-1秒の再利用を設計",
+    "4保存状態x3回の旧/修正dt0費用比1.027、科学条件の時間更新なし"
+  ],
+  "user_review_required": true,
+  "user_review_command": "準備commitと対象stageを確認し、まず1tauの2条件jobを予約するか判断する。予約の明示許可まで外部実行を行わない。25tauは1tauの共通QC/replayレビュー後に進む。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_segment_distance_rerun_runbook.md",
+    "conf/phase2_parallel/issue263_initial_bundle/nf6_segment_distance_1tau_job.yaml",
+    "conf/phase2_parallel/issue263_initial_bundle/nf6_segment_distance_25tau_job.yaml",
+    "outputs/2026-10-25/223700/issue263_distance_rerun_preparation/manifest.json"
+  ],
+  "adr_required": false,
+  "adr_reason": "意図済みの閉線分最短距離を正しく計算するbugfix。反発ポテンシャルの式/係数・物理採択・既定profileの設定値・output contractは変更しない。",
+  "commit_type": "diagnostic",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "ユーザーの予約許可後、提示した固定commitで1tauの2条件jobを予約する。",
+    "1tauの共通QC/replayレビュー後に25tauの予約・開始を判断する。",
+    "修正前4us・修正後4us・修正後2usを同じ物理時刻で比較する。",
+    "2秒26条件の再実行はnf6対照をレビューした上で別途設計する。"
+  ]
+}
