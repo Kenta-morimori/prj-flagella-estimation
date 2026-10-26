@@ -2,9 +2,18 @@
 
 ## 現在の状態・承認範囲
 
-2026-10-25のユーザー依頼「再実行が必要。準備。予約は許可してから」に基づく。距離ソルバーの修正、targeted test、simulationなしの初期preflight、preview、parallel-job dry-runまで準備した。**cs10への接続・予約・開始はこの準備では行っていない。全jobは未予約**。監視automationもPAUSEDのままとする。
+2026-10-25の準備依頼に対し、距離ソルバー修正、targeted test、simulationなしの初期preflight/preview/parallel dry-runを完了した。2026-10-26にユーザーから「cs10で実行予約」の許可を受け、**1τ screenを予約#37として登録し、同日12:36 JSTに2条件の正常開始を確認**した。1秒stageは未予約。ユーザーは今回の完了見込み時刻の確認を1回許可したため、同日13:40 JSTのheartbeatを設定した。
 
-実行targetはIssue #263の`cs10_user_run` / `execution:cs10`。予約前にこの準備を含む**固定commitと対象stage**を提示し、ユーザーの明示許可を受ける。許可前にenqueueやdispatcher操作をしない。現在のPR head候補はPRコメント・ローカルmanifestの`prepared_commit`を正本とする。将来branchが進んでも予約commitを推測で置換しない。
+実行targetはIssue #263の`cs10_user_run` / `execution:cs10`。予約#37の固定commitは **`0017fbbd922997f32dbad4b40aa5af03da974c92`**、対象は`nf6_segment_distance_1tau_job.yaml`。予約前にremoteでもsimulationなしdry-runと入力SHA一致を確認した。記録用のPR headが進んでも、この予約commitを置換しない。
+
+## 予約#37と実行範囲
+
+- ユーザーの2026-10-26の予約指示を根拠に、12:36:29 JST、priority 0でenqueueした。直前のqueueはunpaused、他のrunning/queuedは0だった。
+- 既存dispatcherを利用し、既存予約の取消・置換・並べ替え、dispatcherの起動/停止/pause/resumeは行っていない。launch時刻は12:36:53 JST。
+- fixed commit、2条件のID、実効2 workers・各数値thread 1、2出力への分離をremoteで確認した。確認時のjobはrunning、failed configs 0。まだcheckpoint進捗がないため、全stepのQCは未評価。
+- 完了目安は事前費用見積りから**同日13:40 JST前後**（実測未取得）。動的形状・共有負荷で変わる。同日13:40 JSTに1回だけ確認し、完走なら照合・QC・replayまで進む。未完走/接続不可/FAILでも状況を報告して確認を終了し、自動再スケジュールはしない。
+- remote root：`/net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs/2026-10-26/123653/parallel/queue-00037-09668d5a__03cd2c703b5b`。
+- ローカル証拠：`outputs/2026-10-26/123600/issue263_distance_screen_reservation/`。予約・launch・remote dry-runを保存した。後続の記録commitは実行commitと区別する。
 
 ## 目的と変更
 
@@ -78,6 +87,23 @@ cs10実測benchmarkではない。共有負荷・修正後の形状/接触で変
 6. 固定時間窓の回転数・時系列・形状差を報告し、2つのdtだけで収束次数や定常遊泳成立を宣言しない。1秒は接触機序の比較であり、回転周期数が十分かは結果から別途判断する。
 
 新たなQC evaluator、torsion方式比較、モデル採択、canonical freeze、mergeは含めない。マージ前の追加位置復元処理/scale削除は既存の残作業として保持する。
+
+## 残タスクと判断の順序
+
+| 順序 | 残タスク | 次へ進む条件・判断点 |
+|---|---|---|
+| 1 | #37の完走照合、portable同期、共通strict QC、固定camera 3D/2D replay | 2条件ともQCを確認し、初期過渡に破綻がないことをレビューする。1τだけで減速解消とは判定しない |
+| 2 | 同じ固定commitの25τ・新規2条件を予約・実行 | 1τのQC/replayレビュー後、対象jobと許可範囲を確認する。暫定wall約26時間 |
+| 3 | 旧4 µs／修正4 µs／修正2 µsの機序比較 | 同じ0.55〜0.65秒のspin・接触・弾性抵抗、回復時刻を比較する。距離修正の効果とdt依存を分ける |
+| 4 | 26条件×2秒の再実行条件を確定 | 採用するdt、修正後の共通モデル、本数/付着13配置×菌体–べん毛反発ON/OFFを確定し、費用を再見積りする。旧実行の承認から新モデルの予約を推測しない |
+| 5 | 束維持・持続回転・推進安定性の成立を評価 | 各べん毛のspin、菌体材料点自転、符号付き前進を同時刻で確認する。初期緩和を除く完全周期数を数え、観測期間が不足すれば延長条件を相談する |
+| 6 | マージ前整理・検証・レビュー | 合意済みの追加位置復元処理/scaleを削除し、参照config/test/docsを整える。過去証拠は固定commitで再現できるよう保持。required checksとreview gate、ユーザーの物理採択判断を経る |
+
+**今回の1τ予約に追加の要件確認は不要**。上記の条件と許可範囲で確定している。事前に詰める必要があるのは、1秒比較を受けた後の採用dt・26条件への展開・必要観測周期数である。
+
+距離修正後も減速が残る場合は、cutoffの不連続、頂点近傍のsegment対加算、hook/motor/流体相互作用を次の独立仮説として整理し、追加変更前に根拠と対照条件を提示する。一度に複数を変えない。torsion方式の追加比較は不要という合意を維持し、重み3方式比較は低優先度で保留。密集・同位相配置は別Issue #271の管理範囲とする。
+
+Issueには重要な判断・実行状況・結論・阻害要因だけを短く残し、同じ話題は既存コメントを更新する。詳細なチェック・SHA・操作記録は本runbookとローカルmanifestを参照する。
 
 ## 証拠と再現コマンド
 
