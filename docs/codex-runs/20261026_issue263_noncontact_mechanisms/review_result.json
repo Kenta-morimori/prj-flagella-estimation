@@ -1,0 +1,36 @@
+{
+  "status": "PASS",
+  "summary": "接触なしを修正距離と全step移動上界で保証できるnf1保存軌道でも、回転継続中の菌体前進/後退が残ることを確認。根元接続の運動学、motor分配の時間依存、仕事と速度の分解、文献の根拠から独立仮説と改善案を整理。新規モデル実装や動的計算・予約はしていない。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "nf6の回転減速と接触バグの寄与は予約#37と後続対照の結果待ち。nf1から一般化しない。",
+    "根元接続の運動学的相殺は確認できたが、モデル変更後の前進改善の因果証明は未実施。",
+    "物理変更、次の実行条件、採択、mergeはユーザーレビュー後。"
+  ],
+  "tests_reviewed": [
+    "nf1共通strict QC PASSを再利用、run_summary/archive/performanceのSHA一致",
+    "修正距離で45組×2002保存状態を照合。保存間の保守的下界0.48584um > cutoff0.2um",
+    "401保存状態のstep(0)評価で全座標不変",
+    "瞬時速度vs記録差分RMS3.36e-5um/s、仕事分解和誤差1.54e-33W",
+    "1〜2秒のmotor仕事と保存瞬時power積分の相対差2.1e-6",
+    "根元長さ変化率の運動学的分解誤差7.5e-16um/s",
+    "図の目視、ローカルMarkdown参照、git diff --check"
+  ],
+  "tests_not_run": [
+    "新しい動的simulation・cs10操作なし。予約#37を変更せず13:40JSTの承認済み1回確認を維持。",
+    "物理ソース変更がない診断文書のみのためfull pytestは未実行。"
+  ],
+  "user_review_required": true,
+  "user_review_command": "距離修正screenの結果と非接触診断を照合し、根元の幾何整合性/物理的hook/motor伝達のどの単一変更を設計するかをレビューする。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_noncontact_mechanism_hypotheses.md",
+    "docs/phase2/figures/issue263_noncontact_nf1_stop_go.png",
+    "outputs/2026-10-26/125800/issue263_noncontact_mechanism_audit/manifest.json"
+  ],
+  "adr_required": false,
+  "adr_reason": "原因候補・未採択の比較案と保存軌道の診断。物理モデルやcontractの変更なし。",
+  "commit_type": "diagnostic",
+  "source_execution_commit": "71ed7529d362474235b931494af6cafcf3fe2edf",
+  "analysis_source_commit": "0017fbbd922997f32dbad4b40aa5af03da974c92",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264"
+}
