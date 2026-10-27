@@ -16,6 +16,7 @@ description: Issue 単位の Codex 作業で、必要な project 規約・文書
 2. Issue の execution target、condition 数、Mac 見積り、`execution:*` label、roadmap metadata を確認する。
 3. `main` / `master` で直接作業せず、作業を planning、implementation、diagnostic、review-only、workflow、または documentation-maintenance に分類する。
 4. 実装開始時は execution target、condition 数、Mac 見積り、許可された実行範囲をユーザーへ報告する。
+5. 原因未解明の検証で有力な仮説が複数ある場合は、競合仮説と次の実行順を変える判定を確認し、`docs/codex/codex_workflow.md` の「複数仮説の検証計画」に従う。
 
 `execution:triage`、target / label の不一致、または roadmap metadata 不備では read-only triage 以外を開始しない。
 `execution:cs10` で独立conditionが2以上なら、`cs10_qualified`、condition ごとの output 分離、dry-run plan、

@@ -27,6 +27,14 @@ task checkbox、commit message、PR 本文、Codex の final response は二次�
 
 `execution:cs10` かつ独立 condition が2以上なら、Codex は parallel job config、worker plan、`cs10_qualified`、dry-run、condition ごとの output 分離を確認するまで runtime を開始しない。serial 例外には、Issue runbook の具体的な技術理由と、開始前の User 明示承認 Issue コメント URL が必要である。
 
+## 複数仮説の検証計画
+
+原因が未解明で有力な仮説が複数ある場合、Codex は仮説ごとの調査・実験設計・実装準備を並行して進める。各仮説について、予測、競合仮説と異なる観測指標、反証条件、最短の short screen と本検証、事前の判定基準、独立 condition 数、Mac と cs10 の wall time 見積りを整理する。仮説を支持・棄却・未判定に分け、未判定を成功や採択とみなさない。
+
+cs10 の占有時間が限られる場合は、複数仮説を一度に区別できる共通実験を優先する。次の判断を変える可能性と所要時間を比較して short screen の実行順を決め、結果を確認してから長時間 job の順序と必要性を更新する。結果を見る前に判定基準を固定し、判断変更の理由を Issue または runbook に残す。
+
+同じ実装・固定 commit で実行できる独立 condition は、上記の parallel job 契約に従って一つの job 内で並列化できる。異なる固定 commit の job は `docs/codex/cs10_runbook.md` の逐次 queue で扱う。queue への予約や job の開始を含む各操作の明示承認は、計画や優先順位を決めたことから推測しない。
+
 ## Issue の Roadmap metadata
 
 新規 Issue は Issue Form の必須 `Roadmap category (Milestone)` を選択する。`issue-roadmap-sync` workflow は Project #8 へ Issue を登録し、対応 Milestone と作成日（JST）の `Start date` を同期する。`Planned target date` は任意の `YYYY-MM-DD` 入力であり、指定時は `Target date` へ同期する。Issue close 時に Target date が未設定なら、その Issue の終了日（JST）を補完する。既に予定日があれば上書きしない。
