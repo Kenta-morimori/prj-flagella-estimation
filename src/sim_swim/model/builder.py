@@ -504,6 +504,88 @@ def _place_initial_rear_bundle(
         points[:] = selected
 
 
+def _relocate_compact_roots(
+    body_um,
+    chains_um,
+    attach_ids,
+    body_axis,
+    hook_length_um,
+    angle_deg,
+    hook_threshold_deg,
+):
+    """Translate rigid helices; define each hook in the rear/tangent plane.
+
+    The signed angle is measured from the rear axis toward axis x outward.
+    No rotation, equilibrium change or extra restoring force is introduced.
+    Reject inward links, compressive hook bending and reduced bead clearance.
+    """
+    axis = body_axis / np.linalg.norm(body_axis)
+    center = body_um.mean(axis=0)
+    psi = math.radians(angle_deg)
+    originals = [points.copy() for points in chains_um]
+    proposed = []
+    records = []
+    for points, attach in zip(originals, attach_ids):
+        radial = body_um[int(attach)] - center
+        radial -= (radial @ axis) * axis
+        if np.linalg.norm(radial) <= 1e-12:
+            raise ValueError("Root relocation requires an off-axis attachment")
+        radial /= np.linalg.norm(radial)
+        tangent = np.cross(axis, radial)
+        hook = hook_length_um * (-math.cos(psi) * axis + math.sin(psi) * tangent)
+        bond = points[1] - points[0]
+        bend_angle = math.degrees(
+            math.acos(
+                float(
+                    np.clip(
+                        -hook @ bond / (hook_length_um * np.linalg.norm(bond)),
+                        -1.0,
+                        1.0,
+                    )
+                )
+            )
+        )
+        if bend_angle < hook_threshold_deg - 1e-9:
+            raise ValueError(
+                "Root relocation would introduce initial hook bending stress"
+            )
+        shift = body_um[int(attach)] + hook - points[0]
+        changed = points + shift
+        proposed.append(changed)
+
+        def axis_offset(chain):
+            midpoint = chain.mean(axis=0)
+            direction = np.linalg.svd(chain - midpoint)[2][0]
+            arm = body_um[int(attach)] - midpoint
+            return float(np.linalg.norm(arm - (arm @ direction) * direction))
+
+        records.append(
+            {
+                "translation_um": shift.tolist(),
+                "attachment_motor_axis_distance_before_um": axis_offset(points),
+                "attachment_motor_axis_distance_after_um": axis_offset(changed),
+            }
+        )
+
+    def clearance(chains):
+        all_points = np.concatenate([body_um, *chains])
+        distances = np.linalg.norm(all_points[:, None] - all_points[None], axis=-1)
+        np.fill_diagonal(distances, np.inf)
+        return float(distances.min())
+
+    if clearance(proposed) < clearance(originals) - 1e-9:
+        raise ValueError("Root relocation reduces the original bead clearance")
+    for points, selected in zip(chains_um, proposed):
+        points[:] = selected
+    return {
+        "method": "compact_rigid_root_translation",
+        "root_tangent_angle_deg": angle_deg,
+        "filaments": records,
+        "minimum_bead_distance_um": clearance(proposed),
+        "body_segment_nonpenetration_guaranteed": False,
+    }
+
+
 class ModelBuilder:
     """設定から bead-spring モデルを構築する。"""
 
@@ -1205,6 +1287,16 @@ class ModelBuilder:
         elif bundle_mode != "none" or any(offsets or ()):
             raise ValueError(
                 "nonzero phase offsets require initial_bundle_mode=compact_rear"
+            )
+        if cfg.flagella.initial_root_tangent_angle_deg != 0.0:
+            initial_geometry_metadata = _relocate_compact_roots(
+                body_um,
+                points_all[1:],
+                attach_ids,
+                body_axis,
+                hook_length_um,
+                cfg.flagella.initial_root_tangent_angle_deg,
+                cfg.hook.threshold_deg,
             )
         positions_um = np.concatenate(points_all, axis=0)
         positions_m = positions_um * UM_TO_M

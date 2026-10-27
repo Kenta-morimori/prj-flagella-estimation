@@ -1024,6 +1024,7 @@ class DynamicsEngine:
             a_ss=self.repulsion_A,
             cutoff=self.repulsion_cutoff_m,
             a_length=self.repulsion_a_m,
+            force_curve=self.cfg.potentials.spring_spring_repulsion.force_curve,
         )
 
         motor_forces = np.zeros_like(pos)
@@ -1084,6 +1085,7 @@ class DynamicsEngine:
                     segment_torque_distribution=(
                         self.cfg.motor.segment_torque_distribution
                     ),
+                    segment_force_placement=self.cfg.motor.segment_force_placement,
                     flagella_attach_body_indices=(
                         self.model.flagella_attach_body_indices
                     ),

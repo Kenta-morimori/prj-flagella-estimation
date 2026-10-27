@@ -545,10 +545,15 @@ def compute_segment_repulsion_forces(
     a_ss: float,
     cutoff: float,
     a_length: float,
+    force_curve: str = "exponential_cutoff",
 ) -> np.ndarray:
     """spring-spring 反発力を近似計算する。"""
 
     forces = np.zeros_like(positions_m)
+    if force_curve not in {"exponential_cutoff", "continuous_cutoff"}:
+        raise ValueError("Unknown segment repulsion force curve")
+    if force_curve == "continuous_cutoff" and (cutoff <= 0 or a_length <= 0):
+        raise ValueError("Continuous repulsion requires positive cutoff and decay")
     if segment_pair_indices.size == 0:
         return forces
 
@@ -570,6 +575,10 @@ def compute_segment_repulsion_forces(
 
         dir_vec = (pa - pb) / _safe_norm(pa - pb)
         mag = (a_ss / a_eff) * math.exp(-dist / a_eff)
+        if force_curve == "continuous_cutoff":
+            mag *= -math.expm1(-(cutoff_eff - dist) / a_eff) / (
+                -math.expm1(-cutoff_eff / a_eff)
+            )
         f = mag * dir_vec
 
         forces[int(i)] += (1.0 - s) * f
@@ -578,6 +587,27 @@ def compute_segment_repulsion_forces(
         forces[int(ell)] -= t * f
 
     return forces
+
+
+def continuous_segment_repulsion_potential(
+    distance: float, amplitude: float, decay_length: float, cutoff: float
+) -> float:
+    """Shifted potential with F(0+) preserved and both U/F zero at cutoff."""
+    if decay_length <= 0 or cutoff <= 0 or distance < 0:
+        raise ValueError(
+            "Repulsion potential requires nonnegative distance and positive lengths"
+        )
+    if distance >= cutoff:
+        return 0.0
+    x = (cutoff - distance) / decay_length
+    # This form avoids exp(+x) overflow for a large cutoff / decay ratio.
+    numerator = (
+        math.exp(-cutoff / decay_length) * (math.expm1(x) - x)
+        if x < 1.0
+        else math.exp(-distance / decay_length)
+        - (1.0 + x) * math.exp(-cutoff / decay_length)
+    )
+    return amplitude * numerator / (-math.expm1(-cutoff / decay_length))
 
 
 def compute_motor_forces(
@@ -1046,10 +1076,21 @@ def compute_root_torque_segment_couples_forces(
     body_vertical_edges: np.ndarray | None = None,
     segment_torque_correction: str = "none",
     segment_torque_distribution: str = "fixed_weights",
+    segment_force_placement: str = "distributed",
 ) -> tuple[np.ndarray, MotorForceDiagnostics]:
     """root torque を segment ごとの local force couple として分配する。"""
 
     forces = np.zeros_like(positions_m)
+    if segment_force_placement not in {"distributed", "root_three"}:
+        raise ValueError("Unknown segment force placement")
+    if segment_force_placement == "root_three" and (
+        not full_vector_body_reaction
+        or segment_torque_correction != "none"
+        or segment_torque_distribution != "fixed_weights"
+    ):
+        raise ValueError(
+            "Root localization requires uncorrected fixed weights and full reaction"
+        )
     if len(flagella_indices) == 0:
         return forces, MotorForceDiagnostics()
 
@@ -1083,7 +1124,10 @@ def compute_root_torque_segment_couples_forces(
 
         flag_idx = flag_idx_raw.astype(int, copy=False)
         if flag_idx.size < 5 or body_idx.size < 3:
-            if segment_torque_correction != "none":
+            if (
+                segment_torque_correction != "none"
+                or segment_force_placement == "root_three"
+            ):
                 raise RuntimeError("Segment torque correction: insufficient beads")
             degenerate_count += 1
             continue
@@ -1092,7 +1136,10 @@ def compute_root_torque_segment_couples_forces(
         origin = flag_pts[0]
         axis = _principal_axis_or_none(flag_pts)
         if axis is None or not np.isfinite(origin).all():
-            if segment_torque_correction != "none":
+            if (
+                segment_torque_correction != "none"
+                or segment_force_placement == "root_three"
+            ):
                 raise RuntimeError("Segment torque correction: degenerate axis")
             degenerate_count += 1
             continue
@@ -1158,7 +1205,10 @@ def compute_root_torque_segment_couples_forces(
             flag_force_norms.append(float(np.linalg.norm(force)))
 
         if local_degenerate >= seg_count:
-            if segment_torque_correction != "none":
+            if (
+                segment_torque_correction != "none"
+                or segment_force_placement == "root_three"
+            ):
                 raise RuntimeError("Segment torque correction: degenerate segments")
             degenerate_count += local_degenerate
             continue
@@ -1189,6 +1239,29 @@ def compute_root_torque_segment_couples_forces(
             flag_force_norms = list(np.linalg.norm(flag_forces[flag_idx], axis=1))
         elif segment_torque_correction != "none":
             raise ValueError("Unknown segment torque correction")
+        if segment_force_placement == "root_three":
+            localized, failed, localized_torque, _ = (
+                _zero_net_force_vector_torque_drive(
+                    positions_m=positions_m,
+                    indices=flag_idx[:3],
+                    origin=origin,
+                    target_torque_Nm=applied_flag_torque,
+                )
+            )
+            if failed:
+                raise RuntimeError(
+                    f"Root motor localization failed for flagellum {f_id}"
+                )
+            drive_metrics["motor_root_localization_torque_error_ratio_max"] = max(
+                drive_metrics.get(
+                    "motor_root_localization_torque_error_ratio_max", 0.0
+                ),
+                float(np.linalg.norm(localized_torque - applied_flag_torque))
+                / abs(tau),
+            )
+            # Keep the original full torque for the identical body reaction.
+            flag_forces = localized
+            flag_force_norms = list(np.linalg.norm(localized[flag_idx[:3]], axis=1))
         for name, value in {
             "motor_drive_raw_transverse_ratio_max": np.linalg.norm(
                 raw_torque - np.dot(raw_torque, axis) * axis

@@ -1,0 +1,127 @@
+kind: generic_multi_run
+metadata:
+  role: sweep
+  canonical: false
+  source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/263
+  model_id: 2010_hex_issue263_nf3_physical_comparison
+  description: nf3/slots024の独立5仮説：基準、同一トルク根元局所化、連続反発、接続位置、菌体反発ON。
+development_evaluation:
+  version: 1
+  profile_id: 2010_hex_project
+  stage: short_screen
+  expected_condition_count: 5
+  axes:
+  - physical_hypothesis
+  qc:
+    exclude_diagnostics_from_gate:
+    - hook_angle_err_max_deg
+    required_gates:
+    - finite
+    - shape_body
+    - hook_length
+    - flag
+    - motor
+    max_motor_force_balance_residual_ratio: 1.0e-08
+    max_motor_torque_balance_residual_ratio: 0.02
+  accepted_source_campaigns:
+  - conf/phase2_multi_run/2010_hex_nf3_physics_1tau_issue263.yaml
+  replay:
+    group_by:
+    - n_flagella
+    - physical_hypothesis
+    camera_3d: fixed
+    view_range_mode: campaign-envelope
+    show_flagella_axes: true
+  long_duration:
+    status: requires_short_screen_review
+    duration_s: 1.5
+    reference_tau: 37.5
+    feature_evaluation: separate_issue
+    expected_steps: 375000
+base_config: conf/sim_swim_2010_hex.yaml
+base_overrides:
+  time.duration:
+    value: 1.0
+    unit: tau
+  time.scale_policy: reference_torque
+  time.integration.dt_star: 0.0001
+  motor.torque_Nm: 2.5e-20
+  motor.reference_torque_Nm: 2.5e-20
+  motor.enable_switching: false
+  motor.body_reaction_full_vector: true
+  motor.body_reaction_support: attach_one_ring
+  motor.attach_frame_reaction: energy_gradient
+  motor.local_attach_frame_position_scale: 1.0
+  motor.segment_torque_correction: none
+  motor.segment_torque_distribution: fixed_weights
+  brownian.enabled: false
+  potentials.spring_spring_repulsion.body_flagella_enabled: false
+  potentials.torsion.force_method: analytic
+  flagella.placement_mode: explicit_center_layer_slots
+  flagella.n_flagella: 3
+  flagella.attachment_slots:
+  - 0
+  - 2
+  - 4
+  flagella.initial_hook_force_neutral: true
+  flagella.initial_hook_body_axis_perpendicular: true
+  flagella.initial_phase_offsets_deg:
+  - 0
+  - 0
+  - 0
+  seed.attach_seed: 0
+  seed.phase_seed: 0
+  output.policy: compact
+  output.archive_interval_s: 0.001
+  output.rotation_diagnostics: true
+  flagella.initial_bundle_mode: compact_rear
+  motor.segment_force_placement: distributed
+  potentials.spring_spring_repulsion.force_curve: exponential_cutoff
+  flagella.initial_root_tangent_angle_deg: 0.0
+sweep:
+  axes:
+    physical_hypothesis:
+      short_name: physics
+      keys:
+        placement: motor.segment_force_placement
+        curve: potentials.spring_spring_repulsion.force_curve
+        root_angle: flagella.initial_root_tangent_angle_deg
+        body_contact: potentials.spring_spring_repulsion.body_flagella_enabled
+      values:
+      - placement: distributed
+        curve: exponential_cutoff
+        root_angle: 0.0
+        body_contact: false
+      - placement: root_three
+        curve: exponential_cutoff
+        root_angle: 0.0
+        body_contact: false
+      - placement: distributed
+        curve: continuous_cutoff
+        root_angle: 0.0
+        body_contact: false
+      - placement: distributed
+        curve: exponential_cutoff
+        root_angle: 39.276
+        body_contact: false
+      - placement: distributed
+        curve: exponential_cutoff
+        root_angle: 0.0
+        body_contact: true
+      ids:
+      - nf03__slots024__physical_baseline
+      - nf03__slots024__local_motor
+      - nf03__slots024__continuous_repulsion
+      - nf03__slots024__root_relocated
+      - nf03__slots024__body_repulsion_on
+      labels:
+      - B 基準
+      - M 同一トルク根元局所化
+      - C 反発連続化
+      - G 接続位置
+      - R 菌体反発ON
+output:
+  base_dir: outputs
+  timestamp_subdir: true
+  save_state_archive: true
+  progress_interval: 1000

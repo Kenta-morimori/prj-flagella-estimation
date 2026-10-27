@@ -396,6 +396,7 @@ class FlagellumParams:
     initial_bundle_state_path: str | None = None
     initial_bundle_state_sha256: str | None = None
     initial_phase_offsets_deg: tuple[float, ...] | None = None
+    initial_root_tangent_angle_deg: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -419,6 +420,7 @@ class MotorParams:
     attach_frame_reaction: str = "legacy"
     segment_torque_correction: str = "none"
     segment_torque_distribution: str = "fixed_weights"
+    segment_force_placement: str = "distributed"
     torque_distribution_profile: str = MOTOR_TORQUE_DISTRIBUTION_PROFILE_DEFAULT
     reverse_n_flagella: int = 1
     enable_switching: bool = False
@@ -474,6 +476,7 @@ class SpringSpringRepulsionParams:
     # Keep the historical interaction set by default.  Diagnostic candidates
     # may disable only body-only / flagellum-containing segment interactions.
     body_flagella_enabled: bool = True
+    force_curve: str = "exponential_cutoff"
 
 
 @dataclass(frozen=True)
@@ -989,6 +992,12 @@ class SimulationConfig:
         if self.motor.segment_torque_distribution != "fixed_weights":
             dynamics["segment_torque_distribution"] = (
                 self.motor.segment_torque_distribution
+            )
+        if self.motor.segment_force_placement != "distributed":
+            dynamics["segment_force_placement"] = self.motor.segment_force_placement
+        if self.potentials.spring_spring_repulsion.force_curve != "exponential_cutoff":
+            dynamics["repulsion_force_curve"] = (
+                self.potentials.spring_spring_repulsion.force_curve
             )
         if self.potentials.torsion.force_method != "finite_difference":
             dynamics["torsion_force_method"] = self.potentials.torsion.force_method
@@ -1635,7 +1644,20 @@ class SimulationConfig:
                 if flag_raw.get("initial_phase_offsets_deg") is not None
                 else None
             ),
+            initial_root_tangent_angle_deg=float(
+                _get(flag_raw, "initial_root_tangent_angle_deg", 0.0)
+            ),
         )
+        root_angle = flagella.initial_root_tangent_angle_deg
+        if root_angle != 0.0 and (
+            not math.isfinite(root_angle)
+            or not -90.0 < root_angle < 90.0
+            or flagella.initial_bundle_mode != "compact_rear"
+        ):
+            raise ValueError(
+                "initial_root_tangent_angle_deg requires compact_rear and a finite "
+                "angle strictly between -90 and 90 degrees"
+            )
 
         fluid_raw = raw.get("fluid", {}) or {}
         fluid = FluidParams(
@@ -1686,6 +1708,9 @@ class SimulationConfig:
             ),
             segment_torque_distribution=str(
                 _get(motor_raw, "segment_torque_distribution", "fixed_weights")
+            ),
+            segment_force_placement=str(
+                _get(motor_raw, "segment_force_placement", "distributed")
             ),
             torque_distribution_profile=normalize_motor_torque_distribution_profile(
                 profile_raw
@@ -1763,6 +1788,20 @@ class SimulationConfig:
         if motor.segment_torque_correction not in {"none", "minimum_norm"}:
             raise ValueError(
                 "motor.segment_torque_correction must be none or minimum_norm"
+            )
+        if motor.segment_force_placement not in {"distributed", "root_three"}:
+            raise ValueError(
+                "motor.segment_force_placement must be distributed or root_three"
+            )
+        if motor.segment_force_placement == "root_three" and (
+            motor.force_distribution != "root_torque_segment_couples"
+            or not motor.body_reaction_full_vector
+            or motor.segment_torque_correction != "none"
+            or motor.segment_torque_distribution != "fixed_weights"
+        ):
+            raise ValueError(
+                "root_three requires uncorrected fixed-weight segment couples "
+                "and full-vector body reaction"
             )
         if motor.segment_torque_distribution not in {
             "fixed_weights",
@@ -1901,7 +1940,19 @@ class SimulationConfig:
             a_ss_over_b=float(a_len if a_len is not None else 0.2),
             cutoff_over_b=float(cutoff if cutoff is not None else 0.2),
             body_flagella_enabled=body_flagella_enabled,
+            force_curve=str(rep_raw.get("force_curve", "exponential_cutoff")),
         )
+        if repulsion.force_curve not in {"exponential_cutoff", "continuous_cutoff"}:
+            raise ValueError("Unsupported spring_spring_repulsion.force_curve")
+        if repulsion.force_curve == "continuous_cutoff" and (
+            not math.isfinite(repulsion.a_ss_over_b)
+            or not math.isfinite(repulsion.cutoff_over_b)
+            or repulsion.a_ss_over_b <= 0
+            or repulsion.cutoff_over_b <= 0
+        ):
+            raise ValueError(
+                "continuous_cutoff requires positive finite decay and cutoff"
+            )
 
         potentials = PotentialsParams(
             spring=spring,

@@ -635,7 +635,10 @@ def geometry_preflight(
                 }
             )
         initial_bundle_metrics: dict[str, float] = {}
-        if model.initial_geometry_metadata:
+        if (
+            model.initial_geometry_metadata
+            or cfg.flagella.initial_bundle_mode == "compact_rear"
+        ):
             from sim_swim.model.initial_bundle import initial_bundle_force_metrics
 
             initial_hook_qc.update(initial_bundle_force_metrics(cfg, model))

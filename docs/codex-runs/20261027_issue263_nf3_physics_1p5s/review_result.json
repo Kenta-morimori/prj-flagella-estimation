@@ -1,0 +1,47 @@
+{
+  "status": "PASS",
+  "summary": "nf3/slots024のB/M/C/G/R単独5条件をopt-in実装し、1tau短期screenとユーザー許可済み1.5秒本比較を準備。既定profileは変更せず、共通development_evaluationと短期QC/replayゲートを維持。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "物理モデルの採択ではない。短期screenと本比較の動的QC/結果は未取得。",
+    "本比較は短期strict QCと固定camera replayのレビュー後にenqueueする。queue依存機能がないため先に無条件予約しない。",
+    "追加位置復元処理のmerge前削除は従前の残件として保持。今回比較は全条件scale1.0。"
+  ],
+  "tests_reviewed": [
+    "targeted 84 passed",
+    "full pytest 1094 passed in 209.58s",
+    "ruff format/check PASS",
+    "git diff --check PASS",
+    "旧距離修正commit0017とBの8内部step・座標/6力成分56配列bitwise一致",
+    "1tau/1.5s共通geometry preflight・5workers cs10_qualified dry-run",
+    "固定camera初期previewを視認、Gの剛体並進・hook長/位相/クリアランス保持を確認"
+  ],
+  "tests_not_run": [
+    "Macで1tau/1.5秒の動的screenは実行しない。cs10で予約後に実施。",
+    "torsion追加A/B、重み3方式、複合候補、密集同位相#271は対象外。"
+  ],
+  "user_review_required": true,
+  "user_review_command": "短期QC/replayのレビューを経て、承認済み5条件1.5秒比較を実行。結果の物理採択/mergeはユーザーが判断。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_nf3_physics_runbook.md",
+    "docs/phase2/phase2_263_nf3_physical_comparison_plan.md"
+  ],
+  "user_review_points": [
+    "持続spinだけでなく束維持・前進/回転・停止/後退・根元往復を同時刻で比較する。",
+    "Cの過剰接近/貫通、Gの初期だけの差を改善と混同しない。"
+  ],
+  "adr_required": false,
+  "adr_reason": "未採択物理候補のopt-in比較。既定モデル・contract・採択の変更なし。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "execution_authorized": true,
+  "authorized_duration_s": 1.5,
+  "condition_count": 5,
+  "reservation_created": false,
+  "next_actions": [
+    "固定commitをpushしremote dry-run/入力SHA/queueを確認。",
+    "承認済み短期screenを予約・評価し、PASSとreplayレビュー後に同一commitの1.5秒本比較を予約。"
+  ]
+}

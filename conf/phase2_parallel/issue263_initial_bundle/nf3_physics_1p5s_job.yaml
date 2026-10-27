@@ -1,0 +1,14 @@
+schema_version: 1
+job_id: issue263_nf3_physics_1p5s
+configs:
+- conf/phase2_multi_run/2010_hex_nf3_physics_1p5s_issue263.yaml
+conditions:
+- nf03__slots024__physical_baseline
+- nf03__slots024__local_motor
+- nf03__slots024__continuous_repulsion
+- nf03__slots024__root_relocated
+- nf03__slots024__body_repulsion_on
+preflight: geometry_all_conditions
+execution:
+  max_workers: auto
+  worker_policy: cs10_qualified
