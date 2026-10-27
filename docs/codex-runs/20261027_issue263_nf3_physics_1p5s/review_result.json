@@ -1,11 +1,11 @@
 {
   "status": "PASS",
-  "summary": "nf3/slots024のB/M/C/G/R単独5条件をopt-in実装し、1tau短期screenとユーザー許可済み1.5秒本比較を準備。既定profileは変更せず、共通development_evaluationと短期QC/replayゲートを維持。",
+  "summary": "nf3/slots024の独立5仮説をopt-in実装、短期予約#38を5/5 strictQC PASS・固定camera replayレビュー、同一固定commitで許可済み1.5秒5条件を予約#39として正常開始。物理モデル採択と長期結果評価は未実施。",
   "blocking_issues": [],
   "non_blocking_issues": [
-    "物理モデルの採択ではない。短期screenと本比較の動的QC/結果は未取得。",
-    "本比較は短期strict QCと固定camera replayのレビュー後にenqueueする。queue依存機能がないため先に無条件予約しない。",
-    "追加位置復元処理のmerge前削除は従前の残件として保持。今回比較は全条件scale1.0。"
+    "1.5秒の結果・持続回転/束維持/安定推進は未判定。短期の完全周期は全条件0。",
+    "事前ETAは短期平均速度の外挿。長時間形状/共有負荷で変動する。",
+    "追加位置復元処理/scaleのmerge前削除は従前の残件。今回の全条件はscale1.0。"
   ],
   "tests_reviewed": [
     "targeted 84 passed",
@@ -14,10 +14,13 @@
     "git diff --check PASS",
     "旧距離修正commit0017とBの8内部step・座標/6力成分56配列bitwise一致",
     "1tau/1.5s共通geometry preflight・5workers cs10_qualified dry-run",
-    "固定camera初期previewを視認、Gの剛体並進・hook長/位相/クリアランス保持を確認"
+    "固定camera初期previewを視認、Gの剛体並進・hook長/位相/クリアランス保持を確認",
+    "短期#38：70 portable files/1461804 bytesの集合と全SHA一致",
+    "短期5/5 strictQC PASS、2動画各41frame/25fps・0〜0.04秒全coverage/全SHA確認、固定camera共通視野を視認",
+    "予約#39の固定commit/入力job SHA/実効5workers/5条件runningを照合"
   ],
   "tests_not_run": [
-    "Macで1tau/1.5秒の動的screenは実行しない。cs10で予約後に実施。",
+    "1.5秒本比較の完走後QC/評価は実行中のため未実施。",
     "torsion追加A/B、重み3方式、複合候補、密集同位相#271は対象外。"
   ],
   "user_review_required": true,
@@ -33,15 +36,23 @@
   "adr_required": false,
   "adr_reason": "未採択物理候補のopt-in比較。既定モデル・contract・採択の変更なし。",
   "commit_type": "complete",
-  "commit_hash": null,
-  "push_status": "not_pushed",
+  "commit_hash": "236d6638e7b370183840508c23b8597dff82a483",
+  "push_status": "pushed",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
   "execution_authorized": true,
   "authorized_duration_s": 1.5,
   "condition_count": 5,
-  "reservation_created": false,
+  "reservation_created": true,
   "next_actions": [
-    "固定commitをpushしremote dry-run/入力SHA/queueを確認。",
-    "承認済み短期screenを予約・評価し、PASSとreplayレビュー後に同一commitの1.5秒本比較を予約。"
-  ]
+    "予約#39の完走後に固定commit/5ID/入力/375000step照合とportable同期/全SHA検証。",
+    "run_summary先読、共通strict QC・heatmap・固定camera replayと材料点spin/菌体自転/束/推進/接触/根元往復を同時刻で評価。",
+    "物理採択とmerge前の追加位置復元処理削除は別判断。"
+  ],
+  "execution_commit": "236d6638e7b370183840508c23b8597dff82a483",
+  "short_reservation_id": 38,
+  "short_qc": "5/5 PASS",
+  "long_reservation_id": 39,
+  "long_state": "running",
+  "long_started_at_jst": "2026-10-27T18:34:33.993246+09:00",
+  "expected_completion_jst": "2026-10-28T17:08:29.747147+09:00"
 }

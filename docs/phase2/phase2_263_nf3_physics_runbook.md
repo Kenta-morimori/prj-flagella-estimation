@@ -1,5 +1,29 @@
 # Issue #263：nf3の5仮説・1.5秒比較
 
+## 現在の実行（2026-10-27）
+
+**予約#39が18:34:33 JSTにrunning**。固定実行commitは`236d6638e7b370183840508c23b8597dff82a483`、nf3/slots024のB/M/C/G/R各1.5秒・375000 step、実効5 workers・thread各1。予約前の他running/queuedは0、既存dispatcherを利用し予約の取消/置換/並べ替えやdispatcher変更はしていない。記録用PR headが進んでも、実行commitは置換しない。
+
+短期#38の平均速度を外挿した並列wallは**22.57時間、10/28 17:10 JSTごろ**。待機時間なし。長時間形状・共有負荷で変動するため確定時刻ではない。
+
+remote root：`/net/fs01/volume1/work01/Ktakemori/prj-flagella-estimation/outputs/2026-10-27/183433/parallel/queue-00039-31102ea7__726390e9211e`。予約/開始/ETA証拠はローカル`outputs/2026-10-27/183043/issue263_nf3_physics_short_review/`の`long_reservation.json`、`long_start.json`、`eta.json`。新しい自動チェックは予約していない。
+
+## 先行1τの結果とレビュー
+
+#38は18:28 JSTに5/5完走。固定commit・5ID・入力SHA・各10000連続stepを照合し、portable **70 files・1461804 bytes**の集合/全SHA一致を確認した。`run_summary.json`を先読後、共通strict QC **5/5 PASS**。固定camera・同一視野3D/2D各41 frame・25 fps、全5条件0〜0.04秒coverageと動画SHAを検証した。
+
+| 条件 | flag0積算回転 [回] | 符号付き前方変位 [µm] | 終端束半径 [µm] |
+| --- | ---: | ---: | ---: |
+| B 基準 | 0.135157 | −0.014411 | 0.778667 |
+| M 根元局所化 | 0.134737 | −0.014419 | 0.778667 |
+| C 反発連続化 | 0.135157 | −0.014411 | 0.778667 |
+| G 接続位置 | 0.140735 | +0.000225 | 0.730258 |
+| R 菌体反発ON | 0.106690 | −0.057328 | 0.813592 |
+
+全条件完全周期0。初期過渡の差であり、Gの正値やRの後退から長期の優劣は採択しない。B/Cは保存archiveの全配列が一致し、この短い窓では接触曲線の効果を区別できない。本比較で接触・減速の窓を観察する。
+
+3Dの日本語ラベルは描画fontだけを`Hiragino Sans, DejaVu Sans`へ変更して再生成した（`evaluation_jp/`）。QC CSVは元の評価とbyte一致し、simulation/入力は不変。3D中間/終端の視認で破綻・飛散・視野切れなし。2Dは菌体投影、panel順は上段R/C/M、下段B/G。検証は`replay_verification.json`、ゲート判断は`short_screen_review.json`、短期定量は`short_diagnostics.json`、リンクは`replay_index.md`を参照する。
+
 ## 許可と実行範囲
 
 2026-10-27、ユーザーは5条件の比較設計を概ね了承し、cs10操作・予約を許可した。直後の確認で実行長は「1.5h」ではなく **1.5秒**と確定した。物理モデルの採択、merge、追加の条件探索は含めない。
