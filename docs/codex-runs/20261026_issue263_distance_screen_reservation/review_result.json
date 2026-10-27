@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "summary": "ユーザーの予約許可に基づき、固定0017fbbのnf6距離修正1tau・2条件をcs10予約#37へ登録し、既存dispatcherによる正常開始を確認。残タスクと後続の判断点をrunbookへ整理した。動的なQC/科学的成功は未評価。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "#37はrunning。共通QCとreplayは完走後。",
+    "1秒stageは1tau QC/replayレビュー後の判断のため未予約。",
+    "完了予定は事前外挿で、まだ自条件のcheckpoint実測速度は取得していない。",
+    "ユーザーは今回13:40 JSTの1回確認と完走後のQC/replayを許可した。以降の自動再確認は設定しない。"
+  ],
+  "tests_reviewed": [
+    "準備commitのtargeted63/ light402 PASSを再利用。実行モデルは変更なし。",
+    "remote fixed-commit worktreeのclean状態とsimulationなしparallel dry-runを確認",
+    "job/campaign/base-config/forcesの4ファイルSHA256がlocal/remote一致",
+    "予約前queue unpaused・他active0・既存dispatcher稼働を確認",
+    "#37の固定commit/job一致、launch git0017fbb、2条件dispatch、2workers/thread各1、failed configs0",
+    "既存heartbeatをユーザー承認の13:40 JST・1回確認へ更新"
+  ],
+  "user_review_required": true,
+  "user_review_command": "1tauの完走後に共通QCとreplayを確認し、25tauの機序比較へ進む条件をレビューする。今回の予約に追加の要件確認はない。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_segment_distance_rerun_runbook.md",
+    "outputs/2026-10-26/123600/issue263_distance_screen_reservation/manifest.json"
+  ],
+  "adr_required": false,
+  "adr_reason": "予約・残タスクの記録のみ。実行モデル、設定、contractの変更なし。",
+  "commit_type": "diagnostic",
+  "execution_commit": "0017fbbd922997f32dbad4b40aa5af03da974c92",
+  "queue_id": 37,
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "#37完走後、portable全件照合・run_summary先読・共通strictQC/replay。",
+    "レビュー後に25tau2条件、旧4usとの機序比較。",
+    "結果から採用dt/26条件2秒/観測周期数を判断する。",
+    "モデル確定後に追加位置復元処理/scale削除とマージ前検証・レビュー。"
+  ]
+}

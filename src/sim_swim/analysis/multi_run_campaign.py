@@ -13,11 +13,16 @@ import yaml
 from sim_swim.analysis.flagella_count_behavior import normalize_base_overrides
 from sim_swim.dynamics.forces import compute_hook_forces
 from sim_swim.model.builder import ModelBuilder
-from sim_swim.sim.debug_summary import _triplet_angles_rad
+from sim_swim.sim.debug_summary import (
+    _bundle_metrics,
+    _flag_helix_bundle_radius_stats_um,
+    _triplet_angles_rad,
+)
 from sim_swim.sim.helix_axis import (
     angle_deg_between,
     estimate_body_axis,
     estimate_flag_helix_axis,
+    helix_axis_alignment_metrics,
 )
 from sim_swim.sim.params import SimulationConfig
 
@@ -415,8 +420,14 @@ def geometry_preflight(
             cfg.validate_execution_supported()
             model = ModelBuilder(cfg).build()
             initial_hook_qc: dict[str, Any] = {}
-            if cfg.flagella.initial_hook_force_neutral and model.hook_triplets.size:
-                if cfg.flagella.initial_helix_axis_from_rear_deg == 0.0:
+            if (
+                cfg.flagella.initial_hook_force_neutral
+                or cfg.flagella.initial_bundle_mode == "phase_aligned_rear"
+            ) and model.hook_triplets.size:
+                if (
+                    cfg.flagella.initial_helix_axis_from_rear_deg == 0.0
+                    and cfg.flagella.initial_bundle_mode != "phase_aligned_rear"
+                ):
                     rear = estimate_body_axis(
                         model.positions_m,
                         model.body_layer_indices,
@@ -517,6 +528,15 @@ def geometry_preflight(
                     model.positions_m[triplets[:, 1]]
                     - model.positions_m[triplets[:, 0]]
                 )
+                hook_from_outward_deg = [
+                    angle_deg_between(
+                        hook_vector,
+                        model.positions_m[int(attach_idx)] - body_center,
+                    )
+                    for hook_vector, attach_idx in zip(
+                        hook_vectors, model.flagella_attach_body_indices
+                    )
+                ]
                 axis_error_deg = float(
                     np.max(
                         np.degrees(
@@ -543,18 +563,33 @@ def geometry_preflight(
                             axis_error_deg,
                         ]
                     ).all()
-                    or angle_error_deg > 1e-6
+                    or (
+                        cfg.flagella.initial_bundle_mode == "none"
+                        and angle_error_deg > 1e-6
+                    )
                     or length_error_m > 1e-15
-                    or hook_force_norm_N > 1e-18
+                    or (
+                        cfg.flagella.initial_bundle_mode == "none"
+                        and hook_force_norm_N > 1e-18
+                    )
                     or min_bead_distance_m < 2.0 * model.bead_radius_m - 1e-15
                     or (
                         cfg.flagella.initial_hook_body_axis_perpendicular
                         and min_attachment_bead_distance_m
                         < 2.0 * model.bead_radius_m - 1e-15
                     )
-                    or min_outward_projection_m <= 0.0
+                    or (
+                        cfg.flagella.initial_bundle_mode == "none"
+                        and min_outward_projection_m <= 0.0
+                    )
+                    or (
+                        cfg.flagella.initial_bundle_mode
+                        in {"compact_rear", "phase_aligned_rear"}
+                        and min_outward_projection_m < -1e-20
+                    )
                     or (
                         cfg.flagella.initial_hook_body_axis_perpendicular
+                        and cfg.flagella.initial_bundle_mode == "none"
                         and axis_error_deg > 1e-6
                     )
                 ):
@@ -573,6 +608,7 @@ def geometry_preflight(
                         "initial_min_attachment_bead_distance_m": min_attachment_bead_distance_m,
                         "initial_min_outward_projection_m2": min_outward_projection_m,
                         "initial_hook_body_axis_error_deg": axis_error_deg,
+                        "initial_hook_from_outward_deg": hook_from_outward_deg,
                     }
                 )
         except Exception as exc:
@@ -598,8 +634,45 @@ def geometry_preflight(
                     **location,
                 }
             )
+        initial_bundle_metrics: dict[str, float] = {}
+        if model.initial_geometry_metadata:
+            from sim_swim.model.initial_bundle import initial_bundle_force_metrics
+
+            initial_hook_qc.update(initial_bundle_force_metrics(cfg, model))
+        if model.flagella_indices:
+            body_geometry = estimate_body_axis(
+                model.positions_m, model.body_layer_indices, model.body_indices
+            )
+            helix_axes = [
+                estimate_flag_helix_axis(model.positions_m, ids, flag_id).axis
+                for flag_id, ids in enumerate(model.flagella_indices)
+            ]
+            alignment = helix_axis_alignment_metrics(helix_axes)
+            bundle = _bundle_metrics(
+                model.positions_m,
+                model,
+                cfg,
+                body_geometry.axis,
+                body_geometry.rear_direction,
+            )
+            bundle_radius_um, _ = _flag_helix_bundle_radius_stats_um(
+                model.positions_m, model.flagella_indices
+            )
+            initial_bundle_metrics = {
+                "initial_bundle_radius_mean_um": bundle_radius_um,
+                "initial_bundle_rear_angle_deg": bundle[
+                    "bundle_axis_vs_rear_angle_deg"
+                ],
+                "initial_helix_pair_angle_mean_deg": alignment.pair_angle_deg_mean,
+            }
         records[condition_id] = {
             "placement_mode": str(cfg.flagella.placement_mode),
+            "initial_bundle_mode": str(cfg.flagella.initial_bundle_mode),
+            "initial_phase_offsets_deg": (
+                list(cfg.flagella.initial_phase_offsets_deg)
+                if cfg.flagella.initial_phase_offsets_deg is not None
+                else None
+            ),
             "initial_hook_force_neutral": bool(cfg.flagella.initial_hook_force_neutral),
             "initial_hook_body_axis_perpendicular": bool(
                 cfg.flagella.initial_hook_body_axis_perpendicular
@@ -613,7 +686,9 @@ def geometry_preflight(
             "phase_seed": cfg.seed.phase_seed,
             "n_flagella": int(cfg.flagella.n_flagella),
             "attachments": attachment,
+            **initial_bundle_metrics,
             **initial_hook_qc,
+            "initial_geometry_state": model.initial_geometry_metadata,
         }
     return records
 

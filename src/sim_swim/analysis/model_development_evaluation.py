@@ -267,15 +267,22 @@ def _row(
     performance = _read_json(output_dir / "performance.json")
     axes = dict(record.get("axis_values", {}) or {})
     time = dict(record.get("time", {}) or {})
+    overrides = dict(record.get("config_overrides", {}) or {})
+    flagella = dict(overrides.get("flagella", {}) or {})
+    motor = dict(overrides.get("motor", {}) or {})
     first_failure_category, first_failure_at = _first_failure(summary)
     values: dict[str, Any] = {
         "condition_id": str(record["condition_id"]),
-        "n_flagella": int(axes["n_flagella"]),
+        "n_flagella": int(
+            axes["n_flagella"] if "n_flagella" in axes else flagella["n_flagella"]
+        ),
         "attachment_pattern": str(axes.get("attachment_pattern", "")),
         "attachment_pattern_label": str(
             dict(record.get("axis_labels", {}) or {}).get("attachment_pattern", "")
         ),
-        "attachment_slots": json.dumps(axes.get("attachment_slots", [])),
+        "attachment_slots": json.dumps(
+            axes.get("attachment_slots", flagella.get("attachment_slots", []))
+        ),
         "body_reaction_full_vector": axes.get("body_reaction_full_vector", ""),
         "screen_status": screen_status(summary, qc=qc),
         "raw_nonbody_any_fail": _gate_failed(summary, "shape_nonbody"),
@@ -300,7 +307,11 @@ def _row(
     if stage == "short_screen":
         values.update(
             {
-                "torque_Nm": float(axes["motor_torque"]),
+                "torque_Nm": float(
+                    axes["motor_torque"]
+                    if "motor_torque" in axes
+                    else motor["torque_Nm"]
+                ),
                 "dt_star": float(time["dt_star"]),
                 "dt_internal_s": float(time["dt_internal_s"]),
             }
@@ -309,7 +320,7 @@ def _row(
         values.update(
             {
                 "duration_s": float(time.get("duration_s", 0.0)),
-                "full_ring_rotation_equivalent": int(axes["n_flagella"]) == 6,
+                "full_ring_rotation_equivalent": values["n_flagella"] == 6,
                 "run_summary_sha256": _sha256(output_dir / "run_summary.json"),
                 "performance_sha256": _sha256(output_dir / "performance.json"),
                 "state_archive_sha256": _sha256(output_dir / "state_archive.npz"),
@@ -554,32 +565,40 @@ def _plot_attachment_patterns(rows: list[dict[str, Any]], output_path: Path) -> 
     import matplotlib.pyplot as plt
     from matplotlib.colors import BoundaryNorm, ListedColormap
 
-    patterns = sorted(
-        {str(row["attachment_pattern"]) for row in rows},
-        key=lambda pattern: (
-            next(
-                int(row["n_flagella"])
-                for row in rows
-                if row["attachment_pattern"] == pattern
-            ),
-            pattern,
+    # An attachment pattern can have multiple interaction/mechanism arms.
+    # Preserve each condition instead of letting the last arm replace a cell.
+    columns = sorted(
+        rows,
+        key=lambda row: (
+            int(row["n_flagella"]),
+            str(row["attachment_pattern"]),
+            str(row["condition_id"]),
         ),
     )
-    labels = {
-        str(row["attachment_pattern"]): str(row["attachment_pattern_label"])
+    condition_ids = [str(row["condition_id"]) for row in columns]
+    if len(set(condition_ids)) != len(condition_ids):
+        raise ValueError("Duplicate condition IDs in attachment heatmap")
+    pattern_counts = {
+        str(row["attachment_pattern"]): sum(
+            other["attachment_pattern"] == row["attachment_pattern"] for other in rows
+        )
         for row in rows
     }
+    labels = [
+        str(row["attachment_pattern_label"])
+        if pattern_counts[str(row["attachment_pattern"])] == 1
+        else f"{row['attachment_pattern_label']}\n{row['condition_id']}"
+        for row in columns
+    ]
     counts = sorted({int(row["n_flagella"]) for row in rows})
-    by_cell = {
-        (int(row["n_flagella"]), str(row["attachment_pattern"])): row for row in rows
-    }
+    by_cell = {(int(row["n_flagella"]), str(row["condition_id"])): row for row in rows}
     panels = (("screen_status", "screen status"),) + SCREEN_METRICS
     figure, axes = plt.subplots(3, 3, figsize=(22, 13), constrained_layout=True)
     for axis, (metric, label) in zip(axes.flat, panels, strict=False):
-        matrix = np.full((len(counts), len(patterns)), np.nan)
+        matrix = np.full((len(counts), len(condition_ids)), np.nan)
         for row_index, count in enumerate(counts):
-            for column_index, pattern in enumerate(patterns):
-                row = by_cell.get((count, pattern))
+            for column_index, condition_id in enumerate(condition_ids):
+                row = by_cell.get((count, condition_id))
                 if row is None:
                     continue
                 value = row[metric]
@@ -605,7 +624,7 @@ def _plot_attachment_patterns(rows: list[dict[str, Any]], output_path: Path) -> 
             image = axis.imshow(matrix, aspect="auto", cmap=cmap)
             figure.colorbar(image, ax=axis, shrink=0.8)
         axis.set_title(label, fontsize=10)
-        axis.set_xticks(range(len(patterns)), [labels[pattern] for pattern in patterns])
+        axis.set_xticks(range(len(condition_ids)), labels)
         axis.set_yticks(range(len(counts)), [f"n={count}" for count in counts])
         axis.tick_params(axis="x", labelrotation=60, labelsize=7)
         axis.set_xlabel("canonical attachment slots (C6 rotations identified)")
@@ -801,13 +820,26 @@ def _render_replays(
             for n_flagella in sorted({int(row["n_flagella"]) for row in rows})
         ]
     elif stage == "long_duration":
-        groups = [
-            (
-                f"nf{int(row['n_flagella']):02d}/as{int(row['attach_seed']):03d}_ps{int(row['phase_seed']):03d}",
-                [row["condition_id"]],
-            )
-            for row in rows
-        ]
+        if all("attach_seed" in row and "phase_seed" in row for row in rows):
+            groups = [
+                (
+                    f"nf{int(row['n_flagella']):02d}/as{int(row['attach_seed']):03d}_ps{int(row['phase_seed']):03d}",
+                    [row["condition_id"]],
+                )
+                for row in rows
+            ]
+        else:
+            groups = [
+                (
+                    f"nf{n_flagella:02d}",
+                    [
+                        row["condition_id"]
+                        for row in rows
+                        if int(row["n_flagella"]) == n_flagella
+                    ],
+                )
+                for n_flagella in sorted({int(row["n_flagella"]) for row in rows})
+            ]
     for group_name, selected in groups:
         destination = output_dir / "replay" / group_name
         args = [
@@ -871,6 +903,12 @@ def build_evaluation(
         path = heatmap_dir / "attachment_patterns_qc.png"
         _plot_attachment_patterns(rows, path)
         outputs["attachment_pattern_heatmap"] = path
+        for count in sorted({int(row["n_flagella"]) for row in rows}):
+            path = heatmap_dir / f"nf{count:02d}_attachment_patterns_qc.png"
+            _plot_attachment_patterns(
+                [row for row in rows if int(row["n_flagella"]) == count], path
+            )
+            outputs[f"heatmap_nf{count:02d}"] = path
     elif stage == "short_screen":
         heatmap_dir = output_dir / "heatmaps"
         heatmap_dir.mkdir(exist_ok=True)

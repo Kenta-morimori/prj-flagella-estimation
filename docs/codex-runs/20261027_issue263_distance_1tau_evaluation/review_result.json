@@ -1,0 +1,47 @@
+{
+  "status": "PASS",
+  "summary": "VPN復旧後にcs10予約#37の固定commit/2条件/10000・20000stepの完走を照合。portable31ファイル全件SHA一致、共通strictQC2/2PASS、固定camera3D/2D replay計6本と定量診断を生成・確認。1tauの初期評価完了であり、減速解消や遊泳成立の採択ではない。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "1tauは約0.167回転で完全周期0。0.4〜0.8秒の減速は未観測。",
+    "1tauでは全stepの反発力が0のため距離修正による接触機序への効果は未評価。",
+    "1秒stage/26条件2秒は未予約。QC/replayのユーザーレビュー後に判断。",
+    "追加位置復元処理/scale削除、科学的採択、mergeは残作業。"
+  ],
+  "tests_reviewed": [
+    "queue/job succeeded、固定0017fbb、2ID、job/campaign/base config/forces SHA一致",
+    "portable31files/646080bytesの集合・件数・全SHA一致",
+    "両run_summary先読、planned10000/20000step連続・終端0.04秒",
+    "固定commitの共通development_evaluation strictQC2/2PASSと本数別heatmap",
+    "共通bundle_rotation、材料点spin/菌体自転/符号付き前進/束幅・軸角/根元腕",
+    "2条件×41保存状態の正しいsegment距離と全step反発力集約を照合",
+    "旧#35 nf6 OFFの共通QC/archive/summary hash再照合と0〜0.04秒対照",
+    "6MP4全て41frames/25fps、固定camera・共通視野・source coverage0〜0.04秒、全SHA",
+    "3D/2Dの初期・中間・終端frame目視、日本語font修正後に再生成/再検証",
+    "解析はgit archive固定sourceのPYTHONPATHを使用しcode_provenance.jsonへhash保存",
+    "Markdown参照とgit diff --check"
+  ],
+  "tests_not_run": [
+    "新規simulation/benchmark、1秒stage、26条件2秒は未実行。",
+    "物理source変更のない評価/文書のみのためfull pytestは未実行。"
+  ],
+  "user_review_required": true,
+  "user_review_command": "ローカルreplay_index.mdと結果文書でQC/初期挙動をレビューし、準備済みnf6距離修正25tauの2条件を予約するか判断する。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_segment_distance_1tau_result.md",
+    "outputs/2026-10-27/094100/issue263_distance_1tau_review/replay_index.md",
+    "outputs/2026-10-27/094100/issue263_distance_1tau_review/manifest.json"
+  ],
+  "adr_required": false,
+  "adr_reason": "既存モデルの固定commit実行結果と診断の記録。新しい物理/contract/採択の変更なし。",
+  "commit_type": "diagnostic",
+  "execution_commit": "0017fbbd922997f32dbad4b40aa5af03da974c92",
+  "queue_id": 37,
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "1tauQC/replayのユーザーレビュー",
+    "承認後に準備済み25tau2条件を予約し、旧4usの保存対照と同時刻の接触/回転を比較",
+    "採用dtと26条件2秒の条件/費用を確定",
+    "モデル採択と追加位置復元処理/scale削除を含むマージ前整理"
+  ]
+}

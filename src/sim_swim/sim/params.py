@@ -392,6 +392,10 @@ class FlagellumParams:
     initial_helix_axis_from_rear_deg: float | None = None
     initial_hook_force_neutral: bool = False
     initial_hook_body_axis_perpendicular: bool = False
+    initial_bundle_mode: str = "none"
+    initial_bundle_state_path: str | None = None
+    initial_bundle_state_sha256: str | None = None
+    initial_phase_offsets_deg: tuple[float, ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -414,6 +418,7 @@ class MotorParams:
     body_reaction_support: str = "all_body"
     attach_frame_reaction: str = "legacy"
     segment_torque_correction: str = "none"
+    segment_torque_distribution: str = "fixed_weights"
     torque_distribution_profile: str = MOTOR_TORQUE_DISTRIBUTION_PROFILE_DEFAULT
     reverse_n_flagella: int = 1
     enable_switching: bool = False
@@ -982,6 +987,10 @@ class SimulationConfig:
             dynamics["attach_frame_reaction"] = self.motor.attach_frame_reaction
         if self.motor.segment_torque_correction != "none":
             dynamics["segment_torque_correction"] = self.motor.segment_torque_correction
+        if self.motor.segment_torque_distribution != "fixed_weights":
+            dynamics["segment_torque_distribution"] = (
+                self.motor.segment_torque_distribution
+            )
         if self.potentials.torsion.force_method != "finite_difference":
             dynamics["torsion_force_method"] = self.potentials.torsion.force_method
         if force_distribution == "hook_coupled_body_reaction":
@@ -1611,6 +1620,22 @@ class SimulationConfig:
             initial_hook_body_axis_perpendicular=bool(
                 _get(flag_raw, "initial_hook_body_axis_perpendicular", False)
             ),
+            initial_bundle_mode=str(_get(flag_raw, "initial_bundle_mode", "none")),
+            initial_bundle_state_path=(
+                str(flag_raw["initial_bundle_state_path"])
+                if flag_raw.get("initial_bundle_state_path") not in (None, "")
+                else None
+            ),
+            initial_bundle_state_sha256=(
+                str(flag_raw["initial_bundle_state_sha256"])
+                if flag_raw.get("initial_bundle_state_sha256") not in (None, "")
+                else None
+            ),
+            initial_phase_offsets_deg=(
+                tuple(float(value) for value in flag_raw["initial_phase_offsets_deg"])
+                if flag_raw.get("initial_phase_offsets_deg") is not None
+                else None
+            ),
         )
 
         fluid_raw = raw.get("fluid", {}) or {}
@@ -1659,6 +1684,9 @@ class SimulationConfig:
             ),
             segment_torque_correction=str(
                 _get(motor_raw, "segment_torque_correction", "none")
+            ),
+            segment_torque_distribution=str(
+                _get(motor_raw, "segment_torque_distribution", "fixed_weights")
             ),
             torque_distribution_profile=normalize_motor_torque_distribution_profile(
                 profile_raw
@@ -1736,6 +1764,30 @@ class SimulationConfig:
         if motor.segment_torque_correction not in {"none", "minimum_norm"}:
             raise ValueError(
                 "motor.segment_torque_correction must be none or minimum_norm"
+            )
+        if motor.segment_torque_distribution not in {
+            "fixed_weights",
+            "arm_weighted_minimum_norm",
+        }:
+            raise ValueError(
+                "motor.segment_torque_distribution must be fixed_weights or "
+                "arm_weighted_minimum_norm"
+            )
+        if motor.segment_torque_distribution != "fixed_weights" and (
+            motor.force_distribution != "root_torque_segment_couples"
+            or not motor.body_reaction_full_vector
+        ):
+            raise ValueError(
+                "arm_weighted_minimum_norm requires segment couples and "
+                "full-vector reaction"
+            )
+        if (
+            motor.segment_torque_distribution != "fixed_weights"
+            and motor.segment_torque_correction != "none"
+        ):
+            raise ValueError(
+                "arm_weighted_minimum_norm and segment_torque_correction "
+                "must be evaluated separately"
             )
         if (
             motor.attach_frame_reaction == "energy_gradient"

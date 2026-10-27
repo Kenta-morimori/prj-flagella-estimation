@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "summary": "Issue #263の5条件1τ機序screenを固定commit 949560eで完了。5/5完走、portable 60ファイルの集合・SHA-256一致、共通QC 5/5 PASS、固定camera replayと束回転診断を確認。完全回転は0回。compact系3条件は初期過渡に前進速度が負となり、frame復元条件も終端でほぼ停止した。ユーザーは同じ5条件の25τ比較を選択した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "1τでは完全回転0回のため束維持、16τ付近の失速、定常遊泳を判定できない。",
+    "符号付き前進速度の逆転は初期過渡であり、持続的な後退とは判断しない。",
+    "物理候補の採択、canonical freeze、2秒以上の実行条件は未確定。"
+  ],
+  "tests_reviewed": [
+    "cs10 queue #30: fixed simulation commit 949560e7d339234bd7c3b788341ddc8f5814ee5c, 5/5 completed, each 10000 steps / 0.04 s",
+    "portable 60 files: exact remote/local file set and SHA-256 match; operational logs excluded",
+    "five run_summary.json completed before detailed analysis",
+    "development_evaluation: 5/5 PASS; fixed-camera 3D/2D replay 41 frames each",
+    "bundle_rotation: five QC-PASS archives analyzed, zero complete turns; motor root arm and signed forward speed reviewed"
+  ],
+  "user_review_required": false,
+  "user_review_result": "User selected the five-condition 25τ observation after the 1τ QC, replay, and signed forward-speed result were presented.",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_parallel_hypotheses.md",
+    "outputs/2026-10-19/121100/issue263_mechanism_screen/manifest.json",
+    "outputs/2026-10-19/121100/issue263_mechanism_screen/evaluation/replay/",
+    "outputs/2026-10-19/121100/issue263_mechanism_screen/bundle_rotation/bundle_rotation_timeseries.csv"
+  ],
+  "adr_required": true,
+  "adr_reason": "Opt-in motor分配候補の設計はdocs/adr/0028_phase2_arm_weighted_motor_candidate.mdに記録済み。採択は保留。",
+  "commit_type": "diagnostic",
+  "commit_hash": "d15f4b65607cb7f179df693c5730542110b0b66f",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "cs10 queue #31の固定commit 86730223478058e002c9ac5fe9947fa96ff22d32での5条件25τ完走を監視する",
+    "完走後に共通QC、固定camera replay、束・回転・菌体自転・前進の同時刻比較を行う"
+  ]
+}

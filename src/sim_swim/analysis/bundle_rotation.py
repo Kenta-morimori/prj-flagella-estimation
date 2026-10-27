@@ -15,6 +15,7 @@ from pathlib import Path
 import numpy as np
 
 from sim_swim.analysis.multi_run_campaign import load_yaml
+from sim_swim.dynamics.forces import _principal_axis_or_none
 from sim_swim.model.builder import ModelBuilder
 from sim_swim.sim.debug_summary import (
     _bundle_metrics,
@@ -50,6 +51,21 @@ def section_spreads(points: np.ndarray, indices: list[np.ndarray]) -> dict[str, 
             np.sqrt(np.mean(radius**2)) * 1e6
         )
     return values
+
+
+def motor_root_lateral_arms_um(
+    points: np.ndarray, indices: list[np.ndarray]
+) -> np.ndarray:
+    """Saved-state first segment arms relative to the motor's fitted flag axis."""
+    arms = np.full(len(indices), np.nan)
+    for flag_id, ids in enumerate(indices):
+        chain = points[ids]
+        axis = _principal_axis_or_none(chain)
+        if axis is None or len(chain) < 2:
+            continue
+        segment = chain[0] - chain[1]
+        arms[flag_id] = np.linalg.norm(segment - np.dot(segment, axis) * axis) * 1e6
+    return arms
 
 
 def write_csv(path, rows):
@@ -91,14 +107,28 @@ def completed_rotation_cycles(rows: list[dict], n_flags: int) -> tuple[list[dict
         return [], "unavailable: invalid rotation phase"
     direction = np.sign(phase[-1] - phase[0])
     progress = direction * (phase - phase[0])
-    if direction == 0 or np.any(np.diff(progress) <= 0):
+    # A completed run can append its final state after the last regular archive
+    # sample.  The two timestamps differ by roundoff while the phase is identical.
+    # Exclude only that near-duplicate from the strictly monotone phase clock;
+    # a real plateau or reversal over an archive interval remains unavailable.
+    near_duplicate = (
+        (np.diff(times) >= 0)
+        & (np.diff(times) <= 1e-9)
+        & (np.abs(np.diff(progress)) <= 1e-12)
+    )
+    keep = np.r_[True, ~near_duplicate]
+    clock_times = times[keep]
+    clock_progress = progress[keep]
+    if direction == 0 or np.any(np.diff(clock_progress) <= 0):
         return [], "unavailable: non-monotone rotation"
-    if np.max(np.diff(progress)) >= np.pi / 2:
+    if np.max(np.diff(clock_progress)) >= np.pi / 2:
         return [], "unavailable: geometry sampling does not resolve a rotation cycle"
-    turns = int(np.floor(progress[-1] / (2 * np.pi)))
+    turns = int(np.floor(clock_progress[-1] / (2 * np.pi)))
     if turns < 1:
         return [], "unavailable: less than one completed turn"
-    boundaries = np.interp(np.arange(turns + 1) * 2 * np.pi, progress, times)
+    boundaries = np.interp(
+        np.arange(turns + 1) * 2 * np.pi, clock_progress, clock_times
+    )
     records = []
     for i, (start, end) in enumerate(zip(boundaries[:-1], boundaries[1:]), 1):
         selected = [r for r in rows if start <= r["t_s"] <= end]
@@ -115,7 +145,13 @@ def completed_rotation_cycles(rows: list[dict], n_flags: int) -> tuple[list[dict
             "bundle_radius_mean_um",
             "helix_pair_angle_mean_deg",
             "bundle_rear_angle_deg",
+            "contour_0.75_spread_um",
+            "contour_1.00_spread_um",
+            "speed_um_s",
+            "forward_speed_um_s",
         ):
+            if not all(key in row for row in rows):
+                continue
             values = np.array([r[key] for r in rows])
             first, last = np.interp([start, end], times, values)
             record[key + "_start"] = float(first)
@@ -123,6 +159,20 @@ def completed_rotation_cycles(rows: list[dict], n_flags: int) -> tuple[list[dict
             record[key + "_boundary_change"] = float(last - first)
             record[key + "_mean"] = (
                 float(np.mean([r[key] for r in selected])) if selected else float("nan")
+            )
+        if all("forward_speed_um_s" in row for row in rows):
+            sample_times = np.r_[start, times[(times > start) & (times < end)], end]
+            forward_speed = np.interp(
+                sample_times,
+                times,
+                [r["forward_speed_um_s"] for r in rows],
+            )
+            record["forward_displacement_um"] = float(
+                np.sum(
+                    0.5
+                    * (forward_speed[:-1] + forward_speed[1:])
+                    * np.diff(sample_times)
+                )
             )
         for flag in range(n_flags):
             values = np.array([r[f"flag{flag}_phase_rad"] for r in rows])
@@ -202,6 +252,8 @@ def analyze(run_dir: Path, evaluation_dir: Path, output_dir: Path):
             alignment = helix_axis_alignment_metrics([h.axis for h in helix])
             bundle = _bundle_metrics(p, model, cfg, body.axis, body.rear_direction)
             radius = _flag_helix_bundle_radius_stats_um(p, model.flagella_indices)[0]
+            root_arms = motor_root_lateral_arms_um(p, model.flagella_indices)
+            finite_root_arms = root_arms[np.isfinite(root_arms)]
             angle = (
                 angle_deg_between(velocity[j], body.axis)
                 if speed[j] > floor
@@ -215,12 +267,17 @@ def analyze(run_dir: Path, evaluation_dir: Path, output_dir: Path):
                 "helix_pair_angle_mean_deg": alignment.pair_angle_deg_mean,
                 "helix_pair_angle_max_deg": alignment.pair_angle_deg_max,
                 "speed_um_s": float(speed[j]),
+                "forward_speed_um_s": float(np.dot(velocity[j], body.axis) * 1e6),
+                "motor_root_min_lateral_arm_um": (
+                    float(finite_root_arms.min()) if finite_root_arms.size else np.nan
+                ),
                 "travel_body_axis_angle_deg": min(angle, 180 - angle)
                 if np.isfinite(angle)
                 else np.nan,
                 **section_spreads(p, model.flagella_indices),
             }
             for i in range(cfg.flagella.n_flagella):
+                row[f"flag{i}_motor_root_lateral_arm_um"] = float(root_arms[i])
                 row[f"flag{i}_phase_rad"] = float(phases[j, i])
                 row[f"flag{i}_omega_rad_s"] = float(angular_speed[j, i])
                 row[f"flag{i}_valid"] = bool(valid[j, i])
@@ -253,12 +310,24 @@ def analyze(run_dir: Path, evaluation_dir: Path, output_dir: Path):
                 "helix_pair_angle_max_deg",
                 "travel_body_axis_angle_deg",
                 "speed_um_s",
+                "forward_speed_um_s",
             ]:
                 data = np.array([r[key] for r in window])
                 item[key + "_median"] = float(np.nanmedian(data))
                 item[key + "_p95"] = float(np.nanpercentile(data, 95))
             sp = np.array([r["speed_um_s"] for r in window])
             item["speed_cv"] = float(np.std(sp) / max(np.mean(sp), 1e-30))
+            item["forward_sample_fraction"] = float(
+                np.mean([r["forward_speed_um_s"] > 0 for r in window])
+            )
+            root_arms = np.array([r["motor_root_min_lateral_arm_um"] for r in window])
+            finite_root_arms = root_arms[np.isfinite(root_arms)]
+            item["motor_root_min_lateral_arm_um_min"] = (
+                float(finite_root_arms.min()) if finite_root_arms.size else np.nan
+            )
+            item["motor_root_min_lateral_arm_um_median"] = (
+                float(np.median(finite_root_arms)) if finite_root_arms.size else np.nan
+            )
             for i in range(cfg.flagella.n_flagella):
                 phase = np.array([r[f"flag{i}_phase_rad"] for r in window])
                 omega = np.array([r[f"flag{i}_omega_rad_s"] for r in window])

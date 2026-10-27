@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "summary": "予約#34の26条件完走・固定commit照合・portable291件SHA一致・共通strict QC26/26PASS・14本固定camera replayとQC-PASS archive診断を完了。表示上のarm上書きを共通heatmapで修正。モデル採択・2秒予約は含まない。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "1τで完全回転0、定常性・長時間の反発効果は未判定。",
+    "online PCA-frame rollとlabel付き菌体材料点spinを区別。",
+    "2秒stageはQC/replayユーザーレビュー後。",
+    "追加位置復元処理・scale削除はマージ前に残る。"
+  ],
+  "tests_reviewed": [
+    "fixedcommit・26ID・job/campaign SHA照合",
+    "291ファイル/8974401bytes remote-local集合・SHA256全件一致",
+    "全run_summary先読、10000連続step・完走、全step finite/body/nonbody履歴PASS",
+    "共通strict QC26/26PASS",
+    "14 MP4 x41frame・25fps、固定camera・全26条件coverageとSHA検証",
+    "QC-PASS archive束/回転/前進・共通rigid-fit菌体材料点診断",
+    "heatmap regression・共通評価targeted21 PASS、ruff/diffcheck PASS"
+  ],
+  "user_review_required": false,
+  "user_review_command": "2026-10-21ユーザーが短期結果提示後の2秒実行を明示承認。合意済み2秒までの予約・開始の再承認待ちは不要。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_compact_count_contact_short_result.md",
+    "outputs/2026-10-21/002200/issue263_compact_count_contact/manifest.json",
+    "outputs/2026-10-21/002200/issue263_compact_count_contact/evaluation/replay"
+  ],
+  "adr_required": false,
+  "adr_reason": "評価・表示修正と結果記録。物理式・既定profile・モデル採択は変更なし。",
+  "commit_type": "diagnostic",
+  "execution_commit": "71ed7529d362474235b931494af6cafcf3fe2edf",
+  "queue_id": 34,
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "2秒予約#35の進捗を監視し、完走後に共通QC・replay・周期診断。"
+  ],
+  "user_review_outcome": "2秒26条件を承認。予約#35、固定71ed752。"
+}

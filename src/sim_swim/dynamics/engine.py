@@ -1088,6 +1088,9 @@ class DynamicsEngine:
                     ),
                     body_reaction_support=self.cfg.motor.body_reaction_support,
                     segment_torque_correction=self.cfg.motor.segment_torque_correction,
+                    segment_torque_distribution=(
+                        self.cfg.motor.segment_torque_distribution
+                    ),
                     flagella_attach_body_indices=(
                         self.model.flagella_attach_body_indices
                     ),
