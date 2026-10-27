@@ -1,0 +1,36 @@
+{
+  "status": "PASS",
+  "summary": "ユーザーの概ね了承を受け、nf3/slots024のB/M/C/G/R・各1秒について、固定条件・単一差分・先行screen・並列worker・費用・評価・予約前の未完了準備を既存計画へ要約。実行予約は未許可として保持し、cs10操作や新runtime実装は行っていない。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "M/C/Gのruntime実装、1tau/1s campaign/parallel YAML、test/preflight/preview/dry-runが未完了。予約可能な固定commitは未確定。",
+    "ユーザーは実行条件の要約を求め、予約はその後の明示許可としている。現時点で予約しない。",
+    "約15hは旧nf3 ON速度からの参考値。新候補で未測定、先行screenで更新。"
+  ],
+  "tests_reviewed": [
+    "clean feature branchと現PR headを確認",
+    "Issue target cs10_user_run/execution:cs10/MilestonePhase2を確認",
+    "既存計画・静的確認・runtime configの有無を照合",
+    "5x250000=1250000step、short5x10000=50000stepの範囲を確認",
+    "変更Markdownのローカル参照とgit diff --check"
+  ],
+  "tests_not_run": [
+    "実行条件要約のみのため新規simulation/cs10操作/runtime実装なし。",
+    "docs-onlyのためfull pytestは未実行。"
+  ],
+  "user_review_required": true,
+  "user_review_command": "実行条件一覧を確認する。予約の許可を求める前にruntime実装/検証と固定commit・job/範囲を提示する。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_nf3_physical_comparison_plan.md",
+    "docs/phase2/phase2_263_parallel_hypotheses.md"
+  ],
+  "adr_required": false,
+  "adr_reason": "実行案の要約・承認範囲の記録。物理モデル/contract/採択変更なし。",
+  "commit_type": "docs",
+  "comparison_design_accepted_in_principle": true,
+  "comparison_condition_count": 5,
+  "execution_authorized": false,
+  "reservation_created": false,
+  "execution_commit": null,
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264"
+}
