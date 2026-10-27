@@ -8,6 +8,8 @@
 
 実行targetはIssue #263の`cs10_user_run` / `execution:cs10`。予約#37の固定commitは **`0017fbbd922997f32dbad4b40aa5af03da974c92`**、対象は`nf6_segment_distance_1tau_job.yaml`。予約前にremoteでもsimulationなしdry-runと入力SHA一致を確認した。記録用のPR headが進んでも、この予約commitを置換しない。
 
+目的・非接触を含む仮説と、数値対照/物理改善の検証順は[総合計画](phase2_263_parallel_hypotheses.md)を参照。1秒2条件だけで根元/hook/motor等の物理改善を比較する構成ではない。
+
 ## 予約#37と実行範囲
 
 - ユーザーの2026-10-26の予約指示を根拠に、12:36:29 JST、priority 0でenqueueした。直前のqueueはunpaused、他のrunning/queuedは0だった。

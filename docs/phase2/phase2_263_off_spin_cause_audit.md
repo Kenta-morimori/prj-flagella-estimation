@@ -1,6 +1,6 @@
 # Issue #263：菌体–べん毛反発OFFでも束が鈍る原因の監査
 
-追記：ユーザー指示により、[距離計算の修正と再実行準備](phase2_263_segment_distance_rerun_runbook.md)まで進めた。以下は修正前#35の原因監査記録。新しい動的対照は未実行・未予約で、軌道に対する寄与の分離は引き続き未完了。
+追記：ユーザー指示により、[距離計算の修正と再実行準備](phase2_263_segment_distance_rerun_runbook.md)まで進めた。以下は修正前#35の原因監査記録。修正後の0.04秒screenは[2/2 QC PASS](phase2_263_segment_distance_1tau_result.md)。減速時刻を含む1秒対照は未実行・未予約で、軌道に対する寄与の分離は引き続き未完了。
 
 > 接触計算とは独立した菌体のstop-goの証拠と、hook/motor等の次の仮説は[非接触機序の診断](phase2_263_noncontact_mechanism_hypotheses.md)を参照。nf1の結果であり、以下のnf6減速とは区別する。
 

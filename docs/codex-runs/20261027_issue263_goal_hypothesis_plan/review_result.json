@@ -1,0 +1,40 @@
+{
+  "status": "PASS",
+  "summary": "ユーザーの状況整理依頼に対し、束・回転・推進の目的、距離修正後に未検証の範囲、非接触stop-goの事実、8つの数値/物理仮説、証拠の確度と検証順、数値対照と並行する静的監査を既存総合計画の冒頭へ整理。実装/条件/予約は変更なし。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "距離修正後は0.04秒のscreenのみであり、問題の0.4〜0.8秒の減速解消は未判定。",
+    "N以外の物理候補は因果未確定。根元幾何とhook物性/motor伝達は別armで設計する必要がある。",
+    "採択用の束幅/軸角/停止時間/周期変動の許容値と必要観測周期は今後確定。直近1秒の診断に新しい合否閾値を追加しない。"
+  ],
+  "tests_reviewed": [
+    "最新run_summary/QC由来のscreen診断と非接触nf1の集約証拠を再確認",
+    "旧nf6のspin減速とnf1の菌体stop-goを区別し、静的寄与を因果対照と解釈しないことを確認",
+    "Watari2010/Riley2018の一次文献と、現行motor/hookとの差を確認",
+    "過去判断/結果を保持したまま現行整理と履歴を明示",
+    "変更Markdown4件のローカル参照とgit diff --check"
+  ],
+  "tests_not_run": [
+    "docs/planningのみであり、追加simulation・cs10操作・新しい物理実装・予約は行っていない。",
+    "物理source/config/output contract変更なしのためfull pytestは未実行。"
+  ],
+  "user_review_required": true,
+  "user_review_command": "目的と仮説の整理、直近1秒の数値対照と並行する物理監査の分け方をレビューし、次の実行・単一変更候補の設計範囲を判断する。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_parallel_hypotheses.md",
+    "docs/phase2/phase2_263_noncontact_mechanism_hypotheses.md",
+    "docs/phase2/phase2_263_off_spin_cause_audit.md",
+    "docs/phase2/phase2_263_segment_distance_rerun_runbook.md"
+  ],
+  "adr_required": false,
+  "adr_reason": "未採択の仮説・検証順の明確化。モデル/物理解釈の採択やcontract変更なし。",
+  "commit_type": "docs",
+  "execution_commit_unchanged": "0017fbbd922997f32dbad4b40aa5af03da974c92",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "1秒対照の実行可否を判断（現時点未予約）",
+    "保存結果/式/静的参照でG/H/M/C/I/Wの監査項目を並行して具体化",
+    "根拠が揃った物理候補をnf3で一項目ずつ比較する設計をユーザーレビューへ示す",
+    "候補のnf6耐性・非対称摂動・本数/付着/菌体反発ON/OFFの適用範囲を検証"
+  ]
+}
