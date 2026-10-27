@@ -1,0 +1,27 @@
+{
+  "status": "PASS",
+  "summary": "Issue #273: 複数仮説を並行して検討し、共通実験と短時間 screen の結果で cs10 の長時間検証順を更新する方針を追加した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "tests_reviewed": [
+    {
+      "command": "uv run pytest -q tests/test_codex_completion_reporting_policy.py tests/test_cs10_parallel_policy.py",
+      "result": "PASS: 6 passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [],
+  "user_review_points": [],
+  "adr_required": true,
+  "adr_reason": "Codex workflow の検証計画方針を変更するため、ADR 0030 に判断を記録した。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": null,
+  "next_actions": []
+}
