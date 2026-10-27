@@ -10,6 +10,8 @@
 
 目的・非接触を含む仮説と、数値対照/物理改善の検証順は[総合計画](phase2_263_parallel_hypotheses.md)を参照。1秒2条件だけで根元/hook/motor等の物理改善を比較する構成ではない。
 
+2026-10-27の最新指定により、次の主計画は[固定条件のnf3物理比較](phase2_263_nf3_physical_comparison_plan.md)の設計レビューへ変更した。本書のnf6/dt比較1秒jobは準備済みのまま保留で、未予約。
+
 ## 予約#37と実行範囲
 
 - ユーザーの2026-10-26の予約指示を根拠に、12:36:29 JST、priority 0でenqueueした。直前のqueueはunpaused、他のrunning/queuedは0だった。

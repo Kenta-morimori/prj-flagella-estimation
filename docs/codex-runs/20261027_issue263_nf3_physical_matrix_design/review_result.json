@@ -1,0 +1,56 @@
+{
+  "status": "PASS",
+  "summary": "固定T/dt/粘性、nf3・1秒の物理比較を具体化。ユーザーの設計調整依頼に基づき4案の目的・判定・限界を明示し、Mを同じ全トルク/軸/菌体反作用で作用点だけ変える比較へ修正。漏れとなる菌体反発ONをRとして加える5条件を推奨。静的設計確認のみで、候補は未採択・未実装・未予約。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "ユーザーは当初4案の設計調整を選択。修正版MとR追加を含む行列の判断待ち。",
+    "Gは初期位置だけの変更で、動的hook構成則は未検証。",
+    "Cは力曲線を変えるのでcutoff不連続だけの因果対照ではない。接近/貫通増加を併せて評価する必要。",
+    "R追加により旧ON実測から1秒外挿約14.7hが参考となるが新条件では未測定。",
+    "全条件で完全な非貫通、対称摂動耐性、長時間定常性まで保証しない。"
+  ],
+  "tests_reviewed": [
+    "Issue execution:cs10 / target cs10_user_run / Milestone Phase2を確認",
+    "保存済みrun_summary先読、旧nf3 OFFの共通QC/summary/archive SHA照合",
+    "Gはhook長/形状/phase/非内向き根元/0.25um bead clearance/C3を維持。初期弾性力1.90e-26N、位置だけの変更としてstep0で座標不変を確認",
+    "M修正案の同一状態で全トルクvector差/T最大1.24e-15、菌体力差0、全体残差/T2.51e-15、座標不変",
+    "Rは同じ初期座標で反発力norm約1.04pN、座標不変",
+    "旧nf3の0〜1s/1001保存状態で正しい線分距離を計算。90状態に反発範囲内の対、最小0.001768um。新軌道とは区別",
+    "Cは力/ポテンシャル案と近接時スケール・cutoffの関係を設計。production実装/gradient testは未実施",
+    "配置/力曲線図の目視、Markdown参照、git diff --check"
+  ],
+  "tests_not_run": [
+    "新規物理source/config変更、simulation、cs10接続/予約/開始は行っていない。",
+    "候補runtime configが未実装のため共通preflight/dry-run/動的QCは未実施。",
+    "文書/静的設計のみのためfull pytestは未実行。"
+  ],
+  "user_review_required": true,
+  "user_review_command": "各条件の目的に対する有効性と限界、修正版M、菌体反発ONの追加R、未検証hook等の扱いをレビューし、実装対象の行列を判断する。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_nf3_physical_comparison_plan.md",
+    "docs/phase2/phase2_263_parallel_hypotheses.md",
+    "docs/phase2/phase2_263_segment_distance_rerun_runbook.md",
+    "outputs/2026-10-27/121059/issue263_nf3_physical_matrix_design/manifest.json"
+  ],
+  "adr_required": false,
+  "adr_reason": "未採択の候補設計と静的診断。物理モデル/contractのproduction変更なし。",
+  "commit_type": "diagnostic",
+  "fixed_parameters": {
+    "n_flagella": 3,
+    "slots": [
+      0,
+      2,
+      4
+    ],
+    "duration_s": 1,
+    "motor_torque_Nm": 2.5e-20,
+    "dt_s": 4e-06,
+    "viscosity_Pa_s": 0.001,
+    "hook_length_um": 0.25,
+    "body_flagella_repulsion": false,
+    "flagella_flagella_repulsion": true
+  },
+  "proposed_condition_count": 5,
+  "accepted_condition_count": null,
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264"
+}
