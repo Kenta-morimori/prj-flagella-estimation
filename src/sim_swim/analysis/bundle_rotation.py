@@ -68,6 +68,33 @@ def motor_root_lateral_arms_um(
     return arms
 
 
+def archive_sample_indices(times, positions_m, *, dt_s, position_tolerance_m):
+    """Keep the final representative of roundoff-equivalent archive samples.
+
+    A regular output sample and the final integrator state may differ by a
+    few picoseconds. Differentiating that interval amplifies coordinate noise.
+    Keep real internal steps and reject inconsistent states at the same time.
+    This affects derived diagnostics only; never rewrite the source archive.
+    """
+    if dt_s <= 0 or position_tolerance_m <= 0:
+        raise ValueError("Archive sampling tolerances must be positive")
+    if len(times) != len(positions_m) or len(times) < 2:
+        raise ValueError("Archive needs matching time/position samples")
+    if not np.isfinite(times).all() or not np.isfinite(positions_m).all():
+        raise ValueError("Archive samples must be finite")
+    gaps = np.diff(times)
+    if np.any(gaps < 0):
+        raise ValueError("Archive timestamps must not go backwards")
+    near_duplicate = gaps <= dt_s * 1e-3
+    position_change = np.linalg.norm(np.diff(positions_m, axis=0), axis=-1).max(axis=1)
+    if np.any(near_duplicate & (position_change > position_tolerance_m)):
+        raise ValueError("Inconsistent near-duplicate archive states")
+    selected = np.flatnonzero(np.r_[~near_duplicate, True])
+    if len(selected) < 2:
+        raise ValueError("Archive needs at least two distinct sample times")
+    return selected
+
+
 def write_csv(path, rows):
     with path.open("w", newline="") as f:
         # Per-flag fields differ across counts in a multi-condition campaign.
@@ -212,6 +239,14 @@ def analyze(run_dir: Path, evaluation_dir: Path, output_dir: Path):
         with np.load(path / "state_archive.npz", allow_pickle=False) as archive:
             times = archive["t"]
             positions = archive["bead_positions_um"] * 1e-6
+        archive_state_count = len(times)
+        selected = archive_sample_indices(
+            times,
+            positions,
+            dt_s=cfg.tau_s * cfg.dt_star,
+            position_tolerance_m=cfg.b_m * 1e-6,
+        )
+        times, positions = times[selected], positions[selected]
         rotation = list(csv.DictReader((path / "rotation_diagnostics.csv").open()))
         rt = np.array([float(r["t_s"]) for r in rotation])
         selection = np.array([np.argmin(abs(rt - t)) for t in times])
@@ -350,6 +385,9 @@ def analyze(run_dir: Path, evaluation_dir: Path, output_dir: Path):
                 "status": "analyzed",
                 "config_overrides": record["config_overrides"],
                 "state_count": len(times),
+                "archive_state_count": archive_state_count,
+                "roundoff_samples_coalesced": archive_state_count - len(times),
+                "roundoff_time_tolerance_s": cfg.tau_s * cfg.dt_star * 1e-3,
                 "rotation_time_match_error_s": offset,
                 "rotation_valid_fraction": float(valid.mean()),
                 "cycle_report_status": cycle_status,

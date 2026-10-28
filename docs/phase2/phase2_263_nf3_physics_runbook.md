@@ -1,5 +1,11 @@
 # Issue #263：nf3の5仮説・1.5秒比較
 
+## 完了結果（2026-10-28）
+
+予約#39は5/5完走・共通strict QC 5/5 PASS。固定commit、全375000連続step、portable70件/全SHAを照合し、固定cameraの標準/定性3D/2D replayを生成・検証した。全1.5秒の前方変位は全条件負、後半B/M/Gには平均前進があるが負速度区間が残る。C/Rには根元の横方向距離縮小と大きなmotor横トルクが観測された。物理採択・追加実行・mergeは保留。
+
+[5条件の定量表・解釈・限界](phase2_263_nf3_physics_1p5s_result.md)を正本とする。以下のrunning/ETAは予約時点の履歴である。
+
 ## 現在の実行（2026-10-27）
 
 **予約#39が18:34:33 JSTにrunning**。固定実行commitは`236d6638e7b370183840508c23b8597dff82a483`、nf3/slots024のB/M/C/G/R各1.5秒・375000 step、実効5 workers・thread各1。予約前の他running/queuedは0、既存dispatcherを利用し予約の取消/置換/並べ替えやdispatcher変更はしていない。記録用PR headが進んでも、実行commitは置換しない。

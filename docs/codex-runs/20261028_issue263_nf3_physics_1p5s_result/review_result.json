@@ -1,0 +1,54 @@
+{
+  "status": "PASS",
+  "summary": "予約#39のnf3独立5条件×1.5秒を固定commit/入力/375000連続step/portable全SHA照合し、共通strictQC5/5PASS、固定camera標準/定性replay、束/材料点回転/菌体自転/前進/根元/接触診断を完了。終端近接timestampの共通解析を修正。目標遊泳の達成・モデル採択は未確認。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "B/M/C/G/R全条件で1.5秒全体の符号付き前方変位が負。B/M/Gは後半平均前進でも負速度区間が残る。",
+    "初期2周期を除く完全周期はM/G各1件、B/Cなし、R位相非単調で同位相比較不可。",
+    "C/Rの根元横距離縮小と横トルク増大は観測証拠。上流の原因/修正後の改善は未検証。",
+    "接触距離は10ms保存点診断であり未保存の接触/貫通を排除しない。",
+    "追加位置復元処理/scaleのmerge前削除は従前の残件。"
+  ],
+  "tests_reviewed": [
+    "固定commit236d6638と全5 child clean Git provenance一致",
+    "入力job/campaign SHA・5ID・各375000連続step・全時間run_summary照合",
+    "portable70 files/19642319 bytesの集合/件数/全SHA一致",
+    "共通development_evaluation strictQC5/5PASS、windowQC/heatmap",
+    "標準3D/2D各41frame25fps、定性3D/2D各151frame50fps、全coverage/全SHA検証・視認",
+    "共通bundle_rotation、材料点body自転・前進/回転・根元姿勢・10ms接触診断",
+    "終端重複対策targeted14PASS、full pytest1096PASS in206.48s",
+    "ruff format/check、git diff --check PASS"
+  ],
+  "tests_not_run": [
+    "新規simulation/再実行/予約変更/物理モデル変更なし。",
+    "torsion追加A/B、重み3方式、非対称摂動、別モデル比較・長時間追加実行なし。"
+  ],
+  "user_review_required": true,
+  "user_review_command": "結果表・replayをレビューし、共通の相対往復とC/Rの根元退化/横トルクを分けた次の監査/物理対照を判断する。追加実行は自動予約しない。",
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_nf3_physics_1p5s_result.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-10-28/185029/issue263_nf3_physics_1p5s_review/replay_index.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-10-28/185029/issue263_nf3_physics_1p5s_review/mechanism_comparison.png"
+  ],
+  "user_review_points": [
+    "QC PASSと束遊泳成立を分ける。全区間後退と後半前進の両方を見る。",
+    "C/Rの極小横距離と大きい横トルクを単一の共通原因と断定しない。",
+    "初期緩和後の周期数が不足し、頑健性/定常性は未採択。"
+  ],
+  "adr_required": false,
+  "adr_reason": "未採択候補の結果と共通解析の丸め対策。物理モデル・既定値・入力contractは変更しない。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/263",
+  "fixed_execution_commit": "236d6638e7b370183840508c23b8597dff82a483",
+  "queue_id": 39,
+  "simulation_state": "succeeded",
+  "scientific_acceptance": false,
+  "new_reservation_created": false,
+  "next_actions": [
+    "ユーザーが結果をレビューし、根元姿勢/作用軸/接触抵抗の切り分けを判断する。",
+    "merge前に従前合意の追加位置復元処理削除と最終レビューを行う。"
+  ]
+}

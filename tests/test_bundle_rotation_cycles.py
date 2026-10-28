@@ -4,11 +4,48 @@ import numpy as np
 import pytest
 
 from sim_swim.analysis.bundle_rotation import (
+    archive_sample_indices,
     completed_rotation_cycles,
     motor_root_lateral_arms_um,
     observation_windows,
     write_csv,
 )
+
+
+def test_archive_roundoff_final_sample_does_not_create_velocity_spike():
+    times = np.array([0.0, 0.001, 0.002, 0.002 + 5e-12])
+    positions = np.zeros((4, 2, 3))
+    positions[:, :, 0] = times[:, None] * 1e-6
+    positions[-2, :, 0] += 1e-14
+    assert abs(np.gradient(positions[:, 0, 0], times)[-1]) > 1e-3
+    selected = archive_sample_indices(
+        times, positions, dt_s=4e-6, position_tolerance_m=1e-12
+    )
+    np.testing.assert_array_equal(selected, [0, 1, 3])
+    np.testing.assert_allclose(
+        np.gradient(positions[selected, 0, 0], times[selected]), 1e-6
+    )
+    # A genuine additional internal step remains a separate sample.
+    times[-1] = 0.002 + 4e-6
+    assert (
+        len(
+            archive_sample_indices(
+                times, positions, dt_s=4e-6, position_tolerance_m=1e-12
+            )
+        )
+        == 4
+    )
+
+
+def test_inconsistent_coincident_archive_states_are_rejected():
+    times = np.array([0.0, 0.001, 0.001 + 5e-12])
+    positions = np.zeros((3, 2, 3))
+    positions[-1, 0, 0] = 1e-8
+    with pytest.raises(ValueError, match="Inconsistent near-duplicate"):
+        archive_sample_indices(times, positions, dt_s=4e-6, position_tolerance_m=1e-12)
+    times[-1] = 0.0009
+    with pytest.raises(ValueError, match="backwards"):
+        archive_sample_indices(times, positions, dt_s=4e-6, position_tolerance_m=1e-12)
 
 
 def test_motor_root_lateral_arm_uses_first_segment_and_flag_axis():
