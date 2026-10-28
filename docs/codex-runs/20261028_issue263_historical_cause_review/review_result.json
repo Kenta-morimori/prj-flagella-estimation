@@ -1,0 +1,48 @@
+{
+  "status": "PASS",
+  "summary": "過去#32/#35と修正後#39を同じ0〜1.5秒で比較し、旧接触力と修正力、同一形状のmotor補正/腕考慮の静的応答を監査。根拠・反証条件・新規4対照案を文書化した。解析/設計作業の完了であり物理採択ではない。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "接触が姿勢変化を介してmotor特異性を励起する動的因果は未検証。",
+    "非接触nf1にも前進変動がある。単一原因で全条件を説明しない。",
+    "新規4条件は提案のみ。固定commit/job/時間・必要周期・予約は未確定。",
+    "追加位置復元処理とscaleのmerge前削除は既存残件。"
+  ],
+  "tests_reviewed": [
+    "6選択条件のrun_summary先読、共通QC/source commit/archive・summary全SHA再照合（12件）",
+    "全config/初期座標一致、旧#32/#35軌道bitwise一致、0.257秒の分岐/接触一致",
+    "旧距離/修正距離の同一保存座標での力・mobility差、既知剛体速度場との診断照合",
+    "静的motorの全体系合力/合トルク、補正vector目標、腕考慮の軸方向T、null-space成分のassert PASS",
+    "変更文書の相対link確認・図2点の元出力SHA一致・図の視認",
+    "git diff --check PASS"
+  ],
+  "tests_not_run": [
+    "docs/figuresと保存状態の解析のみのためfull pytestを再実行しない。直前の物理/共通解析実装は1096PASS。",
+    "新規simulation、cs10接続/予約、時間積分、物理source変更なし。"
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_historical_cause_review.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-10-28/204000/issue263_historical_cause_review/same_window_comparison.json",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-10-28/204000/issue263_historical_cause_review/static_motor_vector_audit.json",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-10-28/204000/issue263_historical_cause_review/static_arm_weighted_audit.json"
+  ],
+  "user_review_points": [
+    "次の実験を設計する際、P/S幾何対照とW/WR限定特異性対照の必要性を判断する。",
+    "旧良好軌道に距離不具合がある点と、静的力の低減が遊泳回復の証拠でない点を維持する。"
+  ],
+  "adr_required": false,
+  "adr_reason": "保存状態の原因考察と未採択の対照設計。物理モデル・既定値・契約変更なし。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/263",
+  "scientific_acceptance": false,
+  "new_reservation_created": false,
+  "next_actions": [
+    "ユーザーの判断後に次の物理対照・入力/出力トルク仕様と必要周期を固定する。",
+    "新規simulationの実装/予約は今回の文書作成に含めない。"
+  ]
+}
