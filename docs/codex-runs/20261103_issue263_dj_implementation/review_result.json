@@ -1,0 +1,50 @@
+{
+  "status": "PASS",
+  "summary": "Dの純vector有効motorとJの軸上根元移行部・固定自然角参照をopt-in実装。nf3/024 FF/BF ON 4条件の短期/3.5秒profile、共通preflight/QC参照・dry-runを準備。予約前の実装レビューはPASS、動的遊泳採択は未確認。実予約は後続のローカルreservation manifest/Issueコメントに記録する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "初期状態は従来compactを対照とした近束で、完成した密束ではない。",
+    "J因子には近位自然形状と初期配置の差がある。Dの対比較は同一geometry内で座標完全一致。",
+    "線形安定は非線形精度/動的QCを保証しない。",
+    "追加位置復元処理/scaleの削除はmerge前残件。今回全条件では無効。"
+  ],
+  "tests_reviewed": [
+    "targeted38 PASS (effective drive vector/work/objectivity/unit/degeneracy, root reference/QC parity, bounded32-step integration, existing geometry/motor)",
+    "full pytest1108 PASS in252.85s",
+    "production passive Hessian/RPY2差分幅：current dt*lambda0.102/J0.850、各<2",
+    "共通geometry preflight、4条件独立/同一geometry内座標完全一致、初期弾性丸め誤差、全位相body距離下界",
+    "Mac simulationなしshort/main dry-run、4 workers cs10_qualified、各thread1、4独立output",
+    "初期preview視認・Markdown相対link・ruff format/check・git diff --check PASS"
+  ],
+  "tests_not_run": [
+    "Macの長時間simulationなし。",
+    "short screenの動的strictQC/replayはcs10完走後。long未予約。",
+    "物理採択、merge、canonical freezeなし。"
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_dj_runbook.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-03/183200/issue263_dj_preparation/geometry_preflight.json",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-03/183200/issue263_dj_preparation/initial_preview.png"
+  ],
+  "user_review_points": [
+    "今回のユーザー指示で実装/予約へ進む。短期QC/replay確認後に合意済み長期を予約する。",
+    "QC PASSと束遊泳成立を区別。初期/遠位座標差を隠さない。"
+  ],
+  "adr_required": true,
+  "adr_reason": "ADR0029に実装承認とopt-in実装、採択保留を記録。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/263",
+  "scientific_acceptance": false,
+  "validation_stage": "prepared_before_enqueue",
+  "new_reservation_created": false,
+  "next_actions": [
+    "固定commitをpushしcs10のdry-run/入力SHA照合後に短期を予約する。",
+    "短期の同期・共通QC/replay確認後に3.5秒4条件を予約する。",
+    "予約後に別スレッドで2010 hex/PR264の実施項目と修正状況のフローマップを作成する。"
+  ]
+}

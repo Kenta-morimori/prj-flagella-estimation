@@ -422,11 +422,13 @@ def geometry_preflight(
             initial_hook_qc: dict[str, Any] = {}
             if (
                 cfg.flagella.initial_hook_force_neutral
-                or cfg.flagella.initial_bundle_mode == "phase_aligned_rear"
+                or cfg.flagella.initial_bundle_mode
+                in {"phase_aligned_rear", "axis_transition_rear"}
             ) and model.hook_triplets.size:
                 if (
                     cfg.flagella.initial_helix_axis_from_rear_deg == 0.0
-                    and cfg.flagella.initial_bundle_mode != "phase_aligned_rear"
+                    and cfg.flagella.initial_bundle_mode
+                    not in {"phase_aligned_rear", "axis_transition_rear"}
                 ):
                     rear = estimate_body_axis(
                         model.positions_m,

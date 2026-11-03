@@ -210,7 +210,9 @@ def initial_bundle_force_metrics(cfg, model):
     from sim_swim.dynamics.engine import DynamicsEngine
     from sim_swim.sim.debug_summary import _torsion_angles_rad, _triplet_angles_rad
 
-    evaluation = DynamicsEngine(model, cfg).step(0.0)
+    engine = DynamicsEngine(model, cfg)
+    theta0, phi0 = engine._state_angles_rad()
+    evaluation = engine.step(0.0)
     elastic = (
         evaluation.spring_forces
         + evaluation.bend_forces
@@ -219,12 +221,13 @@ def initial_bundle_force_metrics(cfg, model):
     )
     bends = model.bending_triplets[model.bending_flag_ids >= 0]
     torsions = model.torsion_quads[model.torsion_flag_ids >= 0]
-    bend_error = (
-        np.degrees(_triplet_angles_rad(model.positions_m, bends))
-        - cfg.potentials.bend.theta0_deg["normal"]
+    bend_error = np.degrees(_triplet_angles_rad(model.positions_m, bends)) - np.degrees(
+        theta0[model.bending_flag_ids >= 0]
     )
     phi = np.degrees(_torsion_angles_rad(model.positions_m, torsions))
-    torsion_error = (phi - cfg.potentials.torsion.phi0_deg["normal"] + 180) % 360 - 180
+    torsion_error = (
+        phi - np.degrees(phi0[model.torsion_flag_ids >= 0]) + 180
+    ) % 360 - 180
     return {
         "initial_elastic_force_norm_N": float(np.linalg.norm(elastic)),
         "initial_elastic_force_max_N": float(np.linalg.norm(elastic, axis=1).max()),

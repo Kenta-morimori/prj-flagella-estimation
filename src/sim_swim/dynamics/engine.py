@@ -16,6 +16,7 @@ from sim_swim.dynamics.forces import (
     compute_attach_frame_basal_bearing_forces,
     compute_attach_frame_target_forces,
     compute_bending_forces,
+    compute_effective_vector_torque_forces,
     compute_hook_coupled_body_reaction_forces,
     compute_hook_forces,
     compute_motor_forces,
@@ -465,6 +466,10 @@ class DynamicsEngine:
             )
             phi0[i] = _wrap_angle(math.radians(float(torsion_map[key])))
 
+        for row, target in self.model.root_bending_rest_rad.items():
+            theta0[row] = target
+        for row, target in self.model.root_torsion_rest_rad.items():
+            phi0[row] = target
         return theta0, phi0
 
     def _update_run_tumble_state(self) -> None:
@@ -1050,6 +1055,15 @@ class DynamicsEngine:
                         self.model.flagella_attach_body_indices
                     ),
                     body_indices=self.model.body_indices,
+                    body_ring_edges=self.model.body_ring_edges,
+                    body_vertical_edges=self.model.body_vertical_edges,
+                    torque_per_flag=torque_per_flag,
+                )
+            elif distribution == "effective_vector_torque":
+                motor_forces, motor_diag = compute_effective_vector_torque_forces(
+                    positions_m=pos,
+                    flagella_indices=self.model.flagella_indices,
+                    flagella_attach_body_indices=self.model.flagella_attach_body_indices,
                     body_ring_edges=self.model.body_ring_edges,
                     body_vertical_edges=self.model.body_vertical_edges,
                     torque_per_flag=torque_per_flag,

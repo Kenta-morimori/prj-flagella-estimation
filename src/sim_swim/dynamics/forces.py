@@ -973,6 +973,91 @@ def compute_hook_coupled_body_reaction_forces(
     )
 
 
+def compute_effective_vector_torque_forces(
+    *,
+    positions_m: np.ndarray,
+    flagella_indices: list[np.ndarray],
+    flagella_attach_body_indices: np.ndarray,
+    body_ring_edges: np.ndarray,
+    body_vertical_edges: np.ndarray,
+    torque_per_flag: np.ndarray,
+) -> tuple[np.ndarray, MotorForceDiagnostics]:
+    """Pure output torque on each filament, with a local opposite body torque.
+
+    Starting from zero removes the force/torque-null component of a preexisting
+    drive. The minimum-norm wrench is dual to labelled rigid-fit angular
+    velocity; it performs no Euclidean work on the rigid-fit residual velocity.
+    This is an effective filament drive, not an elastic twist transport model.
+    """
+    forces = np.zeros_like(positions_m)
+    support_counts = []
+    flag_torques, body_torques, flag_norms, body_norms = [], [], [], []
+    errors, transverse, force_norms = [], [], []
+    if len(flagella_attach_body_indices) != len(flagella_indices):
+        raise RuntimeError("Effective vector torque requires every attachment")
+    for f_id, ids in enumerate(flagella_indices):
+        tau = float(torque_per_flag[f_id])
+        if tau == 0.0:
+            continue
+        pts = positions_m[ids]
+        axis = _principal_axis_or_none(pts)
+        if axis is None or len(ids) < 3:
+            raise RuntimeError("Effective vector torque: degenerate filament")
+        if float(axis @ (pts[-1] - pts[0])) < 0:
+            axis = -axis
+        target = tau * axis
+        origin = pts.mean(axis=0)
+        ff, fail, applied, fn = _zero_net_force_vector_torque_drive(
+            positions_m=positions_m,
+            indices=ids,
+            origin=origin,
+            target_torque_Nm=target,
+        )
+        support = _attach_body_support(
+            attach_index=int(flagella_attach_body_indices[f_id]),
+            body_ring_edges=body_ring_edges,
+            body_vertical_edges=body_vertical_edges,
+        )
+        if len(support) < 3 or fail:
+            raise RuntimeError("Effective vector torque: degenerate drive/support")
+        fb, fail, reacted, bn = _zero_net_force_vector_torque_drive(
+            positions_m=positions_m,
+            indices=support,
+            origin=origin,
+            target_torque_Nm=-target,
+        )
+        if fail:
+            raise RuntimeError("Effective vector torque: degenerate body support")
+        forces += ff + fb
+        errors.append(float(np.linalg.norm(applied - target) / abs(tau)))
+        transverse.append(
+            float(np.linalg.norm(applied - (applied @ axis) * axis) / abs(tau))
+        )
+        force_norms.append(float(np.linalg.norm(ff[ids])))
+        support_counts.append(len(support))
+        flag_torques.append(float(np.linalg.norm(applied)))
+        body_torques.append(float(np.linalg.norm(reacted)))
+        flag_norms.append(fn)
+        body_norms.append(bn)
+
+    def mean(values):
+        return float(np.mean(values)) if values else float("nan")
+
+    return forces, MotorForceDiagnostics(
+        Ta_norm_mean=mean(flag_torques),
+        Tb_norm_mean=mean(body_torques),
+        Fa_norm_mean=mean(flag_norms),
+        Fb_norm_mean=mean(body_norms),
+        reaction_support_bead_counts=tuple(support_counts),
+        reaction_fallback_used=False,
+        drive_metrics=(
+            ("motor_drive_axial_error_ratio_max", max(errors, default=0.0)),
+            ("motor_drive_transverse_ratio_max", max(transverse, default=0.0)),
+            ("motor_drive_force_norm_max_N", max(force_norms, default=0.0)),
+        ),
+    )
+
+
 def compute_root_torque_axis_projection_forces(
     positions_m: np.ndarray,
     flagella_indices: list[np.ndarray],

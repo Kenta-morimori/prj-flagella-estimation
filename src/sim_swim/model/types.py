@@ -52,3 +52,5 @@ class SimModel:
     bead_is_body: np.ndarray
     bead_flag_ids: np.ndarray
     initial_geometry_metadata: dict = field(default_factory=dict)
+    root_bending_rest_rad: dict[int, float] = field(default_factory=dict)
+    root_torsion_rest_rad: dict[int, float] = field(default_factory=dict)

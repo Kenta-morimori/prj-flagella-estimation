@@ -16,6 +16,7 @@ MOTOR_FORCE_DISTRIBUTIONS = frozenset(
     {
         "triplet",
         "hook_coupled_body_reaction",
+        "effective_vector_torque",
         "root_torque_segment_couples",
         "root_torque_axis_projection",
     }
@@ -1020,7 +1021,8 @@ class SimulationConfig:
             if reaction_fallback_used is not None:
                 dynamics["reaction_fallback_used"] = bool(reaction_fallback_used)
         elif (
-            force_distribution == "root_torque_segment_couples"
+            force_distribution
+            in {"root_torque_segment_couples", "effective_vector_torque"}
             and self.motor.body_reaction_full_vector
         ):
             dynamics["body_reaction_model"] = (
@@ -1038,6 +1040,15 @@ class SimulationConfig:
                 if reaction_fallback_used is not None:
                     dynamics["reaction_fallback_used"] = bool(reaction_fallback_used)
 
+        if force_distribution == "effective_vector_torque":
+            dynamics.update(
+                {
+                    "motor_axis_model": "whole_filament_svd",
+                    "drive_construction": "pure_vector_minimum_norm_from_zero",
+                    "torque_transmission": "effective_output_torque_not_material_twist",
+                    "diffusive_activity_used": False,
+                }
+            )
         manifest = {
             "dynamics": dynamics,
             "geometry": {"implementation_status": "implemented"},
@@ -1844,12 +1855,35 @@ class SimulationConfig:
                 "motor.body_reaction_support must be all_body or attach_one_ring"
             )
         if motor.body_reaction_support == "attach_one_ring" and (
-            motor.force_distribution != "root_torque_segment_couples"
+            motor.force_distribution
+            not in {"root_torque_segment_couples", "effective_vector_torque"}
             or not motor.body_reaction_full_vector
         ):
             raise ValueError(
                 "motor.body_reaction_support=attach_one_ring requires "
                 "root_torque_segment_couples and body_reaction_full_vector=true"
+            )
+
+        if motor.force_distribution == "effective_vector_torque" and (
+            not motor.body_reaction_full_vector
+            or motor.body_reaction_support != "attach_one_ring"
+            or motor.segment_torque_correction != "none"
+            or motor.segment_torque_distribution != "fixed_weights"
+            or motor.segment_force_placement != "distributed"
+        ):
+            raise ValueError(
+                "effective_vector_torque requires pure-vector local reaction without segment modifiers"
+            )
+        if flagella.initial_bundle_mode == "axis_transition_rear" and (
+            motor.enable_switching
+            or flagella.n_beads_per_flagellum < 7
+            or flagella.initial_root_tangent_angle_deg != 0.0
+            or flagella.initial_hook_body_axis_perpendicular
+            or flagella.initial_hook_force_neutral
+            or flagella.initial_helix_axis_from_rear_deg != 0.0
+        ):
+            raise ValueError(
+                "axis_transition_rear requires full chains, switching/preprocessing/relocation disabled"
             )
 
         thermal = K_B * max(brownian.temperature_K, 1e-9)

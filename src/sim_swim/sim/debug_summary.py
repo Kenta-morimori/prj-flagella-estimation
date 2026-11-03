@@ -2051,7 +2051,9 @@ class StepSummaryRecorder:
                     if state == int(PolymorphState.SEMICOILED)
                     else "curly1"
                 )
-                target[idx] = np.deg2rad(float(self.bend_map[key]))
+                target[idx] = self.model.root_bending_rest_rad.get(
+                    int(row), np.deg2rad(float(self.bend_map[key]))
+                )
             err = np.abs(actual - target) * RAD_TO_DEG
             flag_bend_err_mean_deg = float(np.mean(err))
             flag_bend_err_max_deg = float(np.max(err))
@@ -2073,7 +2075,9 @@ class StepSummaryRecorder:
                     if state == int(PolymorphState.SEMICOILED)
                     else "curly1"
                 )
-                target[idx] = np.deg2rad(float(self.torsion_map[key]))
+                target[idx] = self.model.root_torsion_rest_rad.get(
+                    int(row), np.deg2rad(float(self.torsion_map[key]))
+                )
             err = np.abs(_wrap_angle(actual - target)) * RAD_TO_DEG
             flag_torsion_err_mean_deg = float(np.mean(err))
             flag_torsion_err_max_deg = float(np.max(err))

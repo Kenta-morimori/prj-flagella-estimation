@@ -1236,7 +1236,20 @@ class ModelBuilder:
             raise ValueError(
                 "initial_phase_offsets_deg must contain one finite value per flagellum"
             )
-        if bundle_mode == "phase_aligned_rear":
+        if bundle_mode == "axis_transition_rear":
+            from sim_swim.model.root_transition import place_axis_transition
+
+            initial_geometry_metadata = place_axis_transition(
+                body_um,
+                points_all[1:],
+                np.asarray(attach_ids),
+                body_axis,
+                hook_length_um,
+                cfg.scale.b_um,
+                offsets or (0.0,) * n_flagella,
+                2.0 * cfg.bead_radius_m / UM_TO_M,
+            )
+        elif bundle_mode == "phase_aligned_rear":
             from sim_swim.model.initial_bundle import load_initial_bundle
 
             if (
@@ -1324,6 +1337,36 @@ class ModelBuilder:
         torsion_flag_ids_arr = np.asarray(torsion_flag_ids, dtype=int)
         hook_triplets_arr = _ensure_arr3(hook_triplets)
 
+        root_bending_rest_rad = {}
+        root_torsion_rest_rad = {}
+        if bundle_mode == "axis_transition_rear":
+            from sim_swim.dynamics.forces import _dihedral_angle
+
+            for row, (triplet, f_id) in enumerate(
+                zip(bending_triplets_arr, bending_flag_ids_arr)
+            ):
+                if f_id >= 0 and triplet[0] < flagella_indices[f_id][3]:
+                    a, b, c = positions_m[triplet]
+                    u, v = a - b, c - b
+                    root_bending_rest_rad[row] = float(
+                        np.arccos(
+                            np.clip(
+                                u @ v / np.linalg.norm(u) / np.linalg.norm(v),
+                                -1,
+                                1,
+                            )
+                        )
+                    )
+            for row, (quad, f_id) in enumerate(
+                zip(torsion_quads_arr, torsion_flag_ids_arr)
+            ):
+                if f_id >= 0 and quad[0] < flagella_indices[f_id][3]:
+                    root_torsion_rest_rad[row] = float(
+                        _dihedral_angle(*positions_m[quad])
+                    )
+            initial_geometry_metadata["root_bending_rest_rad"] = root_bending_rest_rad
+            initial_geometry_metadata["root_torsion_rest_rad"] = root_torsion_rest_rad
+
         segment_pair_indices = _segment_pairs_without_neighbors(spring_pairs_arr)
 
         reverse_n = int(np.clip(cfg.motor.reverse_n_flagella, 0, n_flagella))
@@ -1368,4 +1411,6 @@ class ModelBuilder:
             bead_is_body=bead_is_body,
             bead_flag_ids=bead_flag_ids,
             initial_geometry_metadata=initial_geometry_metadata,
+            root_bending_rest_rad=root_bending_rest_rad,
+            root_torsion_rest_rad=root_torsion_rest_rad,
         )
