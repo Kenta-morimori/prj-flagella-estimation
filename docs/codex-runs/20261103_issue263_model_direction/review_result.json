@@ -1,0 +1,51 @@
+{
+  "status": "PASS",
+  "summary": "遊泳目標と未達を整理し、D:全vector/仕事が定義された有効motor、J:軸上根元移行部の2系統へ修正方針を絞った。静的な仕事/保存則、全位相幾何、受動線形安定、拘束RPY referenceで設計可能性と限界を示し、2x2主比較・受入案・中止/採否表を作成。設計監査の完了であり未実装模型の採択ではない。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "Jは根元形状の構成例で、初期近束の成立は別のpreflightが必要。成立前にlong jobへ進まない。",
+    "D/Jの動的束維持・回転・前進は未検証。ADR0029 Proposed。",
+    "受動線形安定だけではmotor/接触の非線形精度や数値収束を保証しない。",
+    "今週の採否は実測計算速度・周期数・待ち行列に依存し、期限で採択しない。"
+  ],
+  "tests_reviewed": [
+    "#39の5run_summary先読、10入力ファイルのSHA/QC/source commit照合",
+    "5条件6時刻2supportの60静的対照：ゼロ合力、全vector、剛体fit仕事の恒等式、shape残差仕事ゼロ",
+    "閉線分距離のvectorized再評価と現行primitive100例一致",
+    "721規定位相と連続位相のLipschitz補正によるbody/FF/他hook距離下界",
+    "平衡点HessianとRPYの固有値を2差分幅で確認：初案dt*lambda2.226を棄却、修正案0.847",
+    "24位相の拘束RPY reference：正の推進を確認、弾性模型/実軌道/上限と区別",
+    "既存motor primitive targeted20 PASS in0.20s",
+    "変更Markdownの相対link、図コピーSHA、図の視認、git diff --check PASS"
+  ],
+  "tests_not_run": [
+    "物理source変更を伴わない設計/保存状態監査のためfull pytestは再実行しない。",
+    "時間積分、新規simulation、cs10接続/queue予約/開始、動的QC/replayなし。"
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_model_repair_direction.md",
+    "docs/adr/0029_phase2_effective_torque_and_root_transition_direction.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-03/164200/issue263_model_direction/linearized_stiffness.json",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-03/164200/issue263_model_direction/continuous_clearance_bound.json"
+  ],
+  "user_review_points": [
+    "今後の実装範囲として有効motor Dと根元形状J、および4条件の主比較をレビューする。",
+    "工学的受入案と近束preflightを新結果より前に確定する。設計監査の完了と模型採択を区別する。"
+  ],
+  "adr_required": true,
+  "adr_reason": "駆動の粗視化と根元の自然形状変更の設計意図・限界をProposed ADR0029に明記。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/263",
+  "scientific_acceptance": false,
+  "new_reservation_created": false,
+  "next_actions": [
+    "ユーザーの方針レビュー後、D/Jの最小実装と近束preflight・共通short QC/replayを行う。",
+    "幾何/共通QCが成立してから固定commitの4条件mainを設計・予約する。",
+    "合格候補だけに周期数/位相摂動/限定数値感度を確認し、merge前の位置復元処理削除を行う。"
+  ]
+}
