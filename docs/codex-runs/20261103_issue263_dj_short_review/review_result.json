@@ -1,0 +1,56 @@
+{
+  "status": "FAIL",
+  "summary": "予約#40は4/4完走・common strict QC4/4PASS、portable全SHA一致と固定camera replayを確認。独立幾何監査で従来compact R/Dの根元が非隣接body-edge上に重なると判明し、長期gate FAIL。承認済み3.5秒4条件は未予約。",
+  "blocking_issues": [
+    "R/Dの初期rootと非隣接菌体edgeが重なる。点→線分射影とproduction線分距離の両方で0。長期予約前に比較設計/初期geometryの再判断が必要。"
+  ],
+  "non_blocking_issues": [
+    "J/DJの41保存点の距離は2a以上だが内部stepの非貫通を保証しない。",
+    "1τは初期QC。完全なflag周期なし、定常束/前進の採択不可。",
+    "J単独のtorsion最大偏差59.122°、motor横トルク最大88.775T。D/DJの不要横トルクは丸め誤差。物理採択はしない。",
+    "追加位置復元code/scale削除はmerge前残件。"
+  ],
+  "tests_reviewed": [
+    "固定51e03231d7c552c992a18616aaec9b2646413aaa/4ID/input SHA/10000連続step一致",
+    "portable37 files/928941 bytes、集合/件数/全SHA一致",
+    "run_summary先読、common development_evaluation strictQC4/4PASS、heatmap",
+    "標準固定camera共通視野3D/2D各41frame/25fps、0-.04s、全SHA・ffprobe・中間/終端視認",
+    "common bundle_rotation、材料点body fit、符号付き前進、根元/力・保存点距離診断",
+    "初期geometry root→body-edge独立射影・production helper一致、図視認",
+    "文書相対リンクとgit diff --check"
+  ],
+  "tests_not_run": [
+    "simulation再実行/追加長期予約なし",
+    "物理source変更なしのためfull pytest再実行なし。source51e0323の1108PASSを保持",
+    "内部stepのsegment非貫通検証は未実施"
+  ],
+  "user_review_required": true,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_dj_1tau_result.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-03/200133/issue263_dj_short_review/initial_geometry_blocker.png",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-03/200133/issue263_dj_short_review/evaluation/replay/dt1e-04/nf03/grid_swim3d.mp4",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-03/200133/issue263_dj_short_review/short_diagnostics.json"
+  ],
+  "user_review_points": [
+    "R/Dの初期geometryを直して4条件を組み直すか、J/DJだけへ比較範囲を変更するか。後者ではJ独立効果は判定できない。",
+    "共通preflightにruntime同一の非隣接segment geometry監査が必要。閾値/物性は変えない。"
+  ],
+  "adr_required": false,
+  "adr_reason": "新しい物理採択なし。ADR0029 Proposedを維持し、既存方針のgeometry gateで停止した事実を記録。",
+  "commit_type": "diagnostic",
+  "commit_hash": "51e03231d7c552c992a18616aaec9b2646413aaa",
+  "commit_hash_role": "fixed simulation/analysis source; result docs commit is reported by PR head",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/263",
+  "new_reservation_created": false,
+  "long_duration_reserved": false,
+  "common_strict_qc": "PASS4/4",
+  "geometry_gate": "FAIL_R_D_initial_overlap",
+  "scientific_acceptance": false,
+  "next_actions": [
+    "初期geometry/対照範囲のユーザー判断",
+    "合意後にpreflightを強化し、新しい固定条件の短期gateをやり直す。現long jobは予約しない。"
+  ]
+}
