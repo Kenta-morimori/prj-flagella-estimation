@@ -1,0 +1,49 @@
+{
+  "status": "PASS",
+  "summary": "ユーザー承認に基づきR/Dを非重複compactの剛体並進へ修正し4条件を維持。runtime/preflightのpair集合を共通化し、全active線分とbody-hull下界を確認。準備レビューPASS。動的short QC/replayは未実施、3.5秒はshort gate後に予約する。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "R/D束幅0.998746umは旧compact0.813333umより広い。J因子は自然形状と配置差を含む。",
+    "初期非重複/受動線形検査は全回転位相・動的非貫通/数値収束を保証しない。",
+    "旧profileは記録を維持して距離FAILをdiagnostic表示。新4条件はrequire_initial_segment_clearance必須。",
+    "追加位置復元code/scale削除はmerge前残件。"
+  ],
+  "tests_reviewed": [
+    "targeted29 PASS: root-on-body-edge再発拒否、interflag交差、単位共変/円筒内点検査、runtime BF ON/OFF集合不変、Dの力/仕事、限定32step等",
+    "full pytest1117 PASS in260.27s（既存Phase3 testのlayout warning1件）",
+    "4条件simulationなしpreflight PASS/初期弾性丸め誤差/hook・反発0",
+    "R-D/J-DJ座標完全一致、J/DJが旧#40の初期状態と一致",
+    "production passive Hessian/RPY2差分幅、新R dt*lambda.101727/J.850131<2",
+    "Mac short/main dry-run cs10_qualified4workers/各thread1/4独立output",
+    "初期preview視認、文書相対link、ruff/git diff check"
+  ],
+  "tests_not_run": [
+    "cs10 short動的strict QC/replayは予約後。mainはまだ未予約。",
+    "Mac長時間simulation、物理採択、merge、canonical freezeなし"
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_dj_clearance_runbook.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-04/164406/issue263_clearance_preparation/geometry_preflight.json",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-04/164406/issue263_clearance_preparation/initial_preview.png"
+  ],
+  "user_review_points": [
+    "2026-11-04にR/D修正・4条件維持とshortQC/replay後の3.5秒予約/必要cs10操作をユーザー承認済み。",
+    "FAIL時は閾値/物性調整や自動再実行をせず報告。"
+  ],
+  "adr_required": true,
+  "adr_reason": "ADR0029に承認済み初期配置修正・4条件維持を追記。科学的採択はProposedのまま。",
+  "commit_type": "complete",
+  "commit_hash": null,
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/263",
+  "validation_stage": "clearance_prepared_before_enqueue",
+  "scientific_acceptance": false,
+  "next_actions": [
+    "fixed commitをpushしcs10 dry-run/input SHA/4IDを確認してshort予約/開始",
+    "short完走後portable同期/全SHA、common strict QCとfixed-camera replayをレビュー",
+    "short gate成立後、同じfixed commitで3.5秒4条件を予約する。再承認待ちを作らない。"
+  ]
+}

@@ -4,12 +4,14 @@ metadata:
   canonical: false
   source_issue: https://github.com/Kenta-morimori/prj-flagella-estimation/issues/263
   model_id: 2010_hex_nf3_effective_torque_root_transition
-  description: nf3/024・FF/BF ON、現行/D/J/D+Jの2x2。Dはpure output vector、Jは固定近位自然形状。
+  description: nf3/024・FF/BF ON、非重複R/D/J/D+Jの2x2。Dはpure output vector、Jは固定近位自然形状。
 development_evaluation:
   version: 1
   profile_id: 2010_hex_project
   stage: long_duration
   expected_condition_count: 4
+  geometry:
+    require_initial_segment_clearance: true
   axes:
   - physical_hypothesis
   qc:
@@ -76,7 +78,7 @@ base_overrides:
   output.policy: compact
   output.archive_interval_s: 0.001
   output.rotation_diagnostics: true
-  flagella.initial_bundle_mode: compact_rear
+  flagella.initial_bundle_mode: compact_clearance_rear
   motor.segment_force_placement: distributed
   potentials.spring_spring_repulsion.force_curve: exponential_cutoff
   flagella.initial_root_tangent_angle_deg: 0.0
@@ -91,11 +93,11 @@ sweep:
         perpendicular: flagella.initial_hook_body_axis_perpendicular
       values:
       - drive: root_torque_segment_couples
-        geometry: compact_rear
+        geometry: compact_clearance_rear
         neutral: true
         perpendicular: true
       - drive: effective_vector_torque
-        geometry: compact_rear
+        geometry: compact_clearance_rear
         neutral: true
         perpendicular: true
       - drive: root_torque_segment_couples
@@ -107,13 +109,13 @@ sweep:
         neutral: false
         perpendicular: false
       ids:
-      - nf03__slots024__R_control
-      - nf03__slots024__D_vector
+      - nf03__slots024__R_clearance_control
+      - nf03__slots024__D_clearance_vector
       - nf03__slots024__J_transition
       - nf03__slots024__DJ_combined
       labels:
-      - R 現行・菌体反発ON
-      - D 全vector有効motor
+      - R 非重複compact・菌体反発ON
+      - D 非重複compact・全vector有効motor
       - J 軸上根元移行部
       - D+J
 output:

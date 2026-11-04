@@ -362,44 +362,16 @@ class DynamicsEngine:
         contains at least one flagellar bead, including a hook segment.
         """
 
-        candidates = self.model.segment_pair_indices
-        enabled = bool(
-            self.cfg.potentials.spring_spring_repulsion.body_flagella_enabled
-        )
-        if candidates.size == 0:
-            self.segment_pair_indices_for_repulsion = candidates
-            return {
-                "body_flagella_enabled": enabled,
-                "all_non_neighbor": 0,
-                "body_body_excluded": 0,
-                "body_flagella_candidate": 0,
-                "flagella_flagella_candidate": 0,
-                "body_flagella_active": 0,
-                "flagella_flagella_active": 0,
-                "active_total": 0,
-            }
+        from sim_swim.model.segment_contacts import select_repulsion_segment_pairs
 
-        first_body = self.body_spring_mask[candidates[:, 0]]
-        second_body = self.body_spring_mask[candidates[:, 1]]
-        body_body = first_body & second_body
-        body_flagella = first_body ^ second_body
-        flagella_flagella = ~first_body & ~second_body
-        active = ~body_body
-        if not enabled:
-            active &= ~body_flagella
-        self.segment_pair_indices_for_repulsion = candidates[active]
-        return {
-            "body_flagella_enabled": enabled,
-            "all_non_neighbor": int(candidates.shape[0]),
-            "body_body_excluded": int(np.count_nonzero(body_body)),
-            "body_flagella_candidate": int(np.count_nonzero(body_flagella)),
-            "flagella_flagella_candidate": int(np.count_nonzero(flagella_flagella)),
-            "body_flagella_active": int(np.count_nonzero(active & body_flagella)),
-            "flagella_flagella_active": int(
-                np.count_nonzero(active & flagella_flagella)
-            ),
-            "active_total": int(np.count_nonzero(active)),
-        }
+        self.segment_pair_indices_for_repulsion, counts = (
+            select_repulsion_segment_pairs(
+                self.model.segment_pair_indices,
+                self.body_spring_mask,
+                self.cfg.potentials.spring_spring_repulsion.body_flagella_enabled,
+            )
+        )
+        return counts
 
     def _initial_reference_angles_rad(self) -> tuple[np.ndarray, np.ndarray]:
         theta0 = np.zeros((self.model.bending_triplets.shape[0],), dtype=float)

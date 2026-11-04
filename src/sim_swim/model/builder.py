@@ -380,7 +380,8 @@ def _place_initial_rear_bundle(
     phase_offsets_deg: tuple[float, ...],
     hook_kb_Nm: float,
     hook_threshold_deg: float,
-) -> None:
+    segment_topology=None,
+) -> dict | None:
     """Move rigid filaments toward the rear axis without changing their shape.
 
     A small, fixed hook-direction grid makes the selected initial state
@@ -426,7 +427,12 @@ def _place_initial_rear_bundle(
         )
 
     baseline_width = transverse_width(originals)
-    for angle_deg in (60.0, 70.0, 80.0, 90.0):
+    angles = (
+        tuple(reversed(range(0, 91, 5)))
+        if segment_topology is not None
+        else (60.0, 70.0, 80.0, 90.0)
+    )
+    for angle_deg in angles:
         angle = math.radians(angle_deg)
         trial = []
         for points, attach_idx in zip(originals, attach_ids):
@@ -480,6 +486,12 @@ def _place_initial_rear_bundle(
         if width >= baseline_width - 1e-9:
             continue
         positions = np.concatenate([body_um, *trial]) * UM_TO_M
+        if segment_topology is not None:
+            from sim_swim.model.segment_contacts import initial_body_cylinder_clearance
+
+            bound = initial_body_cylinder_clearance(body_um, trial, body_axis)
+            if bound is not None and bound < bead_diameter_um:
+                continue
         start = len(body_um)
         triplets = []
         for attach_idx, points in zip(attach_ids, trial):
@@ -496,12 +508,35 @@ def _place_initial_rear_bundle(
             )
         )
         score = (force, width, angle_deg)
-        if best is None or score < best[0]:
-            best = (score, trial)
+        if best is not None and score >= best[0]:
+            continue
+        if segment_topology is not None:
+            from sim_swim.model.segment_contacts import segment_clearance_metrics
+
+            springs, pairs, body_mask = segment_topology
+            contact = segment_clearance_metrics(
+                positions, springs, pairs, body_mask, bead_diameter_um * UM_TO_M
+            )
+            if contact["status"] != "PASS":
+                continue
+        best = (score, trial)
     if best is None:
         raise ValueError("No non-overlapping, narrower rear bundle placement found")
     for points, selected in zip(flagella_um, best[1]):
         points[:] = selected
+
+    if segment_topology is not None:
+        return {
+            "method": "compact_clearance_rear_v1",
+            "hook_from_outward_deg": best[0][2],
+            "candidate_angles_from_outward_deg": list(angles),
+            "natural_geometry_changed": False,
+            "placement_only": "rigid translation of each existing filament",
+            "initial_body_cylinder_clearance_lower_bound_um": initial_body_cylinder_clearance(
+                body_um, flagella_um, body_axis
+            ),
+        }
+    return None
 
 
 def _relocate_compact_roots(
@@ -1281,12 +1316,24 @@ class ModelBuilder:
             or cfg.flagella.initial_bundle_state_sha256 is not None
         ):
             raise ValueError("initial_bundle_state_path requires phase_aligned_rear")
-        elif bundle_mode == "compact_rear":
+        elif bundle_mode in {"compact_rear", "compact_clearance_rear"}:
             if not cfg.flagella.initial_hook_body_axis_perpendicular:
                 raise ValueError(
                     "compact_rear requires initial_hook_body_axis_perpendicular=true"
                 )
-            _place_initial_rear_bundle(
+            segment_topology = None
+            if bundle_mode == "compact_clearance_rear":
+                from sim_swim.model.segment_contacts import (
+                    select_repulsion_segment_pairs,
+                )
+
+                springs = np.asarray(spring_pairs, dtype=int)
+                body_mask = np.all(springs < n_body, axis=1)
+                pairs, _ = select_repulsion_segment_pairs(
+                    _segment_pairs_without_neighbors(springs), body_mask, True
+                )
+                segment_topology = (springs, pairs, body_mask)
+            placement_metadata = _place_initial_rear_bundle(
                 body_um,
                 points_all[1:],
                 attach_ids,
@@ -1296,7 +1343,9 @@ class ModelBuilder:
                 offsets or (0.0,) * n_flagella,
                 cfg.hook.kb_over_T * abs(cfg.motor.torque_Nm),
                 cfg.hook.threshold_deg,
+                segment_topology,
             )
+            initial_geometry_metadata.update(placement_metadata or {})
         elif bundle_mode != "none" or any(offsets or ()):
             raise ValueError(
                 "nonzero phase offsets require initial_bundle_mode=compact_rear"

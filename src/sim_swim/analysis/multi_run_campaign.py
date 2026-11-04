@@ -411,6 +411,12 @@ def geometry_preflight(
     base_config_path = Path(str(campaign["base_config"]))
     base_cfg = load_yaml(base_config_path)
     records: dict[str, dict[str, Any]] = {}
+    geometry_contract = campaign.get("development_evaluation", {}).get("geometry", {})
+    require_clearance = geometry_contract.get(
+        "require_initial_segment_clearance", False
+    )
+    if not isinstance(require_clearance, bool):
+        raise ValueError("require_initial_segment_clearance must be boolean")
     for condition in conditions:
         condition_id = str(condition["condition_id"])
         try:
@@ -419,7 +425,32 @@ def geometry_preflight(
             )
             cfg.validate_execution_supported()
             model = ModelBuilder(cfg).build()
-            initial_hook_qc: dict[str, Any] = {}
+            from sim_swim.model.segment_contacts import (
+                segment_clearance_metrics,
+                select_repulsion_segment_pairs,
+            )
+
+            body_mask = np.all(model.bead_is_body[model.spring_pairs], axis=1)
+            active_pairs, pair_counts = select_repulsion_segment_pairs(
+                model.segment_pair_indices,
+                body_mask,
+                cfg.potentials.spring_spring_repulsion.body_flagella_enabled,
+            )
+            contact = segment_clearance_metrics(
+                model.positions_m,
+                model.spring_pairs,
+                active_pairs,
+                body_mask,
+                2 * model.bead_radius_m,
+            )
+            contact["enforced"] = (
+                require_clearance
+                or cfg.flagella.initial_bundle_mode == "compact_clearance_rear"
+            )
+            contact["pair_counts"] = pair_counts
+            if contact["enforced"] and contact["status"] != "PASS":
+                raise ValueError(f"Initial active segment overlap: {contact}")
+            initial_hook_qc: dict[str, Any] = {"initial_segment_clearance": contact}
             if (
                 cfg.flagella.initial_hook_force_neutral
                 or cfg.flagella.initial_bundle_mode
@@ -586,7 +617,11 @@ def geometry_preflight(
                     )
                     or (
                         cfg.flagella.initial_bundle_mode
-                        in {"compact_rear", "phase_aligned_rear"}
+                        in {
+                            "compact_rear",
+                            "compact_clearance_rear",
+                            "phase_aligned_rear",
+                        }
                         and min_outward_projection_m < -1e-20
                     )
                     or (
@@ -637,10 +672,10 @@ def geometry_preflight(
                 }
             )
         initial_bundle_metrics: dict[str, float] = {}
-        if (
-            model.initial_geometry_metadata
-            or cfg.flagella.initial_bundle_mode == "compact_rear"
-        ):
+        if model.initial_geometry_metadata or cfg.flagella.initial_bundle_mode in {
+            "compact_rear",
+            "compact_clearance_rear",
+        }:
             from sim_swim.model.initial_bundle import initial_bundle_force_metrics
 
             initial_hook_qc.update(initial_bundle_force_metrics(cfg, model))

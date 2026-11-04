@@ -27,3 +27,5 @@ T/reference T=2.5e−20 N m、dt4 µs、粘性1 mPa s、FF反発ON、修正線�
 [設計/根拠/採否案](../phase2/phase2_263_model_repair_direction.md)を正本とする。静的な長さ両立・clearance・保存則/仕事の成立は確認したが、Jの初期密束・動的安定性・束維持・摂動再現性は未確認。自然角配列を共通engine/QCが一致して読む実装が必要で、QC閾値緩和で代用しない。
 
 本ADRは物理実装、cs10予約/開始、物理採択、merge、canonical freezeの完了を意味しない。実装と予約前検証は[runbook](../phase2/phase2_263_dj_runbook.md)を参照する。動的評価後に物理採択を判断する。
+
+2026-11-04：R/Dの初期root対body-edge重複を受け、ユーザーは非重複な剛体並進への修正と4条件維持を承認した。近位自然形状の変更はJだけに保ち、共通segment preflightを強化する。[再実行runbook](../phase2/phase2_263_dj_clearance_runbook.md)に比較上の配置/束幅の差を記録する。科学的採択は未完。
