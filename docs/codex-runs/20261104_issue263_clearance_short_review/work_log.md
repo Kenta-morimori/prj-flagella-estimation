@@ -1,0 +1,7 @@
+# 非重複D/J短期評価とmain予約
+
+17:35JSTの1回確認でqueue41成功。59890c0/inputSHA/4IDs/10000連続step/portable37files946942bytesの全SHA照合、run_summary先読→commonstrictQC4/4PASS→固定camera3D/2D各41frame25fps視認→保存点距離/束/材料点spin/bodyfit/前進を実施した。R最小距離は32pmのsoft接触圧縮で、以前の初期中心線一致ではない。周期不足で採択しない。
+
+mainのMac/cs10再dryrunを照合し、ユーザー承認済み3.5秒4条件875000stepを59890c0直接指定でqueue42へenqueue、17:40JST4条件正常開始確認。既存dispatcher利用、他予約は変更しない。main予測最遅11/6 20:17JSTは短期cost外挿で暫定。完了フォローautomationを削除した。
+
+source変更なし。fullpytestは再実行せず1117PASSを保持。結果doc/link/gitdiffとprecommit checkを確認しPR264へpushする。

@@ -1,0 +1,55 @@
+{
+  "status": "PASS",
+  "summary": "非重複D/J短期#41は4/4完走、fixed source/4ID/10000step/portable37件全SHA一致、共通strictQC4/4PASS、fixed-camera replay/保存点geometryレビューPASS。承認済み3.5秒4条件を同じ59890c0の予約#42として17:40JST開始確認。科学的採択なし。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "1τは全条件1回転未満。定常性・密束維持の採択不可。",
+    "R保存点最小BF.1999682umは32pmのsoft接触圧縮。初期重複0とは区別し、未保存内部stepの非貫通保証はしない。",
+    "Jの不要横トルク88.775T/最大torsion59.122°を長期で追跡。",
+    "mainの完走QC/定量/定性・採否判断は未完。追加位置復元code/scale削除はmerge前残件。"
+  ],
+  "tests_reviewed": [
+    "simulation commit59890c0/4ID/入力SHA・10000連続step照合",
+    "portable37files946942bytes、集合/件数/全SHA一致",
+    "run_summary先読、common development_evaluation strictQC4/4PASSとheatmap",
+    "fixed3D/2D sharedcamera41frames25fps/full0-.04s、manifest/ffprobe/SHA/中間終端視認",
+    "common bundle_rotation・label付きbodyfit/前進/根元/保存点全線分距離",
+    "main直前Mac/cs10 dry-run4IDs/inputSHA/enforcedclearance/4workers/thread1一致",
+    "予約42の固定commit/4running/入力SHA/failed0確認",
+    "文書link/git diff --check、source変更なし"
+  ],
+  "tests_not_run": [
+    "main完走後評価・周期十分性・摂動/数値感度は未実施",
+    "物理source無変更のためfullpytest再実行なし。59890c0の1117PASSを保持",
+    "Mac長時間simulation、モデル採択/merge/canonical freezeなし"
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_dj_clearance_1tau_result.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-04/173618/issue263_clearance_short_review/evaluation/replay/dt1e-04/nf03/grid_swim3d.mp4",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-04/173618/issue263_clearance_short_review/short_diagnostics.json",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-04/174036/issue263_clearance_main_reservation/reservation.json"
+  ],
+  "user_review_points": [
+    "承認済み範囲の予約まで完了。main結果の物理採択は別判断。"
+  ],
+  "adr_required": false,
+  "adr_reason": "ADR0029 Proposedを維持。新しい物理変更/採択なしの完走評価・承認済み予約記録。",
+  "commit_type": "diagnostic",
+  "commit_hash": "59890c05460ba3032d50813afaa488ed3440f271",
+  "commit_hash_role": "fixed simulation/analysis source; result docs commit is PR head",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/263",
+  "new_reservation_created": true,
+  "main_reservation_id": 42,
+  "main_state": "running",
+  "short_strict_qc": "PASS4/4",
+  "short_manual_review": "PASS",
+  "scientific_acceptance": false,
+  "next_actions": [
+    "main42完走後に固定commit/全SHA/strictQC/replayと機序窓・必要周期を評価",
+    "候補採択前の限定摂動/数値感度、merge前追加位置復元code/scale削除"
+  ]
+}
