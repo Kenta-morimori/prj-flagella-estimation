@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Mapping
 from zoneinfo import ZoneInfo
 
+from sim_swim.dynamics.balance_diagnostics import POST_STEP_DRIVE_COLUMNS
 from sim_swim.sim.body_shape_gate import (
     BODY_BEND_ERR_MAX_DEG_LIMIT,
     BODY_CENTERLINE_DEV_UM_MAX_LIMIT,
@@ -65,7 +66,8 @@ class OnlineRunSummary:
                 if item["max"] is None or number > float(item["max"]):
                     self.maximum_times[key] = (
                         float(row.get("force_evaluation_t_s", t_s))
-                        if key.startswith(
+                        if key not in POST_STEP_DRIVE_COLUMNS
+                        and key.startswith(
                             ("component_", "motor_drive_", "motor_reaction_")
                         )
                         else t_s
@@ -133,7 +135,8 @@ class OnlineRunSummary:
                 if item["max"] is None or number > float(item["max"]):
                     self.maximum_times[key] = (
                         float(row.get("force_evaluation_t_s", t_s))
-                        if key.startswith(
+                        if key not in POST_STEP_DRIVE_COLUMNS
+                        and key.startswith(
                             ("component_", "motor_drive_", "motor_reaction_")
                         )
                         else t_s
@@ -248,6 +251,7 @@ class OnlineRunSummary:
                 "episode_definition": "every internal step aggregated online",
                 "diagnostic_time_reference": "post_step",
                 "force_balance_time_reference": "pre_step; force_evaluation_t_s",
+                "post_step_drive_metrics": list(POST_STEP_DRIVE_COLUMNS),
                 "component_torque_origin": "pre_step all-bead centroid",
                 "persistent_observed_min_consecutive_fail_samples": 1,
                 "episode_storage_limit_per_gate": 1,

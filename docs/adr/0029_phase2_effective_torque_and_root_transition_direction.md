@@ -1,5 +1,7 @@
 # ADR 0029：有効vector torqueと軸上の根元移行部を修正主案にする
 
+2026-11-11後続：ユーザーの明示委任に基づき、相対phaseの仕事から解析勾配で駆動するMと、固定近位自然形状の接線応答を正規化するKをopt-in比較候補として実装した。[M/K実装・実行手順](../phase2/phase2_263_mk_runbook.md)に微分・診断contract・固定条件を記録する。D+J対照の座標/力は固定baselineとbit単位で一致。M/Kの動的成立や科学的採択は未検証で、Proposedを維持する。
+
 2026-11-11追記：[接続research統合](../phase2/phase2_263_connector_research_synthesis.md)に、D+Jを基準とする相対位相の仕事によるMと近位内部応答Kの比較案を記録した。静的prototypeでの成立性と動的成功を区別し、このADRのProposedを維持する。新motorのproduction実装・科学的採択・実行予約は行っていない。
 
 - Status: Proposed（2026-11-03ユーザー実装承認、opt-in実装。科学的採択は未完）

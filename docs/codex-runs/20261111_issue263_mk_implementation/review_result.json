@@ -1,0 +1,57 @@
+{
+  "status": "PASS",
+  "summary": "承認済みM/Kをopt-in実装。Mは相対frame位相の解析勾配、Kは固定近位自然角の接線応答正規化。基準D+Jの座標/力は固定59890c0とbit一致、解析/差分とcommon QC互換を検算。Mac preflight/dry-run完了、科学的採択なし。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "cs10 short QC/replayおよび1s機序比較は今後",
+    "Mの旧D専用metricはNaN/nullで未適用、新metricとcontract versionで解釈",
+    "現Jは完成密束ではなく近束Gの構造制約は独立残件"
+  ],
+  "tests_reviewed": [
+    "M/K/既存D/J/profile/params targeted142 PASS",
+    "fullpytest1137 PASS (293s)、既存render layout warning1",
+    "post-step仕事時刻の修正後 generic/共通評価/phase tests83 PASS",
+    "最終phase/DJ targeted28 PASS、ruff format/check",
+    "既存portable37件集合/件数/全SHA、run_summary先読",
+    "独立位相oracleによる任意非剛体方向/全座標差分、objectivity/unit/gauge/1回転仕事・縮退/逆軸停止",
+    "13保存状態の仮想仕事差最大~1.06e-8(T/um)、指定vector誤差丸め誤差",
+    "固定59890c0とのD+J初期/64step終端/13保存点motor・total力の各配列bit一致",
+    "Mac bounded64step cost各.108-.122s、各物理時間.000256s",
+    "short/1s共通preflight/parallel dry-run4ID・実効4worker/thread1、全active線分clearance PASS",
+    "共通初期previewと全条件同一座標hash・相対link/JSON/git diff --check"
+  ],
+  "tests_not_run": [
+    "cs10接続/予約/開始はこの実装記録時点では未実施",
+    "short/1s/候補3.5sの実QC/replayと遊泳機序は今後",
+    "長時間/摂動/数値収束・科学的採択・mergeなし"
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_mk_runbook.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-11/214352/issue263_mk_preparation/analytic_validation_and_cost.json",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-11/214352/issue263_mk_preparation/preview/manifest.json"
+  ],
+  "user_review_points": [
+    "限定フェーズの実装/実行/代理レビューは明示委任済み、再承認待ちは作らない",
+    "Mは出力軸投影T固定だが全vector/仕事率が変わる",
+    "科学的採択/merge・新しい付着/離散化は別判断"
+  ],
+  "adr_required": true,
+  "adr_reason": "新しい有効駆動と近位構成則の比較実装をADR0029へ追記。Proposedを維持し採択しない。",
+  "commit_type": "diagnostic",
+  "commit_hash": "5ab220cdaf60e1c669bbd4f89f535d7ddf2d5e02",
+  "commit_hash_role": "pushed roadmap before implementation; implementation commit follows",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/263",
+  "goal_status": "active",
+  "scientific_acceptance": false,
+  "new_reservation_created": false,
+  "next_actions": [
+    "commit/push後に固定SHAでcs10接続・既存queue/dispatcher確認、隔離sourceのdry-run",
+    "承認済みshortを予約しcommit/4ID/inputSHA/正常開始を照合",
+    "完走後portable検証、run_summary先読、common strictQC/replayを代理レビュー",
+    "short PASSなら同一fixedcommitの1s、台帳上限を守り分析/方針修正"
+  ]
+}

@@ -4,6 +4,14 @@ from __future__ import annotations
 
 import numpy as np
 
+POST_STEP_DRIVE_COLUMNS = (
+    "motor_drive_phase_work_step_J",
+    "motor_drive_phase_linear_work_step_J",
+    "motor_drive_phase_work_total_J",
+    "motor_drive_phase_increment_abs_max_rad",
+    "motor_drive_phase_work_difference_abs_J",
+)
+
 COMPONENTS = (
     "spring",
     "bend",
@@ -15,12 +23,23 @@ COMPONENTS = (
     "total",
 )
 DRIVE_COLUMNS = (
+    "motor_drive_contract_version",
     "motor_drive_raw_transverse_ratio_max",
     "motor_drive_transverse_ratio_max",
     "motor_drive_axial_error_ratio_max",
     "motor_drive_correction_force_norm_max_N",
     "motor_drive_correction_relative_norm_max",
     "motor_drive_force_norm_max_N",
+    "motor_drive_target_vector_error_ratio_max",
+    "motor_drive_output_projection_error_ratio_max",
+    "motor_drive_input_projection_error_ratio_max",
+    "motor_drive_input_output_angle_deg_max",
+    "motor_drive_gain_max",
+    "motor_drive_phase_fit_condition_max",
+    "motor_drive_phase_pca_gap_min",
+    "motor_drive_phase_alignment_one_plus_dot_min",
+    "motor_drive_phase_joint_one_plus_dot_min",
+    *POST_STEP_DRIVE_COLUMNS,
 )
 BALANCE_COLUMNS = (
     [

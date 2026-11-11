@@ -17,6 +17,7 @@ MOTOR_FORCE_DISTRIBUTIONS = frozenset(
         "triplet",
         "hook_coupled_body_reaction",
         "effective_vector_torque",
+        "relative_phase_work",
         "root_torque_segment_couples",
         "root_torque_axis_projection",
     }
@@ -455,6 +456,7 @@ class BendPotentialParams:
 
     kb_over_T: float = 20.0
     theta0_deg: dict[str, float] | None = None
+    root_response: str = "cosine"
 
 
 @dataclass(frozen=True)
@@ -1022,7 +1024,11 @@ class SimulationConfig:
                 dynamics["reaction_fallback_used"] = bool(reaction_fallback_used)
         elif (
             force_distribution
-            in {"root_torque_segment_couples", "effective_vector_torque"}
+            in {
+                "root_torque_segment_couples",
+                "effective_vector_torque",
+                "relative_phase_work",
+            }
             and self.motor.body_reaction_full_vector
         ):
             dynamics["body_reaction_model"] = (
@@ -1044,10 +1050,31 @@ class SimulationConfig:
             dynamics.update(
                 {
                     "motor_axis_model": "whole_filament_svd",
+                    "drive_contract_version": 1,
                     "drive_construction": "pure_vector_minimum_norm_from_zero",
                     "torque_transmission": "effective_output_torque_not_material_twist",
                     "diffusive_activity_used": False,
                 }
+            )
+        if force_distribution == "relative_phase_work":
+            dynamics.update(
+                {
+                    "motor_axis_model": "oriented_pca_with_labelled_material_frames",
+                    "drive_construction": "analytic_gradient_of_relative_swing_twist_phase",
+                    "torque_transmission": "effective_joint_not_material_twist",
+                    "specified_torque": "output_axis_projection; full_vector_and_work_vary",
+                    "drive_contract_version": 2,
+                    "not_applicable_diagnostics": ["motor_drive_axial_error_ratio_max"],
+                    "phase_numerical_condition_guard": 1e-8,
+                    "max_resolved_phase_increment_rad": 0.25,
+                    "phase_work": "sum T*dchi at internal steps; not labelled-chain spin",
+                    "diffusive_activity_used": False,
+                }
+            )
+        if self.potentials.bend.root_response != "cosine":
+            dynamics["root_bend_response"] = self.potentials.bend.root_response
+            dynamics["root_bend_tangent_reference"] = (
+                "kb*sin(normal_rest_angle)^2; fixed root natural angles"
             )
         manifest = {
             "dynamics": dynamics,
@@ -1420,6 +1447,11 @@ class SimulationConfig:
             "potentials.bend.theta0_deg",
             self.potentials.bend.theta0_deg or expected_bend,
             expected_bend,
+        )
+        add(
+            "potentials.bend.root_response",
+            self.potentials.bend.root_response,
+            "cosine",
         )
         expected_torsion = (
             {"normal": -30.0, "semicoiled": 32.5, "curly1": 60.0}
@@ -1856,7 +1888,11 @@ class SimulationConfig:
             )
         if motor.body_reaction_support == "attach_one_ring" and (
             motor.force_distribution
-            not in {"root_torque_segment_couples", "effective_vector_torque"}
+            not in {
+                "root_torque_segment_couples",
+                "effective_vector_torque",
+                "relative_phase_work",
+            }
             or not motor.body_reaction_full_vector
         ):
             raise ValueError(
@@ -1864,7 +1900,10 @@ class SimulationConfig:
                 "root_torque_segment_couples and body_reaction_full_vector=true"
             )
 
-        if motor.force_distribution == "effective_vector_torque" and (
+        if motor.force_distribution in {
+            "effective_vector_torque",
+            "relative_phase_work",
+        } and (
             not motor.body_reaction_full_vector
             or motor.body_reaction_support != "attach_one_ring"
             or motor.segment_torque_correction != "none"
@@ -1872,7 +1911,7 @@ class SimulationConfig:
             or motor.segment_force_placement != "distributed"
         ):
             raise ValueError(
-                "effective_vector_torque requires pure-vector local reaction without segment modifiers"
+                f"{motor.force_distribution} requires pure-vector local reaction without segment modifiers"
             )
         if flagella.initial_bundle_mode == "axis_transition_rear" and (
             motor.enable_switching
@@ -1925,7 +1964,19 @@ class SimulationConfig:
                 bend_raw.get("theta0_deg"),
                 {"normal": 142.0, "semicoiled": 90.0, "curly1": 105.0},
             ),
+            root_response=str(bend_raw.get("root_response", "cosine")),
         )
+        if bend.root_response not in {"cosine", "normalized_tangent"}:
+            raise ValueError(
+                "potentials.bend.root_response must be cosine or normalized_tangent"
+            )
+        if (
+            bend.root_response == "normalized_tangent"
+            and flagella.initial_bundle_mode != "axis_transition_rear"
+        ):
+            raise ValueError(
+                "normalized_tangent requires fixed axis_transition_rear root references"
+            )
 
         torsion_raw = (raw.get("potentials", {}) or {}).get("torsion", {}) or {}
         kt_over = torsion_raw.get("kt_over_T")

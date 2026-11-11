@@ -12,6 +12,7 @@ from sim_swim.dynamics.balance_diagnostics import BALANCE_COLUMNS, component_bal
 from sim_swim.dynamics.brownian import sample_brownian_displacement
 from sim_swim.dynamics.forces import (
     MotorForceDiagnostics,
+    _attach_body_support,
     compute_attach_first_body_axis_angle_forces,
     compute_attach_frame_basal_bearing_forces,
     compute_attach_frame_target_forces,
@@ -28,8 +29,10 @@ from sim_swim.dynamics.forces import (
 )
 from sim_swim.dynamics.frame_potential import attachment_frame_energy_forces
 from sim_swim.dynamics.hydro_rpy import compute_rpy_mobility
+from sim_swim.dynamics.phase_drive import PhaseWorkDrive
 from sim_swim.model.types import PolymorphState, SimModel
 from sim_swim.sim.hook_frame import (
+    hook_attach_frame,
     hook_attach_layer_indices,
     hook_frame_local_vectors,
     hook_frame_target_vectors,
@@ -135,6 +138,19 @@ class DynamicsEngine:
         self.spring_formulation = cfg.potentials.spring.formulation
         self.b_m = b_m
         self.k_bend = cfg.potentials.bend.kb_over_T * torque
+        self.root_bend_factors = None
+        if cfg.potentials.bend.root_response == "normalized_tangent":
+            if not model.root_bending_rest_rad:
+                raise ValueError("Normalized root bend needs fixed natural root angles")
+            normal = math.radians(cfg.potentials.bend.theta0_deg["normal"])
+            self.root_bend_factors = np.ones(len(model.bending_triplets))
+            for row, target in model.root_bending_rest_rad.items():
+                denominator = math.sin(target) ** 2
+                if denominator <= 1e-8:
+                    raise ValueError(
+                        "Normalized root bend has a degenerate natural angle"
+                    )
+                self.root_bend_factors[row] = math.sin(normal) ** 2 / denominator
         self.k_torsion = cfg.potentials.torsion.kt_over_T * torque
         self.torsion_fd_eps_m = max(cfg.potentials.torsion.fd_eps_over_b * b_m, 1e-12)
         self.k_hook = cfg.hook.kb_over_T * torque
@@ -293,6 +309,41 @@ class DynamicsEngine:
         self.hook_attach_first_rest_lengths_m = self._hook_attach_first_rest_lengths_m()
         self.hook_first_second_rest_lengths_m = self._hook_first_second_rest_lengths_m()
         self.hook_attach_layer_indices = hook_attach_layer_indices(self.model)
+        self.phase_drive = None
+        if cfg.motor.force_distribution == "relative_phase_work":
+            supports, axes = [], []
+            body_axis = self._body_axis_unit(self.model.positions_m)
+            for attach in self.model.flagella_attach_body_indices:
+                supports.append(
+                    _attach_body_support(
+                        attach_index=int(attach),
+                        body_ring_edges=self.model.body_ring_edges,
+                        body_vertical_edges=self.model.body_vertical_edges,
+                    )
+                )
+                layer_index = next(
+                    (
+                        j
+                        for j, layer in enumerate(self.model.body_layer_indices)
+                        if int(attach) in layer
+                    ),
+                    -1,
+                )
+                if layer_index < 0:
+                    raise ValueError(
+                        "Phase drive requires a labelled body attachment layer"
+                    )
+                frame = hook_attach_frame(
+                    self.model.positions_m,
+                    self.model,
+                    int(attach),
+                    layer_index,
+                    body_axis,
+                )
+                axes.append(frame[:, 1])
+            self.phase_drive = PhaseWorkDrive(
+                self.model.positions_m, self.model.flagella_indices, supports, axes
+            )
         (
             self.hook_attach_first_frame_local_m,
             self.hook_first_second_frame_local_m,
@@ -316,6 +367,11 @@ class DynamicsEngine:
 
     def _hook_attach_first_rest_lengths_m(self) -> np.ndarray:
         return self._hook_pair_rest_lengths_m(pair="attach_first")
+
+    def _bend_coefficients(self, base: float, rows: np.ndarray):
+        if self.root_bend_factors is None:
+            return base
+        return base * self.root_bend_factors[rows]
 
     def _hook_first_second_rest_lengths_m(self) -> np.ndarray:
         return self._hook_pair_rest_lengths_m(pair="first_second")
@@ -864,16 +920,22 @@ class DynamicsEngine:
                 positions_m=pos,
                 triplets=self.model.bending_triplets[self.flag_local_bending_rows],
                 theta0_rad=theta0[self.flag_local_bending_rows],
-                kb=self.k_bend
-                * self.flag_bend_stiffness_scale
-                * (self.motor_local_bend_scale if motor_on else 1.0),
+                kb=self._bend_coefficients(
+                    self.k_bend
+                    * self.flag_bend_stiffness_scale
+                    * (self.motor_local_bend_scale if motor_on else 1.0),
+                    self.flag_local_bending_rows,
+                ),
             )
         if self.flag_nonlocal_bending_rows.size > 0:
             bend_forces += compute_bending_forces(
                 positions_m=pos,
                 triplets=self.model.bending_triplets[self.flag_nonlocal_bending_rows],
                 theta0_rad=theta0[self.flag_nonlocal_bending_rows],
-                kb=self.k_bend * self.flag_bend_stiffness_scale,
+                kb=self._bend_coefficients(
+                    self.k_bend * self.flag_bend_stiffness_scale,
+                    self.flag_nonlocal_bending_rows,
+                ),
             )
         torsion_forces = np.zeros_like(pos)
         if self.flag_local_torsion_rows.size > 0:
@@ -1040,6 +1102,8 @@ class DynamicsEngine:
                     body_vertical_edges=self.model.body_vertical_edges,
                     torque_per_flag=torque_per_flag,
                 )
+            elif distribution == "relative_phase_work":
+                motor_forces, motor_diag = self.phase_drive.forces(pos, torque_per_flag)
             elif distribution == "root_torque_axis_projection":
                 _segment_weights, bead_weights = self._advance_local_twist_state(
                     torque_per_flag=torque_per_flag,
@@ -1155,6 +1219,16 @@ class DynamicsEngine:
             )
         )
         balance.update(dict(motor_diag.drive_metrics))
+        if (
+            self.phase_drive is not None
+            and motor_on
+            and self.model.motor_triplets.size > 0
+        ):
+            balance.update(
+                self.phase_drive.record_displacement(
+                    pos_before, pos_after, torque_per_flag, motor_forces
+                )
+            )
         support = motor_diag.reaction_support_bead_counts
         balance.update(
             {

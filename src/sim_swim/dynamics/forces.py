@@ -144,17 +144,24 @@ def compute_bending_forces(
     positions_m: np.ndarray,
     triplets: np.ndarray,
     theta0_rad: np.ndarray,
-    kb: float,
+    kb: float | np.ndarray,
 ) -> np.ndarray:
     """bending（三つ組）力を計算する。"""
 
     forces = np.zeros_like(positions_m)
+    coefficients = np.asarray(kb, dtype=float)
+    if coefficients.ndim > 1 or (
+        coefficients.ndim == 1 and coefficients.shape != (len(triplets),)
+    ):
+        raise ValueError(
+            "Bend stiffness must be a scalar or one coefficient per triplet"
+        )
     for t_idx, (i, j, k) in enumerate(triplets):
         f_i, f_j, f_k = _bending_for_triplet(
             positions_m[int(i)],
             positions_m[int(j)],
             positions_m[int(k)],
-            kb=kb,
+            kb=float(coefficients if coefficients.ndim == 0 else coefficients[t_idx]),
             theta0_rad=float(theta0_rad[t_idx]),
         )
         forces[int(i)] += f_i
@@ -992,7 +999,7 @@ def compute_effective_vector_torque_forces(
     forces = np.zeros_like(positions_m)
     support_counts = []
     flag_torques, body_torques, flag_norms, body_norms = [], [], [], []
-    errors, transverse, force_norms = [], [], []
+    errors, transverse, force_norms, projections = [], [], [], []
     if len(flagella_attach_body_indices) != len(flagella_indices):
         raise RuntimeError("Effective vector torque requires every attachment")
     for f_id, ids in enumerate(flagella_indices):
@@ -1030,6 +1037,7 @@ def compute_effective_vector_torque_forces(
             raise RuntimeError("Effective vector torque: degenerate body support")
         forces += ff + fb
         errors.append(float(np.linalg.norm(applied - target) / abs(tau)))
+        projections.append(float(abs(applied @ axis - tau) / abs(tau)))
         transverse.append(
             float(np.linalg.norm(applied - (applied @ axis) * axis) / abs(tau))
         )
@@ -1051,6 +1059,12 @@ def compute_effective_vector_torque_forces(
         reaction_support_bead_counts=tuple(support_counts),
         reaction_fallback_used=False,
         drive_metrics=(
+            ("motor_drive_contract_version", 1.0),
+            ("motor_drive_target_vector_error_ratio_max", max(errors, default=0.0)),
+            (
+                "motor_drive_output_projection_error_ratio_max",
+                max(projections, default=0.0),
+            ),
             ("motor_drive_axial_error_ratio_max", max(errors, default=0.0)),
             ("motor_drive_transverse_ratio_max", max(transverse, default=0.0)),
             ("motor_drive_force_norm_max_N", max(force_norms, default=0.0)),
