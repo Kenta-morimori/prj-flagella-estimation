@@ -1,0 +1,55 @@
+{
+  "status": "PASS",
+  "summary": "research結果を相対位相の仕事から導くMと近位内部応答Kの2×2案へ具体化。静的仕事・torque・客観性・位相gauge、Jの連続独立spin非重複と菌体を含むRPY referenceを検算。設計提案のみで、新規simulation・production物理変更・予約なし。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "M production analytic Jacobian and generic diagnostics are not implemented",
+    "Current J is not a dense bundle; near-bundle G remains unestablished",
+    "Frozen later states do not show uniformly reduced transverse rates",
+    "Monthly stable-swimming success remains unproven"
+  ],
+  "tests_reviewed": [
+    "Research report/sources SHA verification; 37 portable file set/count/all SHA verification, run_summary first",
+    "src/conf/tests identity to fixed59890c0",
+    "13 archived states x3 chains: target torque and independent directional virtual work",
+    "Input/output spin, pure tilt, 219 phase checks, objectivity and transverse-phase gauge",
+    "All active segment-pair continuous independent rigid spin lower bounds for existing J",
+    "20 frozen RPY references with body and all mobility blocks, hook-length tangent constraints, positive dissipation/work identity",
+    "Existing K static Hessian/energy-gradient checks reused with unchanged source",
+    "Figure visually inspected; relative Markdown links, JSON syntax and git diff --check",
+    "ruff format/check, issue-script lifecycle, light402 PASS/715 deselected; existing render layout warning1"
+  ],
+  "tests_not_run": [
+    "No production-force implementation or full pytest for documentation-only change",
+    "No time integration, cs10 connection/queue operation, new QC/replay rendering",
+    "No long duration, perturbation/step-convergence experiment, physical model adoption or merge"
+  ],
+  "user_review_required": true,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_connector_research_synthesis.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-11/205148/issue263_research_integration/phase_transfer_design.png"
+  ],
+  "user_review_points": [
+    "M changes full torque norm/work while preserving specified output axial T",
+    "Same J coordinates: DJ/M/K/MK mechanism comparison .04s QC then about1s, no reservations",
+    "Keep near-bundle geometry as an independent acceptance gate; conditional progression and unresolved structural choice"
+  ],
+  "adr_required": false,
+  "adr_reason": "Unadopted design proposal and static prototype. ADR0029 stays Proposed; pointer added.",
+  "commit_type": "diagnostic",
+  "commit_hash": "59890c05460ba3032d50813afaa488ed3440f271",
+  "commit_hash_role": "Fixed simulation/analysis source; documentation commit reported separately",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/263",
+  "scientific_acceptance": false,
+  "new_reservation_created": false,
+  "production_physics_changed": false,
+  "next_actions": [
+    "Review proposed M_phase/K factor definitions and output-T contract",
+    "Implement analytic phase Jacobian and generic diagnostic tests only after design decision",
+    "Prepare proposed short/1s cs10 qualified dry-run on fixed implementation commit; reservation remains on hold",
+    "If no near-bundle candidate, decide attachment versus proximal discretization change with evidence"
+  ]
+}

@@ -1,5 +1,7 @@
 # ADR 0029：有効vector torqueと軸上の根元移行部を修正主案にする
 
+2026-11-11追記：[接続research統合](../phase2/phase2_263_connector_research_synthesis.md)に、D+Jを基準とする相対位相の仕事によるMと近位内部応答Kの比較案を記録した。静的prototypeでの成立性と動的成功を区別し、このADRのProposedを維持する。新motorのproduction実装・科学的採択・実行予約は行っていない。
+
 - Status: Proposed（2026-11-03ユーザー実装承認、opt-in実装。科学的採択は未完）
 - Date: 2026-11-03
 - Issue: #263 / PR #264
