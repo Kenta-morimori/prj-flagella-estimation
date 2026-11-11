@@ -1,5 +1,7 @@
 # Issue #263：非重複R/DとD/J 4条件の再実行
 
+2026-11-11追記：[D+Jの阻害要因監査・11月の検証計画案](phase2_263_dj_bundle_cause_and_november_plan.md)。K/Gは未実装・未予約であり、下記の既存計画/承認範囲へ自動追加しない。
+
 2026-11-11結果：main#42は4/4完走、strict QCはR/D/DJ PASS・J FAIL。D+Jは前進/回転が改善したが束形成・定常遊泳は未達。[3.5秒結果](phase2_263_dj_3p5s_result.md)を現在状況の正本とする。
 
 2026-11-04時点の記録：short#41は4/4完走・strict QC4/4 PASS、固定camera replay/保存点幾何を確認し、同じfixed commitのmain#42（各3.5秒）を17:40 JSTに開始した。[短期結果と予約証拠](phase2_263_dj_clearance_1tau_result.md)を短期証拠として保持する。以下は予約前に固定した手順と比較条件。

@@ -1,0 +1,51 @@
+{
+  "status": "PASS",
+  "summary": "既存#42のQC-PASS archiveを再解析。hook作動は軸逸脱より後、J近位の角度接線剛性が通常の約1/28であることを確認。K×Gの限定比較と月内の打切り判断を設計。実装/採択/予約なし。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "H_Kの動的因果は未検証",
+    "Gの非重複・近束形状は未確定で実行不可",
+    "11/30の安定遊泳達成は保証できない",
+    "保存点診断は未保存step非貫通保証ではない"
+  ],
+  "tests_reviewed": [
+    "run_summary先読、固定59890c0/portable37file全SHA再照合",
+    "production hook forceと仮想仕事のエネルギー差分一致",
+    "production bend forceからK=kb sin²theta0の数値差分一致",
+    "遠位bead3以降へPCA範囲統一、screw軸定義でも未達を確認",
+    "frozen RPY motor-only線形寄与の和一致、因果断定なし",
+    "Markdown相対link/JSON構文/git diff --check",
+    "初期の受動Hessian/RPYを2差分幅で再監査（時間積分なし、motor力を除外）"
+  ],
+  "tests_not_run": [
+    "物理source/config変更なし、fullpytest再実行なし",
+    "新規simulation/予約/条件YAML実装なし",
+    "K/Gの動的因果、長時間成立、摂動・数値収束は今後の候補レビュー後"
+  ],
+  "user_review_required": true,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_dj_bundle_cause_and_november_plan.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-11/185359/issue263_hook_attachment_audit/dj_body_frame_geometry.png"
+  ],
+  "user_review_points": [
+    "Kの近位応答定義とGの非重複・近束設計を先に確定する案",
+    "4条件1秒の機序比較→良好候補のみ長期/摂動の方針",
+    "11/20の候補成立を月内確定の判断点とする予算"
+  ],
+  "adr_required": false,
+  "adr_reason": "設計提案でありモデル変更/採択は未実施。ADR0029 Proposedを維持。",
+  "commit_type": "diagnostic",
+  "commit_hash": "59890c05460ba3032d50813afaa488ed3440f271",
+  "commit_hash_role": "fixed simulation and analysis source; result documentation follows PR head",
+  "push_status": "not_pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/263",
+  "scientific_acceptance": false,
+  "new_reservation_created": false,
+  "next_actions": [
+    "K/Gの静的成立・構成則仕様をユーザーレビュー後に実装",
+    "G不成立なら付着/離散化変更の要否を判断し実行へ進まない",
+    "11/20に候補不成立ならスコープ/期限を再判断"
+  ]
+}
