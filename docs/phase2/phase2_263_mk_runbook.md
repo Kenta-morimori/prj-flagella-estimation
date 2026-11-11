@@ -2,7 +2,7 @@
 
 2026-11-11。Refs #263 / PR #264。[承認済み自律ロードマップ](phase2_263_autonomous_roadmap.md)の第1フェーズ。[research統合・力学仕様](phase2_263_connector_research_synthesis.md)に基づくopt-in比較を実装した。科学的採択・既定profile変更は含まない。
 
-**実行状況**：short予約#43を固定`e32c4ad033411c4bbdfb3fcc6583eab10b93e08e`で作成し、11/11 23:02 JSTに4条件running/failed0を確認。[予約レビュー記録](../codex-runs/20261111_issue263_mk_short_reservation/review_result.json)。完走/QC/遊泳成立は未判定で、1秒stageはshortの代理レビュー後。予算は1/5予約使用。証拠は`outputs/2026-11-11/230216/issue263_mk_short_reservation/`。
+**実行状況**：short#43は4/4完走・共通strict QCと代理replay PASS。[短期結果](phase2_263_mk_1tau_result.md)に定量/同期/視認証拠を記録。承認済みの同4条件1秒比較#44を、同じ固定`e32c4ad033411c4bbdfb3fcc6583eab10b93e08e`で11/11 23:46 JST開始。予算2/5予約使用、1秒完走/QC/機序と3.5秒入口は未判定。科学的採択は保留。
 
 ## 比較と固定値
 

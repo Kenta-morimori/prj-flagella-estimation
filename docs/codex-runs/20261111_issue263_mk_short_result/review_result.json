@@ -1,0 +1,76 @@
+{
+  "status": "PASS",
+  "scope": "completed short43 procedure/QC/replay review, not scientific acceptance",
+  "reviewed_at_jst": "2026-11-11T23:44:03.279951+09:00",
+  "fixed_commit": "e32c4ad033411c4bbdfb3fcc6583eab10b93e08e",
+  "reservation_id": 43,
+  "portable_files": 37,
+  "portable_bytes": 1016482,
+  "file_set_count_all_SHA256": "PASS",
+  "run_summary_first": "PASS",
+  "all_conditions_10000_contiguous_steps": true,
+  "common_strict_QC": "4/4 PASS",
+  "replay": "fixed common3D/2D,41frames25fps,coverage0-.04s,ffprobe/SHA/visual PASS",
+  "saved_contact": "all41 saved states all4 active pair minimum>=.21383um>2a.20um; no unsaved-step guarantee",
+  "bundle_rotation": "4QC-PASS archives analyzed; material flag .1787-.1850turn and body .0508-.0548turn; insufficient cycles",
+  "delegated_short_review_passed": true,
+  "authorized_next_stage": "same fixed e32 four-condition1s; no further approval required",
+  "user_review_required": false,
+  "goal_status": "active",
+  "scientific_acceptance": false,
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "1tau is initial QC only; bundle and late propulsion remain untested",
+    "M max torsion deviation4.303deg vsDJ.598deg; K internal deformation benefit requires1s factor comparison"
+  ],
+  "next_actions": [
+    "Queue fixed e32 1s only after queue/dry-run/source/inputs reconfirmed",
+    "Use existing comparison windows.04-.2/.2-.65/.65-1s",
+    "Do not enlarge duration unless candidate entry criteria met"
+  ],
+  "summary": "M/K短期4/4完走・共通strict QCと代理replay PASS。固定e32c4adの1秒四条件#44を承認範囲で予約し、正常開始を照合。遊泳採択は未判定。",
+  "tests_reviewed": [
+    "portable37/1016482bytes exactset/count/allSHA before-after/local",
+    "all4 run_summary先読/10000連続step/sourceinput照合",
+    "common strictQC/heatmap/fixed3D2D replay",
+    "41frame25fps/coverage/SHA/3D0,20,40+2D20視認",
+    "common bundle_rotation and saved runtime-pair distances/labelled body fit",
+    "Mac/cs10 simulation-free1s dry-run4conditions250001steps/worker4threads1",
+    "queue44 normal start fixed e32 and4ID/input SHA, other reservations unchanged"
+  ],
+  "tests_not_run": [
+    "new fullpytest: docs/analysis only, existing implementation tests retained",
+    "1s completion/late mechanism/candidate3.5s pending",
+    "scientific acceptance/merge"
+  ],
+  "user_review_command": null,
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_mk_1tau_result.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-11/234018/issue263_mk_short43_review/evaluation/replay/dt1e-04/nf03/grid_swim3d.mp4",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-11/234018/issue263_mk_short43_review/evaluation/replay/dt1e-04/nf03/grid_projection2d.mp4"
+  ],
+  "user_review_points": [
+    "short review delegated;1s approved and running",
+    "scientific adoption deferred"
+  ],
+  "adr_required": false,
+  "adr_reason": "ADR0029 Proposed; no scientific adoption",
+  "commit_type": "diagnostic",
+  "commit_hash": "e32c4ad033411c4bbdfb3fcc6583eab10b93e08e",
+  "commit_hash_role": "fixed simulation and analysis source; result documentation commit follows",
+  "push_status": "pending_result_documentation",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/263",
+  "new_reservation_created": true,
+  "next_reservation_id": 44,
+  "execution_budget_used": {
+    "total_reservations": 2,
+    "short_batches": 1,
+    "mechanism_1s_batches": 1,
+    "mechanism_1s_independent_conditions": 4,
+    "candidate_3p5s_batches": 0,
+    "candidate_3p5s_independent_conditions": 0,
+    "nominal_total_steps": 1040000,
+    "runtime_total_steps": 1040004
+  }
+}
