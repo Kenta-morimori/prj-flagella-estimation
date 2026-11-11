@@ -1,6 +1,8 @@
 # Issue #263：非重複R/DとD/J 4条件の再実行
 
-2026-11-04結果：short#41は4/4完走・strict QC4/4 PASS、固定camera replay/保存点幾何を確認し、同じfixed commitのmain#42（各3.5秒）を17:40 JSTに開始した。[短期結果と予約証拠](phase2_263_dj_clearance_1tau_result.md)を現在状況の正本とする。以下は予約前に固定した手順と比較条件。
+2026-11-11結果：main#42は4/4完走、strict QCはR/D/DJ PASS・J FAIL。D+Jは前進/回転が改善したが束形成・定常遊泳は未達。[3.5秒結果](phase2_263_dj_3p5s_result.md)を現在状況の正本とする。
+
+2026-11-04時点の記録：short#41は4/4完走・strict QC4/4 PASS、固定camera replay/保存点幾何を確認し、同じfixed commitのmain#42（各3.5秒）を17:40 JSTに開始した。[短期結果と予約証拠](phase2_263_dj_clearance_1tau_result.md)を短期証拠として保持する。以下は予約前に固定した手順と比較条件。
 
 2026-11-04。ユーザーはR/Dの初期配置を非重複へ修正し、4条件比較を維持する方針を承認した。共通preflight、短期QC/固定camera replayを確認後、3.5秒4条件の予約/開始まで進める。cs10接続・enqueue・必要なdispatcher/job開始は本スレッドで許可済み。既存予約を変更・取消・置換しない。物理採択・mergeは含まない。
 

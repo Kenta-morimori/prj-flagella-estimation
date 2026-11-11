@@ -1,0 +1,67 @@
+{
+  "status": "PASS",
+  "summary": "予約42の4/4完走を固定commit/入力/875000step/37files全SHAで照合。共通strictQC3PASS1FAILを隠さず記録、replayと機序診断を完了。束形成/定常遊泳未達で採択なし。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "Jは.185秒からflag QC FAIL。",
+    "R/D/DJは遠位軸の束判定未達。",
+    "必要完全周期数が不足。",
+    "追加位置復元code/scale削除はmerge前残件。"
+  ],
+  "tests_reviewed": [
+    "固定commit59890c0/4ID/入力SHA/875000連続step",
+    "portable37files36447637bytes集合/全SHA",
+    "run_summary先読、共通development_evaluation strictQC/heatmap",
+    "fixed common-camera標準41frame25fpsと定性176frame50fps、ffprobe/coverage/SHA/3D視認",
+    "common bundle_rotation、label付きbodyfit/前進、保存点距離のbrute parity initial/middle/final",
+    "全step FF反発max=0（合格3条件）、保存点凸包監査",
+    "git diff --check、相対文書link、source/conf/tests固定source同一"
+  ],
+  "tests_not_run": [
+    "物理source無変更につきfullpytest再実行なし（準備時1117PASS保持）",
+    "新規simulation/予約/物理変更/モデル採択/mergeなし",
+    "瞬間力再構成の因果推定は未検証のため結論から除外"
+  ],
+  "user_review_required": true,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_dj_3p5s_result.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-11/181925/issue263_main42_review/replay_qualitative/grid_swim3d.mp4"
+  ],
+  "user_review_points": [
+    "DJの回転/前進改善と束形成未達を分けてレビューし、次の物理設計を判断する"
+  ],
+  "adr_required": false,
+  "adr_reason": "ADR0029 Proposedを維持。既存固定実行の結果記録のみ。",
+  "commit_type": "diagnostic",
+  "commit_hash": "59890c05460ba3032d50813afaa488ed3440f271",
+  "commit_hash_role": "fixed simulation/analysis source; result documentation commit is PR head",
+  "push_status": "pending",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/263",
+  "scientific_acceptance": false,
+  "long_reservation_id": 42,
+  "long_state": "succeeded",
+  "long_strict_qc": {
+    "PASS": [
+      "R",
+      "D",
+      "DJ"
+    ],
+    "FAIL": [
+      "J"
+    ]
+  },
+  "new_reservation_created": false,
+  "next_actions": [
+    "hook/付着/遠位軸整列/接触の監査から次の設計をユーザー判断",
+    "merge前追加位置復元code/scale削除"
+  ],
+  "mail_completion_detection": {
+    "automation_id": "cs10",
+    "status": "ACTIVE",
+    "interval_minutes": 30,
+    "mode": "read_only_gmail",
+    "baseline_existing_messages": 16
+  }
+}
