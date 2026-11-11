@@ -1,0 +1,32 @@
+{
+  "status": "PASS",
+  "summary": "承認済みM/Kのshortをcs10予約#43として固定e32c4adで予約し、既存dispatcherによる4条件の開始を照合した。実装/予約手続のPASSで、simulationの完走/QC/遊泳成立は未判定。",
+  "blocking_issues": [],
+  "non_blocking_issues": ["shortの完走とcommon QC/replayレビュー待ち", "1秒stageはshort確認後で未予約"],
+  "tests_reviewed": [
+    "Mac full1137・targeted142/83/28・ruff/lifecycle/light402 PASSの実装証拠",
+    "cs10固定sourceのdry-run、4ID/入力SHA/実効4workers・thread1/active線分clearance PASS",
+    "cs10 Python3.11.15/numpy2.2.6/scipy1.15.3のM静的dt=0照合、指定couple誤差~2.66e-15",
+    "queue未pause/他active予約なし/既存dispatcher稼働を確認、既存予約は不変更",
+    "queue43/launch git commit e32c4ad033411c4bbdfb3fcc6583eab10b93e08e・4ID・job/campaign SHA・running4/failed0照合",
+    "実行台帳1/5予約・short1/2・公称40000step使用を記録"
+  ],
+  "tests_not_run": ["short完走後のportable同期・run_summary/QC/replay・束/回転/推進診断", "1秒/3.5秒stage、科学的採択/merge"],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": ["docs/phase2/phase2_263_mk_runbook.md", "outputs/2026-11-11/230216/issue263_mk_short_reservation/manifest.json"],
+  "user_review_points": ["short後の代理レビューと範囲内の次stageは承認済み、再承認待ちを作らない", "物理的採択/mergeと新構造変更は今回の範囲外"],
+  "adr_required": false,
+  "adr_reason": "M/Kの比較実装はADR0029 Proposedへ記録済み。今回の予約で科学的採択はしない。",
+  "commit_type": "diagnostic",
+  "commit_hash": "e32c4ad033411c4bbdfb3fcc6583eab10b93e08e",
+  "commit_hash_role": "fixed simulation/analysis commit; reservation evidence documentation follows",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/263",
+  "goal_status": "active",
+  "scientific_acceptance": false,
+  "new_reservation_created": true,
+  "reservation_id": 43,
+  "next_actions": ["自身のcompact checkpointからETAを更新し、実行条件を保持", "完走時にportable集合/件数/全SHA、run_summary先読、common strictQC/固定replayを代理レビュー", "short PASSかつ明白な異常なしなら同一commitの1秒stageを予約、上限を厳守", "接続に依存しない既存結果/静的幾何の監査を並行して進める"]
+}
