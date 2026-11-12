@@ -1,0 +1,49 @@
+{
+  "status": "PASS",
+  "summary": "既存QC-PASSの#42DJで保存COMと2D描画を照合。隣接区間の44.6%で画素化による同一描画を確認し、同一視野4倍解像度で6.9%へ減ることを確認。#44の物理評価はVPN復旧待ち。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "#44の最終queue/portable/QC/replayはDNS接続障害で未照合",
+    "表示検算は物理的な速度変動や束未達の原因を単独で説明しない"
+  ],
+  "tests_reviewed": [
+    "old42 portable37 exactset/count/allSHA and summaries first",
+    "DJ common strictQC PASS and fixed59890 provenance",
+    "renderer files identical original6df19fa and analysise32",
+    "saved COM equals mean body bead coordinates max2.43e-16um",
+    "176 same-time poses, fixed field,256vs1024px raw capsule equality comparison",
+    "synthetic fixed orientation .01um translation:128px identical,512px changed at same field",
+    "comparison plot visually inspected; CSV/JSON syntax and relative doc links"
+  ],
+  "tests_not_run": [
+    "new fullpytest not rerun: no production source/config changes",
+    "new simulation/integration/reservation/model adoption/merge",
+    "main44 archive/evaluation/replay pending VPN access"
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_replay_motion_resolution_audit.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-12/173243/replay_pixel_motion_audit/pixel_motion_comparison.png",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-12/173243/replay_pixel_motion_audit/pixel_motion_audit.json"
+  ],
+  "user_review_points": [
+    "2D表示の停止と物理的な符号付き前進/回転を区別する",
+    "標準QC/replayは維持し補助2Dを同一視野で高解像度化する",
+    "現在のモデル未達の採否は#44の評価後"
+  ],
+  "adr_required": false,
+  "adr_reason": "表示の性質の監査と補助replay方針。標準renderer/物理/受入基準を変更せずADR0029 Proposedを維持。",
+  "commit_type": "diagnostic",
+  "commit_hash": "59890c05460ba3032d50813afaa488ed3440f271",
+  "commit_hash_role": "source simulation42; renderer analysise32c4ad, documentation result commit follows",
+  "analysis_commit": "e32c4ad033411c4bbdfb3fcc6583eab10b93e08e",
+  "push_status": "pending_documentation_commit",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/263",
+  "goal_status": "active",
+  "scientific_acceptance": false,
+  "new_reservation_created": false,
+  "standard_renderer_modified": false,
+  "main44_runtime_result_included": false
+}
