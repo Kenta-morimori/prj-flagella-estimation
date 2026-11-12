@@ -2,6 +2,8 @@
 
 2026-11-12。Refs #263 / PR #264。固定実行source `e32c4ad033411c4bbdfb3fcc6583eab10b93e08e`、短期#43に続く1秒#44の評価。**4/4完走・共通strict QC PASSだが、後方の近束形成は4条件とも未達。3.5秒へ延長せず、この限定フェーズは未達の機序と次案を提出して終える。** モデル採択・Issue完了・mergeではない。
 
+具体的な次段の設計・回転成立性・4条件案は[接続経路修正計画](phase2_263_connector_repair_plan.md)へ整理した。未実装・未予約。
+
 ## 条件と再現性
 
 同じJ座標、nf3/slots024。DJ＝D+J対照、M＝相対位相仕事drive、K＝近位3曲げの接線応答正規化、MK＝両方。4条件の初期座標hashは同一。T/reference T=2.5e−20 Nm/本、dt4µs、粘性1mPa s、FF/BF ON、Brownian/切替OFF、解析torsion、遠位材質・ばね・反発曲線・QCを固定した。Mは出力軸投影Tを保ち、全vectorと仕事率は変わる承認済み比較である。[実装仕様](phase2_263_connector_research_synthesis.md)、[実行手順](phase2_263_mk_runbook.md)を参照。
