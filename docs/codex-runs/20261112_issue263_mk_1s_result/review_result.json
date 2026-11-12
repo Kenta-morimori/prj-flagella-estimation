@@ -1,0 +1,80 @@
+{
+  "status": "PASS",
+  "scope": "bounded autonomous Phase1 procedure/evidence/negative conclusion; not scientific swimming success or Issue completion",
+  "reviewed_at_jst": "2026-11-12T23:00:36.283884+09:00",
+  "summary": "#43/.04sと#44/1sを実施し、4/4common strictQC・固定replay・全portableSHA・機序診断を完了。束入口0/4で3.5sへ進めず、M/K内の根拠なき再実行をせず未達機序とG/接触の次案を確定。ビーズproxyを線分実力とした旧断定を訂正。",
+  "fixed_commit": "e32c4ad033411c4bbdfb3fcc6583eab10b93e08e",
+  "reservation_id": 44,
+  "portable_files": 37,
+  "portable_bytes": 11045290,
+  "file_set_count_all_SHA256": "PASS",
+  "run_summary_first": "PASS",
+  "runtime_steps_per_condition": 250001,
+  "actual_end_s": 1.0000039999982029,
+  "comparison_end_s": 1.0,
+  "common_strict_QC": "4/4PASS",
+  "scientific_acceptance": false,
+  "bundle_entrance_pass": "0/4conditions; late sharedgeometry pass fraction0%",
+  "goal_outcome": "bounded_phase_complete_negative_result",
+  "new_reservation_created": false,
+  "execution_budget_used": {
+    "total_reservations": 2,
+    "short_batches": 1,
+    "mechanism_1s_batches": 1,
+    "mechanism_1s_independent_conditions": 4,
+    "candidate_3p5s_batches": 0,
+    "nominal_total_steps": 1040000,
+    "runtime_total_steps": 1040004
+  },
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "Stable bundle swimming remains scientifically unmet; this procedure PASS does not close Issue263",
+    "All-step bead-distance proxy is not actual segment force; saved M/MK interflag contact verified, unsavedstepforceunresolved",
+    "BF soft contact and opening are correlated, not causal proof; nextG/BF2x2needs static feasibility and new scope decision",
+    "New attachment/discretization/constitutive changes outside current delegation",
+    "ADR0029 Proposed; position restoration code/scale removal and final PR review remain premerge"
+  ],
+  "tests_reviewed": [
+    "e32 fixed source/job/campaignSHA/4IDs/250001continuousstepfinals",
+    "portable37 exactset/count/allSHA before-after remote and local",
+    "run_summary first; common development_evaluation strictQC/heatmap/fixed3D2D",
+    "common bundle_rotation plus independently validated saved connector/labelledbody diagnostics",
+    "standard41frames25fps;qual201frames50fps3D960x960/2D2048x2048;ffprobecoverage/SHA/selectedframevisual",
+    "all1002savedstatesx4 actual active segment distances, full-pair and certified AABB results identical",
+    "actual segment repulsion separatedBF/interFF/intraFF; 24frozen totalnormparityexact",
+    "production frozen forces/fullRPY no integration; linearpartitionsum/PCAderivativeoracle<=1.49e-8s^-1",
+    "existing isolatedbendlandscape/conicalfamily/rigidconstraintRPY references kept explicitly limited",
+    "documentation links/JSON/gitdiff/sourceunchanged check"
+  ],
+  "tests_not_run": [
+    "No new fullpytest for docs/analysis only; implementation tests retained",
+    "No additional simulation/reservation/MKcoefficientrepair/3.5s",
+    "No torsion comparison, T/dt/viscosity sweep, or newstructuralmodel"
+  ],
+  "user_review_required": true,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-12/223130/issue263_mk_1s44_review/figures/mechanism_comparison.png",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-12/223130/issue263_mk_1s44_review/qualitative_replay/grid_swim3d.mp4",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-12/223130/issue263_mk_1s44_review/qualitative_replay/grid_projection2d.mp4",
+    "docs/phase2/phase2_263_mk_1s_result.md"
+  ],
+  "user_review_points": [
+    "Bounded M/K phase scientific negative result; no further run in this scope",
+    "Nextproposal Gstaticfeasibility thenDJ-fixed J/G x BFON/OFF is designonly, not authorizednewstructuralexecution",
+    "Actualsegmentforce vsbeadproxy correction and dynamicsoftcontact caveat"
+  ],
+  "adr_required": false,
+  "adr_reason": "ADR0029 remains Proposed; no scientific adoption or outputcontract change",
+  "commit_type": "diagnostic",
+  "commit_hash": "e32c4ad033411c4bbdfb3fcc6583eab10b93e08e",
+  "commit_hash_role": "fixed simulation/analysis source already pushed; result documentation follows",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "User review of negative phase and nextG/connection/contact proposal",
+    "Establish Gstaticclearance/spinfeasibility before any structuralsimulation",
+    "Keep strictQC/T/dt/eta and scientificgate; do not spend unusedreservationbudgetwithoutjustification",
+    "Remove extra position-restoration code/scale before merge; no merge now"
+  ]
+}

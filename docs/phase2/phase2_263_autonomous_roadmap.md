@@ -122,3 +122,9 @@ cs10上で開始済みの計算と、このMacでのCodex/解析継続は分け�
 今回のロードマップ作成時点では文書整合チェックと継続Goal開始まで。新規simulation、cs10接続/予約/開始、production物理変更はない。次にGoal内で段階1の実装へ進む。[ADR0029](../adr/0029_phase2_effective_torque_and_root_transition_direction.md)はProposed。追加位置復元code/scale削除はmerge前残件。
 
 実行台帳の正本は`outputs/2026-11-11/212021/issue263_autonomous_roadmap/execution_ledger.json`。承認範囲、使用済み予約/条件/step、固定commit/入力SHA/予約ID、結果を更新し、失敗実行も枠に算入する。開始時の使用数は全0。各結果は別のJST日時outputへ保存し、台帳から参照する。
+
+## 第1自律フェーズの結果（2026-11-12）
+
+短期#43と1秒#44を実施し、4/4共通QC PASS・全portable SHA一致・replay/機序診断を完了した。Mは幅と早期前進を改善、Kは近位内部変形を減らすが、束形成の入口は全4条件0%。[結果と次案](phase2_263_mk_1s_result.md)に根拠を集約した。時間延長や無根拠なM/K係数修正はせず、2/5予約でこの限定フェーズを未達報告として完了する。
+
+次は近束へつながる接続経路Gの静的成立性、次いでDJ固定のJ/G×菌体反発ON/OFFという提案。新しい付着/近位離散化・構成則の変更は今回の委任範囲外で未実装・未予約。科学的採択、merge、canonical freezeは行っていない。なお全stepのビーズ距離proxyを実際の線分反発力とした旧説明を訂正し、M/MKの後半で実線分反発を確認した。
