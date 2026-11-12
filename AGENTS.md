@@ -51,6 +51,7 @@ manifest で不足する場合だけ読む。Phase 2 diagnostics では `run_sum
 * target branch は task / Issue 指定を優先し、なければ default branch とする。実装前に Issue execution target、独立 condition 数、Mac wall time 見積り、許可された実行範囲を短く報告する。
 * `execution:cs10` では、独立 condition が2以上なら `cs10_qualified` parallel-job YAML、condition ごとの output 分離、dry-run plan を確認するまで実行しない。serial 例外には Issue runbook の具体的理由と、開始前のユーザー明示 Issue コメント承認 URL が必要である。
 * `execution:cs10` の接続、`queue.py enqueue` / `cancel` / `pause` / `resume`、reservation の置換、dispatcher / tmux、job の開始・停止は別々の外部操作であり、それぞれに当該操作のユーザー明示承認が必要である。queue reservation は fixed-commit execution contract とし、enqueue 後の branch 移動から置換や cancel を推測しない。
+* cs10 の SSH user/host は過去の成功記録と `docs/codex/cs10_runbook.md` で照合し、ユーザー名を明示する。Mac の既定ユーザーを流用せず、`ssh -G` の設定と、許可済み接続時の `id -un` を確認する。名前解決・到達性・認証の失敗を区別し、DNS エラーだけでユーザー名誤りや VPN 切断を断定しない。
 * Phase 2 の `model_profile.implementation_status: pending` には `model-development-evaluation` skill と `development_evaluation` contract を用いる。Issue 固有 evaluator は追加せず、長時間 stage の前に short-screen QC / replay を行う。
 * 関連作業は GitHub-native relationship で管理する。bounded child task は parent の sub-issue にし、実際の完了依存だけに `blocking` / `blockedBy` を付ける。
 * 新規 Issue では `Roadmap category (Milestone)` を必須とし、`roadmap:triage` / `roadmap:needs-review` の Issue は metadata 修正まで実装しない。

@@ -58,6 +58,8 @@ dχ = k·dθ_fit + (g×e−h)·de − g·dθ_body
 
 ## 固定commitと実行順
 
+接続targetは、成功記録で確認した **`Ktakemori@cs10`** を明示する（大文字K）。Macで裸の`ssh cs10`を使うと`kentatakemori`が選ばれる。接続前の`ssh -G`と、許可済み接続での`id -un`を照合し、snapshot/portable同期にも同じtargetを渡す。[共通接続手順とエラー切り分け](../codex/cs10_runbook.md#cs10-ssh-identity)に従う。#43の成功コマンドと#44の直近DNS失敗コマンドはいずれも`Ktakemori@cs10`であり、設定の誤りと名前解決障害を分けて記録する。
+
 | Stage | campaign | parallel job | 各条件 |
 | --- | --- | --- | --- |
 | short | `conf/phase2_multi_run/2010_hex_nf3_mk_1tau_issue263.yaml` | `conf/phase2_parallel/issue263_initial_bundle/nf3_mk_1tau_job.yaml` | .04秒 / 10000 step |

@@ -1,0 +1,47 @@
+{
+  "status": "PASS",
+  "summary": "過去成功#43と現在のid-unでSSHuserKtakemoriを確認。barecs10はMacuserkentatakemoriへdefaultすることを示し、AGENTS/共通runbook/Issue手順/Goal引継ぎに明示userと照合・障害層分類を追加。直近失敗は指定userが正しい状態のDNS失敗と区別した。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "#44の物理結果は共通評価・replay・機序分析が進行中"
+  ],
+  "tests_reviewed": [
+    "ssh-G barecs10 userkentatakemori / explicitKtakemori@cs10 userKtakemori hostnamecs10 port22",
+    "authorized fresh remoteid-unKtakemori / exit0",
+    "prior short43 successful same explicit target and portable37 allSHA",
+    "snapshot44 actual4complete fixede32 inputIDs/250001steps, not a username guess",
+    "Markdown relative links/explicit stable anchor/JSON syntax/gitdiffcheck",
+    "current snapshot/sync helper explicit target and prepared sync user guard"
+  ],
+  "tests_not_run": [
+    "new physical simulation/reservation/default SSH config changes",
+    "fullpytest rerun: docs and operational proof only",
+    "canonical model adoption/merge"
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "AGENTS.md",
+    "docs/codex/cs10_runbook.md",
+    "docs/phase2/phase2_263_mk_runbook.md",
+    "docs/phase2/phase2_263_autonomous_roadmap.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-12/223123/issue263_ssh_identity_review/ssh_identity_check.json"
+  ],
+  "user_review_points": [
+    "Always explicit uppercaseK SSHuser; compareeffective configandremoteidentity",
+    "DifferentiateDNS/reachability/authentication; no blindaccount guesses",
+    "No changes to userSSHconfig/credentials; current connection restored"
+  ],
+  "adr_required": false,
+  "adr_reason": "SSH運用・引継ぎのみ。物理/出力契約/科学採択の変更なし。ADR0029 Proposed維持。",
+  "commit_type": "diagnostic",
+  "commit_hash": "e32c4ad033411c4bbdfb3fcc6583eab10b93e08e",
+  "commit_hash_role": "unchanged simulation44 and analysis source; documentation commit follows",
+  "push_status": "pending_documentation_commit",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "source_issue": "https://github.com/Kenta-morimori/prj-flagella-estimation/issues/263",
+  "goal_status": "active",
+  "scientific_acceptance": false,
+  "new_reservations_created": 0,
+  "private_SSH_config_modified": false
+}

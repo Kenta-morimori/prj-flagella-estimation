@@ -2,9 +2,42 @@
 
 cs10 は CentOS 7 / glibc 2.17 の CPU 実行環境である。Mac の `pyproject.toml`、`uv.lock`、`.venv` を canonical environment とし、cs10 はこの runbook と `requirements/cs10.txt` に従う `.venv-cs10` を使う。
 
+<a id="cs10-ssh-identity"></a>
+
+## Macからの接続先・ユーザー確認
+
+この利用環境で過去に成功した接続先は **`Ktakemori@cs10`（先頭は大文字K）**。Macのユーザー名 `kentatakemori` とは異なる。#43の予約・portable同期の成功記録を照合し、2026-11-12にも同じ指定で接続して `id -un` が `Ktakemori` を返すことを確認した。[#43の検証記録](../phase2/phase2_263_mk_1tau_result.md)を参照する。他の利用者へこのアカウントを流用せず、その利用者の成功記録で確認する。
+
+接続・同期・引継ぎではユーザー名を省略しない。このMacでは `ssh -G cs10` が `user kentatakemori` を選ぶため、裸の `ssh cs10` を成功例の代わりに使わない。ユーザーの `~/.ssh/config` は自動で書き換えない。
+
+まずMacで、SSHログインを行わずに実効設定を確認する。
+
+```bash
+CS10_SSH_TARGET=Ktakemori@cs10
+ssh -G "$CS10_SSH_TARGET" | rg '^(user|hostname|port) '
+```
+
+この環境の期待値は `user Ktakemori`、`hostname cs10`、`port 22`。`ssh -G` は設定の確認であり、DNS解決や接続成功の証拠ではない。Issue/チャットで接続が許可済みなら、次のread-only確認を行う。
+
+```bash
+ssh -o BatchMode=yes -o ConnectTimeout=12 "$CS10_SSH_TARGET" id -un
+```
+
+返り値が `Ktakemori` であることを確認してから、許可されたqueue確認・転送等へ進む。当該操作・範囲への既存の明示承認を確認して用い、その範囲内で再承認待ちを作らない。別のユーザー名を推測して認証試行を繰り返さない。`scp`・`rsync`・同期CLIにも同じ明示的なtargetを渡す。
+
+| 観測 | 切り分け・対応 |
+| --- | --- |
+| `ssh -G` のuserが期待と異なる | 接続指定を修正する。Macの既定ユーザーで認証を試さない |
+| `Could not resolve hostname` | 認証に入る前の名前解決エラー。実効HostNameとDNS/VPN到達性を確認する。ユーザー名誤りやVPN切断を、このエラーだけで断定しない |
+| timeout / no route | ネットワーク経路・VPN・接続先の到達性を確認する。simulationの失敗とは扱わない |
+| `Permission denied` | 実効user・大文字小文字と鍵/agentを確認する。秘密鍵・credentialを記録へ出力しない |
+| 接続後の `id -un` が期待と異なる | queue操作・転送を進めず、アカウントを照合する |
+
+引継ぎにはtarget、実効user/hostname、成功時の `id -un`、確認日時、失敗した層を残す。2026-11-12の#44確認失敗では、コマンドは `Ktakemori@cs10` を明示済みで、実際のエラーは名前解決だった。省略時のuser誤りと、このDNS障害を混同しない。
+
 ## Setup
 
-GitHub SSH 鍵を agent へ登録してから、Issue 用 branch を checkout する。
+以下のSetup・Qualificationはcs10上のshellで行う。ここでのGitHub SSH鍵はcs10からGitHubへアクセスするためのもので、Macからcs10へログインするユーザー指定とは別である。GitHub SSH 鍵を agent へ登録してから、Issue 用 branch を checkout する。
 
 ```bash
 eval "$(ssh-agent -s)"

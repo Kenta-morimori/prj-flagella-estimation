@@ -1,0 +1,9 @@
+# SSH接続先と障害判定の再発防止
+
+2026-11-12。ユーザーの指摘により過去成功例と実効設定を照合。既存PR264専用treeを使用しprimaryissue271は不変更。
+
+ssh-Gcs10はuserkentatakemori、明示Ktakemori@cs10はuserKtakemori。過去#43portable同期成功も同じ明示target。現接続でid-unKtakemori/exit0を確認した。直近#44の失敗は明示user済みのDNSエラーであり、認証失敗とは異なる。
+
+AGENTSに最小guard、共通runbookにMacログイン/remoteGitHub認証の区別と確認手順・障害分類、Issue実行手順とGoal引継ぎに同じtarget/正本リンクを追加。userSSHconfig/鍵/credentialは不変更。現在のsnapshot/synchelperにも明示targetを確認。
+
+接続復旧後は既存承認により固定e32の#44実データを確認し、portable37の集合・件数・全SHAとsummary先読を実施。共通評価は別工程で進行。今回の接続文書変更では新規予約/モデル変更なし。
