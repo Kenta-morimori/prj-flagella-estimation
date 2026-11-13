@@ -17,7 +17,7 @@
     "singleproduction forcepass partitions syntheticinteriorsegmentcontact missedbybeadproxy; forcesbitwiseunchanged/cutoff/class/time tested",
     "Mac simulation-free short/main dryrun2IDs/qualified2workers/thread1/initialactiveclearancePASS",
     "common initialpreview generated and visuallyreviewed, ON/OFF coordinatesidentical",
-    "SSHexplicitKtakemori id-un succeeds; queueempty/unpaused; no dispatcherprocess; existingqueue tmuxshellidle",
+    "SSHexplicitKtakemori id-un succeeds; queueempty/unpaused; existing dispatcherPID68130 verified by actualCLIrun match; queue tmux present",
     "ruff/doclinks/JSON/gitdiff checks"
   ],
   "tests_not_run": [

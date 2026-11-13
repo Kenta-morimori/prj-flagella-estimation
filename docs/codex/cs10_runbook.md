@@ -235,6 +235,8 @@ tmux new-session -d -s cs10-queue \
 tmux attach -t cs10-queue
 ```
 
+dispatcherの内部関数名は`dispatch`だが、実際のCLIは`queue.py run`。processの有無を確認するときに`dispatch`だけを検索せず、実argvの`queue.py run`を照合する。tmuxのpane名や`pane_current_command=bash`だけでdispatcher不在と断定しない。既存processを確認したら重複起動しない。
+
 初期版の同時実行数は全体で1である。priorityが高い予約を先に、同じpriorityはFIFOで実行する。
 失敗またはmanifest不整合時は全queueをpauseするため、原因を確認してから明示的に再開する。
 

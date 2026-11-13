@@ -6,4 +6,4 @@
 
 新8targetedPASS、targetgroup60PASS、full1146PASS、e32比30array bitwise一致、Macのshort/main dryrunと共通初期previewを確認。初期dryrunはsingle-key axisのID正規化差で拒否され、linked-key mappingへ修正してYAMLとplanの2ID一致を確認した。simulation予約の失敗ではなく、予約前の設定検査で解消した。
 
-SSH user Ktakemoriと接続成功、queueempty/unpausedを確認。nativeVPNservice表示だけで接続失敗を断定せず、VPN設定は触らない。dispatcherprocessは不在、旧queue tmuxはidle shellで、今回必要な起動は許可済み。旧予約変更・新物理採択・mergeなし。
+SSH user Ktakemoriと接続成功、queueempty/unpausedを確認。nativeVPNservice表示だけで接続失敗を断定せず、VPN設定は触らない。dispatcher調査の初回probeは内部関数名dispatchだけを見ていたため不在と誤判定した。CLI actionはrunなので両方を含めて再照合し、既存PID68130を確認した。既存dispatcherを利用し、起動や旧tmux変更はしない。旧予約変更・新物理採択・mergeなし。
