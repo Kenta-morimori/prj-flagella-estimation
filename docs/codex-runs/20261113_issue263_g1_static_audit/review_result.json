@@ -1,0 +1,49 @@
+{
+  "status": "PASS",
+  "scope": "boundedstaticgeometry/force/workaudit andreportonly;notfullspingateorcompleted46",
+  "scientific_acceptance": false,
+  "goal_status": "active",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "G1fullturnandcontinuousclearance/workgateunproven,notdynamicallyadopted",
+    "46stillrunning;QC/replay/causalcontrastfuture",
+    "G2newconstitutive/dynamicdecisionnotadopted"
+  ],
+  "tests_reviewed": [
+    "convexcertificate120randomsegmentsvsQP and100pairsvsproductionkernel",
+    "jointinitialfullactiveclearance+convexbodybounds+.25hook/.58links/11beads/samedistal8 andphases",
+    "samefixedengine step0 initialforces~roundoff,positiveRPYanddissipation,force/torquebalance",
+    "fixednaturalreference sampledpathwithhookenergy,relaxedcommontranslation;reportunconverged90degwithoutadoption",
+    "Dwork8/16Gaussconvergence;betweenphasegeometryexplicitlyunproven",
+    "figurevisualreview,primarypapersmethodsread,doclinks/JSON/gitdiff"
+  ],
+  "tests_not_run": [
+    "newdynamicG1/G2or3.5s",
+    "46completedQC/replay",
+    "fullpytestrepeatfordocsonly:runtime823already1146PASS"
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_g1_static_feasibility.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-13/180742/issue263_connector_execution_preparation/G1_initial_and_work_reference.png",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-13/180742/issue263_connector_execution_preparation/G1_joint_translation_feasibility.json"
+  ],
+  "user_review_points": [
+    "2026-11-13delegatedstaticreviewandwithin-scopebooking;G1gatenotmetso nobooking",
+    "Scientificadoption/newG2dynamicconstitutionnotdelegatedinthisboundedphase"
+  ],
+  "adr_required": false,
+  "adr_reason": "ADR0029Proposed;staticprototypeonly,nonphysicaladoption",
+  "commit_type": "docs",
+  "commit_hash": "12d3ba2b466db469201f11ecb02dc6677c2e43df",
+  "commit_hash_role": "priorpublishedhead;fixedanalysis823recordedseparately",
+  "fixed_source": "823f81873aa601e7a12ad026c80234db16f7fc2d",
+  "push_status": "pendingthisreportcommit",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "46completion/portableSHA/summaryfirst/commonQCfixedreplay andcausalcontrast",
+    "G1continuousrotation/workgatebefore4conditionrun",
+    "G2staticspin-tilt/material/flowcorrespondenceproposalonly"
+  ]
+}
