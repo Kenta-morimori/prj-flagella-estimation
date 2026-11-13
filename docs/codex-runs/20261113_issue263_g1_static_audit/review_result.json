@@ -7,7 +7,8 @@
   "non_blocking_issues": [
     "G1fullturnandcontinuousclearance/workgateunproven,notdynamicallyadopted",
     "46stillrunning;QC/replay/causalcontrastfuture",
-    "G2newconstitutive/dynamicdecisionnotadopted"
+    "G2newconstitutive/dynamicdecisionnotadopted",
+    "G2materialstrain/passivemoment/rotationalmobility calibration unresolved;donotcopysourcekbtoallanglelinearjoint"
   ],
   "tests_reviewed": [
     "convexcertificate120randomsegmentsvsQP and100pairsvsproductionkernel",
@@ -15,7 +16,12 @@
     "samefixedengine step0 initialforces~roundoff,positiveRPYanddissipation,force/torquebalance",
     "fixednaturalreference sampledpathwithhookenergy,relaxedcommontranslation;reportunconverged90degwithoutadoption",
     "Dwork8/16Gaussconvergence;betweenphasegeometryexplicitlyunproven",
-    "figurevisualreview,primarypapersmethodsread,doclinks/JSON/gitdiff"
+    "figurevisualreview,primarypapersmethodsread,doclinks/JSON/gitdiff",
+    "singleboundedprecessiontrialwithactualrearcone15deg:90degsampledPASS,105degnotconverged/constraintsFAIL;notglobalimpossibility",
+    "staticfull11Mvsdistal8endpointwork/objectivity/line-integral andvirtualworkchecks,notnewmotoroption",
+    "G1trialelasticcomponents vsoldactualDJdifferentiated; noactual46causalclaim",
+    "7existingDJstates elasticenergy vscomponentforcegradient max1.6e-8;FENEclippedenergyundefinedsemantics;short45 82rows smoke",
+    "G2scalar-inputtwist eliminatesanalyticallytoexistingTgradchi;formalunits/mobilitymappingmarkednotadopted"
   ],
   "tests_not_run": [
     "newdynamicG1/G2or3.5s",
@@ -36,10 +42,10 @@
   "adr_required": false,
   "adr_reason": "ADR0029Proposed;staticprototypeonly,nonphysicaladoption",
   "commit_type": "docs",
-  "commit_hash": "12d3ba2b466db469201f11ecb02dc6677c2e43df",
-  "commit_hash_role": "priorpublishedhead;fixedanalysis823recordedseparately",
+  "commit_hash": "5e72e058a5f197bc0145b9cf395fadb8af2a97e8",
+  "commit_hash_role": "priorpublishedstatichead;follow-upreportpublicationinlocalmanifest",
   "fixed_source": "823f81873aa601e7a12ad026c80234db16f7fc2d",
-  "push_status": "pendingthisreportcommit",
+  "push_status": "publication_of_enclosing_commit_recorded_locally",
   "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
   "next_actions": [
     "46completion/portableSHA/summaryfirst/commonQCfixedreplay andcausalcontrast",
