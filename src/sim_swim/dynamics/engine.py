@@ -30,6 +30,7 @@ from sim_swim.dynamics.forces import (
 from sim_swim.dynamics.frame_potential import attachment_frame_energy_forces
 from sim_swim.dynamics.hydro_rpy import compute_rpy_mobility
 from sim_swim.dynamics.phase_drive import PhaseWorkDrive
+from sim_swim.dynamics.segment_contact_diagnostics import SegmentContactTracker
 from sim_swim.model.types import PolymorphState, SimModel
 from sim_swim.sim.hook_frame import (
     hook_attach_frame,
@@ -282,6 +283,16 @@ class DynamicsEngine:
         )
         self.body_spring_mask[self.body_spring_rows] = True
         self.segment_repulsion_pair_counts = self._select_segment_repulsion_pairs()
+        self.segment_contact_tracker = (
+            SegmentContactTracker(
+                model.spring_pairs,
+                self.segment_pair_indices_for_repulsion,
+                model.bead_is_body,
+                model.bead_flag_ids,
+            )
+            if cfg.output.segment_contact_diagnostics
+            else None
+        )
         self.body_indices = self.model.body_indices.astype(int, copy=False)
         self.bead_is_body = self.model.bead_is_body.astype(bool, copy=False)
         self.motor_local_hook_scale = float(cfg.motor.local_hook_scale)
@@ -1056,6 +1067,11 @@ class DynamicsEngine:
                             k_tangent=self.k_hook * frame_tangent_extra_scale,
                         )
 
+        contact_step = (
+            self.segment_contact_tracker.new_step()
+            if self.segment_contact_tracker is not None
+            else None
+        )
         repulsion_forces = compute_segment_repulsion_forces(
             positions_m=pos,
             spring_pairs=self.model.spring_pairs,
@@ -1064,6 +1080,7 @@ class DynamicsEngine:
             cutoff=self.repulsion_cutoff_m,
             a_length=self.repulsion_a_m,
             force_curve=self.cfg.potentials.spring_spring_repulsion.force_curve,
+            contact_diagnostics=contact_step,
         )
 
         motor_forces = np.zeros_like(pos)
@@ -1218,6 +1235,14 @@ class DynamicsEngine:
                 },
             )
         )
+        if contact_step is not None:
+            balance.update(
+                self.segment_contact_tracker.metrics(
+                    contact_step,
+                    evaluation_t_s=self.t_star * self.cfg.tau_s - dt_s,
+                    dt_s=dt_s,
+                )
+            )
         balance.update(dict(motor_diag.drive_metrics))
         if (
             self.phase_drive is not None

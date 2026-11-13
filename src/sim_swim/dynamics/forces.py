@@ -553,6 +553,7 @@ def compute_segment_repulsion_forces(
     cutoff: float,
     a_length: float,
     force_curve: str = "exponential_cutoff",
+    contact_diagnostics=None,
 ) -> np.ndarray:
     """spring-spring 反発力を近似計算する。"""
 
@@ -567,7 +568,7 @@ def compute_segment_repulsion_forces(
     cutoff_eff = max(cutoff, 0.0)
     a_eff = max(a_length, 1e-12)
 
-    for seg_a, seg_b in segment_pair_indices:
+    for pair_index, (seg_a, seg_b) in enumerate(segment_pair_indices):
         i, j = spring_pairs[int(seg_a)]
         k, ell = spring_pairs[int(seg_b)]
 
@@ -577,6 +578,8 @@ def compute_segment_repulsion_forces(
         q2 = positions_m[int(ell)]
 
         pa, pb, s, t, dist = _closest_points_on_segments(p1, q1, p2, q2)
+        if contact_diagnostics is not None:
+            contact_diagnostics.distance(pair_index, seg_a, seg_b, s, t, dist)
         if dist >= cutoff_eff:
             continue
 
@@ -592,6 +595,10 @@ def compute_segment_repulsion_forces(
         forces[int(j)] += s * f
         forces[int(k)] -= (1.0 - t) * f
         forces[int(ell)] -= t * f
+        if contact_diagnostics is not None:
+            contact_diagnostics.applied_force(
+                pair_index, (int(i), int(j), int(k), int(ell)), s, t, f
+            )
 
     return forces
 

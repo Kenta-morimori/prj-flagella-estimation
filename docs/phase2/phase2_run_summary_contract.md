@@ -73,3 +73,16 @@ uv run python scripts/03_dataset_building/analyze_dataset.py --analysis-kind run
 ```
 
 The command does not modify source diagnostics. Replacing an existing summary requires `--overwrite`.
+
+## Opt-in実線分接触診断
+
+`output.segment_contact_diagnostics: true` はproductionの反発力計算と同じ最近点・同じactive segment pairを、その1回のforce passで記録する。既定falseで、物理力・積分・QC閾値は変えない。`segment_contact_available=1`があるrunだけを対象にする。無効時の空列/未生成metricを接触なしと解釈しない。旧`flag_flag_repulsion_force_*`はビーズ距離proxyで、これとは別の指標として保持する。
+
+- `segment_contact_{bf,inter_ff,self_ff}_*`：body/bodyを除くruntime-active pairを、菌体–べん毛（hookを含む）、異なる鎖間、同一鎖内非隣接に分ける。
+- `candidate_pairs`、`active_pairs`：対象pair数と、そのforce評価でcutoffより近いpair数。cutoffちょうどは非作動。hard非貫通やforceが必ず非ゼロという意味ではない。
+- `min_distance_um`、`max_pair_force_N`、`max_bead_force_N`：実最近点距離、実際に作用したpair forceの最大norm、そのclassの力をbeadへ合算した最大norm。class合力/合torqueではない。
+- `witness_segment_a/b`と`s/t`：そのforce評価の最短pairのspring rowと最近点パラメータ。summaryの列ごとの独立min/maxを組み合わせ、同じ時刻のwitnessに再構成してはならない。
+- `first_active_t_s`と`first_segment_a/b`：積分した内部stepのうち最初にcutoff内pairがあった**pre-step force評価時刻**と、その時刻の最短pair。`all_step_metrics.*.final`を読む。`-1`は未作動。
+- `active_time_s`：cutoff内pairがあった内部stepのdtの累積和。接触開始/終了をstep間で補間しない。`segment_contact_recorded_steps`は積分したstepの数。dt=0のfrozen評価は履歴を進めない。
+
+対象pairが無いclassはcandidate/active/forceが0、min距離とwitnessが−1。瞬時値の時刻は`force_evaluation_t_s`、累積時間/step数の観測時刻はstep終了時刻。compactでも全内部stepを集約し、画像・保存点だけからの接触保証や新たなQC gateにはしない。

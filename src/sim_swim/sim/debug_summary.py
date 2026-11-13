@@ -11,6 +11,7 @@ import numpy as np
 
 from sim_swim.dynamics.balance_diagnostics import BALANCE_COLUMNS
 from sim_swim.dynamics.engine import StepDiagnostics
+from sim_swim.dynamics.segment_contact_diagnostics import CONTACT_COLUMNS
 from sim_swim.model.types import PolymorphState, SimModel
 from sim_swim.sim.helix_axis import (
     angle_deg_between,
@@ -35,6 +36,7 @@ PROXIMAL_FLAG_BOND_REL_ERR_FIELDS = tuple(
 
 STEP_SUMMARY_COLUMNS = [
     *BALANCE_COLUMNS,
+    *CONTACT_COLUMNS,
     "step",
     "t_star",
     "dt_star",

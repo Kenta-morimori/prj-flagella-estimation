@@ -613,6 +613,7 @@ class OutputParams:
     archive_interval_s: float = 0.001
     checkpoint_interval_steps: int = 2500
     rotation_diagnostics: bool = False
+    segment_contact_diagnostics: bool = False
 
 
 @dataclass(frozen=True)
@@ -2138,6 +2139,8 @@ class SimulationConfig:
         )
 
         output_raw = raw.get("output", {}) or {}
+        if not isinstance(output_raw.get("segment_contact_diagnostics", False), bool):
+            raise ValueError("output.segment_contact_diagnostics must be boolean")
         if not isinstance(output_raw.get("rotation_diagnostics", False), bool):
             raise ValueError("output.rotation_diagnostics must be boolean")
         output = OutputParams(
@@ -2146,6 +2149,9 @@ class SimulationConfig:
             policy=str(_get(output_raw, "policy", "debug")),
             archive_interval_s=float(_get(output_raw, "archive_interval_s", 0.001)),
             rotation_diagnostics=output_raw.get("rotation_diagnostics", False),
+            segment_contact_diagnostics=output_raw.get(
+                "segment_contact_diagnostics", False
+            ),
             checkpoint_interval_steps=int(
                 _get(output_raw, "checkpoint_interval_steps", 2500)
             ),

@@ -1,0 +1,54 @@
+{
+  "status": "PASS",
+  "scope": "local implementation/preflight preparation, not completed cs10QC or scientific success",
+  "summary": "物理式と初期Jを保つopt-in実線分接触診断と、現JのBF ON/OFF2条件short/1秒を構成。G1未成立を待つ間に接触の因果を進める。固定sourceで予約する前のlocal準備を検証。",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    "G1の全3鎖幾何/回転成立性は未確認、未成立候補は予約しない",
+    "G2の離散化/材質/流体/drive軸は別設計判断であり今回の物理実装に含めない",
+    "CommonQC/replay for newshort is still future; no1s enqueue before delegatedreview",
+    "Diagnostic paircontact is cutoff occupancy, not a hard nonpenetration proof"
+  ],
+  "tests_reviewed": [
+    "new8targeted telemetry/campaign/compactintegration tests PASS4.24s",
+    "existing targetgroup60PASS20.96s",
+    "fullpytest1146PASS295.39s,existingrender layoutwarning1",
+    "e32 frozen7statesx2BFmodes+32stepspermode,30force/coordinatearrays bitwiseidentical",
+    "singleproduction forcepass partitions syntheticinteriorsegmentcontact missedbybeadproxy; forcesbitwiseunchanged/cutoff/class/time tested",
+    "Mac simulation-free short/main dryrun2IDs/qualified2workers/thread1/initialactiveclearancePASS",
+    "common initialpreview generated and visuallyreviewed, ON/OFF coordinatesidentical",
+    "SSHexplicitKtakemori id-un succeeds; queueempty/unpaused; no dispatcherprocess; existingqueue tmuxshellidle",
+    "ruff/doclinks/JSON/gitdiff checks"
+  ],
+  "tests_not_run": [
+    "cs10 fixedsource dryrun pending commit/push",
+    "newshort/1s QC/replay pending",
+    "G1/G2dynamic implementation or3.5s",
+    "modeladoption/merge/extra torsioncomparison/Tdtetasweep"
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "docs/phase2/phase2_263_connector_execution_runbook.md",
+    "docs/phase2/phase2_run_summary_contract.md",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-13/180742/issue263_connector_execution_preparation/preview/manifest.json"
+  ],
+  "user_review_points": [
+    "2026-11-13 approval delegates shortQC/replayreview and within-scope reservations, no repeatedapproval",
+    "Scientificadoption and newG2physical scope remain separate"
+  ],
+  "adr_required": false,
+  "adr_reason": "ADR0029 Proposed; telemetry and exactone-factorcontrols do not adopt a new physical model",
+  "commit_type": "diagnostic",
+  "commit_hash": "61b6a1573334b38f3286f3bad814e1e99f3bf524",
+  "commit_hash_role": "priorplanninghead; implementationfixedSHA recorded aftercommit",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "commit/push then fixedsourcecs10dryrun, enqueue2conditionshort",
+    "Start one dispatcher only if none; do not alterotherreservations",
+    "Portable sync/summaryfirst/commonQC/heatmap/fixedreplay review; ifPASS then1s samecommit",
+    "Bounded G1staticaudit concurrently, noinvalidGenqueue",
+    "Update newexecutionledger through11/29 with maximum7reservations and documentedgates"
+  ]
+}

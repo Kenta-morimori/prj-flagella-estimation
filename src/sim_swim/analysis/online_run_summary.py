@@ -10,6 +10,7 @@ from typing import Any, Mapping
 from zoneinfo import ZoneInfo
 
 from sim_swim.dynamics.balance_diagnostics import POST_STEP_DRIVE_COLUMNS
+from sim_swim.dynamics.segment_contact_diagnostics import CONTACT_POST_STEP_COLUMNS
 from sim_swim.sim.body_shape_gate import (
     BODY_BEND_ERR_MAX_DEG_LIMIT,
     BODY_CENTERLINE_DEV_UM_MAX_LIMIT,
@@ -67,8 +68,14 @@ class OnlineRunSummary:
                     self.maximum_times[key] = (
                         float(row.get("force_evaluation_t_s", t_s))
                         if key not in POST_STEP_DRIVE_COLUMNS
+                        and key not in CONTACT_POST_STEP_COLUMNS
                         and key.startswith(
-                            ("component_", "motor_drive_", "motor_reaction_")
+                            (
+                                "component_",
+                                "motor_drive_",
+                                "motor_reaction_",
+                                "segment_contact_",
+                            )
                         )
                         else t_s
                     )
@@ -136,8 +143,14 @@ class OnlineRunSummary:
                     self.maximum_times[key] = (
                         float(row.get("force_evaluation_t_s", t_s))
                         if key not in POST_STEP_DRIVE_COLUMNS
+                        and key not in CONTACT_POST_STEP_COLUMNS
                         and key.startswith(
-                            ("component_", "motor_drive_", "motor_reaction_")
+                            (
+                                "component_",
+                                "motor_drive_",
+                                "motor_reaction_",
+                                "segment_contact_",
+                            )
                         )
                         else t_s
                     )
