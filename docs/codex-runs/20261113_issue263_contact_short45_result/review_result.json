@@ -1,0 +1,67 @@
+{
+  "status": "PASS",
+  "scope": "short45 result publication, main46normalstart and boundedstaticdesign; not scientificacceptance",
+  "reservation_id": 45,
+  "fixed_commit": "823f81873aa601e7a12ad026c80234db16f7fc2d",
+  "conditions": [
+    "nf03__slots024__J_bfoff_control",
+    "nf03__slots024__J_bfon_control"
+  ],
+  "runtime_steps_each": 10000,
+  "actual_end_s": 0.03999999999999624,
+  "portable_files": 21,
+  "portable_bytes": 537390,
+  "exact_file_set_count_SHA256": "PASS_remote_before_after_andlocal",
+  "run_summary_first": "PASS_all2",
+  "common_strict_QC": "2/2PASS",
+  "replay": "fixed3D/2D41frame25fps,physical0-.04s,ffprobeSHA andselectedvisualPASS",
+  "allstep_actual_segment_contact": "ONBF3342candidatepairs,min.213831995um>2a.2,firstactive-1/time0;OFFBFnoeligiblepairs/min-1;interFFmin.727881129um/time0both. No contact inthisinitialwindow.",
+  "coordinate_control": "ON/OFF41savedpositions/times bitwiseidentical",
+  "delegated_review_passed": true,
+  "authorized_next_stage": "same823 JBF2conditions each1s/250001runtime steps; no furtherapprovalneeded",
+  "scientific_acceptance": false,
+  "goal_status": "active",
+  "blocking_issues": [],
+  "non_blocking_issues": [
+    ".04s precedes actualBFcontact;1s needed for mechanism,notsteadystate",
+    "G1fullgeometry/spin stillunproven;newG2staticreference not dynamicadoption"
+  ],
+  "tests_reviewed": [
+    "run/job/inputsha2IDs and10000contiguoussteps",
+    "21portable537390bytes fullsetcountSHA",
+    "all2run_summary andactualcontactavailability10000records firstread",
+    "commonstrictQC/heatmap/fixedreplay/bundle_rotation",
+    "video41frames25fps coverage/SHA/3D0midend and2Dendvisual",
+    "ON/OFF statearrays bitwiseidentical"
+  ],
+  "tests_not_run": [
+    "1s completion/causaldiagnosis",
+    "G1/G2dynamics",
+    "modeladoption/merge"
+  ],
+  "user_review_required": false,
+  "user_review_command": null,
+  "user_review_outputs": [
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-13/190235/issue263_contact_short45_review/evaluation/summary.csv",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-13/190235/issue263_contact_short45_review/evaluation/replay/dt1e-04/nf03/grid_swim3d.mp4",
+    "/Users/kentatakemori/Desktop/Research_data_analysis/prj-flagella-estimation-dev/prj-flagella-estimation/outputs/2026-11-13/190235/issue263_contact_short45_review/evaluation/replay/dt1e-04/nf03/grid_projection2d.mp4"
+  ],
+  "user_review_points": [
+    "Shortreview delegatedby2026-11-13 instruction;1s withinapprovedscope",
+    "Scientificadoption remainsdeferred"
+  ],
+  "adr_required": false,
+  "adr_reason": "ADR0029 Proposed; no physicaladoption",
+  "commit_type": "diagnostic",
+  "commit_hash": "823f81873aa601e7a12ad026c80234db16f7fc2d",
+  "commit_hash_role": "fixed execution/analysis source",
+  "push_status": "pushed",
+  "pull_request_url": "https://github.com/Kenta-morimori/prj-flagella-estimation/pull/264",
+  "next_actions": [
+    "46completion:portableallSHA,run_summaryfirst,commonQC/replay andactualcontactcausaldiagnostics",
+    "G1/G2staticspin/work/passive/drag/drivecorrespondence beforedynamicproposal",
+    "No3.5s unlesscandidateentryPASS;G2dynamicsnot adopted"
+  ],
+  "main_reservation_id": 46,
+  "main_status": "running"
+}

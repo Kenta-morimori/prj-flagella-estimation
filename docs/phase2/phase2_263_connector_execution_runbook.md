@@ -57,3 +57,5 @@ G1不成立なら、経路長/自由度/材質/drive軸のどこが不足かを�
 ## 証拠と台帳
 
 準備正本は`outputs/2026-11-13/180742/issue263_connector_execution_preparation/`。旧M/K台帳は保持し、今回の`execution_ledger.json`へ新規予約/condition/step・接続/レビュー/方針変更を記録する。Issue既存要約は重要3〜5項目だけ、詳細は本書/PRとlocal review_resultへ置く。
+
+11/13追記：[#45短期結果・#46の正常開始と静的監査](phase2_263_connector_contact_1tau_result.md)。#45の2/2 strict QC・replayを代理レビューしてPASS、同じ固定commit `823f818`の2条件1秒を#46として開始した。予約枠は2/7使用。G1は未成立、G2は静的参照のみで動的候補を予約していない。
