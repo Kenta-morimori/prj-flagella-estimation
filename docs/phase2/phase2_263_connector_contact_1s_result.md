@@ -76,6 +76,8 @@ ON/OFFは.088秒までの保存座標がbit一致し、最初の差は.089秒。
 
 再構成は計80step（主監査48＋早期24＋quad局在8）の短いMacチェックのみ。受動仮想更新・静的force差分を含めても長時間simulationやdt sweepではない。単純な陰的EulerをKrylov法で解く局所試作は25反復で収束せず、位置残差約1.17e−11mを残した。この試作を候補実装や解決済みの証拠にはしない。収束失敗から陰的方法全体が不可能とも判断しない。ログとscriptをoutputに保存した。
 
+同日後続の静的設計では、全速度Jacobianを前処理に使うと、ON .2秒の受動仮想1stepについて陰的Euler・陰的midpointとも3反復で収束した。最大位置残差はそれぞれ1.59e−20 / 1.07e−20m、potentialは.256682→.242426 / .240725Tへ低下した。ただし全Jacobianの構築を含む1状態の検算に47.55秒を要した。局所要素のJacobianへ置き換えた安価な前処理では連続8stepの検算を完了できず、productionで使える解法や費用はまだ確定していない。1step成功を長時間の安定性へ拡大しない。`preconditioned_passive_single_snapshot/`と`batched_*_probe_*/summary.json`に成功・未収束を区別して保存した。追加のMac長時間計算やcs10予約はない。
+
 共通strict QCの閾値は変更していない。**QC PASSは従来の形状・finite等の要件を満たすという意味であり、今回の仕事収支・速いmodeの数値精度を保証していなかった。** `review_result.json:PASS`は照合・分析・報告作業のPASS、`next_stage_decision:HOLD`、`scientific_acceptance:false`を別々に記録した。
 
 ## 次の修正案と検証条件
