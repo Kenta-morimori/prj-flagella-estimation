@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "scope": "Completed fixed-source #46 sync/common QC/replay/quantitative report and bounded numerical-response analysis; report integrity only",
+  "reviewed_at_jst": "2026-11-14T11:09:00.143032+09:00",
+  "fixed_source": "823f81873aa601e7a12ad026c80234db16f7fc2d",
+  "reservation": 46,
+  "portable_files": 21,
+  "portable_bytes": 5588151,
+  "portable_set_count_SHA": "PASS; remote-before/after checked by sync and local reverified at finalization",
+  "run_summary_first": true,
+  "common_strict_QC": "2/2 PASS",
+  "fixed_camera_replay": "3D/2D 41frames25fps, full archive coverage/SHA/0,20,40 visual checked",
+  "scientific_acceptance": false,
+  "bundle_entrance": "FAIL in both arms; late simultaneous geometry fraction0",
+  "numerical_fidelity": "NOT_ESTABLISHED: period-2 internal response and energy-budget defect, separate from unchanged common strict QC",
+  "next_stage_decision": "HOLD: no simple3.5s extension or unvalidated G1/G2 booking",
+  "checks": [
+    "All planned250001 continuoussteps each; actualend1.0000039999982029s, windows<=1s",
+    "Actual BF first0.088008s; internal reversal already0.06s",
+    "Full passive potential gradient relative error<=3.56e-9 at audited6states, no queried FENE clamp",
+    "Frozen Rayleigh finite-epsilon consistency; root quad mode localization",
+    "72+8 bounded source-identical reconstruction steps; no dt/T/eta sweep",
+    "Passive energy/currentforcework closure; naive implicit probe failed to converge, preserved as inconclusive"
+  ],
+  "not_run": [
+    "New candidate simulation",
+    "New cs10 reservation",
+    "Full pytest rerun for report-only changes",
+    "Scientific adoption/merge/freeze"
+  ],
+  "user_review": "2026-11-13 user delegated bounded proxy review and bookings; no new model adoption",
+  "documents": [
+    "docs/phase2/phase2_263_connector_contact_1s_result.md",
+    "docs/phase2/phase2_263_connector_execution_runbook.md"
+  ],
+  "ADR": "0029 Proposed; unchanged"
+}
